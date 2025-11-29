@@ -5,6 +5,7 @@ from services.scraper.santa_clara_county import SantaClaraCountyScraper
 from services.scraper.california_state import CaliforniaStateScraper
 from services.llm.analyzer import LegislationAnalyzer
 from services.notifications.email import EmailNotificationService
+from middleware.rate_limit import RateLimiter
 from db.supabase_client import SupabaseDB
 from typing import Dict, Any
 import os
@@ -39,6 +40,9 @@ logging.basicConfig(
 app = FastAPI(title="AffordaBot API")
 db = SupabaseDB()
 email_service = EmailNotificationService()
+
+# Add rate limiting middleware (60 requests/minute per IP)
+app.middleware("http")(RateLimiter(requests_per_minute=60))
 
 # Jurisdiction mapping
 SCRAPERS = {
