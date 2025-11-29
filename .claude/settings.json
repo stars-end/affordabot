@@ -1,0 +1,24 @@
+{
+  "plugins": [
+    {
+      "marketplace": "github.com/your-org/dx-v3-workflow-plugin",
+      "plugins": ["dx-v3-workflow"]
+    }
+  ],
+  "skills": {
+    "sync-feature-branch": {
+      "autoLint": true,
+      "lintCommand": "make lint-fast"
+    },
+    "create-pull-request": {
+      "defaultBase": "main",
+      "requireBeads": true
+    }
+  },
+  "hooks": {
+    "session-start": {
+      "enabled": true,
+      "loadBeads": true
+    }
+  }
+}

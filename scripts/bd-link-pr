@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+# bd-link-pr: Link PR to Beads feature issue (prevents duplicate PRs)
+#
+# WHEN TO USE:
+#   - After creating PR (gh pr create)
+#   - To detect duplicate PRs (session continuity check)
+#   - To auto-create Beads issue if doesn't exist
+#   - Part of daily loop: step 5 (before/after PR creation)
+#
+# WHY:
+#   - Prevents session continuity issues (agent loses context → duplicate PR)
+#   - Links PR to feature for tracking
+#   - Auto-creates Beads issue (reduces manual steps)
+#   - Warns if PR already linked to different issue (duplicate detection)
+#
+# USAGE:
+#   scripts/bd-link-pr 147           # Explicit PR number (recommended)
+#   scripts/bd-link-pr               # Auto-detect from current branch (via gh CLI)
+#
+# OUTPUT:
+#   - Links PR to Beads issue via pr:<number> label
+#   - Warns if PR already linked to other issues (duplicate detected)
+#   - Shows Beads context after linking (status, priority, labels)
+#
+# INTEGRATION:
+#   - Called manually after gh pr create
+#   - Can be added to git post-commit hook (future enhancement)
+#   - See AGENTS.md "Daily Loop" for workflow integration
+#
+# EXAMPLE:
+#   $ gh pr create --title "feat: Add analytics" --base master
+#   Created pull request #147
+#
+#   $ scripts/bd-link-pr 147
+#   📝 Creating Beads issue for feature: ANALYTICS_DASHBOARD
+#   🔗 Linking PR #147 to Beads issue bd-xyz (ANALYTICS_DASHBOARD)
+#   ✅ PR #147 linked to bd-xyz successfully (no duplicates found)
+
+set -e
+
+# Extract feature key from branch name (feature/KEY or feature-KEY)
+BRANCH=$(git branch --show-current)
+FEATURE_KEY=$(echo "$BRANCH" | sed -E 's/^(feature|fix|hotfix|bugfix)[/-]//; s/[-\/]/_/g' | tr '[:lower:]' '[:upper:]')
+
+# Get PR number (from arg or gh CLI)
+PR_NUM="${1:-$(gh pr list --head "$BRANCH" --json number --jq '.[0].number' 2>/dev/null || echo '')}"
+
+if [ -z "$PR_NUM" ]; then
+  echo "❌ No PR found for branch: $BRANCH"
+  echo "Usage: bd-link-pr <pr-number>"
+  exit 1
+fi
+
+# Check if Beads issue exists for this feature
+ISSUE_ID=$(bd list --json | jq -r ".[] | select(.title == \"$FEATURE_KEY\") | .id" | head -1)
+
+if [ -z "$ISSUE_ID" ]; then
+  echo "📝 Creating Beads issue for feature: $FEATURE_KEY"
+  ISSUE_ID=$(bd create "$FEATURE_KEY" --type feature --priority 2 | grep -oE 'bd-[a-z0-9]+')
+fi
+
+# Link PR to Beads issue via label (using pr:<number> pattern)
+echo "🔗 Linking PR #$PR_NUM to Beads issue $ISSUE_ID ($FEATURE_KEY)"
+bd label add "$ISSUE_ID" "pr:$PR_NUM"
+
+# Check for duplicate PR links
+DUPLICATE_CHECK=$(bd list --json | jq -r ".[] | select(.labels[]? | contains(\"pr:$PR_NUM\")) | .id" | grep -v "^$ISSUE_ID$" || echo "")
+
+if [ -n "$DUPLICATE_CHECK" ]; then
+  echo "⚠️  WARNING: PR #$PR_NUM already linked to other issues: $DUPLICATE_CHECK"
+  echo "   This may indicate a duplicate PR (session continuity issue)"
+else
+  echo "✅ PR #$PR_NUM linked to $ISSUE_ID successfully (no duplicates found)"
+fi
+
+# Output Beads context for gitStatus
+echo ""
+echo "📊 Beads Context:"
+bd show "$ISSUE_ID"

@@ -1,0 +1,118 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, master]
+  push:
+    branches: [main, master]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Stack configuration (set during bootstrap)
+env:
+  BACKEND_FRAMEWORK: "[0;34mℹ[0m  Detecting project stack..."
+  FRONTEND_FRAMEWORK: "none"
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Backend linting
+      - name: Set up Python
+        if: env.BACKEND_FRAMEWORK == 'fastapi' || env.BACKEND_FRAMEWORK == 'django' || env.BACKEND_FRAMEWORK == 'flask'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        if: env.BACKEND_FRAMEWORK == 'fastapi' || env.BACKEND_FRAMEWORK == 'django' || env.BACKEND_FRAMEWORK == 'flask'
+        run: |
+          pip install ruff black mypy
+          pip install -r requirements.txt
+
+      - name: Run Python linters
+        if: env.BACKEND_FRAMEWORK == 'fastapi' || env.BACKEND_FRAMEWORK == 'django' || env.BACKEND_FRAMEWORK == 'flask'
+        run: |
+          ruff check .
+          black --check .
+
+      # Frontend linting
+      - name: Set up Node.js
+        if: env.FRONTEND_FRAMEWORK != 'none'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Node dependencies
+        if: env.FRONTEND_FRAMEWORK != 'none'
+        run: npm ci
+
+      - name: Run ESLint
+        if: env.FRONTEND_FRAMEWORK != 'none'
+        run: npm run lint
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Backend tests
+      - name: Set up Python
+        if: env.BACKEND_FRAMEWORK == 'fastapi' || env.BACKEND_FRAMEWORK == 'django' || env.BACKEND_FRAMEWORK == 'flask'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        if: env.BACKEND_FRAMEWORK == 'fastapi' || env.BACKEND_FRAMEWORK == 'django' || env.BACKEND_FRAMEWORK == 'flask'
+        run: |
+          pip install pytest pytest-cov
+          pip install -r requirements.txt
+
+      - name: Run Python tests
+        if: env.BACKEND_FRAMEWORK == 'fastapi' || env.BACKEND_FRAMEWORK == 'django' || env.BACKEND_FRAMEWORK == 'flask'
+        run: pytest --cov --cov-report=xml
+
+      # Frontend tests
+      - name: Set up Node.js
+        if: env.FRONTEND_FRAMEWORK != 'none'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Node dependencies
+        if: env.FRONTEND_FRAMEWORK != 'none'
+        run: npm ci
+
+      - name: Run frontend tests
+        if: env.FRONTEND_FRAMEWORK != 'none'
+        run: npm test
+
+  beads-validation:
+    name: Beads Validation
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check Feature-Key in commits
+        run: |
+          # Get PR commits
+          commits=$(git log --format=%B origin/${{ github.base_ref }}..HEAD)
+
+          # Check for Feature-Key trailer
+          if ! echo "$commits" | grep -q "Feature-Key:"; then
+            echo "ERROR: No Feature-Key found in PR commits"
+            echo "Add 'Feature-Key: bd-xyz' trailer to commits"
+            exit 1
+          fi
+
+          echo "✅ Feature-Key validation passed"

@@ -1,0 +1,13 @@
+[build]
+builder = "nixpacks"
+
+[[services]]
+name = "backend"
+root = "backend"
+startCommand = "uvicorn main:app --host 0.0.0.0 --port $PORT"
+
+[[services]]
+name = "frontend"
+root = "frontend"
+buildCommand = "npm run build"
+startCommand = "npm start"
