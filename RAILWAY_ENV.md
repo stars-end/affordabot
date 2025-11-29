@@ -13,6 +13,9 @@ OPENAI_API_KEY=sk-...
 SUPABASE_URL=https://xxxxx.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGc...
 
+# Open States API (for California State Legislature)
+OPENSTATES_API_KEY=your-key-from-open.pluralpolicy.com
+
 # Optional: LLM Configuration
 LLM_MODEL=x-ai/grok-beta  # Default: grok-beta (free tier)
 OPENROUTER_BASE_URL=https://openrouter.ai/api/v1  # Default
@@ -59,6 +62,7 @@ railway service link backend
 railway variables set OPENROUTER_API_KEY=sk-or-v1-...
 railway variables set SUPABASE_URL=https://xxxxx.supabase.co
 railway variables set SUPABASE_SERVICE_ROLE_KEY=eyJhbGc...
+railway variables set OPENSTATES_API_KEY=your-key
 ```
 
 ### 2. Frontend Service
@@ -100,6 +104,21 @@ railway run npm run dev
    psql $DATABASE_URL -f supabase/migrations/20251129000000_initial_schema.sql
    ```
 
+### Get OPENSTATES_API_KEY
+1. Sign up at https://open.pluralpolicy.com/
+2. Navigate to API Keys section
+3. Create new API key
+4. **Free tier**: Sufficient for MVP usage
+
+---
+
+## Supported Jurisdictions
+
+- **Saratoga**: City of Saratoga (PDF scraping - mocked for MVP)
+- **San Jose**: City of San Jose (Legistar API)
+- **Santa Clara County**: County of Santa Clara (Legistar API)
+- **California**: State of California (Open States API)
+
 ---
 
 ## Verification
@@ -107,17 +126,17 @@ railway run npm run dev
 ### Backend Health Check
 ```bash
 curl https://affordabot-backend.railway.app/
-# Expected: {"message":"Welcome to AffordaBot API"}
+# Expected: {"message":"Welcome to AffordaBot API","jurisdictions":["saratoga","san-jose","santa-clara-county","california"]}
 ```
 
-### Frontend Health Check
+### Scrape & Analyze
 ```bash
-curl https://affordabot-frontend.railway.app/
-# Expected: HTML response
+curl -X POST https://affordabot-backend.railway.app/scrape/san-jose
+# Expected: JSON with bills + analysis
 ```
 
-### E2E Test
+### Get Stored Legislation
 ```bash
-curl -X POST https://affordabot-backend.railway.app/scrape/saratoga
-# Expected: JSON with bill + analysis
+curl https://affordabot-backend.railway.app/legislation/san-jose
+# Expected: JSON with stored legislation + impacts
 ```
