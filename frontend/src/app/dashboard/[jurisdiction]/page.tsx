@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import Sidebar from '@/components/Sidebar';
+import { Sidebar } from '@/components/Sidebar';
 import SummaryDashboard from '@/components/SummaryDashboard';
 import ImpactCard from '@/components/ImpactCard';
 import { Title, Text, Button, Card } from '@tremor/react';

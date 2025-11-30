@@ -1,73 +1,84 @@
 'use client';
 
+import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import {
+  LayoutDashboard,
+  FileSearch,
+  Users,
+  Briefcase,
+  BarChart3,
+  Settings,
+  BrainCircuit,
+  Info
+} from 'lucide-react';
 
-const JURISDICTIONS = [
-    { id: 'california', name: 'California State' },
-    { id: 'santa-clara-county', name: 'Santa Clara County' },
-    { id: 'san-jose', name: 'San Jose City' },
-    { id: 'saratoga', name: 'Saratoga City' },
-];
+export function Sidebar() {
+  const pathname = usePathname();
 
-export default function Sidebar() {
-    const pathname = usePathname();
+  const menuItems = [
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, href: '/' },
+    { id: 'analyzer', label: 'Resume Analyzer', icon: FileSearch, href: '/analyzer' },
+    { id: 'candidates', label: 'Candidates', icon: Users, href: '/candidates' },
+    { id: 'jobs', label: 'Job Postings', icon: Briefcase, href: '/jobs' },
+    { id: 'analytics', label: 'Analytics', icon: BarChart3, href: '/analytics' },
+    { id: 'settings', label: 'Settings', icon: Settings, href: '/settings' },
+    { id: 'admin', label: 'Admin', icon: Settings, href: '/admin' },
+  ];
 
-    return (
-        <div className="w-64 bg-white border-r border-gray-200 min-h-screen flex-shrink-0 hidden md:block">
-            <div className="p-6">
-                <Link href="/" className="flex items-center gap-2 mb-8">
-                    <span className="text-2xl">🤖</span>
-                    <span className="font-bold text-xl text-gray-900">AffordaBot</span>
-                </Link>
+  // Glassmorphism styles using inline styles
+  const glassStyle = {
+    backdropFilter: 'blur(20px)',
+    background: 'rgba(255, 255, 255, 0.15)',
+    border: '1px solid rgba(255, 255, 255, 0.3)',
+    boxShadow: '0 12px 40px rgba(31, 38, 135, 0.2)'
+  };
 
-                <nav className="space-y-1">
-                    <Link
-                        href="/"
-                        className={`block px-3 py-2 rounded-md text-sm font-medium ${pathname === '/'
-                                ? 'bg-blue-50 text-blue-700'
-                                : 'text-gray-700 hover:bg-gray-50'
-                            }`}
-                    >
-                        Home
-                    </Link>
-
-                    <div className="pt-4 pb-2">
-                        <p className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                            Jurisdictions
-                        </p>
-                    </div>
-
-                    {JURISDICTIONS.map((jur) => (
-                        <Link
-                            key={jur.id}
-                            href={`/dashboard/${jur.id}`}
-                            className={`block px-3 py-2 rounded-md text-sm font-medium ${pathname === `/dashboard/${jur.id}`
-                                    ? 'bg-blue-50 text-blue-700'
-                                    : 'text-gray-700 hover:bg-gray-50'
-                                }`}
-                        >
-                            {jur.name}
-                        </Link>
-                    ))}
-
-                    <div className="pt-4 pb-2">
-                        <p className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                            Resources
-                        </p>
-                    </div>
-
-                    <Link
-                        href="/admin"
-                        className={`block px-3 py-2 rounded-md text-sm font-medium ${pathname === '/admin'
-                                ? 'bg-blue-50 text-blue-700'
-                                : 'text-gray-700 hover:bg-gray-50'
-                            }`}
-                    >
-                        Admin Dashboard
-                    </Link>
-                </nav>
-            </div>
+  return (
+    <aside className="w-64 shadow-2xl h-screen sticky top-0 flex flex-col" style={glassStyle}>
+      {/* Header */}
+      <div className="p-6 border-b border-white/20">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-teal-500 rounded-xl flex items-center justify-center">
+            <BrainCircuit className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <h1 className="text-lg text-gray-800 font-bold">AffordaBot</h1>
+            <p className="text-xs text-gray-600">AI Legislation Analysis</p>
+          </div>
         </div>
-    );
+      </div>
+
+      {/* Navigation */}
+      <nav className="p-4 space-y-2 flex-1">
+        {menuItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = pathname === item.href;
+
+          return (
+            <Link
+              key={item.id}
+              href={item.href}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-300 ${isActive
+                ? 'bg-gradient-to-r from-purple-500 to-teal-500 text-white transform translate-x-1 shadow-lg'
+                : 'text-gray-700 hover:bg-white/20 hover:translate-x-1'
+                }`}
+            >
+              <Icon className="w-5 h-5" />
+              <span>{item.label}</span>
+            </Link>
+          );
+        })}
+      </nav>
+
+      {/* Backend Status */}
+      <div className="p-4 mt-auto">
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm bg-blue-100 text-blue-700 border border-blue-200">
+          <Info className="w-4 h-4" />
+          <span>v1.0.0 Beta</span>
+        </div>
+      </div>
+    </aside>
+  );
 }

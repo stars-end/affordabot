@@ -1,3 +1,9 @@
+<!-- ⚠️ IMPORTANT FOR AI AGENTS (Claude, Gemini, Codex, etc.) ⚠️
+GEMINI.md and CLAUDE.md are SYMLINKS to this file (AGENTS.md).
+DO NOT modify GEMINI.md or CLAUDE.md directly - they are read-only pointers.
+ONLY modify AGENTS.md. Changes will automatically appear in all symlinks.
+-->
+
 # AGENTS.md — V3 DX Workflow
 
 **Start Here (for Claude)**
