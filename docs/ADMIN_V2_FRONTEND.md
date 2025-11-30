@@ -196,28 +196,46 @@ data-[state=active]:bg-white/20
 
 ### ✅ Completed
 - [x] Main admin page structure
-- [x] Tabbed interface
+- [x] Tabbed interface (5 tabs)
 - [x] Overview tab with stats cards
-- [x] Placeholder tabs for all sections
-- [x] Scrape Manager component (full implementation)
+- [x] **Scrape Manager component**
   - Jurisdiction selector
   - Force re-scrape option
   - Trigger button with loading states
   - Active tasks tracking
   - History table
   - Alert notifications
+- [x] **Analysis Lab component**
+  - Bill ID and jurisdiction input
+  - Visual step selection (Research, Generate, Review)
+  - Model override option
+  - Active tasks tracking
+  - Analysis history table
+- [x] **Model Registry component**
+  - Model list with priority ordering
+  - Up/down arrows for reordering
+  - Enable/disable toggles
+  - Add new model form
+  - Save changes functionality
+- [x] **Prompt Editor component**
+  - Tabbed interface (Generation/Review)
+  - Large textarea for editing
+  - Version tracking
+  - Unsaved changes indicator
+  - Save and reset buttons
 
-### 🔄 In Progress
-- [ ] Analysis Lab component
-- [ ] Model Registry component
-- [ ] Prompt Editor component
-- [ ] Health Monitor component
-
-### ⏳ Pending
-- [ ] API integration with backend (need API proxy)
-- [ ] Real-time updates with SWR
-- [ ] Toast notifications (Shadcn toast not available)
+### 🔄 Next Steps
+- [ ] Create Next.js API routes (`/api/admin/*`)
+- [ ] Integrate with backend FastAPI
+- [ ] Add real-time updates with SWR
 - [ ] End-to-end testing
+
+### ⏳ Future Enhancements
+- [ ] Toast notifications (when Shadcn adds support)
+- [ ] Version history diff viewer
+- [ ] Model health monitoring
+- [ ] Real-time task status updates
+- [ ] Export functionality
 
 ## File Structure
 
