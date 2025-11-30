@@ -3,8 +3,30 @@
 import { useState, useEffect } from 'react';
 import { Card, Title, Text, Metric, Grid, BarChart, DonutChart } from '@tremor/react';
 
+interface JurisdictionStat {
+    name: string;
+    bills: number;
+    impact: number;
+}
+
+interface ScrapeStat {
+    jurisdiction: string;
+    timestamp: string;
+    bills: number;
+    status: string;
+}
+
+interface AdminStats {
+    totalBills: number;
+    totalImpacts: number;
+    avgConfidence: number;
+    totalCost: number;
+    byJurisdiction: JurisdictionStat[];
+    recentScrapes: ScrapeStat[];
+}
+
 export default function AdminDashboard() {
-    const [stats, setStats] = useState({
+    const [stats, setStats] = useState<AdminStats>({
         totalBills: 0,
         totalImpacts: 0,
         avgConfidence: 0,
