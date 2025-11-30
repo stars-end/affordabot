@@ -1,7 +1,7 @@
 [build]
 builder = "RAILPACK"
-# Install from workspace root, build frontend only
-buildCommand = "cd .. && pnpm install --frozen-lockfile && cd frontend && pnpm build"
+# Railpack auto-detects pnpm via packageManager field
+# Frontend has its own lockfile (generated with pnpm install --ignore-workspace)
 watchPatterns = ["frontend/**/*", "pnpm-lock.yaml"]
 
 [deploy]
