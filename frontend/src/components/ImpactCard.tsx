@@ -1,7 +1,7 @@
 'use client';
 
-import { Card, Text, Metric, Flex, Badge, Accordion, AccordionHeader, AccordionBody } from '@tremor/react';
 import { useState } from 'react';
+import { ChevronDown, ChevronUp, ExternalLink, Info, Quote } from 'lucide-react';
 
 interface Evidence {
     source_name: string;
@@ -26,6 +26,8 @@ interface ImpactProps {
 export default function ImpactCard({ impact }: { impact: ImpactProps }) {
     const [selectedPercentile, setSelectedPercentile] = useState(50);
     const [currentCost, setCurrentCost] = useState(impact.p50);
+    const [isChainOpen, setIsChainOpen] = useState(false);
+    const [isEvidenceOpen, setIsEvidenceOpen] = useState(false);
 
     const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const val = parseInt(e.target.value);
@@ -50,79 +52,96 @@ export default function ImpactCard({ impact }: { impact: ImpactProps }) {
         }
     };
 
-    return (
-        <Card className="max-w-3xl mx-auto my-4 ring-1 ring-tremor-ring shadow-tremor-card">
-            <Flex alignItems="start">
-                <div>
-                    <Text className="font-bold text-tremor-brand-emphasis">Impact #{impact.impactNumber}</Text>
-                    <Metric className="mt-1">
-                        ${Math.round(currentCost).toLocaleString()}
-                        <span className="text-sm text-gray-500 font-normal">/year</span>
-                    </Metric>
-                </div>
-                <Badge color={impact.confidence > 0.8 ? "emerald" : impact.confidence > 0.6 ? "yellow" : "orange"}>
-                    {Math.round(impact.confidence * 100)}% Confidence
-                </Badge>
-            </Flex>
+    const getConfidenceColor = (conf: number) => {
+        if (conf > 0.8) return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+        if (conf > 0.6) return 'bg-yellow-100 text-yellow-700 border-yellow-200';
+        return 'bg-orange-100 text-orange-700 border-orange-200';
+    };
 
-            <div className="mt-4">
-                <Text className="text-gray-700 font-medium">Description</Text>
-                <Text className="mt-1">{impact.description}</Text>
+    return (
+        <div className="max-w-3xl mx-auto my-4 p-6 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 shadow-xl transition-all hover:shadow-2xl hover:bg-white/20">
+            <div className="flex justify-between items-start mb-4">
+                <div>
+                    <h3 className="text-lg font-bold text-purple-900">Impact #{impact.impactNumber}</h3>
+                    <div className="mt-1 flex items-baseline gap-2">
+                        <span className="text-3xl font-bold text-gray-900">
+                            ${Math.round(currentCost).toLocaleString()}
+                        </span>
+                        <span className="text-sm text-gray-500 font-normal">/year</span>
+                    </div>
+                </div>
+                <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getConfidenceColor(impact.confidence)}`}>
+                    {Math.round(impact.confidence * 100)}% Confidence
+                </span>
             </div>
 
-            <div className="mt-4 bg-gray-50 p-3 rounded-md border border-gray-200">
-                <Text className="text-xs text-gray-500 uppercase tracking-wide">Relevant Clause</Text>
-                <Text className="mt-1 italic text-gray-600 text-sm">"{impact.clause}"</Text>
+            <div className="mb-6">
+                <h4 className="text-sm font-medium text-gray-500 mb-1">Description</h4>
+                <p className="text-gray-800 leading-relaxed">{impact.description}</p>
+            </div>
+
+            <div className="mb-6 bg-white/30 p-4 rounded-xl border border-white/20">
+                <div className="flex items-center gap-2 mb-2">
+                    <Quote className="w-4 h-4 text-purple-500" />
+                    <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wide">Relevant Clause</h4>
+                </div>
+                <p className="italic text-gray-700 text-sm leading-relaxed">"{impact.clause}"</p>
             </div>
 
             {/* Chain of Causality */}
             {impact.chainOfCausality && (
-                <div className="mt-4">
-                    <Accordion>
-                        <AccordionHeader>
-                            <Text className="font-medium">Chain of Causality</Text>
-                        </AccordionHeader>
-                        <AccordionBody>
-                            <Text className="text-sm text-gray-600">{impact.chainOfCausality}</Text>
-                        </AccordionBody>
-                    </Accordion>
+                <div className="mb-4 border border-white/20 rounded-xl overflow-hidden bg-white/5">
+                    <button
+                        onClick={() => setIsChainOpen(!isChainOpen)}
+                        className="w-full flex items-center justify-between p-4 hover:bg-white/10 transition-colors text-left"
+                    >
+                        <span className="font-medium text-gray-800">Chain of Causality</span>
+                        {isChainOpen ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
+                    </button>
+                    {isChainOpen && (
+                        <div className="p-4 pt-0 text-sm text-gray-600 border-t border-white/10">
+                            {impact.chainOfCausality}
+                        </div>
+                    )}
                 </div>
             )}
 
             {/* Evidence */}
             {impact.evidence && impact.evidence.length > 0 && (
-                <div className="mt-4">
-                    <Accordion>
-                        <AccordionHeader>
-                            <Text className="font-medium">Evidence ({impact.evidence.length} sources)</Text>
-                        </AccordionHeader>
-                        <AccordionBody>
-                            <div className="space-y-3">
-                                {impact.evidence.map((ev, idx) => (
-                                    <div key={idx} className="border-l-2 border-tremor-brand pl-3">
-                                        <a
-                                            href={ev.url}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-sm font-medium text-tremor-brand hover:text-tremor-brand-emphasis"
-                                        >
-                                            {ev.source_name} ↗
-                                        </a>
-                                        <Text className="text-xs text-gray-600 mt-1">"{ev.excerpt}"</Text>
-                                    </div>
-                                ))}
-                            </div>
-                        </AccordionBody>
-                    </Accordion>
+                <div className="mb-6 border border-white/20 rounded-xl overflow-hidden bg-white/5">
+                    <button
+                        onClick={() => setIsEvidenceOpen(!isEvidenceOpen)}
+                        className="w-full flex items-center justify-between p-4 hover:bg-white/10 transition-colors text-left"
+                    >
+                        <span className="font-medium text-gray-800">Evidence ({impact.evidence.length} sources)</span>
+                        {isEvidenceOpen ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
+                    </button>
+                    {isEvidenceOpen && (
+                        <div className="p-4 pt-0 space-y-4 border-t border-white/10">
+                            {impact.evidence.map((ev, idx) => (
+                                <div key={idx} className="pl-4 border-l-2 border-purple-400">
+                                    <a
+                                        href={ev.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center gap-1 text-sm font-bold text-purple-600 hover:text-purple-800 transition-colors"
+                                    >
+                                        {ev.source_name} <ExternalLink className="w-3 h-3" />
+                                    </a>
+                                    <p className="text-xs text-gray-600 mt-1 italic">"{ev.excerpt}"</p>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             )}
 
             {/* Percentile Slider */}
-            <div className="mt-6">
-                <Flex>
-                    <Text>Conservative Estimate (10%)</Text>
-                    <Text>Worst Case (90%)</Text>
-                </Flex>
+            <div className="mt-6 pt-6 border-t border-white/20">
+                <div className="flex justify-between text-sm font-medium text-gray-600 mb-2">
+                    <span>Conservative (10%)</span>
+                    <span>Worst Case (90%)</span>
+                </div>
                 <input
                     type="range"
                     min="10"
@@ -130,17 +149,18 @@ export default function ImpactCard({ impact }: { impact: ImpactProps }) {
                     step="1"
                     value={selectedPercentile}
                     onChange={handleSliderChange}
-                    className="w-full mt-2 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-tremor-brand"
+                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
                 />
-                <div className="flex justify-between text-xs text-gray-500 mt-1">
+                <div className="flex justify-between text-xs text-gray-500 mt-2">
                     <span>${impact.p10.toLocaleString()}</span>
-                    <span className="font-bold text-tremor-brand-emphasis">${impact.p50.toLocaleString()}</span>
+                    <span className="font-bold text-purple-700 text-sm">${impact.p50.toLocaleString()}</span>
                     <span>${impact.p90.toLocaleString()}</span>
                 </div>
-                <Text className="text-center mt-2 text-sm text-gray-600">
-                    Selected: <span className="font-bold">{selectedPercentile}th Percentile</span>
-                </Text>
+                <p className="text-center mt-3 text-sm text-gray-600">
+                    Selected: <span className="font-bold text-purple-700">{selectedPercentile}th Percentile</span>
+                </p>
             </div>
-        </Card>
+        </div>
     );
 }
+
