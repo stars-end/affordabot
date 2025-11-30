@@ -172,12 +172,13 @@ CREATE TABLE IF NOT EXISTS system_prompts (
     -- Audit fields
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    created_by VARCHAR(100) DEFAULT 'admin',
-    
-    -- Ensure only one active prompt per type
-    CONSTRAINT unique_active_prompt UNIQUE NULLS NOT DISTINCT (prompt_type, is_active) 
-        DEFERRABLE INITIALLY DEFERRED
+    created_by VARCHAR(100) DEFAULT 'admin'
 );
+
+-- Partial unique index: only one active prompt per type
+CREATE UNIQUE INDEX IF NOT EXISTS idx_system_prompts_unique_active 
+    ON system_prompts(prompt_type) 
+    WHERE is_active = true;
 
 -- Index for active prompts
 CREATE INDEX IF NOT EXISTS idx_system_prompts_active 
@@ -196,8 +197,7 @@ CREATE TRIGGER update_system_prompts_updated_at
 
 COMMENT ON TABLE system_prompts IS 'Versioned system prompts for LLM generation and review';
 COMMENT ON COLUMN system_prompts.version IS 'Incremental version number per prompt_type';
-COMMENT ON COLUMN system_prompts.is_active IS 'Only one prompt per type can be active';
-COMMENT ON CONSTRAINT unique_active_prompt ON system_prompts IS 'Ensures only one active prompt per type';
+COMMENT ON COLUMN system_prompts.is_active IS 'Only one prompt per type can be active (enforced by partial unique index)';
 
 -- ============================================================================
 -- Analysis History Table
