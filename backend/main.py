@@ -41,6 +41,10 @@ app = FastAPI(title="AffordaBot API")
 db = SupabaseDB()
 email_service = EmailNotificationService()
 
+# Include admin router
+from routers import admin
+app.include_router(admin.router)
+
 # Add rate limiting middleware (60 requests/minute per IP)
 app.middleware("http")(RateLimiter(requests_per_minute=60))
 
