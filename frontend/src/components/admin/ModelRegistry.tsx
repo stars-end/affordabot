@@ -153,9 +153,9 @@ export function ModelRegistry() {
 
     const getUseCaseBadge = (useCase: string) => {
         const variants: Record<string, string> = {
-            generation: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
-            review: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
-            both: 'bg-green-500/20 text-green-300 border-green-500/30',
+            generation: 'bg-blue-100 text-blue-700 border-blue-200',
+            review: 'bg-purple-100 text-purple-700 border-purple-200',
+            both: 'bg-green-100 text-green-700 border-green-200',
         };
 
         return (
@@ -169,21 +169,21 @@ export function ModelRegistry() {
         <div className="space-y-6">
             {/* Alert */}
             {alert && (
-                <Alert className={alert.type === 'error' ? 'bg-red-500/20 border-red-500/30' : 'bg-green-500/20 border-green-500/30'}>
+                <Alert className={alert.type === 'error' ? 'bg-red-50 border-red-200 text-red-800' : 'bg-green-50 border-green-200 text-green-800'}>
                     <AlertCircle className="h-4 w-4" />
-                    <AlertDescription className="text-white">
+                    <AlertDescription>
                         {alert.message}
                     </AlertDescription>
                 </Alert>
             )}
 
             {/* Model List */}
-            <Card className="bg-white/10 backdrop-blur-md border-white/20">
+            <Card className="bg-white/40 backdrop-blur-md border-white/20 shadow-sm">
                 <CardHeader>
                     <div className="flex items-center justify-between">
                         <div>
-                            <CardTitle className="text-white">Model Configuration</CardTitle>
-                            <CardDescription className="text-slate-300">
+                            <CardTitle className="text-gray-900">Model Configuration</CardTitle>
+                            <CardDescription className="text-gray-500">
                                 Manage LLM models and their priority order
                             </CardDescription>
                         </div>
@@ -191,7 +191,7 @@ export function ModelRegistry() {
                             <Button
                                 onClick={() => setShowAddForm(!showAddForm)}
                                 variant="outline"
-                                className="bg-white/5 border-white/20 text-white hover:bg-white/10"
+                                className="bg-white/50 border-gray-200 text-gray-700 hover:bg-white/80"
                             >
                                 <Plus className="w-4 h-4 mr-2" />
                                 Add Model
@@ -199,7 +199,7 @@ export function ModelRegistry() {
                             <Button
                                 onClick={handleSaveModels}
                                 disabled={isSaving}
-                                className="bg-purple-600 hover:bg-purple-700"
+                                className="bg-purple-600 hover:bg-purple-700 text-white"
                             >
                                 {isSaving ? (
                                     <>
@@ -219,16 +219,16 @@ export function ModelRegistry() {
                 <CardContent>
                     {/* Add Model Form */}
                     {showAddForm && (
-                        <div className="mb-6 p-4 rounded-lg bg-white/5 border border-white/20 space-y-4">
-                            <h3 className="text-white font-medium">Add New Model</h3>
+                        <div className="mb-6 p-4 rounded-lg bg-white/50 border border-gray-200 space-y-4">
+                            <h3 className="text-gray-900 font-medium">Add New Model</h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                    <Label className="text-white">Provider</Label>
+                                    <Label className="text-gray-700">Provider</Label>
                                     <Select
                                         value={newModel.provider}
                                         onValueChange={(value) => setNewModel({ ...newModel, provider: value as any })}
                                     >
-                                        <SelectTrigger className="bg-white/5 border-white/20 text-white">
+                                        <SelectTrigger className="bg-white border-gray-200 text-gray-900">
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -242,22 +242,22 @@ export function ModelRegistry() {
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label className="text-white">Model Name</Label>
+                                    <Label className="text-gray-700">Model Name</Label>
                                     <Input
                                         placeholder="e.g., x-ai/grok-beta"
                                         value={newModel.model_name}
                                         onChange={(e) => setNewModel({ ...newModel, model_name: e.target.value })}
-                                        className="bg-white/5 border-white/20 text-white placeholder:text-slate-400"
+                                        className="bg-white border-gray-200 text-gray-900 placeholder:text-gray-400"
                                     />
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label className="text-white">Use Case</Label>
+                                    <Label className="text-gray-700">Use Case</Label>
                                     <Select
                                         value={newModel.use_case}
                                         onValueChange={(value) => setNewModel({ ...newModel, use_case: value as any })}
                                     >
-                                        <SelectTrigger className="bg-white/5 border-white/20 text-white">
+                                        <SelectTrigger className="bg-white border-gray-200 text-gray-900">
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -271,7 +271,7 @@ export function ModelRegistry() {
                                 </div>
 
                                 <div className="flex items-end">
-                                    <Button onClick={handleAddModel} className="w-full bg-green-600 hover:bg-green-700">
+                                    <Button onClick={handleAddModel} className="w-full bg-green-600 hover:bg-green-700 text-white">
                                         <Plus className="w-4 h-4 mr-2" />
                                         Add Model
                                     </Button>
@@ -283,11 +283,11 @@ export function ModelRegistry() {
                     {/* Models Table */}
                     {isLoading ? (
                         <div className="text-center py-8">
-                            <Loader2 className="w-8 h-8 mx-auto text-purple-400 animate-spin" />
-                            <p className="text-slate-400 mt-2">Loading models...</p>
+                            <Loader2 className="w-8 h-8 mx-auto text-purple-500 animate-spin" />
+                            <p className="text-gray-500 mt-2">Loading models...</p>
                         </div>
                     ) : models.length === 0 ? (
-                        <div className="text-center py-8 text-slate-400">
+                        <div className="text-center py-8 text-gray-400">
                             <Settings className="w-12 h-12 mx-auto mb-3 opacity-50" />
                             <p>No models configured</p>
                             <p className="text-sm mt-1">Add a model to get started</p>
@@ -295,43 +295,43 @@ export function ModelRegistry() {
                     ) : (
                         <Table>
                             <TableHeader>
-                                <TableRow className="border-white/10 hover:bg-white/5">
-                                    <TableHead className="text-slate-300 w-12">Priority</TableHead>
-                                    <TableHead className="text-slate-300">Provider</TableHead>
-                                    <TableHead className="text-slate-300">Model Name</TableHead>
-                                    <TableHead className="text-slate-300">Use Case</TableHead>
-                                    <TableHead className="text-slate-300">Status</TableHead>
-                                    <TableHead className="text-slate-300 w-24">Actions</TableHead>
+                                <TableRow className="border-gray-200 hover:bg-white/50">
+                                    <TableHead className="text-gray-500 w-12">Priority</TableHead>
+                                    <TableHead className="text-gray-500">Provider</TableHead>
+                                    <TableHead className="text-gray-500">Model Name</TableHead>
+                                    <TableHead className="text-gray-500">Use Case</TableHead>
+                                    <TableHead className="text-gray-500">Status</TableHead>
+                                    <TableHead className="text-gray-500 w-24">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {models.map((model, index) => (
-                                    <TableRow key={index} className="border-white/10 hover:bg-white/5">
+                                    <TableRow key={index} className="border-gray-200 hover:bg-white/50">
                                         <TableCell>
                                             <div className="flex items-center gap-2">
                                                 <div className="flex flex-col">
                                                     <button
                                                         onClick={() => handlePriorityChange(index, 'up')}
                                                         disabled={index === 0}
-                                                        className="text-slate-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+                                                        className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed"
                                                     >
                                                         ▲
                                                     </button>
                                                     <button
                                                         onClick={() => handlePriorityChange(index, 'down')}
                                                         disabled={index === models.length - 1}
-                                                        className="text-slate-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+                                                        className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed"
                                                     >
                                                         ▼
                                                     </button>
                                                 </div>
-                                                <span className="text-white font-mono text-sm">{model.priority}</span>
+                                                <span className="text-gray-900 font-mono text-sm">{model.priority}</span>
                                             </div>
                                         </TableCell>
-                                        <TableCell className="text-white font-medium capitalize">
+                                        <TableCell className="text-gray-900 font-medium capitalize">
                                             {model.provider}
                                         </TableCell>
-                                        <TableCell className="text-slate-300 font-mono text-sm">
+                                        <TableCell className="text-gray-500 font-mono text-sm">
                                             {model.model_name}
                                         </TableCell>
                                         <TableCell>
@@ -340,11 +340,11 @@ export function ModelRegistry() {
                                         <TableCell>
                                             <div className="flex items-center gap-2">
                                                 {model.enabled ? (
-                                                    <CheckCircle2 className="w-4 h-4 text-green-400" />
+                                                    <CheckCircle2 className="w-4 h-4 text-green-500" />
                                                 ) : (
-                                                    <XCircle className="w-4 h-4 text-red-400" />
+                                                    <XCircle className="w-4 h-4 text-red-500" />
                                                 )}
-                                                <span className={model.enabled ? 'text-green-300' : 'text-red-300'}>
+                                                <span className={model.enabled ? 'text-green-600' : 'text-red-600'}>
                                                     {model.enabled ? 'Enabled' : 'Disabled'}
                                                 </span>
                                             </div>
@@ -364,15 +364,15 @@ export function ModelRegistry() {
             </Card>
 
             {/* Model Health (Placeholder) */}
-            <Card className="bg-white/10 backdrop-blur-md border-white/20">
+            <Card className="bg-white/40 backdrop-blur-md border-white/20 shadow-sm">
                 <CardHeader>
-                    <CardTitle className="text-white">Model Health Status</CardTitle>
-                    <CardDescription className="text-slate-300">
+                    <CardTitle className="text-gray-900">Model Health Status</CardTitle>
+                    <CardDescription className="text-gray-500">
                         Real-time health monitoring for configured models
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="text-center py-8 text-slate-400">
+                    <div className="text-center py-8 text-gray-400">
                         <Settings className="w-12 h-12 mx-auto mb-3 opacity-50" />
                         <p>Health monitoring coming soon</p>
                         <p className="text-sm mt-1">Will show latency, success rate, and availability</p>
@@ -382,3 +382,4 @@ export function ModelRegistry() {
         </div>
     );
 }
+

@@ -89,14 +89,14 @@ export function ScrapeManager() {
     const getStatusIcon = (status: string) => {
         switch (status) {
             case 'queued':
-                return <Clock className="w-4 h-4 text-yellow-400" />;
+                return <Clock className="w-4 h-4 text-yellow-500" />;
             case 'running':
-                return <Loader2 className="w-4 h-4 text-blue-400 animate-spin" />;
+                return <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />;
             case 'completed':
             case 'success':
-                return <CheckCircle2 className="w-4 h-4 text-green-400" />;
+                return <CheckCircle2 className="w-4 h-4 text-green-500" />;
             case 'failed':
-                return <XCircle className="w-4 h-4 text-red-400" />;
+                return <XCircle className="w-4 h-4 text-red-500" />;
             default:
                 return null;
         }
@@ -104,12 +104,12 @@ export function ScrapeManager() {
 
     const getStatusBadge = (status: string) => {
         const variants: Record<string, string> = {
-            queued: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30',
-            running: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
-            completed: 'bg-green-500/20 text-green-300 border-green-500/30',
-            success: 'bg-green-500/20 text-green-300 border-green-500/30',
-            failed: 'bg-red-500/20 text-red-300 border-red-500/30',
-            partial: 'bg-orange-500/20 text-orange-300 border-orange-500/30',
+            queued: 'bg-yellow-100 text-yellow-700 border-yellow-200',
+            running: 'bg-blue-100 text-blue-700 border-blue-200',
+            completed: 'bg-green-100 text-green-700 border-green-200',
+            success: 'bg-green-100 text-green-700 border-green-200',
+            failed: 'bg-red-100 text-red-700 border-red-200',
+            partial: 'bg-orange-100 text-orange-700 border-orange-200',
         };
 
         return (
@@ -123,28 +123,28 @@ export function ScrapeManager() {
         <div className="space-y-6">
             {/* Alert */}
             {alert && (
-                <Alert className={alert.type === 'error' ? 'bg-red-500/20 border-red-500/30' : 'bg-green-500/20 border-green-500/30'}>
+                <Alert className={alert.type === 'error' ? 'bg-red-50 border-red-200 text-red-800' : 'bg-green-50 border-green-200 text-green-800'}>
                     <AlertCircle className="h-4 w-4" />
-                    <AlertDescription className="text-white">
+                    <AlertDescription>
                         {alert.message}
                     </AlertDescription>
                 </Alert>
             )}
 
             {/* Trigger Scrape */}
-            <Card className="bg-white/10 backdrop-blur-md border-white/20">
+            <Card className="bg-white/40 backdrop-blur-md border-white/20 shadow-sm">
                 <CardHeader>
-                    <CardTitle className="text-white">Trigger Manual Scrape</CardTitle>
-                    <CardDescription className="text-slate-300">
+                    <CardTitle className="text-gray-900">Trigger Manual Scrape</CardTitle>
+                    <CardDescription className="text-gray-500">
                         Start a scraping operation for a specific jurisdiction
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-white">Jurisdiction</label>
+                            <label className="text-sm font-medium text-gray-700">Jurisdiction</label>
                             <Select value={jurisdiction} onValueChange={setJurisdiction}>
-                                <SelectTrigger className="bg-white/5 border-white/20 text-white">
+                                <SelectTrigger className="bg-white/50 border-gray-200 text-gray-900">
                                     <SelectValue placeholder="Select jurisdiction" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -166,7 +166,7 @@ export function ScrapeManager() {
                                 />
                                 <label
                                     htmlFor="force"
-                                    className="text-sm font-medium text-white cursor-pointer"
+                                    className="text-sm font-medium text-gray-700 cursor-pointer"
                                 >
                                     Force re-scrape
                                 </label>
@@ -177,7 +177,7 @@ export function ScrapeManager() {
                             <Button
                                 onClick={handleTriggerScrape}
                                 disabled={isLoading || !jurisdiction}
-                                className="w-full bg-purple-600 hover:bg-purple-700"
+                                className="w-full bg-purple-600 hover:bg-purple-700 text-white"
                             >
                                 {isLoading ? (
                                     <>
@@ -198,39 +198,39 @@ export function ScrapeManager() {
 
             {/* Active Tasks */}
             {activeTasks.length > 0 && (
-                <Card className="bg-white/10 backdrop-blur-md border-white/20">
+                <Card className="bg-white/40 backdrop-blur-md border-white/20 shadow-sm">
                     <CardHeader>
-                        <CardTitle className="text-white">Active Tasks</CardTitle>
-                        <CardDescription className="text-slate-300">
+                        <CardTitle className="text-gray-900">Active Tasks</CardTitle>
+                        <CardDescription className="text-gray-500">
                             Currently running scraping operations
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
                         <Table>
                             <TableHeader>
-                                <TableRow className="border-white/10 hover:bg-white/5">
-                                    <TableHead className="text-slate-300">Status</TableHead>
-                                    <TableHead className="text-slate-300">Jurisdiction</TableHead>
-                                    <TableHead className="text-slate-300">Task ID</TableHead>
-                                    <TableHead className="text-slate-300">Started</TableHead>
+                                <TableRow className="border-gray-200 hover:bg-white/50">
+                                    <TableHead className="text-gray-500">Status</TableHead>
+                                    <TableHead className="text-gray-500">Jurisdiction</TableHead>
+                                    <TableHead className="text-gray-500">Task ID</TableHead>
+                                    <TableHead className="text-gray-500">Started</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {activeTasks.map(task => (
-                                    <TableRow key={task.task_id} className="border-white/10 hover:bg-white/5">
+                                    <TableRow key={task.task_id} className="border-gray-200 hover:bg-white/50">
                                         <TableCell>
                                             <div className="flex items-center gap-2">
                                                 {getStatusIcon(task.status)}
                                                 {getStatusBadge(task.status)}
                                             </div>
                                         </TableCell>
-                                        <TableCell className="text-white font-medium">
+                                        <TableCell className="text-gray-900 font-medium">
                                             {task.jurisdiction}
                                         </TableCell>
-                                        <TableCell className="text-slate-300 font-mono text-xs">
+                                        <TableCell className="text-gray-500 font-mono text-xs">
                                             {task.task_id.slice(0, 8)}...
                                         </TableCell>
-                                        <TableCell className="text-slate-300">
+                                        <TableCell className="text-gray-500">
                                             {new Date(task.timestamp).toLocaleTimeString()}
                                         </TableCell>
                                     </TableRow>
@@ -242,45 +242,45 @@ export function ScrapeManager() {
             )}
 
             {/* Scrape History */}
-            <Card className="bg-white/10 backdrop-blur-md border-white/20">
+            <Card className="bg-white/40 backdrop-blur-md border-white/20 shadow-sm">
                 <CardHeader>
-                    <CardTitle className="text-white">Scrape History</CardTitle>
-                    <CardDescription className="text-slate-300">
+                    <CardTitle className="text-gray-900">Scrape History</CardTitle>
+                    <CardDescription className="text-gray-500">
                         Recent scraping operations and results
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
                     {history.length === 0 ? (
-                        <div className="text-center py-8 text-slate-400">
+                        <div className="text-center py-8 text-gray-400">
                             <p>No scrape history yet</p>
                             <p className="text-sm mt-1">Run a scrape to see results here</p>
                         </div>
                     ) : (
                         <Table>
                             <TableHeader>
-                                <TableRow className="border-white/10 hover:bg-white/5">
-                                    <TableHead className="text-slate-300">Status</TableHead>
-                                    <TableHead className="text-slate-300">Jurisdiction</TableHead>
-                                    <TableHead className="text-slate-300">Bills Found</TableHead>
-                                    <TableHead className="text-slate-300">Timestamp</TableHead>
+                                <TableRow className="border-gray-200 hover:bg-white/50">
+                                    <TableHead className="text-gray-500">Status</TableHead>
+                                    <TableHead className="text-gray-500">Jurisdiction</TableHead>
+                                    <TableHead className="text-gray-500">Bills Found</TableHead>
+                                    <TableHead className="text-gray-500">Timestamp</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {history.map(item => (
-                                    <TableRow key={item.id} className="border-white/10 hover:bg-white/5">
+                                    <TableRow key={item.id} className="border-gray-200 hover:bg-white/50">
                                         <TableCell>
                                             <div className="flex items-center gap-2">
                                                 {getStatusIcon(item.status)}
                                                 {getStatusBadge(item.status)}
                                             </div>
                                         </TableCell>
-                                        <TableCell className="text-white font-medium">
+                                        <TableCell className="text-gray-900 font-medium">
                                             {item.jurisdiction}
                                         </TableCell>
-                                        <TableCell className="text-slate-300">
+                                        <TableCell className="text-gray-500">
                                             {item.bills_found}
                                         </TableCell>
-                                        <TableCell className="text-slate-300">
+                                        <TableCell className="text-gray-500">
                                             {new Date(item.timestamp).toLocaleString()}
                                         </TableCell>
                                     </TableRow>
@@ -293,3 +293,4 @@ export function ScrapeManager() {
         </div>
     );
 }
+

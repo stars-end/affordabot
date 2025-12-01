@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://backend-production-c383.up.railway.app';
 
 export type Jurisdiction = 'saratoga' | 'san-jose' | 'santa-clara-county' | 'california';
 

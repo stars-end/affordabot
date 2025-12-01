@@ -122,30 +122,30 @@ export function PromptEditor() {
         <div className="space-y-6">
             {/* Alert */}
             {alert && (
-                <Alert className={alert.type === 'error' ? 'bg-red-500/20 border-red-500/30' : 'bg-green-500/20 border-green-500/30'}>
+                <Alert className={alert.type === 'error' ? 'bg-red-50 border-red-200 text-red-800' : 'bg-green-50 border-green-200 text-green-800'}>
                     <AlertCircle className="h-4 w-4" />
-                    <AlertDescription className="text-white">
+                    <AlertDescription>
                         {alert.message}
                     </AlertDescription>
                 </Alert>
             )}
 
             {/* Prompt Editor */}
-            <Card className="bg-white/10 backdrop-blur-md border-white/20">
+            <Card className="bg-white/40 backdrop-blur-md border-white/20 shadow-sm">
                 <CardHeader>
                     <div className="flex items-center justify-between">
                         <div>
-                            <CardTitle className="text-white">System Prompt Editor</CardTitle>
-                            <CardDescription className="text-slate-300">
+                            <CardTitle className="text-gray-900">System Prompt Editor</CardTitle>
+                            <CardDescription className="text-gray-500">
                                 Edit and version control system prompts for generation and review
                             </CardDescription>
                         </div>
                         {currentPrompt && (
                             <div className="flex items-center gap-2">
-                                <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30">
+                                <Badge className="bg-blue-100 text-blue-700 border-blue-200">
                                     Version {currentPrompt.version || 1}
                                 </Badge>
-                                <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/30">
+                                <Badge className="bg-purple-100 text-purple-700 border-purple-200">
                                     {currentPrompt.updated_by}
                                 </Badge>
                             </div>
@@ -155,12 +155,12 @@ export function PromptEditor() {
                 <CardContent className="space-y-4">
                     {/* Prompt Type Tabs */}
                     <Tabs value={activePromptType} onValueChange={(v) => setActivePromptType(v as any)}>
-                        <TabsList className="bg-white/10 backdrop-blur-md border border-white/20">
-                            <TabsTrigger value="generation" className="data-[state=active]:bg-white/20">
+                        <TabsList className="bg-white/50 backdrop-blur-md border border-gray-200">
+                            <TabsTrigger value="generation" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
                                 <FileText className="w-4 h-4 mr-2" />
                                 Generation
                             </TabsTrigger>
-                            <TabsTrigger value="review" className="data-[state=active]:bg-white/20">
+                            <TabsTrigger value="review" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
                                 <CheckCircle2 className="w-4 h-4 mr-2" />
                                 Review
                             </TabsTrigger>
@@ -169,26 +169,26 @@ export function PromptEditor() {
                         <TabsContent value="generation" className="space-y-4 mt-4">
                             {isLoading ? (
                                 <div className="text-center py-8">
-                                    <Loader2 className="w-8 h-8 mx-auto text-purple-400 animate-spin" />
-                                    <p className="text-slate-400 mt-2">Loading prompt...</p>
+                                    <Loader2 className="w-8 h-8 mx-auto text-purple-500 animate-spin" />
+                                    <p className="text-gray-500 mt-2">Loading prompt...</p>
                                 </div>
                             ) : (
                                 <>
                                     <div className="space-y-2">
-                                        <Label className="text-white">System Prompt</Label>
+                                        <Label className="text-gray-700">System Prompt</Label>
                                         <Textarea
                                             value={editedPrompt}
                                             onChange={(e) => setEditedPrompt(e.target.value)}
                                             placeholder="Enter system prompt for generation..."
-                                            className="min-h-[300px] bg-white/5 border-white/20 text-white placeholder:text-slate-400 font-mono text-sm"
+                                            className="min-h-[300px] bg-white/50 border-gray-200 text-gray-900 placeholder:text-gray-400 font-mono text-sm"
                                         />
-                                        <p className="text-xs text-slate-400">
+                                        <p className="text-xs text-gray-500">
                                             This prompt guides the LLM when generating impact analyses
                                         </p>
                                     </div>
 
                                     {currentPrompt && (
-                                        <div className="text-sm text-slate-400">
+                                        <div className="text-sm text-gray-500">
                                             Last updated: {new Date(currentPrompt.updated_at).toLocaleString()}
                                         </div>
                                     )}
@@ -199,26 +199,26 @@ export function PromptEditor() {
                         <TabsContent value="review" className="space-y-4 mt-4">
                             {isLoading ? (
                                 <div className="text-center py-8">
-                                    <Loader2 className="w-8 h-8 mx-auto text-purple-400 animate-spin" />
-                                    <p className="text-slate-400 mt-2">Loading prompt...</p>
+                                    <Loader2 className="w-8 h-8 mx-auto text-purple-500 animate-spin" />
+                                    <p className="text-gray-500 mt-2">Loading prompt...</p>
                                 </div>
                             ) : (
                                 <>
                                     <div className="space-y-2">
-                                        <Label className="text-white">System Prompt</Label>
+                                        <Label className="text-gray-700">System Prompt</Label>
                                         <Textarea
                                             value={editedPrompt}
                                             onChange={(e) => setEditedPrompt(e.target.value)}
                                             placeholder="Enter system prompt for review..."
-                                            className="min-h-[300px] bg-white/5 border-white/20 text-white placeholder:text-slate-400 font-mono text-sm"
+                                            className="min-h-[300px] bg-white/50 border-gray-200 text-gray-900 placeholder:text-gray-400 font-mono text-sm"
                                         />
-                                        <p className="text-xs text-slate-400">
+                                        <p className="text-xs text-gray-500">
                                             This prompt guides the LLM when reviewing generated analyses
                                         </p>
                                     </div>
 
                                     {currentPrompt && (
-                                        <div className="text-sm text-slate-400">
+                                        <div className="text-sm text-gray-500">
                                             Last updated: {new Date(currentPrompt.updated_at).toLocaleString()}
                                         </div>
                                     )}
@@ -232,7 +232,7 @@ export function PromptEditor() {
                         <Button
                             onClick={handleSave}
                             disabled={isSaving || !hasChanges}
-                            className="bg-purple-600 hover:bg-purple-700"
+                            className="bg-purple-600 hover:bg-purple-700 text-white"
                         >
                             {isSaving ? (
                                 <>
@@ -250,12 +250,12 @@ export function PromptEditor() {
                             onClick={handleReset}
                             disabled={!hasChanges}
                             variant="outline"
-                            className="bg-white/5 border-white/20 text-white hover:bg-white/10"
+                            className="bg-white/50 border-gray-200 text-gray-700 hover:bg-white/80"
                         >
                             Reset
                         </Button>
                         {hasChanges && (
-                            <Badge className="ml-auto bg-yellow-500/20 text-yellow-300 border-yellow-500/30">
+                            <Badge className="ml-auto bg-yellow-100 text-yellow-700 border-yellow-200">
                                 Unsaved changes
                             </Badge>
                         )}
@@ -264,15 +264,15 @@ export function PromptEditor() {
             </Card>
 
             {/* Version History (Placeholder) */}
-            <Card className="bg-white/10 backdrop-blur-md border-white/20">
+            <Card className="bg-white/40 backdrop-blur-md border-white/20 shadow-sm">
                 <CardHeader>
-                    <CardTitle className="text-white">Version History</CardTitle>
-                    <CardDescription className="text-slate-300">
+                    <CardTitle className="text-gray-900">Version History</CardTitle>
+                    <CardDescription className="text-gray-500">
                         View and restore previous prompt versions
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="text-center py-8 text-slate-400">
+                    <div className="text-center py-8 text-gray-400">
                         <History className="w-12 h-12 mx-auto mb-3 opacity-50" />
                         <p>Version history coming soon</p>
                         <p className="text-sm mt-1">Will show all previous versions with diff viewer</p>
@@ -282,3 +282,4 @@ export function PromptEditor() {
         </div>
     );
 }
+

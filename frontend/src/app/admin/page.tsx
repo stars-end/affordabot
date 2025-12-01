@@ -23,33 +23,33 @@ export default function AdminDashboard() {
     const [activeTab, setActiveTab] = useState('overview');
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-8">
+        <div className="space-y-8">
             {/* Header */}
-            <div className="mb-8">
-                <h1 className="text-4xl font-bold text-white mb-2">Admin Dashboard</h1>
-                <p className="text-slate-300">Manage scraping, analysis, models, and prompts</p>
+            <div>
+                <h1 className="text-4xl font-bold text-gray-900 mb-2">Admin Dashboard</h1>
+                <p className="text-gray-600">Manage scraping, analysis, models, and prompts</p>
             </div>
 
             {/* Main Content */}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-                <TabsList className="bg-white/10 backdrop-blur-md border border-white/20">
-                    <TabsTrigger value="overview" className="data-[state=active]:bg-white/20">
+                <TabsList className="bg-white/40 backdrop-blur-md border border-white/20 p-1">
+                    <TabsTrigger value="overview" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
                         <Activity className="w-4 h-4 mr-2" />
                         Overview
                     </TabsTrigger>
-                    <TabsTrigger value="scraping" className="data-[state=active]:bg-white/20">
+                    <TabsTrigger value="scraping" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
                         <Database className="w-4 h-4 mr-2" />
                         Scraping
                     </TabsTrigger>
-                    <TabsTrigger value="analysis" className="data-[state=active]:bg-white/20">
+                    <TabsTrigger value="analysis" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
                         <Zap className="w-4 h-4 mr-2" />
                         Analysis
                     </TabsTrigger>
-                    <TabsTrigger value="models" className="data-[state=active]:bg-white/20">
+                    <TabsTrigger value="models" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
                         <Settings className="w-4 h-4 mr-2" />
                         Models
                     </TabsTrigger>
-                    <TabsTrigger value="prompts" className="data-[state=active]:bg-white/20">
+                    <TabsTrigger value="prompts" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
                         <FileText className="w-4 h-4 mr-2" />
                         Prompts
                     </TabsTrigger>
@@ -59,78 +59,74 @@ export default function AdminDashboard() {
                 <TabsContent value="overview" className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                         {/* Quick Stats */}
-                        <Card className="bg-white/10 backdrop-blur-md border-white/20">
+                        <Card className="bg-white/40 backdrop-blur-md border-white/20 shadow-sm">
                             <CardHeader className="pb-3">
-                                <CardTitle className="text-white text-sm font-medium">Total Scrapes</CardTitle>
+                                <CardTitle className="text-gray-600 text-sm font-medium">Total Scrapes</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <div className="text-3xl font-bold text-white">0</div>
-                                <p className="text-xs text-slate-300 mt-1">Last 30 days</p>
+                                <div className="text-3xl font-bold text-gray-900">0</div>
+                                <p className="text-xs text-gray-500 mt-1">Last 30 days</p>
                             </CardContent>
                         </Card>
 
-                        <Card className="bg-white/10 backdrop-blur-md border-white/20">
+                        <Card className="bg-white/40 backdrop-blur-md border-white/20 shadow-sm">
                             <CardHeader className="pb-3">
-                                <CardTitle className="text-white text-sm font-medium">Analyses Run</CardTitle>
+                                <CardTitle className="text-gray-600 text-sm font-medium">Analyses Run</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <div className="text-3xl font-bold text-white">0</div>
-                                <p className="text-xs text-slate-300 mt-1">All time</p>
+                                <div className="text-3xl font-bold text-gray-900">0</div>
+                                <p className="text-xs text-gray-500 mt-1">All time</p>
                             </CardContent>
                         </Card>
 
-                        <Card className="bg-white/10 backdrop-blur-md border-white/20">
+                        <Card className="bg-white/40 backdrop-blur-md border-white/20 shadow-sm">
                             <CardHeader className="pb-3">
-                                <CardTitle className="text-white text-sm font-medium">Active Models</CardTitle>
+                                <CardTitle className="text-gray-600 text-sm font-medium">Active Models</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <div className="text-3xl font-bold text-white">3</div>
-                                <p className="text-xs text-slate-300 mt-1">Configured</p>
+                                <div className="text-3xl font-bold text-gray-900">3</div>
+                                <p className="text-xs text-gray-500 mt-1">Configured</p>
                             </CardContent>
                         </Card>
 
-                        <Card className="bg-white/10 backdrop-blur-md border-white/20">
+                        <Card className="bg-white/40 backdrop-blur-md border-white/20 shadow-sm">
                             <CardHeader className="pb-3">
-                                <CardTitle className="text-white text-sm font-medium">System Health</CardTitle>
+                                <CardTitle className="text-gray-600 text-sm font-medium">System Health</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <Badge className="bg-green-500/20 text-green-300 border-green-500/30">
+                                <Badge className="bg-green-100 text-green-700 border-green-200 hover:bg-green-200">
                                     Healthy
                                 </Badge>
                             </CardContent>
                         </Card>
                     </div>
 
-                    {/* Recent Activity */}
-                    <Card className="bg-white/10 backdrop-blur-md border-white/20">
+                    {/* Recent Activity Placeholder */}
+                    <Card className="bg-white/40 backdrop-blur-md border-white/20 shadow-sm">
                         <CardHeader>
-                            <CardTitle className="text-white">Recent Activity</CardTitle>
-                            <CardDescription className="text-slate-300">
-                                Latest scraping and analysis operations
-                            </CardDescription>
+                            <CardTitle className="text-gray-900">Recent Activity</CardTitle>
+                            <CardDescription className="text-gray-500">Latest system actions and events</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-center py-8 text-slate-400">
-                                <History className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                                <p>No recent activity</p>
-                                <p className="text-sm mt-1">Run a scrape or analysis to get started</p>
+                            <div className="text-sm text-gray-500 text-center py-8">
+                                No recent activity to display
                             </div>
                         </CardContent>
                     </Card>
                 </TabsContent>
 
                 {/* Scraping Tab */}
-                <TabsContent value="scraping" className="space-y-6">
+                <TabsContent value="scraping">
                     <ScrapeManager />
                 </TabsContent>
 
                 {/* Analysis Tab */}
-                <TabsContent value="analysis" className="space-y-6">
+                <TabsContent value="analysis">
                     <AnalysisLab />
                 </TabsContent>
 
                 {/* Models Tab */}
-                <TabsContent value="models" className="space-y-6">
+                <TabsContent value="models">
                     <ModelRegistry />
                 </TabsContent>
 
