@@ -109,6 +109,10 @@ class AnalysisHistory(BaseModel):
 # Manual Scraping Endpoints
 # ============================================================================
 
+@router.get("/test-error")
+async def test_error():
+    raise Exception("This is a test error to verify exception handler")
+
 @router.post("/scrape", response_model=ManualScrapeResponse)
 async def trigger_manual_scrape(
     request: ManualScrapeRequest,
