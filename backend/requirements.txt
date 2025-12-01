@@ -14,4 +14,5 @@ python-dateutil
 six
 sentry-sdk[fastapi]
 sendgrid
-../packages/llm-common
+litellm>=1.0.0
+eval_type_backport
