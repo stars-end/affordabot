@@ -42,6 +42,69 @@ export function ScrapeManager() {
     const [history, setHistory] = useState<ScrapeHistory[]>([]);
     const [alert, setAlert] = useState<{ type: 'success' | 'error', message: string } | null>(null);
 
+    // Poll active tasks
+    useEffect(() => {
+        if (activeTasks.length === 0) return;
+
+        const interval = setInterval(async () => {
+            const updatedTasks = await Promise.all(activeTasks.map(async (task) => {
+                if (task.status === 'completed' || task.status === 'failed') return task;
+
+                try {
+                    const response = await fetch(`/api/admin/tasks/${task.task_id}`);
+                    if (!response.ok) return task;
+                    const data = await response.json();
+
+                    // If status changed to completed/failed, show alert and refresh history
+                    if (data.status !== task.status) {
+                        if (data.status === 'completed') {
+                            setAlert({ type: 'success', message: `Scrape completed for ${task.jurisdiction}` });
+                            fetchHistory();
+                        } else if (data.status === 'failed') {
+                            setAlert({ type: 'error', message: `Scrape failed for ${task.jurisdiction}: ${data.error_message}` });
+                        }
+                    }
+
+                    return {
+                        ...task,
+                        status: data.status,
+                        message: data.status === 'running' ? 'Scraping in progress...' : data.status
+                    };
+                } catch (e) {
+                    return task;
+                }
+            }));
+
+            // Remove completed/failed tasks after 5 seconds
+            const active = updatedTasks.filter(t =>
+                t.status === 'queued' ||
+                t.status === 'running' ||
+                (Date.now() - new Date(t.timestamp).getTime() < 5000) // Keep completed for 5s
+            );
+
+            setActiveTasks(active);
+        }, 2000);
+
+        return () => clearInterval(interval);
+    }, [activeTasks]);
+
+    // Load history on mount
+    useEffect(() => {
+        fetchHistory();
+    }, []);
+
+    const fetchHistory = async () => {
+        try {
+            const response = await fetch('/api/admin/scrapes');
+            if (response.ok) {
+                const data = await response.json();
+                setHistory(data);
+            }
+        } catch (error) {
+            console.error('Failed to fetch history:', error);
+        }
+    };
+
     const handleTriggerScrape = async () => {
         if (!jurisdiction) {
             setAlert({ type: 'error', message: 'Please select a jurisdiction' });
@@ -74,7 +137,7 @@ export function ScrapeManager() {
                 ...prev,
             ]);
 
-            setAlert({ type: 'success', message: `Scraping ${jurisdiction}...` });
+            setAlert({ type: 'success', message: `Scraping started for ${jurisdiction}` });
 
             // Reset form
             setJurisdiction('');

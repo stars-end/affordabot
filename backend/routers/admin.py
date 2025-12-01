@@ -265,6 +265,30 @@ async def get_analysis_history(
     return history
 
 
+
+# ============================================================================
+# Task Management Endpoints
+# ============================================================================
+
+@router.get("/tasks/{task_id}")
+async def get_task_status(
+    task_id: str,
+    db: SupabaseDB = Depends(get_db)
+):
+    """
+    Get status of a background task (scrape or analysis).
+    """
+    if not db.client:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    result = db.client.table('admin_tasks').select('*').eq('id', task_id).execute()
+    
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    return result.data[0]
+
+
 # ============================================================================
 # Model Management Endpoints
 # ============================================================================
@@ -279,19 +303,23 @@ async def get_model_configs(
     if not db.client:
         raise HTTPException(status_code=503, detail="Database not available")
     
-    result = db.client.table('model_configs').select('*').order('priority').execute()
-    
-    configs = []
-    for row in result.data:
-        configs.append(ModelConfig(
-            provider=row['provider'],
-            model_name=row['model_name'],
-            priority=row['priority'],
-            enabled=row['enabled'],
-            use_case=row['use_case']
-        ))
-    
-    return configs
+    try:
+        result = db.client.table('model_configs').select('*').order('priority').execute()
+        
+        configs = []
+        for row in result.data:
+            configs.append(ModelConfig(
+                provider=row['provider'],
+                model_name=row['model_name'],
+                priority=row['priority'],
+                enabled=row['enabled'],
+                use_case=row['use_case']
+            ))
+        
+        return configs
+    except Exception as e:
+        print(f"Error fetching model configs: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch models: {str(e)}")
 
 
 @router.post("/models")

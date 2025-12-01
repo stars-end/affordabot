@@ -57,6 +57,86 @@ export function AnalysisLab() {
     const [history, setHistory] = useState<AnalysisHistory[]>([]);
     const [alert, setAlert] = useState<{ type: 'success' | 'error', message: string } | null>(null);
 
+    const [models, setModels] = useState<{ value: string, label: string }[]>([]);
+
+    // Fetch models and history on mount
+    useEffect(() => {
+        fetchModels();
+        fetchHistory();
+    }, []);
+
+    const fetchModels = async () => {
+        try {
+            const response = await fetch('/api/admin/models');
+            if (response.ok) {
+                const data = await response.json();
+                setModels(data.map((m: any) => ({
+                    value: `${m.provider}/${m.model_name}`,
+                    label: `${m.provider === 'zai' ? 'Z.ai' : 'OpenRouter'} - ${m.model_name}`
+                })));
+            }
+        } catch (error) {
+            console.error('Failed to fetch models:', error);
+        }
+    };
+
+    const fetchHistory = async () => {
+        try {
+            const response = await fetch('/api/admin/analyses');
+            if (response.ok) {
+                const data = await response.json();
+                setHistory(data);
+            }
+        } catch (error) {
+            console.error('Failed to fetch history:', error);
+        }
+    };
+
+    // Poll active tasks
+    useEffect(() => {
+        if (activeTasks.length === 0) return;
+
+        const interval = setInterval(async () => {
+            const updatedTasks = await Promise.all(activeTasks.map(async (task) => {
+                if (task.status === 'completed' || task.status === 'failed') return task;
+
+                try {
+                    const response = await fetch(`/api/admin/tasks/${task.task_id}`);
+                    if (!response.ok) return task;
+                    const data = await response.json();
+
+                    // If status changed to completed/failed, show alert and refresh history
+                    if (data.status !== task.status) {
+                        if (data.status === 'completed') {
+                            setAlert({ type: 'success', message: `Analysis ${task.step} completed for ${task.bill_id}` });
+                            fetchHistory();
+                        } else if (data.status === 'failed') {
+                            setAlert({ type: 'error', message: `Analysis failed for ${task.bill_id}: ${data.error_message}` });
+                        }
+                    }
+
+                    return {
+                        ...task,
+                        status: data.status
+                    };
+                } catch (e) {
+                    return task;
+                }
+            }));
+
+            // Remove completed/failed tasks after 5 seconds
+            const active = updatedTasks.filter(t =>
+                t.status === 'started' ||
+                t.status === 'running' || // Handle both 'started' and 'running'
+                (Date.now() - new Date(t.timestamp).getTime() < 5000)
+            );
+
+            setActiveTasks(active);
+        }, 2000);
+
+        return () => clearInterval(interval);
+    }, [activeTasks]);
+
     const handleRunAnalysis = async () => {
         if (!jurisdiction || !billId || !step) {
             setAlert({ type: 'error', message: 'Please fill in all required fields' });
@@ -95,12 +175,12 @@ export function AnalysisLab() {
                 ...prev,
             ]);
 
-            setAlert({ type: 'success', message: `Running ${step} analysis for ${billId}...` });
+            setAlert({ type: 'success', message: `Started ${step} analysis for ${billId}` });
 
-            // Reset form
-            setBillId('');
-            setStep('');
-            setModelOverride('');
+            // Reset form (optional, maybe keep for sequential steps)
+            // setBillId('');
+            // setStep('');
+            // setModelOverride('');
         } catch (error) {
             setAlert({ type: 'error', message: 'Failed to run analysis' });
         } finally {
@@ -116,10 +196,11 @@ export function AnalysisLab() {
 
     const getStatusBadge = (status: string) => {
         const variants: Record<string, string> = {
-            started: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
-            completed: 'bg-green-500/20 text-green-300 border-green-500/30',
-            success: 'bg-green-500/20 text-green-300 border-green-500/30',
-            failed: 'bg-red-500/20 text-red-300 border-red-500/30',
+            started: 'bg-blue-100 text-blue-700 border-blue-200',
+            running: 'bg-blue-100 text-blue-700 border-blue-200',
+            completed: 'bg-green-100 text-green-700 border-green-200',
+            success: 'bg-green-100 text-green-700 border-green-200',
+            failed: 'bg-red-100 text-red-700 border-red-200',
         };
 
         return (
@@ -132,12 +213,13 @@ export function AnalysisLab() {
     const getStatusIcon = (status: string) => {
         switch (status) {
             case 'started':
-                return <Loader2 className="w-4 h-4 text-blue-400 animate-spin" />;
+            case 'running':
+                return <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />;
             case 'completed':
             case 'success':
-                return <CheckCircle2 className="w-4 h-4 text-green-400" />;
+                return <CheckCircle2 className="w-4 h-4 text-green-500" />;
             case 'failed':
-                return <XCircle className="w-4 h-4 text-red-400" />;
+                return <XCircle className="w-4 h-4 text-red-500" />;
             default:
                 return null;
         }
@@ -147,19 +229,19 @@ export function AnalysisLab() {
         <div className="space-y-6">
             {/* Alert */}
             {alert && (
-                <Alert className={alert.type === 'error' ? 'bg-red-500/20 border-red-500/30' : 'bg-green-500/20 border-green-500/30'}>
+                <Alert className={alert.type === 'error' ? 'bg-red-50 border-red-200 text-red-800' : 'bg-green-50 border-green-200 text-green-800'}>
                     <AlertCircle className="h-4 w-4" />
-                    <AlertDescription className="text-white">
+                    <AlertDescription>
                         {alert.message}
                     </AlertDescription>
                 </Alert>
             )}
 
             {/* Run Analysis */}
-            <Card className="bg-white/10 backdrop-blur-md border-white/20">
+            <Card className="bg-white/40 backdrop-blur-md border-white/20 shadow-sm">
                 <CardHeader>
-                    <CardTitle className="text-white">Run Analysis Pipeline</CardTitle>
-                    <CardDescription className="text-slate-300">
+                    <CardTitle className="text-gray-900">Run Analysis Pipeline</CardTitle>
+                    <CardDescription className="text-gray-500">
                         Execute research, generation, or review steps for a specific bill
                     </CardDescription>
                 </CardHeader>
@@ -167,9 +249,9 @@ export function AnalysisLab() {
                     {/* Bill Selection */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <Label className="text-white">Jurisdiction</Label>
+                            <Label className="text-gray-700">Jurisdiction</Label>
                             <Select value={jurisdiction} onValueChange={setJurisdiction}>
-                                <SelectTrigger className="bg-white/5 border-white/20 text-white">
+                                <SelectTrigger className="bg-white/50 border-gray-200 text-gray-900">
                                     <SelectValue placeholder="Select jurisdiction" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -183,19 +265,19 @@ export function AnalysisLab() {
                         </div>
 
                         <div className="space-y-2">
-                            <Label className="text-white">Bill ID</Label>
+                            <Label className="text-gray-700">Bill ID</Label>
                             <Input
                                 placeholder="e.g., SB-123"
                                 value={billId}
                                 onChange={(e) => setBillId(e.target.value)}
-                                className="bg-white/5 border-white/20 text-white placeholder:text-slate-400"
+                                className="bg-white/50 border-gray-200 text-gray-900 placeholder:text-gray-400"
                             />
                         </div>
                     </div>
 
                     {/* Analysis Step Selection */}
                     <div className="space-y-2">
-                        <Label className="text-white">Analysis Step</Label>
+                        <Label className="text-gray-700">Analysis Step</Label>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             {ANALYSIS_STEPS.map(s => {
                                 const Icon = s.icon;
@@ -204,17 +286,17 @@ export function AnalysisLab() {
                                         key={s.value}
                                         onClick={() => setStep(s.value)}
                                         className={`p-4 rounded-lg border-2 transition-all ${step === s.value
-                                                ? 'bg-purple-500/20 border-purple-500'
-                                                : 'bg-white/5 border-white/20 hover:border-white/40'
+                                            ? 'bg-purple-100 border-purple-500'
+                                            : 'bg-white/50 border-gray-200 hover:border-purple-200'
                                             }`}
                                     >
                                         <div className="flex items-center gap-3 mb-2">
-                                            <Icon className={`w-5 h-5 ${step === s.value ? 'text-purple-300' : 'text-slate-300'}`} />
-                                            <span className={`font-medium ${step === s.value ? 'text-purple-300' : 'text-white'}`}>
+                                            <Icon className={`w-5 h-5 ${step === s.value ? 'text-purple-700' : 'text-gray-500'}`} />
+                                            <span className={`font-medium ${step === s.value ? 'text-purple-900' : 'text-gray-900'}`}>
                                                 {s.label}
                                             </span>
                                         </div>
-                                        <p className="text-sm text-slate-400 text-left">{s.description}</p>
+                                        <p className="text-sm text-gray-500 text-left">{s.description}</p>
                                     </button>
                                 );
                             })}
@@ -223,21 +305,28 @@ export function AnalysisLab() {
 
                     {/* Model Override (Optional) */}
                     <div className="space-y-2">
-                        <Label className="text-white">Model Override (Optional)</Label>
-                        <Input
-                            placeholder="e.g., openrouter/x-ai/grok-beta"
-                            value={modelOverride}
-                            onChange={(e) => setModelOverride(e.target.value)}
-                            className="bg-white/5 border-white/20 text-white placeholder:text-slate-400"
-                        />
-                        <p className="text-xs text-slate-400">Leave empty to use default model for this step</p>
+                        <Label className="text-gray-700">Model Selection (Optional)</Label>
+                        <Select value={modelOverride} onValueChange={setModelOverride}>
+                            <SelectTrigger className="bg-white/50 border-gray-200 text-gray-900">
+                                <SelectValue placeholder="Default (Auto-select based on priority)" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="">Default (Auto-select)</SelectItem>
+                                {models.map(m => (
+                                    <SelectItem key={m.value} value={m.value}>
+                                        {m.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <p className="text-xs text-gray-500">Select a specific model to override the default configuration</p>
                     </div>
 
                     {/* Run Button */}
                     <Button
                         onClick={handleRunAnalysis}
                         disabled={isLoading || !jurisdiction || !billId || !step}
-                        className="w-full bg-purple-600 hover:bg-purple-700"
+                        className="w-full bg-purple-600 hover:bg-purple-700 text-white"
                     >
                         {isLoading ? (
                             <>
@@ -256,29 +345,29 @@ export function AnalysisLab() {
 
             {/* Active Tasks */}
             {activeTasks.length > 0 && (
-                <Card className="bg-white/10 backdrop-blur-md border-white/20">
+                <Card className="bg-white/40 backdrop-blur-md border-white/20 shadow-sm">
                     <CardHeader>
-                        <CardTitle className="text-white">Active Analysis Tasks</CardTitle>
-                        <CardDescription className="text-slate-300">
+                        <CardTitle className="text-gray-900">Active Analysis Tasks</CardTitle>
+                        <CardDescription className="text-gray-500">
                             Currently running analysis operations
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
                         <Table>
                             <TableHeader>
-                                <TableRow className="border-white/10 hover:bg-white/5">
-                                    <TableHead className="text-slate-300">Status</TableHead>
-                                    <TableHead className="text-slate-300">Step</TableHead>
-                                    <TableHead className="text-slate-300">Bill ID</TableHead>
-                                    <TableHead className="text-slate-300">Jurisdiction</TableHead>
-                                    <TableHead className="text-slate-300">Started</TableHead>
+                                <TableRow className="border-gray-200 hover:bg-white/50">
+                                    <TableHead className="text-gray-500">Status</TableHead>
+                                    <TableHead className="text-gray-500">Step</TableHead>
+                                    <TableHead className="text-gray-500">Bill ID</TableHead>
+                                    <TableHead className="text-gray-500">Jurisdiction</TableHead>
+                                    <TableHead className="text-gray-500">Started</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {activeTasks.map(task => {
                                     const Icon = getStepIcon(task.step);
                                     return (
-                                        <TableRow key={task.task_id} className="border-white/10 hover:bg-white/5">
+                                        <TableRow key={task.task_id} className="border-gray-200 hover:bg-white/50">
                                             <TableCell>
                                                 <div className="flex items-center gap-2">
                                                     {getStatusIcon(task.status)}
@@ -287,13 +376,13 @@ export function AnalysisLab() {
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex items-center gap-2">
-                                                    <Icon className="w-4 h-4 text-slate-300" />
-                                                    <span className="text-white font-medium capitalize">{task.step}</span>
+                                                    <Icon className="w-4 h-4 text-gray-500" />
+                                                    <span className="text-gray-900 font-medium capitalize">{task.step}</span>
                                                 </div>
                                             </TableCell>
-                                            <TableCell className="text-white font-mono">{task.bill_id}</TableCell>
-                                            <TableCell className="text-slate-300">{task.jurisdiction}</TableCell>
-                                            <TableCell className="text-slate-300">
+                                            <TableCell className="text-gray-900 font-mono">{task.bill_id}</TableCell>
+                                            <TableCell className="text-gray-500">{task.jurisdiction}</TableCell>
+                                            <TableCell className="text-gray-500">
                                                 {new Date(task.timestamp).toLocaleTimeString()}
                                             </TableCell>
                                         </TableRow>
@@ -306,16 +395,16 @@ export function AnalysisLab() {
             )}
 
             {/* Analysis History */}
-            <Card className="bg-white/10 backdrop-blur-md border-white/20">
+            <Card className="bg-white/40 backdrop-blur-md border-white/20 shadow-sm">
                 <CardHeader>
-                    <CardTitle className="text-white">Analysis History</CardTitle>
-                    <CardDescription className="text-slate-300">
+                    <CardTitle className="text-gray-900">Analysis History</CardTitle>
+                    <CardDescription className="text-gray-500">
                         Recent analysis pipeline executions
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
                     {history.length === 0 ? (
-                        <div className="text-center py-8 text-slate-400">
+                        <div className="text-center py-8 text-gray-400">
                             <Zap className="w-12 h-12 mx-auto mb-3 opacity-50" />
                             <p>No analysis history yet</p>
                             <p className="text-sm mt-1">Run an analysis to see results here</p>
@@ -323,19 +412,19 @@ export function AnalysisLab() {
                     ) : (
                         <Table>
                             <TableHeader>
-                                <TableRow className="border-white/10 hover:bg-white/5">
-                                    <TableHead className="text-slate-300">Status</TableHead>
-                                    <TableHead className="text-slate-300">Step</TableHead>
-                                    <TableHead className="text-slate-300">Bill ID</TableHead>
-                                    <TableHead className="text-slate-300">Model</TableHead>
-                                    <TableHead className="text-slate-300">Timestamp</TableHead>
+                                <TableRow className="border-gray-200 hover:bg-white/50">
+                                    <TableHead className="text-gray-500">Status</TableHead>
+                                    <TableHead className="text-gray-500">Step</TableHead>
+                                    <TableHead className="text-gray-500">Bill ID</TableHead>
+                                    <TableHead className="text-gray-500">Model</TableHead>
+                                    <TableHead className="text-gray-500">Timestamp</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {history.map(item => {
                                     const Icon = getStepIcon(item.step);
                                     return (
-                                        <TableRow key={item.id} className="border-white/10 hover:bg-white/5">
+                                        <TableRow key={item.id} className="border-gray-200 hover:bg-white/50">
                                             <TableCell>
                                                 <div className="flex items-center gap-2">
                                                     {getStatusIcon(item.status)}
@@ -344,13 +433,13 @@ export function AnalysisLab() {
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex items-center gap-2">
-                                                    <Icon className="w-4 h-4 text-slate-300" />
-                                                    <span className="text-white font-medium capitalize">{item.step}</span>
+                                                    <Icon className="w-4 h-4 text-gray-500" />
+                                                    <span className="text-gray-900 font-medium capitalize">{item.step}</span>
                                                 </div>
                                             </TableCell>
-                                            <TableCell className="text-white font-mono">{item.bill_id}</TableCell>
-                                            <TableCell className="text-slate-300 text-sm">{item.model_used}</TableCell>
-                                            <TableCell className="text-slate-300">
+                                            <TableCell className="text-gray-900 font-mono">{item.bill_id}</TableCell>
+                                            <TableCell className="text-gray-500 text-sm">{item.model_used}</TableCell>
+                                            <TableCell className="text-gray-500">
                                                 {new Date(item.timestamp).toLocaleString()}
                                             </TableCell>
                                         </TableRow>
