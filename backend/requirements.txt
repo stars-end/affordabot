@@ -14,3 +14,4 @@ python-dateutil
 six
 sentry-sdk[fastapi]
 sendgrid
+../packages/llm-common

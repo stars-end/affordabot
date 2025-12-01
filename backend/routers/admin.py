@@ -528,11 +528,53 @@ async def _run_analysis_task(
 ):
     """Background task to run analysis step."""
     try:
-        # TODO: Implement actual analysis logic
-        print(f"Task {task_id}: Running {step} for {bill_id} with model {model_override or 'default'}")
+        # Check feature flag
+        if os.getenv("ENABLE_NEW_LLM_PIPELINE", "false").lower() == "true":
+            print(f"Task {task_id}: Running {step} with NEW pipeline")
+            
+            # Import new pipeline components
+            from backend.services.llm.orchestrator import AnalysisPipeline
+            from llm_common.llm_client import LLMClient
+            from llm_common.web_search import WebSearchClient
+            from llm_common.cost_tracker import CostTracker
+            
+            # Initialize clients
+            db = SupabaseDB().client
+            llm_client = LLMClient()
+            search_client = WebSearchClient(
+                api_key=os.getenv("ZAI_API_KEY", ""),
+                supabase_client=db
+            )
+            cost_tracker = CostTracker(supabase_client=db)
+            
+            pipeline = AnalysisPipeline(llm_client, search_client, cost_tracker, db)
+            
+            # Fetch bill text (placeholder)
+            # In a real implementation, we'd fetch this from the DB
+            bill_text = "Placeholder bill text" 
+            
+            # Run pipeline step
+            # Note: The pipeline currently runs all steps in 'run()', 
+            # but we can adapt it to run specific steps if needed.
+            # For now, we'll just run the full pipeline if step is 'generate' or 'all'
+            
+            models = {
+                "research": "gpt-4o-mini",
+                "generate": model_override or "claude-3-5-sonnet-20240620",
+                "review": "gpt-4o"
+            }
+            
+            if step == "generate" or step == "all":
+                await pipeline.run(bill_id, bill_text, jurisdiction, models)
+                
+        else:
+            # TODO: Implement actual analysis logic (Old Pipeline)
+            print(f"Task {task_id}: Running {step} for {bill_id} with model {model_override or 'default'} (OLD PIPELINE)")
         
     except Exception as e:
         print(f"Task {task_id} failed: {e}")
+        import traceback
+        traceback.print_exc()
 
 
 def _check_scraper_health() -> Dict[str, Any]:
