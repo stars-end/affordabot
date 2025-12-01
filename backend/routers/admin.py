@@ -109,9 +109,9 @@ class AnalysisHistory(BaseModel):
 # Manual Scraping Endpoints
 # ============================================================================
 
-@router.get("/test-error")
-async def test_error():
-    raise Exception("This is a test error to verify exception handler")
+# ============================================================================
+# Manual Scraping Endpoints
+# ============================================================================
 
 @router.post("/scrape", response_model=ManualScrapeResponse)
 async def trigger_manual_scrape(
@@ -130,17 +130,13 @@ async def trigger_manual_scrape(
     
     # Create task record in database
     if db.client:
-        try:
-            db.client.table('admin_tasks').insert({
-                'id': task_id,
-                'task_type': 'scrape',
-                'jurisdiction': request.jurisdiction,
-                'status': 'queued',
-                'config': {'force': request.force}
-            }).execute()
-        except Exception as e:
-            print(f"Error creating admin task: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to create task: {str(e)}")
+        db.client.table('admin_tasks').insert({
+            'id': task_id,
+            'task_type': 'scrape',
+            'jurisdiction': request.jurisdiction,
+            'status': 'queued',
+            'config': {'force': request.force}
+        }).execute()
     
     # Queue scraping task
     background_tasks.add_task(
@@ -212,29 +208,6 @@ async def run_analysis_step(
     
     task_id = str(uuid4())
     
-    # Create task record in database
-    # Note: The original code didn't insert into admin_tasks, which explains why polling would fail.
-    # We need to insert it so the frontend can poll it.
-    from db.supabase_client import SupabaseDB
-    db = SupabaseDB()
-    
-    if db.client:
-        try:
-            db.client.table('admin_tasks').insert({
-                'id': task_id,
-                'task_type': 'analysis',
-                'jurisdiction': request.jurisdiction,
-                'status': 'queued',
-                'config': {
-                    'bill_id': request.bill_id,
-                    'step': request.step,
-                    'model_override': request.model_override
-                }
-            }).execute()
-        except Exception as e:
-            print(f"Error creating analysis task: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to create task: {str(e)}")
-
     # Queue analysis task
     background_tasks.add_task(
         _run_analysis_task,

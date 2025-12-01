@@ -15,22 +15,21 @@ from sentry_sdk.integrations.fastapi import FastApiIntegration
 from sentry_sdk.integrations.logging import LoggingIntegration
 
 # Initialize Sentry
-# if os.getenv("SENTRY_DSN"):
-#     sentry_sdk.init(
-#         dsn=os.getenv("SENTRY_DSN"),
-#         integrations=[
-#             FastApiIntegration(),
-#             LoggingIntegration(level=logging.INFO, event_level=logging.ERROR)
-#         ],
-#         traces_sample_rate=0.1,
-#         environment=os.getenv("ENVIRONMENT", "development")
-#     )
-#     logger = logging.getLogger(__name__)
-#     logger.info("Sentry initialized")
-# else:
-#     logger = logging.getLogger(__name__)
-#     logger.warning("Sentry DSN not set. Error tracking disabled.")
-logger = logging.getLogger(__name__)
+if os.getenv("SENTRY_DSN"):
+    sentry_sdk.init(
+        dsn=os.getenv("SENTRY_DSN"),
+        integrations=[
+            FastApiIntegration(),
+            LoggingIntegration(level=logging.INFO, event_level=logging.ERROR)
+        ],
+        traces_sample_rate=0.1,
+        environment=os.getenv("ENVIRONMENT", "development")
+    )
+    logger = logging.getLogger(__name__)
+    logger.info("Sentry initialized")
+else:
+    logger = logging.getLogger(__name__)
+    logger.warning("Sentry DSN not set. Error tracking disabled.")
 
 # Configure logging
 logging.basicConfig(
@@ -47,7 +46,7 @@ from routers import admin
 app.include_router(admin.router)
 
 # Add rate limiting middleware (60 requests/minute per IP)
-# app.middleware("http")(RateLimiter(requests_per_minute=60))
+app.middleware("http")(RateLimiter(requests_per_minute=60))
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
