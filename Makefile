@@ -16,6 +16,12 @@ help:
 
 # Install dependencies
 install:
+	@echo "Initializing submodules..."
+	git submodule update --init --recursive
+	@if [ ! -f "packages/llm-common/pyproject.toml" ]; then \
+		echo "❌ Error: packages/llm-common is empty. Submodule init failed."; \
+		exit 1; \
+	fi
 	@echo "Installing dependencies..."
 	pnpm install
 	@echo "Backend uses venv - activate with: source backend/venv/bin/activate"
@@ -32,7 +38,7 @@ dev-frontend:
 dev-backend:
 	@if [ ! -d backend/venv ]; then \
 		echo "Creating Python virtual environment..."; \
-		cd backend && python3 -m venv venv; \
+		cd backend && python3.13 -m venv venv; \
 	fi
 	@echo "Starting backend server..."
 	@echo "Make sure venv is activated: source backend/venv/bin/activate"
