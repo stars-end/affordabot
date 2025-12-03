@@ -523,8 +523,8 @@ async def get_detailed_health():
     """
     Get granular health status for all services and models.
     """
-    from backend.services.research.zai import ZaiResearchService
-    from backend.services.llm.pipeline import DualModelAnalyzer
+    from services.research.zai import ZaiResearchService
+    from services.llm.pipeline import DualModelAnalyzer
     
     research_service = ZaiResearchService()
     analyzer = DualModelAnalyzer()
@@ -555,10 +555,10 @@ async def _run_scrape_task(task_id: str, jurisdiction: str, force: bool, db: Sup
         }).eq('id', task_id).execute()
 
         # Import scraper registry
-        from backend.services.scraper.san_jose import SanJoseScraper
-        from backend.services.scraper.california_state import CaliforniaStateScraper
-        from backend.services.scraper.santa_clara_county import SantaClaraCountyScraper
-        from backend.services.scraper.saratoga import SaratogaScraper
+        from services.scraper.san_jose import SanJoseScraper
+        from services.scraper.california_state import CaliforniaStateScraper
+        from services.scraper.santa_clara_county import SantaClaraCountyScraper
+        from services.scraper.saratoga import SaratogaScraper
         
         SCRAPER_MAP = {
             'City of San Jose': SanJoseScraper,
@@ -730,7 +730,7 @@ async def _run_analysis_task(
             print(f"Task {task_id}: Running {step} with NEW pipeline")
             
             # Import new pipeline components
-            from backend.services.llm.orchestrator import AnalysisPipeline
+            from services.llm.orchestrator import AnalysisPipeline
             from llm_common.llm_client import LLMClient
             from llm_common.web_search import WebSearchClient
             from llm_common.cost_tracker import CostTracker
@@ -776,7 +776,7 @@ async def _run_analysis_task(
 
 def _check_scraper_health() -> Dict[str, Any]:
     """Check health of all scrapers."""
-    from backend.scrapers import SCRAPERS
+    from services.scraper.registry import SCRAPERS
     
     health = {}
     for jurisdiction in SCRAPERS.keys():

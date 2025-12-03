@@ -1,8 +1,4 @@
 from fastapi import FastAPI, HTTPException, BackgroundTasks
-from services.scraper.saratoga import SaratogaScraper
-from services.scraper.san_jose import SanJoseScraper
-from services.scraper.santa_clara_county import SantaClaraCountyScraper
-from services.scraper.california_state import CaliforniaStateScraper
 from services.llm.analyzer import LegislationAnalyzer
 from services.notifications.email import EmailNotificationService
 from middleware.rate_limit import RateLimiter
@@ -62,12 +58,7 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 # Jurisdiction mapping
-SCRAPERS = {
-    "saratoga": (SaratogaScraper, "city"),
-    "san-jose": (SanJoseScraper, "city"),
-    "santa-clara-county": (SantaClaraCountyScraper, "county"),
-    "california": (CaliforniaStateScraper, "state")
-}
+from services.scraper.registry import SCRAPERS
 
 @app.get("/")
 async def root():
