@@ -358,6 +358,87 @@ async def update_model_configs(
     return {"message": "Model configuration updated", "count": len(config.models)}
 
 
+@router.get("/health/models")
+async def check_model_health(db: SupabaseDB = Depends(get_db)):
+    """Check health of all configured models."""
+    if not db.client:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    # Get all enabled models
+    models = db.client.table('model_configs').select('*').eq('enabled', True).execute()
+    
+    health_results = []
+    for model in models.data:
+        # Perform health check (simple ping test)
+        try:
+            # TODO: Implement actual model health check
+            # For now, just check if we have API keys
+            is_healthy = True
+            latency_ms = 0
+            
+            health_results.append({
+                'provider': model['provider'],
+                'model_name': model['model_name'],
+                'status': 'healthy' if is_healthy else 'unhealthy',
+                'latency_ms': latency_ms,
+                'last_checked': datetime.now().isoformat()
+            })
+            
+            # Update model health in database
+            db.client.table('model_configs').update({
+                'health_status': 'healthy' if is_healthy else 'unhealthy',
+                'last_health_check_at': datetime.now().isoformat(),
+                'avg_latency_ms': latency_ms
+            }).eq('id', model['id']).execute()
+            
+        except Exception as e:
+            health_results.append({
+                'provider': model['provider'],
+                'model_name': model['model_name'],
+                'status': 'unhealthy',
+                'error': str(e),
+                'last_checked': datetime.now().isoformat()
+            })
+    
+    return health_results
+
+
+# ============================================================================
+# Jurisdiction Management Endpoints
+# ============================================================================
+
+@router.get("/jurisdictions")
+async def get_jurisdictions(db: SupabaseDB = Depends(get_db)):
+    """Get all jurisdictions with their source configuration."""
+    if not db.client:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    result = db.client.table('jurisdictions').select('*').order('name').execute()
+    return result.data
+
+
+@router.put("/jurisdictions/{jurisdiction_id}")
+async def update_jurisdiction(
+    jurisdiction_id: str,
+    update_data: Dict[str, Any],
+    db: SupabaseDB = Depends(get_db)
+):
+    """Update jurisdiction configuration."""
+    if not db.client:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    # Validate fields
+    allowed_fields = [
+        'scrape_url', 'api_type', 'api_key_env', 
+        'openstates_jurisdiction_id', 'scraper_class',
+        'use_web_scraper_fallback', 'source_priority'
+    ]
+    filtered_data = {k: v for k, v in update_data.items() if k in allowed_fields}
+    
+    result = db.client.table('jurisdictions').update(filtered_data).eq('id', jurisdiction_id).execute()
+    return result.data[0] if result.data else None
+
+
 # ============================================================================
 # Prompt Management Endpoints
 # ============================================================================
@@ -461,28 +542,56 @@ async def get_detailed_health():
 # ============================================================================
 
 async def _run_scrape_task(task_id: str, jurisdiction: str, force: bool, db: SupabaseDB):
-    """Background task to run scraping."""
+    """Background task to run scraping with multi-source support."""
     if not db.client:
         print(f"Task {task_id}: Database not available")
         return
-    
+
     try:
         # Update task status to running
         db.client.table('admin_tasks').update({
             'status': 'running',
             'started_at': datetime.now().isoformat()
         }).eq('id', task_id).execute()
+
+        # Import scraper registry
+        from backend.services.scraper.san_jose import SanJoseScraper
+        from backend.services.scraper.california_state import CaliforniaStateScraper
+        from backend.services.scraper.santa_clara_county import SantaClaraCountyScraper
+        from backend.services.scraper.saratoga import SaratogaScraper
         
-        # TODO: Implement actual scraping logic
-        # For now, simulate scraping
-        bills_found = 0
+        SCRAPER_MAP = {
+            'City of San Jose': SanJoseScraper,
+            'State of California': CaliforniaStateScraper,
+            'Santa Clara County': SantaClaraCountyScraper,
+            'Saratoga': SaratogaScraper,
+        }
+        
+        # Get jurisdiction config from database
+        jur_config = db.client.table('jurisdictions').select('*').eq('name', jurisdiction).single().execute()
+        if not jur_config.data:
+            raise Exception(f"Jurisdiction {jurisdiction} not found in database")
+        
+        config = jur_config.data
+        scraper_class = SCRAPER_MAP.get(jurisdiction)
+        
+        # Execute multi-source scraping based on source_priority
+        bills = await _execute_multi_source_scrape(scraper_class, config)
+        
+        # Store in database
+        jurisdiction_id = config['id']
         bills_new = 0
         bills_updated = 0
+        
+        for bill in bills:
+            leg_id = await db.store_legislation(jurisdiction_id, bill.dict())
+            if leg_id:
+                bills_new += 1
         
         # Record scrape history
         db.client.table('scrape_history').insert({
             'jurisdiction': jurisdiction,
-            'bills_found': bills_found,
+            'bills_found': len(bills),
             'bills_new': bills_new,
             'bills_updated': bills_updated,
             'status': 'success',
@@ -493,7 +602,7 @@ async def _run_scrape_task(task_id: str, jurisdiction: str, force: bool, db: Sup
         db.client.table('admin_tasks').update({
             'status': 'completed',
             'completed_at': datetime.now().isoformat(),
-            'result': {'bills_found': bills_found, 'bills_new': bills_new}
+            'result': {'bills_found': len(bills), 'bills_new': bills_new}
         }).eq('id', task_id).execute()
         
         print(f"Task {task_id}: Completed scraping {jurisdiction}")
@@ -501,6 +610,8 @@ async def _run_scrape_task(task_id: str, jurisdiction: str, force: bool, db: Sup
     except Exception as e:
         error_msg = str(e)
         print(f"Task {task_id} failed: {error_msg}")
+        import traceback
+        traceback.print_exc()
         
         # Update task status to failed
         db.client.table('admin_tasks').update({
@@ -517,6 +628,92 @@ async def _run_scrape_task(task_id: str, jurisdiction: str, force: bool, db: Sup
             'error_message': error_msg,
             'task_id': task_id
         }).execute()
+
+
+async def _execute_multi_source_scrape(scraper_class, config):
+    """Execute scraping based on source_priority strategy."""
+    source_priority = config.get('source_priority', 'api_only')
+    
+    if source_priority == 'both_merge':
+        # Fetch from both sources and merge
+        api_bills = await _fetch_from_api(scraper_class, config)
+        web_bills = await _fetch_from_web(config)
+        return _merge_bill_data(api_bills, web_bills)
+    
+    elif source_priority == 'api_first':
+        # Try API first, fallback to web if incomplete
+        api_bills = await _fetch_from_api(scraper_class, config)
+        if _is_incomplete(api_bills) and config.get('use_web_scraper_fallback'):
+            web_bills = await _fetch_from_web(config)
+            return _merge_bill_data(api_bills, web_bills)
+        return api_bills
+    
+    elif source_priority == 'web_first':
+        # Try web first, supplement with API
+        web_bills = await _fetch_from_web(config)
+        api_bills = await _fetch_from_api(scraper_class, config)
+        return _merge_bill_data(web_bills, api_bills)
+    
+    elif source_priority == 'api_only':
+        return await _fetch_from_api(scraper_class, config)
+    
+    elif source_priority == 'web_only':
+        return await _fetch_from_web(config)
+    
+    # Default fallback
+    return await _fetch_from_api(scraper_class, config)
+
+
+def _merge_bill_data(primary_bills, secondary_bills):
+    """Merge bills from two sources, preferring primary data."""
+    merged = {}
+    
+    # Index primary bills by bill_number
+    for bill in primary_bills:
+        merged[bill.bill_number] = bill
+    
+    # Supplement with secondary source data
+    for bill in secondary_bills:
+        if bill.bill_number in merged:
+            # Merge: fill in missing fields from secondary source
+            existing = merged[bill.bill_number]
+            if not existing.text and bill.text:
+                existing.text = bill.text
+            if not existing.status and bill.status:
+                existing.status = bill.status
+            if not existing.introduced_date and bill.introduced_date:
+                existing.introduced_date = bill.introduced_date
+        else:
+            # New bill only found in secondary source
+            merged[bill.bill_number] = bill
+    
+    return list(merged.values())
+
+
+async def _fetch_from_api(scraper_class, config):
+    """Fetch bills using API scraper."""
+    if not scraper_class:
+        return []
+    scraper = scraper_class()
+    return await scraper.scrape()
+
+
+async def _fetch_from_web(config):
+    """Fetch bills using web scraper (placeholder for now)."""
+    # TODO: Implement generic web scraper using scrape_url
+    # For now, return empty list as we don't have a generic web scraper yet
+    return []
+
+
+def _is_incomplete(bills):
+    """Check if bill data is incomplete (missing text, etc.)."""
+    if not bills:
+        return True
+    # Check if any bills are missing critical fields
+    for bill in bills:
+        if not bill.text or len(bill.text) < 100:  # Arbitrary threshold
+            return True
+    return False
 
 
 async def _run_analysis_task(

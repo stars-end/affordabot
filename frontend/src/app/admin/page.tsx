@@ -18,6 +18,7 @@ import { ScrapeManager } from '@/components/admin/ScrapeManager';
 import { AnalysisLab } from '@/components/admin/AnalysisLab';
 import { ModelRegistry } from '@/components/admin/ModelRegistry';
 import { PromptEditor } from '@/components/admin/PromptEditor';
+import { JurisdictionMapper } from '@/components/admin/JurisdictionMapper';
 
 export default function AdminDashboard() {
     const [activeTab, setActiveTab] = useState('overview');
@@ -40,6 +41,10 @@ export default function AdminDashboard() {
                     <TabsTrigger value="scraping" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
                         <Database className="w-4 h-4 mr-2" />
                         Scraping
+                    </TabsTrigger>
+                    <TabsTrigger value="sources" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                        <PlayCircle className="w-4 h-4 mr-2" />
+                        Jurisdiction
                     </TabsTrigger>
                     <TabsTrigger value="analysis" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
                         <Zap className="w-4 h-4 mr-2" />
@@ -118,6 +123,11 @@ export default function AdminDashboard() {
                 {/* Scraping Tab */}
                 <TabsContent value="scraping">
                     <ScrapeManager />
+                </TabsContent>
+
+                {/* Jurisdiction Tab */}
+                <TabsContent value="sources">
+                    <JurisdictionMapper />
                 </TabsContent>
 
                 {/* Analysis Tab */}

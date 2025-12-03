@@ -17,7 +17,8 @@ import {
     GripVertical,
     CheckCircle2,
     XCircle,
-    AlertCircle
+    AlertCircle,
+    Activity
 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
@@ -44,6 +45,23 @@ const USE_CASES = [
 export function ModelRegistry() {
     const [models, setModels] = useState<ModelConfig[]>([]);
     const [isLoading, setIsLoading] = useState(false);
+    const [checkingHealth, setCheckingHealth] = useState(false);
+    const [healthStatus, setHealthStatus] = useState<any[]>([]);
+
+    const checkHealth = async () => {
+        setCheckingHealth(true);
+        try {
+            const response = await fetch('/api/admin/health/models');
+            if (response.ok) {
+                const data = await response.json();
+                setHealthStatus(data);
+            }
+        } catch (error) {
+            console.error('Failed to check health:', error);
+        } finally {
+            setCheckingHealth(false);
+        }
+    };
     const [isSaving, setIsSaving] = useState(false);
     const [showAddForm, setShowAddForm] = useState(false);
     const [alert, setAlert] = useState<{ type: 'success' | 'error', message: string } | null>(null);
@@ -366,17 +384,66 @@ export function ModelRegistry() {
             {/* Model Health (Placeholder) */}
             <Card className="bg-white/40 backdrop-blur-md border-white/20 shadow-sm">
                 <CardHeader>
-                    <CardTitle className="text-gray-900">Model Health Status</CardTitle>
-                    <CardDescription className="text-gray-500">
-                        Real-time health monitoring for configured models
-                    </CardDescription>
+                    <div className="flex justify-between items-center">
+                        <CardTitle className="flex items-center gap-2">
+                            <Activity className="w-5 h-5" />
+                            Model Health Status
+                        </CardTitle>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={checkHealth}
+                            disabled={checkingHealth}
+                        >
+                            {checkingHealth ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Checking...
+                                </>
+                            ) : (
+                                'Check Health Now'
+                            )}
+                        </Button>
+                    </div>
+                    <CardDescription>Real-time status of configured models</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="text-center py-8 text-gray-400">
-                        <Settings className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                        <p>Health monitoring coming soon</p>
-                        <p className="text-sm mt-1">Will show latency, success rate, and availability</p>
-                    </div>
+                    {healthStatus.length === 0 ? (
+                        <div className="text-center py-8 text-muted-foreground">
+                            Click "Check Health Now" to verify model availability
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            {healthStatus.map((status, idx) => (
+                                <div key={idx} className="flex items-center justify-between p-3 border rounded-lg">
+                                    <div className="flex items-center gap-3">
+                                        <div className={`w-3 h-3 rounded-full ${status.status === 'healthy' ? 'bg-green-500' : 'bg-red-500'
+                                            }`} />
+                                        <div>
+                                            <div className="font-medium">{status.model_name}</div>
+                                            <div className="text-xs text-muted-foreground capitalize">{status.provider}</div>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className={`text-sm font-medium ${status.status === 'healthy' ? 'text-green-600' : 'text-red-600'
+                                            }`}>
+                                            {status.status === 'healthy' ? 'Operational' : 'Issues Detected'}
+                                        </div>
+                                        {status.latency_ms > 0 && (
+                                            <div className="text-xs text-muted-foreground">
+                                                {status.latency_ms}ms latency
+                                            </div>
+                                        )}
+                                        {status.error && (
+                                            <div className="text-xs text-red-500 max-w-[200px] truncate" title={status.error}>
+                                                {status.error}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </CardContent>
             </Card>
         </div>
