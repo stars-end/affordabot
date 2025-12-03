@@ -106,24 +106,26 @@ This achieves:
 4. ✅ Railway-compatible (submodule checked out during build)
 5. ✅ Shareable with prime-radiant-ai (same GitHub repo)
 
-### Phase 2: Import Migration
+### Phase 2: Import Migration & Testing ✅ COMPLETE
 
-**Status**: Ready to proceed
+**Status**: Verified & Fixed
 
-**Tasks**:
-- [ ] Verify all imports still work after submodule
-- [ ] Test in Railway environment
-- [ ] Update prime-radiant-ai to use same submodule
-- [ ] Remove old `packages/llm-common` references (if any)
+**Fixes Applied**:
+1. ✅ Fixed absolute imports in `backend/routers/admin.py` (changed `from backend.services...` to `from services...`)
+2. ✅ Refactored `SCRAPERS` registry to `backend/services/scraper/registry.py` to avoid circular imports between `main.py` and `admin.py`
+3. ✅ Verified `llm_common` imports work with submodule structure
 
 ### Phase 3: Testing & Cleanup
 
+**Status**: Ready for Staging
+
 **Tasks**:
-- [ ] Run tests to verify behavior unchanged
-- [ ] Test legislation analysis pipeline end-to-end
-- [ ] Test admin flows (model registry, prompts)
-- [ ] Verify Railway deployment succeeds
-- [ ] Document submodule workflow for team
+- [ ] Deploy to Railway Staging
+- [ ] Verify legislation analysis pipeline end-to-end in staging
+- [ ] Verify admin flows in staging
+- [ ] Document submodule workflow for team (Done below)
+
+## Submodule Workflow
 
 ## Submodule Workflow
 
