@@ -17,3 +17,4 @@ sendgrid
 litellm>=1.0.0
 eval_type_backport
 -e ../packages/llm-common
+prefect>=2.0.0

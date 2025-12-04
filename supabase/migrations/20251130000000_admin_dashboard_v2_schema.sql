@@ -82,6 +82,7 @@ CREATE INDEX IF NOT EXISTS idx_admin_tasks_created_at ON admin_tasks(created_at 
 CREATE INDEX IF NOT EXISTS idx_admin_tasks_bill_id ON admin_tasks(bill_id) WHERE bill_id IS NOT NULL;
 
 -- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_admin_tasks_updated_at ON admin_tasks;
 CREATE TRIGGER update_admin_tasks_updated_at
     BEFORE UPDATE ON admin_tasks
     FOR EACH ROW
@@ -137,6 +138,7 @@ CREATE INDEX IF NOT EXISTS idx_model_configs_priority
     WHERE enabled = true;
 
 -- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_model_configs_updated_at ON model_configs;
 CREATE TRIGGER update_model_configs_updated_at
     BEFORE UPDATE ON model_configs
     FOR EACH ROW
@@ -190,6 +192,7 @@ CREATE INDEX IF NOT EXISTS idx_system_prompts_version
     ON system_prompts(prompt_type, version DESC);
 
 -- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_system_prompts_updated_at ON system_prompts;
 CREATE TRIGGER update_system_prompts_updated_at
     BEFORE UPDATE ON system_prompts
     FOR EACH ROW
@@ -307,30 +310,35 @@ ALTER TABLE scrape_history ENABLE ROW LEVEL SECURITY;
 -- Admin-only access policies (adjust based on your auth setup)
 -- These are placeholder policies - customize based on your authentication
 
+DROP POLICY IF EXISTS "Admin full access to admin_tasks" ON admin_tasks;
 CREATE POLICY "Admin full access to admin_tasks"
     ON admin_tasks
     FOR ALL
     USING (true)  -- TODO: Replace with actual admin check
     WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Admin full access to model_configs" ON model_configs;
 CREATE POLICY "Admin full access to model_configs"
     ON model_configs
     FOR ALL
     USING (true)  -- TODO: Replace with actual admin check
     WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Admin full access to system_prompts" ON system_prompts;
 CREATE POLICY "Admin full access to system_prompts"
     ON system_prompts
     FOR ALL
     USING (true)  -- TODO: Replace with actual admin check
     WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Admin full access to analysis_history" ON analysis_history;
 CREATE POLICY "Admin full access to analysis_history"
     ON analysis_history
     FOR ALL
     USING (true)  -- TODO: Replace with actual admin check
     WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Admin full access to scrape_history" ON scrape_history;
 CREATE POLICY "Admin full access to scrape_history"
     ON scrape_history
     FOR ALL

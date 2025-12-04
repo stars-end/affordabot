@@ -76,20 +76,37 @@ This PRD defines the architecture for Affordabot's "Full City Infrastructure" RA
 
 ## Implementation Roadmap
 
-### Phase 1: Pilot (`affordabot-yr8`)
-- Set up Prefect + Scrapy.
-- Implement **San Jose** pilot (Meetings + Municipal Code).
-- Validate `raw_scrapes` storage.
+### Phase 0: The "Walking Skeleton" (San Jose Only)
+**Goal**: End-to-end data flow for *one* city (San Jose) without UI.
+- **Scope**:
+    -   1 City: San Jose.
+    -   2 Sources: Meetings (`city-scrapers`) + Municipal Code (Municode).
+- **Deliverables**:
+    -   DB Schema (`sources`, `raw_scrapes`).
+    -   Minimal Scrapy project with 2 spiders.
+    -   Minimal Prefect flow (`scrape_jurisdiction_flow`).
+    -   Manual SQL insertion of sources.
 
-### Phase 2: Ingestion (`affordabot-1z4`)
-- Implement `IngestionService`.
-- Wire up `SupabasePgVectorBackend`.
-- Verify end-to-end RAG (Query -> Embedding -> Vector Search).
+### Phase 1: Infrastructure Hardening & Ingestion
+**Goal**: Robust storage and RAG ingestion.
+- **Deliverables**:
+    -   `IngestionService`: `raw_scrapes` -> Chunk -> Embed -> `documents`.
+    -   Integration with `llm-common` (SupabasePgVectorBackend).
+    -   Validation of RAG pipeline (Query -> Vector Search).
 
-### Phase 3: Scale & Admin (`affordabot-9ko`)
-- Build Source Management UI.
-- Implement z.ai Auto-Discovery.
-- Roll out to 5+ cities.
+### Phase 2: Admin UI (Visibility)
+**Goal**: Manage what we have.
+- **Deliverables**:
+    -   Admin UI to view Jurisdictions and Sources.
+    -   Manual trigger buttons for scrapes.
+    -   Health status indicators.
+
+### Phase 3: Scale & Automation
+**Goal**: Expand reach.
+- **Deliverables**:
+    -   `z.ai` Auto-Discovery Job.
+    -   Onboard 4+ more cities (SF, Oakland, etc.).
+    -   Automated scheduling and alerting.
 
 ## Feature-Key
 affordabot-0yo
