@@ -517,9 +517,15 @@ scripts/<KEY>/       → Feature-specific automation
 <body>
 
 Feature-Key: bd-xyz
-Agent: claude-code
+Agent: <environment-id>
 Role: <role-name>
 ```
+
+**Agent trailer policy:**
+- `Agent: codex-cli` (Codex CLI)
+- `Agent: claude-code` (Claude Code / CC web)
+- `Agent: antigravity` (Antigravity IDE)
+- `Role`: keep your active role (backend-engineer, frontend-engineer, etc.)
 
 **Note:** Feature-Key should be the Beads issue ID (bd-xyz format)
 
