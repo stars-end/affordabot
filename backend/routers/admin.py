@@ -19,13 +19,41 @@ import os
 # Import database client
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from db.supabase_client import SupabaseDB
+from supabase import Client, create_client
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+
+def get_supabase() -> Client:
+    return create_client(
+        os.environ['SUPABASE_URL'],
+        os.environ['SUPABASE_SERVICE_ROLE_KEY']
+    )
+
+class ReviewUpdate(BaseModel):
+    status: str
+
+@router.get("/reviews")
+async def list_reviews(supabase: Client = Depends(get_supabase)):
+    """List pending template reviews."""
+    res = supabase.table("template_reviews").select("*").eq("status", "pending").execute()
+    return res.data
+
+@router.patch("/reviews/{review_id}")
+async def update_review(
+    review_id: str, 
+    update: ReviewUpdate,
+    supabase: Client = Depends(get_supabase)
+):
+    """Approve or reject a review."""
+    res = supabase.table("template_reviews").update({"status": update.status}).eq("id", review_id).execute()
+    return res.data
 
 # Initialize database client
 def get_db():
     """Dependency to get database client"""
+    # This function is now unused if get_supabase is used everywhere.
+    # Keeping it for now as per instruction, but it might be removed in a future edit.
+    from db.supabase_client import SupabaseDB # Re-import here to avoid circular dependency issues if get_supabase is the primary.
     return SupabaseDB()
 
 
