@@ -20,5 +20,5 @@ sentry-sdk[fastapi]
 sendgrid
 litellm>=1.0.0
 eval_type_backport
--e ../packages/llm-common
+git+https://github.com/stars-end/llm-common.git@main#egg=llm-common
 prefect>=2.0.0
