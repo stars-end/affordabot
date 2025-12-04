@@ -68,25 +68,31 @@ This document details the technical implementation for the "Full City Infrastruc
 
 ## 5. Source Method Differentiation
 
-Sources are categorized by `source_method` to handle different data acquisition strategies:
+Sources are prioritized by reliability and maintenance cost (Tech Lead Guidance):
 
-### Scrape Sources
-- **Method**: Web scraping via Scrapy spiders
-- **Examples**: Legistar, Municode, city websites
-- **Requirements**: Spider implementation, robots.txt compliance, rate limiting
-- **Handler**: Spider name (e.g., `sanjose_meetings`, `legistar_generic`)
+### 1. Meetings (Agendas/Minutes)
+*   **Primary**: `city-scrapers` (Structured, maintained, free).
+    *   Use existing spiders where available.
+*   **Secondary**: APIs (OpenStates, Legistar) if supported.
+*   **Last Resort**: `Web Reader` + Local Parsing.
+    *   Only if no spider/API exists.
 
-### API Sources
-- **Method**: Direct API access
-- **Examples**: OpenStates, GatherGov, city open data portals
-- **Requirements**: API client, authentication tokens, request quotas
-- **Handler**: API client name (e.g., `openstates_api`, `city_open_data`)
+### 2. Non-Meeting Content (Codes, Permits, General)
+*   **Default**: `Web Reader` (z.ai `POST /paas/v4/reader`).
+    *   Cost: Negligible (~$250/yr for 5k calls/block).
+    *   Output: Markdown/Text.
+    *   Process: Fetch → Parse/Normalize locally → Ingest.
+*   **Fallback**: Playwright/Scrapy.
+    *   Only for complex pages where Web Reader fails.
 
-### Manual Sources
-- **Method**: Admin-uploaded documents
-- **Examples**: PDFs from city clerk, scanned documents
-- **Requirements**: File upload UI, OCR processing (future)
-- **Handler**: `manual_upload`
+### 3. Discovery
+*   **Strategy**: Static source lists preferred to reduce churn.
+*   **Tool**: `Web Search` (z.ai) only for finding *new* URLs or replacing broken ones.
+
+### Handlers
+- `city_scrapers`: Delegates to `affordabot_scraper` spiders.
+- `web_reader`: Uses z.ai Web Reader API.
+- `api_client`: Uses specific API clients (e.g., OpenStates).
 
 ### Schema Changes
 ```sql

@@ -17,6 +17,44 @@ def fetch_active_sources():
     return response.data
 
 @task
+async def fetch_with_web_reader(source):
+    """Fetch content using Web Reader for non-meeting sources."""
+    logger = get_run_logger()
+    source_id = source["id"]
+    url = source["url"]
+    
+    logger.info(f"Fetching {url} with Web Reader for source {source_id}")
+    
+    # Import here to avoid top-level async issues
+    import sys
+    sys.path.append(os.path.join(os.getcwd(), "backend"))
+    from clients.web_reader_client import WebReaderClient
+    from supabase import create_client
+    import hashlib
+    import json
+    
+    client = WebReaderClient()
+    result = await client.fetch_content(url)
+    
+    # Store in raw_scrapes
+    supabase_url = os.environ.get("SUPABASE_URL")
+    supabase_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+    supabase = create_client(supabase_url, supabase_key)
+    
+    content_hash = hashlib.sha256(result["content"].encode()).hexdigest()
+    
+    raw_scrape = {
+        "source_id": source_id,
+        "content_hash": content_hash,
+        "content_type": "text/markdown",
+        "data": result,
+        "metadata": {"fetcher": "web_reader"}
+    }
+    
+    supabase.table("raw_scrapes").insert(raw_scrape).execute()
+    logger.info(f"Stored raw scrape for source {source_id}")
+
+@task
 def run_spider(source):
     logger = get_run_logger()
     source_id = source["id"]
@@ -52,10 +90,20 @@ def run_spider(source):
         raise
 
 @flow(name="Scrape All Sources")
-def scrape_all_flow():
+async def scrape_all_flow():
+    """Route sources to appropriate fetcher based on source_method."""
     sources = fetch_active_sources()
     for source in sources:
-        run_spider.submit(source)
+        source_method = source.get("source_method", "scrape")
+        
+        if source_method == "web_reader":
+            await fetch_with_web_reader(source)
+        elif source_method == "scrape":
+            run_spider.submit(source)
+        else:
+            logger = get_run_logger()
+            logger.warning(f"Unknown source_method '{source_method}' for source {source['id']}")
 
 if __name__ == "__main__":
-    scrape_all_flow()
+    import asyncio
+    asyncio.run(scrape_all_flow())
