@@ -35,11 +35,26 @@ This PRD defines the architecture for Affordabot's "Full City Infrastructure" RA
 
 ### FR-2: Comprehensive City Scraping (`affordabot-yr8`)
 **Priority:** P0
-- **Scope**:
-    - **Meetings**: Agendas, Minutes, Transcripts (via `city-scrapers` fork/import).
-    - **Regulations**: Municipal Codes, Zoning Ordinances (Custom Spiders).
-    - **Infrastructure**: Permits, Property Taxes, Easements (Custom Spiders).
-- **Orchestration**: Prefect flows managed in `affordabot`.
+
+**Source Types**:
+- **Web Scraping**: Legistar, Municode, city websites
+  - Meetings: Agendas, Minutes, Transcripts
+  - Regulations: Municipal Codes, Zoning Ordinances
+  - Infrastructure: Permits, Property Taxes, Easements
+- **API Access**: OpenStates, GatherGov, city open data portals
+- **Manual Upload**: PDFs, scanned documents (Phase 3)
+
+**Source Method Differentiation**:
+- `source_method` field: `scrape`, `api`, `manual`
+- `handler` field: Maps to spider/API client (e.g., `sanjose_meetings`, `openstates_api`)
+- Prefect flow routes based on `source_method`
+
+**Health Monitoring**:
+- Track scrape success/failure rates per source
+- Auto-disable broken sources (3 consecutive failures)
+- Admin alerts for failures
+
+**Orchestration**: Prefect flows managed in `affordabot`.
 
 ### FR-3: RAG Ingestion Pipeline (`affordabot-1z4`)
 **Priority:** P0
@@ -52,12 +67,27 @@ This PRD defines the architecture for Affordabot's "Full City Infrastructure" RA
 
 ### FR-4: Admin Source Management (`affordabot-9ko`)
 **Priority:** P1
-- **Description**: UI to manage 100+ jurisdictions and discover new sources.
-- **Features**:
-    - **Jurisdiction View**: List of tracked cities/counties.
-    - **Auto-Discovery**: Background job (z.ai) finds new URLs (e.g., "New Permit Portal").
-    - **Review Queue**: Admin approves/rejects discovered sources.
-    - **Health Dashboard**: Scrape status (Green/Red) per source.
+
+**Auto-Discovery**:
+- **Strategy**: Template-based query generation
+  - 15 standardized queries per jurisdiction
+  - Categories: meetings, codes, permits, taxes, planning
+- **Search**: z.ai web search with 2-tier caching (`llm-common.WebSearchClient`)
+- **Filtering**: Simple heuristics (`.gov`, `.us`, known platforms)
+- **Cost**: ~$0.15 per jurisdiction (~$15 for 100 jurisdictions)
+
+**Template Maintenance**:
+- **Weekly LLM Review**: Tests templates on sample jurisdictions
+- **Suggests Improvements**: Admin approves template changes via Review Queue
+- **Cost**: ~$0.01/week ($0.50/year)
+
+**Admin Features**:
+- **Jurisdiction View**: Hierarchical list (City → County → State)
+- **Source List**: Table with URL, type, method, status, last scraped
+- **Review Queue**: Approve/reject auto-discovered sources
+- **Raw Scrapes Viewer**: Browse/filter/download scraped data pre-ingestion
+- **Health Dashboard**: Scrape status (Green/Red) per source
+- **Template Review Queue**: Approve LLM-suggested template improvements
 
 ---
 
