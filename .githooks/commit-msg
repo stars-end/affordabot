@@ -35,14 +35,15 @@ if [ -z "$LINES_CHANGED" ]; then
   LINES_CHANGED=0
 fi
 
-# Check if using Beads format (bd-xyz)
-if ! echo "$FEATURE_KEY" | grep -qE '^bd-[a-z0-9]+$'; then
+# Check if using Beads format (affordabot-xyz for this repo)
+# TODO: Auto-detect from bd config get issue-prefix
+if ! echo "$FEATURE_KEY" | grep -qE '^(bd-|affordabot-)[a-z0-9]+$'; then
   if [ "$LINES_CHANGED" -gt 100 ]; then
     # HARD BLOCK for large changes
     echo "⛔ Large changes (${LINES_CHANGED} LOC) MUST use Beads tracking" >&2
     echo "" >&2
     echo "   Current Feature-Key: $FEATURE_KEY" >&2
-    echo "   Required format: bd-xyz" >&2
+    echo "   Required format: bd-xyz or affordabot-xyz" >&2
     echo "" >&2
     echo "   Create Beads issue:" >&2
     echo "   bd create \"Your feature title\" --type feature --priority 1" >&2
@@ -54,7 +55,7 @@ if ! echo "$FEATURE_KEY" | grep -qE '^bd-[a-z0-9]+$'; then
     echo "⚠️  Warning: Feature-Key not using Beads format (${LINES_CHANGED} LOC changed)" >&2
     echo "" >&2
     echo "   Current: $FEATURE_KEY" >&2
-    echo "   Recommended: bd-xyz (Beads issue ID)" >&2
+    echo "   Recommended: affordabot-xyz (Beads issue ID)" >&2
     echo "" >&2
     echo "   For better tracking, create Beads issue:" >&2
     echo "   bd create \"Your feature title\" --type feature" >&2
