@@ -1,106 +1,135 @@
 import os
-import re
+import httpx
 import asyncio
 from typing import List, Optional
-# We use AsyncOpenAI directly for the Chat Search workaround
-from openai import AsyncOpenAI
 from playwright.async_api import async_playwright
-# Use LLM Common's WebSearchResult if available in environment, otherwise local definition fallback
-# But we verified llm_common is present.
+# Use LLM Common's WebSearchResult if available
 from llm_common.core.models import WebSearchResult
 
 class SearchDiscoveryService:
     """
     Discovery service that uses Z.ai Chat (with Web Search tool) to find content URLs.
     
-    Workaround: Since Z.ai Search API returns 429, we use the Chat API (glm-4.5)
-    with `web_search` tool enabled. We parse the URLs from citations.
+    Implementation: Uses raw HTTP requests to Z.ai Chat API to extract structured 
+    `web_search` data (MCP-style) which provides clean Title, URL, and Snippet 
+    without needing to parse Markdown citations.
     """
 
     def __init__(self, api_key: Optional[str] = None):
         self.api_key = api_key or os.environ.get("ZAI_API_KEY")
         # Use Coding Endpoint for Chat as validated
-        self.base_url = "https://api.z.ai/api/coding/paas/v4"
-        self.client = AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
+        self.endpoint = "https://api.z.ai/api/coding/paas/v4/chat/completions"
         self.model = "glm-4.5"
-
+    
     async def find_urls(self, query: str, count: int = 5) -> List[WebSearchResult]:
         """
-        Search for content using Z.ai Chat + Web Search Tool.
-        Falls back to Playwright if that fails (e.g. Z.ai 429's even on Chat).
+        Search for content using Z.ai Chat + Structured Web Search Tool.
+        Falls back to Playwright if that fails.
         
-        Note: Method name 'find_urls' is used by validate_pipeline.
+        Sanitization: The underlying `search-prime` engine often returns 0 results
+        for queries with `site:` operators. This method attempts to convert strict 
+        boolean logic into natural language or keyword constraints to ensure results.
         """
+        # Sanitize Query for Reliability
+        optimized_query = self._optimize_query(query)
+        if optimized_query != query:
+            print(f"🔄 Optimized Query: '{query}' -> '{optimized_query}'")
+            
         try:
-            results = await self._search_zai_chat(query, count)
+            results = await self._search_zai_raw(optimized_query, count)
             if results:
-                print(f"✅ Z.ai Chat Discovery Success: {len(results)} URLs found.")
+                print(f"✅ Z.ai Chat (Structured) Discovery Success: {len(results)} URLs found.")
                 return results
             else:
-                print("⚠️ Z.ai Chat returned no URLs. Falling back to Playwright...")
+                print("⚠️ Z.ai Chat returned no structured URLs. Falling back to Playwright...")
         except Exception as e:
             print(f"⚠️ Z.ai Chat Discovery Failed: {e}. Falling back to Playwright...")
         
-        # Fallback to Playwright
+        # Fallback to Playwright (pass original query as DDG supports site:)
         return await self._fallback_search_duckduckgo(query, count)
 
-    async def _search_zai_chat(self, query: str, count: int) -> List[WebSearchResult]:
-        """Execute search via Z.ai Chat API."""
-        tools = [{
-            "type": "web_search",
-            "web_search": {
-                 "enable": True,
-                 "search_result": True,
-                 "search_query": query
-            }
-        }]
+    def _optimize_query(self, query: str) -> str:
+        """
+        Transform query to maximize search-prime compatibility.
+        - Converts `site:domain.com query` -> `query from domain.com`
+        """
+        # Simple regex for site: operator
+        import re
+        site_match = re.search(r'site:([\w\.-]+)', query)
+        if site_match:
+            domain = site_match.group(1)
+            # Remove site:domain and extra spaces
+            clean_q = re.sub(r'site:[\w\.-]+', '', query).strip()
+            return f"{clean_q} from {domain}"
+        return query
+
+    async def _search_zai_raw(self, query: str, count: int) -> List[WebSearchResult]:
+        """Execute search via Raw Z.ai API to get 'web_search' field."""
         
-        messages = [{
-            "role": "user", 
-            "content": f"Please search for: {query}. Provide a list of relevant links and a brief summary for each."
-        }]
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json"
+        }
         
-        response = await self.client.chat.completions.create(
-            model=self.model,
-            messages=messages,
-            stream=False,
-            extra_body={"tools": tools}
-        )
+        # Exact config validated to return 'web_search' root field
+        payload = {
+            "model": self.model,
+            "messages": [{"role": "user", "content": f"Search for: {query}"}],
+            "tools": [{
+                "type": "web_search",
+                "web_search": {
+                     "enable": "True", # String True required for strict mode?
+                     "search_engine": "search-prime", 
+                     "search_result": "True",
+                     "search_query": query
+                }
+            }],
+            "stream": False
+        }
         
-        content = response.choices[0].message.content
-        if not content:
-            return []
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                self.endpoint, 
+                json=payload, 
+                headers=headers, 
+                timeout=60.0
+            )
             
-        # Parse URLs from markdown links: [Title](URL)
-        results = []
-        matches = re.findall(r'\[([^\]]+)\]\((https?://[^\)]+)\)', content)
-        
-        seen_urls = set()
-        for title, url in matches:
-            if url in seen_urls:
-                continue
-            seen_urls.add(url)
+            if resp.status_code != 200:
+                print(f"⚠️ Z.ai API Error {resp.status_code}: {resp.text}")
+                return []
+                
+            data = resp.json()
             
-            # Simple filter for internal z.ai links or unwanted junk?
-            # Z.ai citation links are usually clean.
+            # Extract structured data from root 'web_search' field
+            # Structure: [{"refer": "ref_1", "title": "...", "link": "...", "content": "..."}]
+            web_search_data = data.get("web_search", [])
             
-            results.append(WebSearchResult(
-                title=title,
-                url=url,
-                content=content # We put full content or construct snippet? 
-                # WebSearchResult.content is usually the page content.
-                # Here we only have the citation context. 
-                # Let's put the chat response context for now or just generic.
-            ))
+            results = []
+            seen_urls = set()
             
-        return results[:count]
+            for item in web_search_data:
+                url = item.get("link")
+                if not url or url in seen_urls:
+                    continue
+                
+                seen_urls.add(url)
+                
+                results.append(WebSearchResult(
+                    title=item.get("title", "No Title"),
+                    url=url,
+                    content=item.get("content", ""), # This is the snippet
+                    published_date=item.get("publish_date"),
+                    source=item.get("media", "z.ai")
+                ))
+                
+            return results[:count]
 
     async def _fallback_search_duckduckgo(self, query: str, count: int) -> List[WebSearchResult]:
         """Fallback: Scrape DuckDuckGo using Playwright."""
         print(f"🦆 Falling back to DuckDuckGo/Playwright for: {query}")
         results = []
         async with async_playwright() as p:
-            # We must handle browser launch failure gracefully
             try:
                 browser = await p.chromium.launch(headless=True)
             except Exception as e:
@@ -109,11 +138,9 @@ class SearchDiscoveryService:
                 
             try:
                 page = await browser.new_page()
-                # Go to DDG HTML version (lighter, easier to scrape)
                 await page.goto(f"https://html.duckduckgo.com/html/?q={query}", timeout=15000)
+                await page.wait_for_selector(".result__body", timeout=5000)
                 
-                # Extract results
-                # DDG HTML selectors: .result__body, .result__a, .result__snippet
                 elements = await page.query_selector_all(".result__body")
                 
                 for el in elements[:count]:
@@ -131,16 +158,18 @@ class SearchDiscoveryService:
                                     title=title,
                                     url=url,
                                     content=snippet,
+                                    score=0.8,
                                     source="duckduckgo_fallback"
                                 ))
                     except Exception:
                         continue
             except Exception as e:
-                print(f"❌ Playwright Fallback Failed during scrape: {e}")
+                print(f"❌ Playwright Fallback Failed: {e}")
             finally:
                 await browser.close()
                 
         return results
 
     async def close(self):
-        await self.client.close()
+        # httpx client is context managed in method, nothing to close permanently
+        pass

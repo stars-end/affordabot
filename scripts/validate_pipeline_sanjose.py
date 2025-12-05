@@ -18,9 +18,9 @@ class KeywordStrategy(BaseModel):
 SAN_JOSE_STRATEGY = KeywordStrategy(
     topic="Affordable Housing in San Jose",
     queries=[
-        "site:sanjoseca.gov affordable housing ordinances 2024",
-        "site:municode.com san jose inclusionary housing", # Should route to Playwright
-        "site:sanjoseca.gov housing element pdf" # Should route to Z.ai
+        "Find affordable housing ordinances in San Jose from 2024",
+        "Find San Jose inclusionary housing implementation guidelines on municode", 
+        "Find the 2023-2031 San Jose Housing Element PDF"
     ]
 )
 
