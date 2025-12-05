@@ -6,9 +6,10 @@ from typing import List, Dict, Any, Optional
 from uuid import uuid4
 from supabase import Client
 
-# Assuming llm-common v0.3.0 interfaces
+# LLM Common v0.3.0 interfaces
 from llm_common import LLMClient
 from llm_common.retrieval import SupabasePgVectorBackend, RetrievedChunk
+from llm_common.embeddings import EmbeddingService
 
 class IngestionService:
     """
@@ -18,25 +19,23 @@ class IngestionService:
     1. Fetch unprocessed raw_scrapes
     2. Extract and clean text
     3. Chunk text
-    4. Generate embeddings (via LLMClient)
+    4. Generate embeddings (via EmbeddingService)
     5. Store in vector backend (via SupabasePgVectorBackend)
     """
     
     def __init__(
         self,
         supabase_client: Client,
-        llm_client: LLMClient,
         vector_backend: SupabasePgVectorBackend,
+        embedding_service: EmbeddingService,
         chunk_size: int = 1000,
         chunk_overlap: int = 200,
-        embedding_model: str = "text-embedding-3-small"
     ):
         self.supabase = supabase_client
-        self.llm_client = llm_client
         self.vector_backend = vector_backend
+        self.embedding_service = embedding_service
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
-        self.embedding_model = embedding_model
     
     async def process_raw_scrape(self, scrape_id: str) -> int:
         """
@@ -52,6 +51,10 @@ class IngestionService:
         result = self.supabase.table('raw_scrapes').select('*').eq('id', scrape_id).single().execute()
         scrape = result.data
         
+        if not scrape:
+             print(f"⚠️ Raw scrape {scrape_id} not found.")
+             return 0
+
         # 2. Extract text from data
         text = self._extract_text(scrape['data'])
         
@@ -61,32 +64,22 @@ class IngestionService:
 
         # 3. Chunk text
         chunks = self._chunk_text(text)
+        if not chunks:
+             return 0
         
         # 4. Generate embeddings
-        # Using LLMClient's underlying LiteLLM support or a dedicated method if available.
-        # If LLMClient doesn't expose embedding directly, we might need to use litellm directly
-        # or assume LLMClient has an .embed() method in v0.3.0.
-        # For now, I'll assume we can use litellm directly or a helper.
-        # Actually, the feedback said "via LLMClient or your chosen embedder".
-        # Let's use litellm directly for embeddings to be safe, or check if LLMClient has it.
-        # I'll use a helper method here that uses litellm.
+        try:
+            embeddings = await self.embedding_service.embed_documents(chunks)
+        except Exception as e:
+            print(f"❌ Embedding failed: {e}")
+            return 0
         
-        from litellm import aembedding
-        
-        embeddings = []
-        # Batch embedding
-        batch_size = 20
-        for i in range(0, len(chunks), batch_size):
-            batch = chunks[i:i + batch_size]
-            response = await aembedding(
-                model=self.embedding_model,
-                input=batch
-            )
-            embeddings.extend([d['embedding'] for d in response.data])
-        
-        # 5. Create RetrievedChunk objects (or equivalent dicts for the backend)
+        # 5. Create RetrievedChunk objects
         document_id = str(uuid4())
         doc_chunks = []
+        
+        # Ensure scrape metadata is valid
+        scrape_meta = scrape.get('metadata') or {}
         
         for i, (chunk_text, embedding) in enumerate(zip(chunks, embeddings)):
             # Construct metadata
@@ -94,12 +87,8 @@ class IngestionService:
                 "source_id": scrape['source_id'],
                 "scrape_id": scrape_id,
                 "content_type": scrape.get('content_type', 'text/html'),
-                **scrape.get('metadata', {})
+                **scrape_meta
             }
-            
-            # We need to map this to what SupabasePgVectorBackend expects.
-            # Assuming it takes a list of objects or dicts.
-            # The feedback mentioned `RetrievedChunk`.
             
             doc_chunk = RetrievedChunk(
                 id=str(uuid4()),
@@ -107,7 +96,9 @@ class IngestionService:
                 embedding=embedding,
                 metadata=metadata,
                 document_id=document_id,
-                chunk_index=i
+                chunk_id=str(uuid4()), # Explicit chunk ID
+                source=scrape.get('url', 'unknown'), # Add source URL
+                score=1.0 # Default score (not relevant for storage)
             )
             doc_chunks.append(doc_chunk)
         
@@ -130,7 +121,7 @@ class IngestionService:
         if isinstance(data, dict):
             # Try common text fields
             for field in ['text', 'content', 'body', 'raw_html_snippet', 'description']:
-                if field in data and data[field]:
+                if field in data and data.get(field):
                     return self._clean_html(str(data[field]))
             
             # Fallback: concatenate all string values
@@ -141,9 +132,8 @@ class IngestionService:
     
     def _clean_html(self, html: str) -> str:
         """Clean HTML tags and normalize whitespace."""
-        # Remove HTML tags
+        # Simple regex clean - okay for now, ideally use BS4 or trafilatura
         text = re.sub(r'<[^>]+>', ' ', html)
-        # Normalize whitespace
         text = re.sub(r'\s+', ' ', text)
         return text.strip()
     
@@ -159,7 +149,6 @@ class IngestionService:
             if end < len(text):
                 # Look for sentence end
                 search_start = max(start, end - 100)
-                # Simple heuristic for sentence boundaries
                 match = re.search(r'[.!?]\s', text[search_start:end])
                 if match:
                     end = search_start + match.end()
