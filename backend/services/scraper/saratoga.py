@@ -1,8 +1,6 @@
 from typing import List
 from datetime import date
 from .base import BaseScraper, ScrapedBill
-import httpx
-from bs4 import BeautifulSoup
 
 class SaratogaScraper(BaseScraper):
     def __init__(self):

@@ -1,8 +1,7 @@
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from services.llm.analyzer import LegislationAnalyzer
 from services.notifications.email import EmailNotificationService
-from middleware.rate_limit import RateLimiter
 from db.supabase_client import SupabaseDB
 from typing import Dict, Any
 import os
@@ -10,6 +9,8 @@ import logging
 import sentry_sdk
 from sentry_sdk.integrations.fastapi import FastApiIntegration
 from sentry_sdk.integrations.logging import LoggingIntegration
+from routers import admin, sources, discovery
+from services.scraper.registry import SCRAPERS
 
 # Initialize Sentry
 if os.getenv("SENTRY_DSN"):
@@ -48,16 +49,13 @@ app.add_middleware(
 )
 
 # Include admin router
-from routers import admin, sources, discovery # Modified import
 app.include_router(admin.router)
-app.include_router(sources.router) # Added router
-app.include_router(discovery.router) # Added router
+app.include_router(sources.router)
+app.include_router(discovery.router)
 
 # Add rate limiting middleware (60 requests/minute per IP)
 # app.middleware("http")(RateLimiter(requests_per_minute=60))
 
-from fastapi import Request
-from fastapi.responses import JSONResponse
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
@@ -70,7 +68,6 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 # Jurisdiction mapping
-from services.scraper.registry import SCRAPERS
 
 @app.get("/")
 async def root():

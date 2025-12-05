@@ -31,7 +31,6 @@ async def fetch_with_web_reader(source):
     from clients.web_reader_client import WebReaderClient
     from supabase import create_client
     import hashlib
-    import json
     
     client = WebReaderClient()
     result = await client.fetch_content(url)

@@ -1,5 +1,5 @@
 import os
-from typing import Type, TypeVar, Optional, Any
+from typing import Type, TypeVar, Optional
 import instructor
 from openai import AsyncOpenAI
 from pydantic import BaseModel

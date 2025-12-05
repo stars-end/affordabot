@@ -1,5 +1,5 @@
-from pydantic import BaseModel, Field, HttpUrl
-from typing import List, Optional
+from pydantic import BaseModel, Field
+from typing import List
 
 class ImpactEvidence(BaseModel):
     """Evidence supporting a cost of living impact."""

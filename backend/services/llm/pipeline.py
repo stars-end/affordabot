@@ -1,9 +1,9 @@
 import os
 import instructor
 from openai import AsyncOpenAI
-from typing import Optional, List, Dict
+from typing import List, Dict
 from pydantic import BaseModel
-from schemas.analysis import LegislationAnalysisResponse, LegislationImpact
+from schemas.analysis import LegislationAnalysisResponse
 from services.research.zai import ZaiResearchService, ResearchPackage
 import logging
 

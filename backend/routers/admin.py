@@ -13,7 +13,6 @@ from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any, Literal
 from datetime import datetime
-import asyncio
 import os
 
 
@@ -525,7 +524,7 @@ async def update_prompt(
     }).eq('prompt_type', request.prompt_type).eq('is_active', True).execute()
     
     # Insert new prompt version
-    new_prompt = db.client.table('system_prompts').insert({
+    db.client.table('system_prompts').insert({
         'prompt_type': request.prompt_type,
         'version': next_version,
         'system_prompt': request.system_prompt,

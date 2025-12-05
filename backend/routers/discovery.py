@@ -5,7 +5,7 @@ from typing import List
 from pydantic import BaseModel
 from services.auto_discovery_service import AutoDiscoveryService
 from llm_common import WebSearchClient
-from supabase import Client, create_client
+from supabase import create_client
 import os
 
 router = APIRouter(prefix="/discovery", tags=["discovery"])

@@ -1,10 +1,9 @@
 from __future__ import annotations
-from llm_common.llm_client import LLMClient, AllModelsFailed
+from llm_common.llm_client import LLMClient
 from llm_common.web_search import WebSearchClient
 from llm_common.cost_tracker import CostTracker
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 from pydantic import BaseModel
-from datetime import datetime
 
 class BillAnalysis(BaseModel):
     """Structured analysis output."""

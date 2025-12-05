@@ -1,7 +1,7 @@
 import os
 from typing import List, Dict, Any
 from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail, Email, To, Content
+from sendgrid.helpers.mail import Mail
 import logging
 
 logger = logging.getLogger(__name__)

@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 import re
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 from uuid import uuid4
 from supabase import Client
 
 # LLM Common v0.3.0 interfaces
-from llm_common import LLMClient
 from llm_common.retrieval import SupabasePgVectorBackend, RetrievedChunk
 from llm_common.embeddings import EmbeddingService
 

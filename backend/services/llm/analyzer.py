@@ -1,10 +1,8 @@
 import os
 import instructor
 import hashlib
-import json
 from openai import AsyncOpenAI
 from schemas.analysis import LegislationAnalysisResponse
-from typing import Optional
 from datetime import datetime
 
 class LegislationAnalyzer:

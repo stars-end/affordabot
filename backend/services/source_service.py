@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 from typing import List, Dict, Any, Optional
-from uuid import uuid4
 from supabase import Client
 from pydantic import BaseModel
 

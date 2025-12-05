@@ -1,5 +1,4 @@
-import os
-from typing import Type, TypeVar, Any
+from typing import Type, TypeVar
 from pydantic import BaseModel
 from urllib.parse import urlparse
 

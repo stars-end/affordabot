@@ -70,26 +70,35 @@ jobs:
           path: frontend/playwright-report/
           retention-days: 30
 
-  # Backend tests disabled - backend uses pip/venv not Poetry
-  # TODO: Add backend tests once test infrastructure is set up
-  # backend-tests:
-  #   name: Backend Tests
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - name: Set up Python
-  #       uses: actions/setup-python@v5
-  #       with:
-  #         python-version: '3.11'
-  #     - name: Install dependencies
-  #       run: |
-  #         cd backend
-  #         pip install -r requirements.txt
-  #         pip install pytest
-  #     - name: Run backend tests
-  #       run: |
-  #         cd backend
-  #         pytest --verbose
+  backend-lint-and-test:
+    name: Backend Lint & Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install poetry
+        run: pipx install poetry
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'poetry'
+
+      - name: Install dependencies
+        run: |
+          cd backend
+          poetry install
+
+      - name: Run Ruff (Linting)
+        run: |
+          cd backend
+          poetry run ruff check .
+
+      - name: Run pytest
+        run: |
+          cd backend
+          poetry run pytest -v
 
   beads-validation:
     name: Beads Validation

@@ -1,5 +1,4 @@
-import asyncio
-from typing import Type, TypeVar, Optional
+from typing import Type, TypeVar
 from pydantic import BaseModel
 from playwright.async_api import async_playwright
 # Using the protocol from contracts
