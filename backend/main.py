@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi.middleware.cors import CORSMiddleware
 from services.llm.analyzer import LegislationAnalyzer
 from services.notifications.email import EmailNotificationService
 from middleware.rate_limit import RateLimiter
