@@ -2,9 +2,7 @@
 builder = "RAILPACK"
 
 [build.env]
-GIT_CONFIG_COUNT = "1"
-GIT_CONFIG_KEY_0 = "url.https://$GITHUB_TOKEN@github.com/.insteadOf"
-GIT_CONFIG_VALUE_0 = "https://github.com/"
+NIXPACKS_INSTALL_CMD = "git config --global url.\"https://${GITHUB_TOKEN}:x-oauth-basic@github.com/\".insteadOf \"https://github.com/\" && poetry install --no-interaction --no-ansi --only main --no-root"
 
 [deploy]
 startCommand = "poetry run uvicorn main:app --host 0.0.0.0 --port $PORT"
