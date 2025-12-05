@@ -31,7 +31,7 @@ sentry-sdk = {extras = ["fastapi"], version = "*"}
 sendgrid = "*"
 eval_type_backport = "*"
 scrapy = "*"
-llm-common = { git = "https://github.com/fengning-starsend/llm-common.git", rev = "master" }
+llm-common = { git = "https://github.com/stars-end/llm-common.git", rev = "v0.3.0" }
 
 [tool.poetry.group.dev.dependencies]
 pytest = "*"

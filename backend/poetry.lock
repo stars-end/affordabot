@@ -2116,31 +2116,29 @@ utils = ["numpydoc"]
 
 [[package]]
 name = "llm-common"
-version = "0.1.0"
-description = "Shared LLM utilities for Affordabot and Prime-Radiant-AI"
+version = "0.3.0"
+description = "Shared LLM framework for affordabot and prime-radiant-ai"
 optional = false
-python-versions = ">=3.9"
+python-versions = ">=3.13,<4.0"
 groups = ["main"]
 files = []
 develop = false
 
 [package.dependencies]
-eval_type_backport = "*"
-httpx = ">=0.24.0"
-instructor = ">=1.0.0"
-litellm = ">=1.0.0"
-openai = ">=1.0.0"
-pydantic = ">=2.0.0"
-supabase = ">=2.0.0"
-
-[package.extras]
-dev = ["pytest (>=7.0.0)", "pytest-asyncio (>=0.21.0)", "python-dotenv (>=1.0.0)"]
+cachetools = "^5.3.0"
+httpx = "^0.27.0"
+instructor = "^1.0.0"
+openai = "^1.0.0"
+pydantic = "^2.0.0"
+python-dotenv = "^1.0.0"
+tenacity = "^8.0.0"
+typing-extensions = "^4.0.0"
 
 [package.source]
 type = "git"
-url = "https://github.com/fengning-starsend/llm-common.git"
-reference = "master"
-resolved_reference = "bee119170bb1aa9378262f4f6c4595f24cd8dae2"
+url = "https://github.com/stars-end/llm-common.git"
+reference = "v0.3.0"
+resolved_reference = "b085b8b56dc232dca7b839db67840da2324f6ea4"
 
 [[package]]
 name = "lxml"
@@ -5668,4 +5666,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.13"
-content-hash = "13542cd6fd14be4136a842439d52ccc11c0a6c2a7826bb1340d2a8aab75266b1"
+content-hash = "c453195f27fd34fcd7d37f5fda324b743a1ec7dfd7d3eca0448e19c88608d504"
