@@ -16,10 +16,12 @@ from datetime import datetime
 import asyncio
 import os
 
+
 # Import database client
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from supabase import Client, create_client
+from db.supabase_client import SupabaseDB
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -51,9 +53,6 @@ async def update_review(
 # Initialize database client
 def get_db():
     """Dependency to get database client"""
-    # This function is now unused if get_supabase is used everywhere.
-    # Keeping it for now as per instruction, but it might be removed in a future edit.
-    from db.supabase_client import SupabaseDB # Re-import here to avoid circular dependency issues if get_supabase is the primary.
     return SupabaseDB()
 
 
