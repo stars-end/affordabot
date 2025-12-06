@@ -87,6 +87,93 @@ async def test_municode_discovery_success():
         service = MunicodeDiscoveryService()
         results = await service.find_laws()
         
+        
         assert len(results) == 1
         assert results[0].title == "Title 1"
         assert "nodeId=123" in results[0].url
+
+@pytest.mark.asyncio
+async def test_search_discovery_zai_success():
+    """Test Z.ai Structured Search success path."""
+    from services.discovery.search_discovery import SearchDiscoveryService
+    
+    # Mock Response Data
+    mock_zai_response = {
+        "web_search": [
+            {
+                "refer": "ref_1",
+                "title": "Z.ai Result 1",
+                "link": "http://example.com/1",
+                "content": "Snippet 1"
+            },
+            {
+                "refer": "ref_2",
+                "title": "Z.ai Result 2",
+                "link": "http://example.com/2",
+                "content": "Snippet 2"
+            }
+        ]
+    }
+    
+    # Mock HTTP Client
+    with patch("httpx.AsyncClient") as mock_client_cls:
+        mock_client = AsyncMock()
+        mock_client_cls.return_value.__aenter__.return_value = mock_client
+        
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = mock_zai_response
+        mock_client.post.return_value = mock_resp
+        
+        service = SearchDiscoveryService(api_key="test-key")
+        results = await service.find_urls("test query")
+        
+        assert len(results) == 2
+        assert results[0].url == "http://example.com/1"
+        assert results[0].title == "Z.ai Result 1"
+        assert results[0].domain == "example.com"
+
+@pytest.mark.asyncio
+async def test_search_discovery_fallback_logic():
+    """Test fallback to Playwright (mocked) when Z.ai fails."""
+    from services.discovery.search_discovery import SearchDiscoveryService
+    
+    # Mock Z.ai Failure (Empty results or API error)
+    with patch("httpx.AsyncClient") as mock_client_cls:
+        mock_client = AsyncMock()
+        mock_client_cls.return_value.__aenter__.return_value = mock_client
+        
+        # Scenario: API Error
+        mock_resp = MagicMock()
+        mock_resp.status_code = 500
+        mock_client.post.return_value = mock_resp
+        
+        service = SearchDiscoveryService(api_key="test-key")
+        
+        # Mock _fallback_search_duckduckgo using patch.object
+        # We need to patch it BEFORE calling find_urls
+        with patch.object(service, '_fallback_search_duckduckgo', new_callable=AsyncMock) as mock_fallback:
+            mock_fallback.return_value = [WebSearchResult(url="http://fallback.com", title="Fallback", snippet="Desc", domain="fallback.com")]
+            
+            results = await service.find_urls("test query")
+            
+            # Verify Z.ai called
+            mock_client.post.assert_called_once()
+            
+            # Verify Fallback called
+            mock_fallback.assert_called_once_with("test query", 5)
+            
+            assert len(results) == 1
+            assert results[0].url == "http://fallback.com"
+
+def test_search_discovery_query_optimization():
+    """Test site: operator optimization."""
+    from services.discovery.search_discovery import SearchDiscoveryService
+    service = SearchDiscoveryService(api_key="test")
+    
+    # Case 1: Standard query
+    assert service._optimize_query("hello world") == "hello world"
+    
+    # Case 2: site: operator
+    assert service._optimize_query("site:example.com housing") == "housing from example.com"
+

@@ -286,8 +286,6 @@ class IngestionService:
                 # (Assuming process_raw_scrape updates it)
                 # If column mismatch, process_raw_scrape will raise.
                 # We can return a specific string for now if needed.
-                return "processed_doc_id_placeholder" # process_raw_scrape doesn't return ID directly
-                
                 # Fetch it
                 try:
                     row = self.supabase.table('raw_scrapes').select('document_id').eq('id', scrape_id).single().execute()
