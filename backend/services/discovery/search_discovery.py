@@ -116,12 +116,18 @@ class SearchDiscoveryService:
                 
                 seen_urls.add(url)
                 
+                from urllib.parse import urlparse
+                domain = urlparse(url).netloc
+                
+                pub_date = None # item.get("publish_date") - Disable due to formatting issues (e.g. '2025年')
+                    
                 results.append(WebSearchResult(
                     title=item.get("title", "No Title"),
                     url=url,
-                    content=item.get("content", ""), # This is the snippet
-                    published_date=item.get("publish_date"),
-                    source=item.get("media", "z.ai")
+                    snippet=item.get("content", ""), # Map 'content' from API to 'snippet'
+                    content=None, # Full content not provided by search
+                    published_date=pub_date,
+                    domain=domain
                 ))
                 
             return results[:count]
