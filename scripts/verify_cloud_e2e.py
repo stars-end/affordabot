@@ -1,0 +1,79 @@
+"""
+Cloud End-to-End Verification Script for Railway.
+Intended to be run via `railway run python scripts/verify_cloud_e2e.py` or as a post-deploy check.
+"""
+
+import asyncio
+import sys
+import os
+import logging
+
+# Ensure backend is in path
+sys.path.append(os.path.join(os.getcwd(), 'backend'))
+
+from services.extractors.playwright_extractor import PlaywrightExtractor
+from services.storage.supabase_storage import SupabaseBlobStorage
+from supabase import create_client
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+async def verify_playwright():
+    """Verify Playwright can launch a browser and fetch content."""
+    logger.info("🧪 Testing Playwright Isolation...")
+    extractor = PlaywrightExtractor()
+    try:
+        # Test 1: Simple headless fetch
+        result = await extractor.fetch_raw_content("https://example.com")
+        if "Example Domain" in result:
+             logger.info("✅ Playwright Fetched Content (Length: %d)", len(result))
+             return True
+        else:
+             logger.error("❌ Playwright fetched unexpected content")
+             return False
+    except Exception as e:
+        logger.error(f"❌ Playwright Failed: {e}")
+        return False
+
+async def verify_storage():
+    """Verify we can upload to Supabase Storage."""
+    logger.info("🧪 Testing Storage Upload...")
+    
+    url = os.getenv("SUPABASE_URL")
+    key = os.getenv("SUPABASE_SERVICE_KEY")
+    
+    if not url or not key:
+        logger.error("❌ Missing Supabase Credentials")
+        return False
+        
+    try:
+        client = create_client(url, key)
+        storage = SupabaseBlobStorage(client)
+        
+        test_content = b"Cloud Verification Test Content"
+        path = f"verification/cloud_test_{os.urandom(4).hex()}.txt"
+        
+        uri = await storage.upload(path, test_content)
+        logger.info(f"✅ Uploaded to: {uri}")
+        return True
+    
+    except Exception as e:
+         logger.error(f"❌ Storage Upload Failed: {e}")
+         return False
+
+async def main():
+    logger.info("🚀 Starting Railway Cloud Verification")
+    
+    playwright_ok = await verify_playwright()
+    storage_ok = await verify_storage()
+    
+    if playwright_ok and storage_ok:
+        logger.info("🎉 All Cloud Checks Passed")
+        sys.exit(0)
+    else:
+        logger.error("🔥 Cloud Checks Failed")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    asyncio.run(main())
