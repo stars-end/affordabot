@@ -15,10 +15,9 @@ from services.discovery.search_discovery import SearchDiscoveryService
 from services.ingestion_service import IngestionService
 from services.search_pipeline_service import SearchPipelineService
 from services.storage.supabase_storage import SupabaseBlobStorage
-from services.retrieval.custom_pgvector_backend import CustomPgVectorBackend
 
 from llm_common import (
-    SupabasePgVectorBackend, # Keep for type check if needed, but we use Custom
+    SupabasePgVectorBackend,
     WebSearchResult,
     OpenRouterClient,
     LLMConfig,
@@ -87,13 +86,16 @@ async def main():
         # model="qwen/qwen3-embedding-8b" was noted.
     )
 
-    # 2. Setup Vector Backend (Custom for Affordabot)
-    vector_backend = CustomPgVectorBackend(
+    # 2. Setup    # 4. Retrieval (Standard Backend)
+    vector_backend = SupabasePgVectorBackend(
         supabase_client=supabase,
         table="documents",
-        source_col=None, 
-        metadata_cols=["document_id", "metadata"],
-        embed_fn=embedding_service.embed_query
+        vector_col="embedding",
+        text_col="content",
+        id_col="id",
+        metadata_cols=["url", "title", "document_id", "chunk_index"],
+        embed_fn=embedding_service.embed_query, # Pass embedding function
+        rpc_function="match_documents" # Now exists!
     )
     storage_backend = SupabaseBlobStorage(supabase)
     

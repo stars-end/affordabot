@@ -3,11 +3,8 @@ import asyncio
 from typing import List, Any
 from dataclasses import dataclass
 
-from llm_common import WebSearchResult, LLMClient, LLMMessage, MessageRole
+from llm_common import WebSearchResult, LLMClient, LLMMessage, MessageRole, SupabasePgVectorBackend
 
-from services.ingestion_service import IngestionService
-from services.discovery.search_discovery import SearchDiscoveryService
-from services.retrieval.custom_pgvector_backend import CustomPgVectorBackend
 
 logger = logging.getLogger(__name__)
 
@@ -28,9 +25,9 @@ class SearchPipelineService:
 
     def __init__(
         self,
-        discovery: SearchDiscoveryService,
-        ingestion: IngestionService,
-        retrieval: CustomPgVectorBackend, # Custom backend for Affordabot
+        discovery: Any,
+        ingestion: Any,
+        retrieval: SupabasePgVectorBackend,
         llm: LLMClient
     ):
         self.discovery = discovery
