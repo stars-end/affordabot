@@ -56,6 +56,17 @@ async def verify_storage():
         
     try:
         client = create_client(url, key)
+        
+        # Bootstrap: Ensure bucket exists
+        try:
+            buckets = client.storage.list_buckets()
+            bucket_names = [b.name for b in buckets]
+            if "raw_scrapes" not in bucket_names:
+                logger.info("🔧 Creating 'raw_scrapes' bucket...")
+                client.storage.create_bucket("raw_scrapes", options={"public": False})
+        except Exception as e:
+            logger.warning(f"⚠️ Bucket check/creation failed (might exist): {e}")
+
         storage = SupabaseBlobStorage(client)
         
         test_content = b"Cloud Verification Test Content"
