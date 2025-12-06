@@ -31,7 +31,7 @@ async def test_city_scrapers_find_meeting_content_success():
     
     with patch("subprocess.Popen") as mock_popen, \
          patch("os.path.exists", return_value=True), \
-         patch("os.remove") as mock_remove, \
+         patch("os.remove"), \
          patch("builtins.open", new_callable=MagicMock) as mock_open:
              
         # Mock Subprocess

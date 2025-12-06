@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from services.ingestion_service import IngestionService
 from contracts.storage import BlobStorage
 from llm_common.embeddings import EmbeddingService
