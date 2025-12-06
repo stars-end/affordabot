@@ -75,7 +75,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
       
+      - name: Setup llm-common (CI Fix)
+        run: |
+          # pyproject.toml expects a sibling directory ../../llm-common
+          # In CI, we use the submodule at packages/llm-common
+          # We check if ../llm-common exists, if not, symlink it to the submodule
+          if [ ! -d "../llm-common" ]; then
+            ln -s $GITHUB_WORKSPACE/packages/llm-common ../llm-common
+            echo "Symlinked packages/llm-common to ../llm-common"
+          fi
+          ls -F ../lll-common || echo "Verified Symlink Creation"
+
       - name: Install poetry
         run: pipx install poetry
 
