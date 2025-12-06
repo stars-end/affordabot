@@ -18,9 +18,9 @@ sys.path.append(backend_path)
 print(f"DEBUG: Added {backend_path} to sys.path")
 print(f"DEBUG: sys.path: {sys.path}")
 
-from services.extractors.playwright_extractor import PlaywrightExtractor
-from services.storage.supabase_storage import SupabaseBlobStorage
-from supabase import create_client
+from services.extractors.playwright_extractor import PlaywrightExtractor  # noqa: E402
+from services.storage.supabase_storage import SupabaseBlobStorage  # noqa: E402
+from supabase import create_client  # noqa: E402
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

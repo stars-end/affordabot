@@ -1,5 +1,4 @@
 from city_scrapers_core.spiders import LegistarSpider
-from city_scrapers_core.constants import CITY_COUNCIL
 from datetime import datetime
 
 class SanJoseMeetingsSpider(LegistarSpider):

@@ -1,1 +1,1 @@
-from .supabase_storage import SupabaseBlobStorage
+from .supabase_storage import SupabaseBlobStorage as SupabaseBlobStorage

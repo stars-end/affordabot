@@ -1,8 +1,5 @@
-from typing import List, Optional
+from typing import List
 import logging
-import asyncio
-from typing import Type
-from pydantic import BaseModel
 
 from llm_common.core.models import WebSearchResult
 from services.extractors.playwright_extractor import PlaywrightExtractor

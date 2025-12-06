@@ -1,4 +1,3 @@
-from typing import Optional
 from supabase import Client
 import logging
 from contracts.storage import BlobStorage
@@ -20,7 +19,7 @@ class SupabaseBlobStorage(BlobStorage):
         """
         try:
             # Upsert is safer for idempotency
-            res = self.client.storage.from_(self.bucket_name).upload(
+            self.client.storage.from_(self.bucket_name).upload(
                 path=path,
                 file=content,
                 file_options={"content-type": content_type, "upsert": "true"}
