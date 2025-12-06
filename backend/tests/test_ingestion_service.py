@@ -115,3 +115,111 @@ def test_chunk_text_logic():
     assert len(chunks) == 2
     assert chunks[0] == "1234567890"
     assert chunks[1] == "9012345"
+
+    assert len(chunks) == 2
+    assert chunks[0] == "1234567890"
+    assert chunks[1] == "9012345"
+
+@pytest.mark.asyncio
+async def test_ingest_from_search_result_new(mock_supabase, mock_vector_backend, mock_embedding_service):
+    """Test ingestion from WebSearchResult (New Source)."""
+    service = IngestionService(mock_supabase, mock_vector_backend, mock_embedding_service)
+    
+    from llm_common import WebSearchResult
+    result = WebSearchResult(url="http://new.com", snippet="Snippet", content="Full Content", title="Title", domain="new.com")
+
+    # Mock Table Separation
+    mock_sources = MagicMock()
+    mock_scrapes = MagicMock()
+    
+    def table_side_effect(name):
+        if name == 'sources': return mock_sources
+        if name == 'raw_scrapes': return mock_scrapes
+        return MagicMock()
+    
+    mock_supabase.table.side_effect = table_side_effect
+
+    # 1. Source Check (Returns empty -> Not Found)
+    mock_sources.select.return_value.eq.return_value.execute.return_value.data = []
+    
+    # 2. Source Insert (Returns new ID)
+    mock_sources.insert.return_value.execute.return_value.data = [{'id': 'new-source-id'}]
+    
+    # 3. Scrape Insert (Returns new ID)
+    mock_scrapes.insert.return_value.execute.return_value.data = [{'id': 'new-scrape-id'}]
+    
+    # 4. Scrape Fetch (for process_raw_scrape)
+    # The service calls .single().execute(), returning object with .data attribute
+    scrape_data_obj = MagicMock()
+    scrape_data_obj.data = { # Content of the scrape we just inserted
+        'id': 'new-scrape-id',
+        'source_id': 'new-source-id',
+        'data': {'content': 'Full Content', 'title': 'Title'},
+        'url': 'http://new.com',
+        'metadata': {}
+    }
+    mock_scrapes.select.return_value.eq.return_value.single.return_value.execute.side_effect = [
+        scrape_data_obj,        # Call inside process_raw_scrape (fetch raw)
+        MagicMock(data={'document_id': 'gen-doc-id'}) # Call at end (fetch doc id)
+    ]
+
+    # Call
+    doc_id = await service.ingest_from_search_result(result)
+
+    # Verify
+    assert doc_id == "gen-doc-id"
+    
+    # Verify Source Creation
+    mock_sources.insert.assert_called()
+    
+    # Verify Scrape Creation
+    mock_scrapes.insert.assert_called()
+    insert_payload = mock_scrapes.insert.call_args[0][0]
+    assert insert_payload['source_id'] == 'new-source-id'
+    
+    # Verify Upsert triggered
+    mock_vector_backend.upsert.assert_called()
+
+@pytest.mark.asyncio
+async def test_ingest_from_search_result_existing_source(mock_supabase, mock_vector_backend, mock_embedding_service):
+    """Test ingestion when Source exists (but logic still processes scrape)."""
+    service = IngestionService(mock_supabase, mock_vector_backend, mock_embedding_service)
+    
+    from llm_common import WebSearchResult
+    result = WebSearchResult(url="http://exists.com", snippet="Existing", title="T", domain="exists.com")
+
+    # Mock Table Separation
+    mock_sources = MagicMock()
+    mock_scrapes = MagicMock()
+    mock_supabase.table.side_effect = lambda n: mock_sources if n == 'sources' else mock_scrapes
+
+    # 1. Source Check (Returns EXISTING ID)
+    mock_sources.select.return_value.eq.return_value.execute.return_value.data = [{'id': 'existing-source-id'}]
+    
+    # 2. Scrape Insert (Returns new ID)
+    mock_scrapes.insert.return_value.execute.return_value.data = [{'id': 'new-scrape-id-2'}]
+
+    # 3. Scrape Fetch Sequence
+    scrape_data = {
+        'id': 'new-scrape-id-2',
+        'source_id': 'existing-source-id',
+        'data': 'Existing Content',
+        'url': 'http://exists.com'
+    }
+    mock_response = MagicMock()
+    mock_response.data = scrape_data
+    
+    mock_scrapes.select.return_value.eq.return_value.single.return_value.execute.side_effect = [
+        mock_response,
+        MagicMock(data={'document_id': 'doc-id-2'})
+    ]
+
+    doc_id = await service.ingest_from_search_result(result)
+
+    assert doc_id == 'doc-id-2'
+    
+    # Should NOT insert Source
+    mock_sources.insert.assert_not_called()
+    
+    # Should Insert raw_scrape (current logic always inserts)
+    mock_scrapes.insert.assert_called()

@@ -123,7 +123,11 @@ Before adding or merging new migrations:
 
 3. **New migrations (forward-only rule)**
    - Prefer `CREATE TABLE IF NOT EXISTS`, `ADD COLUMN IF NOT EXISTS`, and `CREATE INDEX IF NOT EXISTS` when possible to make replays safe.
-   - For **new migrations you add from now on**, use a **unique timestamp prefix** per file. Historical migrations (pre‑bd‑k1c) already have duplicate prefixes and must not be renamed.
+   - For **new migrations you add from now on**, use a **unique timestamp prefix** per file (e.g. `20251206152000_...`).
+   - **RPC Functions**: ALWAYS provide default values for arguments (e.g. `filter jsonb DEFAULT '{}'`) to avoid signature mismatches with standard backends.
+   - **Standard Scrape/Doc Schema**:
+     - `raw_scrapes`: MUST have `storage_uri` (text).
+     - `documents`: MUST have `source` (text).
 
 4. **Dev/test-data migrations hygiene**
    - **Dev/test-data migrations** must live under `supabase/dev_migrations/`, NOT `supabase/migrations/`
@@ -132,7 +136,20 @@ Before adding or merging new migrations:
    - Do not use `supabase db push --include-all` on historical migrations; treat it as debugging tool only
    - See `supabase/dev_migrations/README.md` for usage
 
-This pattern prevents the drift we saw in bd-k1c where the schema was ahead of the migration registry and `supabase db push` tried to replay non-idempotent historical migrations, while acknowledging that some early migrations use shared prefixes for legacy reasons.
+### Migration Registry Repair (When CLI Fails)
+
+If `supabase db push` fails with "Remote migration versions not found" (Drift), do **NOT** run manual SQL in Dashboard. This creates a vicious cycle.
+
+**Fix:**
+1. Ensure `DATABASE_URL` is set in Railway (required for CLI).
+2. Run repair to sync registry with local files:
+   ```bash
+   # In Railway shell
+   supabase migration repair --status applied <version_id>
+   # Or for batch:
+   supabase migration repair --status applied 20251129... 20251204...
+   ```
+3. Then run `supabase db push` for new migrations.
 
 ## Schema Definitions
 
