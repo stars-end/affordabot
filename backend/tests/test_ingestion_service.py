@@ -133,8 +133,10 @@ async def test_ingest_from_search_result_new(mock_supabase, mock_vector_backend,
     mock_scrapes = MagicMock()
     
     def table_side_effect(name):
-        if name == 'sources': return mock_sources
-        if name == 'raw_scrapes': return mock_scrapes
+        if name == 'sources':
+            return mock_sources
+        if name == 'raw_scrapes':
+            return mock_scrapes
         return MagicMock()
     
     mock_supabase.table.side_effect = table_side_effect

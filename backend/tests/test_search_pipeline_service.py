@@ -1,13 +1,10 @@
 import pytest
-import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
-from dataclasses import dataclass
-from typing import List, Any
+from unittest.mock import AsyncMock, MagicMock
 
 # Imports from your application code
 # Ensure these import paths match your project structure
 from services.search_pipeline_service import SearchPipelineService, SearchResponse
-from llm_common import WebSearchResult, LLMMessage, MessageRole, SupabasePgVectorBackend, LLMClient
+from llm_common import WebSearchResult, SupabasePgVectorBackend, LLMClient
 
 # Mock Data Classes to behave like the real ones if needed, 
 # but usually MagicMock/AsyncMock is enough for services.

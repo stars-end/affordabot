@@ -1,0 +1,22 @@
+{
+  "mcp": {
+    "skills": {
+      "type": "local",
+      "command": [
+        "npx",
+        "universal-skills",
+        "mcp"
+      ],
+      "enabled": true
+    }
+  },
+  "mcpServers": {
+    "skills": {
+      "command": "npx",
+      "args": [
+        "universal-skills",
+        "mcp"
+      ]
+    }
+  }
+}
