@@ -2,7 +2,7 @@
 create extension if not exists "uuid-ossp";
 
 -- Jurisdictions (Cities, Counties, State)
-create table jurisdictions (
+create table if not exists jurisdictions (
     id uuid primary key default gen_random_uuid(),
     name text not null,
     type text not null check (type in ('city', 'county', 'state')),
@@ -12,7 +12,7 @@ create table jurisdictions (
 );
 
 -- Legislation (Bills, Ordinances)
-create table legislation (
+create table if not exists legislation (
     id uuid primary key default gen_random_uuid(),
     jurisdiction_id uuid references jurisdictions(id) not null,
     bill_number text not null,
@@ -28,7 +28,7 @@ create table legislation (
 );
 
 -- Impacts (LLM Analysis Results)
-create table impacts (
+create table if not exists impacts (
     id uuid primary key default gen_random_uuid(),
     legislation_id uuid references legislation(id) on delete cascade not null,
     impact_number int not null,
@@ -49,6 +49,6 @@ create table impacts (
 );
 
 -- Indexes
-create index idx_legislation_jurisdiction on legislation(jurisdiction_id);
-create index idx_legislation_status on legislation(analysis_status);
-create index idx_impacts_legislation on impacts(legislation_id);
+create index if not exists idx_legislation_jurisdiction on legislation(jurisdiction_id);
+create index if not exists idx_legislation_status on legislation(analysis_status);
+create index if not exists idx_impacts_legislation on impacts(legislation_id);

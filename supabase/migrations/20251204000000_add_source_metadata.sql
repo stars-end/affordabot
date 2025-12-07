@@ -1,12 +1,13 @@
 -- Add source_method and handler columns to sources table
 
-ALTER TABLE sources ADD COLUMN source_method VARCHAR(20) 
+ALTER TABLE sources ADD COLUMN IF NOT EXISTS source_method VARCHAR(20) 
   CHECK (source_method IN ('scrape', 'api', 'manual')) 
   DEFAULT 'scrape';
 
-ALTER TABLE sources ADD COLUMN handler VARCHAR(100);
+ALTER TABLE sources ADD COLUMN IF NOT EXISTS handler VARCHAR(100);
 
 -- Update existing sources with handlers
+-- Safe to run multiple times (idempotent data migration)
 UPDATE sources SET handler = 'sanjose_meetings' 
 WHERE url LIKE '%legistar.com%';
 
@@ -14,10 +15,10 @@ UPDATE sources SET handler = 'sanjose_municode'
 WHERE url LIKE '%municode.com%';
 
 -- Add debugging fields to raw_scrapes
-ALTER TABLE raw_scrapes ADD COLUMN scrape_duration_ms INTEGER;
-ALTER TABLE raw_scrapes ADD COLUMN http_status_code INTEGER;
-ALTER TABLE raw_scrapes ADD COLUMN error_message TEXT;
-ALTER TABLE raw_scrapes ADD COLUMN scraped_by VARCHAR(50);
+ALTER TABLE raw_scrapes ADD COLUMN IF NOT EXISTS scrape_duration_ms INTEGER;
+ALTER TABLE raw_scrapes ADD COLUMN IF NOT EXISTS http_status_code INTEGER;
+ALTER TABLE raw_scrapes ADD COLUMN IF NOT EXISTS error_message TEXT;
+ALTER TABLE raw_scrapes ADD COLUMN IF NOT EXISTS scraped_by VARCHAR(50);
 
 -- Create source_health table for monitoring
 CREATE TABLE IF NOT EXISTS source_health (

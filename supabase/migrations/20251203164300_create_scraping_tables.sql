@@ -1,6 +1,15 @@
 -- Create sources table
-create type source_type as enum ('meeting', 'code', 'general');
-create type source_status as enum ('active', 'broken', 'review');
+DO $$ BEGIN
+    CREATE TYPE source_type AS ENUM ('meeting', 'code', 'general');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE source_status AS ENUM ('active', 'broken', 'review');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
 create table if not exists sources (
     id uuid primary key default gen_random_uuid(),

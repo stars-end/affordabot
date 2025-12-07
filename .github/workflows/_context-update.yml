@@ -1,0 +1,233 @@
+name: Context Update (Reusable)
+
+# Reusable workflow for updating area context skills
+#
+# USAGE:
+#   jobs:
+#     update-contexts:
+#       uses: ./.github/workflows/_context-update.yml
+#       with:
+#         base_ref: 'origin/master'
+#         head_ref: 'origin/pr/123/head'
+#       secrets:
+#         ANTHROPIC_AUTH_TOKEN: ${{ secrets.ANTHROPIC_AUTH_TOKEN }}
+#
+# INTEGRATION:
+#   - First reusable workflow in codebase (reference for bd-a2o)
+#   - Documentation contribution to bd-ek3
+#   - Uses GLM-4.6 via Claude Code CLI
+
+on:
+  workflow_call:
+    inputs:
+      base_ref:
+        description: 'Base git ref for diff analysis (e.g., origin/master)'
+        required: true
+        type: string
+      head_ref:
+        description: 'Head git ref for diff analysis (e.g., origin/pr/123/head)'
+        required: true
+        type: string
+      dry_run:
+        description: 'Dry run mode (analyze only, no updates)'
+        required: false
+        type: boolean
+        default: false
+    secrets:
+      ANTHROPIC_AUTH_TOKEN:
+        description: 'Anthropic API token for Claude Code (uses Z.ai endpoint)'
+        required: true
+
+jobs:
+  analyze-and-update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history for git diff
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: |
+          pip install pyyaml
+
+      - name: Install yq
+        run: |
+          wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          chmod +x /usr/local/bin/yq
+          yq --version
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install Claude Code CLI
+        run: |
+          npm install -g @anthropic-ai/claude-code
+          echo "Claude Code version:"
+          claude --version || echo "Claude Code installed (version check may fail)"
+
+      - name: Configure Claude Code for GLM-4.6
+        run: |
+          mkdir -p ~/.claude
+          cat > ~/.claude/settings.json <<EOF
+          {
+            "env": {
+              "ANTHROPIC_AUTH_TOKEN": "${{ secrets.ANTHROPIC_AUTH_TOKEN }}",
+              "ANTHROPIC_BASE_URL": "https://api.z.ai/api/anthropic"
+            }
+          }
+          EOF
+          echo "Claude Code configured for Z.ai GLM-4.6 endpoint"
+
+      - name: Analyze changed files
+        id: route
+        run: |
+          python3 scripts/context-router.py \
+            --base-ref "${{ inputs.base_ref }}" \
+            --head-ref "${{ inputs.head_ref }}" \
+            --output .ci-artifacts/routing-report.json
+
+          # Extract affected areas
+          AFFECTED_AREAS=$(jq -r '.affected_areas | join(" ")' .ci-artifacts/routing-report.json)
+          echo "affected_areas=$AFFECTED_AREAS" >> $GITHUB_OUTPUT
+
+          # Check if any updates needed
+          SHOULD_UPDATE=$(jq -r '.recommendations.should_update' .ci-artifacts/routing-report.json)
+          echo "should_update=$SHOULD_UPDATE" >> $GITHUB_OUTPUT
+
+          echo "Affected areas: $AFFECTED_AREAS"
+          echo "Should update: $SHOULD_UPDATE"
+
+      - name: Update affected contexts
+        if: steps.route.outputs.should_update == 'true' && inputs.dry_run == false
+        run: |
+          AREAS="${{ steps.route.outputs.affected_areas }}"
+
+          if [ -z "$AREAS" ]; then
+            echo "No areas to update"
+            exit 0
+          fi
+
+          echo "Updating contexts for areas: $AREAS"
+
+          for area in $AREAS; do
+            echo "─────────────────────────────────────"
+            echo "Updating context: $area"
+
+            # Run area-context-update script
+            if bash scripts/area-context-update "$area"; then
+              echo "✅ Updated: $area"
+            else
+              echo "❌ Failed: $area"
+              exit 1
+            fi
+          done
+
+          echo "═════════════════════════════════════"
+          echo "✅ All context updates complete"
+
+      - name: Commit context updates
+        if: steps.route.outputs.should_update == 'true' && inputs.dry_run == false
+        run: |
+          # Configure git
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+
+          # Check if there are changes
+          if git diff --quiet .claude/skills/context-*/; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
+          # Stage context skill changes
+          git add .claude/skills/context-*/
+
+          # Create commit
+          AREAS="${{ steps.route.outputs.affected_areas }}"
+          git commit -m "docs: auto-update context skills ($AREAS)" \
+            -m "" \
+            -m "Triggered by PR merge" \
+            -m "Areas updated: $AREAS" \
+            -m "" \
+            -m "[skip ci]" \
+            -m "" \
+            -m "Feature-Key: bd-CODEBASE_INDEXING" \
+            -m "Agent: github-actions" \
+            -m "Role: context-updater"
+
+          echo "✅ Committed context updates"
+
+      - name: Push changes
+        if: steps.route.outputs.should_update == 'true' && inputs.dry_run == false
+        run: |
+          git push
+          echo "✅ Pushed context updates"
+
+      - name: Upload routing report
+        if: success()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: routing-report
+          path: .ci-artifacts/routing-report.json
+          retention-days: 30
+
+      - name: Comment on PR (if dry run)
+        if: inputs.dry_run == true && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = JSON.parse(fs.readFileSync('.ci-artifacts/routing-report.json', 'utf8'));
+
+            let comment = '## 📊 Context Update Analysis (Dry Run)\n\n';
+            comment += `**Changed files:** ${report.metadata.total_files}\n`;
+            comment += `**Affected areas:** ${report.metadata.affected_areas_count}\n\n`;
+
+            if (report.metadata.affected_areas_count > 0) {
+              comment += '### Areas to update:\n\n';
+              for (const [area, details] of Object.entries(report.area_details)) {
+                comment += `- **${area}**: ${details.files.length} files (confidence: ${details.confidence.toFixed(2)})\n`;
+              }
+            } else {
+              comment += '*No context updates needed*\n';
+            }
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+      - name: Summary
+        run: |
+          echo "## Context Update Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Base ref:** ${{ inputs.base_ref }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Head ref:** ${{ inputs.head_ref }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Dry run:** ${{ inputs.dry_run }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ steps.route.outputs.should_update }}" = "true" ]; then
+            echo "**Affected areas:** ${{ steps.route.outputs.affected_areas }}" >> $GITHUB_STEP_SUMMARY
+            if [ "${{ inputs.dry_run }}" = "false" ]; then
+              echo "**Status:** ✅ Contexts updated and committed" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "**Status:** ℹ️ Dry run - no updates performed" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "**Status:** ℹ️ No context updates needed" >> $GITHUB_STEP_SUMMARY
+          fi
