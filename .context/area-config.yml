@@ -1,0 +1,35 @@
+areas:
+  scrapers:
+    description: "Web scraping spiders (Scrapy), parsers, and source management"
+    keywords: "scrape, spider, crawler, source, municode, legistar"
+    tags: ["backend", "data", "scrapers"]
+    globs:
+      - "backend/affordabot_scraper/**/*"
+      - "backend/services/scraping_service.py"
+      - "backend/routers/scrapers.py"
+      - "scripts/verify_*.py"
+
+  llm-pipeline:
+    description: "RAG pipeline, embeddings, LLM interactions, and flow orchestration"
+    keywords: "llm, rag, embedding, vector, flow, generate, review"
+    tags: ["backend", "ai", "rag"]
+    globs:
+      - "backend/flows/**/*"
+      - "backend/services/llm_service.py"
+      - "backend/services/embedding_service.py"
+      - "packages/llm-common/**/*"
+
+  admin-ui:
+    description: "Admin dashboard, task management, and review interfaces"
+    keywords: "admin, dashboard, ui, component, page, review"
+    tags: ["frontend", "ui", "admin"]
+    globs:
+      - "frontend/src/app/admin/**/*"
+      - "frontend/src/components/admin/**/*"
+      - "frontend/src/services/adminService.ts"
+
+settings:
+  auto_detect:
+    confidence_threshold: 0.3
+  skill:
+    max_files_per_area: 50
