@@ -35,6 +35,7 @@ scrapy = "*"
 llm-common = {path = "../packages/llm-common", develop = true}
 playwright = "^1.56.0"
 city-scrapers-core = "^0.10.1"
+tenacity = "^8.0.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "*"
