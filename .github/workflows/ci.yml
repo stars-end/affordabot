@@ -75,20 +75,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Install poetry
-        run: pipx install poetry
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Set up Python and Poetry
+        uses: stars-end/agent-skills/github-actions/actions/python-setup@c88517f6d135b00bb177cad20963c57da9d3caa9
         with:
-          python-version: '3.13'
-          cache: 'poetry'
-
-      - name: Install dependencies
-        run: |
-          cd backend
-          poetry install
+          working-directory: backend/
 
       - name: Run Ruff (Linting)
         run: |

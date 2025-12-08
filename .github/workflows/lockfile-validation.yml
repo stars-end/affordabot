@@ -1,0 +1,35 @@
+name: Lockfile Validation
+
+on:
+  pull_request:
+    paths:
+      - 'backend/pyproject.toml'
+      - 'backend/poetry.lock'
+      - 'frontend/package.json'
+      - 'frontend/pnpm-lock.yaml'
+  push:
+    branches: [master, main]
+    paths:
+      - 'backend/pyproject.toml'
+      - 'backend/poetry.lock'
+      - 'frontend/package.json'
+      - 'frontend/pnpm-lock.yaml'
+
+jobs:
+  validate-lockfiles:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Poetry
+        run: pip install poetry
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Validate lockfiles
+        uses: stars-end/agent-skills/github-actions/actions/lockfile-check@c88517f6d135b00bb177cad20963c57da9d3caa9
+        with:
+          backend-directory: backend/
+          frontend-directory: frontend/
