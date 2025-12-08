@@ -63,9 +63,9 @@ def get_db():
 class ManualScrapeRequest(BaseModel):
     jurisdiction: str
     force: bool = False  # Force re-scrape even if recent data exists
-    type: Literal["legislation", "rag"] = "legislation"
+    type: Literal["legislation", "rag", "harvest"] = "legislation"
 
-# ... (inside _run_scrape_task) ...
+# ... (inside _run_scrape_task signature) ...
 
 async def _run_scrape_task(task_id: str, jurisdiction: str, force: bool, db: SupabaseDB, scrape_type: str = "legislation"):
     """Background task to run scraping with multi-source support."""
@@ -79,6 +79,30 @@ async def _run_scrape_task(task_id: str, jurisdiction: str, force: bool, db: Sup
             'status': 'running',
             'started_at': datetime.now().isoformat()
         }).eq('id', task_id).execute()
+
+        if scrape_type == "harvest":
+             # Run Universal Harvester script via subprocess
+            import subprocess
+            import sys
+            
+            script_path = os.path.join(os.path.dirname(__file__), '../scripts/cron/run_universal_harvester.py')
+            
+            proc = await asyncio.create_subprocess_exec(
+                sys.executable, script_path,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            stdout, stderr = await proc.communicate()
+            
+            if proc.returncode != 0:
+                raise Exception(f"Harvester script failed: {stderr.decode()}")
+            
+            db.client.table('admin_tasks').update({
+                'status': 'completed',
+                'completed_at': datetime.now().isoformat(),
+                'result': {'message': 'Harvester script executed', 'logs': stdout.decode()}
+            }).eq('id', task_id).execute()
+            return
 
         if scrape_type == "rag":
             # Run RAG spiders script via subprocess
