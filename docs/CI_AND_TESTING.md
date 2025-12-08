@@ -1,6 +1,6 @@
 # CI and Testing Infrastructure
 
-**Last Updated**: 2025-11-30
+**Last Updated**: 2025-12-07
 **Status**: Complete and Operational
 
 ## Overview
@@ -59,6 +59,39 @@ make ci
 # ✓  [chromium] › smoke.spec.ts:17:3 › Smoke Tests › admin page is accessible
 #
 # 3 passed (8.2s)
+```
+
+## Backend Testing (Python)
+
+### Configuration
+**File**: `backend/pyproject.toml`
+**Framework**: `pytest`
+
+### Running Tests
+```bash
+cd backend
+poetry run pytest
+```
+
+### Test Structure
+- `backend/tests/`
+  - `test_ingestion_service.py`: Logic verification for Ingestion.
+  - `test_source_service.py`: Logic verification for Source management.
+  - `test_search_pipeline_service.py`: Search pipeline logic.
+  - `conftest.py`: Fixtures (mock_supabase).
+
+### Mocking Strategy
+We use `unittest.mock.MagicMock` to mock `SupabaseDB` and external services.
+This allows running tests without a real database connection.
+
+Example:
+```python
+@pytest.fixture
+def mock_supabase():
+    mock = MagicMock()
+    # Mock table().select().execute() chain
+    mock.table.return_value.select.return_value.execute.return_value.data = []
+    return mock
 ```
 
 ## E2E Testing with Playwright
@@ -340,7 +373,7 @@ $ railway deployment list --limit 1
 
 ```
         /\
-       /E2E\         ← 3 smoke tests (Playwright)
+       /E2E\		← 3 smoke tests (Playwright)
       /    \
      /------\
     /  Unit  \       ← Future: Component tests
@@ -369,6 +402,9 @@ $ railway deployment list --limit 1
 - [ ] 80%+ component test coverage
 - [ ] API contract testing
 - [ ] Performance regression testing
+- [ ] E2E tests for admin dashboard
+- [ ] Mobile responsive tests
+- [ ] Accessibility tests (a11y)
 
 ## Performance Metrics
 
@@ -457,6 +493,7 @@ cd frontend && pnpm test
 - [x] Playwright E2E tests (3 smoke tests)
 - [x] GitHub Actions CI workflow
 - [x] Railway deployment integration
+- [x] Backend Unit Tests (pytest)
 
 ### Short-term
 - [ ] Add authentication flow tests
@@ -479,6 +516,10 @@ cd frontend && pnpm test
 - **pnpm Docs**: https://pnpm.io/
 
 ## Changelog
+
+### 2025-12-07
+- ✅ Added Backend Testing section
+- ✅ Updated Next Steps (Backend Unit Tests done)
 
 ### 2025-11-30
 - ✅ Created Makefile with 11 commands

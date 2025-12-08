@@ -4,7 +4,11 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime
 
 class SupabaseDB:
-    def __init__(self):
+    def __init__(self, client: Optional[Client] = None):
+        if client:
+            self.client = client
+            return
+
         url = os.getenv("SUPABASE_URL")
         key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
         
