@@ -3,7 +3,7 @@ from tests.utils.fake_supabase import FakeSupabaseClient
 from services.source_service import SourceService, SourceCreate
 from services.ingestion_service import IngestionService
 from db.supabase_client import SupabaseDB
-from unittest.mock import MagicMock, AsyncMock
+from unittest.mock import AsyncMock
 
 @pytest.mark.asyncio
 async def test_admin_source_flow():
