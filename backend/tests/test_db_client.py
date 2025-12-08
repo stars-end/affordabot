@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import MagicMock, AsyncMock
+from unittest.mock import MagicMock
 from db.supabase_client import SupabaseDB
 
 @pytest.fixture
