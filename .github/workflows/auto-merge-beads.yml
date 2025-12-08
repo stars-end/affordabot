@@ -1,0 +1,79 @@
+name: Auto-Merge Beads JSONL
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+    paths:
+      - '.beads/issues.jsonl'
+
+jobs:
+  auto-merge-jsonl:
+    # Only run on non-draft PRs
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Auto-merge Beads JSONL
+        id: auto-merge
+        uses: stars-end/agent-skills/github-actions/actions/auto-merge-beads@main
+        with:
+          base-ref: ${{ github.base_ref }}
+          pr-branch: ${{ github.event.pull_request.head.ref }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Comment on PR if conflict resolved
+        if: steps.auto-merge.outputs.conflict-resolved == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const comment = `✅ **Beads JSONL Conflict Auto-Resolved**
+
+            The \`.beads/issues.jsonl\` merge conflict was automatically resolved using union merge strategy.
+
+            **What happened:**
+            - Both your branch and \`${{ github.base_ref }}\` modified the JSONL file
+            - Union merge kept all lines from both sides (safe for append-only JSONL)
+            - Changes have been pushed to this PR
+
+            **Next steps:**
+            - Review the auto-merged JSONL to ensure it looks correct
+            - Proceed with normal PR review and merge
+
+            <sub>🤖 Auto-merge performed by [auto-merge-beads action](https://github.com/stars-end/agent-skills)</sub>`;
+
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+      - name: Comment on PR if merge not needed
+        if: steps.auto-merge.outputs.merge-required == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const comment = `ℹ️ **No Auto-Merge Needed**
+
+            The \`.beads/issues.jsonl\` file has no conflicts with \`${{ github.base_ref }}\`.
+
+            Your PR is already up to date with the base branch.
+
+            <sub>🤖 Checked by [auto-merge-beads action](https://github.com/stars-end/agent-skills)</sub>`;
+
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
