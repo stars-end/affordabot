@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import MagicMock, AsyncMock
+from unittest.mock import MagicMock
 from services.source_service import SourceService, SourceCreate, SourceUpdate
 
 @pytest.fixture
