@@ -15,22 +15,23 @@ MODEL = "glm-4.6"
 
 QUERY_TEMPLATES = {
     "city": {
-        "meetings": [
-            "{name} city council meetings agenda",
-            "{name} planning commission agenda"
-        ],
-        "code": [
-            "{name} municipal code online",
-            "{name} zoning ordinance"
-        ],
         "permits": [
-            "{name} building permit requirements adu",
-            "{name} planning application process"
+            "{name} building permit requirements adu guide",
+            "{name} planning application process flowchart",
+            "{name} affordable housing impact fee faq"
+        ],
+        "zoning": [
+            "{name} zoning map interactive",
+            "{name} zoning code density bonus"
+        ],
+        "housing_element": [
+            "{name} housing element 2023-2031 pdf",
+            "{name} rhna allocation progress"
         ]
     },
     "county": {
-        "meetings": ["{name} board of supervisors agenda"],
-        "code": ["{name} county code online"]
+        "health": ["{name} environmental health permits restaurant"],
+        "taxes": ["{name} property tax assessment appeal"]
     }
 }
 
