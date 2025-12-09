@@ -105,7 +105,7 @@ class ZaiResearchService:
         
         return queries[:40]
 
-    async def _execute_search(self, query: str) -> List[SearchResult]:
+    async def execute_search(self, query: str) -> List[SearchResult]:
         """Execute a single search query via Z.ai MCP."""
         try:
             # Execute the tool via MCP
@@ -177,7 +177,7 @@ class ZaiResearchService:
         # Serial execution for now to avoid complexity with MCP rate limits/async client sharing
         # In prod, we'd use a semaphore
         for query in queries[:5]: # Limit to 5 for testing speed
-            res = await self._execute_search(query)
+            res = await self.execute_search(query)
             all_results.extend(res)
             await asyncio.sleep(0.2)
 

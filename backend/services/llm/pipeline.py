@@ -1,10 +1,12 @@
 import os
+import time
 import instructor
 from openai import AsyncOpenAI
 from typing import List, Dict
 from pydantic import BaseModel
 from schemas.analysis import LegislationAnalysisResponse
 from services.research.zai import ZaiResearchService, ResearchPackage
+from .agent_service import AgentService
 import logging
 
 logger = logging.getLogger(__name__)
@@ -51,6 +53,7 @@ class DualModelAnalyzer:
         ]
         
         self.researcher = ZaiResearchService()
+        self.agent_service = AgentService()
 
     async def check_health(self) -> Dict[str, str]:
         """
@@ -127,7 +130,7 @@ class DualModelAnalyzer:
         logger.error("All models failed in fallback chain")
         raise last_exception or Exception("All models failed")
 
-    async def analyze(self, bill_text: str, bill_number: str, jurisdiction: str) -> LegislationAnalysisResponse:
+    async def analyze(self, bill_text: str, bill_number: str, jurisdiction: str, use_agentic: bool = False) -> LegislationAnalysisResponse:
         """
         Full analysis pipeline:
         1. Exhaustive Research (Z.ai)
@@ -136,6 +139,11 @@ class DualModelAnalyzer:
         4. Refinement (Grok/Kimi/GLM)
         """
         logger.info(f"Starting dual-model analysis for {bill_number}")
+        start_time = time.time()
+        
+        if use_agentic:
+            logger.info(f"Using AGENTIC analysis workflow for {bill_number}")
+            return await self.agent_service.analyze_bill_agentic(bill_text, bill_number, jurisdiction)
         
         # 1. Research Phase
         research_package = await self.researcher.search_exhaustively(bill_text, bill_number)
@@ -146,13 +154,40 @@ class DualModelAnalyzer:
         # 3. Review Phase
         critique = await self._review_draft(bill_text, draft_analysis, research_package)
         
+        elapsed_ms = (time.time() - start_time) * 1000
+        
         if critique.passed:
-            logger.info(f"Draft passed review for {bill_number}")
+            logger.info(
+                f"Draft passed review for {bill_number}",
+                extra={
+                    "event": "analysis_pipeline_complete",
+                    "bill_number": bill_number,
+                    "jurisdiction": jurisdiction,
+                    "latency_ms": elapsed_ms,
+                    "model_generated": True,
+                    "critique_passed": True,
+                    "refinement_needed": False
+                }
+            )
             return draft_analysis
         
         # 4. Refinement Phase
         logger.info(f"Refining draft based on critique for {bill_number}")
         final_analysis = await self._refine_draft(draft_analysis, critique, bill_text)
+        
+        elapsed_ms = (time.time() - start_time) * 1000
+        logger.info(
+            f"Analysis complete after refinement for {bill_number}",
+            extra={
+                "event": "analysis_pipeline_complete",
+                "bill_number": bill_number,
+                "jurisdiction": jurisdiction,
+                "latency_ms": elapsed_ms,
+                "model_generated": True,
+                "critique_passed": False,
+                "refinement_needed": True
+            }
+        )
         
         return final_analysis
 
