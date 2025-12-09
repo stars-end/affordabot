@@ -7,3 +7,19 @@ builder = "RAILPACK"
 [deploy]
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
+
+[[cron]]
+schedule = "0 5 * * *"
+command = "python backend/scripts/cron/run_discovery.py"
+
+[[cron]]
+schedule = "0 6 * * *"
+command = "python scripts/daily_scrape.py"
+
+[[cron]]
+schedule = "0 7 * * *"
+command = "python backend/scripts/cron/run_rag_spiders.py"
+
+[[cron]]
+schedule = "0 8 * * *"
+command = "python backend/scripts/cron/run_universal_harvester.py"

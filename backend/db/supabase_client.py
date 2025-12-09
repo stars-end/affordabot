@@ -42,6 +42,10 @@ class SupabaseDB:
         if not self.client:
             return None
         
+        # Serialize date objects if present
+        if "introduced_date" in bill_data and hasattr(bill_data["introduced_date"], "isoformat"):
+            bill_data["introduced_date"] = bill_data["introduced_date"].isoformat()
+        
         # Check if exists
         existing = self.client.table("legislation").select("id").eq(
             "jurisdiction_id", jurisdiction_id
@@ -107,6 +111,27 @@ class SupabaseDB:
         
         return True
     
+    async def get_or_create_source(self, jurisdiction_id: str, name: str, type: str, url: Optional[str] = None) -> Optional[str]:
+        """Get source ID, creating if it doesn't exist."""
+        if not self.client:
+            return None
+            
+        # Check if exists
+        result = self.client.table("sources").select("id").eq("jurisdiction_id", jurisdiction_id).eq("name", name).execute()
+        
+        if result.data:
+            return result.data[0]["id"]
+            
+        # Create new
+        result = self.client.table("sources").insert({
+            "jurisdiction_id": jurisdiction_id,
+            "name": name,
+            "type": type,
+            "url": url
+        }).execute()
+        
+        return result.data[0]["id"] if result.data else None
+
     async def get_legislation_by_jurisdiction(self, jurisdiction_name: str, limit: int = 10) -> List[Dict[str, Any]]:
         """Get recent legislation for a jurisdiction with impacts."""
         if not self.client:

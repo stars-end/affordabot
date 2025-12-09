@@ -33,6 +33,28 @@ class ScrapeJob:
     async def run_one(self, slug: str, scraper_class, jur_type: str):
         task_id = str(uuid4())
         
+        # Lazy Import Ingestion Dependencies to avoid circular imports at top level if any
+        from services.ingestion_service import IngestionService
+        from llm_common.retrieval import SupabasePgVectorBackend
+        from llm_common.embeddings.openai import OpenAIEmbeddingService
+        from llm_common.embeddings.mock import MockEmbeddingService
+        
+        # Initialize Ingestion
+        # Note: EmbeddingService relies on env vars (OPENAI_API_KEY or ZAI_API_KEY)
+        if os.environ.get("OPENAI_API_KEY"):
+            embedding_service = OpenAIEmbeddingService()
+        else:
+            embedding_service = MockEmbeddingService()
+        vector_backend = SupabasePgVectorBackend(
+            supabase_client=self.db.client,
+            table="documents"
+        )
+        ingestion_service = IngestionService(
+            supabase_client=self.db.client,
+            vector_backend=vector_backend,
+            embedding_service=embedding_service
+        )
+        
         async with SEM:
             try:
                 logger.info(f"[{slug}] Starting scrape (Task {task_id})")
@@ -55,23 +77,59 @@ class ScrapeJob:
                 # Get/Create Jurisdiction
                 jur_id = await self.db.get_or_create_jurisdiction(scraper.jurisdiction_name, jur_type)
                 
+                # Ensure Source exists for this API scraper
+                source_name = f"{slug} API"
+                source_url = f"https://webapi.legistar.com/v1/{slug}/matters"
+                source_id = await self.db.get_or_create_source(jur_id, source_name, "legislation_api", url=source_url)
+                
                 new_count = 0
                 updated_count = 0
+                ingested_count = 0
                 
                 for bill in bills:
-                    # Note: store_legislation usually returns ID if created/updated, None if error or ignored
-                    # Simplified logic here
+                    # A. Store in SQL (Legislation Table)
                     if await self.db.store_legislation(jur_id, bill.dict()):
                         new_count += 1
-                
+                    
+                    # B. Store in Vector DB (RAG Pipeline)
+                    # Create raw_scrape record
+                    import hashlib
+                    import json
+                    
+                    bill_text = f"Title: {bill.title}\nStatus: {bill.status}\n\n{bill.text}"
+                    content_hash = hashlib.sha256(bill_text.encode("utf-8")).hexdigest()
+                    
+                    # Check if we already ingested this exact text hash? 
+                    # For now, simplistic insert. IngestionService can handle idempotency or we let it churn.
+                    
+                    scrape_record = {
+                        "source_id": source_id,
+                        "content_hash": content_hash,
+                        "content_type": "text/plain",
+                        "data": {"content": bill_text, "bill_number": bill.bill_number},
+                        "url": f"api://{slug}/{bill.bill_number}",
+                        "metadata": {"harvester": "daily_scrape_api", "bill_number": bill.bill_number}
+                    }
+                    
+                    try:
+                        res = self.db.client.table("raw_scrapes").insert(scrape_record).execute()
+                        if res.data:
+                            scrape_id = res.data[0]['id']
+                            # Trigger Ingestion
+                            chunks = await ingestion_service.process_raw_scrape(scrape_id)
+                            if chunks > 0:
+                                ingested_count += 1
+                    except Exception as e:
+                        logger.warning(f"Failed to ingest bill {bill.bill_number}: {e}")
+
                 # 4. Log Success
-                logger.info(f"[{slug}] Success: {len(bills)} bills ({new_count} processed)")
+                logger.info(f"[{slug}] Success: {len(bills)} bills ({new_count} new, {ingested_count} ingested)")
                 
                 if self.db.client:
                     self.db.client.table('admin_tasks').update({
                         'status': 'completed',
                         'completed_at': datetime.now().isoformat(),
-                        'result': {'found': len(bills), 'new': new_count}
+                        'result': {'found': len(bills), 'new': new_count, 'ingested': ingested_count}
                     }).eq('id', task_id).execute()
                     
                     self.db.client.table('scrape_history').insert({
@@ -79,7 +137,8 @@ class ScrapeJob:
                         'bills_found': len(bills),
                         'bills_new': new_count,
                         'status': 'success',
-                        'task_id': task_id
+                        'task_id': task_id,
+                        'notes': f"Ingested {ingested_count} into RAG"
                     }).execute()
                     
                 return {"slug": slug, "status": "success", "count": len(bills)}

@@ -14,6 +14,7 @@ from pydantic import BaseModel
 from typing import List, Optional, Dict, Any, Literal
 from datetime import datetime
 import os
+import asyncio
 
 
 # Import database client
@@ -62,6 +63,81 @@ def get_db():
 class ManualScrapeRequest(BaseModel):
     jurisdiction: str
     force: bool = False  # Force re-scrape even if recent data exists
+    type: Literal["legislation", "rag", "harvest"] = "legislation"
+
+# ... (inside _run_scrape_task signature) ...
+
+async def _run_scrape_task(task_id: str, jurisdiction: str, force: bool, db: SupabaseDB, scrape_type: str = "legislation"):
+    """Background task to run scraping with multi-source support."""
+    if not db.client:
+        print(f"Task {task_id}: Database not available")
+        return
+
+    try:
+        # Update task status to running
+        db.client.table('admin_tasks').update({
+            'status': 'running',
+            'started_at': datetime.now().isoformat()
+        }).eq('id', task_id).execute()
+
+        if scrape_type == "harvest":
+             # Run Universal Harvester script via subprocess
+            import subprocess
+            import sys
+            
+            script_path = os.path.join(os.path.dirname(__file__), '../scripts/cron/run_universal_harvester.py')
+            
+            proc = await asyncio.create_subprocess_exec(
+                sys.executable, script_path,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            stdout, stderr = await proc.communicate()
+            
+            if proc.returncode != 0:
+                raise Exception(f"Harvester script failed: {stderr.decode()}")
+            
+            db.client.table('admin_tasks').update({
+                'status': 'completed',
+                'completed_at': datetime.now().isoformat(),
+                'result': {'message': 'Harvester script executed', 'logs': stdout.decode()}
+            }).eq('id', task_id).execute()
+            return
+
+        if scrape_type == "rag":
+            # Run RAG spiders script via subprocess
+            import subprocess
+            import sys
+            
+            script_path = os.path.join(os.path.dirname(__file__), '../scripts/cron/run_rag_spiders.py')
+            
+            # Run script - this blocks the thread but it's a background task so it's acceptable-ish for low volume
+            # Ideally use asyncio.create_subprocess_exec
+            proc = await asyncio.create_subprocess_exec(
+                sys.executable, script_path,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            stdout, stderr = await proc.communicate()
+            
+            if proc.returncode != 0:
+                raise Exception(f"RAG script failed: {stderr.decode()}")
+            
+            # The script logs its own success/admin_tasks updates, but we created a parent task here.
+            # We should probably mark this parent task as completed.
+            # Note: The script creates its OWN task_id. This is a bit disjointed.
+            # Improvement: Pass task_id to script? For now, just marking this trigger task as done.
+            
+            db.client.table('admin_tasks').update({
+                'status': 'completed',
+                'completed_at': datetime.now().isoformat(),
+                'result': {'message': 'RAG script executed', 'logs': stdout.decode()}
+            }).eq('id', task_id).execute()
+            return
+
+        # ... existing legislation logic ...
+        # Import scraper registry
+        from services.scraper.san_jose import SanJoseScraper
 
 
 class ManualScrapeResponse(BaseModel):
@@ -170,7 +246,8 @@ async def trigger_manual_scrape(
         task_id=task_id,
         jurisdiction=request.jurisdiction,
         force=request.force,
-        db=db
+        db=db,
+        scrape_type=request.type
     )
     
     return ManualScrapeResponse(
