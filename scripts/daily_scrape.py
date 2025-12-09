@@ -34,15 +34,37 @@ class ScrapeJob:
         task_id = str(uuid4())
         
         # Lazy Import Ingestion Dependencies to avoid circular imports at top level if any
-        # TODO: RAG Port - Re-enable ingestion once PgVectorBackend is generic
-        # from services.ingestion_service import IngestionService
-        # from llm_common.retrieval import SupabasePgVectorBackend
-        # from llm_common.embeddings import OpenAIEmbeddingService
+        from services.ingestion_service import IngestionService
+        from services.vector_backend_factory import create_vector_backend
+        from llm_common.embeddings.openai import OpenAIEmbeddingService
+        from llm_common.embeddings.mock import MockEmbeddingService
         
         # Initialize Ingestion
-        # embedding_service = OpenAIEmbeddingService(...)
-        # vector_backend = SupabasePgVectorBackend(...)
-        # ingestion_service = IngestionService(...)
+        # Note: EmbeddingService relies on env vars (OPENAI_API_KEY or OPENROUTER_API_KEY)
+        if os.environ.get("OPENAI_API_KEY") or os.environ.get("OPENROUTER_API_KEY"):
+            embedding_service = OpenAIEmbeddingService(
+                base_url="https://openrouter.ai/api/v1",
+                api_key=os.environ.get("OPENROUTER_API_KEY"),
+                model="qwen/qwen3-embedding-8b",
+                dimensions=4096
+            )
+        else:
+            embedding_service = MockEmbeddingService()
+        
+        # Create embedding function for vector backend
+        async def embed_fn(text: str) -> list[float]:
+            return await embedding_service.embed_query(text)
+        
+        # Create vector backend (feature flag controlled)
+        vector_backend = create_vector_backend(
+            supabase_client=self.db.client,
+            embedding_fn=embed_fn
+        )
+        ingestion_service = IngestionService(
+            supabase_client=self.db.client,
+            vector_backend=vector_backend,
+            embedding_service=embedding_service
+        )
         
         async with SEM:
             try:
@@ -66,7 +88,8 @@ class ScrapeJob:
                 
                 # Ensure Source exists for this API scraper
                 source_name = f"{slug} API"
-                source_id = await self.db.get_or_create_source(jur_id, source_name, "legislation_api")
+                source_url = f"https://webapi.legistar.com/v1/{slug}/matters"
+                source_id = await self.db.get_or_create_source(jur_id, source_name, "legislation_api", url=source_url)
                 
                 new_count = 0
                 updated_count = 0

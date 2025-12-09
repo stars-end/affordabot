@@ -88,7 +88,9 @@ class RAGSpiderRunner:
             source_ids = []
             
             for spider_cls, source_name, source_type in spider_configs:
-                source_id = loop.run_until_complete(self.db.get_or_create_source(jur_id, source_name, source_type))
+                # Use first start_url as canonical url
+                source_url = spider_cls.start_urls[0] if spider_cls.start_urls else None
+                source_id = loop.run_until_complete(self.db.get_or_create_source(jur_id, source_name, source_type, url=source_url))
                 if source_id:
                     source_ids.append(source_id)
                     crawler = process.create_crawler(spider_cls)
@@ -109,17 +111,32 @@ class RAGSpiderRunner:
             from services.ingestion_service import IngestionService
             from services.storage import S3Storage
             from services.vector_backend_factory import create_vector_backend
-            from llm_common.llm_client import LLMClient
-            from llm_common.embeddings import OpenAIEmbeddingService
+            from llm_common import LLMClient
+            from llm_common.embeddings.openai import OpenAIEmbeddingService
+            from llm_common.embeddings.mock import MockEmbeddingService
             
             # Setup Services
             # Note: EmbeddingService might need provider config. 
             # Assuming defaults or env vars (OPENAI_API_KEY)
-            embedding_service = OpenAIEmbeddingService(
-                base_url="https://openrouter.ai/api/v1",
-                api_key=os.environ.get("OPENROUTER_API_KEY"),
-                model="qwen/qwen3-embedding-8b",
-                dimensions=4096
+            if os.environ.get("OPENAI_API_KEY") or os.environ.get("OPENROUTER_API_KEY"):
+                embedding_service = OpenAIEmbeddingService(
+                    base_url="https://openrouter.ai/api/v1",
+                    api_key=os.environ.get("OPENROUTER_API_KEY"),
+                    model="qwen/qwen3-embedding-8b",
+                    dimensions=4096
+                )
+            else:
+                logger.warning("Using Mock Embedding Service")
+                embedding_service = MockEmbeddingService()
+            
+            # Create embedding function for vector backend
+            async def embed_fn(text: str) -> list[float]:
+                return await embedding_service.embed_query(text)
+            
+            # Create vector backend (feature flag controlled)
+            vector_backend = create_vector_backend(
+                supabase_client=self.db.client,
+                embedding_fn=embed_fn
             )
             
             # Create embedding function for vector backend

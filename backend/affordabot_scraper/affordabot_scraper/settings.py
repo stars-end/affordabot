@@ -9,8 +9,8 @@
 
 BOT_NAME = "affordabot_scraper"
 
-SPIDER_MODULES = ["affordabot_scraper.spiders"]
-NEWSPIDER_MODULE = "affordabot_scraper.spiders"
+SPIDER_MODULES = ["affordabot_scraper.affordabot_scraper.spiders"]
+NEWSPIDER_MODULE = "affordabot_scraper.affordabot_scraper.spiders"
 
 ADDONS = {}
 
@@ -59,7 +59,7 @@ DOWNLOAD_DELAY = 1
 # Configure item pipelines
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
-   "affordabot_scraper.pipelines.RawScrapePipeline": 300,
+   "affordabot_scraper.affordabot_scraper.pipelines.RawScrapePipeline": 300,
 }
 
 # Enable and configure the AutoThrottle extension (disabled by default)

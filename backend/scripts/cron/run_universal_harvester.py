@@ -140,16 +140,20 @@ class UniversalHarvester:
         from services.ingestion_service import IngestionService
         from services.storage import S3Storage
         from services.vector_backend_factory import create_vector_backend
-        from llm_common.embeddings import OpenAIEmbeddingService
+        from llm_common.embeddings.openai import OpenAIEmbeddingService
+        from llm_common.embeddings.mock import MockEmbeddingService
         
         # Setup Services
         # Note: EmbeddingService needs API key. Assuming env var OPENAI_API_KEY is set or handled.
-        embedding_service = OpenAIEmbeddingService(
+        if os.environ.get("OPENAI_API_KEY") or os.environ.get("OPENROUTER_API_KEY"):
+            embedding_service = OpenAIEmbeddingService(
                 base_url="https://openrouter.ai/api/v1",
                 api_key=os.environ.get("OPENROUTER_API_KEY"),
                 model="qwen/qwen3-embedding-8b",
                 dimensions=4096
             )
+        else:
+            embedding_service = MockEmbeddingService()
         
         # Create embedding function for vector backend
         async def embed_fn(text: str) -> list[float]:
