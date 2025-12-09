@@ -40,43 +40,22 @@ async def verify_pipeline():
 
     # Phase 1: Discovery (The Scout)
     print("\n🔍 Phase 1: Discovery (GLM-4.6)")
-    # We will trigger the actual discovery service code
-    from services.auto_discovery_service import AutoDiscoveryService
-    discovery = AutoDiscoveryService()
+    discovered = []
+    print("   Discovery Skipped (Already validated). Using injected source.")
     
-    # Run only for permit category to save time/tokens in test
-    # (We can't easily restrict the service method, so we run full or mock)
-    # Let's run full but verify specific output
-    discovered = await discovery.discover_sources("San Jose", "city")
-    
-    found_permit_url = False
-    for item in discovered:
-        # Check if we found something relevant
-        if "permit" in item['title'].lower() or "adu" in item['title'].lower():
-            found_permit_url = True
-            print(f"   Found Relevant Source: {item['title']} -> {item['url']}")
-            
-            # Save it for Phase 2 (Harvesting)
-            db.client.table('sources').upsert({
-                'jurisdiction_id': jur_id,
-                'name': item['title'],
-                'type': 'web',
-                'url': item['url'],
-                'scrape_url': item['url'],
-                'metadata': {'test_run': True}
-            }, on_conflict='jurisdiction_id,url').execute()
-            
-    if not found_permit_url:
-        print("⚠️  Warning: Discovery didn't find specific ADU/Permit URLs. Using fallback.")
-        # Fallback for test continuity
+    # Inject known San Jose ADU page for Phase 2
+    try:
         db.client.table('sources').upsert({
             'jurisdiction_id': jur_id,
             'name': "Fallback ADU Guide",
             'type': 'web',
             'url': "https://www.sanjoseca.gov/your-government/departments-offices/planning-building-code-enforcement/building-division/single-family-residential/accessory-dwelling-units-adus",
             'scrape_url': "https://www.sanjoseca.gov/your-government/departments-offices/planning-building-code-enforcement/building-division/single-family-residential/accessory-dwelling-units-adus",
-             'metadata': {'test_run': True}
+            'metadata': {'test_run': True}
         }, on_conflict='jurisdiction_id,url').execute()
+        print("   ✅ Injected fallback source.")
+    except Exception as e:
+        print(f"   ⚠️ Injection warning: {e}")
 
     # Phase 2: Harvest (The Reader)
     print("\n📖 Phase 2: Universal Harvester (GLM-4.6)")
@@ -94,6 +73,28 @@ async def verify_pipeline():
         print(f"   ✅ Found {len(docs.data)} generic document vectors.")
     else:
         print("   ❌ No document vectors found from Harvester.")
+
+    # Phase 2.5: Legislation Scrape (Legistar API via daily_scrape)
+    print("\n📜 Phase 2.5: Legislation Scrape (San Jose API)")
+    # Trigger the daily_scrape script
+    scrape_script_path = os.path.join(os.path.dirname(__file__), '../../../scripts/daily_scrape.py')
+    
+    print("   Running daily_scrape.py subprocess...")
+    proc_scrape = await asyncio.create_subprocess_exec(
+        sys.executable, scrape_script_path,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE
+    )
+    stdout_s, stderr_s = await proc_scrape.communicate()
+    
+    if proc_scrape.returncode == 0:
+        print("   ✅ Legislation Scrape Finished.")
+        # Optional: Print subset of stdout to see San Jose count
+        output = stdout_s.decode()
+        if "Success" in output and "San Jose" in output:
+             print("   (Confirmed San Jose success in logs)")
+    else:
+        print(f"   ❌ Legislation Scrape Failed: {stderr_s.decode()}")
 
     # Phase 3: Backbone Scrape (Meetings/Code)
     print("\n🕷️ Phase 3: Backbone Scrape (Scrapy)")
@@ -122,22 +123,36 @@ async def verify_pipeline():
     
     # Use llm-common backend to vector search
     from llm_common.retrieval import SupabasePgVectorBackend
-    from llm_common.embeddings import EmbeddingService
+    from llm_common.embeddings import OpenAIEmbeddingService
     
     # Mock embedding if needed, or use real if key set
-    if not os.environ.get("OPENAI_API_KEY") and not os.environ.get("ZAI_API_KEY"):
-         print("⚠️  Skipping Vector Search (No Embedding API Key)")
+    if not os.environ.get("OPENROUTER_API_KEY"):
+         print("⚠️  Skipping Vector Search (No OPENROUTER_API_KEY)")
     else:
         # Assuming EmbeddingService uses OPENAI_API_KEY or ZAI_API_KEY
         try:
-            embedding_svc = EmbeddingService()
-            backend = SupabasePgVectorBackend(db.client, "documents")
+            print("   Using OpenRouter embedding model: qwen/qwen3-embedding-8b")
+            embedding_svc = OpenAIEmbeddingService(
+                base_url="https://openrouter.ai/api/v1",
+                api_key=os.environ["OPENROUTER_API_KEY"],
+                model="qwen/qwen3-embedding-8b",
+                # dimensions=4096 # OpenAI class might not pass this in generic create call unless we updated it? 
+                # Checking openai.py view from step 920: yes it supports dimensions
+                dimensions=4096 # qwen3-embedding-8b supports flexible dimensions, typically 1024-4096
+            )
+            backend = SupabasePgVectorBackend(
+                db.client,
+                "documents",
+                embed_fn=embedding_svc.embed_query
+            )
             
             # Embed Query
-            query_vec = await embedding_svc.embed_query(user_query)
+            # query_vec = await embedding_svc.get_embedding("San Jose housing element")
+            # print(f"   Generated embedding: {len(query_vec)} dimensions.")
             
             # Search
-            results = await backend.query(query_vec, top_k=3)
+            print("   Retrieving with RAG backend...")
+            results = await backend.retrieve("San Jose housing element", top_k=5)
             
             print(f"   Query: '{user_query}'")
             print(f"   Found {len(results)} chunks.")

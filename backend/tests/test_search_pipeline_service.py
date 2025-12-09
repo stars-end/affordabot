@@ -4,7 +4,8 @@ from unittest.mock import AsyncMock, MagicMock
 # Imports from your application code
 # Ensure these import paths match your project structure
 from services.search_pipeline_service import SearchPipelineService, SearchResponse
-from llm_common import WebSearchResult, SupabasePgVectorBackend, LLMClient
+from llm_common import WebSearchResult, LLMClient
+from llm_common.retrieval import RetrievalBackend
 
 # Mock Data Classes to behave like the real ones if needed, 
 # but usually MagicMock/AsyncMock is enough for services.
@@ -21,7 +22,7 @@ def mock_ingestion():
 
 @pytest.fixture
 def mock_retrieval():
-    mock = AsyncMock(spec=SupabasePgVectorBackend)
+    mock = AsyncMock(spec=RetrievalBackend)
     return mock
 
 @pytest.fixture

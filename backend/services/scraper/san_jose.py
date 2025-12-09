@@ -40,10 +40,27 @@ class SanJoseScraper(BaseScraper):
                 for matter in matters:
                     # Get matter text
                     matter_id = matter.get("MatterId")
-                    text_response = await client.get(f"{self.base_url}/matters/{matter_id}/texts")
-                    texts = text_response.json()
+                    full_text = ""
                     
-                    full_text = "\n\n".join([t.get("MatterTextPlain", "") for t in texts if t.get("MatterTextPlain")])
+                    try:
+                        text_response = await client.get(f"{self.base_url}/matters/{matter_id}/texts")
+                        if text_response.status_code == 200:
+                            texts = text_response.json()
+                            full_text = "\n\n".join([t.get("MatterTextPlain", "") for t in texts if t.get("MatterTextPlain")])
+                        elif text_response.status_code == 405:
+                            # San Jose often returns 405 for /texts, fallback to attachments or versions
+                            # Try attachments to get a PDF link (we won't download PDF content yet, just link)
+                            att_response = await client.get(f"{self.base_url}/matters/{matter_id}/attachments")
+                            if att_response.status_code == 200:
+                                atts = att_response.json()
+                                # Collect attachment names and links
+                                full_text = "\n".join([f"Attachment: {a.get('MatterAttachmentName')} ({a.get('MatterAttachmentHyperlink')})" for a in atts])
+                    except Exception as e:
+                        print(f"Error fetching details for matter {matter_id}: {e}")
+                    
+                    # Fallback to Title if no text found
+                    if not full_text:
+                        full_text = matter.get("MatterTitle", "")
                     
                     bills.append(ScrapedBill(
                         bill_number=matter.get("MatterFile", "Unknown"),
