@@ -1,6 +1,7 @@
 """Supabase pgvector backend for retrieval."""
 
 from typing import Any, Callable, Optional
+import uuid
 
 from llm_common.retrieval.base import RetrievalBackend
 from llm_common.retrieval.models import RetrievedChunk
@@ -71,6 +72,70 @@ class SupabasePgVectorBackend(RetrievalBackend):
         self.embed_fn = embed_fn
         self.top_k_default = top_k_default
         self.rpc_function = rpc_function or f"match_{table}"
+
+    async def upsert(self, chunks: list[dict[str, Any]]) -> None:
+        """Upsert chunks into the database.
+
+        Args:
+            chunks: List of dictionaries containing chunk data.
+        """
+        if not chunks:
+            return
+
+        records = []
+        for chunk in chunks:
+            # Generate embedding if missing/needed
+            embedding = chunk.get("embedding")
+            if embedding is None and self.embed_fn:
+                embedding = await self.embed_fn(chunk["content"])
+                
+            if embedding and not isinstance(embedding, list):
+                embedding = list(embedding)
+
+            record = {
+                self.text_col: chunk["content"],
+                self.source_col: chunk["source"],
+            }
+            
+            if self.vector_col and embedding:
+                record[self.vector_col] = embedding
+
+            # Handle ID
+            chunk_id = chunk.get("chunk_id") or chunk.get("id")
+            if chunk_id:
+                record[self.id_col] = chunk_id
+            
+            # Handle document_id (required by schema)
+            document_id = chunk.get("document_id")
+            if not document_id and "metadata" in chunk:
+                 document_id = chunk["metadata"].get("document_id") or chunk["metadata"].get("task_id")
+            
+            if not document_id:
+                 document_id = str(uuid.uuid4())
+            
+            # Assuming standard column name "document_id"
+            if "document_id" in record:
+                 # Already set? No. upsert doesn't accept unknown keys if database rejects them via strict schema?
+                 # Supabase-py sends JSON. PostgREST maps to columns.
+                 # If column exists, it works.
+                 pass
+            record["document_id"] = document_id
+
+            # Handle metadata - generic "metadata" column logic
+            if "metadata" in chunk:
+                # If there's a specific metadata column, use it
+                # Otherwise, keys in chunk['metadata'] might check against metadata_cols?
+                # For simplicity and backward compat, if 'metadata' is in chunk and table has 'metadata' col, use it.
+                # All Affordabot tables have 'metadata' jsonb.
+                record["metadata"] = chunk["metadata"]
+            
+            records.append(record)
+
+        # Execute upsert
+        try:
+            self.supabase.table(self.table).upsert(records).execute()
+        except Exception as e:
+            raise RuntimeError(f"Failed to upsert chunks to Supabase: {e}") from e
 
     async def retrieve(
         self,
