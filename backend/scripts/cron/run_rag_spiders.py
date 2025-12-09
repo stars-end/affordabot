@@ -17,10 +17,12 @@ from scrapy.utils.project import get_project_settings
 
 # Add backend to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
+# Add scraper project root to path so we can import 'affordabot_scraper' package
+sys.path.append(os.path.join(os.path.dirname(__file__), '../../affordabot_scraper'))
 
 from db.supabase_client import SupabaseDB
-from affordabot_scraper.affordabot_scraper.spiders.sanjose_meetings import SanJoseMeetingsSpider
-from affordabot_scraper.affordabot_scraper.spiders.sanjose_municode import SanJoseMunicodeSpider
+from affordabot_scraper.spiders.sanjose_meetings import SanJoseMeetingsSpider
+from affordabot_scraper.spiders.sanjose_municode import SanJoseMunicodeSpider
 
 # Logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -56,7 +58,8 @@ class RAGSpiderRunner:
 
         try:
             # 2. Setup Scrapy
-            os.environ.setdefault('SCRAPY_SETTINGS_MODULE', 'affordabot_scraper.affordabot_scraper.settings')
+            # Treat affordabot_scraper as a package (sys.path includes backend/affordabot_scraper)
+            os.environ.setdefault('SCRAPY_SETTINGS_MODULE', 'affordabot_scraper.settings')
             settings = get_project_settings()
             settings.set('TELNETCONSOLE_ENABLED', False)
             settings.set('LOG_LEVEL', 'INFO')
@@ -106,27 +109,51 @@ class RAGSpiderRunner:
             
             # Import Ingestion Service components
             from services.ingestion_service import IngestionService
+            from services.storage import S3Storage
+            from services.vector_backend_factory import create_vector_backend
             from llm_common import LLMClient
-            from llm_common.retrieval import SupabasePgVectorBackend
             from llm_common.embeddings.openai import OpenAIEmbeddingService
             from llm_common.embeddings.mock import MockEmbeddingService
             
             # Setup Services
             # Note: EmbeddingService might need provider config. 
             # Assuming defaults or env vars (OPENAI_API_KEY)
-            if os.environ.get("OPENAI_API_KEY"):
-                embedding_service = OpenAIEmbeddingService()
+            if os.environ.get("OPENAI_API_KEY") or os.environ.get("OPENROUTER_API_KEY"):
+                embedding_service = OpenAIEmbeddingService(
+                    base_url="https://openrouter.ai/api/v1",
+                    api_key=os.environ.get("OPENROUTER_API_KEY"),
+                    model="qwen/qwen3-embedding-8b",
+                    dimensions=4096
+                )
             else:
                 logger.warning("Using Mock Embedding Service")
-                embedding_service = MockEmbeddingService() 
-            vector_backend = SupabasePgVectorBackend(
+                embedding_service = MockEmbeddingService()
+            
+            # Create embedding function for vector backend
+            async def embed_fn(text: str) -> list[float]:
+                return await embedding_service.embed_query(text)
+            
+            # Create vector backend (feature flag controlled)
+            vector_backend = create_vector_backend(
                 supabase_client=self.db.client,
-                table="documents"
+                embedding_fn=embed_fn
             )
+            
+            # Create embedding function for vector backend
+            async def embed_fn(text: str) -> list[float]:
+                return await embedding_service.embed_query(text)
+            
+            # Create vector backend (feature flag controlled)
+            vector_backend = create_vector_backend(
+                supabase_client=self.db.client,
+                embedding_fn=embed_fn
+            )
+            storage_backend = S3Storage()  # Uses MINIO_* env vars
             ingestion_service = IngestionService(
                 supabase_client=self.db.client,
                 vector_backend=vector_backend,
-                embedding_service=embedding_service
+                embedding_service=embedding_service,
+                storage_backend=storage_backend
             )
             
             # Fetch unprocessed scrapes for these sources

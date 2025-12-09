@@ -2,7 +2,8 @@ from fastapi import FastAPI, HTTPException, BackgroundTasks, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from services.notifications.email import EmailNotificationService
-from db.supabase_client import SupabaseDB
+from db.postgres_client import PostgresDB
+# from db.supabase_client import SupabaseDB # Deprecated
 from typing import Dict, Any
 import os
 import logging
@@ -36,8 +37,17 @@ logging.basicConfig(
 )
 
 app = FastAPI(title="Affordabot API") # Changed title
-db = SupabaseDB()
+db = PostgresDB()
 email_service = EmailNotificationService()
+
+@app.on_event("startup")
+async def startup_db():
+    await db.connect()
+    logger.info("✅ Database connected (Postgres/Railway)")
+
+@app.on_event("shutdown")
+async def shutdown_db():
+    await db.close()
 
 # Add CORS middleware
 app.add_middleware(
@@ -86,7 +96,7 @@ async def health_check():
 
     return {
         "status": "healthy",
-        "database": "connected" if db.client else "disconnected",
+        "database": "connected" if db.is_connected() else "disconnected",
         "zai_research": "connected" if zai_health else "disconnected"
     }
 

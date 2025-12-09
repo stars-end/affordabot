@@ -361,12 +361,175 @@ async def pgvector_backend_example() -> None:
         print("SupabasePgVectorBackend not available (backend implementation needed)")
 
 
+async def railway_pgvector_backend_example() -> None:
+    """Demonstrate PgVectorBackend usage with Railway Postgres.
+
+    This is the RECOMMENDED approach for production (replaces SupabasePgVectorBackend).
+
+    In production, you would:
+    1. Get DATABASE_URL from Railway: railway variables -s pgvector
+    2. Create table with pgvector extension (see docs/LLM_COMMON_PG_BACKEND_MIGRATION.md)
+    3. Implement real embedding function (OpenAI, local model, etc.)
+    4. Use create_pg_backend() factory for easy setup
+    """
+    print("\n\n=== Railway PgVectorBackend Example (RECOMMENDED) ===\n")
+
+    # Mock embedding function
+    # In production, use OpenAI, Sentence Transformers, or similar
+    async def embed_query(text: str) -> list[float]:
+        """Generate embedding vector from text (mock implementation)."""
+        # In production:
+        # from openai import AsyncOpenAI
+        # client = AsyncOpenAI()
+        # response = await client.embeddings.create(
+        #     input=text,
+        #     model="text-embedding-3-small"
+        # )
+        # return response.data[0].embedding
+
+        # For demo: return dummy 1536-dimensional vector (OpenAI dimensions)
+        return [0.1] * 1536
+
+    # Import the backend
+    try:
+        from llm_common.retrieval.backends import create_pg_backend
+
+        print("✓ PgVectorBackend available (llm-common[pgvector] installed)\n")
+
+        # In production, use:
+        # import os
+        # database_url = os.getenv("DATABASE_URL")  # From Railway
+
+        # For demo, show the factory pattern
+        print("Example: Creating backend with Railway DATABASE_URL")
+        print("=" * 60)
+        print("""
+# Get Railway DATABASE_URL
+railway variables -s pgvector
+
+# In your code:
+import os
+from llm_common.retrieval.backends import create_pg_backend
+
+backend = create_pg_backend(
+    database_url=os.getenv("DATABASE_URL"),
+    table="document_chunks",
+    embed_fn=my_embedding_function,
+    vector_dimensions=1536  # OpenAI text-embedding-3-small
+)
+
+# Ingest documents
+await backend.upsert([
+    {
+        "content": "Prime Radiant is a financial advisor platform",
+        "source": "docs/intro.md",
+        "metadata": {"section": "overview", "date": "2025-01-01"}
+    },
+    {
+        "content": "Affordabot helps with budgeting and expense tracking",
+        "source": "docs/features.md",
+        "metadata": {"section": "features", "category": "budgeting"}
+    }
+])
+
+# Search for relevant documents
+results = await backend.retrieve(
+    query="What is Prime Radiant?",
+    top_k=5,
+    min_score=0.7,  # Only return results with similarity > 0.7
+    filters={"section": "overview"}  # Filter by metadata
+)
+
+# Process results
+for chunk in results:
+    print(f"Score: {chunk.score:.3f}")
+    print(f"Source: {chunk.source}")
+    print(f"Content: {chunk.content[:100]}...")
+    print(f"Metadata: {chunk.metadata}")
+    print()
+
+# Health check
+is_healthy = await backend.health_check()
+print(f"Backend healthy: {is_healthy}")
+
+# Cleanup
+await backend.close()
+
+# Or use async context manager (recommended)
+async with create_pg_backend(...) as backend:
+    results = await backend.retrieve("query")
+    # Automatically closes on exit
+        """)
+        print("=" * 60)
+
+        print("\n" + "=" * 60)
+        print("Production Setup (One-Time):")
+        print("=" * 60)
+        print("""
+1. Install llm-common with pgvector extras:
+   cd backend/
+   poetry add "llm-common[pgvector]"
+
+2. Get DATABASE_URL from Railway:
+   railway variables -s pgvector
+   # Add to backend/.env:
+   DATABASE_URL="postgresql+asyncpg://user:pass@host/db"
+
+3. Create table schema (see docs/LLM_COMMON_PG_BACKEND_MIGRATION.md):
+   CREATE EXTENSION IF NOT EXISTS vector;
+
+   CREATE TABLE document_chunks (
+       id TEXT PRIMARY KEY,
+       content TEXT NOT NULL,
+       source TEXT NOT NULL,
+       metadata JSONB DEFAULT '{}'::jsonb,
+       embedding vector(1536) NOT NULL,  -- Adjust dimensions
+       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+   );
+
+   CREATE INDEX ON document_chunks
+   USING hnsw (embedding vector_cosine_ops);
+
+4. Start using in your service:
+   from llm_common.retrieval.backends import create_pg_backend
+
+   backend = create_pg_backend(
+       database_url=os.getenv("DATABASE_URL"),
+       table="document_chunks",
+       embed_fn=your_embed_function
+   )
+        """)
+        print("=" * 60)
+
+        print("\nAdvantages over SupabasePgVectorBackend:")
+        print("  ✓ Portable (works with any pgvector-enabled Postgres)")
+        print("  ✓ Direct DATABASE_URL (no vendor-specific client)")
+        print("  ✓ No vendor lock-in (Railway, self-hosted, or cloud)")
+        print("  ✓ Native SQL with pgvector operators")
+        print("  ✓ Built-in upsert() for batch ingestion")
+        print("  ✓ Async context manager support")
+        print("  ✓ Connection pooling via SQLAlchemy")
+
+        print("\nMigration Guide:")
+        print("  See docs/LLM_COMMON_PG_BACKEND_MIGRATION.md for complete guide")
+        print("  from SupabasePgVectorBackend → PgVectorBackend")
+
+    except ImportError as e:
+        print("✗ PgVectorBackend not available")
+        print("\nTo install:")
+        print("  pip install llm-common[pgvector]")
+        print("  # or")
+        print("  poetry add 'llm-common[pgvector]'")
+        print("\nThis installs: sqlalchemy, asyncpg, pgvector")
+
+
 async def main() -> None:
     """Run all examples."""
     await basic_retrieval_example()
     await context_manager_example()
     await rag_context_formatting_example()
-    await pgvector_backend_example()
+    await railway_pgvector_backend_example()  # NEW: Railway Postgres example
+    await pgvector_backend_example()  # Legacy: Supabase example
 
 
 if __name__ == "__main__":

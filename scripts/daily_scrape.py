@@ -16,7 +16,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 sys.path.append(os.path.join(os.path.dirname(__file__), '../backend'))
 
 from services.scraper.registry import SCRAPERS
-from db.supabase_client import SupabaseDB
+from db.postgres_client import PostgresDB
 
 # Logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -26,7 +26,7 @@ logger = logging.getLogger("daily_scrape")
 SEM = asyncio.Semaphore(3)
 
 class ScrapeJob:
-    def __init__(self, db: SupabaseDB):
+    def __init__(self, db: PostgresDB):
         self.db = db
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
@@ -35,19 +35,30 @@ class ScrapeJob:
         
         # Lazy Import Ingestion Dependencies to avoid circular imports at top level if any
         from services.ingestion_service import IngestionService
-        from llm_common.retrieval import SupabasePgVectorBackend
+        from services.vector_backend_factory import create_vector_backend
         from llm_common.embeddings.openai import OpenAIEmbeddingService
         from llm_common.embeddings.mock import MockEmbeddingService
         
         # Initialize Ingestion
-        # Note: EmbeddingService relies on env vars (OPENAI_API_KEY or ZAI_API_KEY)
-        if os.environ.get("OPENAI_API_KEY"):
-            embedding_service = OpenAIEmbeddingService()
+        # Note: EmbeddingService relies on env vars (OPENAI_API_KEY or OPENROUTER_API_KEY)
+        if os.environ.get("OPENAI_API_KEY") or os.environ.get("OPENROUTER_API_KEY"):
+            embedding_service = OpenAIEmbeddingService(
+                base_url="https://openrouter.ai/api/v1",
+                api_key=os.environ.get("OPENROUTER_API_KEY"),
+                model="qwen/qwen3-embedding-8b",
+                dimensions=4096
+            )
         else:
             embedding_service = MockEmbeddingService()
-        vector_backend = SupabasePgVectorBackend(
+        
+        # Create embedding function for vector backend
+        async def embed_fn(text: str) -> list[float]:
+            return await embedding_service.embed_query(text)
+        
+        # Create vector backend (feature flag controlled)
+        vector_backend = create_vector_backend(
             supabase_client=self.db.client,
-            table="documents"
+            embedding_fn=embed_fn
         )
         ingestion_service = IngestionService(
             supabase_client=self.db.client,
@@ -60,14 +71,12 @@ class ScrapeJob:
                 logger.info(f"[{slug}] Starting scrape (Task {task_id})")
                 
                 # 1. Create Admin Task
-                if self.db.client:
-                    self.db.client.table('admin_tasks').insert({
-                        'id': task_id,
-                        'task_type': 'scrape',
-                        'jurisdiction': slug,
-                        'status': 'running',
-                        'created_at': datetime.now().isoformat()
-                    }).execute()
+                await self.db.create_admin_task(
+                    task_id=task_id,
+                    task_type='scrape',
+                    jurisdiction=slug,
+                    status='running'
+                )
 
                 # 2. Run Scraper
                 scraper = scraper_class()
@@ -112,54 +121,44 @@ class ScrapeJob:
                     }
                     
                     try:
-                        res = self.db.client.table("raw_scrapes").insert(scrape_record).execute()
-                        if res.data:
-                            scrape_id = res.data[0]['id']
-                            # Trigger Ingestion
-                            chunks = await ingestion_service.process_raw_scrape(scrape_id)
-                            if chunks > 0:
-                                ingested_count += 1
+                        # RAG: Store Raw Scrape only (Ingestion deferred)
+                        if await self.db.create_raw_scrape(scrape_record):
+                             ingested_count += 0 # Placeholder
+                             # TODO: Trigger ingestion once generic backend ready
                     except Exception as e:
-                        logger.warning(f"Failed to ingest bill {bill.bill_number}: {e}")
+                        logger.warning(f"Failed to record raw scrape for {bill.bill_number}: {e}")
 
                 # 4. Log Success
                 logger.info(f"[{slug}] Success: {len(bills)} bills ({new_count} new, {ingested_count} ingested)")
                 
-                if self.db.client:
-                    self.db.client.table('admin_tasks').update({
-                        'status': 'completed',
-                        'completed_at': datetime.now().isoformat(),
-                        'result': {'found': len(bills), 'new': new_count, 'ingested': ingested_count}
-                    }).eq('id', task_id).execute()
+                await self.db.update_admin_task(
+                    task_id=task_id,
+                    status='completed',
+                    result={'found': len(bills), 'new': new_count, 'ingested': ingested_count}
+                )
                     
-                    self.db.client.table('scrape_history').insert({
-                        'jurisdiction': slug,
-                        'bills_found': len(bills),
-                        'bills_new': new_count,
-                        'status': 'success',
-                        'task_id': task_id,
-                        'notes': f"Ingested {ingested_count} into RAG"
-                    }).execute()
+                await self.db.log_scrape_history({
+                    'jurisdiction': slug,
+                    'bills_found': len(bills),
+                    'bills_new': new_count,
+                    'status': 'success',
+                    'task_id': task_id,
+                    'notes': f"Ingested {ingested_count} into RAG (Disabled)"
+                })
                     
                 return {"slug": slug, "status": "success", "count": len(bills)}
 
             except Exception as e:
                 logger.error(f"[{slug}] Failed: {e}")
                 # DB Log
-                if self.db.client:
-                    self.db.client.table('admin_tasks').update({
-                        'status': 'failed',
-                        'completed_at': datetime.now().isoformat(),
-                        'error_message': str(e)
-                    }).eq('id', task_id).execute()
-                    
-                    self.db.client.table('scrape_history').insert({
-                        'jurisdiction': slug,
-                        'bills_found': 0,
-                        'status': 'failed',
-                        'error_message': str(e),
-                        'task_id': task_id
-                    }).execute()
+                await self.db.update_admin_task(task_id, 'failed', error=str(e))
+                
+                await self.db.log_scrape_history({
+                    'jurisdiction': slug,
+                    'status': 'failed',
+                    'error_message': str(e),
+                    'task_id': task_id
+                })
                 raise # Re-raise for tenacity
 
 async def main():
@@ -169,7 +168,8 @@ async def main():
     from dotenv import load_dotenv
     load_dotenv(os.path.join(os.path.dirname(__file__), '../backend/.env'))
     
-    db = SupabaseDB()
+    db = PostgresDB()
+    await db.connect() # Ensure pool creation
     job = ScrapeJob(db)
     
     tasks = []

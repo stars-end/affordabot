@@ -91,23 +91,56 @@ class VectorStoreBackend(RetrievalBackend):
 
 ## Backend Implementations
 
-### Recommended First Backend: Supabase pgvector
+### Recommended: PgVectorBackend (Railway Postgres)
 
-For production deployments in Affordabot and Prime Radiant, we recommend starting with **SupabasePgVectorBackend** as the default retrieval implementation.
+For production deployments in Affordabot and Prime Radiant, we recommend **PgVectorBackend** with Railway Postgres as the default retrieval implementation.
 
 **Rationale:**
 
-1. **Lowest Incremental Cost**: Uses existing Supabase Postgres infrastructure with pgvector extension - no additional database or service costs
-2. **Managed Operations**: Supabase handles database management, backups, and scaling
-3. **Easy Metadata Joins**: Native SQL support enables efficient filtering and joins with application data
-4. **Proven Scale**: pgvector handles millions of vectors efficiently for typical RAG workloads
-5. **Development Simplicity**: Single database for both application data and vectors
+1. **Portable**: Works with any pgvector-enabled Postgres (Railway, self-hosted, or cloud providers)
+2. **Direct DATABASE_URL**: Simple connection via standard PostgreSQL URL
+3. **No Vendor Lock-in**: Generic implementation not tied to Supabase
+4. **Native SQL**: Uses pgvector operators directly for optimal performance
+5. **Managed Operations**: Railway handles database management, backups, and scaling
+6. **Cost Effective**: Railway Postgres pricing competitive with managed alternatives
+7. **Proven Scale**: pgvector handles millions of vectors efficiently for typical RAG workloads
 
 **When pgvector is sufficient:**
 - Document collections < 10M chunks
 - Query latency requirements < 500ms
 - Moderate concurrent query load (< 100 QPS)
 - Metadata filtering and complex queries needed
+
+**Example:**
+```python
+from llm_common.retrieval.backends import create_pg_backend
+import os
+
+backend = create_pg_backend(
+    database_url=os.getenv("DATABASE_URL"),  # Railway Postgres
+    table="document_chunks",
+    embed_fn=my_embedding_function,
+    vector_dimensions=1536  # OpenAI embeddings
+)
+
+# Search
+results = await backend.retrieve("What is RAG?", top_k=5)
+
+# Ingest
+await backend.upsert([
+    {
+        "content": "RAG stands for Retrieval-Augmented Generation",
+        "source": "docs/rag.md",
+        "metadata": {"section": "intro"}
+    }
+])
+```
+
+### Legacy: SupabasePgVectorBackend (Deprecated)
+
+The original Supabase-specific implementation is still available for backwards compatibility but is deprecated in favor of the generic PgVectorBackend.
+
+**Migration**: See `docs/LLM_COMMON_PG_BACKEND_MIGRATION.md` for detailed migration guide from SupabasePgVectorBackend to PgVectorBackend.
 
 ### Alternative Backends
 

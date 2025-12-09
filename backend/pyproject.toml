@@ -32,10 +32,12 @@ sentry-sdk = {extras = ["fastapi"], version = "*"}
 sendgrid = "*"
 eval_type_backport = "*"
 scrapy = "*"
-llm-common = {path = "../packages/llm-common", develop = true}
+llm-common = {path = "../packages/llm-common", develop = true, extras = ["pgvector"]}
 playwright = "^1.56.0"
 city-scrapers-core = "^0.10.1"
 tenacity = "^8.0.0"
+asyncpg = "^0.31.0"
+minio = "^7.2.20"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "*"

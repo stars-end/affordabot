@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock
 from services.ingestion_service import IngestionService
 from contracts.storage import BlobStorage
 from llm_common.embeddings import EmbeddingService
-from llm_common.retrieval import SupabasePgVectorBackend
+from llm_common.retrieval import RetrievalBackend
 
 @pytest.fixture
 def mock_supabase():
@@ -20,7 +20,7 @@ def mock_supabase():
 
 @pytest.fixture
 def mock_vector_backend():
-    backend = AsyncMock(spec=SupabasePgVectorBackend)
+    backend = AsyncMock(spec=RetrievalBackend)
     return backend
 
 @pytest.fixture

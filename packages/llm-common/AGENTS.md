@@ -58,10 +58,25 @@ Do NOT:
 All commits must include these trailers:
 
 ```
-Feature-Key: bd-xyz
+Feature-Key: {issue-id}
 Agent: <environment-id>
 Role: <role-name>
 ```
+
+### Feature-Key Trailer
+
+**Important**: The `Feature-Key` must match your repository's configured issue ID prefix.
+
+The format is `{prefix}-{identifier}` where:
+- `{prefix}` is your repository's issue prefix (e.g., `bd`, `affordabot`, `prime-radiant`)
+- `{identifier}` is the issue number or slug
+
+**Examples by repository:**
+- **Affordabot**: `affordabot-rdx`, `affordabot-123`
+- **Prime Radiant**: `prime-radiant-svse`, `prime-radiant-456`
+- **llm-common** (via primary repo): `bd-svse`, `bd-8vuj`
+
+**Multi-repo projects**: When working on llm-common (a secondary repo), use the Feature-Key from the primary repository (Affordabot or Prime Radiant) that initiated the work.
 
 ### Agent Trailer Policy
 
@@ -79,12 +94,6 @@ Keep your active role (examples):
 - **Role: devops-engineer**
 - **Role: documentation-writer**
 
-### Feature-Key Trailer
-
-Use the appropriate Feature-Key:
-- **bd-svse** - Smart Vector Search Engine / Prime Radiant work
-- **bd-**** - Other Beads feature keys from controlling epics
-
 ## Commit Message Examples
 
 ### Bug Fix
@@ -93,10 +102,15 @@ fix: Handle empty embedding vectors in pgvector backend
 
 Return empty results instead of raising when embedding is None.
 
-Feature-Key: bd-svse
+Feature-Key: {issue-id}
 Agent: claude-code
 Role: backend-engineer
 ```
+
+**Example with actual IDs:**
+- Affordabot: `Feature-Key: affordabot-rdx`
+- Prime Radiant: `Feature-Key: prime-radiant-svse`
+- llm-common (via primary): `Feature-Key: bd-svse`
 
 ### Documentation
 ```
@@ -104,7 +118,7 @@ docs: Clarify pgvector RPC function setup
 
 Add troubleshooting section for common RPC errors.
 
-Feature-Key: bd-svse
+Feature-Key: {issue-id}
 Agent: codex-cli
 Role: documentation-writer
 ```
@@ -116,7 +130,7 @@ feat: Add Qdrant backend for high-scale retrieval
 Implements RetrievalBackend for Qdrant cloud service.
 Triggered by pgvector hitting scale limits in production.
 
-Feature-Key: bd-svse
+Feature-Key: {issue-id}
 Agent: antigravity
 Role: backend-engineer
 ```
@@ -214,12 +228,17 @@ Steps:
 
 ### Bug Fix Process
 
-1. Create feature branch: `feature-bd-xxxx-bug-description`
+1. Create feature branch: `feature-{issue-id}-bug-description`
 2. Add failing test demonstrating bug
 3. Fix bug and verify test passes
 4. Update documentation if needed
 5. Commit with proper trailers
 6. Open PR referencing issue (if exists)
+
+**Branch naming examples:**
+- Affordabot work: `feature-affordabot-rdx-fix-validation`
+- Prime Radiant work: `feature-prime-radiant-svse-add-caching`
+- llm-common via primary: `feature-bd-svse-pgvector-backend`
 
 ## Version Strategy
 

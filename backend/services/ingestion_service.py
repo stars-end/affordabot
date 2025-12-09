@@ -6,8 +6,8 @@ from typing import List, Dict, Any
 from uuid import uuid4
 from supabase import Client
 
-# LLM Common v0.3.0 interfaces
-from llm_common.retrieval import SupabasePgVectorBackend, RetrievedChunk
+# LLM Common v0.4.0+ interfaces
+from llm_common.retrieval import RetrievalBackend, RetrievedChunk
 from llm_common.embeddings import EmbeddingService
 from llm_common import WebSearchResult
 # Use absolute import pattern relative to backend root (which is in path)
@@ -23,13 +23,13 @@ class IngestionService:
     2. Extract and clean text
     3. Chunk text
     4. Generate embeddings (via EmbeddingService)
-    5. Store in vector backend (via SupabasePgVectorBackend)
+    5. Store in vector backend (via RetrievalBackend)
     """
     
     def __init__(
         self,
         supabase_client: Client,
-        vector_backend: SupabasePgVectorBackend,
+        vector_backend: RetrievalBackend,
         embedding_service: EmbeddingService,
         storage_backend: Optional["BlobStorage"] = None, # Added dependency
         chunk_size: int = 1000,
@@ -133,7 +133,7 @@ class IngestionService:
                 source=scrape.get('url', 'unknown'), # Add source URL
                 score=1.0 # Default score (not relevant for storage)
             )
-            doc_chunks.append(doc_chunk)
+            doc_chunks.append(doc_chunk.model_dump())
         
         # 6. Store in vector backend
         await self.vector_backend.upsert(doc_chunks)
