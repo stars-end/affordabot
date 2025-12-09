@@ -139,14 +139,18 @@ class UniversalHarvester:
         # Import here to avoid circular imports at top level if any
         from services.ingestion_service import IngestionService
         from llm_common.retrieval import SupabasePgVectorBackend
-        from llm_common.embeddings import EmbeddingService
+        from llm_common.embeddings.openai import OpenAIEmbeddingService
+        from llm_common.embeddings.mock import MockEmbeddingService
         
         # Setup Services
         # Note: EmbeddingService needs API key. Assuming env var OPENAI_API_KEY is set or handled.
-        embedding_service = EmbeddingService() 
+        if os.environ.get("OPENAI_API_KEY"):
+            embedding_service = OpenAIEmbeddingService()
+        else:
+            embedding_service = MockEmbeddingService() 
         vector_backend = SupabasePgVectorBackend(
             supabase_client=self.db.client,
-            table_name="documents"
+            table="documents"
         )
         ingestion_service = IngestionService(
             supabase_client=self.db.client,

@@ -107,7 +107,7 @@ class SupabaseDB:
         
         return True
     
-    async def get_or_create_source(self, jurisdiction_id: str, name: str, type: str) -> Optional[str]:
+    async def get_or_create_source(self, jurisdiction_id: str, name: str, type: str, url: Optional[str] = None) -> Optional[str]:
         """Get source ID, creating if it doesn't exist."""
         if not self.client:
             return None
@@ -122,7 +122,8 @@ class SupabaseDB:
         result = self.client.table("sources").insert({
             "jurisdiction_id": jurisdiction_id,
             "name": name,
-            "type": type
+            "type": type,
+            "url": url
         }).execute()
         
         return result.data[0]["id"] if result.data else None
