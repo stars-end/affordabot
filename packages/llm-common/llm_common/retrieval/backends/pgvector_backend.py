@@ -239,56 +239,6 @@ class SupabasePgVectorBackend(RetrievalBackend):
         except Exception:
             return False
 
-    async def upsert(self, chunks: list[RetrievedChunk]) -> int:
-        """Upsert chunks into the vector store.
-        
-        Args:
-            chunks: List of RetrievedChunk objects to store.
-            
-        Returns:
-            Number of chunks successfully stored.
-        """
-        if not chunks:
-            return 0
-            
-        # Convert chunks to records for insertion
-        records = []
-        for chunk in chunks:
-            record = {
-                self.id_col: chunk.chunk_id,
-                self.text_col: chunk.content,
-                self.source_col: chunk.source,
-                self.vector_col: chunk.embedding,  # Explicitly store embedding
-            }
-            # Flatten metadata if needed, but usually we store it as jsonb
-            # Assuming table has a jsonb column for metadata, or we map specific cols
-            # Based on __init__, we have metadata_cols. 
-            # If the table structure expects specific columns, we map them.
-            # If there's a generic metadata column, we dump it there.
-            # Let's assume we map only the known metadata_cols plus a generic 'metadata' if exists.
-            
-            # Simple approach: Mix in metadata keys that match table columns
-            if chunk.metadata:
-                for key, value in chunk.metadata.items():
-                    # If the key is a defined metadata column, use it
-                    if key in self.metadata_cols:
-                        record[key] = value
-                    # Otherwise, where does it go? 
-                    # If we don't have a catch-all, we might lose it. 
-                    # Let's check if there is a catch-all 'metadata' column
-                    # But for now, just mapping known cols is safer.
-                    
-            records.append(record)
-            
-        try:
-            # Upsert using supabase-py
-            # ignore_duplicates=False means update if exists (on Primary Key)
-            response = self.supabase.table(self.table).upsert(records).execute()
-            return len(response.data) if response.data else 0
-        except Exception as e:
-            # Log error? Re-raise?
-            raise RuntimeError(f"Failed to upsert chunks: {e}")
-
     async def close(self) -> None:
         """Clean up resources.
 

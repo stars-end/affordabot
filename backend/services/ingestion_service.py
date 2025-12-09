@@ -133,7 +133,7 @@ class IngestionService:
                 source=scrape.get('url', 'unknown'), # Add source URL
                 score=1.0 # Default score (not relevant for storage)
             )
-            doc_chunks.append(doc_chunk)
+            doc_chunks.append(doc_chunk.model_dump())
         
         # 6. Store in vector backend
         await self.vector_backend.upsert(doc_chunks)

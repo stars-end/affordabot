@@ -27,16 +27,22 @@ def create_vector_backend(
     
     if use_pgvector:
         # New: Generic PgVectorBackend (llm-common 0.4.0+)
-        from llm_common.retrieval.backends import PgVectorBackend
+        from llm_common.retrieval.backends import create_pg_backend
         
         database_url = os.getenv("DATABASE_URL")
         if not database_url:
             raise ValueError("DATABASE_URL required for PgVectorBackend")
         
-        return PgVectorBackend(
-            connection_string=database_url,
-            table_name="documents",  # Keep existing table
-            embedding_dim=4096,  # Qwen embedding dimensions
+        # Ensure asyncpg driver is used
+        if database_url.startswith("postgresql://"):
+            database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+        elif database_url.startswith("postgres://"):
+            database_url = database_url.replace("postgres://", "postgresql+asyncpg://", 1)
+        
+        return create_pg_backend(
+            database_url=database_url,
+            table="documents",  # Keep existing table
+            vector_dimensions=4096,  # Qwen embedding dimensions
             embed_fn=embedding_fn
         )
     else:
