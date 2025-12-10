@@ -40,7 +40,7 @@ asyncpg = "^0.30.0"
 minio = "^7.2.20"
 
 [tool.poetry.group.dev.dependencies]
-pytest = "*"
+pytest = "^8.0.0"
 pytest-asyncio = "*"
 black = "*"
 ruff = "*"
