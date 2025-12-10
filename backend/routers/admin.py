@@ -138,6 +138,20 @@ async def _run_scrape_task(task_id: str, jurisdiction: str, force: bool, db: Sup
         # ... existing legislation logic ...
         # Import scraper registry
         from services.scraper.san_jose import SanJoseScraper
+        
+    except Exception as e:
+        error_msg = str(e)
+        print(f"Task {task_id} failed: {error_msg}")
+        import traceback
+        traceback.print_exc()
+        
+        # Update task status to failed
+        if db.client:
+            db.client.table('admin_tasks').update({
+                'status': 'failed',
+                'completed_at': datetime.now().isoformat(),
+                'error_message': error_msg
+            }).eq('id', task_id).execute()
 
 
 class ManualScrapeResponse(BaseModel):
