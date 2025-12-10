@@ -28,12 +28,13 @@ class IngestionService:
     
     def __init__(
         self,
-        supabase_client: Client,
-        vector_backend: RetrievalBackend,
-        embedding_service: EmbeddingService,
-        storage_backend: Optional["BlobStorage"] = None, # Added dependency
+        supabase_client: Optional[Client] = None,
+        vector_backend: RetrievalBackend = None,
+        embedding_service: EmbeddingService = None,
+        storage_backend: Optional["BlobStorage"] = None,
         chunk_size: int = 1000,
         chunk_overlap: int = 200,
+        postgres_client: Any = None, # New: PostgresDB instance
     ):
         self.supabase = supabase_client
         self.vector_backend = vector_backend
@@ -41,6 +42,7 @@ class IngestionService:
         self.storage_backend = storage_backend
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
+        self.pg = postgres_client # Store PostgresDB
     
     async def process_raw_scrape(self, scrape_id: str) -> int:
         """
@@ -52,10 +54,31 @@ class IngestionService:
         Returns:
             Number of chunks created
         """
-        # 1. Fetch raw scrape
-        result = self.supabase.table('raw_scrapes').select('*').eq('id', scrape_id).single().execute()
-        scrape = result.data
+        scrape = None
         
+        # 1. Fetch raw scrape (Postgres or Supabase)
+        if self.pg:
+            # Postgres Fetch
+            row = await self.pg._fetchrow("SELECT * FROM raw_scrapes WHERE id = $1", scrape_id)
+            if row:
+                scrape = dict(row)
+                # Ensure data is dict if coming from JSONB
+                import json
+                if isinstance(scrape.get('data'), str):
+                     try:
+                         scrape['data'] = json.loads(scrape['data'])
+                     except:
+                         pass
+                if isinstance(scrape.get('metadata'), str):
+                     try:
+                         scrape['metadata'] = json.loads(scrape['metadata'])
+                     except:
+                         pass
+        elif self.supabase:
+            # Supabase Fetch
+            result = self.supabase.table('raw_scrapes').select('*').eq('id', scrape_id).single().execute()
+            scrape = result.data
+            
         if not scrape:
              print(f"⚠️ Raw scrape {scrape_id} not found.")
              return 0
@@ -77,7 +100,9 @@ class IngestionService:
                  if scrape.get('content_type') == 'application/pdf':
                      ext = ".pdf"
                  
-                 path = f"{scrape.get('source_id', 'unknown')}/{now.year}/{now.month}/{scrape_id}{ext}"
+                 # Handle source_id potentially being UUID in PG
+                 source_identifier = str(scrape.get('source_id', 'unknown'))
+                 path = f"{source_identifier}/{now.year}/{now.month}/{scrape_id}{ext}"
                  
                  content_bytes = str(scrape['data']).encode('utf-8') # Simple for now
                  if isinstance(scrape['data'], dict) and 'content' in scrape['data']:
@@ -86,9 +111,12 @@ class IngestionService:
                  uri = await self.storage_backend.upload(path, content_bytes)
                  
                  # Update raw_scrape with storage URI
-                 self.supabase.table('raw_scrapes').update({
-                     'storage_uri': uri
-                 }).eq('id', scrape_id).execute()
+                 if self.pg:
+                     await self.pg._execute("UPDATE raw_scrapes SET storage_uri = $1 WHERE id = $2", uri, scrape_id)
+                 elif self.supabase:
+                     self.supabase.table('raw_scrapes').update({
+                         'storage_uri': uri
+                     }).eq('id', scrape_id).execute()
                  
              except Exception as e:
                  print(f"⚠️ Storage upload failed: {e}")
@@ -112,11 +140,13 @@ class IngestionService:
         
         # Ensure scrape metadata is valid
         scrape_meta = scrape.get('metadata') or {}
+        if not isinstance(scrape_meta, dict):
+            scrape_meta = {}
         
         for i, (chunk_text, embedding) in enumerate(zip(chunks, embeddings)):
             # Construct metadata
             metadata = {
-                "source_id": scrape['source_id'],
+                "source_id": str(scrape['source_id']),
                 "scrape_id": scrape_id,
                 "document_id": document_id, # Required for 'documents' table column mapping
                 "content_type": scrape.get('content_type', 'text/html'),
@@ -139,10 +169,16 @@ class IngestionService:
         await self.vector_backend.upsert(doc_chunks)
         
         # 7. Mark scrape as processed
-        self.supabase.table('raw_scrapes').update({
-            'processed': True,
-            'document_id': document_id
-        }).eq('id', scrape_id).execute()
+        if self.pg:
+            await self.pg._execute(
+                "UPDATE raw_scrapes SET processed = $1, document_id = $2 WHERE id = $3",
+                True, document_id, scrape_id
+            )
+        elif self.supabase:
+            self.supabase.table('raw_scrapes').update({
+                'processed': True,
+                'document_id': document_id
+            }).eq('id', scrape_id).execute()
         
         return len(doc_chunks)
     
