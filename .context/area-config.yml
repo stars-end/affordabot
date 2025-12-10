@@ -11,13 +11,13 @@ areas:
 
   llm-pipeline:
     description: "RAG pipeline, embeddings, LLM interactions, and flow orchestration"
+    enabled: true
     keywords: "llm, rag, embedding, vector, flow, generate, review"
     tags: ["backend", "ai", "rag"]
     globs:
       - "backend/flows/**/*"
       - "backend/services/llm_service.py"
       - "backend/services/embedding_service.py"
-      - "packages/llm-common/**/*"
 
   admin-ui:
     description: "Admin dashboard, task management, and review interfaces"
