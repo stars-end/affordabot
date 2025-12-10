@@ -78,35 +78,37 @@ export default function JurisdictionDashboard() {
     }
 
     return (
-        <div className="space-y-8 p-6">
+        <div className="space-y-8 p-6 max-w-7xl mx-auto">
             {/* Header */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 pb-6 border-b">
                 <div>
-                    <h1 className="text-4xl font-bold text-gray-900">{stats.jurisdiction}</h1>
-                    <div className="flex items-center gap-3 mt-2">
-                        <Badge variant={stats.pipeline_status === 'healthy' ? 'default' : 'destructive'} className="text-sm px-3 py-1">
+                    <h1 className="text-3xl font-bold text-gray-900 tracking-tight">{stats.jurisdiction}</h1>
+                    <div className="flex items-center gap-3 mt-3">
+                        <Badge variant={stats.pipeline_status === 'healthy' ? 'default' : 'destructive'} className="text-sm px-3 py-1 bg-white border shadow-sm">
                             {stats.pipeline_status === 'healthy' ? (
-                                <ShieldCheck className="w-4 h-4 mr-1 inline" />
+                                <ShieldCheck className="w-4 h-4 mr-1 inline text-green-600" />
                             ) : (
-                                <AlertTriangle className="w-4 h-4 mr-1 inline" />
+                                <AlertTriangle className="w-4 h-4 mr-1 inline text-red-600" />
                             )}
-                            {stats.pipeline_status.toUpperCase()}
+                            <span className={stats.pipeline_status === 'healthy' ? 'text-green-700' : 'text-red-700'}>
+                                {stats.pipeline_status.toUpperCase()}
+                            </span>
                         </Badge>
-                        <span className="text-sm text-gray-500 flex items-center">
-                            <Clock className="w-4 h-4 mr-1" />
+                        <span className="text-sm text-gray-500 flex items-center bg-gray-50 px-3 py-1 rounded-full border">
+                            <Clock className="w-4 h-4 mr-1.5" />
                             Last Scrape: {stats.last_scrape ? new Date(stats.last_scrape).toLocaleString() : 'Never'}
                         </span>
                     </div>
                 </div>
-                <div className="flex gap-3">
-                    <Button variant="outline" onClick={() => loadStats()}>
+                <div className="flex gap-3 flex-wrap">
+                    <Button variant="outline" className="bg-white" onClick={() => loadStats()}>
                         Refresh
                     </Button>
-                    <Button onClick={() => handleScrape(false)}>
+                    <Button onClick={() => handleScrape(false)} className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm">
                         <PlayCircle className="w-4 h-4 mr-2" />
                         Run Scraper
                     </Button>
-                    <Button variant="secondary" onClick={() => handleScrape(true)}>
+                    <Button variant="secondary" onClick={() => handleScrape(true)} className="bg-gray-100 hover:bg-gray-200 text-gray-900 border">
                         Force Rescrape
                     </Button>
                 </div>
@@ -114,54 +116,65 @@ export default function JurisdictionDashboard() {
 
             {/* Task Status Feedback */}
             {taskStatus && (
-                <Alert>
-                    <Activity className="h-4 w-4" />
+                <Alert className="bg-blue-50 border-blue-200">
+                    <Activity className="h-4 w-4 text-blue-600" />
                     <AlertTitle>Task Status</AlertTitle>
-                    <AlertDescription>{taskStatus}</AlertDescription>
+                    <AlertDescription className="text-blue-800">{taskStatus}</AlertDescription>
                 </Alert>
             )}
 
             {/* Metrics Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Card>
+                <Card className="bg-white/80 backdrop-blur border shadow-sm">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Raw Scrapes</CardTitle>
-                        <FileText className="h-4 w-4 text-muted-foreground" />
+                        <CardTitle className="text-sm font-medium text-gray-600">Raw Scrapes</CardTitle>
+                        <FileText className="h-4 w-4 text-gray-400" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{stats.total_raw_scrapes}</div>
-                        <p className="text-xs text-muted-foreground">
+                        <div className="text-2xl font-bold text-gray-900">{stats.total_raw_scrapes}</div>
+                        <p className="text-xs text-gray-500">
                             Items collected from sources
                         </p>
                     </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="bg-white/80 backdrop-blur border shadow-sm">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Processed Content</CardTitle>
-                        <Activity className="h-4 w-4 text-muted-foreground" />
+                        <CardTitle className="text-sm font-medium text-gray-600">Processed Content</CardTitle>
+                        <Activity className="h-4 w-4 text-gray-400" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{stats.processed_scrapes}</div>
-                        <p className="text-xs text-muted-foreground">
+                        <div className="text-2xl font-bold text-gray-900">{stats.processed_scrapes}</div>
+                        <p className="text-xs text-gray-500">
                             Items successfully processed
                         </p>
                     </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="bg-white/80 backdrop-blur border shadow-sm">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Bills Analyzed</CardTitle>
-                        <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+                        <CardTitle className="text-sm font-medium text-gray-600">Bills Analyzed</CardTitle>
+                        <ShieldCheck className="h-4 w-4 text-gray-400" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{stats.total_bills}</div>
-                        <p className="text-xs text-muted-foreground">
+                        <div className="text-2xl font-bold text-gray-900">{stats.total_bills}</div>
+                        <p className="text-xs text-gray-500">
                             Legislative items generated
                         </p>
                     </CardContent>
                 </Card>
             </div>
+
+            {/* Recent Scrapes History */}
+            <Card className="bg-white border shadow-sm">
+                <CardHeader>
+                    <CardTitle>Recent History</CardTitle>
+                    <p className="text-sm text-gray-500">Latest scraping activity for this jurisdiction</p>
+                </CardHeader>
+                <CardContent>
+                    <RecentScrapesTable jurisdiction={id} />
+                </CardContent>
+            </Card>
 
             {/* Active Alerts */}
             {stats.active_alerts.length > 0 && (
@@ -181,6 +194,59 @@ export default function JurisdictionDashboard() {
                     </CardContent>
                 </Card>
             )}
+        </div>
+    );
+}
+
+function RecentScrapesTable({ jurisdiction }: { jurisdiction: string }) {
+    const [history, setHistory] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        adminService.getScrapeHistory()
+            .then(data => {
+                // Filter client side for now as API supports optional filter
+                const filtered = data.filter((h: any) => h.jurisdiction === jurisdiction || h.jurisdiction === decodeURIComponent(jurisdiction));
+                setHistory(filtered.slice(0, 5));
+            })
+            .catch(console.error)
+            .finally(() => setLoading(false));
+    }, [jurisdiction]);
+
+    if (loading) return <div className="text-sm text-gray-500">Loading history...</div>;
+    if (history.length === 0) return <div className="text-sm text-gray-500">No recent history found.</div>;
+
+    return (
+        <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+                <thead className="bg-gray-50 text-gray-600 font-medium">
+                    <tr>
+                        <th className="px-4 py-2">Time</th>
+                        <th className="px-4 py-2">Status</th>
+                        <th className="px-4 py-2">Found</th>
+                        <th className="px-4 py-2">Message</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y">
+                    {history.map((h) => (
+                        <tr key={h.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-2 whitespace-nowrap">
+                                {new Date(h.timestamp).toLocaleString()}
+                            </td>
+                            <td className="px-4 py-2">
+                                <Badge variant={h.status === 'success' ? 'default' : 'destructive'}
+                                    className={`text-xs ${h.status === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                    {h.status}
+                                </Badge>
+                            </td>
+                            <td className="px-4 py-2">{h.bills_found} items</td>
+                            <td className="px-4 py-2 text-gray-500 max-w-xs truncate">
+                                {h.error || "Completed successfully"}
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
         </div>
     );
 }

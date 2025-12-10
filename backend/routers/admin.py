@@ -333,38 +333,44 @@ async def trigger_manual_scrape(
 
 
 @router.get("/scrapes", response_model=List[ScrapeHistory])
+@router.get("/scrapes", response_model=List[ScrapeHistory])
 async def get_scrape_history(
     jurisdiction: Optional[str] = None,
     limit: int = 50,
-    db: SupabaseDB = Depends(get_db)
+    db: PostgresDB = Depends(get_pg_db)
 ):
     """
     Get scraping history, optionally filtered by jurisdiction.
     """
-    if not db.client:
-        raise HTTPException(status_code=503, detail="Database not available")
-    
-    # Build query
-    query = db.client.table('scrape_history').select('*')
-    
-    if jurisdiction:
-        query = query.eq('jurisdiction', jurisdiction)
-    
-    result = query.order('created_at', desc=True).limit(limit).execute()
-    
-    # Transform to response model
-    history = []
-    for row in result.data:
-        history.append(ScrapeHistory(
-            id=row['id'],
-            jurisdiction=row['jurisdiction'],
-            timestamp=row['created_at'],
-            bills_found=row['bills_found'],
-            status=row['status'],
-            error=row.get('error_message')
-        ))
-    
-    return history
+    try:
+        query = "SELECT * FROM scrape_history"
+        params = []
+        
+        if jurisdiction:
+            query += " WHERE jurisdiction = $1"
+            params.append(jurisdiction)
+            
+        query += " ORDER BY created_at DESC LIMIT $" + str(len(params) + 1)
+        params.append(limit)
+        
+        rows = await db._fetch(query, *params)
+        
+        # Transform to response model
+        history = []
+        for row in rows:
+            history.append(ScrapeHistory(
+                id=str(row['id']),
+                jurisdiction=row['jurisdiction'],
+                timestamp=row['created_at'],
+                bills_found=row['bills_found'],
+                status=row['status'],
+                error=row.get('error_message')
+            ))
+        
+        return history
+    except Exception as e:
+        print(f"Error fetching scrape history: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ============================================================================
