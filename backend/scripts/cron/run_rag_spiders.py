@@ -20,9 +20,10 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
 # Add scraper project root to path so we can import 'affordabot_scraper' package
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../affordabot_scraper'))
 
-from db.supabase_client import SupabaseDB
-from affordabot_scraper.spiders.sanjose_meetings import SanJoseMeetingsSpider
-from affordabot_scraper.spiders.sanjose_municode import SanJoseMunicodeSpider
+# Imports moved to inner scope to support testing
+# from db.supabase_client import SupabaseDB
+# from affordabot_scraper.spiders.sanjose_meetings import SanJoseMeetingsSpider
+# from affordabot_scraper.spiders.sanjose_municode import SanJoseMunicodeSpider
 
 # Logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -34,6 +35,8 @@ class RAGSpiderRunner:
         from dotenv import load_dotenv
         load_dotenv(os.path.join(os.path.dirname(__file__), '../../.env'))
         
+        # Import DB client here
+        from db.supabase_client import SupabaseDB
         self.db = SupabaseDB()
         self.results = {}
 
@@ -67,6 +70,9 @@ class RAGSpiderRunner:
             process = CrawlerProcess(settings)
             
             # 2a. Map Spiders to Sources
+            from affordabot_scraper.spiders.sanjose_meetings import SanJoseMeetingsSpider
+            from affordabot_scraper.spiders.sanjose_municode import SanJoseMunicodeSpider
+
             spider_configs = [
                 (SanJoseMeetingsSpider, "San Jose Meetings", "meetings"),
                 (SanJoseMunicodeSpider, "San Jose Municode", "code")
@@ -210,6 +216,9 @@ class RAGSpiderRunner:
                 }).eq('id', task_id).execute()
             sys.exit(1)
 
-if __name__ == "__main__":
+def main():
     runner = RAGSpiderRunner()
     runner.run()
+
+if __name__ == "__main__":
+    main()

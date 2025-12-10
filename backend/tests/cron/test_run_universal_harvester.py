@@ -25,7 +25,12 @@ async def test_harvester_flow():
     # Mock Ingestion Service
     with patch('services.ingestion_service.IngestionService') as MockIngestion, \
          patch('llm_common.embeddings.EmbeddingService') as _MockEmbed, \
-         patch('services.vector_backend_factory.create_vector_backend') as _MockBackend:
+         patch('services.vector_backend_factory.create_vector_backend') as _MockBackend, \
+         patch.dict(sys.modules, {
+             'llm_common.embeddings.mock': MagicMock(),
+             'llm_common.embeddings.openai': MagicMock(),
+             'services.storage': MagicMock(),
+         }):
         
         instance = MockIngestion.return_value
         instance.process_raw_scrape = AsyncMock(return_value=5)

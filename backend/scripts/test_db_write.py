@@ -1,4 +1,4 @@
-
+import pytest
 import asyncio
 import os
 import sys
@@ -8,6 +8,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '../'))
 
 from db.supabase_client import SupabaseDB
 
+@pytest.mark.asyncio
 async def test_write():
     print("Testing DB upsert with metadata column via PostgREST...")
     db = SupabaseDB()

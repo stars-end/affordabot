@@ -1,4 +1,4 @@
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, AsyncMock
 import sys
 import os
 
@@ -19,8 +19,25 @@ def test_main_runs_spiders(mock_get_settings, mock_crawler_process):
     mock_process = MagicMock()
     mock_crawler_process.return_value = mock_process
     
-    # Run
-    main()
+    # Mock DB Module with Async Methods
+    mock_db_module = MagicMock()
+    mock_db_instance = MagicMock()
+    mock_db_module.SupabaseDB.return_value = mock_db_instance
+    mock_db_instance.get_or_create_jurisdiction = AsyncMock(return_value="jur-123")
+    mock_db_instance.get_or_create_source = AsyncMock(return_value="source-123")
+    
+    # Mock runtime dependencies
+    with patch.dict(sys.modules, {
+        'affordabot_scraper.spiders.sanjose_meetings': MagicMock(),
+        'affordabot_scraper.spiders.sanjose_municode': MagicMock(),
+        'db.supabase_client': mock_db_module,
+        'services.ingestion_service': MagicMock(),
+        'services.storage': MagicMock(),
+        'services.vector_backend_factory': MagicMock(),
+        'llm_common.embeddings.openai': MagicMock(),
+        'llm_common.embeddings.mock': MagicMock(),
+    }):
+        main()
     
     # Verify Settings Loaded
     mock_get_settings.assert_called_once()
