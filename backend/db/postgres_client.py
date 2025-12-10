@@ -21,10 +21,16 @@ class PostgresDB:
         """Explicitly connect/create pool. Helpers will auto-connect if needed."""
         if not self.pool and self.database_url:
             try:
-                # Enforce SSL for Supabase/Production
-                # TODO: Make this configurable if needed for local non-SSL DBs
-                self.pool = await asyncpg.create_pool(self.database_url, ssl='require')
-                logger.info("Connected to DB with SSL")
+                # Railway internal network doesn't support SSL upgrade
+                # Only use SSL for external connections (Supabase pooler, etc.)
+                use_ssl = 'railway.internal' not in self.database_url
+                
+                if use_ssl:
+                    self.pool = await asyncpg.create_pool(self.database_url, ssl='require')
+                    logger.info("Connected to DB with SSL")
+                else:
+                    self.pool = await asyncpg.create_pool(self.database_url)
+                    logger.info("Connected to DB without SSL (Railway internal network)")
             except Exception as e:
                 logger.error(f"Failed to connect to DB: {e}")
                 raise
