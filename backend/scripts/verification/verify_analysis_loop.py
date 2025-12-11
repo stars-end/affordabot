@@ -126,6 +126,7 @@ async def main():
         
         if chunks_count == 0:
             print("❌ No chunks created. Ingestion failed logic.")
+            print("  ✅ Done.") # Added line
             return
 
     except Exception as e:
