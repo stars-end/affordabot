@@ -2194,7 +2194,7 @@ optional = false
 python-versions = ">=3.13,<4.0"
 groups = ["main"]
 files = []
-develop = true
+develop = false
 
 [package.dependencies]
 asyncpg = {version = ">=0.29.0,<0.31.0", optional = true}
@@ -2213,8 +2213,10 @@ typing-extensions = "^4.0.0"
 pgvector = ["asyncpg (>=0.29.0,<0.31.0)", "pgvector (>=0.3.0,<0.4.0)", "sqlalchemy (>=2.0.0,<3.0.0)"]
 
 [package.source]
-type = "directory"
-url = "../../llm-common"
+type = "git"
+url = "https://github.com/stars-end/llm-common.git"
+reference = "feature-affordabot-q4x-agent-framework"
+resolved_reference = "57d1a162600ef873c93cad74b128eae008678067"
 
 [[package]]
 name = "lxml"
@@ -6044,4 +6046,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.13"
-content-hash = "373fe45ba3447b8f78fd9854a954b4a5b28e047878aba098547ff716b75ba019"
+content-hash = "d4798c445cb2a53d97d8883f9a145f7a52ed079409bf00a8d31f711444b52ad4"
