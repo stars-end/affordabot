@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Activity, Clock, FileText, AlertTriangle, PlayCircle, ShieldCheck } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+import { toast } from 'sonner';
 
 export default function JurisdictionDashboard() {
     const params = useParams();
@@ -16,7 +16,6 @@ export default function JurisdictionDashboard() {
     const [stats, setStats] = useState<JurisdictionDashboardStats | null>(null);
     const [loading, setLoading] = useState(true);
     const [taskStatus, setTaskStatus] = useState<string | null>(null);
-    const { toast } = useToast();
 
     const loadStats = () => {
         setLoading(true);
@@ -24,10 +23,8 @@ export default function JurisdictionDashboard() {
             .then(setStats)
             .catch((err) => {
                 console.error(err);
-                toast({
-                    title: "Error",
+                toast.error("Error", {
                     description: "Failed to load dashboard stats",
-                    variant: "destructive"
                 });
             })
             .finally(() => setLoading(false));
@@ -43,17 +40,14 @@ export default function JurisdictionDashboard() {
             setTaskStatus("Starting scrape...");
             const task = await adminService.triggerScrape(stats.jurisdiction, force);
             setTaskStatus(`Scrape started: ${task.task_id}`);
-            toast({
-                title: "Scrape Triggered",
+            toast.success("Scrape Triggered", {
                 description: `Task ID: ${task.task_id}`
             });
             // Polling could be added here
         } catch (err) {
             console.error(err);
-            toast({
-                title: "Error",
+            toast.error("Error", {
                 description: "Failed to trigger scrape",
-                variant: "destructive"
             });
             setTaskStatus("Failed to start scrape");
         }

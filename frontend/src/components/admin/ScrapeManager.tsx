@@ -23,7 +23,7 @@ export function ScrapeManager() {
     const [activeTasks, setActiveTasks] = useState<ScrapeTask[]>([]);
     const [history, setHistory] = useState<ScrapeHistory[]>([]);
     const [alert, setAlert] = useState<{ type: 'success' | 'error', message: string } | null>(null);
-    const [alert, setAlert] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+
 
     // Poll active tasks
     useEffect(() => {
