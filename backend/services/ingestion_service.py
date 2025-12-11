@@ -67,12 +67,12 @@ class IngestionService:
                 if isinstance(scrape.get('data'), str):
                      try:
                          scrape['data'] = json.loads(scrape['data'])
-                     except:
+                     except Exception:
                          pass
                 if isinstance(scrape.get('metadata'), str):
                      try:
                          scrape['metadata'] = json.loads(scrape['metadata'])
-                     except:
+                     except Exception:
                          pass
         elif self.supabase:
             # Supabase Fetch

@@ -15,6 +15,7 @@ from typing import List, Optional, Dict, Any, Literal
 from datetime import datetime
 import os
 import asyncio
+import logging
 
 
 # Import database client
@@ -24,6 +25,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from db.postgres_client import PostgresDB
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+logger = logging.getLogger(__name__)
 
 
 def get_pg_db():

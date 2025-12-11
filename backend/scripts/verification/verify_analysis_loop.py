@@ -1,6 +1,5 @@
 
 import asyncio
-import os
 import uuid
 from datetime import datetime
 from dotenv import load_dotenv
@@ -8,21 +7,20 @@ from dotenv import load_dotenv
 # Load env vars
 load_dotenv()
 
-import sys
-from pathlib import Path
+import sys  # noqa: E402
+from pathlib import Path  # noqa: E402
 
 # Add backend root to path
 backend_root = str(Path(__file__).parent.parent.parent)
 sys.path.append(backend_root)
 
 # Imports
-from db.postgres_client import PostgresDB
-from services.ingestion_service import IngestionService
-from services.llm.analyzer import LegislationAnalyzer
-from services.storage.s3_storage import S3Storage
+from db.postgres_client import PostgresDB  # noqa: E402
+from services.ingestion_service import IngestionService  # noqa: E402
+from services.storage.s3_storage import S3Storage  # noqa: E402
 # from llm_common.retrieval import PgVectorBackend # Disabled due to dependency issue
-from services.retrieval.local_pgvector import LocalPgVectorBackend
-from llm_common.embeddings import EmbeddingService
+from services.retrieval.local_pgvector import LocalPgVectorBackend  # noqa: E402
+from llm_common.embeddings import EmbeddingService  # noqa: E402
 
 class MockEmbeddingService(EmbeddingService):
     def __init__(self):
@@ -94,7 +92,6 @@ async def main():
     print(f"📝 Creating test scrape: {test_id}")
     
     # We need a source first?
-    source_name = "verify_loop_test_source"
     # Ensure source exists (idempotent check ideally, or just insert)
     # Since we are verifying, we can insert a temp source or use existing.
     
