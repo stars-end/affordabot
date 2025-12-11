@@ -18,8 +18,31 @@ def run_migrations():
         conn = psycopg2.connect(db_url)
         conn.autocommit = True
         cur = conn.cursor()
+        
+        # Bootstrap Supabase roles if missing (for CI/Generic Postgres)
+        print("🔧 Checking Supabase roles...")
+        roles_sql = """
+        DO $$
+        BEGIN
+          IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'anon') THEN
+            CREATE ROLE anon NOLOGIN;
+          END IF;
+          IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'authenticated') THEN
+            CREATE ROLE authenticated NOLOGIN;
+          END IF;
+          IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'service_role') THEN
+            CREATE ROLE service_role NOLOGIN;
+            GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+            ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO postgres, service_role;
+          END IF;
+        END
+        $$;
+        """
+        cur.execute(roles_sql)
+        print("  ✅ Roles valid.")
+        
     except Exception as e:
-        print(f"❌ Failed to connect: {e}")
+        print(f"❌ Failed to connect/init: {e}")
         sys.exit(1)
 
     # Get migration files
