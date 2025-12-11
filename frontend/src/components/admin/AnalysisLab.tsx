@@ -9,16 +9,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { PlayCircle, Loader2, CheckCircle2, XCircle, Zap, FileSearch, FileText, CheckSquare } from 'lucide-react';
+import { PlayCircle, Loader2, CheckCircle2, XCircle, Zap, FileSearch, FileText, CheckSquare, Check, ChevronsUpDown } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
-
-const JURISDICTIONS = [
-    { value: 'san_jose', label: 'San Jose' },
-    { value: 'saratoga', label: 'Saratoga' },
-    { value: 'santa_clara_county', label: 'Santa Clara County' },
-    { value: 'california_state', label: 'California State' },
-];
+import { adminService, Jurisdiction } from '@/services/adminService';
+import { cn } from "@/lib/utils";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 const ANALYSIS_STEPS = [
     { value: 'research', label: 'Research', icon: FileSearch, description: 'Gather background information' },
@@ -49,6 +46,8 @@ interface AnalysisHistory {
 
 export function AnalysisLab() {
     const [jurisdiction, setJurisdiction] = useState<string>('');
+    const [jurisdictions, setJurisdictions] = useState<Jurisdiction[]>([]);
+    const [open, setOpen] = useState(false);
     const [billId, setBillId] = useState<string>('');
     const [step, setStep] = useState<string>('');
     const [modelOverride, setModelOverride] = useState<string>('');
@@ -63,7 +62,17 @@ export function AnalysisLab() {
     useEffect(() => {
         fetchModels();
         fetchHistory();
+        fetchJurisdictions();
     }, []);
+
+    const fetchJurisdictions = async () => {
+        try {
+            const data = await adminService.getJurisdictions();
+            setJurisdictions(data);
+        } catch (error) {
+            console.error('Failed to fetch jurisdictions:', error);
+        }
+    };
 
     const fetchModels = async () => {
         try {
@@ -250,18 +259,49 @@ export function AnalysisLab() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label className="text-gray-700">Jurisdiction</Label>
-                            <Select value={jurisdiction} onValueChange={setJurisdiction}>
-                                <SelectTrigger className="bg-white/50 border-gray-200 text-gray-900">
-                                    <SelectValue placeholder="Select jurisdiction" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {JURISDICTIONS.map(j => (
-                                        <SelectItem key={j.value} value={j.value}>
-                                            {j.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <Popover open={open} onOpenChange={setOpen}>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        role="combobox"
+                                        aria-expanded={open}
+                                        className="w-full justify-between bg-white/50 border-gray-200 text-gray-900"
+                                    >
+                                        {jurisdiction
+                                            ? jurisdictions.find((j) => j.name === jurisdiction)?.name
+                                            : "Select jurisdiction..."}
+                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-[300px] p-0">
+                                    <Command>
+                                        <CommandInput placeholder="Search jurisdiction..." />
+                                        <CommandList>
+                                            <CommandEmpty>No jurisdiction found.</CommandEmpty>
+                                            <CommandGroup>
+                                                {jurisdictions.map((j) => (
+                                                    <CommandItem
+                                                        key={j.id}
+                                                        value={j.name}
+                                                        onSelect={(currentValue) => {
+                                                            setJurisdiction(currentValue === jurisdiction ? "" : currentValue)
+                                                            setOpen(false)
+                                                        }}
+                                                    >
+                                                        <Check
+                                                            className={cn(
+                                                                "mr-2 h-4 w-4",
+                                                                jurisdiction === j.name ? "opacity-100" : "opacity-0"
+                                                            )}
+                                                        />
+                                                        {j.name}
+                                                    </CommandItem>
+                                                ))}
+                                            </CommandGroup>
+                                        </CommandList>
+                                    </Command>
+                                </PopoverContent>
+                            </Popover>
                         </div>
 
                         <div className="space-y-2">

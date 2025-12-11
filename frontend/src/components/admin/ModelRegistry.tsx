@@ -28,7 +28,7 @@ interface ModelConfig {
     model_name: string;
     priority: number;
     enabled: boolean;
-    use_case: 'generation' | 'review' | 'both';
+    use_case: 'generation' | 'review' | 'research' | 'both';
 }
 
 const PROVIDERS = [
@@ -39,6 +39,7 @@ const PROVIDERS = [
 const USE_CASES = [
     { value: 'generation', label: 'Generation' },
     { value: 'review', label: 'Review' },
+    { value: 'research', label: 'Research' },
     { value: 'both', label: 'Both' },
 ];
 
@@ -154,7 +155,7 @@ export function ModelRegistry() {
             model_name: newModel.model_name,
             priority: maxPriority + 1,
             enabled: newModel.enabled ?? true,
-            use_case: newModel.use_case as 'generation' | 'review' | 'both',
+            use_case: newModel.use_case as 'generation' | 'review' | 'research' | 'both',
         };
 
         setModels([...models, modelToAdd]);
@@ -173,6 +174,7 @@ export function ModelRegistry() {
         const variants: Record<string, string> = {
             generation: 'bg-blue-100 text-blue-700 border-blue-200',
             review: 'bg-purple-100 text-purple-700 border-purple-200',
+            research: 'bg-orange-100 text-orange-700 border-orange-200',
             both: 'bg-green-100 text-green-700 border-green-200',
         };
 
