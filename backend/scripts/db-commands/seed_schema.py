@@ -13,7 +13,7 @@ def run_migrations():
         print("❌ DATABASE_URL is not set.")
         sys.exit(1)
 
-    print(f"🚀 Connecting to database...")
+    print("🚀 Connecting to database...")
     try:
         conn = psycopg2.connect(db_url)
         conn.autocommit = True
@@ -36,7 +36,7 @@ def run_migrations():
         try:
             sql = sql_file.read_text()
             cur.execute(sql)
-            print(f"  ✅ Done.")
+            print("  ✅ Done.")
         except Exception as e:
             print(f"  ❌ Failed: {e}")
             # Identify if it's a critical error or acceptable (e.g. "already exists" in simplistic scripts)
