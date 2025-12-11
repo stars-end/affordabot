@@ -106,6 +106,17 @@ affordabot/
 
 MIT
 
+
 ## Contributing
 
 See [`CONTRIBUTING.md`](./CONTRIBUTING.md) (coming soon)
+
+## Lockfile Management
+
+We use a **single root lockfile** (`pnpm-lock.yaml`) for the entire workspace.
+
+**If you see lockfile errors in CI:**
+1. Run `pnpm install` at the repo root.
+2. Commit the updated `pnpm-lock.yaml`.
+3. Do NOT commit `frontend/pnpm-lock.yaml` or `backend/pnpm-lock.yaml` (these are gitignored).
+

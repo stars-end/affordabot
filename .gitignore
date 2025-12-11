@@ -48,3 +48,5 @@ saratoga.html
 
 # Supabase
 supabase/supabase/.temp/
+**/pnpm-lock.yaml
+!pnpm-lock.yaml

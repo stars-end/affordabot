@@ -26,10 +26,12 @@ jobs:
         run: pip install poetry
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
 
       - name: Validate lockfiles
-        uses: stars-end/agent-skills/github-actions/actions/lockfile-check@c88517f6d135b00bb177cad20963c57da9d3caa9
+        uses: stars-end/agent-skills/.github/actions/lockfile-check@main
         with:
           backend-directory: backend/
           frontend-directory: frontend/
