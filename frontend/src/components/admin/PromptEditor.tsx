@@ -128,209 +128,209 @@ export function PromptEditor() {
         }
     };
 
-};
 
-let currentPrompt: PromptConfig | null = null;
-if (activePromptType === 'generation') currentPrompt = generationPrompt;
-else if (activePromptType === 'review') currentPrompt = reviewPrompt;
-else currentPrompt = researchPrompt;
 
-return (
-    <div className="space-y-6">
-        {/* Alert */}
-        {alert && (
-            <Alert className={alert.type === 'error' ? 'bg-red-50 border-red-200 text-red-800' : 'bg-green-50 border-green-200 text-green-800'}>
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                    {alert.message}
-                </AlertDescription>
-            </Alert>
-        )}
+    let currentPrompt: PromptConfig | null = null;
+    if (activePromptType === 'generation') currentPrompt = generationPrompt;
+    else if (activePromptType === 'review') currentPrompt = reviewPrompt;
+    else currentPrompt = researchPrompt;
 
-        {/* Prompt Editor */}
-        <Card className="bg-white/40 backdrop-blur-md border-white/20 shadow-sm">
-            <CardHeader>
-                <div className="flex items-center justify-between">
-                    <div>
-                        <CardTitle className="text-gray-900">System Prompt Editor</CardTitle>
-                        <CardDescription className="text-gray-500">
-                            Edit and version control system prompts for generation and review
-                        </CardDescription>
-                    </div>
-                    {currentPrompt && (
-                        <div className="flex items-center gap-2">
-                            <Badge className="bg-blue-100 text-blue-700 border-blue-200">
-                                Version {currentPrompt.version || 1}
-                            </Badge>
-                            <Badge className="bg-purple-100 text-purple-700 border-purple-200">
-                                {currentPrompt.updated_by}
-                            </Badge>
+    return (
+        <div className="space-y-6">
+            {/* Alert */}
+            {alert && (
+                <Alert className={alert.type === 'error' ? 'bg-red-50 border-red-200 text-red-800' : 'bg-green-50 border-green-200 text-green-800'}>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                        {alert.message}
+                    </AlertDescription>
+                </Alert>
+            )}
+
+            {/* Prompt Editor */}
+            <Card className="bg-white/40 backdrop-blur-md border-white/20 shadow-sm">
+                <CardHeader>
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <CardTitle className="text-gray-900">System Prompt Editor</CardTitle>
+                            <CardDescription className="text-gray-500">
+                                Edit and version control system prompts for generation and review
+                            </CardDescription>
                         </div>
-                    )}
-                </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                {/* Prompt Type Tabs */}
-                <Tabs value={activePromptType} onValueChange={(v) => setActivePromptType(v as any)}>
-                    <TabsList className="bg-white/50 backdrop-blur-md border border-gray-200">
-                        <TabsTrigger value="generation" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                            <FileText className="w-4 h-4 mr-2" />
-                            Generation
-                        </TabsTrigger>
-                        <TabsTrigger value="review" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                            <CheckCircle2 className="w-4 h-4 mr-2" />
-                            Review
-                        </TabsTrigger>
-                        <TabsTrigger value="research" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                            <FileSearch className="w-4 h-4 mr-2" />
-                            Research
-                        </TabsTrigger>
-                    </TabsList>
-
-                    <TabsContent value="generation" className="space-y-4 mt-4">
-                        {isLoading ? (
-                            <div className="text-center py-8">
-                                <Loader2 className="w-8 h-8 mx-auto text-purple-500 animate-spin" />
-                                <p className="text-gray-500 mt-2">Loading prompt...</p>
+                        {currentPrompt && (
+                            <div className="flex items-center gap-2">
+                                <Badge className="bg-blue-100 text-blue-700 border-blue-200">
+                                    Version {currentPrompt.version || 1}
+                                </Badge>
+                                <Badge className="bg-purple-100 text-purple-700 border-purple-200">
+                                    {currentPrompt.updated_by}
+                                </Badge>
                             </div>
-                        ) : (
-                            <>
-                                <div className="space-y-2">
-                                    <Label className="text-gray-700">System Prompt</Label>
-                                    <Textarea
-                                        value={editedPrompt}
-                                        onChange={(e) => setEditedPrompt(e.target.value)}
-                                        placeholder="Enter system prompt for generation..."
-                                        className="min-h-[300px] bg-white/50 border-gray-200 text-gray-900 placeholder:text-gray-400 font-mono text-sm"
-                                    />
-                                    <p className="text-xs text-gray-500">
-                                        This prompt guides the LLM when generating impact analyses
-                                    </p>
+                        )}
+                    </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    {/* Prompt Type Tabs */}
+                    <Tabs value={activePromptType} onValueChange={(v) => setActivePromptType(v as any)}>
+                        <TabsList className="bg-white/50 backdrop-blur-md border border-gray-200">
+                            <TabsTrigger value="generation" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                                <FileText className="w-4 h-4 mr-2" />
+                                Generation
+                            </TabsTrigger>
+                            <TabsTrigger value="review" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                                <CheckCircle2 className="w-4 h-4 mr-2" />
+                                Review
+                            </TabsTrigger>
+                            <TabsTrigger value="research" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                                <FileSearch className="w-4 h-4 mr-2" />
+                                Research
+                            </TabsTrigger>
+                        </TabsList>
+
+                        <TabsContent value="generation" className="space-y-4 mt-4">
+                            {isLoading ? (
+                                <div className="text-center py-8">
+                                    <Loader2 className="w-8 h-8 mx-auto text-purple-500 animate-spin" />
+                                    <p className="text-gray-500 mt-2">Loading prompt...</p>
                                 </div>
-
-                                {currentPrompt && (
-                                    <div className="text-sm text-gray-500">
-                                        Last updated: {new Date(currentPrompt.updated_at).toLocaleString()}
+                            ) : (
+                                <>
+                                    <div className="space-y-2">
+                                        <Label className="text-gray-700">System Prompt</Label>
+                                        <Textarea
+                                            value={editedPrompt}
+                                            onChange={(e) => setEditedPrompt(e.target.value)}
+                                            placeholder="Enter system prompt for generation..."
+                                            className="min-h-[300px] bg-white/50 border-gray-200 text-gray-900 placeholder:text-gray-400 font-mono text-sm"
+                                        />
+                                        <p className="text-xs text-gray-500">
+                                            This prompt guides the LLM when generating impact analyses
+                                        </p>
                                     </div>
-                                )}
-                            </>
-                        )}
-                    </TabsContent>
 
-                    <TabsContent value="review" className="space-y-4 mt-4">
-                        {isLoading ? (
-                            <div className="text-center py-8">
-                                <Loader2 className="w-8 h-8 mx-auto text-purple-500 animate-spin" />
-                                <p className="text-gray-500 mt-2">Loading prompt...</p>
-                            </div>
-                        ) : (
-                            <>
-                                <div className="space-y-2">
-                                    <Label className="text-gray-700">System Prompt</Label>
-                                    <Textarea
-                                        value={editedPrompt}
-                                        onChange={(e) => setEditedPrompt(e.target.value)}
-                                        placeholder="Enter system prompt for review..."
-                                        className="min-h-[300px] bg-white/50 border-gray-200 text-gray-900 placeholder:text-gray-400 font-mono text-sm"
-                                    />
-                                    <p className="text-xs text-gray-500">
-                                        This prompt guides the LLM when reviewing generated analyses
-                                    </p>
+                                    {currentPrompt && (
+                                        <div className="text-sm text-gray-500">
+                                            Last updated: {new Date(currentPrompt.updated_at).toLocaleString()}
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                        </TabsContent>
+
+                        <TabsContent value="review" className="space-y-4 mt-4">
+                            {isLoading ? (
+                                <div className="text-center py-8">
+                                    <Loader2 className="w-8 h-8 mx-auto text-purple-500 animate-spin" />
+                                    <p className="text-gray-500 mt-2">Loading prompt...</p>
                                 </div>
-
-                                {currentPrompt && (
-                                    <div className="text-sm text-gray-500">
-                                        Last updated: {new Date(currentPrompt.updated_at).toLocaleString()}
+                            ) : (
+                                <>
+                                    <div className="space-y-2">
+                                        <Label className="text-gray-700">System Prompt</Label>
+                                        <Textarea
+                                            value={editedPrompt}
+                                            onChange={(e) => setEditedPrompt(e.target.value)}
+                                            placeholder="Enter system prompt for review..."
+                                            className="min-h-[300px] bg-white/50 border-gray-200 text-gray-900 placeholder:text-gray-400 font-mono text-sm"
+                                        />
+                                        <p className="text-xs text-gray-500">
+                                            This prompt guides the LLM when reviewing generated analyses
+                                        </p>
                                     </div>
-                                )}
-                            </>
-                        )}
-                    </TabsContent>
 
-                    <TabsContent value="research" className="space-y-4 mt-4">
-                        {isLoading ? (
-                            <div className="text-center py-8">
-                                <Loader2 className="w-8 h-8 mx-auto text-purple-500 animate-spin" />
-                                <p className="text-gray-500 mt-2">Loading prompt...</p>
-                            </div>
-                        ) : (
-                            <>
-                                <div className="space-y-2">
-                                    <Label className="text-gray-700">System Prompt</Label>
-                                    <Textarea
-                                        value={editedPrompt}
-                                        onChange={(e) => setEditedPrompt(e.target.value)}
-                                        placeholder="Enter system prompt for research..."
-                                        className="min-h-[300px] bg-white/50 border-gray-200 text-gray-900 placeholder:text-gray-400 font-mono text-sm"
-                                    />
-                                    <p className="text-xs text-gray-500">
-                                        This prompt guides the LLM when gathering research and context
-                                    </p>
+                                    {currentPrompt && (
+                                        <div className="text-sm text-gray-500">
+                                            Last updated: {new Date(currentPrompt.updated_at).toLocaleString()}
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                        </TabsContent>
+
+                        <TabsContent value="research" className="space-y-4 mt-4">
+                            {isLoading ? (
+                                <div className="text-center py-8">
+                                    <Loader2 className="w-8 h-8 mx-auto text-purple-500 animate-spin" />
+                                    <p className="text-gray-500 mt-2">Loading prompt...</p>
                                 </div>
-
-                                {currentPrompt && (
-                                    <div className="text-sm text-gray-500">
-                                        Last updated: {new Date(currentPrompt.updated_at).toLocaleString()}
+                            ) : (
+                                <>
+                                    <div className="space-y-2">
+                                        <Label className="text-gray-700">System Prompt</Label>
+                                        <Textarea
+                                            value={editedPrompt}
+                                            onChange={(e) => setEditedPrompt(e.target.value)}
+                                            placeholder="Enter system prompt for research..."
+                                            className="min-h-[300px] bg-white/50 border-gray-200 text-gray-900 placeholder:text-gray-400 font-mono text-sm"
+                                        />
+                                        <p className="text-xs text-gray-500">
+                                            This prompt guides the LLM when gathering research and context
+                                        </p>
                                     </div>
-                                )}
-                            </>
-                        )}
-                    </TabsContent>
-                </Tabs>
 
-                {/* Action Buttons */}
-                <div className="flex gap-2 pt-4">
-                    <Button
-                        onClick={handleSave}
-                        disabled={isSaving || !hasChanges}
-                        className="bg-purple-600 hover:bg-purple-700 text-white"
-                    >
-                        {isSaving ? (
-                            <>
-                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                Saving...
-                            </>
-                        ) : (
-                            <>
-                                <Save className="w-4 h-4 mr-2" />
-                                Save Changes
-                            </>
-                        )}
-                    </Button>
-                    <Button
-                        onClick={handleReset}
-                        disabled={!hasChanges}
-                        variant="outline"
-                        className="bg-white/50 border-gray-200 text-gray-700 hover:bg-white/80"
-                    >
-                        Reset
-                    </Button>
-                    {hasChanges && (
-                        <Badge className="ml-auto bg-yellow-100 text-yellow-700 border-yellow-200">
-                            Unsaved changes
-                        </Badge>
-                    )}
-                </div>
-            </CardContent>
-        </Card>
+                                    {currentPrompt && (
+                                        <div className="text-sm text-gray-500">
+                                            Last updated: {new Date(currentPrompt.updated_at).toLocaleString()}
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                        </TabsContent>
+                    </Tabs>
 
-        {/* Version History (Placeholder) */}
-        <Card className="bg-white/40 backdrop-blur-md border-white/20 shadow-sm">
-            <CardHeader>
-                <CardTitle className="text-gray-900">Version History</CardTitle>
-                <CardDescription className="text-gray-500">
-                    View and restore previous prompt versions
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="text-center py-8 text-gray-400">
-                    <History className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                    <p>Version history coming soon</p>
-                    <p className="text-sm mt-1">Will show all previous versions with diff viewer</p>
-                </div>
-            </CardContent>
-        </Card>
-    </div>
-);
+                    {/* Action Buttons */}
+                    <div className="flex gap-2 pt-4">
+                        <Button
+                            onClick={handleSave}
+                            disabled={isSaving || !hasChanges}
+                            className="bg-purple-600 hover:bg-purple-700 text-white"
+                        >
+                            {isSaving ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Saving...
+                                </>
+                            ) : (
+                                <>
+                                    <Save className="w-4 h-4 mr-2" />
+                                    Save Changes
+                                </>
+                            )}
+                        </Button>
+                        <Button
+                            onClick={handleReset}
+                            disabled={!hasChanges}
+                            variant="outline"
+                            className="bg-white/50 border-gray-200 text-gray-700 hover:bg-white/80"
+                        >
+                            Reset
+                        </Button>
+                        {hasChanges && (
+                            <Badge className="ml-auto bg-yellow-100 text-yellow-700 border-yellow-200">
+                                Unsaved changes
+                            </Badge>
+                        )}
+                    </div>
+                </CardContent>
+            </Card>
+
+            {/* Version History (Placeholder) */}
+            <Card className="bg-white/40 backdrop-blur-md border-white/20 shadow-sm">
+                <CardHeader>
+                    <CardTitle className="text-gray-900">Version History</CardTitle>
+                    <CardDescription className="text-gray-500">
+                        View and restore previous prompt versions
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="text-center py-8 text-gray-400">
+                        <History className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                        <p>Version history coming soon</p>
+                        <p className="text-sm mt-1">Will show all previous versions with diff viewer</p>
+                    </div>
+                </CardContent>
+            </Card>
+        </div>
+    );
 }
 
