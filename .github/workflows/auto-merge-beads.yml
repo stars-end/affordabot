@@ -25,7 +25,7 @@ jobs:
 
       - name: Auto-merge Beads JSONL
         id: auto-merge
-        uses: stars-end/agent-skills/github-actions/actions/auto-merge-beads@c88517f6d135b00bb177cad20963c57da9d3caa9
+        uses: stars-end/agent-skills/github-actions/actions/auto-merge-beads@main
         with:
           base-ref: ${{ github.base_ref }}
           pr-branch: ${{ github.event.pull_request.head.ref }}
