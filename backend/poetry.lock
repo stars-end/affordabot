@@ -2215,8 +2215,8 @@ pgvector = ["asyncpg (>=0.29.0,<0.31.0)", "pgvector (>=0.3.0,<0.4.0)", "sqlalche
 [package.source]
 type = "git"
 url = "https://github.com/stars-end/llm-common.git"
-reference = "598c1fb720a317190b2da9a85c91ad97000b15b0"
-resolved_reference = "598c1fb720a317190b2da9a85c91ad97000b15b0"
+reference = "feature-affordabot-q4x-agent-framework"
+resolved_reference = "57d1a162600ef873c93cad74b128eae008678067"
 
 [[package]]
 name = "lxml"
@@ -6046,4 +6046,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.13"
-content-hash = "9ec4975bafbcb83d9104be1fd494b74aeff3cf266dfea108ff2987bfbcd6d1ac"
+content-hash = "d4798c445cb2a53d97d8883f9a145f7a52ed079409bf00a8d31f711444b52ad4"

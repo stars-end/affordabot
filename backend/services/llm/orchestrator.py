@@ -1,7 +1,7 @@
 from __future__ import annotations
-from llm_common.llm_client import LLMClient
+from llm_common.core import LLMClient
 from llm_common.web_search import WebSearchClient
-from llm_common.cost_tracker import CostTracker
+from llm_common.agents import ResearchAgent
 from typing import List, Dict, Any
 from pydantic import BaseModel
 
@@ -34,7 +34,6 @@ class AnalysisPipeline:
         self,
         llm_client: LLMClient,
         search_client: WebSearchClient,
-        cost_tracker: CostTracker,
         db_client: Any
     ):
         """
@@ -48,8 +47,8 @@ class AnalysisPipeline:
         """
         self.llm = llm_client
         self.search = search_client
-        self.cost = cost_tracker
         self.db = db_client
+        self.research_agent = ResearchAgent(llm_client, search_client)
     
     async def run(
         self,
@@ -74,7 +73,7 @@ class AnalysisPipeline:
         
         try:
             # Step 1: Research
-            research_data = await self._research_step(bill_id, bill_text, models["research"])
+            research_data = await self._research_step(bill_id, bill_text, jurisdiction, models["research"])
             await self._log_step(run_id, "research", models["research"], research_data)
             
             # Step 2: Generate
@@ -95,7 +94,7 @@ class AnalysisPipeline:
                 await self._log_step(run_id, "refine", models["generate"], analysis.model_dump())
             
             # Mark run as complete
-            await self._complete_pipeline_run(run_id, analysis, review)
+            await self._complete_pipeline_run(run_id, bill_id, analysis, review, jurisdiction)
             
             return analysis
         
@@ -107,29 +106,26 @@ class AnalysisPipeline:
         self,
         bill_id: str,
         bill_text: str,
+        jurisdiction: str,
         model: str
     ) -> List[Dict[str, Any]]:
         """
-        Research step: Generate queries and search.
+        Research step: Use ResearchAgent to find information.
         
         Returns:
             List of search results
         """
-        # Generate research queries using LLM
-        queries = await self._generate_research_queries(bill_id, bill_text, model)
+        # Update agent model if needed
+        self.research_agent.model_name = model
         
-        # Execute searches (with caching)
-        results = []
-        for query in queries:
-            search_results = await self.search.search(
-                query=query,
-                count=10,
-                domains=["*.gov", "*.edu", "*.org"],
-                recency="1y"
-            )
-            results.extend(search_results)
+        # Execute agent
+        agent_result = await self.research_agent.run(bill_id, bill_text, jurisdiction)
         
-        return [r.model_dump() for r in results]
+        # Log plan and summary if beneficial (currently we just return search results for downstream)
+        # Ideally we'd log the whole agent interaction.
+        # But for compatibility, we return the collected structured data.
+        
+        return agent_result.get("collected_data", [])
     
     async def _generate_research_queries(
         self,
@@ -250,15 +246,48 @@ class AnalysisPipeline:
 
     async def _log_step(self, run_id: str, step_name: str, model: str, data: Any):
         """Log a pipeline step."""
-        # TODO: Implement actual DB call
-        pass
+        print(f"Pipeline Run {run_id} Step {step_name}: Completed")
 
-    async def _complete_pipeline_run(self, run_id: str, analysis: BillAnalysis, review: ReviewCritique):
-        """Mark pipeline run as complete."""
-        # TODO: Implement actual DB call
-        pass
+    async def _complete_pipeline_run(self, run_id: str, bill_id: str, analysis: BillAnalysis, review: ReviewCritique, jurisdiction: str):
+        """Mark pipeline run as complete and store results."""
+        try:
+            # 1. Store Legislation (Upsert)
+            # Use BillAnalysis data + minimal defaults
+            bill_data = {
+                "bill_number": bill_id,
+                "title": f"Analysis: {bill_id}", # Default title if missing
+                "text": "Full text not available in analysis object", # Ideally fetched from context
+                "status": "analyzed"
+            }
+            # Note: store_legislation updates if exists, preserving text if we don't overwrite it?
+            # PostgresDB.store_legislation overwrites text.
+            # Ideally we should fetch existing first or just store impacts if we know leg exists.
+            # But here we want a robust "Ensure Exists" logic.
+            # Let's rely on bill_number matching.
+            
+            # Lookup jurisdiction ID
+            # Assuming passed jurisdiction is name (e.g. "San Jose")
+            jurisdiction_id = await self.db.get_or_create_jurisdiction(jurisdiction, "municipality")
+            if not jurisdiction_id:
+                print(f"Failed to resolve jurisdiction_id for {jurisdiction}")
+                return
+
+            legislation_id = await self.db.store_legislation(jurisdiction_id, bill_data)
+            
+            if legislation_id:
+               # 2. Store Impacts
+               # Convert impacts to dicts
+               impact_dicts = [i.model_dump() for i in analysis.impacts]
+               await self.db.store_impacts(legislation_id, impact_dicts)
+               print(f"✅ Stored analysis results for {bill_id}")
+            else:
+               print(f"❌ Failed to store legislation for {bill_id}")
+
+        except Exception as e:
+            print(f"Failed to store results: {e}")
+            import traceback
+            traceback.print_exc()
 
     async def _fail_pipeline_run(self, run_id: str, error: str):
         """Mark pipeline run as failed."""
-        # TODO: Implement actual DB call
-        pass
+        print(f"Pipeline Run {run_id} Failed: {error}")

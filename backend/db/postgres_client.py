@@ -19,7 +19,11 @@ class PostgresDB:
 
     async def connect(self):
         """Explicitly connect/create pool. Helpers will auto-connect if needed."""
-        if not self.pool and self.database_url:
+        if not self.database_url:
+            logger.error("Cannot connect: DATABASE_URL is not set.")
+            raise ValueError("DATABASE_URL is not set")
+
+        if not self.pool:
             try:
                 # Railway internal network doesn't support SSL upgrade
                 # Only use SSL for external connections (Supabase pooler, etc.)
@@ -292,3 +296,136 @@ class PostgresDB:
         except Exception as e:
             logger.error(f"Error creating raw scrape: {e}")
             return None
+
+    async def get_admin_task(self, task_id: str) -> Optional[Dict[str, Any]]:
+        """Get admin task by ID."""
+        try:
+            row = await self._fetchrow("SELECT * FROM admin_tasks WHERE id = $1", task_id)
+            return dict(row) if row else None
+        except Exception as e:
+            logger.error(f"Error fetching admin task: {e}")
+            return None
+
+    # Model Config Methods
+    async def get_model_configs(self) -> List[Dict[str, Any]]:
+        """Get all model configurations."""
+        try:
+            rows = await self._fetch("SELECT * FROM model_configs ORDER BY priority")
+            return [dict(row) for row in rows]
+        except Exception as e:
+            logger.error(f"Error fetching model configs: {e}")
+            return []
+
+    async def update_model_config(self, provider: str, model_name: str, use_case: str, priority: int, enabled: bool) -> bool:
+        """Upsert model configuration."""
+        try:
+            query = """
+                INSERT INTO model_configs (provider, model_name, use_case, priority, enabled, updated_at)
+                VALUES ($1, $2, $3, $4, $5, NOW())
+                ON CONFLICT (provider, model_name, use_case) 
+                DO UPDATE SET 
+                    priority = EXCLUDED.priority,
+                    enabled = EXCLUDED.enabled,
+                    updated_at = NOW()
+            """
+            await self._execute(query, provider, model_name, use_case, priority, enabled)
+            return True
+        except Exception as e:
+            logger.error(f"Error updating model config: {e}")
+            return False
+
+    # System Prompt Methods
+    async def get_system_prompt(self, prompt_type: str) -> Optional[Dict[str, Any]]:
+        """Get active system prompt for type."""
+        try:
+            row = await self._fetchrow(
+                "SELECT * FROM system_prompts WHERE prompt_type = $1 AND is_active = true",
+                prompt_type
+            )
+            return dict(row) if row else None
+        except Exception as e:
+            logger.error(f"Error fetching system prompt: {e}")
+            return None
+
+    async def update_system_prompt(self, prompt_type: str, system_prompt: str, description: str = None, user_id: str = "admin") -> Optional[int]:
+        """Update system prompt (create new version). Returns new version number."""
+        try:
+            # Get next version
+            ver_row = await self._fetchrow(
+                "SELECT version FROM system_prompts WHERE prompt_type = $1 ORDER BY version DESC LIMIT 1",
+                prompt_type
+            )
+            next_version = (ver_row['version'] + 1) if ver_row else 1
+            
+            async with self.pool.acquire() as conn:
+                async with conn.transaction():
+                    # Deactivate current
+                    await conn.execute(
+                        "UPDATE system_prompts SET is_active = false WHERE prompt_type = $1 AND is_active = true",
+                        prompt_type
+                    )
+                    
+                    # Insert new
+                    await conn.execute(
+                        """
+                        INSERT INTO system_prompts 
+                        (prompt_type, version, system_prompt, description, is_active, activated_at, created_at, created_by)
+                        VALUES ($1, $2, $3, $4, true, NOW(), NOW(), $5)
+                        """,
+                        prompt_type, next_version, system_prompt, description or f"Version {next_version}", user_id
+                    )
+            return next_version
+        except Exception as e:
+            logger.error(f"Error updating system prompt: {e}")
+            return None
+
+    # Analysis History Methods
+    async def get_analysis_history(self, jurisdiction: str = None, bill_id: str = None, step: str = None, limit: int = 50) -> List[Dict[str, Any]]:
+        """Get analysis history with filters."""
+        try:
+            query = "SELECT * FROM analysis_history"
+            conditions = []
+            params = []
+            
+            if jurisdiction:
+                conditions.append(f"jurisdiction = ${len(params)+1}")
+                params.append(jurisdiction)
+            if bill_id:
+                conditions.append(f"bill_id = ${len(params)+1}")
+                params.append(bill_id)
+            if step:
+                conditions.append(f"step = ${len(params)+1}")
+                params.append(step)
+                
+            if conditions:
+                query += " WHERE " + " AND ".join(conditions)
+                
+            query += f" ORDER BY created_at DESC LIMIT ${len(params)+1}"
+            params.append(limit)
+            
+            rows = await self._fetch(query, *params)
+            return [dict(row) for row in rows]
+        except Exception as e:
+            logger.error(f"Error fetching analysis history: {e}")
+            return []
+
+    # Template Review Methods
+    async def get_pending_reviews(self) -> List[Dict[str, Any]]:
+        """Get pending template reviews."""
+        try:
+            # Assuming table 'template_reviews' exists; if not it might fail, but this is migration.
+            rows = await self._fetch("SELECT * FROM template_reviews WHERE status = 'pending'")
+            return [dict(row) for row in rows]
+        except Exception as e:
+            logger.error(f"Error fetching pending reviews: {e}")
+            return []
+
+    async def update_review_status(self, review_id: str, status: str) -> bool:
+        """Update review status."""
+        try:
+            await self._execute("UPDATE template_reviews SET status = $1 WHERE id = $2", status, review_id)
+            return True
+        except Exception as e:
+            logger.error(f"Error updating review status: {e}")
+            return False
+

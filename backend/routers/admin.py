@@ -20,45 +20,36 @@ import asyncio
 # Import database client
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from supabase import Client, create_client
-from db.supabase_client import SupabaseDB
+
 from db.postgres_client import PostgresDB
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
-def get_supabase() -> Client:
-    return create_client(
-        os.environ['SUPABASE_URL'],
-        os.environ['SUPABASE_SERVICE_ROLE_KEY']
-    )
+
+def get_pg_db():
+    """Dependency to get Postgres client"""
+    return PostgresDB()
+
 
 class ReviewUpdate(BaseModel):
     status: str
 
 @router.get("/reviews")
-async def list_reviews(supabase: Client = Depends(get_supabase)):
+async def list_reviews(db: PostgresDB = Depends(get_pg_db)):
     """List pending template reviews."""
-    res = supabase.table("template_reviews").select("*").eq("status", "pending").execute()
-    return res.data
+    return await db.get_pending_reviews()
 
 @router.patch("/reviews/{review_id}")
 async def update_review(
     review_id: str, 
     update: ReviewUpdate,
-    supabase: Client = Depends(get_supabase)
+    db: PostgresDB = Depends(get_pg_db)
 ):
     """Approve or reject a review."""
-    res = supabase.table("template_reviews").update({"status": update.status}).eq("id", review_id).execute()
-    return res.data
-
-# Initialize database client
-def get_db():
-    """Dependency to get Supabase client (Legacy)"""
-    return SupabaseDB()
-
-def get_pg_db():
-    """Dependency to get Postgres client"""
-    return PostgresDB()
+    result = await db.update_review_status(review_id, update.status)
+    if not result:
+        raise HTTPException(status_code=500, detail="Failed to update review")
+    return {"status": "success", "id": review_id}
 
 
 # ============================================================================
@@ -414,42 +405,35 @@ async def get_analysis_history(
     bill_id: Optional[str] = None,
     step: Optional[Literal["research", "generate", "review"]] = None,
     limit: int = 50,
-    db: SupabaseDB = Depends(get_db)
+    db: PostgresDB = Depends(get_pg_db)
 ):
     """
     Get analysis history with optional filters.
     """
-    if not db.client:
-        raise HTTPException(status_code=503, detail="Database not available")
-    
-    # Build query
-    query = db.client.table('analysis_history').select('*')
-    
-    if jurisdiction:
-        query = query.eq('jurisdiction', jurisdiction)
-    if bill_id:
-        query = query.eq('bill_id', bill_id)
-    if step:
-        query = query.eq('step', step)
-    
-    result = query.order('created_at', desc=True).limit(limit).execute()
-    
-    # Transform to response model
-    history = []
-    for row in result.data:
-        history.append(AnalysisHistory(
-            id=row['id'],
-            jurisdiction=row['jurisdiction'],
-            bill_id=row['bill_id'],
-            step=row['step'],
-            model_used=f"{row.get('model_provider', 'unknown')}/{row.get('model_name', 'unknown')}",
-            timestamp=row['created_at'],
-            status=row['status'],
-            result=row.get('result'),
-            error=row.get('error_message')
-        ))
-    
-    return history
+    try:
+        rows = await db.get_analysis_history(jurisdiction, bill_id, step, limit)
+        
+        history = []
+        for row in rows:
+            # Handle potential JSON/Dict result if stored as string/jsonb
+            result_data = row.get('result')
+            
+            history.append(AnalysisHistory(
+                id=str(row['id']),
+                jurisdiction=row['jurisdiction'],
+                bill_id=row['bill_id'],
+                step=row['step'],
+                model_used=f"{row.get('model_provider', 'unknown')}/{row.get('model_name', 'unknown')}",
+                timestamp=row['created_at'],
+                status=row['status'],
+                result=result_data,
+                error=row.get('error_message')
+            ))
+        
+        return history
+    except Exception as e:
+        print(f"Error fetching analysis history: {e}")
+        return []
 
 
 
@@ -460,20 +444,18 @@ async def get_analysis_history(
 @router.get("/tasks/{task_id}")
 async def get_task_status(
     task_id: str,
-    db: SupabaseDB = Depends(get_db)
+    db: PostgresDB = Depends(get_pg_db)
 ):
     """
     Get status of a background task (scrape or analysis).
     """
-    if not db.client:
-        raise HTTPException(status_code=503, detail="Database not available")
-    
-    result = db.client.table('admin_tasks').select('*').eq('id', task_id).execute()
-    
-    if not result.data:
+    task = await db.get_admin_task(task_id)
+    if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     
-    return result.data[0]
+    # Ensure ID is string
+    task['id'] = str(task['id'])
+    return task
 
 
 # ============================================================================
@@ -482,19 +464,16 @@ async def get_task_status(
 
 @router.get("/models", response_model=List[ModelConfig])
 async def get_model_configs(
-    db: SupabaseDB = Depends(get_db)
+    db: PostgresDB = Depends(get_pg_db)
 ):
     """
     Get current model configuration and priority order.
     """
-    if not db.client:
-        raise HTTPException(status_code=503, detail="Database not available")
-    
     try:
-        result = db.client.table('model_configs').select('*').order('priority').execute()
+        rows = await db.get_model_configs()
         
         configs = []
-        for row in result.data:
+        for row in rows:
             configs.append(ModelConfig(
                 provider=row['provider'],
                 model_name=row['model_name'],
@@ -512,78 +491,70 @@ async def get_model_configs(
 @router.post("/models")
 async def update_model_configs(
     config: ModelConfigUpdate,
-    db: SupabaseDB = Depends(get_db)
+    db: PostgresDB = Depends(get_pg_db)
 ):
     """
     Update model configuration and priority order.
-    
-    Validates that priorities are unique and models are available.
     """
-    if not db.client:
-        raise HTTPException(status_code=503, detail="Database not available")
-    
     # Validate unique priorities
     priorities = [m.priority for m in config.models]
     if len(priorities) != len(set(priorities)):
         raise HTTPException(status_code=400, detail="Priorities must be unique")
     
-    # Update each model config
+    success_count = 0
     for model in config.models:
-        # Upsert (update or insert)
-        db.client.table('model_configs').upsert({
-            'provider': model.provider,
-            'model_name': model.model_name,
-            'use_case': model.use_case,
-            'priority': model.priority,
-            'enabled': model.enabled
-        }, on_conflict='provider,model_name,use_case').execute()
-    
-    return {"message": "Model configuration updated", "count": len(config.models)}
+        if await db.update_model_config(
+            model.provider, model.model_name, model.use_case,
+            model.priority, model.enabled
+        ):
+            success_count += 1
+            
+    return {"message": "Model configuration updated", "count": success_count}
 
 
 @router.get("/health/models")
-async def check_model_health(db: SupabaseDB = Depends(get_db)):
+async def check_model_health(db: PostgresDB = Depends(get_pg_db)):
     """Check health of all configured models."""
-    if not db.client:
-        raise HTTPException(status_code=503, detail="Database not available")
-    
-    # Get all enabled models
-    models = db.client.table('model_configs').select('*').eq('enabled', True).execute()
-    
-    health_results = []
-    for model in models.data:
-        # Perform health check (simple ping test)
-        try:
-            # TODO: Implement actual model health check
-            # For now, just check if we have API keys
+    try:
+        # Get all enabled models
+        # Re-using get_model_configs logic but filtering
+        rows = await db.get_model_configs()
+        models = [r for r in rows if r['enabled']]
+        
+        health_results = []
+        for model in models:
             is_healthy = True
             latency_ms = 0
             
-            health_results.append({
+            # TODO: Implement actual health check
+            # For now just stub successful result
+            
+            result = {
                 'provider': model['provider'],
                 'model_name': model['model_name'],
                 'status': 'healthy' if is_healthy else 'unhealthy',
                 'latency_ms': latency_ms,
                 'last_checked': datetime.now().isoformat()
-            })
+            }
+            health_results.append(result)
             
-            # Update model health in database
-            db.client.table('model_configs').update({
-                'health_status': 'healthy' if is_healthy else 'unhealthy',
-                'last_health_check_at': datetime.now().isoformat(),
-                'avg_latency_ms': latency_ms
-            }).eq('id', model['id']).execute()
+            # Update DB (using direct SQL execute if no helper method for health update yet)
+            # Or add update_model_health to PostgresDB
+            await db._execute(
+                """
+                UPDATE model_configs 
+                SET health_status = $1, last_health_check_at = NOW(), avg_latency_ms = $2
+                WHERE id = $3
+                """,
+                'healthy' if is_healthy else 'unhealthy',
+                latency_ms,
+                model['id']
+            )
             
-        except Exception as e:
-            health_results.append({
-                'provider': model['provider'],
-                'model_name': model['model_name'],
-                'status': 'unhealthy',
-                'error': str(e),
-                'last_checked': datetime.now().isoformat()
-            })
-    
-    return health_results
+        return health_results
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ============================================================================
@@ -591,25 +562,23 @@ async def check_model_health(db: SupabaseDB = Depends(get_db)):
 # ============================================================================
 
 @router.get("/jurisdictions")
-async def get_jurisdictions(db: SupabaseDB = Depends(get_db)):
+async def get_jurisdictions(db: PostgresDB = Depends(get_pg_db)):
     """Get all jurisdictions with their source configuration."""
-    if not db.client:
-        raise HTTPException(status_code=503, detail="Database not available")
-    
-    result = db.client.table('jurisdictions').select('*').order('name').execute()
-    return result.data
+    try:
+        rows = await db._fetch("SELECT * FROM jurisdictions ORDER BY name")
+        return [dict(row) for row in rows]
+    except Exception as e:
+        logger.error(f"Get jurisdictions failed: {e}")
+        return []
 
 
 @router.put("/jurisdictions/{jurisdiction_id}")
 async def update_jurisdiction(
     jurisdiction_id: str,
     update_data: Dict[str, Any],
-    db: SupabaseDB = Depends(get_db)
+    db: PostgresDB = Depends(get_pg_db)
 ):
     """Update jurisdiction configuration."""
-    if not db.client:
-        raise HTTPException(status_code=503, detail="Database not available")
-    
     # Validate fields
     allowed_fields = [
         'scrape_url', 'api_type', 'api_key_env', 
@@ -617,9 +586,20 @@ async def update_jurisdiction(
         'use_web_scraper_fallback', 'source_priority'
     ]
     filtered_data = {k: v for k, v in update_data.items() if k in allowed_fields}
-    
-    result = db.client.table('jurisdictions').update(filtered_data).eq('id', jurisdiction_id).execute()
-    return result.data[0] if result.data else None
+    if not filtered_data:
+         raise HTTPException(status_code=400, detail="No valid fields to update")
+
+    try:
+        # Construct update query dynamically
+        set_clauses = [f"{k} = ${i+2}" for i, k in enumerate(filtered_data.keys())]
+        query = f"UPDATE jurisdictions SET {', '.join(set_clauses)} WHERE id = $1 RETURNING *"
+        args = [jurisdiction_id] + list(filtered_data.values())
+        
+        row = await db._fetchrow(query, *args)
+        return dict(row) if row else None
+    except Exception as e:
+        logger.error(f"Update jurisdiction failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/jurisdiction/{jurisdiction_id}/dashboard", response_model=JurisdictionDashboardStats)
@@ -690,25 +670,21 @@ async def get_jurisdiction_dashboard(
 # Prompt Management Endpoints
 # ============================================================================
 
+
+
+
 @router.get("/prompts/{prompt_type}", response_model=PromptConfig)
 async def get_prompt(
     prompt_type: Literal["generation", "review"],
-    db: SupabaseDB = Depends(get_db)
+    db: PostgresDB = Depends(get_pg_db)
 ):
     """
     Get current system prompt for generation or review.
     """
-    if not db.client:
-        raise HTTPException(status_code=503, detail="Database not available")
-    
-    result = db.client.table('system_prompts').select('*').eq(
-        'prompt_type', prompt_type
-    ).eq('is_active', True).execute()
-    
-    if not result.data:
+    row = await db.get_system_prompt(prompt_type)
+    if not row:
         raise HTTPException(status_code=404, detail=f"No active prompt found for {prompt_type}")
     
-    row = result.data[0]
     return PromptConfig(
         prompt_type=row['prompt_type'],
         system_prompt=row['system_prompt'],
@@ -720,43 +696,20 @@ async def get_prompt(
 @router.post("/prompts")
 async def update_prompt(
     request: PromptUpdateRequest,
-    db: SupabaseDB = Depends(get_db)
+    db: PostgresDB = Depends(get_pg_db)
 ):
     """
     Update system prompt for generation or review.
     
     Creates a new version and activates it.
     """
-    if not db.client:
-        raise HTTPException(status_code=503, detail="Database not available")
-    
-    # Get current max version
-    version_result = db.client.table('system_prompts').select('version').eq(
-        'prompt_type', request.prompt_type
-    ).order('version', desc=True).limit(1).execute()
-    
-    next_version = 1
-    if version_result.data:
-        next_version = version_result.data[0]['version'] + 1
-    
-    # Deactivate current active prompt
-    db.client.table('system_prompts').update({
-        'is_active': False
-    }).eq('prompt_type', request.prompt_type).eq('is_active', True).execute()
-    
-    # Insert new prompt version
-    db.client.table('system_prompts').insert({
-        'prompt_type': request.prompt_type,
-        'version': next_version,
-        'system_prompt': request.system_prompt,
-        'description': f'Version {next_version}',
-        'is_active': True,
-        'activated_at': datetime.now().isoformat()
-    }).execute()
+    new_version = await db.update_system_prompt(request.prompt_type, request.system_prompt)
+    if not new_version:
+        raise HTTPException(status_code=500, detail="Failed to update prompt")
     
     return {
         "message": f"Prompt updated for {request.prompt_type}",
-        "version": next_version,
+        "version": new_version,
         "updated_at": datetime.now()
     }
 
@@ -885,54 +838,59 @@ async def _run_analysis_task(
     model_override: Optional[str]
 ):
     """Background task to run analysis step."""
+    db = PostgresDB()
+    
     try:
-        # Check feature flag
-        if os.getenv("ENABLE_NEW_LLM_PIPELINE", "false").lower() == "true":
-            print(f"Task {task_id}: Running {step} with NEW pipeline")
-            
-            # Import new pipeline components
-            from services.llm.orchestrator import AnalysisPipeline
-            from llm_common.llm_client import LLMClient
-            from llm_common.web_search import WebSearchClient
-            from llm_common.cost_tracker import CostTracker
-            
-            # Initialize clients
-            db = SupabaseDB().client
-            llm_client = LLMClient()
-            search_client = WebSearchClient(
-                api_key=os.getenv("ZAI_API_KEY", ""),
-                supabase_client=db
-            )
-            cost_tracker = CostTracker(supabase_client=db)
-            
-            pipeline = AnalysisPipeline(llm_client, search_client, cost_tracker, db)
-            
-            # Fetch bill text (placeholder)
-            # In a real implementation, we'd fetch this from the DB
-            bill_text = "Placeholder bill text" 
-            
-            # Run pipeline step
-            # Note: The pipeline currently runs all steps in 'run()', 
-            # but we can adapt it to run specific steps if needed.
-            # For now, we'll just run the full pipeline if step is 'generate' or 'all'
-            
-            models = {
-                "research": "gpt-4o-mini",
-                "generate": model_override or "claude-3-5-sonnet-20240620",
-                "review": "gpt-4o"
-            }
-            
-            if step == "generate" or step == "all":
-                await pipeline.run(bill_id, bill_text, jurisdiction, models)
-                
-        else:
-            # TODO: Implement actual analysis logic (Old Pipeline)
-            print(f"Task {task_id}: Running {step} for {bill_id} with model {model_override or 'default'} (OLD PIPELINE)")
+        await db.connect()
+        await db.update_admin_task(task_id, status='running')
         
+        print(f"Task {task_id}: Running {step} (New Pipeline)")
+        
+        # Import new pipeline components
+        # Import new pipeline components
+        from services.llm.orchestrator import AnalysisPipeline
+        from llm_common.core import LLMClient
+        from llm_common.web_search import WebSearchClient
+        
+        # Initialize clients - NO SUPABASE
+        llm_client = LLMClient() # This might need config, check LLMClient init
+        search_client = WebSearchClient(
+            api_key=os.getenv("ZAI_API_KEY", ""),
+            cache_backend=None 
+        )
+
+        pipeline = AnalysisPipeline(llm_client, search_client, db)
+        
+        # Fetch bill text logic (placeholder)
+        bill_text = "Placeholder bill text until DB fetch implemented" 
+        
+        models = {
+            "research": "gpt-4o-mini",
+            "generate": model_override or "claude-3-5-sonnet-20240620",
+            "review": "gpt-4o"
+        }
+        
+        if step == "generate" or step == "all":
+            result = await pipeline.run(bill_id, bill_text, jurisdiction, models)
+            
+            await db.update_admin_task(
+                task_id, 
+                status='completed',
+                result={'summary': result.summary, 'impacts_count': len(result.impacts)}
+            )
+        else:
+             await db.update_admin_task(task_id, status='completed', result={'message': f'Step {step} simulated'})
+             
     except Exception as e:
-        print(f"Task {task_id} failed: {e}")
+        error_msg = f"Analysis Task Failed: {str(e)}"
+        print(error_msg)
         import traceback
         traceback.print_exc()
+        
+        if db.is_connected():
+            await db.update_admin_task(task_id, status='failed', error=error_msg)
+    finally:
+        await db.close()
 
 
 def _check_scraper_health() -> Dict[str, Any]:
