@@ -112,6 +112,13 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:password@localhost:5432/affordabot
 
+      - name: Seed Database
+        run: |
+          cd backend
+          poetry run python scripts/db-commands/seed_schema.py
+        env:
+          DATABASE_URL: postgresql://postgres:password@localhost:5432/affordabot
+
       - name: Run San Jose V3 Verification
         run: |
           cd backend

@@ -43,6 +43,7 @@ class UniversalHarvester:
             await self.db.create_admin_task(
                 task_id=task_id,
                 task_type='universal_harvest',
+                jurisdiction='system',
                 status='running'
             )
 
