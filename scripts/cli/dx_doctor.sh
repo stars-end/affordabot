@@ -57,7 +57,7 @@ fi
 # 7) MCP config doctor (optional, from agent-skills)
 if [[ "${DX_SKIP_MCP:-}" == "1" ]]; then
   echo "[i] mcp-doctor: skipped (DX_SKIP_MCP=1)"
-  echo "Done. See AGENTS.md for next steps."
+  echo "Done. If anything above is missing, re-run without DX_SKIP_MCP."
   exit 0
 fi
 
@@ -78,4 +78,4 @@ else
   echo "[i] mcp-doctor: not installed (pull agent-skills)"
 fi
 
-echo "Done. See AGENTS.md for next steps."
+echo "Done. If you saw any ❌/missing items, follow: ${SKILLS_DIR}/mcp-doctor/SKILL.md"
