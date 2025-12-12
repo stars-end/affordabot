@@ -55,6 +55,12 @@ else
 fi
 
 # 7) MCP config doctor (optional, from agent-skills)
+if [[ "${DX_SKIP_MCP:-}" == "1" ]]; then
+  echo "[i] mcp-doctor: skipped (DX_SKIP_MCP=1)"
+  echo "Done. See AGENTS.md for next steps."
+  exit 0
+fi
+
 SKILLS_DIR="${AGENT_SKILLS_DIR:-}"
 if [[ -z "$SKILLS_DIR" ]]; then
   if [[ -x "$HOME/.agent/skills/mcp-doctor/check.sh" ]]; then
