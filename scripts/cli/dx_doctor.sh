@@ -3,6 +3,15 @@ set -euo pipefail
 
 echo "DX Doctor — quick preflight"
 
+# Always run from repo root (avoids relative-path confusion for agents).
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+cd "$REPO_ROOT"
+
+# 0) Agent bootstrap (idempotent, non-fatal)
+if command -v python3 >/dev/null 2>&1 && [[ -f scripts/cli/agent_bootstrap.py ]]; then
+  python3 scripts/cli/agent_bootstrap.py || true
+fi
+
 # 1) Railway env
 if [[ -z "${RAILWAY_ENVIRONMENT:-}" ]]; then
   echo "[!] Railway env: missing (run 'railway shell' for protected steps)"
@@ -31,5 +40,11 @@ else
   echo "[!] missing guardrails stamp. Run '/sync-i --force true' in CC/OC"
 fi
 
-echo "Done. See AGENTS.md for next steps."
+# 5) Agent Mail (optional)
+if [[ -n "${AGENT_MAIL_URL:-}" && -n "${AGENT_MAIL_BEARER_TOKEN:-}" ]]; then
+  echo "[✓] Agent Mail env: configured"
+else
+  echo "[i] Agent Mail env: not configured yet (coordinator will provide token + setup)"
+fi
 
+echo "Done. See AGENTS.md for next steps."

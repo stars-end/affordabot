@@ -10,6 +10,9 @@ daemon.log
 daemon.pid
 bd.sock
 
+# Local-only version marker
+.local_version
+
 # Legacy database files
 db.sqlite
 bd.db
