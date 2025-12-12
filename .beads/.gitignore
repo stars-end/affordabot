@@ -21,3 +21,7 @@ bd.db
 !*.jsonl
 !metadata.json
 !config.json
+
+# Ignore Beads merge artifacts (base/left/right) that are not meant for git.
+beads.*.jsonl
+beads.*.meta.json
