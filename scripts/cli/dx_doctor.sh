@@ -6,7 +6,13 @@ echo "DX Doctor — quick preflight"
 # Always run from repo root (avoids relative-path confusion for agents).
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "$REPO_ROOT"
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RESET='\033[0m'
 
+ERRORS=0
 # 0) Agent bootstrap (idempotent, non-fatal)
 if command -v python3 >/dev/null 2>&1 && [[ -f scripts/cli/agent_bootstrap.py ]]; then
   python3 scripts/cli/agent_bootstrap.py || true
@@ -54,14 +60,48 @@ else
   echo "[i] Agent Mail env: not configured yet (coordinator will provide token + setup)"
 fi
 
-# 7) MCP config doctor (optional, from agent-skills)
+# 7) Agent Skills Check (Fail-Open but Loud)
+# We expect the mount at ~/.agent/skills -> ~/agent-skills
+# But we also run the check script if distinct
+SKILLS_CHECK_SCRIPT=~/agent-skills/mcp-doctor/check.sh
+
+echo "--- Agent Skills Check ---"
+if [ -f "$SKILLS_CHECK_SCRIPT" ]; then
+    # Validate mount invariant
+    if [ -L ~/.agent/skills ]; then
+        echo -e "${GREEN}✅ Skills mount invariant (~/.agent/skills) verified${RESET}"
+    else
+        echo -e "${RED}❌ Skills mount missing or not a symlink: ~/.agent/skills${RESET}"
+        echo "   Fix: ln -sfn ~/agent-skills ~/.agent/skills"
+        ERRORS=$((ERRORS+1))
+    fi
+    
+    echo "Running skills check..."
+    if [ -n "${CI:-}" ]; then
+        # CI Mode: Strict failure on skills check
+        # Pass failing return code back up
+        if ! bash "$SKILLS_CHECK_SCRIPT"; then
+            echo -e "${RED}❌ Skills check failed in CI${RESET}"
+            ERRORS=$((ERRORS+1))
+        fi
+    else
+         # Local Mode: Warn only
+         bash "$SKILLS_CHECK_SCRIPT" || true
+    fi
+else
+    echo -e "${YELLOW}⚠️  Skills check script not found at $SKILLS_CHECK_SCRIPT${RESET}"
+    echo "   Is ~/agent-skills checked out?"
+    # Fail open, don't block
+fi
+
+# 8) MCP config doctor (optional, from agent-skills)
 if [[ "${DX_SKIP_MCP:-}" == "1" ]]; then
   echo "[i] mcp-doctor: skipped (DX_SKIP_MCP=1)"
   echo "Done. If anything above is missing, re-run without DX_SKIP_MCP."
   exit 0
 fi
 
-# 7) MCP Checks (Affordabot-specific: Only Agent Mail is required)
+# 9) MCP Checks (Affordabot-specific: Only Agent Mail is required)
 echo "--- MCP Check ---"
 
 # Helper to find string in config files

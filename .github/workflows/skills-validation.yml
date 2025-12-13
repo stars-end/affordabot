@@ -1,0 +1,35 @@
+name: Skills Logic Validation
+
+on:
+  push:
+    branches: [ master, main, feature-* ]
+  pull_request:
+    branches: [ master, main ]
+  workflow_dispatch:
+
+jobs:
+  validate-skills:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Checkout Agent Skills
+        uses: actions/checkout@v4
+        with:
+          repository: stars-end/agent-skills
+          path: agent-skills
+
+      - name: Setup Skills Environment
+        run: |
+          mkdir -p ~/.agent
+          ln -sfn $PWD/agent-skills ~/.agent/skills
+          
+          # Verify mount
+          ls -la ~/.agent/skills
+          
+      - name: Run DX Doctor
+        run: |
+          chmod +x scripts/cli/dx_doctor.sh
+          # Should pass or fail depending on strictness
+          ./scripts/cli/dx_doctor.sh

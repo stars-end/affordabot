@@ -45,6 +45,16 @@
 
 set -e
 
+# Repo root resolution
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+
+# Run DX Doctor (Preflight)
+if [ -f "$REPO_ROOT/scripts/cli/dx_doctor.sh" ]; then
+  "$REPO_ROOT/scripts/cli/dx_doctor.sh" || echo "⚠️  DX Doctor failed (non-fatal)"
+else
+  echo "⚠️  DX Doctor script not found"
+fi
+
 # Extract feature key from branch name or use provided arg
 if [ -n "$1" ]; then
   FEATURE_KEY="$1"
