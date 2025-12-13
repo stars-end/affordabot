@@ -45,6 +45,13 @@
 
 set -e
 
+# Run VM Bootstrap Verification (Linux only, fail-open)
+if [[ "$(uname -s)" == "Linux" ]] && [[ -x "$HOME/agent-skills/vm-bootstrap/verify.sh" ]]; then
+  echo "Running VM bootstrap check..."
+  "$HOME/agent-skills/vm-bootstrap/verify.sh" check || echo "⚠️  VM bootstrap check failed (proceeding anyway)"
+  echo ""
+fi
+
 # Extract feature key from branch name or use provided arg
 if [ -n "$1" ]; then
   FEATURE_KEY="$1"
