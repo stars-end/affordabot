@@ -265,3 +265,18 @@ async def get_legislation(jurisdiction: str, limit: int = 10):
         "count": len(legislation),
         "legislation": legislation
     }
+
+@app.get("/legislation/{jurisdiction}/{bill_number}")
+async def get_bill_details(jurisdiction: str, bill_number: str):
+    """
+    Get details for a specific bill including impacts.
+    """
+    if jurisdiction not in SCRAPERS:
+        raise HTTPException(status_code=404, detail=f"Jurisdiction '{jurisdiction}' not supported")
+
+    bill = await db.get_bill(jurisdiction, bill_number)
+
+    if not bill:
+        raise HTTPException(status_code=404, detail=f"Bill '{bill_number}' not found in {jurisdiction}")
+
+    return bill

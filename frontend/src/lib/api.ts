@@ -34,6 +34,16 @@ export async function scrapeJurisdiction(jurisdiction: Jurisdiction): Promise<an
     return await response.json();
 }
 
+export async function getBill(jurisdiction: string, billNumber: string): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/legislation/${jurisdiction}/${billNumber}`);
+
+    if (!response.ok) {
+        throw new Error(`Failed to get bill ${billNumber} for ${jurisdiction}`);
+    }
+
+    return await response.json();
+}
+
 export async function getLegislation(jurisdiction: Jurisdiction, limit: number = 10): Promise<any> {
     const response = await fetch(`${API_BASE_URL}/legislation/${jurisdiction}?limit=${limit}`);
 

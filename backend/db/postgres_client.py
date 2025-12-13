@@ -429,3 +429,98 @@ class PostgresDB:
             logger.error(f"Error updating review status: {e}")
             return False
 
+    async def get_legislation_by_jurisdiction(self, jurisdiction_name: str, limit: int = 10) -> List[Dict[str, Any]]:
+        """Get recent legislation for a jurisdiction with impacts."""
+        try:
+            # Get jurisdiction ID
+            jur_row = await self._fetchrow("SELECT id FROM jurisdictions WHERE name = $1", jurisdiction_name)
+            if not jur_row:
+                return []
+            jurisdiction_id = jur_row['id']
+
+            # Get legislation
+            legislation_rows = await self._fetch(
+                """
+                SELECT * FROM legislation
+                WHERE jurisdiction_id = $1
+                ORDER BY created_at DESC
+                LIMIT $2
+                """,
+                jurisdiction_id, limit
+            )
+
+            results = []
+            for leg in legislation_rows:
+                leg_dict = dict(leg)
+                # Fetch impacts
+                impact_rows = await self._fetch(
+                    "SELECT * FROM impacts WHERE legislation_id = $1 ORDER BY impact_number",
+                    leg['id']
+                )
+
+                impacts = []
+                for imp in impact_rows:
+                    imp_dict = dict(imp)
+                    # Parse evidence if it's a string (JSON)
+                    if isinstance(imp_dict.get('evidence'), str):
+                        try:
+                            imp_dict['evidence'] = json.loads(imp_dict['evidence'])
+                        except json.JSONDecodeError:
+                            pass
+                    impacts.append(imp_dict)
+
+                leg_dict['impacts'] = impacts
+                results.append(leg_dict)
+
+            return results
+        except Exception as e:
+            logger.error(f"Error in get_legislation_by_jurisdiction: {e}")
+            return []
+
+    async def get_bill(self, jurisdiction_name: str, bill_number: str) -> Optional[Dict[str, Any]]:
+        """Get specific bill with impacts."""
+        try:
+            # Get jurisdiction ID
+            jur_row = await self._fetchrow("SELECT id, name, type FROM jurisdictions WHERE name = $1", jurisdiction_name)
+            if not jur_row:
+                return None
+            jurisdiction_id = jur_row['id']
+
+            # Get legislation
+            leg_row = await self._fetchrow(
+                """
+                SELECT * FROM legislation
+                WHERE jurisdiction_id = $1 AND bill_number = $2
+                """,
+                jurisdiction_id, bill_number
+            )
+
+            if not leg_row:
+                return None
+
+            leg_dict = dict(leg_row)
+            leg_dict['jurisdiction'] = jur_row['name']
+
+            # Fetch impacts
+            impact_rows = await self._fetch(
+                "SELECT * FROM impacts WHERE legislation_id = $1 ORDER BY impact_number",
+                leg_dict['id']
+            )
+
+            impacts = []
+            for imp in impact_rows:
+                imp_dict = dict(imp)
+                # Parse evidence if it's a string (JSON)
+                if isinstance(imp_dict.get('evidence'), str):
+                    try:
+                        imp_dict['evidence'] = json.loads(imp_dict['evidence'])
+                    except json.JSONDecodeError:
+                        pass
+                impacts.append(imp_dict)
+
+            leg_dict['impacts'] = impacts
+            return leg_dict
+
+        except Exception as e:
+            logger.error(f"Error in get_bill: {e}")
+            return None
