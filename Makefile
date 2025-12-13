@@ -7,6 +7,7 @@ help:
 	@echo "  dev          - Run development servers (frontend + backend)"
 	@echo "  dev-frontend - Run frontend dev server"
 	@echo "  dev-backend  - Run backend dev server"
+	@echo "  dev-railway  - Run all services via Railway (Pilot)"
 	@echo "  build        - Build frontend production bundle"
 	@echo "  test         - Run all tests"
 	@echo "  e2e          - Run Playwright e2e tests"
@@ -32,6 +33,12 @@ install:
 dev:
 	@echo "Starting development servers..."
 	@echo "Run 'make dev-frontend' and 'make dev-backend' in separate terminals"
+
+# Run development servers via Railway (Pilot)
+dev-railway:
+	@echo "Starting development via Railway..."
+	./scripts/railway-dev.sh
+
 
 dev-frontend:
 	cd frontend && pnpm dev
