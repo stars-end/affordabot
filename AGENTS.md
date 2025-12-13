@@ -20,8 +20,13 @@
 **Daily Workflow**:
 1. `scripts/bd-context` - Check work
 2. Code...
-3. "commit my work" (Syncs feature branch)
-4. "create PR" (Atomic merge)
+3. `make ci-lite` (Fast validation)
+4. "commit my work" (Syncs feature branch)
+5. "create PR" (Atomic merge)
+
+**Development**:
+- **Standard**: `make dev-frontend` + `make dev-backend` (Split terminals).
+- **Validation**: `make lint` or `make ci-lite` (Recommended before push).
 
 **Agent Rules**:
 - Issue-First: Create `bd` issue before coding.

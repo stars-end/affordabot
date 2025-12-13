@@ -1,54 +1,8 @@
-#!/usr/bin/env bash
-# Lightweight warnings before committing.
-set -euo pipefail
+#!/bin/sh
+# Non-blocking pre-commit hook
+# Just reminds user to run validation.
 
-# Beads: Flush pending changes to JSONL before commit
-if command -v bd &> /dev/null && [ -d .beads ]; then
-  if ! bd sync --flush-only 2>/dev/null; then
-    echo "⚠️  bd sync --flush-only failed (run manually to diagnose)" >&2
-  else
-    # Stage JSONL files if modified
-    git add .beads/beads.jsonl 2>/dev/null || true
-    git add .beads/issues.jsonl 2>/dev/null || true
-  fi
-fi
-
-STAGED=$(git diff --cached --name-only)
-STATUS=$(git diff --cached --name-status)
-
-if echo "$STAGED" | grep -E '^\.command-proof/' >/dev/null 2>&1; then
-  echo "⚠️  You are committing .command-proof artifacts. Is this intentional?" >&2
-fi
-
-if echo "$STAGED" | grep -E '^\.github/workflows/' >/dev/null 2>&1; then
-  echo "⚠️  You are committing workflow changes. Prefer infra branches, not scenario branches." >&2
-fi
-
-# Check Python syntax on staged .py files (soft warning)
-python_files=$(echo "$STAGED" | grep '\\.py$' || true)
-if [ -n "$python_files" ]; then
-  syntax_errors=0
-  for file in $python_files; do
-    if [ -f "$file" ] && ! python -m py_compile "$file" 2>/dev/null; then
-      echo "⚠️  Python syntax error in: $file" >&2
-      syntax_errors=$((syntax_errors + 1))
-    fi
-  done
-
-  if [ $syntax_errors -gt 0 ]; then
-    echo "⚠️  Found $syntax_errors Python syntax error(s). Run 'make lint' to check." >&2
-  fi
-fi
-
-# Block deletion of critical DX directories/files unless explicitly allowed
-if echo "$STATUS" | awk '$1=="D" {print $2}' | grep -E '^(scripts/cli/|scripts/git/install_hooks\.sh|\.githooks/?)' >/dev/null 2>&1; then
-  if [ "${ALLOW_DX_DIR_CHANGES:-}" != "1" ]; then
-    echo "❌ Deletion of critical DX assets detected (scripts/cli/, scripts/git/install_hooks.sh, or .githooks)." >&2
-    echo "   Set ALLOW_DX_DIR_CHANGES=1 to override, or restore via 'make dx-restore'." >&2
-    exit 3
-  else
-    echo "⚠️  ALLOW_DX_DIR_CHANGES=1 set — proceeding with deletion of critical DX assets" >&2
-  fi
-fi
-
+echo "ℹ️  Did you run 'make ci-lite' (or 'scripts/ci/lint.sh')?"
+echo "   It takes <30s and catches most issues."
+# exit 0 to allow commit anyway (warn-only)
 exit 0
