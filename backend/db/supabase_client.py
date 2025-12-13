@@ -111,6 +111,46 @@ class SupabaseDB:
         
         return True
     
+    async def create_pipeline_run(self, bill_id: str, jurisdiction: str, models: Dict[str, str]) -> Optional[str]:
+        """Create a new pipeline run record."""
+        if not self.client:
+            return None
+
+        result = self.client.table("pipeline_runs").insert({
+            "bill_id": bill_id,
+            "jurisdiction": jurisdiction,
+            "models": models,
+            "started_at": datetime.now().isoformat()
+        }).execute()
+
+        return result.data[0]["id"] if result.data else None
+
+    async def complete_pipeline_run(self, run_id: str, result: Dict[str, Any]) -> bool:
+        """Mark pipeline run as complete."""
+        if not self.client:
+            return False
+
+        self.client.table("pipeline_runs").update({
+            "status": "completed",
+            "result": result,
+            "completed_at": datetime.now().isoformat()
+        }).eq("id", run_id).execute()
+
+        return True
+
+    async def fail_pipeline_run(self, run_id: str, error: str) -> bool:
+        """Mark pipeline run as failed."""
+        if not self.client:
+            return False
+
+        self.client.table("pipeline_runs").update({
+            "status": "failed",
+            "error": error,
+            "completed_at": datetime.now().isoformat()
+        }).eq("id", run_id).execute()
+
+        return True
+
     async def get_or_create_source(self, jurisdiction_id: str, name: str, type: str, url: Optional[str] = None) -> Optional[str]:
         """Get source ID, creating if it doesn't exist."""
         if not self.client:
