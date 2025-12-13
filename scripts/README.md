@@ -1,32 +1,35 @@
-# Affordabot Scripts
+# Scripts Inventory & Hygiene
 
-Canonical location for workflows, verification, and maintenance scripts.
+**Canonical Hierarchy:**
 
-## Directory Structure
+- `scripts/cli/` — Developer-facing tools (e.g., `dx_doctor.sh`, `bd` wrappers). Intended for direct execution.
+- `scripts/ci/` — CI-only scripts (e.g., validation, environment checks). Invoked by GitHub Actions.
+- `scripts/maintenance/` — Database ops, one-off fixes, cron maintenance.
+- `scripts/legacy/` — Deprecated scripts slated for removal. Do not rely on these.
+- `scripts/lib/` — Shared libraries and utilities imported by other scripts.
 
-- `cli/` - User-facing CLI tools (e.g., `dx_doctor.sh`)
-- `ci/` - CI/CD pipeline scripts
-- `maintenance/` - Database and one-off maintenance tasks
-- `verification/` - Tests and system verification scripts
-- `lib/` - Shared libraries
-- `legacy/` - Deprecated scripts
+**Rules:**
+1. Do not dump scripts in `scripts/` root.
+2. New scripts must go into one of the above subdirectories.
+3. Update `package.json`, `Makefile`, and CI workflows when moving scripts.
 
-## Key Tools
+## Inventory
+(Auto-generated manifest below - maintain this lists of key scripts)
 
-### `scripts/cli/dx_doctor.sh`
-Fast health check for your local environment. checks:
-- Git status
-- Beads CLI presence
-- Railway shell environment
-- MCP Skills Validation (via `~/agent-skills`)
+### CLI
+- `dx_doctor.sh`: Pre-session healthcheck.
+- `agent_bootstrap.py`: Agent Mail connectivity check (session start).
 
-Usage:
-```bash
-./scripts/cli/dx_doctor.sh
-```
+### CI
+- `bulk_validation.py`: Batch validation logic.
+- `validate_pipeline_sanjose.py`: Specific pipeline verification.
+- `e2e_test.py`: End-to-end testing script.
 
-## Skills Setup
-Ensure `~/agent-skills` is mounted and symlinked:
-```bash
-ln -sfn ~/agent-skills ~/.agent/skills
-```
+### Maintenance
+- `create_minio_bucket.py`: Infrastructure setup.
+- `seed_sources.py`: Database seeding.
+- `git/`: Git hooks installers.
+
+### Verification
+- `verify_*.py`: Feature verification scripts.
+- `test_pipeline.py`: Pipeline test wrapper.

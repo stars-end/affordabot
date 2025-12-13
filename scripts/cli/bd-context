@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+# bd-context: Show Beads context for current feature/branch
+#
+# WHEN TO USE:
+#   - Session start (part of daily loop: step 1)
+#   - After session reset (recover context)
+#   - Before making changes (understand current state)
+#   - To check linked PRs and status
+#
+# WHY:
+#   - Loads feature context at session start (what am I working on?)
+#   - Shows status, priority, timestamps, labels
+#   - Lists linked PRs (session continuity recovery)
+#   - Reduces "what was I doing?" confusion
+#
+# USAGE:
+#   scripts/bd-context                    # Auto-detect from current branch
+#   scripts/bd-context DX_PARITY_V2       # Explicit feature key
+#
+# OUTPUT:
+#   - Beads issue details (status, priority, type, timestamps)
+#   - Labels (including pr:<number> for linked PRs)
+#   - List of linked PRs extracted from labels
+#   - Helpful guidance if issue not found
+#
+# INTEGRATION:
+#   - Called at session start (daily loop step 1)
+#   - Can be added to shell prompt (future enhancement)
+#   - See AGENTS.md "Daily Loop" for workflow integration
+#
+# EXAMPLE:
+#   $ scripts/bd-context
+#   📊 Beads Context for DX_PARITY_GUARDRAILS:
+#
+#   bd-uk8: DX_PARITY_GUARDRAILS
+#   Status: in_progress
+#   Priority: P2
+#   Type: feature
+#   Created: 2025-11-04 15:59
+#   Updated: 2025-11-04 15:59
+#   Labels: [pr:147]
+#
+#   🔗 Linked PRs:
+#      - PR #147
+
+set -e
+
+# Extract feature key from branch name or use provided arg
+if [ -n "$1" ]; then
+  FEATURE_KEY="$1"
+else
+  BRANCH=$(git branch --show-current 2>/dev/null || echo "")
+  if [ -z "$BRANCH" ]; then
+    echo "❌ Not in a git repository or detached HEAD"
+    exit 1
+  fi
+  FEATURE_KEY=$(echo "$BRANCH" | sed -E 's/^(feature|fix|hotfix|bugfix)[/-]//; s/[-\/]/_/g' | tr '[:lower:]' '[:upper:]')
+fi
+
+# Find Beads issue for this feature
+ISSUE_ID=$(bd list --json 2>/dev/null | jq -r ".[] | select(.title == \"$FEATURE_KEY\") | .id" | head -1)
+
+if [ -z "$ISSUE_ID" ]; then
+  echo "ℹ️  No Beads issue found for feature: $FEATURE_KEY"
+  echo "   Run: bd create \"$FEATURE_KEY\" --type feature --priority 2"
+  echo "   Or: scripts/bd-link-pr <pr-number>"
+  exit 0
+fi
+
+# Show Beads issue details
+echo "📊 Beads Context for $FEATURE_KEY:"
+echo ""
+bd show "$ISSUE_ID"
+
+# Show linked PRs if any
+LINKED_PRS=$(bd show "$ISSUE_ID" --json | jq -r '.[] | .labels[]? | select(startswith("pr:")) | sub("pr:"; "")' 2>/dev/null || echo "")
+
+if [ -n "$LINKED_PRS" ]; then
+  echo ""
+  echo "🔗 Linked PRs:"
+  for PR in $LINKED_PRS; do
+    echo "   - PR #$PR"
+  done
+fi

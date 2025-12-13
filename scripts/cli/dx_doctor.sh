@@ -1,58 +1,114 @@
-#!/bin/bash
-# dx-doctor: Fast checks for V3 DX compliance (Affordabot)
+#!/usr/bin/env bash
+set -euo pipefail
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-RESET='\033[0m'
+echo "DX Doctor — quick preflight"
 
-echo "🩺 dx-doctor checking Affordabot environment..."
+# Always run from repo root (avoids relative-path confusion for agents).
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+cd "$REPO_ROOT"
 
-ERRORS=0
-
-# 1. Git Clean Check
-if [ -n "$(git status --porcelain)" ]; then
-    echo -e "${YELLOW}⚠️  Git workspace dirty${RESET}"
-    echo "   Fix: git commit -m \"...\" or git stash"
-    # Not an error, just warning
-else
-    echo -e "${GREEN}✅ Git workspace clean${RESET}"
+# 0) Agent bootstrap (idempotent, non-fatal)
+if command -v python3 >/dev/null 2>&1 && [[ -f scripts/cli/agent_bootstrap.py ]]; then
+  python3 scripts/cli/agent_bootstrap.py || true
 fi
 
-# 2. Beads Sync Check
-if [ -f ".beads/issues.jsonl" ]; then
-    # Simple check if jsonl exists; reliable check requires 'bd status' or similar
-    # We can check if 'bd' is in path
-    if command -v bd &> /dev/null; then
-        echo -e "${GREEN}✅ Beads CLI found${RESET}"
-    else
-        echo -e "${RED}❌ Beads CLI missing${RESET}"
-        echo "   Fix: pip install beads-cli"
-        ERRORS=$((ERRORS+1))
+# 1) Railway CLI
+if command -v railway >/dev/null 2>&1; then
+  echo "[✓] railway cli: installed"
+else
+  echo "[!] railway cli: missing (install Railway CLI)"
+fi
+
+# 2) Railway env
+if [[ -z "${RAILWAY_ENVIRONMENT:-}" ]]; then
+  echo "[!] Railway env: missing (run 'railway shell' for protected steps)"
+else
+  echo "[✓] Railway env: ${RAILWAY_ENVIRONMENT}"
+fi
+
+# 3) Git hooks
+if [[ -x .githooks/pre-push ]]; then
+  echo "[✓] Git hooks installed (.githooks/pre-push)"
+else
+  echo "[!] Git hooks not installed — run: make setup-git-hooks"
+fi
+
+# 4) GH auth
+if gh auth status >/dev/null 2>&1; then
+  echo "[✓] gh auth: ok"
+else
+  echo "[!] gh auth: please run 'gh auth login'"
+fi
+
+# 5) Guardrails stamp
+if [[ -f .command-proof/guardrails.json ]]; then
+  echo "[✓] guardrails stamp present (.command-proof/guardrails.json)"
+else
+  echo "[!] missing guardrails stamp. Run '/sync-i --force true' in CC/OC"
+fi
+
+# 6) Agent Mail (optional)
+if [[ -n "${AGENT_MAIL_URL:-}" && -n "${AGENT_MAIL_BEARER_TOKEN:-}" ]]; then
+  echo "[✓] Agent Mail env: configured"
+else
+  echo "[i] Agent Mail env: not configured yet (coordinator will provide token + setup)"
+fi
+
+# 7) MCP config doctor (optional, from agent-skills)
+if [[ "${DX_SKIP_MCP:-}" == "1" ]]; then
+  echo "[i] mcp-doctor: skipped (DX_SKIP_MCP=1)"
+  echo "Done. If anything above is missing, re-run without DX_SKIP_MCP."
+  exit 0
+fi
+
+# 7) MCP Checks (Affordabot-specific: Only Agent Mail is required)
+echo "--- MCP Check ---"
+
+# Helper to find string in config files
+have_in_files() {
+  local needle="$1"
+  local FILES=(
+    "$REPO_ROOT/.claude/settings.json"
+    "$HOME/.claude/settings.json"
+    "$HOME/.claude.json"
+    "$HOME/.codex/config.toml"
+    "$HOME/.gemini/settings.json"
+  )
+  for f in "${FILES[@]}"; do
+    [[ -f "$f" ]] || continue
+    if grep -F -q "$needle" "$f" 2>/dev/null; then
+      echo "$f"
+      return 0
     fi
+  done
+  return 1
+}
+
+# Agent Mail (Required-ish, weak warning)
+if f="$(have_in_files "agent-mail")" || f="$(have_in_files "mcp-agent-mail")"; then
+  echo "[✓] agent-mail config found ($f)"
+else
+  echo "[!] agent-mail config missing (Required for v3 coordination)"
 fi
 
-# 3. Railway Shell Check (if RAILWAY_ENVIRONMENT not set)
-if [ -z "$RAILWAY_ENVIRONMENT" ]; then
-    echo -e "${YELLOW}⚠️  Not in Railway shell${RESET}"
-    echo "   Fix: railway shell (for db access)"
+# Extensions (Optional)
+if f="$(have_in_files "universal-skills")"; then
+  echo "[✓] universal-skills found"
 else
-    echo -e "${GREEN}✅ Railway environment: $RAILWAY_ENVIRONMENT${RESET}"
+  echo "[i] universal-skills missing (optional)"
 fi
 
-# 4. Agent Skills Check (Warn Only)
-if [ -x ~/agent-skills/mcp-doctor/check.sh ]; then
-    echo "Running skills check..."
-    ~/agent-skills/mcp-doctor/check.sh || true
+if f="$(have_in_files "serena")"; then
+  echo "[✓] serena found"
 else
-    echo -e "${YELLOW}⚠️  Skills check script missing${RESET}"
-    echo "   Fix: Ensure ~/agent-skills is mounted and symlinked to ~/.agent/skills"
+  echo "[i] serena missing (optional)"
 fi
 
-if [ $ERRORS -eq 0 ]; then
-    echo -e "${GREEN}✨ DX Doctor passed (warnings can be ignored)${RESET}"
-    exit 0
+if f="$(have_in_files "z.ai")"; then
+  echo "[✓] z.ai found"
 else
-    echo -e "${RED}❌ DX Doctor found $ERRORS errors${RESET}"
-    exit 1
+  echo "[i] z.ai missing (optional)"
 fi
+
+echo "Done. See AGENTS.md for next steps."
+exit 0

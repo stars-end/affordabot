@@ -1,0 +1,256 @@
+#!/usr/bin/env bash
+# area-context-create: Create codebase area context skill
+#
+# WHEN TO USE:
+#   - Initial setup (create all 4 area contexts)
+#   - Add new area (expand beyond current areas)
+#   - Major refactor (file structure changed significantly)
+#   - Invoked by area-context-create meta-skill
+#
+# USAGE:
+#   scripts/area-context-create <area-name>
+#
+# EXAMPLE:
+#   scripts/area-context-create analytics
+#
+# NOTES:
+#   - Uses Serena MCP for symbol indexing (called by agent, not this script)
+#   - ONE-TIME auto-detection (manual maintenance thereafter)
+#   - Reads .context/area-config.yml for area definition
+#   - Generates .claude/skills/context-<area>/SKILL.md from template
+
+set -euo pipefail
+
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$PROJECT_DIR"
+
+# Parse arguments
+AREA_NAME="${1:-}"
+
+if [ -z "$AREA_NAME" ]; then
+  echo "Usage: scripts/area-context-create <area-name>"
+  echo ""
+  echo "Available areas:"
+  yq '.areas | keys | .[]' .context/area-config.yml 2>/dev/null || echo "  (none - check .context/area-config.yml)"
+  exit 1
+fi
+
+# Validate area exists in config
+AREA_PATH=".areas.\"$AREA_NAME\""
+
+if ! yq -e "$AREA_PATH" .context/area-config.yml >/dev/null 2>&1; then
+  echo "Error: Area '$AREA_NAME' not defined in .context/area-config.yml"
+  echo ""
+  echo "Available areas:"
+  yq -r '.areas | keys | .[]' .context/area-config.yml
+  exit 1
+fi
+
+echo "📦 Creating area context skill: context-$AREA_NAME"
+echo ""
+
+# Read area configuration
+DESCRIPTION=$(yq -r "$AREA_PATH.description" .context/area-config.yml)
+ENABLED=$(yq -r "$AREA_PATH.enabled" .context/area-config.yml)
+
+if [ "$ENABLED" != "true" ]; then
+  echo "⚠️  Warning: Area '$AREA_NAME' is disabled in config"
+  echo "   Set enabled: true in .context/area-config.yml"
+  exit 1
+fi
+
+# Read globs
+readarray -t GLOBS < <(yq -r "$AREA_PATH.globs[]" .context/area-config.yml)
+readarray -t EXCLUDES < <(yq -r "$AREA_PATH.excludes[]?" .context/area-config.yml 2>/dev/null || true)
+
+echo "  📋 Area: $AREA_NAME"
+echo "  📄 Description: $DESCRIPTION"
+echo "  🔍 Globs: ${#GLOBS[@]} patterns"
+echo ""
+
+# Find files matching globs (basic bash find, Serena enhancement TBD)
+echo "  🔎 Discovering files..."
+TEMP_FILES=$(mktemp)
+
+for glob in "${GLOBS[@]}"; do
+  # Convert glob to find pattern
+  # Simple conversion: **/*.py -> -name "*.py" -type f
+  if [[ $glob == *"**"* ]]; then
+    # Recursive glob
+    base_dir=$(echo "$glob" | cut -d'*' -f1 | sed 's:/$::')
+    pattern=$(echo "$glob" | grep -o '[^/]*$')
+    [ -d "$base_dir" ] && find "$base_dir" -name "$pattern" -type f 2>/dev/null >> "$TEMP_FILES" || true
+  else
+    # Non-recursive glob
+    ls $glob 2>/dev/null >> "$TEMP_FILES" || true
+  fi
+done
+
+# Apply excludes
+FILTERED_FILES=$(mktemp)
+while IFS= read -r file; do
+  exclude_match=false
+  for exclude in "${EXCLUDES[@]}"; do
+    if [[ -n "$exclude" && "$file" =~ $exclude ]]; then
+      exclude_match=true
+      break
+    fi
+  done
+  if [ "$exclude_match" = false ]; then
+    echo "$file" >> "$FILTERED_FILES"
+  fi
+done < "$TEMP_FILES"
+
+# Categorize files (active, deprecated, test)
+ACTIVE_FILES=$(mktemp)
+DEPRECATED_FILES=$(mktemp)
+TEST_FILES=$(mktemp)
+
+while IFS= read -r file; do
+  if [[ "$file" =~ (backup|old|deprecated|archive) ]]; then
+    echo "$file" >> "$DEPRECATED_FILES"
+  elif [[ "$file" =~ ^tests/ || "$file" =~ \.test\. || "$file" =~ \.spec\. ]]; then
+    echo "$file" >> "$TEST_FILES"
+  else
+    echo "$file" >> "$ACTIVE_FILES"
+  fi
+done < "$FILTERED_FILES"
+
+# Count stats
+TOTAL_FILES=$(wc -l < "$FILTERED_FILES" | tr -d ' ')
+ACTIVE_COUNT=$(wc -l < "$ACTIVE_FILES" | tr -d ' ')
+DEPRECATED_COUNT=$(wc -l < "$DEPRECATED_FILES" | tr -d ' ')
+TEST_COUNT=$(wc -l < "$TEST_FILES" | tr -d ' ')
+
+# Calculate total LOC (basic wc -l, enhanced with symbol-level later)
+TOTAL_LOC=0
+while IFS= read -r file; do
+  if [ -f "$file" ]; then
+    lines=$(wc -l < "$file" 2>/dev/null || echo 0)
+    TOTAL_LOC=$((TOTAL_LOC + lines))
+  fi
+done < "$FILTERED_FILES"
+
+echo "  ✅ Found $TOTAL_FILES files:"
+echo "     - Active: $ACTIVE_COUNT"
+echo "     - Deprecated: $DEPRECATED_COUNT"
+echo "     - Tests: $TEST_COUNT"
+echo "     - Total LOC: $TOTAL_LOC"
+echo ""
+
+# Generate file listings
+generate_listing() {
+  local file_list=$1
+  local status=$2
+  local output=""
+
+  if [ ! -s "$file_list" ]; then
+    return
+  fi
+
+  # Group by directory
+  declare -A dir_files
+  while IFS= read -r file; do
+    dir=$(dirname "$file")
+    if [ -z "${dir_files[$dir]:-}" ]; then
+      dir_files[$dir]="$file"
+    else
+      dir_files[$dir]="${dir_files[$dir]}"$'\n'"$file"
+    fi
+  done < "$file_list"
+
+  # Format listings
+  for dir in "${!dir_files[@]}"; do
+    # Categorize directory
+    category="Other"
+    if [[ "$dir" =~ ^backend ]]; then
+      category="Backend"
+    elif [[ "$dir" =~ ^frontend ]]; then
+      category="Frontend"
+    elif [[ "$dir" =~ ^supabase ]]; then
+      category="Database"
+    elif [[ "$dir" =~ ^tests ]]; then
+      category="Tests"
+    fi
+
+    output+="### $category ($status)"$'\n'
+
+    # List files in directory (use process substitution to avoid subshell)
+    while IFS= read -r file; do
+      filename=$(basename "$file")
+
+      # Add status marker
+      marker=""
+      if [ "$status" = "Active" ]; then
+        marker="✅ CURRENT"
+      elif [ "$status" = "Deprecated" ]; then
+        marker="❌ DO NOT EDIT"
+      fi
+
+      output+="- $file $marker"$'\n'
+    done < <(echo "${dir_files[$dir]}")
+    output+=$'\n'
+  done
+
+  echo "$output"
+}
+
+ACTIVE_LISTING=$(generate_listing "$ACTIVE_FILES" "Active")
+DEPRECATED_LISTING=$(generate_listing "$DEPRECATED_FILES" "Deprecated")
+TEST_LISTING=$(generate_listing "$TEST_FILES" "Test")
+
+# Read template
+TEMPLATE_PATH=".claude/skills/area-context-create/resources/templates/area-context-template.md"
+if [ ! -f "$TEMPLATE_PATH" ]; then
+  echo "Error: Template not found: $TEMPLATE_PATH"
+  exit 1
+fi
+
+TEMPLATE_CONTENT=$(cat "$TEMPLATE_PATH")
+
+# Substitute placeholders
+CREATED_DATE=$(date +%Y-%m-%d)
+# Use area name as keyword, empty tags (can be customized manually later)
+KEYWORDS="$AREA_NAME"
+TAGS="[]"
+
+SKILL_CONTENT="$TEMPLATE_CONTENT"
+SKILL_CONTENT="${SKILL_CONTENT//\{\{AREA_NAME\}\}/$AREA_NAME}"
+SKILL_CONTENT="${SKILL_CONTENT//\{\{DESCRIPTION\}\}/$DESCRIPTION}"
+SKILL_CONTENT="${SKILL_CONTENT//\{\{TOTAL_FILES\}\}/$TOTAL_FILES}"
+SKILL_CONTENT="${SKILL_CONTENT//\{\{TOTAL_LOC\}\}/$TOTAL_LOC}"
+SKILL_CONTENT="${SKILL_CONTENT//\{\{CREATED_DATE\}\}/$CREATED_DATE}"
+SKILL_CONTENT="${SKILL_CONTENT//\{\{KEYWORDS\}\}/$KEYWORDS}"
+SKILL_CONTENT="${SKILL_CONTENT//\{\{TAGS\}\}/$TAGS}"
+SKILL_CONTENT="${SKILL_CONTENT//\{\{ACTIVE_FILES\}\}/$ACTIVE_LISTING}"
+SKILL_CONTENT="${SKILL_CONTENT//\{\{DEPRECATED_FILES\}\}/$DEPRECATED_LISTING}"
+SKILL_CONTENT="${SKILL_CONTENT//\{\{TEST_FILES\}\}/$TEST_LISTING}"
+
+# Create skill directory
+SKILL_DIR=".claude/skills/context-$AREA_NAME"
+mkdir -p "$SKILL_DIR"
+
+# Write SKILL.md
+echo "$SKILL_CONTENT" > "$SKILL_DIR/SKILL.md"
+
+echo "  📝 Generated SKILL.md"
+echo ""
+
+# Clean up temp files
+rm -f "$TEMP_FILES" "$FILTERED_FILES" "$ACTIVE_FILES" "$DEPRECATED_FILES" "$TEST_FILES"
+
+# Stage for commit
+git add "$SKILL_DIR/" 2>/dev/null || true
+
+echo "✅ Area context skill created!"
+echo ""
+echo "📁 Created: $SKILL_DIR/SKILL.md"
+echo "   Files: $TOTAL_FILES ($ACTIVE_COUNT active, $DEPRECATED_COUNT deprecated, $TEST_COUNT tests)"
+echo "   LOC: $TOTAL_LOC"
+echo ""
+echo "📝 Next steps:"
+echo "   1. Review: $SKILL_DIR/SKILL.md"
+echo "   2. Test navigation with the skill"
+echo "   3. To update: scripts/area-context-update $AREA_NAME"
+echo "   4. Commit: git commit -m 'feat: add context-$AREA_NAME skill'"
+echo ""

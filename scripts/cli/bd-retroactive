@@ -1,0 +1,205 @@
+#!/usr/bin/env bash
+# bd-retroactive: Create Beads issues from recent commits without proper Feature-Keys
+#
+# WHEN TO USE:
+#   - After session work, realize you forgot to track in Beads
+#   - Post-commit hook warned about missing/invalid Feature-Key
+#   - Committed quick fixes without creating Beads issue first
+#   - Want to link historical commits to new Beads tracking
+#
+# WHY:
+#   - Lean workflow: commit fast, track retroactively
+#   - No blocking - you can fix tracking after the fact
+#   - Maintains traceability without upfront ceremony
+#
+# USAGE:
+#   scripts/bd-retroactive              # Check last 10 commits
+#   scripts/bd-retroactive --count 20   # Check last 20 commits
+#   scripts/bd-retroactive --amend      # Also amend commit message
+#
+# WORKFLOW:
+#   1. Scans recent commits for missing bd-xxx Feature-Keys
+#   2. Interactive selection of commit to track
+#   3. Creates Beads issue (auto-detects type from commit prefix)
+#   4. Closes issue immediately (retroactive tracking)
+#   5. Optionally amends commit with proper Feature-Key
+#
+# OUTPUT:
+#   Lists untracked commits → Create issue → Close as retroactive
+#
+# INTEGRATION:
+#   - Suggested by post-commit hook when Feature-Key invalid
+#   - Part of lean trunk-based workflow (see AGENTS.md)
+#   - Works with Issue-First pattern (just done retroactively)
+#
+# EXAMPLE:
+#   $ scripts/bd-retroactive
+#   🔍 Scanning last 10 commits for missing/invalid Feature-Keys...
+#
+#   Found commits without proper Beads tracking:
+#   [1] 8c2b09e fix: Close Beads issues BEFORE commit
+#   [2] 0571bda fix: Add explicit flush before commit
+#
+#   Select commit: 1
+#   → Creates bd-abc: "Fix Beads commit order"
+#   → Closes bd-abc (retroactive)
+#   ✅ Done
+
+set -euo pipefail
+
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$PROJECT_DIR"
+
+# Parse args
+COUNT=10
+AMEND=false
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --count)
+      COUNT="$2"
+      shift 2
+      ;;
+    --amend)
+      AMEND=true
+      shift
+      ;;
+    *)
+      echo "Usage: scripts/bd-retroactive [--count N] [--amend]"
+      echo "  --count N   Check last N commits (default: 10)"
+      echo "  --amend     Amend commits with proper Feature-Key"
+      exit 1
+      ;;
+  esac
+done
+
+# Check bd available
+if ! command -v bd >/dev/null 2>&1; then
+  echo "Error: bd command not found"
+  exit 1
+fi
+
+echo "🔍 Scanning last $COUNT commits for missing/invalid Feature-Keys..."
+echo ""
+
+# Find commits without valid Feature-Keys
+COMMITS=$(git log -n "$COUNT" --format="%H|%s|%b" | awk -F'|' '
+{
+  hash = $1
+  subject = $2
+  body = $3
+
+  # Check if Feature-Key exists and matches bd-xxx
+  if (body !~ /Feature-Key: bd-[a-z0-9]+/) {
+    print hash "|" subject
+  }
+}
+')
+
+if [ -z "$COMMITS" ]; then
+  echo "✅ All recent commits have valid Feature-Keys"
+  exit 0
+fi
+
+# Interactive selection
+echo "Found commits without proper Beads tracking:"
+echo ""
+
+i=1
+declare -a HASHES
+declare -a SUBJECTS
+while IFS='|' read -r hash subject; do
+  echo "  [$i] $(git log -1 --format="%h %s" "$hash")"
+  HASHES[$i]=$hash
+  SUBJECTS[$i]=$subject
+  ((i++))
+done <<< "$COMMITS"
+
+echo ""
+echo "Select commit to create Beads issue for (1-$((i-1)), 0 to cancel):"
+read -r selection
+
+if [ "$selection" = "0" ]; then
+  echo "Cancelled"
+  exit 0
+fi
+
+if [ "$selection" -lt 1 ] || [ "$selection" -ge "$i" ]; then
+  echo "Invalid selection"
+  exit 1
+fi
+
+SELECTED_HASH="${HASHES[$selection]}"
+SELECTED_SUBJECT="${SUBJECTS[$selection]}"
+
+echo ""
+echo "📝 Creating Beads issue for: $SELECTED_SUBJECT"
+echo ""
+
+# Detect type from commit prefix
+TYPE="task"
+if [[ "$SELECTED_SUBJECT" =~ ^fix: ]]; then
+  TYPE="bug"
+elif [[ "$SELECTED_SUBJECT" =~ ^feat: ]]; then
+  TYPE="feature"
+elif [[ "$SELECTED_SUBJECT" =~ ^docs: ]]; then
+  TYPE="chore"
+fi
+
+# Create Beads issue
+echo "Title: $SELECTED_SUBJECT"
+echo "Type: $TYPE"
+echo "Priority (0-4, default 2):"
+read -r priority
+priority=${priority:-2}
+
+# Create issue
+ISSUE_ID=$(bd create "$SELECTED_SUBJECT" --type "$TYPE" --priority "$priority" --assignee claude-code | grep -o 'bd-[a-z0-9]\+' | head -1)
+
+if [ -z "$ISSUE_ID" ]; then
+  echo "Error: Failed to create Beads issue"
+  exit 1
+fi
+
+echo ""
+echo "✅ Created $ISSUE_ID"
+
+# Close immediately (retroactive tracking)
+bd close "$ISSUE_ID" --reason "Retroactive tracking for commit $(git rev-parse --short "$SELECTED_HASH")"
+
+echo "✅ Closed $ISSUE_ID (retroactive)"
+
+# Amend commit if requested
+if [ "$AMEND" = true ]; then
+  echo ""
+  echo "⚠️  Amending commit requires rewriting history"
+  echo "   Only do this if commit hasn't been pushed!"
+  echo ""
+  echo "Amend commit with Feature-Key: $ISSUE_ID? (y/N)"
+  read -r confirm
+
+  if [ "$confirm" = "y" ] || [ "$confirm" = "Y" ]; then
+    # Get current commit message
+    CURRENT_MSG=$(git log -1 --format="%B" "$SELECTED_HASH")
+
+    # Add Feature-Key trailer
+    NEW_MSG="$CURRENT_MSG
+
+Feature-Key: $ISSUE_ID
+Agent: claude-code
+Role: retroactive-tracking"
+
+    # Amend (only works if it's HEAD)
+    if [ "$SELECTED_HASH" = "$(git rev-parse HEAD)" ]; then
+      git commit --amend -m "$NEW_MSG"
+      echo "✅ Amended HEAD with Feature-Key: $ISSUE_ID"
+    else
+      echo "⚠️  Can't amend non-HEAD commit automatically"
+      echo "   Consider interactive rebase: git rebase -i $SELECTED_HASH^"
+    fi
+  fi
+fi
+
+echo ""
+echo "✅ Done"
+echo "   Issue: $ISSUE_ID (closed)"
+echo "   Commit: $(git rev-parse --short "$SELECTED_HASH")"

@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+# area-context-update: Update existing area context skill
+#
+# WHEN TO USE:
+#   - Area expanded (new files added)
+#   - Files moved/renamed (structure changed)
+#   - Manual maintenance (area-config.yml updated)
+#   - After major refactor
+#
+# USAGE:
+#   scripts/area-context-update <area-name>
+#   scripts/area-context-update all  # Regenerate all areas
+#
+# EXAMPLE:
+#   scripts/area-context-update analytics
+#   scripts/area-context-update all
+#
+# NOTES:
+#   - Wrapper around area-context-create (regenerates from scratch)
+#   - Safe to run multiple times (idempotent)
+#   - Preserves manual edits in area-config.yml
+
+set -euo pipefail
+
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$PROJECT_DIR"
+
+AREA_NAME="${1:-}"
+
+if [ -z "$AREA_NAME" ]; then
+  echo "Usage: scripts/area-context-update <area-name|all>"
+  echo ""
+  echo "Available areas:"
+  yq '.areas | keys | .[]' .context/area-config.yml 2>/dev/null || echo "  (none)"
+  exit 1
+fi
+
+if [ "$AREA_NAME" = "all" ]; then
+  echo "🔄 Updating all area contexts..."
+  echo ""
+
+  # Get all enabled areas
+  readarray -t AREAS < <(yq -r '.areas | to_entries[] | select(.value.enabled == true) | .key' .context/area-config.yml)
+
+  if [ ${#AREAS[@]} -eq 0 ]; then
+    echo "No enabled areas found in .context/area-config.yml"
+    exit 1
+  fi
+
+  SUCCESS_COUNT=0
+  FAIL_COUNT=0
+
+  for area in "${AREAS[@]}"; do
+    echo "───────────────────────────────────────"
+    if scripts/area-context-create "$area"; then
+      SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
+    else
+      FAIL_COUNT=$((FAIL_COUNT + 1))
+      echo "❌ Failed to update: $area"
+    fi
+    echo ""
+  done
+
+  echo "═══════════════════════════════════════"
+  echo "✅ Updated: $SUCCESS_COUNT areas"
+  [ $FAIL_COUNT -gt 0 ] && echo "❌ Failed: $FAIL_COUNT areas"
+  echo ""
+
+  exit 0
+fi
+
+# Single area update
+echo "🔄 Updating area context: $AREA_NAME"
+echo ""
+
+# Check if skill exists
+SKILL_DIR=".claude/skills/context-$AREA_NAME"
+if [ ! -d "$SKILL_DIR" ]; then
+  echo "⚠️  Warning: Skill doesn't exist yet (will create)"
+  echo "   Directory: $SKILL_DIR"
+  echo ""
+fi
+
+# Regenerate using area-context-create
+scripts/area-context-create "$AREA_NAME"
+
+echo "✅ Area context updated: context-$AREA_NAME"
+echo ""

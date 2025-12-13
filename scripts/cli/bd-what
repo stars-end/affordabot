@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+# bd-what: Quick human-readable lookup for Beads issue IDs
+#
+# WHEN TO USE:
+#   - See bd-7vu in branch/commit and wonder "what is that?"
+#   - Quick check of issue title without full `bd show`
+#   - During code review to understand Feature-Keys
+#
+# WHY:
+#   - Beads IDs (bd-xyz) are machine-friendly but not human-readable
+#   - This provides instant title lookup without full details
+#   - Auto-adds bd- prefix for convenience
+#
+# USAGE:
+#   scripts/bd-what bd-7vu    # Full ID
+#   scripts/bd-what 7vu       # Auto-adds bd- prefix
+#   scripts/bd-what xpi       # Works with any ID
+#
+# OUTPUT:
+#   bd-7vu: GUARD_TASK_TOOL_ENFORCEMENT
+#   bd-xpi: DX_V3_BEADS_INTEGRATION
+#
+# INTEGRATION:
+#   - Referenced in post-commit hook when Feature-Key validation fails
+#   - Useful for PR reviews and git log inspection
+#   - See AGENTS.md "Beads Quick Reference" section
+#
+# EXAMPLE:
+#   $ scripts/bd-what 7vu
+#   bd-7vu: GUARD_TASK_TOOL_ENFORCEMENT
+#
+#   $ git log --oneline | head -5
+#   98ee5bb feat: Use bd-ID format (Feature-Key: bd-h0k)
+#   $ scripts/bd-what h0k
+#   bd-h0k: Remove Feature-Key requirement, use bd-ID format
+
+set -euo pipefail
+
+if [ $# -eq 0 ]; then
+  echo "Usage: scripts/bd-what <issue-id>"
+  echo "Example: scripts/bd-what bd-7vu"
+  echo "         scripts/bd-what 7vu (auto-adds bd- prefix)"
+  exit 1
+fi
+
+# Auto-add bd- prefix if missing
+ISSUE_ID="$1"
+if [[ ! "$ISSUE_ID" =~ ^bd- ]]; then
+  ISSUE_ID="bd-$ISSUE_ID"
+fi
+
+# Quick lookup using bd list (more reliable than bd show)
+if command -v bd >/dev/null 2>&1; then
+  RESULT=$(bd list 2>/dev/null | grep "^$ISSUE_ID " || echo "")
+  if [ -n "$RESULT" ]; then
+    # Extract just ID and title
+    echo "$RESULT" | awk '{for(i=6;i<=NF;i++) printf "%s ", $i; print ""}'  | sed "s/^/$ISSUE_ID: /"
+  else
+    echo "❌ Issue $ISSUE_ID not found"
+    exit 1
+  fi
+else
+  echo "❌ bd command not found"
+  exit 1
+fi
