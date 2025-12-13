@@ -10,7 +10,7 @@ jobs:
   auto-merge-jsonl:
     # Only run on non-draft PRs
     if: github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64]
     permissions:
       contents: write
       pull-requests: write

@@ -14,7 +14,7 @@ concurrency:
 jobs:
   frontend-lint-and-build:
     name: Frontend Lint & Build
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64]
     steps:
       - uses: actions/checkout@v4
 
@@ -36,7 +36,7 @@ jobs:
 
   frontend-e2e:
     name: Frontend E2E Tests
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64]
     needs: frontend-lint-and-build
     steps:
       - uses: actions/checkout@v4
@@ -72,7 +72,7 @@ jobs:
 
   backend-lint-and-test:
     name: Backend Lint & Test
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64]
     services:
       postgres:
         image: ankane/pgvector:v0.7.4
@@ -129,7 +129,7 @@ jobs:
 
   beads-validation:
     name: Beads Validation
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64]
     if: github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v4

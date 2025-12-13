@@ -21,7 +21,7 @@ permissions:
 
 jobs:
   update-epic-contexts:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64]
 
     steps:
       - name: Checkout repository
