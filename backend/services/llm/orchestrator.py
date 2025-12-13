@@ -240,9 +240,12 @@ class AnalysisPipeline:
     # Database logging methods (placeholders for now, assuming Supabase client structure)
     async def _create_pipeline_run(self, bill_id: str, models: Dict[str, str]) -> str:
         """Create a new pipeline run record."""
-        # TODO: Implement actual DB call
-        # return self.db.table('pipeline_runs').insert({...}).execute().data[0]['id']
-        return "run_id_placeholder"
+        try:
+            run_id = await self.db.create_pipeline_run(bill_id, models)
+            return run_id if run_id else "run_id_placeholder"
+        except AttributeError:
+            print("Warning: DB client missing create_pipeline_run method")
+            return "run_id_placeholder"
 
     async def _log_step(self, run_id: str, step_name: str, model: str, data: Any):
         """Log a pipeline step."""
@@ -283,6 +286,13 @@ class AnalysisPipeline:
             else:
                print(f"❌ Failed to store legislation for {bill_id}")
 
+            # Update status to completed after successful storage
+            if run_id and run_id != "run_id_placeholder":
+                try:
+                    await self.db.update_pipeline_run(run_id, "completed")
+                except AttributeError:
+                    pass
+
         except Exception as e:
             print(f"Failed to store results: {e}")
             import traceback
@@ -291,3 +301,8 @@ class AnalysisPipeline:
     async def _fail_pipeline_run(self, run_id: str, error: str):
         """Mark pipeline run as failed."""
         print(f"Pipeline Run {run_id} Failed: {error}")
+        if run_id and run_id != "run_id_placeholder":
+            try:
+                await self.db.update_pipeline_run(run_id, "failed", error)
+            except AttributeError:
+                pass

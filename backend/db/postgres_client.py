@@ -429,3 +429,33 @@ class PostgresDB:
             logger.error(f"Error updating review status: {e}")
             return False
 
+    # Pipeline Run Methods
+    async def create_pipeline_run(self, bill_id: str, models: Dict[str, str]) -> Optional[str]:
+        """Create a new pipeline run record."""
+        try:
+            row = await self._fetchrow(
+                "INSERT INTO pipeline_runs (bill_id, models, status) VALUES ($1, $2, $3) RETURNING id",
+                bill_id, json.dumps(models), "running"
+            )
+            return str(row['id']) if row else None
+        except Exception as e:
+            logger.error(f"Error creating pipeline run: {e}")
+            return None
+
+    async def update_pipeline_run(self, run_id: str, status: str, error: str = None) -> bool:
+        """Update pipeline run status."""
+        try:
+            fields = ["status = $1"]
+            args = [status]
+
+            if error:
+                fields.append("error_message = $" + str(len(args) + 1))
+                args.append(error)
+
+            args.append(run_id)
+            query = f"UPDATE pipeline_runs SET {', '.join(fields)} WHERE id = ${len(args)}"
+            await self._execute(query, *args)
+            return True
+        except Exception as e:
+            logger.error(f"Error updating pipeline run: {e}")
+            return False
