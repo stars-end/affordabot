@@ -69,19 +69,14 @@ e2e:
 
 # Run linters
 lint:
-	@echo "Running linters..."
-	@echo "Backend Python checks..."
-	cd backend && poetry run ruff check . || echo "⚠️ Ruff not installed - run: poetry add --group dev ruff"
-	@echo "Frontend build check (Next.js)..."
-	cd frontend && pnpm build
+	@./scripts/ci/lint.sh
 
 # Run fast local validation (<30s)
 ci-lite:
 	@echo "🧪 Running CI Lite (fast local validation)..."
-	@echo "🔍 Frontend lint..."
-	cd frontend && pnpm lint
-	@echo "🐍 Backend unit tests..."
-	cd backend && poetry run pytest tests/unit/ -q || echo "⚠️ Some unit tests failed"
+	@$(MAKE) lint
+	@echo "🐍 Backend unit tests (Fail Fast)..."
+	cd backend && poetry run pytest tests/ -q --maxfail=1 || echo "⚠️  Tests failed"
 	@echo "✅ CI Lite completed"
 
 
