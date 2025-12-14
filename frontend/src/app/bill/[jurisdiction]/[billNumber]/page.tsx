@@ -6,6 +6,7 @@ import { Sidebar } from '@/components/Sidebar';
 import ImpactCard from '@/components/ImpactCard';
 import { Loader2, Share2, Copy, Twitter, Calendar, FileText, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
+import { getBill } from '@/lib/api';
 
 export default function BillDetailPage() {
     const params = useParams();
@@ -16,37 +17,33 @@ export default function BillDetailPage() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // TODO: Fetch bill from API
-        // For now, use mock data
-        setBill({
-            bill_number: billNumber,
-            title: "Ordinance Amending City Code regarding ADU Heights",
-            jurisdiction: jurisdiction,
-            status: "Proposed",
-            introduced_date: "2025-01-15",
-            impacts: [
-                {
-                    impactNumber: 1,
-                    description: "Increased construction costs due to height restrictions",
-                    clause: "Section 3.2: Maximum ADU height reduced from 18ft to 16ft",
-                    confidence: 0.85,
-                    p10: 3200,
-                    p25: 4100,
-                    p50: 5200,
-                    p75: 6800,
-                    p90: 8500,
-                    evidence: [
-                        {
-                            source_name: "CA Housing Cost Study 2024",
-                            url: "https://example.com/study",
-                            excerpt: "Height restrictions increase per-sqft costs by 15-25%"
-                        }
-                    ],
-                    chainOfCausality: "Lower height limit → Smaller buildable area → Higher per-sqft costs → Increased total construction cost"
-                }
-            ]
-        });
-        setLoading(false);
+        const loadBill = async () => {
+            try {
+                const data = await getBill(jurisdiction, billNumber);
+                // Map backend snake_case to frontend camelCase if needed
+                const mappedBill = {
+                    ...data,
+                    impacts: data.impacts?.map((imp: any) => ({
+                        ...imp,
+                        impactNumber: imp.impact_number,
+                        clause: imp.relevant_clause,
+                        description: imp.description || imp.impact_description,
+                        confidence: imp.confidence_factor,
+                        chainOfCausality: imp.chain_of_causality
+                    }))
+                };
+                setBill(mappedBill);
+            } catch (err) {
+                console.error("Failed to load bill:", err);
+                setBill(null);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        if (jurisdiction && billNumber) {
+            loadBill();
+        }
     }, [jurisdiction, billNumber]);
 
     if (loading) {
