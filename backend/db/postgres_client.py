@@ -194,6 +194,54 @@ class PostgresDB:
             logger.error(f"Error in store_impacts: {e}")
             return False
 
+    async def create_pipeline_run(self, bill_id: str, jurisdiction: str, models: Dict[str, str]) -> Optional[str]:
+        """Create a new pipeline run record."""
+        try:
+            row = await self._fetchrow(
+                """
+                INSERT INTO pipeline_runs (bill_id, jurisdiction, models, started_at)
+                VALUES ($1, $2, $3, NOW())
+                RETURNING id
+                """,
+                bill_id, jurisdiction, json.dumps(models)
+            )
+            return str(row['id']) if row else None
+        except Exception as e:
+            logger.error(f"Error creating pipeline run: {e}")
+            return None
+
+    async def complete_pipeline_run(self, run_id: str, result: Dict[str, Any]) -> bool:
+        """Mark pipeline run as complete."""
+        try:
+            await self._execute(
+                """
+                UPDATE pipeline_runs
+                SET status = 'completed', result = $1, completed_at = NOW()
+                WHERE id = $2
+                """,
+                json.dumps(result), run_id
+            )
+            return True
+        except Exception as e:
+            logger.error(f"Error completing pipeline run: {e}")
+            return False
+
+    async def fail_pipeline_run(self, run_id: str, error: str) -> bool:
+        """Mark pipeline run as failed."""
+        try:
+            await self._execute(
+                """
+                UPDATE pipeline_runs
+                SET status = 'failed', error = $1, completed_at = NOW()
+                WHERE id = $2
+                """,
+                error, run_id
+            )
+            return True
+        except Exception as e:
+            logger.error(f"Error failing pipeline run: {e}")
+            return False
+
     async def get_or_create_source(self, jurisdiction_id: str, name: str, type: str) -> Optional[str]:
         """Get source ID, creating if it doesn't exist."""
         try:
