@@ -9,7 +9,7 @@ TRUNCATE TABLE documents;
 ALTER TABLE documents ALTER COLUMN embedding TYPE vector(4096);
 
 -- 4. Create HNSW index (supports higher dimensions than IVFFlat)
-CREATE INDEX IF NOT EXISTS documents_embedding_idx ON documents USING hnsw (embedding vector_cosine_ops);
+-- CREATE INDEX IF NOT EXISTS documents_embedding_idx ON documents USING hnsw (embedding vector_cosine_ops);
 
 -- 5. Reset processed status to re-ingest everything
 UPDATE raw_scrapes SET processed = NULL, document_id = NULL;

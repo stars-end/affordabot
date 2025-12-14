@@ -194,6 +194,54 @@ class PostgresDB:
             logger.error(f"Error in store_impacts: {e}")
             return False
 
+    async def create_pipeline_run(self, bill_id: str, jurisdiction: str, models: Dict[str, str]) -> Optional[str]:
+        """Create a new pipeline run record."""
+        try:
+            row = await self._fetchrow(
+                """
+                INSERT INTO pipeline_runs (bill_id, jurisdiction, models, started_at)
+                VALUES ($1, $2, $3, NOW())
+                RETURNING id
+                """,
+                bill_id, jurisdiction, json.dumps(models)
+            )
+            return str(row['id']) if row else None
+        except Exception as e:
+            logger.error(f"Error creating pipeline run: {e}")
+            return None
+
+    async def complete_pipeline_run(self, run_id: str, result: Dict[str, Any]) -> bool:
+        """Mark pipeline run as complete."""
+        try:
+            await self._execute(
+                """
+                UPDATE pipeline_runs
+                SET status = 'completed', result = $1, completed_at = NOW()
+                WHERE id = $2
+                """,
+                json.dumps(result), run_id
+            )
+            return True
+        except Exception as e:
+            logger.error(f"Error completing pipeline run: {e}")
+            return False
+
+    async def fail_pipeline_run(self, run_id: str, error: str) -> bool:
+        """Mark pipeline run as failed."""
+        try:
+            await self._execute(
+                """
+                UPDATE pipeline_runs
+                SET status = 'failed', error = $1, completed_at = NOW()
+                WHERE id = $2
+                """,
+                error, run_id
+            )
+            return True
+        except Exception as e:
+            logger.error(f"Error failing pipeline run: {e}")
+            return False
+
     async def get_or_create_source(self, jurisdiction_id: str, name: str, type: str) -> Optional[str]:
         """Get source ID, creating if it doesn't exist."""
         try:
@@ -429,3 +477,98 @@ class PostgresDB:
             logger.error(f"Error updating review status: {e}")
             return False
 
+    async def get_legislation_by_jurisdiction(self, jurisdiction_name: str, limit: int = 10) -> List[Dict[str, Any]]:
+        """Get recent legislation for a jurisdiction with impacts."""
+        try:
+            # Get jurisdiction ID
+            jur_row = await self._fetchrow("SELECT id FROM jurisdictions WHERE name = $1", jurisdiction_name)
+            if not jur_row:
+                return []
+            jurisdiction_id = jur_row['id']
+
+            # Get legislation
+            legislation_rows = await self._fetch(
+                """
+                SELECT * FROM legislation
+                WHERE jurisdiction_id = $1
+                ORDER BY created_at DESC
+                LIMIT $2
+                """,
+                jurisdiction_id, limit
+            )
+
+            results = []
+            for leg in legislation_rows:
+                leg_dict = dict(leg)
+                # Fetch impacts
+                impact_rows = await self._fetch(
+                    "SELECT * FROM impacts WHERE legislation_id = $1 ORDER BY impact_number",
+                    leg['id']
+                )
+
+                impacts = []
+                for imp in impact_rows:
+                    imp_dict = dict(imp)
+                    # Parse evidence if it's a string (JSON)
+                    if isinstance(imp_dict.get('evidence'), str):
+                        try:
+                            imp_dict['evidence'] = json.loads(imp_dict['evidence'])
+                        except json.JSONDecodeError:
+                            pass
+                    impacts.append(imp_dict)
+
+                leg_dict['impacts'] = impacts
+                results.append(leg_dict)
+
+            return results
+        except Exception as e:
+            logger.error(f"Error in get_legislation_by_jurisdiction: {e}")
+            return []
+
+    async def get_bill(self, jurisdiction_name: str, bill_number: str) -> Optional[Dict[str, Any]]:
+        """Get specific bill with impacts."""
+        try:
+            # Get jurisdiction ID
+            jur_row = await self._fetchrow("SELECT id, name, type FROM jurisdictions WHERE name = $1", jurisdiction_name)
+            if not jur_row:
+                return None
+            jurisdiction_id = jur_row['id']
+
+            # Get legislation
+            leg_row = await self._fetchrow(
+                """
+                SELECT * FROM legislation
+                WHERE jurisdiction_id = $1 AND bill_number = $2
+                """,
+                jurisdiction_id, bill_number
+            )
+
+            if not leg_row:
+                return None
+
+            leg_dict = dict(leg_row)
+            leg_dict['jurisdiction'] = jur_row['name']
+
+            # Fetch impacts
+            impact_rows = await self._fetch(
+                "SELECT * FROM impacts WHERE legislation_id = $1 ORDER BY impact_number",
+                leg_dict['id']
+            )
+
+            impacts = []
+            for imp in impact_rows:
+                imp_dict = dict(imp)
+                # Parse evidence if it's a string (JSON)
+                if isinstance(imp_dict.get('evidence'), str):
+                    try:
+                        imp_dict['evidence'] = json.loads(imp_dict['evidence'])
+                    except json.JSONDecodeError:
+                        pass
+                impacts.append(imp_dict)
+
+            leg_dict['impacts'] = impacts
+            return leg_dict
+
+        except Exception as e:
+            logger.error(f"Error in get_bill: {e}")
+            return None
