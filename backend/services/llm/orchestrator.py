@@ -69,7 +69,7 @@ class AnalysisPipeline:
         Returns:
             Final analysis (validated BillAnalysis)
         """
-        run_id = await self._create_pipeline_run(bill_id, models)
+        run_id = await self._create_pipeline_run(bill_id, jurisdiction, models)
         
         try:
             # Step 1: Research
@@ -238,10 +238,11 @@ class AnalysisPipeline:
         )
 
     # Database logging methods (placeholders for now, assuming Supabase client structure)
-    async def _create_pipeline_run(self, bill_id: str, models: Dict[str, str]) -> str:
+    async def _create_pipeline_run(self, bill_id: str, jurisdiction: str, models: Dict[str, str]) -> str:
         """Create a new pipeline run record."""
-        # TODO: Implement actual DB call
-        # return self.db.table('pipeline_runs').insert({...}).execute().data[0]['id']
+        run_id = await self.db.create_pipeline_run(bill_id, jurisdiction, models)
+        if run_id:
+            return run_id
         return "run_id_placeholder"
 
     async def _log_step(self, run_id: str, step_name: str, model: str, data: Any):
@@ -283,6 +284,13 @@ class AnalysisPipeline:
             else:
                print(f"❌ Failed to store legislation for {bill_id}")
 
+            # 3. Update Pipeline Run
+            result_data = {
+                "analysis": analysis.model_dump(),
+                "review": review.model_dump()
+            }
+            await self.db.complete_pipeline_run(run_id, result_data)
+
         except Exception as e:
             print(f"Failed to store results: {e}")
             import traceback
@@ -291,3 +299,4 @@ class AnalysisPipeline:
     async def _fail_pipeline_run(self, run_id: str, error: str):
         """Mark pipeline run as failed."""
         print(f"Pipeline Run {run_id} Failed: {error}")
+        await self.db.fail_pipeline_run(run_id, error)
