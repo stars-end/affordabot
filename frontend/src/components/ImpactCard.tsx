@@ -85,7 +85,7 @@ export default function ImpactCard({ impact }: { impact: ImpactProps }) {
                     <Quote className="w-4 h-4 text-purple-500" />
                     <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wide">Relevant Clause</h4>
                 </div>
-                <p className="italic text-gray-700 text-sm leading-relaxed">"{impact.clause}"</p>
+                <p className="italic text-gray-700 text-sm leading-relaxed">&quot;{impact.clause}&quot;</p>
             </div>
 
             {/* Chain of Causality */}
@@ -128,7 +128,7 @@ export default function ImpactCard({ impact }: { impact: ImpactProps }) {
                                     >
                                         {ev.source_name} <ExternalLink className="w-3 h-3" />
                                     </a>
-                                    <p className="text-xs text-gray-600 mt-1 italic">"{ev.excerpt}"</p>
+                                    <p className="text-xs text-gray-600 mt-1 italic">&quot;{ev.excerpt}&quot;</p>
                                 </div>
                             ))}
                         </div>

@@ -23,6 +23,9 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Install Git Hooks (Configure Merge Driver)
+        run: ./scripts/git/install_hooks.sh
+
       - name: Auto-merge Beads JSONL
         id: auto-merge
         uses: stars-end/agent-skills/github-actions/actions/auto-merge-beads@main

@@ -412,7 +412,7 @@ export function ModelRegistry() {
                 <CardContent>
                     {healthStatus.length === 0 ? (
                         <div className="text-center py-8 text-muted-foreground">
-                            Click "Check Health Now" to verify model availability
+                            Click &quot;Check Health Now&quot; to verify model availability
                         </div>
                     ) : (
                         <div className="space-y-4">
