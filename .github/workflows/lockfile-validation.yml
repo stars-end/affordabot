@@ -17,7 +17,7 @@ on:
 
 jobs:
   validate-lockfiles:
-    runs-on: [self-hosted, linux, x64]
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
@@ -26,9 +26,7 @@ jobs:
         run: pip install poetry
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 8
+        uses: pnpm/action-setup@v4
 
       - name: Validate lockfiles
         uses: stars-end/agent-skills/.github/actions/lockfile-check@main
