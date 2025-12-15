@@ -22,15 +22,19 @@ def test_main_runs_spiders(mock_get_settings, mock_crawler_process):
     # Mock DB Module with Async Methods
     mock_db_module = MagicMock()
     mock_db_instance = MagicMock()
-    mock_db_module.SupabaseDB.return_value = mock_db_instance
+    mock_db_module.PostgresDB.return_value = mock_db_instance
     mock_db_instance.get_or_create_jurisdiction = AsyncMock(return_value="jur-123")
     mock_db_instance.get_or_create_source = AsyncMock(return_value="source-123")
+    mock_db_instance.create_admin_task = AsyncMock(return_value="task-123")
+    mock_db_instance.update_admin_task = AsyncMock()
+    mock_db_instance.log_scrape_history = AsyncMock()
+    mock_db_instance._fetch = AsyncMock(return_value=[]) # Mock fetch for waiting processing loop
     
     # Mock runtime dependencies
     with patch.dict(sys.modules, {
         'affordabot_scraper.spiders.sanjose_meetings': MagicMock(),
         'affordabot_scraper.spiders.sanjose_municode': MagicMock(),
-        'db.supabase_client': mock_db_module,
+        'db.postgres_client': mock_db_module,
         'services.ingestion_service': MagicMock(),
         'services.storage': MagicMock(),
         'services.vector_backend_factory': MagicMock(),

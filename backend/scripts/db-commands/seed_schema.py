@@ -5,7 +5,7 @@ from pathlib import Path
 
 # Setup paths
 BACKEND_DIR = Path(__file__).resolve().parent.parent.parent
-MIGRATIONS_DIR = BACKEND_DIR.parent / "supabase" / "migrations"
+MIGRATIONS_DIR = BACKEND_DIR / "migrations"
 
 def run_migrations():
     db_url = os.environ.get("DATABASE_URL")

@@ -1,4 +1,4 @@
-"""Factory for creating vector retrieval backends with feature flag support."""
+"""Factory for creating vector retrieval backends."""
 
 import os
 from typing import Optional, Callable, Awaitable
@@ -6,54 +6,42 @@ from llm_common.retrieval import RetrievalBackend
 
 
 def create_vector_backend(
-    supabase_client=None,
+    postgres_client=None, # Not used directly by create_pg_backend but kept for signature compat if needed, or better, remove it?
+    # Actually, create_pg_backend takes database_url.
+    # Caller can pass DSN if they have it, or we read Env.
+    # postgres_client argument was added by me in run_rag_spiders.py.
+    # Let's support it or just rely on Env.
+    # Best to rely on Env for create_pg_backend as it handles connection pool itself.
     embedding_fn: Optional[Callable[[str], Awaitable[list[float]]]] = None
 ) -> RetrievalBackend:
     """
-    Create vector retrieval backend based on feature flag.
+    Create vector retrieval backend (PgVector only).
     
     Args:
-        supabase_client: Supabase client (for legacy backend)
+        postgres_client: Ignored (legacy compat)
         embedding_fn: Async function to generate embeddings
         
     Returns:
         RetrievalBackend instance
         
     Environment Variables:
-        USE_PGVECTOR_RAG: "true" to use PgVectorBackend, "false" for SupabasePgVectorBackend
-        DATABASE_URL: PostgreSQL connection string (for PgVectorBackend)
+        DATABASE_URL: PostgreSQL connection string
     """
-    use_pgvector = os.getenv("USE_PGVECTOR_RAG", "false").lower() == "true"
+    from llm_common.retrieval.backends import create_pg_backend
     
-    if use_pgvector:
-        # New: Generic PgVectorBackend (llm-common 0.4.0+)
-        from llm_common.retrieval.backends import create_pg_backend
-        
-        database_url = os.getenv("DATABASE_URL")
-        if not database_url:
-            raise ValueError("DATABASE_URL required for PgVectorBackend")
-        
-        # Ensure asyncpg driver is used
-        if database_url.startswith("postgresql://"):
-            database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
-        elif database_url.startswith("postgres://"):
-            database_url = database_url.replace("postgres://", "postgresql+asyncpg://", 1)
-        
-        return create_pg_backend(
-            database_url=database_url,
-            table="documents",  # Keep existing table
-            vector_dimensions=4096,  # Qwen embedding dimensions
-            embed_fn=embedding_fn
-        )
-    else:
-        # Legacy: Supabase-specific backend (llm-common 0.3.0)
-        from llm_common.retrieval.backends import SupabasePgVectorBackend
-        
-        if not supabase_client:
-            raise ValueError("supabase_client required for SupabasePgVectorBackend")
-        
-        return SupabasePgVectorBackend(
-            supabase_client=supabase_client,
-            table="documents",
-            embed_fn=embedding_fn
-        )
+    database_url = os.getenv("DATABASE_URL")
+    if not database_url:
+        raise ValueError("DATABASE_URL required for PgVectorBackend")
+    
+    # Ensure asyncpg driver is used
+    if database_url.startswith("postgresql://"):
+        database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    elif database_url.startswith("postgres://"):
+        database_url = database_url.replace("postgres://", "postgresql+asyncpg://", 1)
+    
+    return create_pg_backend(
+        database_url=database_url,
+        table="documents",  # Keep existing table
+        vector_dimensions=4096,  # Qwen embedding dimensions
+        embed_fn=embedding_fn
+    )

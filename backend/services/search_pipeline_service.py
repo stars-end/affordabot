@@ -7,7 +7,7 @@ from llm_common import WebSearchResult, LLMClient, LLMMessage, MessageRole
 
 from services.ingestion_service import IngestionService
 from services.discovery.search_discovery import SearchDiscoveryService
-from services.retrieval.custom_pgvector_backend import CustomPgVectorBackend
+from llm_common.retrieval import RetrievalBackend
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +30,7 @@ class SearchPipelineService:
         self,
         discovery: SearchDiscoveryService,
         ingestion: IngestionService,
-        retrieval: CustomPgVectorBackend, # Custom backend for Affordabot
+        retrieval: RetrievalBackend, # Generic backend
         llm: LLMClient
     ):
         self.discovery = discovery

@@ -15,7 +15,7 @@ fastapi = "*"
 uvicorn = "*"
 pydantic = "*"
 python-dotenv = "*"
-supabase = "*"
+
 aiohttp = "*"
 litellm = ">=1.0.0"
 prefect = ">=2.0.0"
