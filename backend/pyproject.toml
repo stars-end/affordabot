@@ -41,6 +41,7 @@ minio = "^7.2.20"
 scrapy-playwright = "^0.0.44"
 psycopg2-binary = "^2.9.11"
 pyjwt = {extras = ["crypto"], version = "^2.10.1"}
+supabase = "^2.27.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "*"

@@ -1,4 +1,5 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
 
 // Define protected routes
 // Currently protecting everything under /admin except specific public paths if any
@@ -8,8 +9,12 @@ const isProtected = createRouteMatcher([
 
 export default clerkMiddleware(async (auth, req) => {
     if (isProtected(req)) {
-        const { userId, redirectToSignIn } = await auth();
-        if (!userId) return redirectToSignIn();
+        const { userId } = await auth();
+        if (!userId) {
+            const signInUrl = new URL('/sign-in', req.url);
+            signInUrl.searchParams.set('redirect_url', req.url);
+            return NextResponse.redirect(signInUrl);
+        }
     }
 });
 
