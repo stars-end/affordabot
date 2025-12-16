@@ -22,7 +22,7 @@ load_dotenv(os.path.join(os.path.dirname(__file__), '../../.env'))
 # Add backend to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
 
-from db.postgres_client import PostgresDB
+from db.postgres_client import PostgresDB  # noqa: E402
 
 # Configure Logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

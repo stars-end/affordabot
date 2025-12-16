@@ -106,7 +106,7 @@ async def main():
                 status='failed',
                 error=str(e)
             )
-        except:
+        except Exception:
              pass
         sys.exit(1)
 
