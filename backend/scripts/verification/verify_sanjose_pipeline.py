@@ -162,7 +162,8 @@ async def verify_pipeline():
              async def chat_completion(self, messages, model): 
                  from dataclasses import dataclass
                  @dataclass
-                 class Resp: content="Mock Answer"
+                 class Resp:
+                    content: str = "Mock Answer"
                  return Resp()
 
         pipeline = SearchPipelineService(

@@ -40,7 +40,7 @@ def test_ensure_bucket_exists(mock_minio, s3_env):
         mock_client = mock_minio.return_value
         mock_client.bucket_exists.return_value = False
         
-        storage = S3Storage()
+        S3Storage()
         # _ensure_bucket is called in __init__
         mock_client.make_bucket.assert_called_with("test-bucket")
 
@@ -49,7 +49,7 @@ def test_ensure_bucket_already_exists(mock_minio, s3_env):
         mock_client = mock_minio.return_value
         mock_client.bucket_exists.return_value = True
         
-        storage = S3Storage()
+        S3Storage()
         mock_client.make_bucket.assert_not_called()
 
 @pytest.mark.asyncio
