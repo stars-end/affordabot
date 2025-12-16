@@ -66,6 +66,12 @@ async def test_process_raw_scrape_happy_path(mock_postgres, mock_vector_backend,
     # Verify vector upsert
     mock_vector_backend.upsert.assert_called_once()
     
+    # Verify payload schema (Regression test for KeyError: 'id')
+    args = mock_vector_backend.upsert.call_args[0][0]
+    assert len(args) > 0
+    assert 'id' in args[0], "Payload missing 'id' key"
+    assert 'document_id' in args[0], "Payload missing 'document_id' key"
+    
     # Verify status update
     # We expect update call: _execute(query, True, doc_id, scrape_id)
     mock_postgres._execute.assert_called()
