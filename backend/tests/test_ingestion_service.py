@@ -130,7 +130,6 @@ def test_chunk_text_logic():
     assert chunks[0] == "1234567890"
     assert chunks[1] == "9012345"
     
-import datetime
 
 @pytest.mark.asyncio
 async def test_ingest_from_search_result_new(mock_postgres, mock_vector_backend, mock_embedding_service):

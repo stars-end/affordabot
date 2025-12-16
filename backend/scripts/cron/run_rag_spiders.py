@@ -9,7 +9,6 @@ import sys
 import os
 import logging
 import asyncio
-from datetime import datetime
 from uuid import uuid4
 from scrapy.crawler import CrawlerProcess
 from scrapy import signals
