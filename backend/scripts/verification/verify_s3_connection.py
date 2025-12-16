@@ -16,7 +16,7 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 backend_root = os.path.dirname(os.path.dirname(script_dir)) # backend/scripts/verification -> backend
 sys.path.append(backend_root)
 
-from services.storage.s3_storage import S3Storage
+from services.storage.s3_storage import S3Storage  # noqa: E402
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

@@ -89,7 +89,7 @@ class RAGSpiderRunner:
             
             for spider_cls, source_name, source_type in spider_configs:
                 # Use first start_url as canonical url
-                source_url = spider_cls.start_urls[0] if spider_cls.start_urls else None
+                # source_url = spider_cls.start_urls[0] if spider_cls.start_urls else None - Unused
                 source_id = loop.run_until_complete(self.db.get_or_create_source(jur_id, source_name, source_type))
                 # Note: get_or_create_source in PostgresDB doesn't take URL yet, might need update if schema requires it,
                 # but older signature was (jur_id, name, type). Using that for now.
@@ -206,7 +206,7 @@ class RAGSpiderRunner:
                         error=str(e)
                     )
                 )
-            except:
+            except Exception:
                 pass
             sys.exit(1)
         finally:
