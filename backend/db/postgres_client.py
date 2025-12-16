@@ -25,9 +25,9 @@ class PostgresDB:
 
         if not self.pool:
             try:
-                # Railway internal network doesn't support SSL upgrade
-                # Only use SSL for external connections (Supabase pooler, etc.)
-                use_ssl = 'railway.internal' not in self.database_url
+                # Railway internal network and TCP Proxy don't support SSL upgrade
+                # Only use SSL for true external connections (Supabase, etc.)
+                use_ssl = 'railway.internal' not in self.database_url and 'proxy.rlwy.net' not in self.database_url
                 
                 if use_ssl:
                     self.pool = await asyncpg.create_pool(self.database_url, ssl='require')

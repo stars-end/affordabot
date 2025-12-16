@@ -2,6 +2,8 @@
 -- Recovered schema for Admin Dashboard, Sources, and Analysis Pipeline
 -- Generated from Supabase dump and consolidated.
 
+CREATE EXTENSION IF NOT EXISTS vector;
+
 -- 1. Enums and Types
 DO $$ BEGIN
     CREATE TYPE source_status AS ENUM ('active', 'inactive', 'archived', 'error');

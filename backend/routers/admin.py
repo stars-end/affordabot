@@ -23,8 +23,13 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from db.postgres_client import PostgresDB
+from auth.clerk import require_admin_user
 
-router = APIRouter(prefix="/admin", tags=["admin"])
+router = APIRouter(
+    prefix="/admin", 
+    tags=["admin"],
+    dependencies=[Depends(require_admin_user)]
+)
 logger = logging.getLogger(__name__)
 
 

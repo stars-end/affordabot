@@ -1,30 +1,32 @@
 # SPEC-004: Agent Admin V2
 
-**Status**: Ready (Pending Schema Recovery)
+**Status**: Planning
 **Epic**: `affordabot-9g6`
-**Dependencies**: SPEC-003 (S3 Storage)
+**Dependencies**: SPEC-003 (Resolved)
 
 ## 1. Overview
-Enhance the internal Admin Dashboard with Basic Auth and recovered schemas.
+Rebuild the internal Admin Dashboard with recovered schemas and production-grade authentication.
 
 ## 2. Gap Resolution
 
-### 2.1 Authentication
-**Decision**: Use HTTP Basic Auth for MVP.
-**Future**: Migrate to Clerk (Tracked in `affordabot-dev-auth`).
+### 2.1 Schema Recovery (Highest Priority)
+**Status**: Recovered in `backend/migrations/002_schema_recovery_v2.sql`.
+**Action**: Run this migration immediately to restore `admin_tasks`, `pipeline_runs`, `sources`.
+**Why First?**: The application code (`routers/admin.py`) will crash 500s without these tables. We need the data model to be valid before we protect it.
 
-**Implementation**:
-- Add `Security` dependency to `routers/admin.py`.
-- Validate against generic `ADMIN_USER` / `ADMIN_PASSWORD` (add to Railway vars).
+### 2.2 Authentication Strategy
+**Decision**: **Clerk Integration** (Recommended over Basic Auth)
+**Rationale**:
+- **Parity**: Matches `prime-radiant-ai` architecture.
+- **Security**: Robust session management, no plaintext passwords in envs.
+- **Future-Proof**: "Throwaway" Basic Auth work is avoided.
+- **Effort**: Higher initial setup (Frontend SDK + Backend JWKS verify) but implies zero debt.
 
-### 2.2 Schema Recovery
-**Issue**: Admin tables (`admin_tasks`, `pipeline_runs`) deleted during purge.
-**Recovery Plan**:
-1.  Attempt `supabase db dump --remote` to recover state from `affordabot-dev`.
-2.  If fail, `git checkout` deleted files from history.
-3.  Place consolidated schema in `backend/migrations/002_admin_schema_recovered.sql`.
+**Implementation Plan (Clerk)**:
+1.  **Frontend**: Wrap Admin layout in `<ClerkProvider>` / `<SignedIn>`.
+2.  **Backend**: Add `ClerkAuthUnverified` (dev) or proper JWT verification middleware to `main.py` / `admin.py`.
+3.  **User**: Needs to provide `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY`.
 
 ## 3. Execution Order
-1.  Recover Schema (Pre-req).
-2.  Implement Basic Auth Middleware.
-3.  Connect Admin Endpoints to recovered tables.
+1.  **Schema**: Apply `002_schema_recovery_v2.sql`.
+2.  **Auth**: Implement Clerk integration (Frontend + Backend).
