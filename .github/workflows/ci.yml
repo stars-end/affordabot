@@ -90,10 +90,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python and Poetry
-        uses: stars-end/agent-skills/github-actions/actions/python-setup@c88517f6d135b00bb177cad20963c57da9d3caa9
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
         with:
-          working-directory: backend/
+          python-version: '3.13'
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+          installer-parallel: true
+
+      - name: Install dependencies
+        run: |
+          cd backend
+          poetry install --no-interaction --no-root
 
       - name: Install Playwright Browsers
         run: |
