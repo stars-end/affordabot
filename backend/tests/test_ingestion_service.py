@@ -140,7 +140,7 @@ async def test_ingest_from_search_result_new(mock_postgres, mock_vector_backend,
     result = WebSearchResult(url="http://new.com", snippet="Snippet", content="Full Content", title="Title", domain="new.com")
 
     # Call
-    doc_id = await service.ingest_from_search_result(result)
+    await service.ingest_from_search_result(result)
     
     # Verify calls
     mock_postgres.get_or_create_source.assert_called_once_with(
