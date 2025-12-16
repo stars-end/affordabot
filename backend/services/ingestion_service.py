@@ -140,16 +140,23 @@ class IngestionService:
             }
             
             doc_chunk = RetrievedChunk(
-                id=str(uuid4()),
                 content=chunk_text,
                 embedding=embedding,
                 metadata=metadata,
-                document_id=document_id,
                 chunk_id=str(uuid4()), # Explicit chunk ID
                 source=scrape.get('url', 'unknown'), # Add source URL
                 score=1.0 # Default score (not relevant for storage)
             )
-            doc_chunks.append(doc_chunk.model_dump())
+            
+            # Pydantic dump
+            chunk_data = doc_chunk.model_dump()
+            
+            # Inject generic fields that LocalPgVectorBackend expects
+            # (RetrievedChunk defines 'chunk_id', but Postgres uses 'id')
+            chunk_data['id'] = chunk_data['chunk_id']
+            chunk_data['document_id'] = document_id
+            
+            doc_chunks.append(chunk_data)
         
         # 6. Store in vector backend
         await self.vector_backend.upsert(doc_chunks)
