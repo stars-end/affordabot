@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import MagicMock, patch, ANY
+from unittest.mock import patch
 import os
 from services.storage.s3_storage import S3Storage
 from minio.error import S3Error

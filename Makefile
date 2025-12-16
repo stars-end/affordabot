@@ -98,4 +98,49 @@ ci:
 	$(MAKE) build
 	@echo ""
 	@echo "=== E2E Tests ==="
+	@echo "=== E2E Tests ==="
 	$(MAKE) e2e
+
+# Check for Railway Shell environment
+check-railway-shell:
+	@if [ -z "$$RAILWAY_PROJECT_NAME" ]; then \
+		echo "❌ Error: Must run inside 'railway shell'."; \
+		echo "   Run 'railway shell' first, then run this command."; \
+		exit 1; \
+	fi
+
+# Run pipeline verification (RAG V3)
+verify-pipeline: check-railway-shell
+	@echo "🧪 Running RAG Pipeline Verification (E2E)..."
+	cd backend && poetry run python scripts/verification/verify_sanjose_pipeline.py
+
+# Run analysis loop verification (Integration)
+verify-analysis: check-railway-shell
+	@echo "🧠 Running Analysis Loop Verification..."
+	cd backend && poetry run python scripts/verification/verify_analysis_loop.py
+
+# Run agent pipeline verification (Mocked)
+verify-agents:
+	@echo "🤖 Running Agent Pipeline Verification (Mocked - No Railway Needed)..."
+	cd backend && poetry run python scripts/verification/verify_agent_pipeline.py
+
+# Run auth verification
+verify-auth: check-railway-shell
+	@echo "🔐 Running Auth Configuration Verification..."
+	cd backend && poetry run python scripts/verification/verify_auth_config.py
+
+# Run storage verification
+verify-storage: check-railway-shell
+	@echo "📦 Running S3/MinIO Storage Verification..."
+	cd backend && poetry run python scripts/verification/verify_s3_connection.py
+
+# Run environment & admin check
+verify-env: check-railway-shell
+	@echo "🌍 Checking Environment & Admin Setup..."
+	cd backend && poetry run python scripts/check_env.py
+	cd backend && poetry run python scripts/verification/verify_admin_import.py
+
+# Run ALL verifications
+verify-all: verify-env verify-auth verify-storage verify-agents verify-analysis verify-pipeline
+	@echo "✅ All Verifications Passed!"
+
