@@ -37,7 +37,7 @@ permissions:
 
 jobs:
   check-merged:
-    runs-on: [self-hosted, linux, x64]
+    runs-on: ubuntu-latest
     if: github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch'
     outputs:
       should_proceed: ${{ steps.check.outputs.should_proceed }}
@@ -82,7 +82,7 @@ jobs:
 
   summary:
     needs: [check-merged, update-contexts]
-    runs-on: [self-hosted, linux, x64]
+    runs-on: ubuntu-latest
     if: always()
     steps:
       - name: Workflow summary

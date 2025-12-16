@@ -40,7 +40,7 @@ on:
 
 jobs:
   analyze-and-update:
-    runs-on: [self-hosted, linux, x64]
+    runs-on: ubuntu-latest
     permissions:
       contents: write
       pull-requests: write

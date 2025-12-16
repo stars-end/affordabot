@@ -83,7 +83,7 @@ jobs:
         ports:
           - 5432:5432
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U postgres"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -119,10 +119,10 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:password@localhost:5432/affordabot
 
-      - name: Run San Jose V3 Verification
+      - name: Run San Jose Pipeline Verification
         run: |
           cd backend
-          poetry run python scripts/verification/verify_sanjose_v3.py
+          poetry run python scripts/verification/verify_sanjose_pipeline.py
         env:
           DATABASE_URL: postgresql://postgres:password@localhost:5432/affordabot
           ZAI_API_KEY: ${{ secrets.ZAI_API_KEY }}
