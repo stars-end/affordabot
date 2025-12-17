@@ -63,42 +63,45 @@
               - tab "Prompts" [ref=e79]:
                 - img [ref=e80]
                 - text: Prompts
-            - tabpanel "Scraping" [ref=e83]:
-              - generic [ref=e84]:
-                - generic [ref=e85]:
-                  - generic [ref=e86]:
-                    - heading "Trigger Manual Scrape" [level=4] [ref=e87]
-                    - paragraph [ref=e88]: Start a scraping operation for a specific jurisdiction
-                  - generic [ref=e90]:
-                    - generic [ref=e91]:
+              - tab "Analytics" [ref=e83]:
+                - img [ref=e84]
+                - text: Analytics
+            - tabpanel "Scraping" [ref=e85]:
+              - generic [ref=e86]:
+                - generic [ref=e87]:
+                  - generic [ref=e88]:
+                    - heading "Trigger Manual Scrape" [level=4] [ref=e89]
+                    - paragraph [ref=e90]: Start a scraping operation for a specific jurisdiction
+                  - generic [ref=e92]:
+                    - generic [ref=e93]:
                       - text: Jurisdiction
-                      - combobox [ref=e92]:
+                      - combobox [ref=e94]:
                         - text: Select jurisdiction...
-                        - img [ref=e93]
-                    - generic [ref=e97]:
-                      - checkbox "Force re-scrape" [ref=e98]
-                      - generic [ref=e99] [cursor=pointer]: Force re-scrape
-                    - button "Start Scrape" [disabled] [ref=e101]:
-                      - img [ref=e102]
+                        - img [ref=e95]
+                    - generic [ref=e99]:
+                      - checkbox "Force re-scrape" [ref=e100]
+                      - generic [ref=e101] [cursor=pointer]: Force re-scrape
+                    - button "Start Scrape" [disabled] [ref=e103]:
+                      - img [ref=e104]
                       - text: Start Scrape
-                - generic [ref=e105]:
-                  - generic [ref=e106]:
-                    - heading "Scrape History" [level=4] [ref=e107]
-                    - paragraph [ref=e108]: Recent scraping operations and results
-                  - generic [ref=e110]:
-                    - paragraph [ref=e111]: No scrape history yet
-                    - paragraph [ref=e112]: Run a scrape to see results here
+                - generic [ref=e107]:
+                  - generic [ref=e108]:
+                    - heading "Scrape History" [level=4] [ref=e109]
+                    - paragraph [ref=e110]: Recent scraping operations and results
+                  - generic [ref=e112]:
+                    - paragraph [ref=e113]: No scrape history yet
+                    - paragraph [ref=e114]: Run a scrape to see results here
     - region "Notifications alt+T"
-  - alert [ref=e113]
-  - generic [ref=e116] [cursor=pointer]:
-    - img [ref=e117]
-    - generic [ref=e119]: 1 error
-    - button "Hide Errors" [ref=e120]:
-      - img [ref=e121]
-  - button "Clerk is in keyless mode" [ref=e125]:
-    - generic [ref=e126]:
-      - generic [ref=e127]:
-        - img [ref=e129]
-        - img [ref=e135]
-      - paragraph [ref=e137] [cursor=pointer]: Clerk is in keyless mode
+  - alert [ref=e115]
+  - generic [ref=e118] [cursor=pointer]:
+    - img [ref=e119]
+    - generic [ref=e121]: 1 error
+    - button "Hide Errors" [ref=e122]:
+      - img [ref=e123]
+  - button "Clerk is in keyless mode" [ref=e127]:
+    - generic [ref=e128]:
+      - generic [ref=e129]:
+        - img [ref=e131]
+        - img [ref=e137]
+      - paragraph [ref=e139] [cursor=pointer]: Clerk is in keyless mode
 ```
