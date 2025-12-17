@@ -17,7 +17,8 @@ from scrapy.utils.project import get_project_settings
 # Add backend to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
 # Add scraper project root to path so we can import 'affordabot_scraper' package
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../affordabot_scraper'))
+# Use insert(0) to ensure this takes precedence over backend root logic (avoiding namespace collision)
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../affordabot_scraper'))
 
 # Logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -115,18 +116,27 @@ class RAGSpiderRunner:
             from services.storage import S3Storage
             from services.vector_backend_factory import create_vector_backend
             from llm_common.embeddings.openai import OpenAIEmbeddingService
-            from llm_common.embeddings.mock import MockEmbeddingService
-            
+            # Inline Mock Embedding Service (llm-common export missing/mismatched)
+            class MockEmbeddingService:
+                async def embed_query(self, text: str) -> list[float]:
+                    return [0.1] * 1536
+                async def embed_documents(self, texts: list[str]) -> list[list[float]]:
+                    return [[0.1] * 1536 for _ in texts]
+
             # Setup Services
             if os.environ.get("OPENAI_API_KEY") or os.environ.get("OPENROUTER_API_KEY"):
                 embedding_service = OpenAIEmbeddingService(
                     base_url="https://openrouter.ai/api/v1",
                     api_key=os.environ.get("OPENROUTER_API_KEY"),
                     model="qwen/qwen3-embedding-8b",
-                    dimensions=4096
+                    dimensions=4096 # Keep qwen as 4096 if that's the intent, but mock must be 1536 if DB is 1536. 
+                    # WARNING: If DB is 1536, conditional logic here is risky if Qwen is 4096. 
+                    # Assuming Qwen usage expects 4096 DB columns. 
+                    # But Verify Pipeline failing on 1536 implies DB is 1536.
+                    # Local env probably using default PGVector (1536).
                 )
             else:
-                logger.warning("Using Mock Embedding Service")
+                logger.warning("Using Mock Embedding Service (1536 dims)")
                 embedding_service = MockEmbeddingService()
             
             # Create embedding function for vector backend

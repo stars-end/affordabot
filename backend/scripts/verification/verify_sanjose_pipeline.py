@@ -73,9 +73,9 @@ async def verify_pipeline():
              # Inline Mock Embedding for speed/cost
              class MockEmbeddingService(EmbeddingService):
                 async def embed_query(self, text: str) -> list[float]:
-                    return [0.1] * 4096 
+                    return [0.1] * 1536 
                 async def embed_documents(self, texts: list[str]) -> list[list[float]]:
-                    return [[0.1] * 4096 for _ in texts]
+                    return [[0.1] * 1536 for _ in texts]
              
              embedding_svc = MockEmbeddingService()
              embedding_svc = MockEmbeddingService()
@@ -121,7 +121,7 @@ async def verify_pipeline():
         print("   ✅ Daily Scrape Finished.")
     else:
          # Warn but don't fail entire script if just networking
-        print(f"   ⚠️  Daily Scrape Warning/Fail: {stderr.decode()[:200]}...")
+        print(f"   ⚠️  Daily Scrape Warning/Fail: {stderr.decode()[:2000]}...")
 
 
     # Phase 3: Backbone Scrape (Meetings/Code)
@@ -139,7 +139,7 @@ async def verify_pipeline():
     if proc.returncode == 0:
         print("   ✅ Scrapy Finished.")
     else:
-        print(f"   ❌ Scrapy Failed: {stderr.decode()[:200]}...")
+        print(f"   ❌ Scrapy Failed: {stderr.decode()[:2000]}...")
 
     # Phase 4: Verification Query (RAG)
     print("\n🧠 Phase 4: RAG Verification")
