@@ -1,0 +1,104 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e1]:
+  - link "Skip to Clerk keyless mode content" [ref=e2] [cursor=pointer]:
+    - /url: "#--clerk-keyless-prompt-button"
+  - generic [ref=e3]:
+    - generic [ref=e8]:
+      - generic [ref=e9]:
+        - generic [ref=e10]:
+          - img [ref=e12]
+          - generic [ref=e15]:
+            - heading "AffordaBot" [level=1] [ref=e16]
+            - paragraph [ref=e17]: Legislation Analysis
+        - navigation [ref=e18]:
+          - link "California" [ref=e19] [cursor=pointer]:
+            - /url: /dashboard/california
+            - img [ref=e20]
+            - generic [ref=e23]: California
+          - link "Santa Clara Co." [ref=e24] [cursor=pointer]:
+            - /url: /dashboard/santa-clara-county
+            - img [ref=e25]
+            - generic [ref=e28]: Santa Clara Co.
+          - link "San Jose" [ref=e29] [cursor=pointer]:
+            - /url: /dashboard/san-jose
+            - img [ref=e30]
+            - generic [ref=e34]: San Jose
+          - link "Saratoga" [ref=e35] [cursor=pointer]:
+            - /url: /dashboard/saratoga
+            - img [ref=e36]
+            - generic [ref=e40]: Saratoga
+          - link "Admin Console" [ref=e41] [cursor=pointer]:
+            - /url: /admin
+            - img [ref=e42]
+            - generic [ref=e44]: Admin Console
+        - generic [ref=e47]:
+          - generic [ref=e49]: AI
+          - generic [ref=e50]:
+            - paragraph [ref=e51]: Analysis Active
+            - paragraph [ref=e52]: Monitoring bills...
+      - main [ref=e53]:
+        - generic [ref=e54]:
+          - generic [ref=e55]:
+            - heading "Admin Dashboard" [level=1] [ref=e56]
+            - paragraph [ref=e57]: Manage scraping, analysis, models, and prompts
+          - generic [ref=e58]:
+            - tablist [ref=e59]:
+              - tab "Overview" [ref=e60]:
+                - img [ref=e61]
+                - text: Overview
+              - tab "Scraping" [active] [selected] [ref=e63]:
+                - img [ref=e64]
+                - text: Scraping
+              - tab "Jurisdiction" [ref=e68]:
+                - img [ref=e69]
+                - text: Jurisdiction
+              - tab "Analysis" [ref=e72]:
+                - img [ref=e73]
+                - text: Analysis
+              - tab "Models" [ref=e75]:
+                - img [ref=e76]
+                - text: Models
+              - tab "Prompts" [ref=e79]:
+                - img [ref=e80]
+                - text: Prompts
+            - tabpanel "Scraping" [ref=e83]:
+              - generic [ref=e84]:
+                - generic [ref=e85]:
+                  - generic [ref=e86]:
+                    - heading "Trigger Manual Scrape" [level=4] [ref=e87]
+                    - paragraph [ref=e88]: Start a scraping operation for a specific jurisdiction
+                  - generic [ref=e90]:
+                    - generic [ref=e91]:
+                      - text: Jurisdiction
+                      - combobox [ref=e92]:
+                        - text: Select jurisdiction...
+                        - img [ref=e93]
+                    - generic [ref=e97]:
+                      - checkbox "Force re-scrape" [ref=e98]
+                      - generic [ref=e99] [cursor=pointer]: Force re-scrape
+                    - button "Start Scrape" [disabled] [ref=e101]:
+                      - img [ref=e102]
+                      - text: Start Scrape
+                - generic [ref=e105]:
+                  - generic [ref=e106]:
+                    - heading "Scrape History" [level=4] [ref=e107]
+                    - paragraph [ref=e108]: Recent scraping operations and results
+                  - generic [ref=e110]:
+                    - paragraph [ref=e111]: No scrape history yet
+                    - paragraph [ref=e112]: Run a scrape to see results here
+    - region "Notifications alt+T"
+  - alert [ref=e113]
+  - generic [ref=e116] [cursor=pointer]:
+    - img [ref=e117]
+    - generic [ref=e119]: 1 error
+    - button "Hide Errors" [ref=e120]:
+      - img [ref=e121]
+  - button "Clerk is in keyless mode" [ref=e125]:
+    - generic [ref=e126]:
+      - generic [ref=e127]:
+        - img [ref=e129]
+        - img [ref=e135]
+      - paragraph [ref=e137] [cursor=pointer]: Clerk is in keyless mode
+```
