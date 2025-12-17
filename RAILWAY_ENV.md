@@ -9,9 +9,11 @@ OPENROUTER_API_KEY=sk-or-v1-...
 # OR
 OPENAI_API_KEY=sk-...
 
-# Database
-SUPABASE_URL=https://xxxxx.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGc...
+# Database (Railway Postgres)
+DATABASE_URL=postgresql://postgres:password@host:port/railway 
+# (Supabase is DEPRECATED - DO NOT USE)
+# SUPABASE_URL=... (Removed)
+# SUPABASE_SERVICE_ROLE_KEY=... (Removed)
 
 # Open States API (for California State Legislature)
 OPENSTATES_API_KEY=your-key-from-open.pluralpolicy.com

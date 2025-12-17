@@ -9,7 +9,7 @@ logger = logging.getLogger("postgres_db")
 
 class PostgresDB:
     def __init__(self, database_url: Optional[str] = None):
-        self.database_url = database_url or os.getenv("DATABASE_URL")
+        self.database_url = database_url or os.getenv("DATABASE_URL_PUBLIC") or os.getenv("DATABASE_URL")
         # Handle transaction pooler url compatibility if needed (asyncpg usually needs strict formatting)
         # But generic postgres:// should work.
         if not self.database_url:
