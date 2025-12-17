@@ -110,14 +110,24 @@ check-railway-shell:
 	fi
 
 # Run pipeline verification (RAG V3)
-verify-pipeline: check-railway-shell
+verify-pipeline:
 	@echo "🧪 Running RAG Pipeline Verification (E2E)..."
-	cd backend && poetry run python scripts/verification/verify_sanjose_pipeline.py
+	@if [ -z "$$RAILWAY_PROJECT_NAME" ]; then \
+		echo "🔄 Not in Railway Shell. Wrapping in 'railway run'..."; \
+		cd backend && railway run poetry run python scripts/verification/verify_sanjose_pipeline.py; \
+	else \
+		cd backend && poetry run python scripts/verification/verify_sanjose_pipeline.py; \
+	fi
 
 # Run analysis loop verification (Integration)
-verify-analysis: check-railway-shell
+verify-analysis:
 	@echo "🧠 Running Analysis Loop Verification..."
-	cd backend && poetry run python scripts/verification/verify_analysis_loop.py
+	@if [ -z "$$RAILWAY_PROJECT_NAME" ]; then \
+		echo "🔄 Not in Railway Shell. Wrapping in 'railway run'..."; \
+		cd backend && railway run poetry run python scripts/verification/verify_analysis_loop.py; \
+	else \
+		cd backend && poetry run python scripts/verification/verify_analysis_loop.py; \
+	fi
 
 # Run agent pipeline verification (Mocked)
 verify-agents:
@@ -125,20 +135,36 @@ verify-agents:
 	cd backend && poetry run python scripts/verification/verify_agent_pipeline.py
 
 # Run auth verification
-verify-auth: check-railway-shell
+verify-auth:
 	@echo "🔐 Running Auth Configuration Verification..."
-	cd backend && poetry run python scripts/verification/verify_auth_config.py
+	@if [ -z "$$RAILWAY_PROJECT_NAME" ]; then \
+		echo "🔄 Not in Railway Shell. Wrapping in 'railway run'..."; \
+		cd backend && railway run poetry run python scripts/verification/verify_auth_config.py; \
+	else \
+		cd backend && poetry run python scripts/verification/verify_auth_config.py; \
+	fi
 
 # Run storage verification
-verify-storage: check-railway-shell
+verify-storage:
 	@echo "📦 Running S3/MinIO Storage Verification..."
-	cd backend && poetry run python scripts/verification/verify_s3_connection.py
+	@if [ -z "$$RAILWAY_PROJECT_NAME" ]; then \
+		echo "🔄 Not in Railway Shell. Wrapping in 'railway run'..."; \
+		cd backend && railway run poetry run python scripts/verification/verify_s3_connection.py; \
+	else \
+		cd backend && poetry run python scripts/verification/verify_s3_connection.py; \
+	fi
 
 # Run environment & admin check
-verify-env: check-railway-shell
+verify-env:
 	@echo "🌍 Checking Environment & Admin Setup..."
-	cd backend && poetry run python scripts/check_env.py
-	cd backend && poetry run python scripts/verification/verify_admin_import.py
+	@if [ -z "$$RAILWAY_PROJECT_NAME" ]; then \
+		echo "🔄 Not in Railway Shell. Wrapping in 'railway run'..."; \
+		cd backend && railway run poetry run python scripts/check_env.py; \
+		cd backend && railway run poetry run python scripts/verification/verify_admin_import.py; \
+	else \
+		cd backend && poetry run python scripts/check_env.py; \
+		cd backend && poetry run python scripts/verification/verify_admin_import.py; \
+	fi
 
 # Run ALL verifications
 verify-all: verify-env verify-auth verify-storage verify-agents verify-analysis verify-pipeline

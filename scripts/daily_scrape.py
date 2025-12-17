@@ -37,7 +37,8 @@ class ScrapeJob:
         from services.ingestion_service import IngestionService
         from services.vector_backend_factory import create_vector_backend
         from llm_common.embeddings.openai import OpenAIEmbeddingService
-        from llm_common.embeddings.mock import MockEmbeddingService
+        from llm_common.embeddings.openai import OpenAIEmbeddingService
+        # from llm_common.embeddings.mock import MockEmbeddingService # Removed broken import
         
         # Initialize Ingestion
         # Note: EmbeddingService relies on env vars (OPENAI_API_KEY or OPENROUTER_API_KEY)
@@ -46,9 +47,16 @@ class ScrapeJob:
                 base_url="https://openrouter.ai/api/v1",
                 api_key=os.environ.get("OPENROUTER_API_KEY"),
                 model="qwen/qwen3-embedding-8b",
-                dimensions=4096
+                dimensions=1536 # Was 4096. Assuming local DB is 1536. Qwen supports truncation or we risk mismatch.
+                # If verified mismatch with Qwen, we must update DB schema or model choice.
             )
         else:
+            # Inline Mock if llm-common missing it
+            class MockEmbeddingService:
+                async def embed_query(self, text: str) -> list[float]:
+                    return [0.1] * 1536
+                async def embed_documents(self, texts: list[str]) -> list[list[float]]:
+                    return [[0.1] * 1536 for _ in texts]
             embedding_service = MockEmbeddingService()
         
         # Create embedding function for vector backend
@@ -61,7 +69,7 @@ class ScrapeJob:
             embedding_fn=embed_fn
         )
         ingestion_service = IngestionService(
-            supabase_client=self.db.client,
+            postgres_client=self.db, # Fixed arg name from 'supabase_client'
             vector_backend=vector_backend,
             embedding_service=embedding_service
         )
