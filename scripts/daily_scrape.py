@@ -37,9 +37,12 @@ class ScrapeJob:
         from services.ingestion_service import IngestionService
         from services.vector_backend_factory import create_vector_backend
         from llm_common.embeddings.openai import OpenAIEmbeddingService
-        from llm_common.embeddings.openai import OpenAIEmbeddingService
+        from services.storage.s3_storage import S3Storage
         # from llm_common.embeddings.mock import MockEmbeddingService # Removed broken import
         
+        # Initialize Storage
+        s3_storage = S3Storage()
+
         # Initialize Ingestion
         # Note: EmbeddingService relies on env vars (OPENAI_API_KEY or OPENROUTER_API_KEY)
         if os.environ.get("OPENAI_API_KEY") or os.environ.get("OPENROUTER_API_KEY"):
@@ -71,7 +74,8 @@ class ScrapeJob:
         ingestion_service = IngestionService(
             postgres_client=self.db, # Fixed arg name from 'supabase_client'
             vector_backend=vector_backend,
-            embedding_service=embedding_service
+            embedding_service=embedding_service,
+            storage_backend=s3_storage
         )
         
         async with SEM:
