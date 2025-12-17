@@ -449,17 +449,25 @@ affordabot/
 
 ## Best Practices
 
-### Before Committing
+### Before Committing (Tiered Approach)
 
+**1. The "Every Commit" Check (Fast):**
 ```bash
-# 1. Run local CI
+make ci-lite
+# Checks: Linting + Backend Unit Tests (<30s)
+```
+
+**2. The "Structural Change" Check (Slow):**
+*Run this if you modified: `layout.tsx`, `middleware.ts`, `package.json`, or global Context.*
+```bash
+make build
+# Checks: Next.js Static Generation + Type Safety (~1m)
+```
+
+**3. The "Deep Verification" Check:**
+```bash
 make ci
-
-# 2. Check build output
-# Look for: ✓ Route (app) ... kB
-
-# 3. Review test results
-# Look for: X passed (Xs)
+# Checks: Everything above + E2E Smoke Tests
 ```
 
 ### Before Creating PR
