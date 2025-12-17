@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { PlayCircle, Loader2, CheckCircle2, XCircle, Clock, AlertCircle, Check, ChevronsUpDown } from 'lucide-react';
+import { PlayCircle, Loader2, CheckCircle2, XCircle, Clock, AlertCircle, Check, ChevronsUpDown, ExternalLink } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { adminService, ScrapeTask, ScrapeHistory, Jurisdiction } from '@/services/adminService';
 import { cn } from "@/lib/utils";
@@ -337,6 +337,7 @@ export function ScrapeManager() {
                                     <TableHead className="text-gray-500">Jurisdiction</TableHead>
                                     <TableHead className="text-gray-500">Bills Found</TableHead>
                                     <TableHead className="text-gray-500">Timestamp</TableHead>
+                                    <TableHead className="text-gray-500">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -356,6 +357,16 @@ export function ScrapeManager() {
                                         </TableCell>
                                         <TableCell className="text-gray-500">
                                             {new Date(item.timestamp).toLocaleString()}
+                                        </TableCell>
+                                        <TableCell>
+                                            <a
+                                                href={`/api/admin/scrapes/${item.id}/asset`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="flex items-center gap-1 text-purple-600 hover:text-purple-800 hover:underline"
+                                            >
+                                                View Asset <ExternalLink className="w-4 h-4" />
+                                            </a>
                                         </TableCell>
                                     </TableRow>
                                 ))}

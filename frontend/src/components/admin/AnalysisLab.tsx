@@ -3,13 +3,21 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { PlayCircle, Loader2, CheckCircle2, XCircle, Zap, FileSearch, FileText, CheckSquare, Check, ChevronsUpDown } from 'lucide-react';
+import { PlayCircle, Loader2, CheckCircle2, XCircle, Zap, FileSearch, FileText, CheckSquare, Check, ChevronsUpDown, Eye } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 import { adminService, Jurisdiction } from '@/services/adminService';
@@ -55,6 +63,8 @@ export function AnalysisLab() {
     const [activeTasks, setActiveTasks] = useState<AnalysisTask[]>([]);
     const [history, setHistory] = useState<AnalysisHistory[]>([]);
     const [alert, setAlert] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+    const [selectedAnalysis, setSelectedAnalysis] = useState<AnalysisHistory | null>(null);
+
 
     const [models, setModels] = useState<{ value: string, label: string }[]>([]);
 
@@ -458,6 +468,7 @@ export function AnalysisLab() {
                                     <TableHead className="text-gray-500">Bill ID</TableHead>
                                     <TableHead className="text-gray-500">Model</TableHead>
                                     <TableHead className="text-gray-500">Timestamp</TableHead>
+                                    <TableHead className="text-gray-500">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -482,6 +493,17 @@ export function AnalysisLab() {
                                             <TableCell className="text-gray-500">
                                                 {new Date(item.timestamp).toLocaleString()}
                                             </TableCell>
+                                            <TableCell>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => setSelectedAnalysis(item)}
+                                                    disabled={!item.result}
+                                                >
+                                                    <Eye className="w-4 h-4 mr-2" />
+                                                    View Result
+                                                </Button>
+                                            </TableCell>
                                         </TableRow>
                                     );
                                 })}
@@ -490,6 +512,25 @@ export function AnalysisLab() {
                     )}
                 </CardContent>
             </Card>
+
+            {/* Result Dialog */}
+            <Dialog open={!!selectedAnalysis} onOpenChange={(open) => !open && setSelectedAnalysis(null)}>
+                <DialogContent className="max-w-4xl h-4/5 flex flex-col">
+                    <DialogHeader>
+                        <DialogTitle>Analysis Result</DialogTitle>
+                        <DialogDescription>
+                            {selectedAnalysis?.jurisdiction} - {selectedAnalysis?.bill_id} ({selectedAnalysis?.step})
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="overflow-auto flex-grow">
+                        <pre className="text-sm bg-gray-900 text-white p-4 rounded-md">
+                            <code>
+                                {selectedAnalysis?.result ? JSON.stringify(selectedAnalysis.result, null, 2) : 'No result available'}
+                            </code>
+                        </pre>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
