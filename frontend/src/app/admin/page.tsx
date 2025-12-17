@@ -70,62 +70,7 @@ export default function AdminDashboard() {
 
                 {/* Overview Tab */}
                 <TabsContent value="overview" className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                        {/* Quick Stats */}
-                        <Card className="bg-white/40 backdrop-blur-md border-white/20 shadow-sm">
-                            <CardHeader className="pb-3">
-                                <CardTitle className="text-gray-600 text-sm font-medium">Total Scrapes</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-3xl font-bold text-gray-900">0</div>
-                                <p className="text-xs text-gray-500 mt-1">Last 30 days</p>
-                            </CardContent>
-                        </Card>
-
-                        <Card className="bg-white/40 backdrop-blur-md border-white/20 shadow-sm">
-                            <CardHeader className="pb-3">
-                                <CardTitle className="text-gray-600 text-sm font-medium">Analyses Run</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-3xl font-bold text-gray-900">0</div>
-                                <p className="text-xs text-gray-500 mt-1">All time</p>
-                            </CardContent>
-                        </Card>
-
-                        <Card className="bg-white/40 backdrop-blur-md border-white/20 shadow-sm">
-                            <CardHeader className="pb-3">
-                                <CardTitle className="text-gray-600 text-sm font-medium">Active Models</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-3xl font-bold text-gray-900">3</div>
-                                <p className="text-xs text-gray-500 mt-1">Configured</p>
-                            </CardContent>
-                        </Card>
-
-                        <Card className="bg-white/40 backdrop-blur-md border-white/20 shadow-sm">
-                            <CardHeader className="pb-3">
-                                <CardTitle className="text-gray-600 text-sm font-medium">System Health</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <Badge className="bg-green-100 text-green-700 border-green-200 hover:bg-green-200">
-                                    Healthy
-                                </Badge>
-                            </CardContent>
-                        </Card>
-                    </div>
-
-                    {/* Recent Activity Placeholder */}
-                    <Card className="bg-white/40 backdrop-blur-md border-white/20 shadow-sm">
-                        <CardHeader>
-                            <CardTitle className="text-gray-900">Recent Activity</CardTitle>
-                            <CardDescription className="text-gray-500">Latest system actions and events</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-sm text-gray-500 text-center py-8">
-                                No recent activity to display
-                            </div>
-                        </CardContent>
-                    </Card>
+                    <AnalyticsDashboard />
                 </TabsContent>
 
                 {/* Scraping Tab */}
