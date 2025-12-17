@@ -1,8 +1,8 @@
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from ..db.postgres_client import PostgresDB
-from ..schemas.prompt import SystemPromptUpdate
+from db.postgres_client import PostgresDB
+from schemas.prompt import SystemPromptUpdate
 
 router = APIRouter()
 
