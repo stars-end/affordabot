@@ -10,9 +10,9 @@ def analyzer():
     Fixture that patches external dependencies and returns an analyzer instance
     with those mocks pre-configured.
     """
-    with patch("backend.services.llm.analyzer.instructor.from_openai") as mock_from_openai, \
-         patch("backend.services.llm.analyzer.AsyncOpenAI"), \
-         patch("backend.services.llm.analyzer.PostgresDB") as MockPostgresDB:
+    with patch("services.llm.analyzer.instructor.from_openai") as mock_from_openai, \
+         patch("services.llm.analyzer.AsyncOpenAI"), \
+         patch("services.llm.analyzer.PostgresDB") as MockPostgresDB:
         
         # Setup LLM Client Mock
         mock_client = AsyncMock()

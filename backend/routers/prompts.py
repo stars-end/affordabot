@@ -1,6 +1,6 @@
 
 from fastapi import APIRouter, Depends, HTTPException
-from typing import List
+
 from ..db.postgres_client import PostgresDB
 from ..schemas.prompt import SystemPromptUpdate
 
