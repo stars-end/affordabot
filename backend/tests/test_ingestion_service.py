@@ -10,7 +10,7 @@ def mock_postgres():
     pg = MagicMock()
     pg._fetchrow = AsyncMock()
     pg._execute = AsyncMock()
-    pg.get_or_create_source = AsyncMock(return_value="test-source-id")
+    pg.get_or_create_source = AsyncMock(return_value="12345678-1234-5678-1234-567812345678")
     pg.create_raw_scrape = AsyncMock(return_value="test-scrape-id")
     # Define side effect for _fetchrow to handle different queries
     async def fetchrow_side_effect(query, *args):
@@ -20,7 +20,7 @@ def mock_postgres():
              return {
                 "id": "test-scrape-123",
                 "data": json.dumps({"content": "Title Some text."}),
-                "source_id": "test-source",
+                "source_id": "12345678-1234-5678-1234-567812345678",
                 "url": "http://example.com",
                 "content_type": "text/html",
                 "metadata": "{}"
@@ -29,7 +29,7 @@ def mock_postgres():
 
     pg._fetchrow.side_effect = fetchrow_side_effect
     pg._execute = AsyncMock()
-    pg.get_or_create_source = AsyncMock(return_value="test-source-id")
+    pg.get_or_create_source = AsyncMock(return_value="12345678-1234-5678-1234-567812345678")
     pg.create_raw_scrape = AsyncMock(return_value="test-scrape-id")
     return pg
 
