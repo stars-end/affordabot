@@ -4,6 +4,7 @@ import hashlib
 from openai import AsyncOpenAI
 from schemas.analysis import LegislationAnalysisResponse
 from datetime import datetime
+from db.postgres_client import PostgresDB
 
 class LegislationAnalyzer:
     def __init__(self):
@@ -25,6 +26,7 @@ class LegislationAnalyzer:
         
         # In-memory cache (use Redis in production)
         self.cache = {}
+        self.db = PostgresDB()
 
     def _generate_cache_key(self, bill_text: str, bill_number: str, jurisdiction: str) -> str:
         """Generate a hash key for caching based on bill content."""
@@ -45,27 +47,34 @@ class LegislationAnalyzer:
         
         print(f"🔄 Analyzing {bill_number} with LLM...")
         
-        system_prompt = """
-        You are an expert policy analyst for AffordaBot, specializing in cost of living impacts for California families.
-        Analyze the following legislation and identify ALL impacts on cost of living.
+        prompt_data = await self.db.get_system_prompt('legislation_analysis')
         
-        REQUIREMENTS:
-        1. For EACH impact, you MUST provide:
-           - relevant_clause: Exact text from legislation
-           - impact_description: How this affects cost of living
-           - evidence: List of quantitative sources with URLs (academic, gov, industry)
-           - chain_of_causality: Step-by-step reasoning
-           - confidence_factor: 0.0-1.0 (your confidence in this analysis)
-           - Cost distribution: p10, p25, p50, p75, p90 in 2025 dollars
+        if prompt_data and prompt_data.get('system_prompt'):
+            system_prompt = prompt_data['system_prompt']
+            print("✅ Loaded system prompt from DB")
+        else:
+            print("⚠️ WARNING: Could not load prompt from DB, using fallback.")
+            system_prompt = """
+            You are an expert policy analyst for AffordaBot, specializing in cost of living impacts for California families.
+            Analyze the following legislation and identify ALL impacts on cost of living.
+            
+            REQUIREMENTS:
+            1. For EACH impact, you MUST provide:
+               - relevant_clause: Exact text from legislation
+               - impact_description: How this affects cost of living
+               - evidence: List of quantitative sources with URLs (academic, gov, industry)
+               - chain_of_causality: Step-by-step reasoning
+               - confidence_factor: 0.0-1.0 (your confidence in this analysis)
+               - Cost distribution: p10, p25, p50, p75, p90 in 2025 dollars
 
-        2. Evidence MUST include:
-           - URLs must be real and accessible if possible, or cite specific known studies.
-           - Cite specific numbers/data points.
+            2. Evidence MUST include:
+               - URLs must be real and accessible if possible, or cite specific known studies.
+               - Cite specific numbers/data points.
 
-        3. If you cannot find sufficient evidence for an impact, DO NOT include it.
-        
-        4. Be conservative with cost estimates. It's better to underestimate than overestimate.
-        """
+            3. If you cannot find sufficient evidence for an impact, DO NOT include it.
+            
+            4. Be conservative with cost estimates. It's better to underestimate than overestimate.
+            """
 
         user_message = f"""
         JURISDICTION: {jurisdiction}

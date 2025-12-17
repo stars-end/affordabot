@@ -1,0 +1,25 @@
+           ID                                    Description                                    Repo                Last active                Status         
+ 16885572797748947723    TASK: MVP V1: Verification UI (affordabot-76p)CONTEXT:- Rep…  stars-end/affordabot    7m34s ago               Completed      
+ 13654693682330711208    TASK: MVP V1: Wire CityScrapers (affordabot-aq0)CONTEXT:- R…  stars-end/affordabot    18m36s ago              Awaiting User F
+ 10141959435819164678    TASK: MVP V1: Wire S3 Storage (affordabot-a3o)CONTEXT:- Rep…  stars-end/affordabot    30m39s ago              Completed      
+ 3592156152008964529     TASK: MVP V1: Wire DB Prompts (affordabot-1q7)CONTEXT:- Rep…  stars-end/affordabot    15m5s ago               Completed      
+ 13164212296782888434    TASK: Execute Supabase Audit Findings (ID: bd-supabase-clea…  stars-end/prime-radia…  22h13m59s ago           Awaiting User F
+ 252734143741930226      TASK: Audit and consolidate scripts into Makefile (ID: bd-m…  stars-end/prime-radia…  22h33m34s ago           Completed      
+ 6854095747119862362     TASK: fix_ci_doctor_path_resolution (ID: bd-g9mp)DESCRIPTIO…  stars-end/prime-radia…  22h22m47s ago           Completed      
+ 6552768176177872506     TASK: Audit codebase for remaining Supabase references (ID:…  stars-end/prime-radia…  1 day ago               Completed      
+ 13450973975966983306    TASK: Jules Test: Add version comment to main.py (ID: bd-aq…  stars-end/prime-radia…  1 day ago               Completed      
+ 13113385763756792503    TASK: Add Jules Health Check Endpoint (ID: bd-4mot)DESCRIPT…  stars-end/prime-radia…  2 days ago              Completed      
+ 2070043861974886822     TASK: Add Jules Health Check Endpoint (ID: bd-4mot)DESCRIPT…  stars-end/prime-radia…  2 days ago              Completed      
+ 3062604365299140253     ## Task: Implement DB update for pipeline failure**Details:…  stars-end/affordabot    4 days ago                             
+ 10544746386997252535    ## Task: Implement database health check in detailed health…  stars-end/affordabot    4 days ago                             
+ 6758352520247508020     ## Task: Implement DB persistence for pipeline run creation…  stars-end/affordabot    4 days ago                             
+ 6517258856144260789     ## Task: Implement DB logging for pipeline steps**Details:*…  stars-end/affordabot    4 days ago                             
+ 3445199036625265317     ## Task: Fetch bill from API**Details:**- File: frontend/sr…  stars-end/affordabot    4 days ago                             
+ 8088658612945500387     ## Task: Implement DB update for pipeline completion**Detai…  stars-end/affordabot    4 days ago                             
+ 17390947788266768661    ## Task: Pass real accounts data to BrokerageConnections**D…  stars-end/prime-radia…  2 days ago              Paused         
+ 17418021174795609335    ## Task: Refresh stale security details**Details:**- File: …  stars-end/prime-radia…  4 days ago                             
+ 15403875080090278282    ## Task: Filter accounts by brokerage_connection_id**Detail…  stars-end/prime-radia…  4 days ago                             
+ 15582337460540398948    ## Task: Filter accounts by brokerage_connection_id during …  stars-end/prime-radia…  4 days ago                             
+ 15359461140500374853    ## Task: Show error message on holding save failure**Detail…  stars-end/prime-radia…  4 days ago                             
+ 6869832946202354684     ## Task: Show error message on CSV upload failure**Details:…  stars-end/prime-radia…  4 days ago                             
+                                                                                                                                                      
