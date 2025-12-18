@@ -1,11 +1,11 @@
 from prefect import flow, task, get_run_logger
 import os
 import asyncio
-from services.storage.s3_storage import S3Storage
+# from services.storage.s3_storage import S3Storage
 from db.postgres_client import PostgresDB
-from services.ingestion_service import IngestionService
-from services.vector_backend_factory import create_vector_backend
-from llm_common.embeddings.openai import OpenAIEmbeddingService
+# from services.ingestion_service import IngestionService
+# from services.vector_backend_factory import create_vector_backend
+# from llm_common.embeddings.openai import OpenAIEmbeddingService
 
 @task
 def run_spider(spider_name: str):
