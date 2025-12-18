@@ -7,6 +7,9 @@ from schemas.analysis import LegislationAnalysisResponse
 from services.research.zai import ZaiResearchService, ResearchPackage
 import logging
 
+import logging
+from db.postgres_client import PostgresDB
+
 logger = logging.getLogger(__name__)
 
 class ReviewCritique(BaseModel):
@@ -51,6 +54,7 @@ class DualModelAnalyzer:
         ]
         
         self.researcher = ZaiResearchService()
+        self.db = None # Lazy init to avoid loop issues in __init__
 
     async def check_health(self) -> Dict[str, str]:
         """
@@ -140,6 +144,10 @@ class DualModelAnalyzer:
         # 1. Research Phase
         research_package = await self.researcher.search_exhaustively(bill_text, bill_number)
         
+        if not self.db:
+             self.db = PostgresDB()
+             await self.db.connect()
+
         # 2. Generation Phase
         draft_analysis = await self._generate_draft(bill_text, bill_number, jurisdiction, research_package)
         
@@ -156,6 +164,20 @@ class DualModelAnalyzer:
         
         return final_analysis
 
+    async def _get_system_prompt(self, key: str, default: str) -> str:
+        """Fetch system prompt from DB with fallback."""
+        if not self.db:
+             return default
+        
+        try:
+             prompt_data = await self.db.get_system_prompt(key)
+             if prompt_data and prompt_data.get('system_prompt'):
+                 return prompt_data['system_prompt']
+        except Exception as e:
+             logger.warning(f"Failed to fetch prompt {key}: {e}")
+             
+        return default
+
     async def _generate_draft(
         self, 
         bill_text: str, 
@@ -164,10 +186,11 @@ class DualModelAnalyzer:
         research: ResearchPackage
     ) -> LegislationAnalysisResponse:
         """Generate initial draft using fallback models."""
-        system_prompt = """
+        default_prompt = """
         You are an expert policy analyst. Analyze the legislation for cost-of-living impacts.
         Use the provided RESEARCH DATA to support your analysis with real evidence.
         """
+        system_prompt = await self._get_system_prompt("legislation_analysis", default_prompt)
         
         user_message = f"""
         BILL: {bill_number} ({jurisdiction})
@@ -196,10 +219,11 @@ class DualModelAnalyzer:
         research: ResearchPackage
     ) -> ReviewCritique:
         """Review the draft using fallback models."""
-        system_prompt = """
+        default_prompt = """
         You are a strict auditor. Review the provided analysis against the bill text and research.
         Verify every claim. Check for hallucinations. Ensure all impacts are supported by evidence.
         """
+        system_prompt = await self._get_system_prompt("analysis_review", default_prompt)
         
         user_message = f"""
         ANALYSIS TO REVIEW:
@@ -226,10 +250,11 @@ class DualModelAnalyzer:
         bill_text: str
     ) -> LegislationAnalysisResponse:
         """Refine the draft based on critique using fallback models."""
-        system_prompt = """
+        default_prompt = """
         You are an expert policy analyst. Update your previous analysis based on the auditor's critique.
         Fix factual errors, add missing impacts, and correct citations.
         """
+        system_prompt = await self._get_system_prompt("analysis_refinement", default_prompt)
         
         user_message = f"""
         PREVIOUS DRAFT:
