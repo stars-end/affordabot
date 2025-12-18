@@ -1,5 +1,5 @@
 from affordabot_scraper.spiders.sanjose_base import SanJoseBaseSpider
-from affordabot_scraper.items import ContentItem
+# from affordabot_scraper.items import ContentItem (Unused)
 
 class SanJoseMinutesSpider(SanJoseBaseSpider):
     name = "sanjose_minutes"

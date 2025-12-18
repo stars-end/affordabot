@@ -24,22 +24,22 @@ async def run_pipeline(source_path: str):
     db = PostgresDB()
     await db.connect()
     
-    s3 = S3Storage()
+    # s3 = S3Storage()
     
     # 2. Initialize Embeddings (Fail gracefully if key missing)
-    if os.getenv("OPENROUTER_API_KEY") or os.getenv("OPENAI_API_KEY"):
-         embedding_service = OpenAIEmbeddingService(
-            base_url="https://openrouter.ai/api/v1",
-            api_key=os.getenv("OPENROUTER_API_KEY"),
-            model="qwen/qwen3-embedding-8b",
-            dimensions=1536
-         )
-    else:
-        logger.warning("No LLM Key found, skipping embeddings")
-        embedding_service = None
+    # if os.getenv("OPENROUTER_API_KEY") or os.getenv("OPENAI_API_KEY"):
+    #      embedding_service = OpenAIEmbeddingService(
+    #         base_url="https://openrouter.ai/api/v1",
+    #         api_key=os.getenv("OPENROUTER_API_KEY"),
+    #         model="qwen/qwen3-embedding-8b",
+    #         dimensions=1536
+    #      )
+    # else:
+    #     logger.warning("No LLM Key found, skipping embeddings")
+    #     embedding_service = None
 
     # 3. Initialize Vector Backend
-    vector_backend = create_vector_backend(db, None) # Embed fn handled inside service usually? No, factory needs it.
+    # vector_backend = create_vector_backend(db, None) # Embed fn handled inside service usually? No, factory needs it.
     
     # 4. Initialize Ingestion Service
     # ingestion = IngestionService(
