@@ -1,5 +1,5 @@
 import scrapy
-from typing import Generator, Dict
+# from typing import Generator, Dict (Unused)
 
 class SanJoseBaseSpider(scrapy.Spider):
     """
