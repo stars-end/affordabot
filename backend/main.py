@@ -36,7 +36,7 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 
-app = FastAPI(title="Affordabot API") # Changed title
+app = FastAPI(title="Affordabot API")
 db = PostgresDB()
 email_service = EmailNotificationService()
 
@@ -163,7 +163,7 @@ async def process_jurisdiction(jurisdiction: str, scraper_class, jur_type: str):
                         "bill_number": bill.bill_number,
                         "title": bill.title,
                         "text": bill.text,
-                        "introduced_date": bill.introduced_date.isoformat() if bill.introduced_date else None,
+                        "introduced_date": bill.introduced_date if bill.introduced_date else None,
                         "status": bill.status,
                         "raw_html": bill.raw_html
                     }
