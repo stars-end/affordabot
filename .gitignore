@@ -45,6 +45,7 @@ Thumbs.db
 # Misc
 *.html
 saratoga.html
+!frontend-v2/index.html
 
 # Supabase
 supabase/supabase/.temp/

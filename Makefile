@@ -25,7 +25,9 @@ install:
 		exit 1; \
 	fi
 	@echo "Installing dependencies..."
+	@echo "Installing dependencies..."
 	pnpm install
+	cd frontend-v2 && pnpm install
 	@echo "Backend uses venv - activate with: source backend/venv/bin/activate"
 	@echo "Then install: pip install -r backend/requirements.txt"
 
@@ -43,6 +45,10 @@ dev-railway:
 dev-frontend:
 	cd frontend && pnpm dev
 
+dev-frontend-v2:
+	cd frontend-v2 && pnpm dev
+
+
 dev-backend:
 	@if [ ! -d backend/venv ]; then \
 		echo "Creating Python virtual environment..."; \
@@ -55,7 +61,9 @@ dev-backend:
 # Build for production
 build:
 	@echo "Building production bundles..."
+	@echo "Building production bundles..."
 	cd frontend && pnpm build
+	cd frontend-v2 && pnpm build
 
 # Run tests
 test:
@@ -87,6 +95,8 @@ clean:
 	rm -rf frontend/node_modules
 	rm -rf frontend/playwright-report
 	rm -rf frontend/test-results
+	rm -rf frontend-v2/dist
+	rm -rf frontend-v2/node_modules
 	rm -rf backend/__pycache__
 	rm -rf backend/.pytest_cache
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true

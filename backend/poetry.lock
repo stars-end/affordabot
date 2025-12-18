@@ -2279,8 +2279,8 @@ pgvector = ["asyncpg (>=0.29.0,<0.31.0)", "pgvector (>=0.3.0,<0.4.0)", "sqlalche
 [package.source]
 type = "git"
 url = "https://github.com/stars-end/llm-common.git"
-reference = "feature-affordabot-q4x-agent-framework"
-resolved_reference = "57d1a162600ef873c93cad74b128eae008678067"
+reference = "feature-affordabot-1mz-agent-upgrade"
+resolved_reference = "a247d828dea8a784f86cf6a753aec3c46220283b"
 
 [[package]]
 name = "lupa"
@@ -6985,4 +6985,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.13"
-content-hash = "11d308cc619f50ab6b87ffa574b241287a7d97f5721eb81d861527a1e3b6138f"
+content-hash = "e2aa66dd4c5750d4126a1adc9510c281884fc48824107565a3a5f5150bdfba61"
