@@ -32,7 +32,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build frontend
-        run: cd frontend-v2 && pnpm build
+        run: cd frontend-v2 && npx vite build
 
   # Frontend E2E removed as frontend-v2 has no tests currently
   # and legacy frontend tests are incompatible with v2 backend.
