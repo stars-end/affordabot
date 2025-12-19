@@ -54,6 +54,15 @@ async def test_analysis_pipeline_integration():
     mock_db.store_legislation = AsyncMock(return_value=101)
     mock_db.store_impacts = AsyncMock()
     mock_db.complete_pipeline_run = AsyncMock()
+    mock_db.get_latest_scrape_for_bill = AsyncMock(return_value={
+        "id": "scrape-1",
+        "url": "http://example.com/bill",
+        "content_hash": "hash123",
+        "metadata": {"bill_number": "AB-1234"},
+        "storage_uri": "s3://bucket/blob.html",
+        "document_id": "doc-1"
+    })
+    mock_db.get_vector_stats = AsyncMock(return_value={"chunk_count": 5})
     
     # 2. Initialize Pipeline
     pipeline = AnalysisPipeline(mock_llm, mock_search, mock_db)
