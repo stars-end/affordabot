@@ -47,7 +47,8 @@ async def test_analysis_pipeline_integration():
     mock_resp_2 = MagicMock()
     mock_resp_2.content = review_obj.model_dump_json()
     
-    mock_llm.chat_completion.side_effect = [mock_resp_1, mock_resp_2]
+    # Use AsyncMock for async chat_completion method
+    mock_llm.chat_completion = AsyncMock(side_effect=[mock_resp_1, mock_resp_2])
     
     # Mock DB
     mock_db.create_pipeline_run = AsyncMock(return_value="run-1")
