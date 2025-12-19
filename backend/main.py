@@ -133,7 +133,7 @@ async def health_check_analysis():
         llm_ok = await llm_client.validate_api_key()
         
         # Check Search
-        search_client = WebSearchClient(api_key=os.getenv("ZAI_API_KEY", "dummy"))
+        _ = WebSearchClient(api_key=os.getenv("ZAI_API_KEY", "dummy"))
         # WebSearchClient doesn't have explicit check_health, assume OK if init passed or add check if available
         # But we can try a simple search?
         search_ok = True 
@@ -197,7 +197,7 @@ async def process_jurisdiction(jurisdiction: str, scraper_class, jur_type: str):
             return {"jurisdiction": jurisdiction, "status": "no bills"}
         
         # 2. Get or create jurisdiction in DB
-        jurisdiction_id = await db.get_or_create_jurisdiction(
+        _ = await db.get_or_create_jurisdiction(
             name=scraper.jurisdiction_name,
             type=jur_type
         )
@@ -216,7 +216,7 @@ async def process_jurisdiction(jurisdiction: str, scraper_class, jur_type: str):
                     "review": os.getenv("LLM_MODEL_REVIEW", "glm-4.6")
                 }
                 
-                analysis = await pipeline.run(
+                await pipeline.run(
                     bill_id=bill.bill_number,
                     bill_text=bill.text,
                     jurisdiction=scraper.jurisdiction_name,

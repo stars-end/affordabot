@@ -8,20 +8,19 @@ from datetime import datetime
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("verify_live")
 
-import sys
-from pathlib import Path
+import sys # noqa: E402
+from pathlib import Path # noqa: E402
 
 # Add backend to path
 backend_root = str(Path(__file__).parent.parent.parent)
 sys.path.insert(0, backend_root)
 
 # Imports
-from db.postgres_client import PostgresDB
-from services.llm.orchestrator import AnalysisPipeline
-from llm_common.core.client import LLMClient, LLMConfig
-from llm_common.providers import OpenRouterClient, ZaiClient
-from llm_common.web_search import WebSearchClient
-from llm_common.agents import ResearchAgent
+from db.postgres_client import PostgresDB # noqa: E402
+from services.llm.orchestrator import AnalysisPipeline # noqa: E402
+from llm_common.core.client import LLMConfig # noqa: E402
+from llm_common.providers import ZaiClient # noqa: E402
+from llm_common.web_search import WebSearchClient # noqa: E402
 
 async def run_live_verification():
     print("🚀 Starting Live Pipeline Verification")
