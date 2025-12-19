@@ -1,0 +1,10 @@
+[build]
+builder = "RAILPACK"
+watchPatterns = ["frontend-v2/**/*", "pnpm-lock.yaml"]
+
+[deploy]
+startCommand = "pnpm preview --host --port $PORT"
+healthcheckPath = "/"
+healthcheckTimeout = 100
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3

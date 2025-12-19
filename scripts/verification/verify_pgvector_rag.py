@@ -145,8 +145,8 @@ async def check_vector_backend():
         backend = create_vector_backend()
         backend_type = backend.__class__.__name__
         
-        use_pgvector = os.getenv("USE_PGVECTOR_RAG", "false").lower() == "true"
-        expected = "PgVectorBackend" if use_pgvector else "SupabasePgVectorBackend"
+        # V3: We always expect LocalPgVectorBackend or similar Postgres-native backend
+        expected = "LocalPgVectorBackend"
         
         print(f"Backend type: {backend_type}")
         print(f"Expected: {expected}")

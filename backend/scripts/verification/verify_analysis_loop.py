@@ -110,11 +110,15 @@ async def main():
     source_id = rows[0]['id']
 
     # Insert Raw Scrape
+    import json
     test_html = "<html><body><h1>San Jose ADU Bill</h1><p>This bill allows more ADUs in residential zones to lower cost of living.</p></body></html>"
+    # Wrap in JSON structure as column is likely JSONB and expects valid JSON
+    test_data = json.dumps({"content": test_html})
+    
     await db._execute("""
         INSERT INTO raw_scrapes (id, source_id, url, content_hash, content_type, data, processed)
         VALUES ($1, $2, $3, $4, $5, $6, $7)
-    """, test_id, source_id, "http://test.com/bill1", "hash123", "text/html", test_html, False)
+    """, test_id, source_id, "http://test.com/bill1", "hash123", "text/html", test_data, False)
     
     print("✅ Raw Scrape inserted")
 
@@ -153,72 +157,117 @@ async def main():
     chunk_rows = await db._fetch("SELECT count(*) as cnt FROM document_chunks WHERE document_id = $1", doc_id)
     print(f"✅ Vector chunks found in DB: {chunk_rows[0]['cnt']}")
     
-    # 5. Run Analyzer
-    print("🧠 Running LegislationAnalyzer...")
+    # 5. Run AnalysisPipeline
+    print("🧠 Running AnalysisPipeline...")
+    
+    # Needs LLMClient and WebSearchClient
+    from services.llm.orchestrator import AnalysisPipeline, LegislationAnalysisResponse, ReviewCritique, LegislationImpact
+    from llm_common.core import LLMClient
+    from llm_common.web_search import WebSearchClient
+    from llm_common.core.models import LLMResponse, LLMConfig
+    
+    class MockLLMClient(LLMClient):
+        def __init__(self):
+            # Pass dummy config
+            super().__init__(LLMConfig(api_key="mock", provider="mock"))
+            
+        async def chat_completion(self, messages, model=None, **kwargs):
+            # Simple mock responding with specific JSON depending on content?
+            # Or just return a generic valid JSON for whatever was asked.
+            # pipeline calls generic "analyze", then "review", then "refine" (maybe)
+            
+            content = ""
+            msg_str = str(messages)
+            
+            if "policy analyst" in msg_str: # Generate Step
+                resp = LegislationAnalysisResponse(
+                    bill_number="Test Bill 123",
+                    impacts=[
+                        LegislationImpact(
+                            impact_number=1,
+                            relevant_clause="clause 1",
+                            impact_description="Lowers rent",
+                            evidence=[],
+                            chain_of_causality="supply up -> price down",
+                            confidence_score=0.9,
+                            p10=100.0, p25=200.0, p50=300.0, p75=400.0, p90=500.0
+                        )
+                    ],
+                    total_impact_p50=300.0,
+                    analysis_timestamp=datetime.now().isoformat(),
+                    model_used="mock-model"
+                )
+                content = resp.model_dump_json()
+                
+            elif "policy reviewer" in msg_str: # Review Step
+                resp = ReviewCritique(passed=True, critique="Good", missing_impacts=[])
+                content = resp.model_dump_json()
+                
+            else:
+                # Default/Fallback
+                content = "{}"
+                
+            return LLMResponse(content=content, model="mock", usage=None)
+
+        async def validate_api_key(self): return True
+        async def stream_completion(self, **kwargs): pass
+        
+    class MockSearch(WebSearchClient):
+        def __init__(self): pass
+        async def search(self, query): return []
+
+    mock_llm = MockLLMClient()
+    mock_search = MockSearch()
+    
+    pipeline = AnalysisPipeline(mock_llm, mock_search, db)
+    
+    # Mock research agent to avoid real tool calls
+    async def mock_research_run(bill_id, text, juris):
+        return {"collected_data": [{"snippet": "Mock data"}]}
+    pipeline.research_agent.run = mock_research_run
+    
     try:
         bill_text = "This bill allows more ADUs in residential zones to lower cost of living."
         bill_number = "Test Bill 123"
-        analysis = await analyzer.analyze(bill_text, bill_number, "San Jose")
+        jurisdiction = "verification"
         
-        print("\n📊 Analysis Result:")
+        # Ensure jurisdiction exists for pipeline to run against
+        await db._execute("INSERT INTO jurisdictions (id, name, status) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING", jurisdiction, "Test Juris", "active")
+        
+        # Run Pipeline
+        models = {"research": "mock", "generate": "mock", "review": "mock"}
+        analysis = await pipeline.run(bill_number, bill_text, jurisdiction, models)
+        
+        print("\n📊 Pipeline Result:")
         print(f"Impact P50: ${analysis.total_impact_p50}")
-        if analysis.impacts:
-            for impact in analysis.impacts:
-                print(f"- {impact.impact_description} (Conf: {impact.confidence_factor})")
         
-        # 6. Store Result (Simulating AnalysisService/Admin Task)
-        # First, store legislation container
-        print("💾 Storing analysis to Postgres...")
+        # 6. Verify Persistence
+        # AnalysisPipeline stores legislation and impacts automatically.
+        print("💾 Verifying Postgres storage...")
         
-        # We need a legislation ID. 
-        # Usually created during ingestion or just before analysis?
-        # Let's create one now.
-        leg_data = {
-            "bill_number": bill_number,
-            "title": "ADU Housing Bill",
-            "text": bill_text,
-            "status": "introduced",
-            "raw_html": test_html,
-            "introduced_date": datetime.now()
-        }
+        # Find Legislation
+        # The pipeline likely uses 'bill_number' or looks up by ID?
+        # In stored logic, it creates legislation.
+        # We need to find the legislation row created by the pipeline.
         
-        # IngestionService doesn't create legislation rows usually (it creates chunks).
-        # Admin task or Harvester creates legislation.
-        # We can simulate creation here.
-        # Assuming table 'legislation' exists and linked to jurisdiction.
-        # Jurisdiction ID 'verification' (from source)
-        jurisdiction_id = "verification" # Mapped to source earlier
-        # Ensure jurisdiction exists in 'jurisdictions' table?
-        # 'sources' table has 'jurisdiction_id' column, but is it FK?
-        # Let's try inserting jurisdiction if needed.
-        await db._execute("INSERT INTO jurisdictions (id, name, status) VALUES ('verification', 'Test Jurisdiction', 'active') ON CONFLICT DO NOTHING")
-        
-        leg_id = await db.store_legislation(jurisdiction_id, leg_data)
-        if not leg_id:
-            print("❌ Failed to store legislation")
-            return
-            
-        print(f"✅ Legislation stored: {leg_id}")
-        
-        # Store Impacts
-        # Convert Pydantic objects to dicts matching store_impacts expectation?
-        # PostgresDB.store_impacts expects List[Dict[str, Any]]
-        # Let's check signature in postgres_client.py (saw it earlier: store_impacts(legislation_id, impacts))
-        
-        impact_dicts = [impact.model_dump() for impact in analysis.impacts]
-        success = await db.store_impacts(leg_id, impact_dicts)
-        
-        if success:
-            print("✅ Impacts stored successfully")
+        legs = await db._fetch("SELECT id FROM legislation WHERE bill_number = $1", bill_number)
+        if not legs:
+            print("❌ No legislation found in DB")
         else:
-            print("❌ Failed to store impacts")
+            leg_id = legs[0]['id']
+            print(f"✅ Legislation found: {leg_id}")
             
-        # Verify DB Rows
-        imp_count = await db._fetchrow("SELECT count(*) as cnt FROM legislation_impacts WHERE legislation_id = $1", leg_id)
-        print(f"✅ Verify Impacts Row Count: {imp_count['cnt']}")
+            # Check Impacts
+            imp_count = await db._fetchrow("SELECT count(*) as cnt FROM legislation_impacts WHERE legislation_id = $1", leg_id)
+            print(f"✅ Verify Impacts Row Count: {imp_count['cnt']}")
             
+            # Check Pipeline Run
+            # We can check pipeline_runs table
+            run_row = await db._fetchrow("SELECT count(*) as cnt FROM pipeline_runs WHERE legislation_id = $1", leg_id)
+            print(f"✅ Pipeline Runs found: {run_row['cnt']}")
+
     except Exception as e:
-        print(f"❌ Analyzer/Storage Failed: {e}")
+        print(f"❌ Pipeline Execution Failed: {e}")
         import traceback
         traceback.print_exc()
     

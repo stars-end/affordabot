@@ -72,7 +72,7 @@ class ScrapeJob:
             embedding_fn=embed_fn
         )
         ingestion_service = IngestionService(
-            postgres_client=self.db, # Fixed arg name from 'supabase_client'
+            postgres_client=self.db,
             vector_backend=vector_backend,
             embedding_service=embedding_service,
             storage_backend=s3_storage
@@ -133,10 +133,11 @@ class ScrapeJob:
                     }
                     
                     try:
-                        # RAG: Store Raw Scrape only (Ingestion deferred)
-                        if await self.db.create_raw_scrape(scrape_record):
-                             ingested_count += 0 # Placeholder
-                             # TODO: Trigger ingestion once generic backend ready
+                        # RAG: Store Raw Scrape and Trigger Ingestion (v2.1)
+                        scrape_id = await self.db.create_raw_scrape(scrape_record)
+                        if scrape_id and ingestion_service:
+                             await ingestion_service.process_raw_scrape(scrape_id)
+                             ingested_count += 1
                     except Exception as e:
                         logger.warning(f"Failed to record raw scrape for {bill.bill_number}: {e}")
 
@@ -176,7 +177,7 @@ class ScrapeJob:
 async def main():
     logger.info("🚀 Starting Daily Scrape Cron")
     
-    # Load Env (Required for SupabaseDB)
+    # Load Env (Required for DB connection)
     from dotenv import load_dotenv
     load_dotenv(os.path.join(os.path.dirname(__file__), '../backend/.env'))
     
@@ -185,7 +186,15 @@ async def main():
     job = ScrapeJob(db)
     
     tasks = []
-    for slug, (cls, jtype) in SCRAPERS.items():
+    # v2.1 Pilot: Hardcode San Jose for E2E Verification
+    # Original: for slug, (cls, jtype) in SCRAPERS.items():
+    sanjose_pilot = {k: v for k, v in SCRAPERS.items() if k == "san-jose"}
+    
+    if not sanjose_pilot:
+        logger.error("San Jose scraper not found in registry!")
+        sys.exit(1)
+
+    for slug, (cls, jtype) in sanjose_pilot.items():
         tasks.append(job.run_one(slug, cls, jtype))
         
     # Run all

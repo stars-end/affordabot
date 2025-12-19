@@ -32,5 +32,6 @@
 - Issue-First: Create `bd` issue before coding.
 - Feature-Key: Required in commits.
 - Railway Shell: Required for DB ops.
+- **NO .env FILES**: Use `railway shell` for all secrets and env vars. NEVER create or use .env files.
 
 For full V3 guide, see `stars-end/prime-radiant-ai` or run `/help-dx`.

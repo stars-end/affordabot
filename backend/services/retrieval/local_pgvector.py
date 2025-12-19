@@ -54,12 +54,18 @@ class LocalPgVectorBackend(RetrievalBackend):
                 # OR we format as string "[1.0, 2.0, ...]"
                 embedding_val = str(chunk['embedding'])
                 
+                from uuid import UUID
+                def json_serial(obj):
+                    if isinstance(obj, UUID):
+                        return str(obj)
+                    raise TypeError(f"Type {type(obj)} not serializable")
+                
                 await self.db._execute(
                     query,
                     chunk['id'],
                     chunk['content'],
                     embedding_val,
-                    json.dumps(chunk['metadata']), # JSONB fix: dump to string
+                    json.dumps(chunk['metadata'], default=json_serial), # JSONB + UUID fix
                     chunk.get('document_id')
                 )
                 

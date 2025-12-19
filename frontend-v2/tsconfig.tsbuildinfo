@@ -1,0 +1,1 @@
+{"root":["./src/App.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/api/admin.ts","./src/api/legislation.ts","./src/components/GlassBoxViewer.tsx","./src/components/LegislationList.tsx"],"version":"5.9.3"}

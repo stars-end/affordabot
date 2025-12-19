@@ -5,14 +5,9 @@ from llm_common.retrieval import RetrievalBackend
 
 
 def create_vector_backend(
-    postgres_client=None, # Not used directly by create_pg_backend but kept for signature compat if needed, or better, remove it?
-    # Actually, create_pg_backend takes database_url.
-    # Caller can pass DSN if they have it, or we read Env.
-    # postgres_client argument was added by me in run_rag_spiders.py.
-    # Let's support it or just rely on Env.
-    # Best to rely on Env for create_pg_backend as it handles connection pool itself.
+    postgres_client=None, 
     embedding_fn: Optional[Callable[[str], Awaitable[list[float]]]] = None,
-    **kwargs # Swallow legacy args like supabase_client
+    **kwargs # Swallow legacy args
 ) -> RetrievalBackend:
     """
     Create vector retrieval backend (LocalPgVector for V3).

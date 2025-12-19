@@ -1,0 +1,27 @@
+id: story-vis-audit-san-jose
+persona: "A meticulous city clerk auditing the agentic pipeline for San Jose"
+
+steps:
+  - id: step-1-navigate-glassbox
+    description: |
+      Navigate to the Glass Box Viewer at /admin/glassbox.
+      Verify that the "Agent Sessions" list is visible.
+    exploration_budget: 0
+
+  - id: step-2-expand-trace
+    description: |
+      Find the most recent session or search for one related to "San Jose" or "AUDIT-".
+      Click on it to expand the trace steps.
+      Verify that "ResearchAgent" and "LegislationAnalyzer" steps are listed.
+    exploration_budget: 2
+
+  - id: step-3-verify-details
+    description: |
+      Expand the "ResearchAgent" step if it's available.
+      Verify that the trace shows specific tasks or tool calls.
+      Look for any "ERROR" markers and confirm they are documented.
+    exploration_budget: 2
+
+metadata:
+  tags: ["p0", "audit", "visual"]
+  priority: 0

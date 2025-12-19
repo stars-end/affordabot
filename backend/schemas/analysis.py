@@ -31,3 +31,10 @@ class LegislationAnalysisResponse(BaseModel):
     total_impact_p50: float = Field(description="Sum of median impacts")
     analysis_timestamp: str
     model_used: str
+
+class ReviewCritique(BaseModel):
+    """Review output."""
+    passed: bool
+    critique: str
+    missing_impacts: List[str]
+    factual_errors: List[str]

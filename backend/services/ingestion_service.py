@@ -65,8 +65,8 @@ class IngestionService:
         # if row['processed']: return 0
         
         try:
-            # The row from the DB is a dict-like object, which Pydantic can parse
-            scrape = RawScrape.model_validate(row)
+            # The row from the DB is a dict-like object, but Pydantic V2 model_validate needs an explicit dict
+            scrape = RawScrape.model_validate(dict(row))
         except ValidationError as e:
             print(f"❌ Pydantic validation failed for scrape {scrape_id}: {e}")
             await self.pg._execute(

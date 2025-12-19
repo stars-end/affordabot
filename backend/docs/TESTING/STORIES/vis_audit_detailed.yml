@@ -1,0 +1,69 @@
+id: story-vis-audit-detailed
+persona: "A meticulous system auditor verifying every stage of the San Jose pipeline run"
+
+steps:
+  - id: 01-dashboard-overview
+    description: |
+      Navigate to /admin/glassbox.
+      Verify the "Agent Sessions" list is visible and "SearchGlassBox" is present.
+    exploration_budget: 0
+
+  - id: 02-trace-expansion
+    description: |
+      Find the trace with ID starting with "b905c48c".
+      Click it to expand the trace details.
+      Ensure the top-level "Trace Steps" are visible.
+    exploration_budget: 2
+
+  - id: 03-search-step-details
+    description: |
+      Locate the "ResearchAgent" step in the expanded trace.
+      Click to expand it and view the "Plan" or "Execute" substeps.
+      Verify the breakdown of search tasks is visible.
+    exploration_budget: 2
+
+  - id: 04-scrape-inputs
+    description: |
+      Locate the "ScrapeService" or "DailyScrape" related span.
+      Click to view its details.
+      Verify that the target URL (San Jose) is visible.
+    exploration_budget: 2
+    validation_criteria:
+      - "San Jose"
+      - "sanjose.legistar.com"
+
+  - id: 05-scrape-outputs
+    description: |
+      Scroll to view the output of the scraping step.
+      Verify that "Blob stored" or "Content extracted" metadata is visible.
+    exploration_budget: 2
+
+  - id: 06-ingestion-step
+    description: |
+      Locate the "IngestionService" step.
+      Expand it to show document chunking details.
+      Verify "Chunks created" count is visible.
+    exploration_budget: 2
+
+  - id: 07-analysis-agent-plan
+    description: |
+      Locate the "LegislationAnalyzer" or "AnalysisAgent" step.
+      Expand it to view the analysis plan.
+      Verify the plan text is legible.
+    exploration_budget: 2
+
+  - id: 08-analysis-execution
+    description: |
+      Drill down into an analysis execution substep (e.g., "Analyze Bill 123").
+      Verify the tool calls (Z.ai prompts) are visible.
+    exploration_budget: 2
+
+  - id: 09-final-impact-assessment
+    description: |
+      Locate the final "Impact Assessment" or "Result" step.
+      Verify the JSON structure of the impact assessment is visible.
+    exploration_budget: 2
+
+metadata:
+  tags: ["p0", "audit", "visual", "comprehensive"]
+  priority: 0

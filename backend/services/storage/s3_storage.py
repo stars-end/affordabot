@@ -34,28 +34,60 @@ class S3Storage:
             bucket: Bucket name
             secure: Use HTTPS (default False for internal Railway network)
         """
-        self.endpoint = endpoint or os.getenv("MINIO_URL", "").replace("http://", "").replace("https://", "")
+        # v2.1: support public endpoint fallback for local dev/verification
+        internal_url = os.getenv("MINIO_URL", "").replace("http://", "").replace("https://", "")
+        public_url = os.getenv("MINIO_URL_PUBLIC", "").replace("http://", "").replace("https://", "")
+        
+        # If internal_url looks like it's only for Railway network and we have a public URL, 
+        # use public URL unless we are actually in Railway.
+        # Note: RAILWAY_ENVIRONMENT_NAME is set when running on Railway servers.
+        is_on_railway = os.getenv("RAILWAY_ENVIRONMENT_NAME") is not None
+        
+        self.endpoint = endpoint or (internal_url if (is_on_railway or not public_url) else public_url)
         self.access_key = access_key or os.getenv("MINIO_ACCESS_KEY")
         self.secret_key = secret_key or os.getenv("MINIO_SECRET_KEY")
         self.bucket = bucket or os.getenv("MINIO_BUCKET", "affordabot-artifacts")
-        self.secure = secure
+        self.secure = secure or (self.endpoint == public_url and public_url != "")
         
         if not all([self.endpoint, self.access_key, self.secret_key]):
             logger.warning("MinIO credentials not fully configured. Storage operations may fail.")
             self.client = None
         else:
-            try:
-                self.client = Minio(
-                    self.endpoint,
-                    access_key=self.access_key,
-                    secret_key=self.secret_key,
-                    secure=self.secure
-                )
+            self.client = self._initialize_client(self.endpoint, self.secure)
+            
+            # Fallback for local verification if internal DNS fails
+            if not self.client and not is_on_railway:
+                 # Already tried public if not on railway, so nothing to do
+                 pass
+            elif not self.client and is_on_railway and public_url:
+                logger.warning(f"Internal MinIO ({self.endpoint}) failed/unreachable. Falling back to Public URL: {public_url}")
+                self.endpoint = public_url
+                self.secure = True
+                self.client = self._initialize_client(self.endpoint, self.secure)
+
+            if self.client:
                 logger.info(f"S3Storage initialized: {self.endpoint}/{self.bucket}")
                 self._ensure_bucket()
-            except Exception as e:
-                logger.error(f"Failed to initialize MinIO client: {e}")
-                self.client = None
+            else:
+                logger.error("Failed to initialize MinIO client even after attempts.")
+
+    def _initialize_client(self, endpoint, secure):
+        """Helper to init Minio client without crashing on DNS errors."""
+        try:
+            client = Minio(
+                endpoint,
+                access_key=self.access_key,
+                secret_key=self.secret_key,
+                secure=secure
+            )
+            # Connectivity check (will fail on DNS errors)
+            # We use a non-existent bucket check to verify resolution
+            # but wait, bucket_exists might also be slow.
+            # Let's just return the object and let ensure_bucket catch the error.
+            return client
+        except Exception as e:
+            logger.error(f"MinIO client init error: {e}")
+            return None
     
     def _ensure_bucket(self):
         """Ensure bucket exists, create if not."""
@@ -67,8 +99,10 @@ class S3Storage:
                 logger.info(f"Creating bucket: {self.bucket}")
                 self.client.make_bucket(self.bucket)
                 logger.info(f"Bucket created: {self.bucket}")
-        except S3Error as e:
-            logger.error(f"Failed to ensure bucket exists: {e}")
+        except Exception as e:
+            logger.error(f"Failed to ensure bucket exists (DNS or Connection issue): {e}")
+            # If we fail here, maybe we should try to invalidate the client?
+            # But let's keep it for now as a warning.
     
     async def upload(self, path: str, content: bytes, content_type: str = "application/octet-stream") -> str:
         """

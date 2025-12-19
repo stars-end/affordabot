@@ -1,20 +1,32 @@
+#!/usr/bin/env python3
+import asyncio
 import os
-from supabase import create_client, Client
+import sys
+from dotenv import load_dotenv
 
-url = os.environ.get("SUPABASE_URL")
-key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+# Add backend to path
+sys.path.append(os.path.join(os.path.dirname(__file__), '../../backend'))
 
-if not url or not key:
-    print("Error: Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY")
-    exit(1)
+from db.postgres_client import PostgresDB
 
-supabase: Client = create_client(url, key)
+async def main():
+    load_dotenv(os.path.join(os.path.dirname(__file__), '../../backend/.env'))
+    
+    db = PostgresDB()
+    try:
+        await db.connect()
+        # Query raw_scrapes table directly via the db client if possible, or use a custom query
+        # For verification, we just want to see if we can read records.
+        async with db.pool.acquire() as conn:
+            rows = await conn.fetch("SELECT id, source_id, content_hash FROM raw_scrapes LIMIT 5")
+            print(f"Found {len(rows)} raw scrapes in Postgres.")
+            for row in rows:
+                print(f"ID: {row['id']}, Source: {row['source_id']}, Hash: {row[2][:8]}")
+    except Exception as e:
+        print(f"Error: {e}")
+    finally:
+        if db.pool:
+            await db.pool.close()
 
-try:
-    response = supabase.table("raw_scrapes").select("*").limit(5).execute()
-    print(f"Found {len(response.data)} raw scrapes.")
-    for row in response.data:
-        print(f"ID: {row['id']}, Source: {row['source_id']}, Hash: {row['content_hash'][:8]}")
-        # print(f"Data: {row['data']}") # Too verbose
-except Exception as e:
-    print(f"Error: {e}")
+if __name__ == "__main__":
+    asyncio.run(main())

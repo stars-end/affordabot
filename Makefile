@@ -25,37 +25,40 @@ install:
 		exit 1; \
 	fi
 	@echo "Installing dependencies..."
+	@echo "Installing dependencies..."
 	pnpm install
+	cd frontend-v2 && pnpm install
 	@echo "Backend uses venv - activate with: source backend/venv/bin/activate"
 	@echo "Then install: pip install -r backend/requirements.txt"
 
 # Run development servers
 dev:
-	@echo "Starting development servers..."
-	@echo "Run 'make dev-frontend' and 'make dev-backend' in separate terminals"
+	@echo "Starting development servers (Backend + Frontend V2)..."
+	pnpm concurrently -n "BACKEND,FRONTEND" -c "blue,green" \
+		"$(MAKE) dev-backend" \
+		"$(MAKE) dev-frontend-v2"
 
 # Run development servers via Railway (Pilot)
 dev-railway:
 	@echo "Starting development via Railway..."
 	./scripts/railway-dev.sh
 
-
 dev-frontend:
 	cd frontend && pnpm dev
 
+dev-frontend-v2:
+	cd frontend-v2 && pnpm dev -- --port 5173
+
 dev-backend:
-	@if [ ! -d backend/venv ]; then \
-		echo "Creating Python virtual environment..."; \
-		cd backend && python3.13 -m venv venv; \
-	fi
-	@echo "Starting backend server..."
-	@echo "Make sure venv is activated: source backend/venv/bin/activate"
-	@echo "Then run: uvicorn main:app --reload --host 0.0.0.0 --port 8000"
+	@echo "Starting backend server (via Railway run)..."
+	cd backend && railway run poetry run uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 # Build for production
 build:
 	@echo "Building production bundles..."
+	@echo "Building production bundles..."
 	cd frontend && pnpm build
+	cd frontend-v2 && pnpm build
 
 # Run tests
 test:
@@ -87,6 +90,8 @@ clean:
 	rm -rf frontend/node_modules
 	rm -rf frontend/playwright-report
 	rm -rf frontend/test-results
+	rm -rf frontend-v2/dist
+	rm -rf frontend-v2/node_modules
 	rm -rf backend/__pycache__
 	rm -rf backend/.pytest_cache
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
@@ -127,6 +132,16 @@ verify-analysis:
 		cd backend && railway run poetry run python scripts/verification/verify_analysis_loop.py; \
 	else \
 		cd backend && poetry run python scripts/verification/verify_analysis_loop.py; \
+	fi
+
+# Run E2E Glass Box Audit (P0)
+verify-e2e:
+	@echo "🔍 Running E2E Glass Box Audit..."
+	@if [ -z "$$RAILWAY_PROJECT_NAME" ]; then \
+		echo "🔄 Not in Railway Shell. Wrapping in 'railway run'..."; \
+		cd backend && railway run poetry run python scripts/verification/verify_e2e_glassbox.py; \
+	else \
+		cd backend && poetry run python scripts/verification/verify_e2e_glassbox.py; \
 	fi
 
 # Run agent pipeline verification (Mocked)
