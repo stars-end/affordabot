@@ -2252,7 +2252,7 @@ utils = ["numpydoc"]
 
 [[package]]
 name = "llm-common"
-version = "0.4.1"
+version = "0.4.2"
 description = "Shared LLM framework for affordabot and prime-radiant-ai"
 optional = false
 python-versions = ">=3.13,<4.0"
@@ -2267,6 +2267,7 @@ instructor = "^1.0.0"
 openai = "^1.0.0"
 pydantic = "^2.0.0"
 python-dotenv = "^1.0.0"
+pyyaml = "^6.0.0"
 tenacity = "^8.0.0"
 typing-extensions = "^4.0.0"
 
@@ -2275,7 +2276,7 @@ pgvector = ["asyncpg (>=0.29.0,<0.31.0)", "pgvector (>=0.3.0,<0.4.0)", "sqlalche
 
 [package.source]
 type = "directory"
-url = "../../llm-common"
+url = "../packages/llm-common"
 
 [[package]]
 name = "lupa"
@@ -6980,4 +6981,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.13"
-content-hash = "7d0139f3882948fe72c1c2e647597e7f6750d646886f3939544993dc353bfe9e"
+content-hash = "486b5822463fa8072a8079680388e1ec1a6b9e83e3693373acef2ac7193fe11a"
