@@ -1,6 +1,7 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock
-from services.llm.orchestrator import AnalysisPipeline, LegislationAnalysisResponse, ReviewCritique, LegislationImpact
+from services.llm.orchestrator import AnalysisPipeline, LegislationAnalysisResponse, ReviewCritique
+from schemas.analysis import LegislationImpact
 from llm_common.core import LLMClient
 from llm_common.web_search import WebSearchClient
 
