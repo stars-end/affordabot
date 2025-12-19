@@ -65,7 +65,7 @@ CREATE TABLE IF NOT EXISTS public.raw_scrapes (
   CONSTRAINT raw_scrapes_source_id_fkey FOREIGN KEY (source_id) REFERENCES public.sources(id)
 );
 
-CREATE TABLE IF NOT EXISTS public.documents (
+CREATE TABLE IF NOT EXISTS public.document_chunks (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   document_id uuid NOT NULL,
   content text NOT NULL,
@@ -74,10 +74,23 @@ CREATE TABLE IF NOT EXISTS public.documents (
   chunk_index integer,
   created_at timestamp with time zone DEFAULT now(),
   source text,
-  CONSTRAINT documents_pkey PRIMARY KEY (id)
+  CONSTRAINT document_chunks_pkey PRIMARY KEY (id)
 );
 
 -- 3. Admin & Analysis Tables
+CREATE TABLE IF NOT EXISTS public.pipeline_runs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    bill_id TEXT NOT NULL,
+    jurisdiction TEXT NOT NULL,
+    models JSONB DEFAULT '{}'::jsonb,
+    status TEXT DEFAULT 'running',
+    result JSONB,
+    error TEXT,
+    started_at TIMESTAMPTZ DEFAULT NOW(),
+    completed_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS public.admin_tasks (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   task_type character varying NOT NULL CHECK (task_type::text = ANY (ARRAY['scrape'::character varying, 'research'::character varying, 'generate'::character varying, 'review'::character varying, 'universal_harvest'::character varying, 'rag_scrape'::character varying]::text[])),
