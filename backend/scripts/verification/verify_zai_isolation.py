@@ -1,6 +1,5 @@
 import asyncio
 import os
-import sys
 from llm_common.providers import ZaiClient
 from llm_common.core import LLMConfig, LLMMessage, MessageRole
 

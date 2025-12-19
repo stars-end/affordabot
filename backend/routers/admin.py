@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Request
 from typing import List
 from services.glass_box import GlassBoxService, AgentStep, PipelineStep
 

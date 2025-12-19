@@ -30,7 +30,7 @@ from services.ingestion_service import IngestionService
 from services.storage.s3_storage import S3Storage
 from llm_common.core import LLMConfig
 from llm_common.core.models import LLMMessage, MessageRole
-from llm_common.providers import ZaiClient, OpenRouterClient
+from llm_common.providers import ZaiClient
 from llm_common.web_search import WebSearchClient
 from llm_common.embeddings.openai import OpenAIEmbeddingService
 from services.retrieval.local_pgvector import LocalPgVectorBackend
@@ -71,9 +71,9 @@ class AuditStepLogger:
         self.steps.append(step)
         
         # Log to console
-        logger.info(f"=" * 60)
+        logger.info("=" * 60)
         logger.info(f"STEP {step_num}: {name}")
-        logger.info(f"=" * 60)
+        logger.info("=" * 60)
         for key, value in data.items():
             if isinstance(value, str) and len(value) > 500:
                 logger.info(f"  {key}: {value[:500]}... (truncated)")

@@ -5,7 +5,7 @@ from llm_common.agents import ResearchAgent
 from llm_common.core.models import LLMMessage, MessageRole
 from typing import List, Dict, Any
 from pydantic import BaseModel
-from schemas.analysis import LegislationAnalysisResponse, ReviewCritique, LegislationImpact
+from schemas.analysis import LegislationAnalysisResponse, ReviewCritique
 from datetime import datetime
 
 class AnalysisPipeline:

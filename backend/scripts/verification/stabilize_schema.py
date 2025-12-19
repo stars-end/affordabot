@@ -2,7 +2,6 @@ import asyncio
 import os
 import sys
 import logging
-from sqlalchemy import text
 
 # Add parent directory to sys.path
 sys.path.append(os.getcwd())

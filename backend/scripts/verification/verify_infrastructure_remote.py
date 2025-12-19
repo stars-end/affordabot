@@ -72,7 +72,7 @@ async def verify_storage():
         
         url = await storage.upload(test_content, filename, content_type="text/plain")
         if url:
-            print(f"   ✅ Upload Successful")
+            print("   ✅ Upload Successful")
             print(f"   🔗 URL: {url}")
             return True
         else:

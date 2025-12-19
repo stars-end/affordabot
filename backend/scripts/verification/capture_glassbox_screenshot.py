@@ -1,7 +1,6 @@
 import sys
 import asyncio
 import os
-from datetime import datetime
 from playwright.async_api import async_playwright
 
 # Configuration
@@ -55,7 +54,7 @@ async def capture_granular_evidence(run_id: str):
             
             # Initial overview screenshot
             await page.screenshot(path=f"{ARTIFACT_DIR}/0_run_overview_{run_id}.png")
-            print(f"📸 Captured overview")
+            print("📸 Captured overview")
 
             # 2. Extract and capture each step
             accordions = await page.locator(".MuiAccordion-root").all()

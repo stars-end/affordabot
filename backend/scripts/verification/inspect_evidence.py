@@ -1,7 +1,6 @@
 from pathlib import Path
 from PIL import Image
 import numpy as np
-import sys
 
 evidence_dir = Path("/home/fengning/.gemini/antigravity/brain/9112de99-6087-4677-88e8-ddcb9dc376f2/evidence")
 

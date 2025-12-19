@@ -3,7 +3,7 @@ import logging
 import asyncio
 from typing import Any, List, Dict
 from urllib.parse import urljoin
-from playwright.async_api import Page, TimeoutError as PlaywrightTimeout, async_playwright
+from playwright.async_api import Page, async_playwright
 
 logger = logging.getLogger(__name__)
 
