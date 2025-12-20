@@ -19,15 +19,28 @@ def s3_env():
     }
 
 def test_init_with_env_vars(mock_minio, s3_env):
-    with patch.dict(os.environ, s3_env):
-        storage = S3Storage()
-        assert storage.client is not None
-        mock_minio.assert_called_with(
-            "localhost:9000",
-            access_key="admin",
-            secret_key="password",
-            secure=False
-        )
+        # Test case 1: Only MINIO_URL is set (legacy behavior)
+        with patch.dict(os.environ, s3_env, clear=True):
+            storage = S3Storage()
+            assert storage.client is not None
+            mock_minio.assert_called_with(
+                "localhost:9000",
+                access_key="admin",
+                secret_key="password",
+                secure=False
+            )
+
+        # Test case 2: Both MINIO_URL and MINIO_URL_PUBLIC are set
+        s3_env_public = {**s3_env, "MINIO_URL_PUBLIC": "public.minio.com"}
+        with patch.dict(os.environ, s3_env_public, clear=True):
+            storage = S3Storage()
+            assert storage.client is not None
+            mock_minio.assert_called_with(
+                "public.minio.com",
+                access_key="admin",
+                secret_key="password",
+                secure=True  # Should be secure when using public URL
+            )
 
 def test_init_without_vars(mock_minio):
     # Ensure no env vars leak

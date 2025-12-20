@@ -34,36 +34,29 @@ class S3Storage:
             bucket: Bucket name
             secure: Use HTTPS (default False for internal Railway network)
         """
-        # v2.1: support public endpoint fallback for local dev/verification
+        # v2.2: Prioritize public MinIO URL to fix Railway DNS resolution issues.
         internal_url = os.getenv("MINIO_URL", "").replace("http://", "").replace("https://", "")
         public_url = os.getenv("MINIO_URL_PUBLIC", "").replace("http://", "").replace("https://", "")
+
+        # Use public URL if available, otherwise fall back to internal URL.
+        # This resolves DNS issues inside Railway's network where the internal hostname
+        # may not be resolvable, but the public one always is.
+        chosen_endpoint = public_url if public_url else internal_url
         
-        # If internal_url looks like it's only for Railway network and we have a public URL, 
-        # use public URL unless we are actually in Railway.
-        # Note: RAILWAY_ENVIRONMENT_NAME is set when running on Railway servers.
-        is_on_railway = os.getenv("RAILWAY_ENVIRONMENT_NAME") is not None
-        
-        self.endpoint = endpoint or (internal_url if (is_on_railway or not public_url) else public_url)
+        self.endpoint = endpoint or chosen_endpoint
         self.access_key = access_key or os.getenv("MINIO_ACCESS_KEY")
         self.secret_key = secret_key or os.getenv("MINIO_SECRET_KEY")
         self.bucket = bucket or os.getenv("MINIO_BUCKET", "affordabot-artifacts")
-        self.secure = secure or (self.endpoint == public_url and public_url != "")
+        
+        # Secure should be true if we are using the public URL.
+        is_using_public_url = (self.endpoint == public_url and public_url != "")
+        self.secure = secure or is_using_public_url
         
         if not all([self.endpoint, self.access_key, self.secret_key]):
             logger.warning("MinIO credentials not fully configured. Storage operations may fail.")
             self.client = None
         else:
             self.client = self._initialize_client(self.endpoint, self.secure)
-            
-            # Fallback for local verification if internal DNS fails
-            if not self.client and not is_on_railway:
-                 # Already tried public if not on railway, so nothing to do
-                 pass
-            elif not self.client and is_on_railway and public_url:
-                logger.warning(f"Internal MinIO ({self.endpoint}) failed/unreachable. Falling back to Public URL: {public_url}")
-                self.endpoint = public_url
-                self.secure = True
-                self.client = self._initialize_client(self.endpoint, self.secure)
 
             if self.client:
                 logger.info(f"S3Storage initialized: {self.endpoint}/{self.bucket}")
