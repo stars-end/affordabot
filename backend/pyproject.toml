@@ -32,7 +32,7 @@ sentry-sdk = {extras = ["fastapi"], version = "*"}
 sendgrid = "*"
 eval_type_backport = "*"
 scrapy = "*"
-llm-common = { git = "https://github.com/stars-end/llm-common.git", tag = "v0.3.0" }
+llm-common = { git = "https://github.com/stars-end/llm-common.git", branch = "master" }
 playwright = "^1.56.0"
 city-scrapers-core = "^0.10.1"
 tenacity = "^8.0.0"
