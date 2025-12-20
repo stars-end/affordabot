@@ -2279,7 +2279,7 @@ pgvector = ["asyncpg (>=0.29.0,<0.31.0)", "pgvector (>=0.3.0,<0.4.0)", "sqlalche
 type = "git"
 url = "https://github.com/stars-end/llm-common.git"
 reference = "master"
-resolved_reference = "e2325ded237916a96e50082b83cea29ee98329c4"
+resolved_reference = "9b90dd00f997c01da42515d115d724c72104d5e7"
 
 [[package]]
 name = "lupa"
