@@ -47,7 +47,7 @@ class GlassBoxService:
                 SELECT * FROM pipeline_steps 
                 WHERE run_id = (
                     SELECT id FROM pipeline_runs 
-                    WHERE bill_id = $1 OR id::text = $1 
+                    WHERE bill_id = $1 OR id::text = $1 OR jurisdiction = $1
                     ORDER BY started_at DESC LIMIT 1
                 )
                 ORDER BY step_number ASC
@@ -82,8 +82,8 @@ class GlassBoxService:
         # 1. Try DB first (pipeline_runs)
         if self.db:
             try:
-                # We search by bill_id (which is used as query_id in UI)
-                query = "SELECT * FROM pipeline_runs WHERE bill_id = $1 OR id::text = $1 ORDER BY started_at DESC LIMIT 1"
+                # We search by bill_id (which is used as query_id in UI) or jurisdiction
+                query = "SELECT * FROM pipeline_runs WHERE bill_id = $1 OR id::text = $1 OR jurisdiction = $1 ORDER BY started_at DESC LIMIT 1"
                 run = await self.db._fetchrow(query, query_id)
                 
                 if run and run['result']:

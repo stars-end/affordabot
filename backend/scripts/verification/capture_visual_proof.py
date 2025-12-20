@@ -58,6 +58,14 @@ async def main():
     )
     
     try:
+        # P0 FIX (29f.1): Wait for hydration to prevent black screenshots
+        logger.info("Waiting for page hydration (React root)...")
+        try:
+            await adapter.wait_for_selector("body", timeout_ms=5000)
+            await asyncio.sleep(2) # Extra buffer for react rendering
+        except Exception as e:
+            logger.warning(f"Hydration wait timed out: {e}")
+
         result = await agent.run_story(audit_story)
         logger.info(f"Visual audit status: {result.status}")
         logger.info(f"Evidence saved to: {evidence_dir}")
