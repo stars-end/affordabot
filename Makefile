@@ -296,3 +296,76 @@ verify-ci:
 			--base-url $${FRONTEND_URL:-http://localhost:3000}; \
 	fi
 
+# ============================================================
+# PR Environment Verification (Railway Preview Environments)
+# ============================================================
+# Use verify-pr for LARGE PRs (P0/P1, multi-file, infrastructure changes)
+# Use verify-pr-lite for SMALL PRs (single file, docs, minor fixes)
+# Agents: Check Beads priority and files changed to decide
+
+# Railway PR URL patterns
+PR_BACKEND_URL = https://backend-affordabot-pr-$(PR).up.railway.app
+PR_FRONTEND_URL = https://frontend-affordabot-pr-$(PR).up.railway.app
+
+verify-pr: ## Full verification against Railway PR env + post report to PR
+ifndef PR
+	$(error Usage: make verify-pr PR=163)
+endif
+	@echo "🔬 Full PR Verification for #$(PR)"
+	@echo "   Backend:  $(PR_BACKEND_URL)"
+	@echo "   Frontend: $(PR_FRONTEND_URL)"
+	@# Wait for deployment with health check retry
+	@echo "⏳ Waiting for Railway PR environment..."
+	@for i in 1 2 3 4 5 6; do \
+		STATUS=$$(curl -s -o /dev/null -w "%{http_code}" "$(PR_BACKEND_URL)/health" 2>/dev/null); \
+		if [ "$$STATUS" = "200" ]; then \
+			echo "✅ PR #$(PR) backend healthy"; \
+			break; \
+		else \
+			echo "   Attempt $$i/6: status=$$STATUS (waiting 30s)..."; \
+			sleep 30; \
+		fi; \
+		if [ $$i -eq 6 ]; then \
+			echo "❌ PR #$(PR) not deployed after 3 min"; \
+			echo "   Check: gh pr view $(PR) --web"; \
+			exit 1; \
+		fi; \
+	done
+	@# Run full verification
+	@echo "🚀 Running verify-all against PR environment..."
+	$(MAKE) verify-all API_URL=$(PR_BACKEND_URL) BASE_URL=$(PR_FRONTEND_URL)
+	@# Generate and post report
+	@echo "📝 Generating verification report..."
+	@./scripts/generate-pr-report.sh $(PR) $(PR_BACKEND_URL)
+	@echo "📮 Posting report to PR #$(PR)..."
+	@gh pr comment $(PR) --body-file artifacts/verification/pr-$(PR)-report.md
+	@echo ""
+	@echo "============================================================"
+	@echo "✅ PR #$(PR) VERIFICATION COMPLETE"
+	@echo "   Report posted to: https://github.com/stars-end/affordabot/pull/$(PR)"
+	@echo "   Merge command: gh pr merge $(PR) --squash --delete-branch"
+	@echo "============================================================"
+
+verify-pr-lite: ## Quick verification (health + discovery only) for small PRs
+ifndef PR
+	$(error Usage: make verify-pr-lite PR=163)
+endif
+	@echo "🔬 Quick PR Verification for #$(PR)"
+	@# Health check only
+	@STATUS=$$(curl -s -o /dev/null -w "%{http_code}" "$(PR_BACKEND_URL)/health" 2>/dev/null); \
+	if [ "$$STATUS" = "200" ]; then \
+		echo "✅ PR #$(PR) backend healthy"; \
+	else \
+		echo "⏳ PR #$(PR) not ready (status=$$STATUS), waiting 60s..."; \
+		sleep 60; \
+		STATUS=$$(curl -s -o /dev/null -w "%{http_code}" "$(PR_BACKEND_URL)/health" 2>/dev/null); \
+		if [ "$$STATUS" != "200" ]; then \
+			echo "❌ PR #$(PR) not deployed"; \
+			exit 1; \
+		fi; \
+	fi
+	@# Quick discovery check only
+	$(MAKE) verify-discovery API_URL=$(PR_BACKEND_URL)
+	@echo "✅ verify-pr-lite complete for PR #$(PR)"
+	@echo "   For full verification: make verify-pr PR=$(PR)"
+
