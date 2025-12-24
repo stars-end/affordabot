@@ -199,8 +199,8 @@ verify-env:
 	@echo "🌍 Checking Environment & Admin Setup..."
 	@if [ -z "$$RAILWAY_PROJECT_NAME" ]; then \
 		echo "🔄 Not in Railway Shell. Wrapping in 'railway run'..."; \
-		cd backend && railway run poetry run python scripts/check_env.py; \
-		cd backend && railway run poetry run python scripts/verification/verify_admin_import.py; \
+		railway run sh -c "cd backend && poetry run python scripts/check_env.py"; \
+		railway run sh -c "cd backend && poetry run python scripts/verification/verify_admin_import.py"; \
 	else \
 		cd backend && poetry run python scripts/check_env.py; \
 		cd backend && poetry run python scripts/verification/verify_admin_import.py; \
