@@ -551,6 +551,21 @@ class PostgresDB:
             logger.error(f"Error updating review status: {e}")
             return False
 
+    async def create_template_review(self, review_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Create a new template review entry."""
+        try:
+            # Check if template_reviews table exists and columns match
+            # This assumes standard schema.
+            columns = ", ".join(review_data.keys())
+            placeholders = ", ".join([f"${i+1}" for i in range(len(review_data))])
+            query = f"INSERT INTO template_reviews ({columns}) VALUES ({placeholders}) RETURNING *"
+            
+            row = await self._fetchrow(query, *review_data.values())
+            return dict(row) if row else None
+        except Exception as e:
+            logger.error(f"Error creating template review: {e}")
+            return None
+
     async def get_legislation_by_jurisdiction(self, jurisdiction_name: str, limit: int = 10) -> List[Dict[str, Any]]:
         """Get recent legislation for a jurisdiction with impacts."""
         try:

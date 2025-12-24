@@ -7,7 +7,13 @@ name = "affordabot-backend"
 version = "0.1.0"
 description = "Affordabot backend service"
 authors = ["Feng Ning <fengning@stars-end.ai>"]
-packages = [{include = "backend"}]
+packages = [
+    {include = "agents"},
+    {include = "services"},
+    {include = "routers"},
+    {include = "db"},
+    {include = "auth"},
+]
 
 [tool.poetry.dependencies]
 python = "^3.13"
@@ -32,7 +38,7 @@ sentry-sdk = {extras = ["fastapi"], version = "*"}
 sendgrid = "*"
 eval_type_backport = "*"
 scrapy = "*"
-llm-common = { git = "https://github.com/stars-end/llm-common.git", branch = "master" }
+llm-common = { git = "https://github.com/stars-end/llm-common.git", tag = "v0.4.2" }
 playwright = "^1.56.0"
 city-scrapers-core = "^0.10.1"
 tenacity = "^8.0.0"
@@ -41,7 +47,6 @@ minio = "^7.2.20"
 scrapy-playwright = "^0.0.44"
 psycopg2-binary = "^2.9.11"
 pyjwt = {extras = ["crypto"], version = "^2.10.1"}
-supabase = "^2.27.0"
 pgvector = "^0.4.2"
 
 [tool.poetry.group.dev.dependencies]

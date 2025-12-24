@@ -113,7 +113,10 @@ class IngestionService:
         # 3. Chunk text
         chunks = self._chunk_text(text)
         if not chunks:
+             print(f"⚠️ Chunks empty for scrape {scrape_id}. Text len: {len(text)}")
              return 0
+        
+        print(f"✅ Chunked scrape {scrape_id} into {len(chunks)} chunks.")
         
         # 4. Generate embeddings
         try:

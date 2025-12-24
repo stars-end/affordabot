@@ -78,8 +78,47 @@ class LocalPgVectorBackend(RetrievalBackend):
             return False
 
     async def query(self, embedding: List[float], k: int = 5, filter: Optional[Dict] = None) -> List[RetrievedChunk]:
-        # Implementation skipped for verification script as we only test ingestion
-        return []
+        if not self.db:
+            return []
+            
+        try:
+            # Basic pgvector KNN query
+            # Expecting embedding as string "[0.1, ...]" for asyncpg to cast to vector
+            embedding_val = str(embedding)
+            
+            query_sql = f"""
+            SELECT id, content, metadata, embedding, document_id, 
+                   1 - (embedding <=> $1) as similarity
+            FROM {self.table_name}
+            ORDER BY embedding <=> $1
+            LIMIT $2
+            """
+            
+            rows = await self.db._fetch(query_sql, embedding_val, k)
+            
+            results = []
+            for row in rows:
+                # Map back to RetrievedChunk
+                meta = row.get('metadata')
+                if isinstance(meta, str):
+                    meta = json.loads(meta)
+                
+                chunk = RetrievedChunk(
+                    chunk_id=str(row['id']) if row.get('id') else None,
+                    content=row['content'],
+                    embedding=None, # Optimize: don't return embedding unless needed
+                    metadata=meta or {},
+                    score=float(row['similarity']) if row.get('similarity') else 0.0,
+                    document_id=row.get('document_id'),
+                    source=meta.get('url') or meta.get('source_id') or "unknown"
+                )
+                results.append(chunk)
+                
+            return results
+            
+        except Exception as e:
+            print(f"❌ LocalPgVectorBackend query failed: {e}")
+            return []
 
     async def retrieve(self, query: str, k: int = 5, filter: Optional[Dict] = None) -> List[RetrievedChunk]:
         """

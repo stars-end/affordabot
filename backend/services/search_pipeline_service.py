@@ -65,17 +65,20 @@ class SearchPipelineService:
         ]
         
         # Use return_exceptions=True to prevent one failure killing all
-        ingested_ids = await asyncio.gather(*ingest_tasks, return_exceptions=True)
+        ingested_counts = await asyncio.gather(*ingest_tasks, return_exceptions=True)
         
-        for doc_id in ingested_ids:
-            if isinstance(doc_id, str):
-                doc_ids.append(doc_id)
-            elif isinstance(doc_id, Exception):
-                logger.warning(f"     Ingestion error: {doc_id}")
+        chunk_count = 0
+        for res in ingested_counts:
+            if isinstance(res, int):
+                chunk_count += res
+            elif isinstance(res, Exception):
+                logger.warning(f"     Ingestion error: {res}")
+            # If it returns ID (str) in future, handle it? 
+            # Current contract is int.
 
-        logger.info(f"     Indexed {len(doc_ids)} documents.")
+        logger.info(f"     Indexed {chunk_count} chunks.")
         
-        if not doc_ids:
+        if chunk_count == 0:
             return SearchResponse(
                 answer="I couldn't find any relevant sources to answer your question.",
                 citations=[],
@@ -94,7 +97,21 @@ class SearchPipelineService:
         # Let's assume global search for now, picking up new chunks because they embed similarly to query.
         
         logger.info("   ↳ Step 3: Retrieval...")
-        chunks = await self.retrieval.retrieve(query, top_k=8) # Top 8 chunks
+        
+        # Manually embed query since LocalPgVectorBackend doesn't have an internal embedder
+        # and standard RetrievalBackend.retrieve(str) expects the backend to handle it.
+        # For this verification setup, we control the flow.
+        try:
+            embedding = await self.llm.create_embedding(query)
+            # Call query() which handles vector similarity
+            # Check if retrieval has query method (LocalPgVectorBackend does)
+            if hasattr(self.retrieval, 'query'):
+                chunks = await self.retrieval.query(embedding, k=8)
+            else:
+                chunks = await self.retrieval.retrieve(query, top_k=8)
+        except Exception as e:
+            logger.warning(f"   ⚠️ Retrieval failed: {e}")
+            chunks = []
         
         # Optional: Boost chunks from doc_ids?
         # For now, pure semantic.

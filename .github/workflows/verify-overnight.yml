@@ -1,0 +1,90 @@
+# Overnight Verification CI Workflow
+# Runs comprehensive RAG pipeline verification at 2 AM Pacific (10:00 UTC) daily
+# Uses GLM-4.6V for visual validation via UISmokeAgent
+
+name: Overnight Verification
+
+on:
+  schedule:
+    # 2 AM Pacific = 10:00 UTC (PST) or 09:00 UTC (PDT)
+    - cron: '0 10 * * *'
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'Frontend URL to verify (default: production)'
+        required: false
+        default: ''
+
+env:
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  verify-affordabot:
+    runs-on: self-hosted
+    timeout-minutes: 45
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          
+      - name: Install Poetry
+        run: pip install poetry
+        
+      - name: Install Dependencies
+        run: |
+          cd backend
+          poetry install
+          
+      - name: Install Playwright
+        run: |
+          cd backend
+          poetry run playwright install chromium
+          
+      - name: Run Unified Verification (12 RAG Stories)
+        env:
+          ZAI_API_KEY: ${{ secrets.ZAI_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          FRONTEND_URL: ${{ github.event.inputs.base_url || 'https://affordabot.up.railway.app' }}
+        run: |
+          mkdir -p artifacts/verification
+          cd backend
+          poetry run python scripts/verification/unified_verify.py \
+            --base-url "$FRONTEND_URL" \
+            --output ../artifacts/verification
+          
+      - name: Upload Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verification-report-${{ github.run_id }}
+          path: artifacts/verification/
+          retention-days: 30
+          
+      - name: Create Issue on Failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let summary = 'RAG pipeline verification failed - see artifacts for details.';
+            try {
+              const jsonPath = 'artifacts/verification/summary.json';
+              if (fs.existsSync(jsonPath)) {
+                const data = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+                summary = `Total: ${data.summary.total}, Passed: ${data.summary.passed}, Failed: ${data.summary.failed}`;
+              }
+            } catch (e) {}
+            
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🔴 Overnight RAG Verification Failed - ${new Date().toISOString().split('T')[0]}`,
+              body: `## Overnight RAG Pipeline Verification Failure\n\n**Run ID**: ${context.runId}\n**Summary**: ${summary}\n\n[View Workflow Run](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`,
+              labels: ['verification', 'automated', 'rag-pipeline']
+            });

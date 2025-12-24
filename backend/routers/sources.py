@@ -3,19 +3,16 @@
 from fastapi import APIRouter, Depends, HTTPException
 from typing import List, Optional
 from services.source_service import SourceService, SourceCreate, SourceUpdate
-from supabase import Client, create_client
-import os
+from db.postgres_client import PostgresDB
 
 router = APIRouter(prefix="/sources", tags=["sources"])
 
-def get_supabase() -> Client:
-    return create_client(
-        os.environ['SUPABASE_URL'],
-        os.environ['SUPABASE_SERVICE_ROLE_KEY']
-    )
+# Simple dependency for DB connection
+def get_db() -> PostgresDB:
+    return PostgresDB()
 
-def get_source_service(supabase: Client = Depends(get_supabase)) -> SourceService:
-    return SourceService(supabase)
+def get_source_service(db: PostgresDB = Depends(get_db)) -> SourceService:
+    return SourceService(db)
 
 @router.get("/", response_model=List[dict])
 async def list_sources(

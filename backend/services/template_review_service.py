@@ -2,18 +2,18 @@
 
 from __future__ import annotations
 from typing import List, Dict, Any
-from supabase import Client
+from db.postgres_client import PostgresDB
 from llm_common import LLMClient, WebSearchClient
 from services.auto_discovery_service import QUERY_TEMPLATES
 
 class TemplateReviewService:
     def __init__(
         self, 
-        supabase_client: Client,
+        db_client: PostgresDB,
         llm_client: LLMClient,
         web_search_client: WebSearchClient
     ):
-        self.supabase = supabase_client
+        self.db = db_client
         self.llm_client = llm_client
         self.search_client = web_search_client
 
@@ -83,7 +83,8 @@ class TemplateReviewService:
                         "status": "pending"
                     }
                     
-                    res = self.supabase.table("template_reviews").insert(review).execute()
-                    reviews.append(res.data[0])
+                    res = await self.db.create_template_review(review)
+                    if res:
+                        reviews.append(res)
         
         return reviews

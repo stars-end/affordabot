@@ -124,6 +124,19 @@ verify-pipeline:
 		cd backend && poetry run python scripts/verification/verify_sanjose_pipeline.py; \
 	fi
 
+# Phase 0: Verify Discovery Configuration (LLM Query Generation)
+# This MUST be first - validates discovery prompt and LLM query generation before any pipeline runs
+verify-discovery:
+	@echo "🔍 Phase 0: Verifying Discovery Configuration (LLM Queries)..."
+	@mkdir -p artifacts/verification/discovery
+	@if [ -z "$$RAILWAY_PROJECT_NAME" ]; then \
+		echo "🔄 Not in Railway Shell. Wrapping in 'railway run'..."; \
+		cd backend && railway run poetry run python scripts/verification/verify_discovery.py --artifacts-dir ../artifacts/verification/discovery; \
+	else \
+		cd backend && poetry run python scripts/verification/verify_discovery.py --artifacts-dir ../artifacts/verification/discovery; \
+	fi
+	@echo "📸 Discovery artifacts saved to artifacts/verification/discovery/"
+
 # Run analysis loop verification (Integration)
 verify-analysis:
 	@echo "🧠 Running Analysis Loop Verification..."
@@ -143,6 +156,18 @@ verify-e2e:
 	else \
 		cd backend && poetry run python scripts/verification/verify_e2e_glassbox.py; \
 	fi
+
+# Unified Glass Box Verification (10 Phases with Screenshots)
+verify-glassbox:
+	@echo "🔍 Running Affordabot Glass Box Verification (10 Phases)..."
+	@mkdir -p artifacts/verification
+	@if [ -z "$$RAILWAY_PROJECT_NAME" ]; then \
+		echo "🔄 Not in Railway Shell. Wrapping in 'railway run'..."; \
+		cd backend && railway run poetry run python scripts/verification/verify_sanjose_pipeline.py --screenshots --artifacts-dir ../artifacts/verification; \
+	else \
+		cd backend && poetry run python scripts/verification/verify_sanjose_pipeline.py --screenshots --artifacts-dir ../artifacts/verification; \
+	fi
+	@echo "📸 Screenshots saved to artifacts/verification/"
 
 # Run agent pipeline verification (Mocked)
 verify-agents:
@@ -181,7 +206,93 @@ verify-env:
 		cd backend && poetry run python scripts/verification/verify_admin_import.py; \
 	fi
 
-# Run ALL verifications
-verify-all: verify-env verify-auth verify-storage verify-agents verify-analysis verify-pipeline
-	@echo "✅ All Verifications Passed!"
+# Run ALL verifications (complete E2E from discovery → LLM analysis → admin UI)
+# Sequence: Discovery → Environment → Auth → Storage → RAG Pipeline → E2E Glass Box → Admin UI
+# NOTE: verify-discovery MUST be first - validates LLM query generation before any pipeline runs!
+verify-all: verify-discovery verify-env verify-auth verify-storage verify-pipeline verify-e2e verify-admin-pipeline
+	@echo "============================================================"
+	@echo "✅ FULL PIPELINE VERIFICATION COMPLETE!"
+	@echo "============================================================"
+	@echo "Phase 0: Discovery Config (LLM) ✅"
+	@echo "  - DB prompt check"
+	@echo "  - GLM-4.7 query generation"
+	@echo "  - Z.ai search validation"
+	@echo "Phase 1: Environment & Auth     ✅"
+	@echo "Phase 2: Storage (MinIO)        ✅"
+	@echo "Phase 3: RAG Pipeline (10 phases) ✅"
+	@echo "Phase 4: E2E Glass Box Audit    ✅"
+	@echo "  - Research (Z.ai + pgvector)"
+	@echo "  - Generate (cost analysis)"
+	@echo "  - Review (critique + refine)"
+	@echo "Phase 5: Admin UI (visual)      ✅"
+	@echo "============================================================"
+
+# Alias for clarity: full pipeline verification
+verify-full-pipeline: verify-all
+
+# Stage 1: Local Visual E2E (browser screenshots against localhost)
+verify-local:
+	@echo "🏠 Running Local Visual E2E (localhost)..."
+	@mkdir -p artifacts/verification/local
+	cd backend && poetry run python scripts/verification/visual_e2e/runner.py \
+		--stage local \
+		--base-url http://localhost:3000 \
+		--api-url http://localhost:8000
+
+# Stage 2: PR Environment Visual E2E (browser screenshots against Railway PR)
+verify-pr:
+	@echo "🚂 Running PR Visual E2E (Railway)..."
+	@mkdir -p artifacts/verification/pr
+	@if [ -z "$$RAILWAY_STATIC_URL" ]; then \
+		echo "⚠️  RAILWAY_STATIC_URL not set. Using localhost fallback..."; \
+		cd backend && poetry run python scripts/verification/visual_e2e/runner.py \
+			--stage pr --base-url http://localhost:3000; \
+	else \
+		cd backend && poetry run python scripts/verification/visual_e2e/runner.py \
+			--stage pr --base-url $$RAILWAY_STATIC_URL; \
+	fi
+
+# Alias for backward compat
+verify-visual: verify-admin-pipeline
+
+
+# UISmokeAgent Admin Pipeline Verification (GLM-4.6V visual analysis with Clerk auth)
+# Uses railway run to get TEST_USER_EMAIL, TEST_USER_PASSWORD, and ZAI_API_KEY from Railway env
+verify-admin-pipeline:
+	@echo "🤖 Running UISmokeAgent Admin Pipeline Verification..."
+	@mkdir -p artifacts/verification/admin_pipeline
+	@if [ -z "$$FRONTEND_URL" ]; then \
+		echo "FRONTEND_URL not set, using default localhost:3000..."; \
+		echo "For authenticated tests on Railway, set FRONTEND_URL and run via: railway run make verify-admin-pipeline"; \
+		cd backend && poetry run python scripts/verification/admin_pipeline_agent.py \
+			--url http://localhost:3000 \
+			--output ../artifacts/verification/admin_pipeline; \
+	else \
+		echo "Using FRONTEND_URL=$$FRONTEND_URL"; \
+		echo "Auth: TEST_USER_EMAIL=$${TEST_USER_EMAIL:-(not set)}"; \
+		cd backend && poetry run python scripts/verification/admin_pipeline_agent.py \
+			--url $$FRONTEND_URL \
+			--output ../artifacts/verification/admin_pipeline; \
+	fi
+
+# Full E2E verification with auth on Railway PR environment
+verify-admin-pipeline-pr:
+	@echo "🤖 Running Admin Pipeline on Railway PR environment with auth..."
+	@mkdir -p artifacts/verification/admin_pipeline_pr
+	cd backend && railway run poetry run python scripts/verification/admin_pipeline_agent.py \
+		--url https://frontend-affordabot-pr-160.up.railway.app \
+		--output ../artifacts/verification/admin_pipeline_pr
+
+# Unified CI Verification (uses llm-common framework, overnight CI)
+verify-ci:
+	@echo "🔬 Running Unified CI Verification (12 RAG stories)..."
+	@mkdir -p artifacts/verification
+	@if [ -z "$$RAILWAY_PROJECT_NAME" ]; then \
+		echo "🔄 Not in Railway Shell. Wrapping in 'railway run'..."; \
+		cd backend && railway run poetry run python scripts/verification/unified_verify.py \
+			--base-url $${FRONTEND_URL:-http://localhost:3000}; \
+	else \
+		cd backend && poetry run python scripts/verification/unified_verify.py \
+			--base-url $${FRONTEND_URL:-http://localhost:3000}; \
+	fi
 

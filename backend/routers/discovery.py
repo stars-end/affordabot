@@ -5,7 +5,6 @@ from typing import List, Dict, Any
 from pydantic import BaseModel
 from services.auto_discovery_service import AutoDiscoveryService
 from llm_common import WebSearchClient
-from supabase import create_client, Client
 import os
 
 router = APIRouter(prefix="/discovery", tags=["discovery"])
@@ -16,15 +15,7 @@ class DiscoveryRequest(BaseModel):
     jurisdiction_type: str = "city"
 
 
-def get_supabase_client() -> Client:
-    return create_client(
-        os.environ["SUPABASE_URL"], os.environ["SUPABASE_SERVICE_ROLE_KEY"]
-    )
-
-
-def get_web_search_client(
-    supabase_client: Client = Depends(get_supabase_client),
-) -> WebSearchClient:
+def get_web_search_client() -> WebSearchClient:
     return WebSearchClient(
         api_key=os.environ.get("ZAI_API_KEY", "mock-key"),
     )
