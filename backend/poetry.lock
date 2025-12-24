@@ -2253,6 +2253,7 @@ instructor = "^1.0.0"
 openai = "^1.0.0"
 pydantic = "^2.0.0"
 python-dotenv = "^1.0.0"
+pyyaml = "^6.0.0"
 tenacity = "^8.0.0"
 typing-extensions = "^4.0.0"
 
@@ -2262,8 +2263,8 @@ pgvector = ["asyncpg (>=0.29.0,<0.31.0)", "pgvector (>=0.3.0,<0.4.0)", "sqlalche
 [package.source]
 type = "git"
 url = "https://github.com/stars-end/llm-common.git"
-reference = "v0.4.2"
-resolved_reference = "e92fcd23a9e81ec8e8f979d4cba872af9c83f93b"
+reference = "v0.6.0"
+resolved_reference = "4899ece852c0a50fb9141f7aa685aef99ee1bc32"
 
 [[package]]
 name = "lupa"
@@ -6509,4 +6510,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.13"
-content-hash = "14588833f97d292aee2c9ab5a1cfea9567da388c6f9c1d1c6f2dfc4ad720c420"
+content-hash = "f6c877688b7b127a3630b920d910f3d257f48c9b9222cf887ebdacdccaa6b2e1"
