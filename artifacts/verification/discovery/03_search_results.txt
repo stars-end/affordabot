@@ -1,0 +1,28 @@
+============================================================
+🚀 Discovery Configuration Verification
+============================================================
+   Timestamp: 2025-12-24T06:54:43.355698
+   Jurisdiction: San Jose
+============================================================
+✅ Database connected
+📸 Captured: ../artifacts/verification/discovery/00_db_check.png
+
+🔍 Step 1: Checking discovery prompt...
+⚠️ Discovery prompt not in DB - using default template
+📸 Captured: ../artifacts/verification/discovery/01_prompt_check.png
+
+🧠 Step 2: Generating queries for 'San Jose'...
+✅ Generated 9 queries:
+   1. San Jose City Council meeting agendas and minutes 2024
+   2. San Jose Housing Element document official PDF
+   3. San Jose municipal code zoning ordinances land use
+   4. San Jose ADU ordinance and permit requirements
+   5. San Jose rent stabilization ordinance full text
+   6. San Jose tenant protection and relocation assistance laws
+   7. San Jose affordable housing strategy report
+   8. City of San Jose Housing Department public programs
+   ... and 1 more
+📸 Captured: ../artifacts/verification/discovery/02_query_generation.png
+
+🔍 Step 3: Executing Z.ai search for 'San Jose'...
+✅ Found 0 URLs:

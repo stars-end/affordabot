@@ -26,11 +26,11 @@ class MockEmbeddingService(EmbeddingService):
     def __init__(self):
         pass
     async def embed_documents(self, texts: list[str]) -> list[list[float]]:
-        # Return dummy embeddings (vector size 1536 for OpenAI compat, or 4096?)
-        # Let's use 1536 as common default
-        return [[0.1] * 1536 for _ in texts]
+        # Return dummy embeddings - must match DB vector dimension (4096 for this project)
+        return [[0.1] * 4096 for _ in texts]
     async def embed_query(self, text: str) -> list[float]:
-        return [0.1] * 1536
+        return [0.1] * 4096
+
 
 async def main():
     print("🚀 Starting Analysis Loop Verification...")
@@ -66,17 +66,18 @@ async def main():
     # Mock Analyzer for verification without API keys
     class MockAnalyzer:
         async def analyze(self, text, number, jurisdiction):
-            from schemas.analysis import LegislationAnalysisResponse, LegislationImpact
+            from schemas.analysis import LegislationAnalysisResponse, LegislationImpact, ImpactEvidence
             return LegislationAnalysisResponse(
                 bill_number=number,
                 impacts=[
                     LegislationImpact(
                         impact_number=1,
                         relevant_clause="clause 1",
+                        legal_interpretation="Allow ADU construction",
                         impact_description="Lowers rent",
-                        evidence=[],
+                        evidence=[ImpactEvidence(source_name="Mock", url="http://mock.com", excerpt="Mock evidence")],
                         chain_of_causality="supply up -> price down",
-                        confidence_factor=0.9,
+                        confidence_score=0.9,
                         p10=100.0, p25=200.0, p50=300.0, p75=400.0, p90=500.0
                     )
                 ],
@@ -161,15 +162,16 @@ async def main():
     print("🧠 Running AnalysisPipeline...")
     
     # Needs LLMClient and WebSearchClient
-    from services.llm.orchestrator import AnalysisPipeline, LegislationAnalysisResponse, ReviewCritique, LegislationImpact
+    from services.llm.orchestrator import AnalysisPipeline
+    from schemas.analysis import LegislationAnalysisResponse, ReviewCritique, LegislationImpact, ImpactEvidence
     from llm_common.core import LLMClient
     from llm_common.web_search import WebSearchClient
     from llm_common.core.models import LLMResponse, LLMConfig
     
     class MockLLMClient(LLMClient):
         def __init__(self):
-            # Pass dummy config
-            super().__init__(LLMConfig(api_key="mock", provider="mock"))
+            # Pass valid config - provider must be 'zai', 'openrouter', 'openai', or 'anthropic'
+            super().__init__(LLMConfig(api_key="mock-key", provider="zai", default_model="mock-model"))
             
         async def chat_completion(self, messages, model=None, **kwargs):
             # Simple mock responding with specific JSON depending on content?
@@ -186,8 +188,9 @@ async def main():
                         LegislationImpact(
                             impact_number=1,
                             relevant_clause="clause 1",
+                            legal_interpretation="Allow ADU construction",
                             impact_description="Lowers rent",
-                            evidence=[],
+                            evidence=[ImpactEvidence(source_name="Mock", url="http://mock.com", excerpt="Mock evidence")],
                             chain_of_causality="supply up -> price down",
                             confidence_score=0.9,
                             p10=100.0, p25=200.0, p50=300.0, p75=400.0, p90=500.0
@@ -200,7 +203,7 @@ async def main():
                 content = resp.model_dump_json()
                 
             elif "policy reviewer" in msg_str: # Review Step
-                resp = ReviewCritique(passed=True, critique="Good", missing_impacts=[])
+                resp = ReviewCritique(passed=True, critique="Good", missing_impacts=[], factual_errors=[])
                 content = resp.model_dump_json()
                 
             else:
