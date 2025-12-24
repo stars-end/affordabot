@@ -240,7 +240,7 @@ verify-local:
 		--api-url http://localhost:8000
 
 # Stage 2: PR Environment Visual E2E (browser screenshots against Railway PR)
-verify-pr:
+verify-visual-pr:
 	@echo "🚂 Running PR Visual E2E (Railway)..."
 	@mkdir -p artifacts/verification/pr
 	@if [ -z "$$RAILWAY_STATIC_URL" ]; then \
