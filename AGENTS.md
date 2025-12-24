@@ -34,4 +34,30 @@
 - Railway Shell: Required for DB ops.
 - **NO .env FILES**: Use `railway shell` for all secrets and env vars. NEVER create or use .env files.
 
+**PR Verification** (When to use which):
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Use `make verify-pr PR=N` (FULL) when:                     │
+│  • P0 or P1 priority issue                                   │
+│  • Changes to agents/, services/, routers/                   │
+│  • Infrastructure changes (Makefile, CI, Railway)            │
+│  • Multi-file PRs (5+ files changed)                         │
+│  • LLM/AI pipeline changes                                   │
+├─────────────────────────────────────────────────────────────┤
+│  Use `make verify-pr-lite PR=N` (QUICK) when:               │
+│  • P2+ priority (minor fixes)                                │
+│  • Single file changes                                       │
+│  • Documentation only (docs/, README)                        │
+│  • Test-only changes                                         │
+│  • Beads/config changes                                      │
+├─────────────────────────────────────────────────────────────┤
+│  Skip verification when:                                     │
+│  • Typo fixes                                                │
+│  • Comment-only changes                                      │
+│  • .gitignore updates                                        │
+└─────────────────────────────────────────────────────────────┘
+```
+
+Quick check: `gh pr view N --json files | jq '.files | length'` shows file count.
+
 For full V3 guide, see `stars-end/prime-radiant-ai` or run `/help-dx`.
