@@ -42,7 +42,7 @@ def capture_text_screenshot(
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     
     # Sanitize phase name for filename
-    safe_name = phase_name.lower().replace(" ", "_").replace("/", "_")
+    safe_name = phase_name.lower().replace(" ", "_").replace("/", "_").replace(":", "_")
     filename = f"{safe_name}_{timestamp}.md"
     filepath = artifacts_path / filename
     
@@ -98,7 +98,7 @@ def capture_browser_screenshot(
     
     artifacts_path = ensure_artifacts_dir(artifacts_dir)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    safe_name = phase_name.lower().replace(" ", "_").replace("/", "_")
+    safe_name = phase_name.lower().replace(" ", "_").replace("/", "_").replace(":", "_")
     filename = f"{safe_name}_{timestamp}.png"
     filepath = artifacts_path / filename
     
