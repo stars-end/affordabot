@@ -34,29 +34,20 @@
 - Railway Shell: Required for DB ops.
 - **NO .env FILES**: Use `railway shell` for all secrets and env vars. NEVER create or use .env files.
 
-**PR Verification** (When to use which):
+**Verification Cheatsheet** (Harmonized Naming):
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  Use `make verify-pr PR=N` (FULL) when:                     │
-│  • P0 or P1 priority issue                                   │
-│  • Changes to agents/, services/, routers/                   │
-│  • Infrastructure changes (Makefile, CI, Railway)            │
-│  • Multi-file PRs (5+ files changed)                         │
-│  • LLM/AI pipeline changes                                   │
-├─────────────────────────────────────────────────────────────┤
-│  Use `make verify-pr-lite PR=N` (QUICK) when:               │
-│  • P2+ priority (minor fixes)                                │
-│  • Single file changes                                       │
-│  • Documentation only (docs/, README)                        │
-│  • Test-only changes                                         │
-│  • Beads/config changes                                      │
-├─────────────────────────────────────────────────────────────┤
-│  Skip verification when:                                     │
-│  • Typo fixes                                                │
-│  • Comment-only changes                                      │
-│  • .gitignore updates                                        │
+│  Target             │ Scope       │ Use For                  │
+├─────────────────────┼─────────────┼──────────────────────────┤
+│  make verify-local  │ Local       │ Lint, unit tests (fast)  │
+│  make verify-dev    │ Railway dev │ Full E2E after merge     │
+│  make verify-pr PR=N│ Railway PR  │ P0/P1 PRs, multi-file    │
+│  make verify-pr-lite│ Railway PR  │ P2+, docs, single file   │
+├─────────────────────┤─────────────┼──────────────────────────┤
+│  Skip when: typos, comments, .gitignore updates             │
 └─────────────────────────────────────────────────────────────┘
 ```
+Quick check: `gh pr view N --json files | jq '.files | length'`
 
 Quick check: `gh pr view N --json files | jq '.files | length'` shows file count.
 

@@ -7,11 +7,11 @@ Returns EvidenceEnvelope with structured content and metadata.
 Feature-Key: affordabot-dmzy.6
 """
 
-import asyncio
 import logging
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
+
 
 # Optional imports - gracefully handle missing dependencies
 try:
