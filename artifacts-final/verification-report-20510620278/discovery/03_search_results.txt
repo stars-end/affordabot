@@ -1,0 +1,23 @@
+============================================================
+🚀 Discovery Configuration Verification
+============================================================
+   Timestamp: 2025-12-24T17:14:25.653080
+   Jurisdiction: San Jose
+============================================================
+✅ Database connected
+📸 Captured: ../artifacts/verification/discovery/00_db_check.png
+
+🔍 Step 1: Checking discovery prompt...
+⚠️ Discovery prompt not in DB - using default template
+📸 Captured: ../artifacts/verification/discovery/01_prompt_check.png
+
+🧠 Step 2: Generating queries for 'San Jose'...
+✅ Generated 4 queries:
+   1. San Jose city council meetings
+   2. San Jose housing ordinance
+   3. San Jose zoning updates
+   4. San Jose ADU regulations
+📸 Captured: ../artifacts/verification/discovery/02_query_generation.png
+
+🔍 Step 3: Executing Z.ai search for 'San Jose'...
+✅ Found 0 URLs:

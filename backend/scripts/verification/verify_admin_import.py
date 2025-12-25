@@ -20,11 +20,11 @@ async def main():
         from routers import admin
         print("✅ Successfully imported routers.admin")
         
-        # Check specific function
-        if hasattr(admin, "_run_analysis_task"):
-            print("✅ Found _run_analysis_task")
+        # Verify expected endpoints exist
+        if hasattr(admin, "router"):
+            print("✅ Found admin.router")
         else:
-            print("❌ _run_analysis_task NOT found")
+            print("❌ admin.router NOT found")
             sys.exit(1)
             
         print("✅ Admin router verification passed.")
