@@ -206,10 +206,19 @@ verify-env:
 		cd backend && poetry run python scripts/verification/verify_admin_import.py; \
 	fi
 
-# Run ALL verifications (complete E2E from discovery → LLM analysis → admin UI)
+# ============================================================
+# Verification Targets (Harmonized Naming Convention)
+# ============================================================
+# verify-local    - Fast local checks (lint, unit tests) - no network
+# verify-dev      - Full verification against Railway dev environment
+# verify-pr PR=N  - Verification against Railway PR env + post comment
+# verify-pr-lite  - Quick health check for small PRs
+# ============================================================
+
+# Run ALL verifications against Railway dev environment
 # Sequence: Discovery → Environment → Auth → Storage → RAG Pipeline → E2E Glass Box → Admin UI
 # NOTE: verify-discovery MUST be first - validates LLM query generation before any pipeline runs!
-verify-all: verify-discovery verify-env verify-auth verify-storage verify-pipeline verify-e2e verify-admin-pipeline
+verify-dev: verify-discovery verify-env verify-auth verify-storage verify-pipeline verify-e2e verify-admin-pipeline ## Full verification against Railway dev
 	@echo "============================================================"
 	@echo "✅ FULL PIPELINE VERIFICATION COMPLETE!"
 	@echo "============================================================"
@@ -227,8 +236,12 @@ verify-all: verify-discovery verify-env verify-auth verify-storage verify-pipeli
 	@echo "Phase 5: Admin UI (visual)      ✅"
 	@echo "============================================================"
 
-# Alias for clarity: full pipeline verification
-verify-full-pipeline: verify-all
+# DEPRECATED: Use verify-dev instead. Kept for backward compatibility.
+verify-all: verify-dev
+
+# DEPRECATED: Use verify-dev instead. Kept for backward compatibility.
+verify-full-pipeline: verify-dev
+
 
 # Stage 1: Local Visual E2E (browser screenshots against localhost)
 verify-local:
