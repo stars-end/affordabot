@@ -72,9 +72,9 @@ jobs:
           cd backend
           poetry run python scripts/verification/unified_verify.py \
             --base-url "$FRONTEND_URL" \
-
             --output ../artifacts/verification
           
+
       - name: Upload Artifacts
         if: always()
         uses: actions/upload-artifact@v4
