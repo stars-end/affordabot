@@ -30,14 +30,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - name: Setup mise
+        uses: jdx/mise-action@v2
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          version: latest
           
-      - name: Install Poetry
-        run: pip install poetry
-        
       - name: Install Dependencies
         run: |
           cd backend
@@ -47,6 +44,7 @@ jobs:
         run: |
           cd backend
           poetry run playwright install chromium
+
           
       - name: Run Unified Verification (12 RAG Stories)
         env:
