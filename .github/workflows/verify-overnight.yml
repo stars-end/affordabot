@@ -66,7 +66,7 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
           TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
-          FRONTEND_URL: ${{ github.event.inputs.base_url || 'https://backend-dev-3d99.up.railway.app' }}
+          FRONTEND_URL: ${{ github.event.inputs.base_url || 'https://frontend-dev-5093.up.railway.app' }}
         run: |
           export PATH="$HOME/.local/bin:$HOME/.local/share/mise/shims:$PATH"
           eval "$(mise activate bash)"
