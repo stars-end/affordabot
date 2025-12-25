@@ -1,0 +1,92 @@
+============================================================
+Admin Pipeline Verification - UISmokeAgent
+Base URL: https://frontend-affordabot-pr-160.up.railway.app
+Output: ../artifacts/verification/admin_pipeline_auth
+Auth: Clerk test auth
+GLM: Enabled
+============================================================
+
+🔐 Performing Clerk test authentication...
+    📍 Navigating to /admin to trigger login...
+    📸 Login start screenshot saved
+    ✅ Found email input: input[name="identifier"]
+    ✅ Entered email: fengning@gmail.com
+    ✅ Clicked continue button
+    ❌ Could not find password input
+❌ Login failed - screenshots will show sign-in pages
+
+[01_dashboard] Admin Dashboard
+    URL: /admin
+    📸 Screenshot: 303KB
+    🤖 GLM: 
+To determine if this is an admin dashboard, we analyze the interface:  
+
+### Is...
+
+[02_discovery] Discovery Search
+    URL: /admin/discovery
+    📸 Screenshot: 303KB
+    🤖 GLM: 
+This is **not** a discovery/search interface. The primary focus is a sign - in ...
+
+[03_discovery_queue] Discovery Queue
+    URL: /admin/discovery/queue
+    📸 Screenshot: 302KB
+    🤖 GLM: 
+This is a **list view** (not a queue, as queues imply ordered processing/waitin...
+
+[04_scraper] Scraper Status
+    URL: /admin/scraper
+    📸 Screenshot: 302KB
+    🤖 GLM: 
+This is not a scraper management page. The image displays a **sign - in page fo...
+
+[05_raw_data] Raw Scrapes Table
+    URL: /admin/scrapes
+    📸 Screenshot: 303KB
+    🤖 GLM: 
+To determine if this is a data table, we analyze the structure:  
+
+### Is this ...
+
+[06_minio_storage] MinIO Storage
+    URL: /admin/storage
+    📸 Screenshot: 303KB
+    🤖 GLM: 
+This is **not** a storage/bucket browser. The image shows a **sign-in interface...
+
+[07_embeddings] Embedding Status
+    URL: /admin/embeddings
+    📸 Screenshot: 303KB
+    🤖 GLM: 
+This is not an embedding/processing status page. It is a sign - in page for “af...
+
+[08_chunks] Document Chunks (PgVector)
+    URL: /admin/chunks
+    📸 Screenshot: 303KB
+    🤖 GLM: 
+The image you provided is **not** a chunks/documents table. It is a sign - in i...
+
+[09_research] LLM Research Agent
+    URL: /admin/research
+    📸 Screenshot: 303KB
+    🤖 GLM: 
+This is **not** a research/query interface; it is a **sign - in/authentication ...
+
+[10_analysis] LLM Analysis Output
+    URL: /admin/analysis
+    📸 Screenshot: 303KB
+    🤖 GLM: 
+This is **not** an analysis output page. It is a **sign - in interface** for th...
+
+[11_reports] Final Reports
+    URL: /admin/reports
+    📸 Screenshot: 303KB
+    🤖 GLM: 
+This is **not a reports page**—it is a sign - in (authentication) page for the ...
+
+============================================================
+📋 Report: ../artifacts/verification/admin_pipeline_auth/report.md
+🏁 Result: 11/11 steps passed
+🔐 Auth: Yes
+============================================================
