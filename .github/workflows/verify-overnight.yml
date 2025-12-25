@@ -35,18 +35,25 @@ jobs:
           export PATH="$HOME/.local/bin:$PATH"
           eval "$(mise activate bash)"
           mise install --yes
-          echo "PATH=$HOME/.local/bin:$PATH" >> $GITHUB_ENV
+          echo "PATH=$HOME/.local/bin:$HOME/.local/share/mise/shims:$PATH" >> $GITHUB_ENV
           
-      - name: Install Dependencies
+      - name: Clean old artifacts
         run: |
-          export PATH="$HOME/.local/bin:$PATH"
+          # Remove any old artifacts with colons in filename
+          find artifacts/verification -name "*:*" -delete 2>/dev/null || true
+          
+      - name: Install Dependencies  
+        run: |
+          export PATH="$HOME/.local/bin:$HOME/.local/share/mise/shims:$PATH"
           eval "$(mise activate bash)"
           cd backend
+          # Use mise-provided Python for Poetry
+          poetry env use $(which python)
           poetry install
           
       - name: Install Playwright
         run: |
-          export PATH="$HOME/.local/bin:$PATH"
+          export PATH="$HOME/.local/bin:$HOME/.local/share/mise/shims:$PATH"
           eval "$(mise activate bash)"
           cd backend
           poetry run playwright install chromium
@@ -59,10 +66,13 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           FRONTEND_URL: ${{ github.event.inputs.base_url || 'https://affordabot.up.railway.app' }}
         run: |
+          export PATH="$HOME/.local/bin:$HOME/.local/share/mise/shims:$PATH"
+          eval "$(mise activate bash)"
           mkdir -p artifacts/verification
           cd backend
           poetry run python scripts/verification/unified_verify.py \
             --base-url "$FRONTEND_URL" \
+
             --output ../artifacts/verification
           
       - name: Upload Artifacts
