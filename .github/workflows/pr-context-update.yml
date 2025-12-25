@@ -60,7 +60,8 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             echo "base_ref=${{ github.event.pull_request.base.sha }}" >> $GITHUB_OUTPUT
-            echo "head_ref=${{ github.event.pull_request.head.sha }}" >> $GITHUB_OUTPUT
+            # Use merge_commit_sha instead of head.sha since head.sha doesn't exist after squash merge
+            echo "head_ref=${{ github.event.pull_request.merge_commit_sha }}" >> $GITHUB_OUTPUT
           elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.pr_number }}" ]; then
             echo "base_ref=origin/master" >> $GITHUB_OUTPUT
             echo "head_ref=origin/pull/${{ inputs.pr_number }}/head" >> $GITHUB_OUTPUT

@@ -1,0 +1,4 @@
+
+1. The "California State Dashboard" header with the subtitle "Real-time affordability impact analysis".  
+2. The left sidebar containing location options (e.g., California, Santa Clara Co., San Jose, Saratoga, Admin Console).  
+3. The main content area with metric cards (Total Bills, Annual Impact, Avg Confidence) and analysis sections (Impact vs Confidence Analysis, Bills by Impact).
