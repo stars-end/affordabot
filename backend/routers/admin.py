@@ -11,8 +11,6 @@ class Jurisdiction(BaseModel):
     id: str
     name: str
     type: str
-    parent_id: Optional[str] = None
-    created_at: Optional[str] = None
 
 
 class JurisdictionDetail(BaseModel):
@@ -27,14 +25,15 @@ class JurisdictionDetail(BaseModel):
 class Prompt(BaseModel):
     id: Optional[str] = None
     prompt_type: str
-    content: str
+    system_prompt: str  # actual column name in DB
+    description: Optional[str] = None
     version: int = 1
     is_active: bool = True
 
 
 class PromptUpdate(BaseModel):
     type: str
-    content: str
+    system_prompt: str  # match DB column name
 
 
 def get_db(request: Request):
@@ -60,14 +59,12 @@ async def list_jurisdictions(request: Request):
         raise HTTPException(status_code=503, detail="Database not available")
     
     try:
-        rows = await db._fetch("SELECT id, name, type, parent_id, created_at FROM jurisdictions ORDER BY name")
+        rows = await db._fetch("SELECT id, name, type FROM jurisdictions ORDER BY name")
         return [
             Jurisdiction(
                 id=str(row["id"]),
                 name=row["name"],
-                type=row["type"],
-                parent_id=str(row["parent_id"]) if row.get("parent_id") else None,
-                created_at=str(row["created_at"]) if row.get("created_at") else None
+                type=row["type"]
             )
             for row in rows
         ]
@@ -85,7 +82,7 @@ async def get_jurisdiction(jurisdiction_id: str, request: Request):
     try:
         # Try to find by ID first, then by name/slug
         row = await db._fetchrow(
-            "SELECT id, name, type, parent_id, created_at FROM jurisdictions WHERE id::text = $1 OR LOWER(name) = LOWER($1)",
+            "SELECT id, name, type FROM jurisdictions WHERE id::text = $1 OR LOWER(name) = LOWER($1)",
             jurisdiction_id
         )
         
@@ -107,8 +104,6 @@ async def get_jurisdiction(jurisdiction_id: str, request: Request):
             "id": str(row["id"]),
             "name": row["name"],
             "type": row["type"],
-            "parent_id": str(row["parent_id"]) if row.get("parent_id") else None,
-            "created_at": str(row["created_at"]) if row.get("created_at") else None,
             "bill_count": bill_count["count"] if bill_count else 0,
             "source_count": source_count["count"] if source_count else 0
         }
@@ -131,13 +126,14 @@ async def list_prompts(request: Request):
     
     try:
         rows = await db._fetch(
-            "SELECT id, prompt_type, content, version, is_active FROM system_prompts WHERE is_active = true ORDER BY prompt_type"
+            "SELECT id, prompt_type, system_prompt, description, version, is_active FROM system_prompts WHERE is_active = true ORDER BY prompt_type"
         )
         return [
             Prompt(
                 id=str(row["id"]) if row.get("id") else None,
                 prompt_type=row["prompt_type"],
-                content=row["content"],
+                system_prompt=row["system_prompt"],
+                description=row.get("description"),
                 version=row["version"],
                 is_active=row["is_active"]
             )
@@ -156,7 +152,7 @@ async def get_prompt(prompt_type: str, request: Request):
     
     try:
         row = await db._fetchrow(
-            "SELECT id, prompt_type, content, version, is_active FROM system_prompts WHERE prompt_type = $1 AND is_active = true",
+            "SELECT id, prompt_type, system_prompt, description, version, is_active FROM system_prompts WHERE prompt_type = $1 AND is_active = true",
             prompt_type
         )
         
@@ -166,7 +162,8 @@ async def get_prompt(prompt_type: str, request: Request):
         return Prompt(
             id=str(row["id"]) if row.get("id") else None,
             prompt_type=row["prompt_type"],
-            content=row["content"],
+            system_prompt=row["system_prompt"],
+            description=row.get("description"),
             version=row["version"],
             is_active=row["is_active"]
         )
@@ -184,9 +181,9 @@ async def update_prompt(prompt: PromptUpdate, request: Request):
         raise HTTPException(status_code=503, detail="Database not available")
     
     try:
-        # Use existing method if available
-        result = await db.upsert_prompt(prompt.type, prompt.content)
-        return {"success": True, "message": "Prompt updated", "result": result}
+        # Use the existing update_system_prompt method
+        result = await db.update_system_prompt(prompt.type, prompt.system_prompt)
+        return {"success": True, "message": "Prompt updated", "version": result}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to update prompt: {str(e)}")
 
@@ -203,12 +200,14 @@ async def list_scrapes(request: Request, limit: int = 50):
         raise HTTPException(status_code=503, detail="Database not available")
     
     try:
+        # raw_scrapes has: id, source_id, content_hash, content_type, data, url, metadata, storage_uri, document_id, created_at
         rows = await db._fetch(
             """
-            SELECT rs.id, rs.url, rs.title, rs.scraped_at, rs.jurisdiction_id, j.name as jurisdiction_name
+            SELECT rs.id, rs.url, rs.created_at, rs.metadata, s.jurisdiction_id, j.name as jurisdiction_name
             FROM raw_scrapes rs
-            LEFT JOIN jurisdictions j ON rs.jurisdiction_id = j.id
-            ORDER BY rs.scraped_at DESC
+            LEFT JOIN sources s ON rs.source_id = s.id
+            LEFT JOIN jurisdictions j ON s.jurisdiction_id = j.id
+            ORDER BY rs.created_at DESC
             LIMIT $1
             """,
             limit
@@ -217,10 +216,10 @@ async def list_scrapes(request: Request, limit: int = 50):
             {
                 "id": str(row["id"]),
                 "url": row["url"],
-                "title": row["title"],
-                "scraped_at": str(row["scraped_at"]) if row.get("scraped_at") else None,
+                "scraped_at": str(row["created_at"]) if row.get("created_at") else None,
                 "jurisdiction_id": str(row["jurisdiction_id"]) if row.get("jurisdiction_id") else None,
-                "jurisdiction_name": row["jurisdiction_name"]
+                "jurisdiction_name": row["jurisdiction_name"],
+                "metadata": row["metadata"]
             }
             for row in rows
         ]
