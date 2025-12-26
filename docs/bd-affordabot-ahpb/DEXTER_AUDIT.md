@@ -71,9 +71,11 @@ Affordabot has large research artifacts (scrapes, chunks, analyses). Dexter’s 
 
 Dexter’s “small model chooses tools” is a practical forcing function to reduce cost and increase predictability.
 
+Decision for this big-bang rewrite:
+- **Default tool-selection model:** `glm-4.5-air` (configurable)
+
 ## 6) Tracking
 
 This audit is intended to directly influence:
 - `docs/bd-affordabot-ahpb/SPEC.md` (affordabot workstream spec)
 - the canonical spec in Prime: `prime-radiant-ai/docs/bd-yn9g/SPEC.md`
-

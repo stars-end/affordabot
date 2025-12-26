@@ -110,6 +110,11 @@ Goal: eliminate “two definitions of the same payload” and stop silent fronte
 ### Decision H: Dexter patterns (what we actually reuse)
 See `docs/bd-affordabot-ahpb/DEXTER_AUDIT.md` for the local Dexter snapshot audit and the specific “missed integration ideas” to fold into this rewrite.
 
+### Decision I: Small-model tool selection (Dexter port)
+- **Default tool-selection model:** `glm-4.5-air`
+- Tool selection is a separate “model role” from synthesis.
+- Tool selection must be schema-grounded (tool registry) and capped (≤5 tools) to reduce regressions.
+
 ## 5) Big‑Bang Cutover Strategy (minimize regressions)
 
 ### Approach
@@ -150,6 +155,10 @@ Epic: `llm-common-cmm`
 - `llm-common-cmm.6` Chore: version/tag alignment
 - `llm-common-cmm.7` Task: publish JSON Schema artifacts in releases
 - `llm-common-cmm.8` Task: MessageHistory helper (Dexter-style)
+- `llm-common-cmm.9` Docs: bundle Dexter ports (glm-4.5-air tool selection, context pointers, message history)
+- `llm-common-cmm.10` Feature: Dexter ports bundle (llm-common primitives)
+- `llm-common-cmm.11` Task: tool selection helper + model config (glm-4.5-air default)
+- `llm-common-cmm.12` Task: context pointer store + relevance selection library
 
 **Key deliverable:** a tagged llm-common release that both product repos pin to (no branch pins).
 
@@ -163,6 +172,10 @@ Epic: `bd-yn9g`
 - `bd-yn9g.6` Task: pin llm-common to tag
 - `bd-yn9g.7` Task: remove SSE/DeepChat path (MVP structured-only)
 - `bd-yn9g.8` Task: evidence envelope contract + UI
+- `bd-yn9g.9` Docs: bundle Dexter ports (glm-4.5-air tool selection, context pointers, message history)
+- `bd-yn9g.10` Feature: Dexter ports bundle (Prime integration)
+- `bd-yn9g.11` Task: tool selection small model (glm-4.5-air)
+- `bd-yn9g.12` Task: context pointer store + relevance selection
 
 ### 7.3 Affordabot workstream (migrate to Prime stack)
 Epic: `affordabot-ahpb`
@@ -173,6 +186,10 @@ Epic: `affordabot-ahpb`
 - `affordabot-ahpb.5` Docs: Dexter audit refresh + rewrite spec updates (this PR)
 - `affordabot-ahpb.6` Task: frontend-v2 baseline + cutover plan (deprecate Next frontend)
 - `affordabot-ahpb.7` Task: provenance envelope contract (EvidenceEnvelope + evidence-id citations)
+- `affordabot-ahpb.8` Docs: bundle Dexter ports (glm-4.5-air tool selection, context pointers, message history)
+- `affordabot-ahpb.9` Feature: Dexter ports bundle (Affordabot integration)
+- `affordabot-ahpb.10` Task: tool selection small model (glm-4.5-air)
+- `affordabot-ahpb.11` Task: context pointer store + relevance selection
 
 ## 8) Cross‑Repo Dependency Map (documented; not enforceable in Beads DB)
 
