@@ -95,9 +95,11 @@ async def test_get_url(mock_minio, s3_env):
     with patch.dict(os.environ, s3_env):
         storage = S3Storage()
         storage.client.presigned_get_object.return_value = "http://url"
-        
+
         url = await storage.get_url("path/to/file")
         assert url == "http://url"
+        # Minio expects `expires` as datetime.timedelta (not int seconds).
+        from datetime import timedelta
         storage.client.presigned_get_object.assert_called_with(
-            "test-bucket", "path/to/file", expires=3600
+            "test-bucket", "path/to/file", expires=timedelta(seconds=3600)
         )
