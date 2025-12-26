@@ -1,4 +1,4 @@
-# Big‑Bang Frontend Stack Unification (Prime Stack)
+# Big‑Bang Shared Agent/Contract Unification (SEO-first Affordabot)
 
 **Prime Radiant Epic:** `bd-yn9g`  
 **Affordabot Epic:** `affordabot-ahpb`  
@@ -6,7 +6,7 @@
 
 ## 0) Purpose
 
-Create a **full big‑bang rewrite specification** to standardize both products on one frontend stack (current target: **Prime Radiant’s stack**) while minimizing regressions and enabling parallel execution by remote agents (Jules).
+Create a **full big‑bang rewrite specification** to standardize both products on **one shared agent/runtime contract layer** (via `llm-common`) while minimizing regressions and enabling parallel execution by remote agents (Jules).
 
 This spec is designed for a solo developer managing multiple LLM agents: it prioritizes **clear contracts**, **minimized ambiguous integration surfaces**, and **low-cost regression detection**.
 
@@ -51,12 +51,12 @@ If streaming is reintroduced post‑MVP, it must use a single shared event contr
 
 ### 3.1 Target frontend stack (default)
 
-Both products use the **Prime Radiant frontend stack**:
-- Vite + React Router (SPA)
-- MUI (or a clearly-chosen alternative design system)
-- One shared “advisor/chat runtime” module (thread state, persistence, error handling)
+Affordabot is **majority public + indexed** and must remain **Next.js** (SSR/SSG/ISR).
 
-Affordabot adopts this stack (either in-repo or by extracting a shared frontend package).
+Unification target is not the frontend framework; it is:
+- shared contracts + schemas (llm-common)
+- shared agent primitives (ToolSelector, pointer store, provenance/evidence)
+- shared verification strategy and regression harness
 
 ### 3.2 Target UX for MVP advisor
 
@@ -123,11 +123,7 @@ See `docs/bd-affordabot-ahpb/DEXTER_AUDIT.md` for the local Dexter snapshot audi
 - Tool selection must be schema-grounded (tool registry) and capped (≤5 tools) to reduce regressions.
 
 ### Decision J: AI chat UI framework (MVP vs post‑MVP)
-**MVP:** do not adopt a new chat UI framework; render structured responses with existing components (minimize UI regressions).  
-**Post‑MVP evaluation:** choose one of:
-1. Vercel AI SDK hooks (`useChat`, `useObject`) + current UI components.
-2. assistant-ui (either full shadcn/Tailwind adoption *or* assistant-ui runtime/transport + wrappers).
-3. deep-chat (web component) as a drop-in UI layer if we want streaming UI quickly without a design-system migration.
+**MVP + Post‑MVP default:** Vercel AI SDK hooks (`useChat`, `useObject`) + current UI rendering.
 
 Rationale: the chat UX is not the differentiator; optimize for stability and maintainability. UI framework choice should follow a stable backend message/contract model, not drive it.
 
@@ -211,14 +207,14 @@ Epic: `bd-yn9g`
 - `bd-yn9g.11` Task: tool selection small model (glm-4.5-air)
 - `bd-yn9g.12` Task: context pointer store + relevance selection
 
-### 7.3 Affordabot workstream (migrate to Prime stack)
+### 7.3 Affordabot workstream (SEO-first Next.js frontend)
 Epic: `affordabot-ahpb`
 - `affordabot-ahpb.1` Docs: affordabot migration plan + mirrored spec
-- `affordabot-ahpb.2` Feature: build Prime-stack frontend inside affordabot (**post‑MVP unless SEO/SSR is explicitly not needed**)
+- `affordabot-ahpb.2` Feature: build Prime-stack frontend inside affordabot (**DEPRECATED**; Affordabot remains Next.js due to majority-public SEO needs)
 - `affordabot-ahpb.3` Task: align affordabot backend API contract to shared frontend
 - `affordabot-ahpb.4` Regression harness: minimal contract + E2E smoke test
 - `affordabot-ahpb.5` Docs: Dexter audit refresh + rewrite spec updates (this PR)
-- `affordabot-ahpb.6` Task: frontend-v2 baseline + cutover plan (deprecate Next frontend)
+- `affordabot-ahpb.6` Task: frontend-v2 baseline + cutover plan (**DEPRECATED**; do not deprecate Next frontend)
 - `affordabot-ahpb.7` Task: provenance envelope contract (EvidenceEnvelope + evidence-id citations)
 - `affordabot-ahpb.8` Docs: bundle Dexter ports (glm-4.5-air tool selection, context pointers, message history)
 - `affordabot-ahpb.9` Feature: Dexter ports bundle (Affordabot integration)
