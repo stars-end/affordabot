@@ -80,10 +80,25 @@ async def get_jurisdiction(jurisdiction_id: str, request: Request):
         raise HTTPException(status_code=503, detail="Database not available")
     
     try:
-        # Try to find by ID first, then by name/slug
+        # Normalize the input: convert slug-style to match partial names
+        # e.g., 'california' matches 'State of California', 'san-jose' matches 'San Jose'
+        search_term = jurisdiction_id.replace('-', ' ')
+        
+        # Try multiple matching strategies:
+        # 1. Exact match by UUID id
+        # 2. Exact name match (case-insensitive)
+        # 3. Name contains the search term (for slugs like 'california' → 'State of California')
         row = await db._fetchrow(
-            "SELECT id, name, type FROM jurisdictions WHERE id::text = $1 OR LOWER(name) = LOWER($1)",
-            jurisdiction_id
+            """
+            SELECT id, name, type FROM jurisdictions 
+            WHERE id::text = $1 
+               OR LOWER(name) = LOWER($1)
+               OR LOWER(name) = LOWER($2)
+               OR LOWER(name) LIKE '%' || LOWER($2) || '%'
+            LIMIT 1
+            """,
+            jurisdiction_id,
+            search_term
         )
         
         if not row:
