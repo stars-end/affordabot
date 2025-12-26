@@ -48,6 +48,11 @@ tool selection helpers, evidence/provenance envelopes, context pointer stores, o
 
 - `affordabot-ahpb.12` Decision: Affordabot frontend unification timing (MVP vs post‑MVP)
 
+## 5) Fire-and-forget packet docs (read these first)
+
+- `docs/bd-affordabot-ahpb/packets/affordabot-ahpb.10.md`
+- `docs/bd-affordabot-ahpb/packets/affordabot-ahpb.11.md`
+
 ### Packet: `affordabot-ahpb.10` — TOOL_SELECTION_SMALL_MODEL_GLM_4_5_AIR
 
 **Repo:** `affordabot`  
