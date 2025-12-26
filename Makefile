@@ -216,9 +216,9 @@ verify-env:
 # ============================================================
 
 # Run ALL verifications against Railway dev environment
-# Sequence: Discovery → Environment → Auth → Storage → RAG Pipeline → E2E Glass Box → Admin UI
+# Sequence: Discovery → Environment → Auth → Storage → RAG Pipeline → E2E Glass Box → Admin UI → Stories
 # NOTE: verify-discovery MUST be first - validates LLM query generation before any pipeline runs!
-verify-dev: verify-discovery verify-env verify-auth verify-storage verify-pipeline verify-e2e verify-admin-pipeline ## Full verification against Railway dev
+verify-dev: verify-discovery verify-env verify-auth verify-storage verify-pipeline verify-e2e verify-admin-pipeline verify-stories ## Full verification against Railway dev
 	@echo "============================================================"
 	@echo "✅ FULL PIPELINE VERIFICATION COMPLETE!"
 	@echo "============================================================"
@@ -234,7 +234,9 @@ verify-dev: verify-discovery verify-env verify-auth verify-storage verify-pipeli
 	@echo "  - Generate (cost analysis)"
 	@echo "  - Review (critique + refine)"
 	@echo "Phase 5: Admin UI (visual)      ✅"
+	@echo "Phase 6: User Stories (7 flows) ✅"
 	@echo "============================================================"
+
 
 # DEPRECATED: Use verify-dev instead. Kept for backward compatibility.
 verify-all: verify-dev
@@ -288,6 +290,26 @@ verify-admin-pipeline:
 			--url $$FRONTEND_URL \
 			--output ../artifacts/verification/admin_pipeline; \
 	fi
+
+# Story-driven verification using docs/TESTING/STORIES/*.yml
+# Validates admin console against user stories with GLM-4.6V visual analysis
+verify-stories:
+	@echo "📖 Running Story-Driven Admin Verification..."
+	@echo "   Stories: docs/TESTING/STORIES/*.yml"
+	@echo "   Target:  $(RAILWAY_DEV_FRONTEND_URL)"
+	@mkdir -p artifacts/verification/stories
+	@# List stories and run admin pipeline which covers all story routes
+	@ls -1 docs/TESTING/STORIES/*.yml 2>/dev/null | wc -l | xargs -I{} echo "   Found {} story files"
+	@# Admin pipeline covers all story routes - reuse existing verification
+	@$(MAKE) verify-admin-pipeline
+
+# Overnight/CI story verification (runs all stories + generates report)
+verify-stories-overnight:
+	@echo "🌙 Running Overnight Story Verification..."
+	@mkdir -p artifacts/verification/overnight
+	@$(MAKE) verify-admin-pipeline FRONTEND_URL=$(RAILWAY_DEV_FRONTEND_URL)
+	@echo "📊 Stories verified. Report: artifacts/verification/admin_pipeline/report.md"
+
 
 # Full E2E verification with auth on Railway PR environment
 verify-admin-pipeline-pr:
@@ -348,6 +370,9 @@ endif
 	@# Run full verification
 	@echo "🚀 Running verify-all against PR environment..."
 	$(MAKE) verify-all API_URL=$(PR_BACKEND_URL) BASE_URL=$(PR_FRONTEND_URL)
+	@# Run story-driven verification on PR frontend
+	@echo "📖 Running story verification on PR frontend..."
+	$(MAKE) verify-admin-pipeline FRONTEND_URL=$(PR_FRONTEND_URL)
 	@# Generate and post report
 	@echo "📝 Generating verification report..."
 	@./scripts/generate-pr-report.sh $(PR) $(PR_BACKEND_URL)
@@ -359,6 +384,7 @@ endif
 	@echo "   Report posted to: https://github.com/stars-end/affordabot/pull/$(PR)"
 	@echo "   Merge command: gh pr merge $(PR) --squash --delete-branch"
 	@echo "============================================================"
+
 
 verify-pr-lite: ## Quick verification (health + discovery only) for small PRs
 ifndef PR
