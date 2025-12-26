@@ -22,6 +22,9 @@ Rationale:
 - Structured outputs are easier to validate, diff, regression-test, and safely render for financial advice.
 - Streaming adds edge cases (partial output, reconnect, ordering, interruptions) that increase regression risk.
 
+**Big-bang rewrite default:** remove Prime’s SSE/DeepChat path as part of the rewrite.  
+If streaming is reintroduced post‑MVP, it must use a single shared event contract (llm-common), not a Prime-only fork.
+
 ## 2) Current State (baseline)
 
 ### Prime Radiant
@@ -73,6 +76,40 @@ Tradeoff:
 - **MVP:** structured JSON only.
 - **Post‑MVP:** if streaming, standardize an event schema in llm-common (do not fork per repo).
 
+### Decision C: Canonical contract source of truth
+- **Canonical:** `llm-common` Python models (Pydantic) + generated JSON Schema artifacts (versioned).
+- **Derived:** OpenAPI (helpful for docs/clients, but not the source of truth).
+- **Frontend:** generated TypeScript types (or Zod guards) derived from the shared JSON Schema.
+
+Goal: eliminate “two definitions of the same payload” and stop silent frontend/backend drift.
+
+### Decision D: Evidence/provenance shape (shared)
+- Use a single shared evidence envelope (llm-common `Evidence` / `EvidenceEnvelope`).
+- Citations reference evidence IDs (not raw URLs embedded ad hoc in model text).
+- “Sources” UI renders from evidence items; text rendering can optionally include a “Sources” section.
+
+### Decision E: Persistence model (shared)
+- Persist **both**:
+  - `response_json`: the full structured response payload (canonical)
+  - `response_text`: a rendered human-readable summary (for UX/search/debug)
+- Also persist:
+  - `evidence_envelope` (or embed within `response_json`)
+  - `schema_version` and `llm_common_version` to prevent “old rows break new UI”.
+
+### Decision F: llm-common compatibility + pinning
+- Apps pin `llm-common` by **tag** (no branch pins).
+- Semver policy:
+  - patch = bugfix only
+  - minor = additive-only
+  - major = breaking changes + migration notes
+
+### Decision G: Failure mode policy (cross-repo)
+- Required capabilities fail fast (startup/config error) rather than silently degrading.
+- Optional capabilities degrade only behind explicit config (e.g., “no retrieval” mode).
+
+### Decision H: Dexter patterns (what we actually reuse)
+See `docs/bd-affordabot-ahpb/DEXTER_AUDIT.md` for the local Dexter snapshot audit and the specific “missed integration ideas” to fold into this rewrite.
+
 ## 5) Big‑Bang Cutover Strategy (minimize regressions)
 
 ### Approach
@@ -109,6 +146,10 @@ Epic: `llm-common-cmm`
 - `llm-common-cmm.2` Contract: ToolResult + provenance
 - `llm-common-cmm.3` Contract: StreamEvent schema (optional / post‑MVP)
 - `llm-common-cmm.4` Release + pinning plan (apps + scripts)
+- `llm-common-cmm.5` Docs: Dexter audit refresh + rewrite spec updates (this PR)
+- `llm-common-cmm.6` Chore: version/tag alignment
+- `llm-common-cmm.7` Task: publish JSON Schema artifacts in releases
+- `llm-common-cmm.8` Task: MessageHistory helper (Dexter-style)
 
 **Key deliverable:** a tagged llm-common release that both product repos pin to (no branch pins).
 
@@ -118,6 +159,10 @@ Epic: `bd-yn9g`
 - `bd-yn9g.2` Frontend: unify chat runtime (structured MVP)
 - `bd-yn9g.3` Backend/API: freeze advisor contract
 - `bd-yn9g.4` Regression harness: minimal contract + E2E smoke test
+- `bd-yn9g.5` Docs: Dexter audit refresh + rewrite spec updates (this PR)
+- `bd-yn9g.6` Task: pin llm-common to tag
+- `bd-yn9g.7` Task: remove SSE/DeepChat path (MVP structured-only)
+- `bd-yn9g.8` Task: evidence envelope contract + UI
 
 ### 7.3 Affordabot workstream (migrate to Prime stack)
 Epic: `affordabot-ahpb`
@@ -125,6 +170,9 @@ Epic: `affordabot-ahpb`
 - `affordabot-ahpb.2` Feature: build Prime-stack frontend inside affordabot
 - `affordabot-ahpb.3` Task: align affordabot backend API contract to shared frontend
 - `affordabot-ahpb.4` Regression harness: minimal contract + E2E smoke test
+- `affordabot-ahpb.5` Docs: Dexter audit refresh + rewrite spec updates (this PR)
+- `affordabot-ahpb.6` Task: frontend-v2 baseline + cutover plan (deprecate Next frontend)
+- `affordabot-ahpb.7` Task: provenance envelope contract (EvidenceEnvelope + evidence-id citations)
 
 ## 8) Cross‑Repo Dependency Map (documented; not enforceable in Beads DB)
 
@@ -142,4 +190,3 @@ Soft dependencies:
    - shared Clerk config across both products?
    - or product-specific auth adapters?
 4. Are there any affordabot-specific UI workflows that must survive the big‑bang cutover (admin pages, scraping workflows)?
-
