@@ -1,18 +1,19 @@
-
 // Mock prompt structure
 export interface SystemPrompt {
   id: string;
   prompt_type: string;
   system_prompt: string;
+  description?: string;
   is_active: boolean;
   version: number;
 }
 
-const API_BASE_URL = process.env.BACKEND_URL || 'http://localhost:8000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 class PromptService {
   async getPrompts(): Promise<SystemPrompt[]> {
-    const response = await fetch(`${API_BASE_URL}/prompts`);
+    // Calls GET /admin/prompts
+    const response = await fetch(`${API_BASE_URL}/admin/prompts`);
     if (!response.ok) {
       throw new Error('Failed to fetch prompts');
     }
@@ -20,35 +21,32 @@ class PromptService {
   }
 
   async updatePrompt(promptType: string, content: string, description?: string): Promise<SystemPrompt> {
-    const response = await fetch(`${API_BASE_URL}/prompts/${promptType}`, {
-      method: 'PUT',
+    // Calls POST /admin/prompts
+    const response = await fetch(`${API_BASE_URL}/admin/prompts`, {
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ 
-        prompt_type: promptType, 
-        system_prompt: content,
-        description: description || `Updated via Admin UI`
+      body: JSON.stringify({
+        type: promptType,
+        system_prompt: content
+        // description is currently not supported in backend PromptUpdate model
       }),
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
+      const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.detail || 'Failed to update prompt');
     }
 
-    // The backend returns a {prompt_type, new_version} object on success.
-    // We can't return a full SystemPrompt object without fetching it again.
-    // For now, we'll just return a partial object and let the UI handle it.
-    const updateResult = await response.json();
-    
-    // To give a more complete response, let's fetch the updated prompt
+    // The backend returns success message. Fetch updated prompt to return full object.
     const updatedPrompt = await this.getPrompt(promptType);
     return updatedPrompt;
   }
 
   async getPrompt(promptType: string): Promise<SystemPrompt> {
-    const response = await fetch(`${API_BASE_URL}/prompts/${promptType}`);
+    // Calls GET /admin/prompts/{promptType}
+    const response = await fetch(`${API_BASE_URL}/admin/prompts/${promptType}`);
     if (!response.ok) {
       throw new Error(`Failed to fetch prompt: ${promptType}`);
     }
