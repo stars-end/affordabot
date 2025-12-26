@@ -1,0 +1,52 @@
+id: prompt_configuration
+description: "Admin views and manages LLM prompt templates"
+persona: admin_operator
+priority: P0
+timeout_seconds: 60
+goals:
+  - "Verify prompts page displays list of configured prompts"
+  - "Check prompt types are categorized (discovery, analysis, etc.)"
+  - "Confirm prompt text is viewable"
+  - "Verify edit interface exists if prompts are editable"
+start_url: "/admin/prompts"
+steps:
+  - id: step-1-prompts-list
+    description: |
+      Navigate to /admin/prompts and verify prompts list loads.
+      Should display configured LLM prompt templates.
+    glm_prompt: "Is this a prompt management interface? Describe the prompts displayed."
+    expected: "List of prompt templates"
+    exploration_budget: 0
+
+  - id: step-2-prompt-types
+    description: |
+      Check that prompts are categorized by type:
+      - Discovery prompts
+      - Analysis prompts
+      - Research prompts
+    glm_prompt: "Are prompts categorized into types? What categories are visible?"
+    expected: "Prompt type categories"
+    exploration_budget: 1
+
+  - id: step-3-prompt-content
+    description: |
+      Verify prompt text/content is visible or expandable.
+      Should show the actual LLM prompt template.
+    glm_prompt: "Can you see the actual prompt text? Is it expandable or in a modal?"
+    expected: "Prompt text visible"
+    exploration_budget: 1
+
+  - id: step-4-edit-controls
+    description: |
+      Look for edit/save controls on prompts:
+      - Edit button
+      - Text area for modification
+      - Save/cancel buttons
+    glm_prompt: "Are there controls to edit prompts? Describe any buttons or forms."
+    expected: "View-only or edit controls present"
+    exploration_budget: 1
+
+metadata:
+  tags: ["admin", "prompts", "configuration"]
+  priority: 1
+  estimated_duration_seconds: 30

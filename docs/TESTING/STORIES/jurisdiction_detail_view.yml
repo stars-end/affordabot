@@ -1,0 +1,52 @@
+id: jurisdiction_detail_view
+description: "Admin views jurisdiction details with bills and analysis data"
+persona: admin_operator
+priority: P0
+timeout_seconds: 60
+goals:
+  - "Verify jurisdiction detail page loads for a specific jurisdiction"
+  - "Check bills/legislation list is displayed"
+  - "Confirm analysis data or RAG results visible"
+  - "Test jurisdiction selection/navigation"
+start_url: "/admin/jurisdiction/san-jose"
+steps:
+  - id: step-1-jurisdiction-load
+    description: |
+      Navigate to /admin/jurisdiction/san-jose and verify page loads.
+      Should display San Jose jurisdiction details.
+    glm_prompt: "Is this a jurisdiction detail page? What jurisdiction is shown?"
+    expected: "San Jose jurisdiction details"
+    exploration_budget: 0
+
+  - id: step-2-bills-list
+    description: |
+      Check that bills or legislation items are listed:
+      - Bill numbers/names
+      - Status (pending, analyzed, etc.)
+      - Dates
+    glm_prompt: "Are there bills or legislation items listed? Describe what's shown."
+    expected: "Bills list or empty state"
+    exploration_budget: 1
+
+  - id: step-3-analysis-data
+    description: |
+      Look for RAG analysis results or impact assessments:
+      - Impact scores
+      - Analysis summaries
+      - Cost of living impacts
+    glm_prompt: "Is there any analysis data, impact scores, or AI-generated content visible?"
+    expected: "Analysis data or placeholder"
+    exploration_budget: 1
+
+  - id: step-4-navigation-to-other
+    description: |
+      Test navigation to another jurisdiction (e.g., California state).
+      Verify smooth transition without errors.
+    glm_prompt: "Is there a way to navigate to other jurisdictions? Any dropdown or links?"
+    expected: "Navigation to other jurisdictions available"
+    exploration_budget: 2
+
+metadata:
+  tags: ["admin", "jurisdiction", "detail"]
+  priority: 1
+  estimated_duration_seconds: 30

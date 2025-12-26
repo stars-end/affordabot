@@ -1,0 +1,80 @@
+id: full_admin_e2e
+description: "Complete E2E: Dashboard → Discovery → Jurisdiction → Review workflow"
+persona: admin_operator
+priority: P0
+timeout_seconds: 180
+goals:
+  - "Verify complete admin workflow from login to review"
+  - "Test navigation between all major sections"
+  - "Confirm data flows correctly between pages"
+  - "Verify no errors throughout the entire flow"
+start_url: "/admin"
+steps:
+  # Phase 1: Dashboard entry
+  - id: step-1-dashboard
+    description: |
+      Start at admin dashboard.
+      Verify all navigation links are visible and functional.
+    glm_prompt: "Describe the admin dashboard. List all navigation items visible."
+    expected: "Dashboard with full navigation"
+    exploration_budget: 1
+
+  # Phase 2: Discovery search
+  - id: step-2-discovery
+    description: |
+      Navigate to Discovery section.
+      Select San Jose jurisdiction.
+      Check for discovered URLs or run a search.
+    glm_prompt: "Are you on the discovery page? Can you see San Jose in the dropdown?"
+    expected: "Discovery page with jurisdiction options"
+    exploration_budget: 2
+
+  # Phase 3: View sources
+  - id: step-3-sources
+    description: |
+      Navigate to Sources section.
+      Verify sources list loads with status indicators.
+    glm_prompt: "Is this the sources page? How many sources are listed?"
+    expected: "Sources list displayed"
+    exploration_budget: 1
+
+  # Phase 4: Jurisdiction detail
+  - id: step-4-jurisdiction
+    description: |
+      Navigate to San Jose jurisdiction detail.
+      View bills and any existing analyses.
+    glm_prompt: "Is this San Jose's jurisdiction page? Are there any bills or analyses shown?"
+    expected: "San Jose with bills/analyses"
+    exploration_budget: 2
+
+  # Phase 5: Prompts configuration
+  - id: step-5-prompts
+    description: |
+      Navigate to Prompts section.
+      Verify prompt templates are listed.
+    glm_prompt: "Is this the prompts page? What prompt categories are visible?"
+    expected: "Prompts list displayed"
+    exploration_budget: 1
+
+  # Phase 6: Review queue
+  - id: step-6-reviews
+    description: |
+      Navigate to Reviews section.
+      Check for pending reviews or empty state.
+    glm_prompt: "Is this the review queue? Are there items pending review?"
+    expected: "Review queue displayed"
+    exploration_budget: 1
+
+  # Phase 7: Return to dashboard
+  - id: step-7-return
+    description: |
+      Navigate back to dashboard.
+      Verify no state or navigation issues.
+    glm_prompt: "Are you back on the dashboard? Any errors or issues visible?"
+    expected: "Clean return to dashboard"
+    exploration_budget: 0
+
+metadata:
+  tags: ["admin", "e2e", "full-flow"]
+  priority: 0
+  estimated_duration_seconds: 120

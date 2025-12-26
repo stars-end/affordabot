@@ -1,0 +1,54 @@
+id: review_queue_workflow
+description: "Admin reviews generated analyses awaiting human approval"
+persona: admin_operator
+priority: P0
+timeout_seconds: 90
+goals:
+  - "Verify review queue loads with pending items"
+  - "Check review item details are visible"
+  - "Confirm approval/rejection controls work"
+  - "Verify queue updates after action"
+start_url: "/admin/reviews"
+steps:
+  - id: step-1-queue-load
+    description: |
+      Navigate to /admin/reviews and verify review queue loads.
+      Should display items pending human review.
+    glm_prompt: "Is this a review queue? Describe the items pending review."
+    expected: "Review queue with items or empty state"
+    exploration_budget: 0
+
+  - id: step-2-item-details
+    description: |
+      Check that each review item shows relevant details:
+      - Bill/legislation reference
+      - Generated analysis preview
+      - Confidence score if available
+      - Timestamp
+    glm_prompt: "What details are shown for items in the review queue? List the fields."
+    expected: "Review item details visible"
+    exploration_budget: 1
+
+  - id: step-3-review-controls
+    description: |
+      Look for review action controls:
+      - Approve button (green checkmark)
+      - Reject button (red X)
+      - Request changes option
+      - Comment field
+    glm_prompt: "Are there approve/reject controls? Describe the action buttons available."
+    expected: "Review action controls present"
+    exploration_budget: 1
+
+  - id: step-4-expand-analysis
+    description: |
+      Test expanding a review item to see full analysis.
+      Should show complete LLM-generated content for review.
+    glm_prompt: "Can you expand an item to see the full analysis? What content is revealed?"
+    expected: "Full analysis viewable"
+    exploration_budget: 2
+
+metadata:
+  tags: ["admin", "reviews", "workflow"]
+  priority: 1
+  estimated_duration_seconds: 45

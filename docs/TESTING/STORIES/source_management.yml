@@ -1,0 +1,53 @@
+id: source_management
+description: "Admin views and manages data sources for scraping"
+persona: admin_operator
+priority: P0
+timeout_seconds: 60
+goals:
+  - "Verify sources page displays list of configured sources"
+  - "Check source status indicators (active/inactive/error)"
+  - "Confirm source details are readable"
+  - "Verify any add/edit controls if available"
+start_url: "/admin/sources"
+steps:
+  - id: step-1-sources-list
+    description: |
+      Navigate to /admin/sources and verify sources list loads.
+      Should display a table or grid of data sources.
+    glm_prompt: "Is this a sources/data management page? Describe the sources list layout."
+    expected: "Table or list of data sources"
+    exploration_budget: 0
+
+  - id: step-2-source-details
+    description: |
+      Check that each source shows relevant details:
+      - Source name/type
+      - URL or endpoint
+      - Last scraped date
+      - Status (active/error/pending)
+    glm_prompt: "What details are shown for each source? List column headers or data fields."
+    expected: "Source name, URL, status visible"
+    exploration_budget: 1
+
+  - id: step-3-status-indicators
+    description: |
+      Look for visual status indicators:
+      - Green/red badges for active/error
+      - Last updated timestamps
+      - Scrape counts
+    glm_prompt: "Are there status badges or indicators? What colors or icons are used?"
+    expected: "Status indicators present"
+    exploration_budget: 1
+
+  - id: step-4-empty-handling
+    description: |
+      If no sources exist, verify appropriate empty state message.
+      Should not show errors or broken UI.
+    glm_prompt: "If the list is empty, is there a helpful message? Or is it just blank?"
+    expected: "Graceful empty state or populated list"
+    exploration_budget: 0
+
+metadata:
+  tags: ["admin", "sources", "management"]
+  priority: 1
+  estimated_duration_seconds: 30

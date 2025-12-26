@@ -1,0 +1,50 @@
+id: discovery_search_flow
+description: "Admin searches for legislation sources using Z.ai discovery"
+persona: admin_operator
+priority: P0
+timeout_seconds: 90
+goals:
+  - "Verify discovery page loads with search interface"
+  - "Test jurisdiction selection dropdown works"
+  - "Confirm search results display (or appropriate no-results state)"
+  - "Verify URL list rendering if sources found"
+start_url: "/admin/discovery"
+steps:
+  - id: step-1-page-load
+    description: |
+      Navigate to /admin/discovery and verify the discovery interface loads.
+      Should see search controls and jurisdiction selector.
+    glm_prompt: "Is this a discovery/search interface? Describe the search inputs and controls visible."
+    expected: "Search interface with jurisdiction dropdown"
+    exploration_budget: 0
+
+  - id: step-2-jurisdiction-select
+    description: |
+      Check that jurisdiction dropdown is populated with options.
+      Should show cities like San Jose, Los Angeles, etc.
+    glm_prompt: "Is there a dropdown for selecting jurisdictions? What options are visible?"
+    expected: "Dropdown with jurisdiction options"
+    exploration_budget: 1
+
+  - id: step-3-search-trigger
+    description: |
+      If a search button exists, verify it's clickable.
+      Look for query generation or URL discovery results.
+    glm_prompt: "Is there a search/run/discover button? Are there any results displayed?"
+    expected: "Search button and/or results list"
+    exploration_budget: 2
+
+  - id: step-4-results-display
+    description: |
+      If search was run, verify results are displayed properly:
+      - List of URLs found
+      - Source titles
+      - Any filtering/sorting options
+    glm_prompt: "If there are search results, describe what's shown - URLs, titles, counts?"
+    expected: "Results list or empty state message"
+    exploration_budget: 1
+
+metadata:
+  tags: ["admin", "discovery", "search"]
+  priority: 1
+  estimated_duration_seconds: 45
