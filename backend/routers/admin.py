@@ -144,6 +144,104 @@ async def get_jurisdiction(jurisdiction_id: str, request: Request):
         raise HTTPException(status_code=500, detail=f"Failed to fetch jurisdiction: {str(e)}")
 
 
+@router.get("/jurisdiction/{jurisdiction_id}/dashboard")
+async def get_jurisdiction_dashboard(jurisdiction_id: str, request: Request):
+    """Get jurisdiction dashboard stats - endpoint expected by frontend."""
+    db = get_db(request)
+    if not db:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    try:
+        # Normalize the input: convert slug-style to match partial names
+        search_term = jurisdiction_id.replace('-', ' ')
+        
+        # Find the jurisdiction
+        row = await db._fetchrow(
+            """
+            SELECT id, name, type FROM jurisdictions 
+            WHERE id::text = $1 
+               OR LOWER(name) = LOWER($1)
+               OR LOWER(name) = LOWER($2)
+               OR LOWER(name) LIKE '%' || LOWER($2) || '%'
+            LIMIT 1
+            """,
+            jurisdiction_id,
+            search_term
+        )
+        
+        if not row:
+            raise HTTPException(status_code=404, detail=f"Jurisdiction '{jurisdiction_id}' not found")
+        
+        jur_id_str = str(row["id"])
+        jurisdiction_name = row["name"]
+        
+        # Get raw scrapes count
+        try:
+            raw_result = await db._fetchrow(
+                """
+                SELECT COUNT(*) as count FROM raw_scrapes rs
+                JOIN sources s ON rs.source_id = s.id
+                WHERE s.jurisdiction_id::text = $1
+                """,
+                jur_id_str
+            )
+            total_raw_scrapes = raw_result["count"] if raw_result else 0
+        except Exception:
+            total_raw_scrapes = 0
+        
+        # Get processed scrapes (legislation count)
+        try:
+            processed_result = await db._fetchrow(
+                "SELECT COUNT(*) as count FROM legislation WHERE jurisdiction_id::text = $1",
+                jur_id_str
+            )
+            processed_scrapes = processed_result["count"] if processed_result else 0
+        except Exception:
+            processed_scrapes = 0
+        
+        # Get total bills (same as legislation for now)
+        total_bills = processed_scrapes
+        
+        # Get last scrape timestamp
+        try:
+            last_scrape_result = await db._fetchrow(
+                """
+                SELECT MAX(rs.created_at) as last_scrape FROM raw_scrapes rs
+                JOIN sources s ON rs.source_id = s.id
+                WHERE s.jurisdiction_id::text = $1
+                """,
+                jur_id_str
+            )
+            last_scrape = str(last_scrape_result["last_scrape"]) if last_scrape_result and last_scrape_result["last_scrape"] else None
+        except Exception:
+            last_scrape = None
+        
+        # Determine pipeline status based on data
+        if total_raw_scrapes > 0 and last_scrape:
+            pipeline_status = "healthy"
+        elif total_raw_scrapes > 0:
+            pipeline_status = "degraded"
+        else:
+            pipeline_status = "unknown"
+        
+        # Check for alerts (no active scraping issues for now)
+        active_alerts = []
+        
+        return {
+            "jurisdiction": jurisdiction_name,
+            "last_scrape": last_scrape,
+            "total_raw_scrapes": total_raw_scrapes,
+            "processed_scrapes": processed_scrapes,
+            "total_bills": total_bills,
+            "pipeline_status": pipeline_status,
+            "active_alerts": active_alerts
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch dashboard: {str(e)}")
+
+
 # ============================================================================
 # PROMPTS ENDPOINTS
 # ============================================================================
