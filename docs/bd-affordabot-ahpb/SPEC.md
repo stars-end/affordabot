@@ -13,6 +13,13 @@ This spec is designed for a solo developer managing multiple LLM agents: it prio
 > **Canonical copy**: `prime-radiant-ai/docs/bd-yn9g/SPEC.md`.  
 > This file is a **mirror** stored in `affordabot` so agents working in this repo have full context.
 
+## 0.1 Jules Dispatch (Affordabot-specific)
+
+Jules-ready packets live in `docs/bd-affordabot-ahpb/JULES_DISPATCH.md`. Use them to dispatch self-contained work with:
+- explicit dependencies on llm-common primitives,
+- explicit verification gates (`make verify-*`),
+- and a strict feature-branch → PR → green checks → merge workflow.
+
 ## 1) MVP Stance (explicit)
 
 **MVP = Structured-only advisor responses.**  
@@ -143,6 +150,11 @@ See `docs/bd-affordabot-ahpb/DEXTER_AUDIT.md` for the local Dexter snapshot audi
 - Use existing `UISmokeAgent` stack to catch UI regressions across deployments.
 - Treat as “broad net”, not a blocker for every PR.
 
+### 6.4 Merge gates (CI/Railway) — required at milestones
+- Prime: `make verify-local` (then `make verify-pr PR=<N>` for P0/P1 and multi-file); post-merge `make verify-dev`.
+- Affordabot: `make verify-local` (then `make verify-pr PR=<N>` for P0/P1; `make verify-pr-lite` for docs/single-file); post-merge `make verify-dev`.
+- Merge rule: CI must be green; Railway PR deploy checks must be green when present.
+
 ## 7) Workstreams and Beads Issues (Jules-dispatchable)
 
 ### 7.1 llm-common workstream (contracts + release)
@@ -190,6 +202,8 @@ Epic: `affordabot-ahpb`
 - `affordabot-ahpb.9` Feature: Dexter ports bundle (Affordabot integration)
 - `affordabot-ahpb.10` Task: tool selection small model (glm-4.5-air)
 - `affordabot-ahpb.11` Task: context pointer store + relevance selection
+
+Jules-ready: `affordabot-ahpb.10`, `affordabot-ahpb.11` (see `docs/bd-affordabot-ahpb/JULES_DISPATCH.md`)
 
 ## 8) Cross‑Repo Dependency Map (documented; not enforceable in Beads DB)
 
