@@ -104,28 +104,39 @@ async def get_jurisdiction(jurisdiction_id: str, request: Request):
         if not row:
             raise HTTPException(status_code=404, detail=f"Jurisdiction '{jurisdiction_id}' not found")
         
-        # Get related counts - jur_id is already a UUID from the query
-        jur_id = row["id"]  # asyncpg returns native UUID, pass directly
-        # raw_scrapes doesn't have jurisdiction_id directly - join via sources
-        bill_count = await db._fetchrow(
-            """
-            SELECT COUNT(*) as count FROM raw_scrapes rs
-            JOIN sources s ON rs.source_id = s.id
-            WHERE s.jurisdiction_id = $1
-            """,
-            jur_id  # Pass UUID directly, asyncpg handles it
-        )
-        source_count = await db._fetchrow(
-            "SELECT COUNT(*) as count FROM sources WHERE jurisdiction_id = $1",
-            jur_id  # Pass UUID directly
-        )
+        # Get related counts - use string UUID for compatibility
+        jur_id_str = str(row["id"])
+        
+        # Use try/except for counts to gracefully handle any schema issues
+        try:
+            # raw_scrapes doesn't have jurisdiction_id directly - join via sources
+            bill_result = await db._fetchrow(
+                """
+                SELECT COUNT(*) as count FROM raw_scrapes rs
+                JOIN sources s ON rs.source_id = s.id
+                WHERE s.jurisdiction_id::text = $1
+                """,
+                jur_id_str
+            )
+            bill_count = bill_result["count"] if bill_result else 0
+        except Exception:
+            bill_count = 0
+            
+        try:
+            source_result = await db._fetchrow(
+                "SELECT COUNT(*) as count FROM sources WHERE jurisdiction_id::text = $1",
+                jur_id_str
+            )
+            source_count = source_result["count"] if source_result else 0
+        except Exception:
+            source_count = 0
         
         return {
-            "id": str(row["id"]),
+            "id": jur_id_str,
             "name": row["name"],
             "type": row["type"],
-            "bill_count": bill_count["count"] if bill_count else 0,
-            "source_count": source_count["count"] if source_count else 0
+            "bill_count": bill_count,
+            "source_count": source_count
         }
     except HTTPException:
         raise
