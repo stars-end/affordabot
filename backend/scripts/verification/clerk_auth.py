@@ -6,14 +6,23 @@ from urllib.parse import quote
 from playwright.async_api import Page
 
 
+async def _is_not_found_page(page: Page) -> bool:
+    try:
+        h1 = page.locator("h1.next-error-h1")
+        if await h1.count() == 0:
+            return False
+        return await h1.first.is_visible()
+    except Exception:
+        return False
+
+
 async def _is_authenticated(page: Page) -> bool:
     url = (page.url or "").lower()
     if "sign-in" in url or "sign-up" in url:
         return False
     if await _has_email_field(page) or await _has_password_field(page):
         return False
-    content = (await page.content()).lower()
-    if "this page could not be found" in content or "next-error-h1" in content:
+    if await _is_not_found_page(page):
         return False
     return True
 
