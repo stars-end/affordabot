@@ -12,6 +12,9 @@ RUN_CMD :=
 ifeq ($(shell test -n "$$RAILWAY_PROJECT_NAME" && echo 1), 1)
 	# Inside Railway shell, env vars are already present.
 	RUN_CMD :=
+else ifeq ($(shell railway status >/dev/null 2>&1 && echo 1), 1)
+	# Local machine is authenticated + linked (non-interactive); use 'railway run'.
+	RUN_CMD := railway run
 else ifeq ($(shell test -n "$$RAILWAY_TOKEN" && echo 1), 1)
 	# Not in shell, but token is available. Use 'railway run'.
 	RUN_CMD := railway run
