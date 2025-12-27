@@ -43,11 +43,12 @@ steps:
   # Phase 4: Jurisdiction detail
   - id: step-4-jurisdiction
     description: |
-      Navigate to /admin/jurisdiction/san-jose.
-      Verify the jurisdiction dashboard loads.
-    glm_prompt: "Is this a jurisdiction dashboard page? What key sections are visible?"
+      Navigate to San Jose's dashboard view.
+      Verify the jurisdiction dashboard loads and lists bills.
+    glm_prompt: "Is this the San Jose dashboard page? What key sections are visible?"
     validation_criteria:
-      - "Recent History"
+      - "San Jose"
+      - "Bills by Impact"
     exploration_budget: 2
 
   # Phase 5: Prompts configuration
