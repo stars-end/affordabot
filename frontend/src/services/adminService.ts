@@ -1,4 +1,4 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_URL = '';
 
 export interface Source {
     id: string;
@@ -54,13 +54,13 @@ export interface JurisdictionDashboardStats {
 export const adminService = {
     // Sources
     async getSources(): Promise<Source[]> {
-        const res = await fetch(`${API_URL}/sources/`);
+        const res = await fetch(`${API_URL}/api/sources`);
         if (!res.ok) throw new Error('Failed to fetch sources');
         return res.json();
     },
 
     async createSource(source: Partial<Source>) {
-        const res = await fetch(`${API_URL}/sources/`, {
+        const res = await fetch(`${API_URL}/api/sources`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(source),
@@ -70,20 +70,20 @@ export const adminService = {
     },
 
     async deleteSource(id: string) {
-        const res = await fetch(`${API_URL}/sources/${id}`, { method: 'DELETE' });
+        const res = await fetch(`${API_URL}/api/sources/${id}`, { method: 'DELETE' });
         if (!res.ok) throw new Error('Failed to delete source');
         return res.json();
     },
 
     // Scrapes
     async getScrapeHistory(): Promise<ScrapeHistory[]> {
-        const res = await fetch(`${API_URL}/admin/scrapes`);
+        const res = await fetch(`${API_URL}/api/admin/scrapes`);
         if (!res.ok) throw new Error('Failed to fetch scrape history');
         return res.json();
     },
 
     async triggerScrape(jurisdiction: string, force: boolean): Promise<ScrapeTask> {
-        const res = await fetch(`${API_URL}/admin/scrape`, {
+        const res = await fetch(`${API_URL}/api/admin/scrape`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ jurisdiction, force }),
@@ -93,20 +93,20 @@ export const adminService = {
     },
 
     async getTaskStatus(taskId: string): Promise<ScrapeTask> {
-        const res = await fetch(`${API_URL}/admin/tasks/${taskId}`);
+        const res = await fetch(`${API_URL}/api/admin/tasks/${taskId}`);
         if (!res.ok) throw new Error('Failed to fetch task status');
         return res.json();
     },
 
     // Jurisdictions
     async getJurisdictions(): Promise<Jurisdiction[]> {
-        const res = await fetch(`${API_URL}/admin/jurisdictions`);
+        const res = await fetch(`${API_URL}/api/admin/jurisdictions`);
         if (!res.ok) throw new Error('Failed to fetch jurisdictions');
         return res.json();
     },
 
     async updateJurisdiction(id: string, updates: Partial<Jurisdiction>) {
-        const res = await fetch(`${API_URL}/admin/jurisdictions/${id}`, {
+        const res = await fetch(`${API_URL}/api/admin/jurisdictions/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(updates),
@@ -116,7 +116,7 @@ export const adminService = {
     },
 
     async getJurisdictionDashboard(id: string): Promise<JurisdictionDashboardStats> {
-        const res = await fetch(`${API_URL}/admin/jurisdiction/${id}/dashboard`);
+        const res = await fetch(`${API_URL}/api/admin/jurisdiction/${id}/dashboard`);
         if (!res.ok) throw new Error('Failed to fetch dashboard stats');
         return res.json();
     }

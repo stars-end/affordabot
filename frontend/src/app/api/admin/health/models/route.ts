@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
-const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8000';
+import { getBackendUrl } from '../../../_lib/backendUrl';
 
 export async function GET() {
     try {
-        const response = await fetch(`${BACKEND_URL}/admin/health/models`);
+        const response = await fetch(`${getBackendUrl()}/admin/health/models`);
         if (!response.ok) {
             throw new Error(`Backend responded with ${response.status}`);
         }

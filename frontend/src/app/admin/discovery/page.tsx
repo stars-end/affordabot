@@ -34,7 +34,7 @@ export default function DiscoveryPage() {
         if (!jurisdiction) return
         setLoading(true)
         try {
-            const res = await fetch("http://localhost:8000/discovery/run", {
+            const res = await fetch("/api/discovery/run", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ jurisdiction_name: jurisdiction, jurisdiction_type: "city" })
@@ -51,7 +51,7 @@ export default function DiscoveryPage() {
     const handleApprove = async (result: DiscoveryResult) => {
         // Create source from result
         try {
-            await fetch("http://localhost:8000/sources/", {
+            await fetch("/api/sources", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

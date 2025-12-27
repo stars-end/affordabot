@@ -35,13 +35,7 @@ export default function TemplateReviewsPage() {
 
     const fetchReviews = async () => {
         try {
-            // Direct supabase query or via API. For consistency, let's assume we add an endpoint
-            // or just query directly for this admin page prototype.
-            // Ideally we'd have GET /admin/template-reviews
-            // For now, I'll mock the fetch or assume an endpoint exists.
-            // Let's assume we added GET /admin/reviews to the backend.
-            // I'll implement the endpoint next.
-            const res = await fetch("http://localhost:8000/admin/reviews")
+            const res = await fetch("/api/admin/reviews")
             if (res.ok) {
                 const data = await res.json()
                 setReviews(data)
@@ -55,7 +49,7 @@ export default function TemplateReviewsPage() {
 
     const handleAction = async (id: string, status: 'approved' | 'rejected') => {
         try {
-            await fetch(`http://localhost:8000/admin/reviews/${id}`, {
+            await fetch(`/api/admin/reviews/${id}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ status })

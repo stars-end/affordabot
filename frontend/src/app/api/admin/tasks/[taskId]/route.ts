@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || process.env.VITE_API_URL || process.env.RAILWAY_SERVICE_BACKEND_URL || 'http://localhost:8000';
+import { getBackendUrl } from '../../../_lib/backendUrl';
 
 export async function GET(
     request: NextRequest,
@@ -9,7 +9,7 @@ export async function GET(
     const taskId = params.taskId;
 
     try {
-        const response = await fetch(`${BACKEND_URL}/admin/tasks/${taskId}`);
+        const response = await fetch(`${getBackendUrl()}/admin/tasks/${taskId}`);
 
         if (!response.ok) {
             // Pass through the error from backend if possible, or generic

@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || process.env.VITE_API_URL || process.env.RAILWAY_SERVICE_BACKEND_URL || 'http://localhost:8000';
+import { getBackendUrl } from '../../_lib/backendUrl';
 
 export async function POST(request: NextRequest) {
     try {
+        const BACKEND_URL = getBackendUrl();
         const body = await request.json();
 
         const response = await fetch(`${BACKEND_URL}/admin/scrape`, {
@@ -30,7 +31,7 @@ export async function POST(request: NextRequest) {
             {
                 error: 'Internal server error',
                 details: error instanceof Error ? error.message : String(error),
-                backend_url: BACKEND_URL
+                backend_url: getBackendUrl()
             },
             { status: 500 }
         );

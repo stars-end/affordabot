@@ -8,12 +8,12 @@ export interface SystemPrompt {
   version: number;
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE_URL = '';
 
 class PromptService {
   async getPrompts(): Promise<SystemPrompt[]> {
     // Calls GET /admin/prompts
-    const response = await fetch(`${API_BASE_URL}/admin/prompts`);
+    const response = await fetch(`${API_BASE_URL}/api/admin/prompts`);
     if (!response.ok) {
       throw new Error('Failed to fetch prompts');
     }
@@ -22,7 +22,7 @@ class PromptService {
 
   async updatePrompt(promptType: string, content: string, description?: string): Promise<SystemPrompt> {
     // Calls POST /admin/prompts
-    const response = await fetch(`${API_BASE_URL}/admin/prompts`, {
+    const response = await fetch(`${API_BASE_URL}/api/admin/prompts`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -46,7 +46,7 @@ class PromptService {
 
   async getPrompt(promptType: string): Promise<SystemPrompt> {
     // Calls GET /admin/prompts/{promptType}
-    const response = await fetch(`${API_BASE_URL}/admin/prompts/${promptType}`);
+    const response = await fetch(`${API_BASE_URL}/api/admin/prompts/${promptType}`);
     if (!response.ok) {
       throw new Error(`Failed to fetch prompt: ${promptType}`);
     }

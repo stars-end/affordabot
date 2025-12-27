@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8000';
+import { getBackendUrl } from '../../../_lib/backendUrl';
 
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
     try {
         const body = await request.json();
-        const response = await fetch(`${BACKEND_URL}/admin/jurisdictions/${params.id}`, {
+        const response = await fetch(`${getBackendUrl()}/admin/jurisdictions/${params.id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body),

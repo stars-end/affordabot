@@ -335,7 +335,7 @@ async def list_scrapes(request: Request, limit: int = 50):
             SELECT rs.id, rs.url, rs.created_at, rs.metadata, s.jurisdiction_id, j.name as jurisdiction_name
             FROM raw_scrapes rs
             LEFT JOIN sources s ON rs.source_id = s.id
-            LEFT JOIN jurisdictions j ON s.jurisdiction_id = j.id
+            LEFT JOIN jurisdictions j ON s.jurisdiction_id = j.id::text
             ORDER BY rs.created_at DESC
             LIMIT $1
             """,
@@ -414,4 +414,3 @@ async def get_run_steps(
     Get granular execution steps for a pipeline run.
     """
     return await service.get_pipeline_steps(run_id)
-

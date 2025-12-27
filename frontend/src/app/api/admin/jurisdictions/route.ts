@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || process.env.VITE_API_URL || process.env.RAILWAY_SERVICE_BACKEND_URL || 'http://localhost:8000';
+import { getBackendUrl } from '../../_lib/backendUrl';
 
 export async function GET() {
     try {
-        const response = await fetch(`${BACKEND_URL}/admin/jurisdictions`);
+        const response = await fetch(`${getBackendUrl()}/admin/jurisdictions`);
         if (!response.ok) {
             throw new Error(`Backend responded with ${response.status}`);
         }
