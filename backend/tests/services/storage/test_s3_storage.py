@@ -3,6 +3,7 @@ from unittest.mock import patch
 import os
 from services.storage.s3_storage import S3Storage
 from minio.error import S3Error
+from datetime import timedelta
 
 @pytest.fixture
 def mock_minio():

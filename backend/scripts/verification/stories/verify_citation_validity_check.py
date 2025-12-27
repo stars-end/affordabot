@@ -1,5 +1,4 @@
 
-import asyncio
 import sys
 from pathlib import Path
 
@@ -8,7 +7,7 @@ backend_root = str(Path(__file__).parent.parent.parent.parent)
 if backend_root not in sys.path:
     sys.path.append(backend_root)
 
-from schemas.analysis import LegislationAnalysisResponse, LegislationImpact, ImpactEvidence
+from schemas.analysis import ImpactEvidence
 
 # --- STORY EXECUTION ---
 
