@@ -1,6 +1,7 @@
 import os
 import re
 from pathlib import Path
+from urllib.parse import quote
 
 from playwright.async_api import Page
 
@@ -73,6 +74,10 @@ async def clerk_login(page: Page, base_url: str, output_dir: Path) -> bool:
     await page.goto(f"{base_url}/admin", wait_until="networkidle", timeout=60_000)
     if await _is_authenticated(page):
         return True
+
+    # Ensure redirect_url points at the public base URL (Clerk can sometimes derive localhost behind proxies).
+    redirect_url = quote(f"{base_url}/admin", safe="")
+    await page.goto(f"{base_url}/sign-in?redirect_url={redirect_url}", wait_until="networkidle", timeout=60_000)
 
     # UI login with env credentials
     email = os.environ.get("TEST_USER_EMAIL")

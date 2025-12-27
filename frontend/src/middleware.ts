@@ -16,8 +16,16 @@ export default clerkMiddleware(async (auth, req) => {
     if (isProtected(req)) {
         const { userId } = await auth();
         if (!userId) {
-            const signInUrl = new URL('/sign-in', req.url);
-            signInUrl.searchParams.set('redirect_url', req.url);
+            // Railway/other reverse proxies can present an internal host (e.g. localhost:PORT) to Next.js.
+            // Prefer forwarded headers so Clerk's `redirect_url` points at the public domain.
+            const forwardedHost = req.headers.get('x-forwarded-host')?.split(',')[0]?.trim();
+            const forwardedProto = req.headers.get('x-forwarded-proto')?.split(',')[0]?.trim();
+            const publicOrigin =
+                forwardedHost ? `${forwardedProto || 'https'}://${forwardedHost}` : req.nextUrl.origin;
+
+            const returnBackUrl = new URL(`${req.nextUrl.pathname}${req.nextUrl.search}`, publicOrigin).toString();
+            const signInUrl = new URL('/sign-in', publicOrigin);
+            signInUrl.searchParams.set('redirect_url', returnBackUrl);
             return NextResponse.redirect(signInUrl);
         }
     }
