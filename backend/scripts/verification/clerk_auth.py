@@ -11,6 +11,9 @@ async def _is_authenticated(page: Page) -> bool:
         return False
     if await _has_email_field(page) or await _has_password_field(page):
         return False
+    content = (await page.content()).lower()
+    if "this page could not be found" in content or "next-error-h1" in content:
+        return False
     return True
 
 
@@ -67,7 +70,15 @@ async def clerk_login(page: Page, base_url: str, output_dir: Path) -> bool:
         # Continue below with auth check + artifacts
         pass
 
-    # Final check: should land on /admin (or at least not show Clerk login UI)
+    # Don't trust Clerk's `redirect_url` query parameter; in some proxied environments
+    # it can incorrectly point at localhost. After completing sign-in, force navigation
+    # back to the desired in-app route and verify auth there.
+    try:
+        await page.goto(f"{base_url}/admin", wait_until="networkidle", timeout=60_000)
+    except Exception:
+        pass
+
+    # Final check: should be on /admin (or at least not show Clerk login UI)
     try:
         await page.wait_for_load_state("networkidle", timeout=60_000)
     except Exception:
