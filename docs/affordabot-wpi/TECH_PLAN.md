@@ -1,5 +1,9 @@
 # affordabot-wpi — Implement NYC Council API Scraper (Smart Scraper)
 
+## Status
+
+**Post-MVP (P3):** NYC is explicitly out of MVP scope.
+
 ## Goal
 Add a “Smart Scraper” integration for NYC Council using a free public API (high-quality structured data) to expand jurisdiction coverage without expensive scraping.
 
