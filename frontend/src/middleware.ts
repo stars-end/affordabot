@@ -9,7 +9,8 @@ const isProtected = createRouteMatcher([
 
 export default clerkMiddleware(async (auth, req) => {
     // TEST BYPASS LOGIC (Layer 3)
-    if (process.env.ENABLE_TEST_AUTH_BYPASS === 'true' && req.headers.get('x-test-user') === 'admin') {
+    // Cookie-gated (not header-gated) to avoid breaking Clerk script loading in Playwright runs.
+    if (process.env.ENABLE_TEST_AUTH_BYPASS === 'true' && req.cookies.get('x-test-user')?.value === 'admin') {
         return NextResponse.next();
     }
 
