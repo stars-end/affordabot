@@ -92,23 +92,22 @@ async def clerk_login(page: Page, base_url: str, output_dir: Path) -> bool:
     email = os.environ.get("TEST_USER_EMAIL")
     password = os.environ.get("TEST_USER_PASSWORD")
     if not email or not password:
-        if os.environ.get("ENABLE_TEST_AUTH_BYPASS") == "true":
-            try:
-                await page.context.add_cookies(
-                    [
-                        {
-                            "name": "x-test-user",
-                            "value": "admin",
-                            "url": base_url,
-                            "path": "/",
-                        }
-                    ]
-                )
-                await page.goto(f"{base_url}/admin", wait_until="networkidle", timeout=60_000)
-                if await _is_authenticated(page):
-                    return True
-            except Exception:
-                pass
+        try:
+            await page.context.add_cookies(
+                [
+                    {
+                        "name": "x-test-user",
+                        "value": "admin",
+                        "url": base_url,
+                        "path": "/",
+                    }
+                ]
+            )
+            await page.goto(f"{base_url}/admin", wait_until="networkidle", timeout=60_000)
+            if await _is_authenticated(page):
+                return True
+        except Exception:
+            pass
 
         await page.screenshot(path=str(output_dir / "auth_missing_creds.png"), full_page=True)
         return False
