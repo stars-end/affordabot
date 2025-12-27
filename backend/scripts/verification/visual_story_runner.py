@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
-"""
-Visual Story Runner - Executes YAML-based visual verification stories using UISmokeAgent.
-"""
+"""Visual Story Runner - Executes YAML-based visual verification stories using UISmokeAgent."""
 import argparse
 import asyncio
 import os
@@ -23,54 +21,72 @@ from llm_common.core import LLMConfig
 from llm_common.providers import ZaiClient
 from llm_common.agents.schemas import AgentStory
 
-async def run_story_file(story_path: Path, base_url: str, output_dir: Path, api_key: str):
+from scripts.verification.clerk_auth import clerk_login
+
+def _coerce_validation_criteria(raw_step: dict) -> list[str]:
+    criteria = raw_step.get("validation_criteria")
+    if isinstance(criteria, list):
+        return [str(x) for x in criteria if str(x).strip()]
+
+    expected = raw_step.get("expected")
+    if expected is None:
+        return []
+    if isinstance(expected, list):
+        return [str(x) for x in expected if str(x).strip()]
+    expected_str = str(expected).strip()
+    return [expected_str] if expected_str else []
+
+
+def _build_step_description(raw_step: dict) -> str:
+    if raw_step.get("description"):
+        desc = str(raw_step["description"]).strip()
+    else:
+        action = str(raw_step.get("action", "")).strip()
+        verification = str(raw_step.get("verification", "")).strip()
+        desc = f"Goal: {action}. Verification required: {verification}.".strip()
+
+    glm_prompt = raw_step.get("glm_prompt")
+    if glm_prompt:
+        desc = f"{desc}\n\nQuestion: {glm_prompt}".strip()
+    return desc
+
+
+async def run_story_file(story_path: Path, base_url: str, output_dir: Path, api_key: str) -> bool:
     """Run a single story file."""
     print(f"📖 Loading story from {story_path}")
     with open(story_path, "r") as f:
         data = yaml.safe_load(f)
-        
-    # Convert YAML data to AgentStory schema
-    # YAML structure assumption:
-    # name: ...
-    # persona: ...
-    # start_url: ...
-    # steps:
-    #   - name: ...
-    #     action: ...
-    #     verification: ...
-    
-    # We map this to AgentStory steps
-    steps = []
-    
-    # Handle optional start_url (can be an implicit first navigation step or just handled by agent)
+
     start_url = data.get("start_url", "/admin")
-    
-    # Add initial navigation as explicit step if not in steps?
-    # Logic: UISmokeAgent doesn't auto-navigate to start_url unless it's a step.
-    # Let's verify `data['steps']` structure.
     raw_steps = data.get("steps", [])
-    
+    steps: list[dict] = []
+
     for idx, raw_step in enumerate(raw_steps):
-        # Construct a description that guides the agent
-        action = raw_step.get("action", "")
-        verification = raw_step.get("verification", "")
-        step_id = raw_step.get("name", f"step_{idx+1}").replace(" ", "_").lower()
-        
-        desc = f"Goal: {action}. Verification required: {verification}."
+        step_id = (
+            raw_step.get("id")
+            or raw_step.get("name")
+            or raw_step.get("step_id")
+            or f"step_{idx+1}"
+        )
+        step_id = str(step_id).replace(" ", "_").lower()
+
+        desc = _build_step_description(raw_step)
         if idx == 0 and start_url:
-             desc = f"Navigate to {start_url}. " + desc
-             
-        steps.append({
-            "id": step_id,
-            "description": desc,
-            "validation_criteria": raw_step.get("validation_criteria", []) # Should be list of strings
-        })
+            desc = f"Navigate to {start_url}.\n\n{desc}".strip()
+
+        steps.append(
+            {
+                "id": step_id,
+                "description": desc,
+                "validation_criteria": _coerce_validation_criteria(raw_step),
+            }
+        )
 
     story = AgentStory(
-        id=data.get("name", story_path.stem).replace(" ", "_"),
+        id=(data.get("id") or data.get("name") or story_path.stem).replace(" ", "_"),
         persona=data.get("persona", "User"),
         steps=steps,
-        metadata=data
+        metadata=data,
     )
     
     # Run
@@ -79,14 +95,16 @@ async def run_story_file(story_path: Path, base_url: str, output_dir: Path, api_
         context = await browser.new_context()
         page = await context.new_page()
         
-        # Auth attempt (Bypass Header)
-        await page.set_extra_http_headers({"x-test-user": "admin"})
+        # Authenticate (bypass header if available, else email/password)
+        authed = await clerk_login(page, base_url, output_dir)
+        if not authed:
+            print("❌ Authentication failed. See artifacts in output dir.")
+            return False
         
         adapter = PlaywrightAdapter(page, base_url=base_url)
         adapter.start_tracing()
         
-        config = LLMConfig(api_key=api_key, provider="zai", default_model="glm-4.6v")
-        llm = ZaiClient(config)
+        llm = ZaiClient(LLMConfig(api_key=api_key, provider="zai", default_model="glm-4.6v"))
         
         agent = UISmokeAgent(
             glm_client=llm,

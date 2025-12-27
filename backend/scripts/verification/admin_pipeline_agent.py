@@ -13,7 +13,7 @@ from pathlib import Path
 from dataclasses import dataclass
 from typing import Optional
 
-from playwright.async_api import async_playwright, Page
+from playwright.async_api import async_playwright
 
 # Add backend root to path to find scripts modules if needed
 sys.path.append(str(Path(__file__).parent.parent.parent))
@@ -23,6 +23,7 @@ apply_patch()
 
 # Import Adapter
 from scripts.verification.browser_adapter import PlaywrightAdapter
+from scripts.verification.clerk_auth import clerk_login
 
 # Import llm-common
 from llm_common.agents import UISmokeAgent
@@ -101,22 +102,6 @@ ADMIN_PIPELINE_STEPS = [
     ),
 ]
 
-async def clerk_login(page: Page, base_url: str, output_dir: Path) -> bool:
-    """Perform authentication using x-test-user header bypass or generic wait."""
-    # Try Header Bypass (Standard for Dev/Test envs)
-    await page.set_extra_http_headers({"x-test-user": "admin"})
-    
-    # Just navigate and see if we end up on login or admin
-    await page.goto(f"{base_url}/admin", wait_until="networkidle", timeout=30000)
-    
-    content = await page.content()
-    if "sign" not in content.lower() and "google" not in content.lower():
-        print("    ✅ Auth bypass worked (x-test-user)")
-        return True
-    
-    print("    ⚠️ Header bypass didn't work. Falling back to manual/env auth if configured (not fully implemented in this refactor yet).")
-    return False
-
 async def main():
     parser = argparse.ArgumentParser(description="Admin Pipeline Visual Verification (Refactored)")
     parser.add_argument("--url", default=os.environ.get("FRONTEND_URL", "http://localhost:3000"))
@@ -143,8 +128,11 @@ async def main():
         context = await browser.new_context()
         page = await context.new_page()
         
-        # Authenticate
-        await clerk_login(page, args.url, output_dir)
+        # Authenticate (bypass header if available, else email/password via env vars)
+        authed = await clerk_login(page, args.url, output_dir)
+        if not authed:
+            print("❌ Authentication failed. See artifacts in output dir.")
+            sys.exit(1)
         
         # Initialize Adapter and Agent
         adapter = PlaywrightAdapter(page, base_url=args.url)
