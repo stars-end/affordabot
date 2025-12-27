@@ -1,5 +1,48 @@
 .PHONY: help install dev build test lint clean ci e2e ci-lite
 
+# ============================================================
+# CI/Verification Helpers
+# ============================================================
+
+# Conditionally determine the command wrapper for verification tasks.
+# - If inside a Railway shell (RAILWAY_PROJECT_NAME is set), commands run directly.
+# - If not in a shell but a RAILS_TOKEN is present, use 'railway run'.
+# - Otherwise, no wrapper is used, and the environment must be configured manually.
+RUN_CMD :=
+ifeq ($(shell test -n "$$RAILWAY_PROJECT_NAME" && echo 1), 1)
+	# Inside Railway shell, env vars are already present.
+	RUN_CMD :=
+else ifeq ($(shell test -n "$$RAILWAY_TOKEN" && echo 1), 1)
+	# Not in shell, but token is available. Use 'railway run'.
+	RUN_CMD := railway run
+endif
+
+# List of essential env vars for running verification without Railway.
+REQUIRED_VERIFY_VARS := \
+	BACKEND_URL \
+	FRONTEND_URL \
+	DATABASE_URL \
+	ZAI_API_KEY \
+	TEST_USER_EMAIL \
+	TEST_USER_PASSWORD
+
+# Helper to ensure environment is configured for verification.
+# If not using 'railway run', it checks that all required env vars are set.
+check-verify-env:
+	@if [ -z "$(RUN_CMD)" ]; then \
+		echo "ℹ️  'railway run' not used. Checking for required env vars..."; \
+		for var in $(REQUIRED_VERIFY_VARS); do \
+			if [ -z "$$(eval echo \"\$$$${var}\")" ]; then \
+				echo "❌ Error: Missing required environment variable: $${var}"; \
+				echo "   Please set it or run inside 'railway shell' or with 'RAILWAY_TOKEN'."; \
+				exit 1; \
+			fi; \
+		done; \
+		echo "✅ All required environment variables are set."; \
+	else \
+		echo "ℹ️  Using '$(RUN_CMD)' to inject environment variables."; \
+	fi
+
 # Default target
 help:
 	@echo "Available targets:"
@@ -115,58 +158,33 @@ check-railway-shell:
 	fi
 
 # Run pipeline verification (RAG V3)
-verify-pipeline:
+verify-pipeline: check-verify-env
 	@echo "🧪 Running RAG Pipeline Verification (E2E)..."
-	@if [ -z "$$RAILWAY_PROJECT_NAME" ]; then \
-		echo "🔄 Not in Railway Shell. Wrapping in 'railway run'..."; \
-		cd backend && railway run poetry run python scripts/verification/verify_sanjose_pipeline.py; \
-	else \
-		cd backend && poetry run python scripts/verification/verify_sanjose_pipeline.py; \
-	fi
+	cd backend && $(RUN_CMD) poetry run python scripts/verification/verify_sanjose_pipeline.py
 
 # Phase 0: Verify Discovery Configuration (LLM Query Generation)
 # This MUST be first - validates discovery prompt and LLM query generation before any pipeline runs
-verify-discovery:
+verify-discovery: check-verify-env
 	@echo "🔍 Phase 0: Verifying Discovery Configuration (LLM Queries)..."
 	@mkdir -p artifacts/verification/discovery
-	@if [ -z "$$RAILWAY_PROJECT_NAME" ]; then \
-		echo "🔄 Not in Railway Shell. Wrapping in 'railway run'..."; \
-		cd backend && railway run poetry run python scripts/verification/verify_discovery.py --artifacts-dir ../artifacts/verification/discovery; \
-	else \
-		cd backend && poetry run python scripts/verification/verify_discovery.py --artifacts-dir ../artifacts/verification/discovery; \
-	fi
+	cd backend && $(RUN_CMD) poetry run python scripts/verification/verify_discovery.py --artifacts-dir ../artifacts/verification/discovery
 	@echo "📸 Discovery artifacts saved to artifacts/verification/discovery/"
 
 # Run analysis loop verification (Integration)
-verify-analysis:
+verify-analysis: check-verify-env
 	@echo "🧠 Running Analysis Loop Verification..."
-	@if [ -z "$$RAILWAY_PROJECT_NAME" ]; then \
-		echo "🔄 Not in Railway Shell. Wrapping in 'railway run'..."; \
-		cd backend && railway run poetry run python scripts/verification/verify_analysis_loop.py; \
-	else \
-		cd backend && poetry run python scripts/verification/verify_analysis_loop.py; \
-	fi
+	cd backend && $(RUN_CMD) poetry run python scripts/verification/verify_analysis_loop.py
 
 # Run E2E Glass Box Audit (P0)
-verify-e2e:
+verify-e2e: check-verify-env
 	@echo "🔍 Running E2E Glass Box Audit..."
-	@if [ -z "$$RAILWAY_PROJECT_NAME" ]; then \
-		echo "🔄 Not in Railway Shell. Wrapping in 'railway run'..."; \
-		cd backend && railway run poetry run python scripts/verification/verify_e2e_glassbox.py; \
-	else \
-		cd backend && poetry run python scripts/verification/verify_e2e_glassbox.py; \
-	fi
+	cd backend && $(RUN_CMD) poetry run python scripts/verification/verify_e2e_glassbox.py
 
 # Unified Glass Box Verification (10 Phases with Screenshots)
-verify-glassbox:
+verify-glassbox: check-verify-env
 	@echo "🔍 Running Affordabot Glass Box Verification (10 Phases)..."
 	@mkdir -p artifacts/verification
-	@if [ -z "$$RAILWAY_PROJECT_NAME" ]; then \
-		echo "🔄 Not in Railway Shell. Wrapping in 'railway run'..."; \
-		cd backend && railway run poetry run python scripts/verification/verify_sanjose_pipeline.py --screenshots --artifacts-dir ../artifacts/verification; \
-	else \
-		cd backend && poetry run python scripts/verification/verify_sanjose_pipeline.py --screenshots --artifacts-dir ../artifacts/verification; \
-	fi
+	cd backend && $(RUN_CMD) poetry run python scripts/verification/verify_sanjose_pipeline.py --screenshots --artifacts-dir ../artifacts/verification
 	@echo "📸 Screenshots saved to artifacts/verification/"
 
 # Run agent pipeline verification (Mocked)
@@ -175,36 +193,20 @@ verify-agents:
 	cd backend && poetry run python scripts/verification/verify_agent_pipeline.py
 
 # Run auth verification
-verify-auth:
+verify-auth: check-verify-env
 	@echo "🔐 Running Auth Configuration Verification..."
-	@if [ -z "$$RAILWAY_PROJECT_NAME" ]; then \
-		echo "🔄 Not in Railway Shell. Wrapping in 'railway run'..."; \
-		cd backend && railway run poetry run python scripts/verification/verify_auth_config.py; \
-	else \
-		cd backend && poetry run python scripts/verification/verify_auth_config.py; \
-	fi
+	cd backend && $(RUN_CMD) poetry run python scripts/verification/verify_auth_config.py
 
 # Run storage verification
-verify-storage:
+verify-storage: check-verify-env
 	@echo "📦 Running S3/MinIO Storage Verification..."
-	@if [ -z "$$RAILWAY_PROJECT_NAME" ]; then \
-		echo "🔄 Not in Railway Shell. Wrapping in 'railway run'..."; \
-		cd backend && railway run poetry run python scripts/verification/verify_s3_connection.py; \
-	else \
-		cd backend && poetry run python scripts/verification/verify_s3_connection.py; \
-	fi
+	cd backend && $(RUN_CMD) poetry run python scripts/verification/verify_s3_connection.py
 
 # Run environment & admin check
-verify-env:
+verify-env: check-verify-env
 	@echo "🌍 Checking Environment & Admin Setup..."
-	@if [ -z "$$RAILWAY_PROJECT_NAME" ]; then \
-		echo "🔄 Not in Railway Shell. Wrapping in 'railway run'..."; \
-		railway run sh -c "cd backend && poetry run python scripts/check_env.py"; \
-		railway run sh -c "cd backend && poetry run python scripts/verification/verify_admin_import.py"; \
-	else \
-		cd backend && poetry run python scripts/check_env.py; \
-		cd backend && poetry run python scripts/verification/verify_admin_import.py; \
-	fi
+	$(RUN_CMD) sh -c "cd backend && poetry run python scripts/check_env.py"
+	$(RUN_CMD) sh -c "cd backend && poetry run python scripts/verification/verify_admin_import.py"
 
 # ============================================================
 # Verification Targets (Harmonized Naming Convention)
@@ -275,21 +277,16 @@ verify-visual: verify-admin-pipeline
 # Uses railway run to get TEST_USER_EMAIL, TEST_USER_PASSWORD, and ZAI_API_KEY from Railway env
 # Default to Railway dev frontend when FRONTEND_URL not set (for verify-dev)
 RAILWAY_DEV_FRONTEND_URL ?= https://frontend-dev-5093.up.railway.app
-verify-admin-pipeline:
+verify-admin-pipeline: check-verify-env
 	@echo "🤖 Running UISmokeAgent Admin Pipeline Verification..."
 	@mkdir -p artifacts/verification/admin_pipeline
-	@if [ -z "$$FRONTEND_URL" ]; then \
-		echo "FRONTEND_URL not set, using Railway dev: $(RAILWAY_DEV_FRONTEND_URL)"; \
-		cd backend && poetry run python scripts/verification/admin_pipeline_agent.py \
-			--url $(RAILWAY_DEV_FRONTEND_URL) \
-			--output ../artifacts/verification/admin_pipeline; \
-	else \
-		echo "Using FRONTEND_URL=$$FRONTEND_URL"; \
-		echo "Auth: TEST_USER_EMAIL=$${TEST_USER_EMAIL:-(not set)}"; \
-		cd backend && poetry run python scripts/verification/admin_pipeline_agent.py \
-			--url $$FRONTEND_URL \
-			--output ../artifacts/verification/admin_pipeline; \
-	fi
+	@# Determine target URL, defaulting if FRONTEND_URL is not set
+	TARGET_URL=$${FRONTEND_URL:-$(RAILWAY_DEV_FRONTEND_URL)}
+	echo "Using FRONTEND_URL=$${TARGET_URL}"; \
+	echo "Auth: TEST_USER_EMAIL=$${TEST_USER_EMAIL:-(not set)}"; \
+	cd backend && $(RUN_CMD) poetry run python scripts/verification/admin_pipeline_agent.py \
+		--url $${TARGET_URL} \
+		--output ../artifacts/verification/admin_pipeline
 
 # Story-driven verification using docs/TESTING/STORIES/*.yml
 # Validates admin console against user stories with GLM-4.6V visual analysis
@@ -307,30 +304,24 @@ verify-stories:
 verify-stories-overnight:
 	@echo "🌙 Running Overnight Story Verification..."
 	@mkdir -p artifacts/verification/overnight
-	@$(MAKE) verify-admin-pipeline FRONTEND_URL=$(RAILWAY_DEV_FRONTEND_URL)
+	$(MAKE) verify-admin-pipeline FRONTEND_URL=$(RAILWAY_DEV_FRONTEND_URL)
 	@echo "📊 Stories verified. Report: artifacts/verification/admin_pipeline/report.md"
 
 
 # Full E2E verification with auth on Railway PR environment
-verify-admin-pipeline-pr:
+verify-admin-pipeline-pr: check-verify-env
 	@echo "🤖 Running Admin Pipeline on Railway PR environment with auth..."
 	@mkdir -p artifacts/verification/admin_pipeline_pr
-	cd backend && railway run poetry run python scripts/verification/admin_pipeline_agent.py \
+	cd backend && $(RUN_CMD) poetry run python scripts/verification/admin_pipeline_agent.py \
 		--url https://frontend-affordabot-pr-160.up.railway.app \
 		--output ../artifacts/verification/admin_pipeline_pr
 
 # Unified CI Verification (uses llm-common framework, overnight CI)
-verify-ci:
+verify-ci: check-verify-env
 	@echo "🔬 Running Unified CI Verification (12 RAG stories)..."
 	@mkdir -p artifacts/verification
-	@if [ -z "$$RAILWAY_PROJECT_NAME" ]; then \
-		echo "🔄 Not in Railway Shell. Wrapping in 'railway run'..."; \
-		cd backend && railway run poetry run python scripts/verification/unified_verify.py \
-			--base-url $${FRONTEND_URL:-http://localhost:3000}; \
-	else \
-		cd backend && poetry run python scripts/verification/unified_verify.py \
-			--base-url $${FRONTEND_URL:-http://localhost:3000}; \
-	fi
+	TARGET_URL=$${FRONTEND_URL:-http://localhost:3000}
+	cd backend && $(RUN_CMD) poetry run python scripts/verification/unified_verify.py --base-url $${TARGET_URL}
 
 # ============================================================
 # PR Environment Verification (Railway Preview Environments)
