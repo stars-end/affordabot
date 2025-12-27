@@ -156,31 +156,31 @@ class PostgresDB:
                     await conn.execute("DELETE FROM impacts WHERE legislation_id = $1", legislation_id)
                     
                     # Insert new
-                    if impacts:
-                        # Prepare batch insert or loop
-                        insert_sql = """
-                            INSERT INTO impacts 
-                            (legislation_id, impact_number, relevant_clause, description, evidence, 
-                             chain_of_causality, confidence_factor, p10, p25, p50, p75, p90)
-                            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-                        """
-                        for impact in impacts:
+	                    if impacts:
+	                        # Prepare batch insert or loop
+	                        insert_sql = """
+	                            INSERT INTO impacts 
+	                            (legislation_id, impact_number, relevant_clause, description, evidence, 
+	                             chain_of_causality, confidence_score, p10, p25, p50, p75, p90)
+	                            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+	                        """
+	                        for impact in impacts:
                             # evidence list handling: Postgres array or JSONB? 
                             # Assuming JSONB for flexible schema or text[]
                             # Using json.dumps for evidence if complex. 
                             # Given Postgres usage, likely JSONB or TEXT[].
                             evidence = json.dumps(impact.get("evidence", [])) 
                             
-                            await conn.execute(insert_sql,
-                                legislation_id,
-                                impact["impact_number"],
-                                impact["relevant_clause"],
-                                impact["impact_description"],
-                                evidence, # Passing as JSON string
-                                impact["chain_of_causality"],
-                                impact.get("confidence_score", 0.0),
-                                impact["p10"], impact["p25"], impact["p50"], impact["p75"], impact["p90"]
-                            )
+	                            await conn.execute(insert_sql,
+	                                legislation_id,
+	                                impact["impact_number"],
+	                                impact["relevant_clause"],
+	                                impact["impact_description"],
+	                                evidence, # Passing as JSON string
+	                                impact["chain_of_causality"],
+	                                impact.get("confidence_score", impact.get("confidence_factor", 0.0)),
+	                                impact["p10"], impact["p25"], impact["p50"], impact["p75"], impact["p90"]
+	                            )
                     
                     # Update status
                     await conn.execute(

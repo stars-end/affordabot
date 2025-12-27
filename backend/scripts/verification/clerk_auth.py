@@ -32,18 +32,20 @@ async def clerk_login(page: Page, base_url: str, output_dir: Path) -> bool:
     Attempt to authenticate for Clerk-protected routes.
 
     Strategy:
-    1) Try the dev/test bypass header (`x-test-user: admin`) if supported.
-    2) Fall back to email/password login using `TEST_USER_EMAIL` / `TEST_USER_PASSWORD`.
+    - If already authenticated, proceed.
+    - Otherwise, login via email/password using `TEST_USER_EMAIL` / `TEST_USER_PASSWORD`.
+
+    Note: Do not set global extra headers like `x-test-user` on the page context; they can
+    break Clerk script loading due to cross-origin preflight restrictions.
     """
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # 1) Header bypass (works in some dev/test envs)
-    await page.set_extra_http_headers({"x-test-user": "admin"})
+    # Check if already authenticated
     await page.goto(f"{base_url}/admin", wait_until="networkidle", timeout=60_000)
     if await _is_authenticated(page):
         return True
 
-    # 2) UI login with env credentials
+    # UI login with env credentials
     email = os.environ.get("TEST_USER_EMAIL")
     password = os.environ.get("TEST_USER_PASSWORD")
     if not email or not password:
