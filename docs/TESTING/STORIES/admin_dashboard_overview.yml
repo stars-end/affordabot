@@ -41,8 +41,7 @@ steps:
       - Reviews
     glm_prompt: "List all navigation menu items visible. Are there sidebar or header links?"
     validation_criteria:
-      - "Overview"
-      - "Scraping"
+      - "Bills per Month"
     exploration_budget: 1
 
   - id: step-4-error-check

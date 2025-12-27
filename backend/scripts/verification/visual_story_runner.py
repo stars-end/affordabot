@@ -100,6 +100,19 @@ async def run_story_file(story_path: Path, base_url: str, output_dir: Path, api_
         if not authed:
             print("❌ Authentication failed. See artifacts in output dir.")
             return False
+
+        # Ensure we actually start the story at its declared start_url.
+        # Relying on the LLM to navigate is brittle (it may confuse similarly-shaped pages).
+        try:
+            if start_url:
+                absolute_url = (
+                    start_url
+                    if str(start_url).startswith("http")
+                    else f"{base_url.rstrip('/')}{start_url}"
+                )
+                await page.goto(absolute_url, wait_until="networkidle", timeout=60_000)
+        except Exception as e:
+            print(f"⚠️ Failed to navigate to start_url={start_url}: {e}")
         
         adapter = PlaywrightAdapter(page, base_url=base_url)
         adapter.start_tracing()
