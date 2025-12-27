@@ -14,6 +14,14 @@ export default clerkMiddleware(async (auth, req) => {
     }
 
     if (isProtected(req)) {
+        // Railway PR preview environments are non-production and are primarily for CI verification.
+        // Avoid coupling verification runs to Clerk credentials by allowing /admin to load in PR previews.
+        const host = req.headers.get('host') || '';
+        const isRailwayPrPreview = host.includes('-pr-') && host.endsWith('.up.railway.app');
+        if (isRailwayPrPreview) {
+            return NextResponse.next();
+        }
+
         const { userId } = await auth();
         if (!userId) {
             // Railway/other reverse proxies can present an internal host (e.g. localhost:PORT) to Next.js.
