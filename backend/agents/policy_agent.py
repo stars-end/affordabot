@@ -119,7 +119,7 @@ class PolicyAgent:
                                 all_sources.extend(output.source_urls)
             
             # Synthesize answer
-            context_blob = self.context_manager.load_relevant_contexts(query_id)
+            context_blob = await self._load_context_blob(query_id=query_id, query=query)
             answer = await self._synthesize_answer(query, context_blob)
             
             return PolicyAnalysisResult(
@@ -179,13 +179,30 @@ class PolicyAgent:
                 data={"message": "Synthesizing answer from collected evidence..."}
             )
             
-            context_blob = self.context_manager.load_relevant_contexts(query_id)
+            context_blob = await self._load_context_blob(query_id=query_id, query=query)
             answer = await self._synthesize_answer(query, context_blob)
             
             yield StreamEvent(type="text", data={"content": answer})
             
         except Exception as e:
             yield StreamEvent(type="error", data={"error": str(e)})
+
+    async def _load_context_blob(self, *, query_id: str, query: str) -> str:
+        """
+        Prefer pointer-based relevance selection when available; fall back to the legacy
+        "dump all contexts" behavior to avoid regressions when selection is unavailable.
+        """
+        try:
+            blob = await self.context_manager.select_relevant_contexts(
+                query_id=query_id,
+                query=query,
+                client=self.client,
+            )
+            if blob.strip():
+                return blob
+        except Exception as e:
+            logger.warning(f"Context relevance selection failed; falling back: {e}")
+        return self.context_manager.load_relevant_contexts(query_id)
 
     async def _synthesize_answer(self, query: str, context: str) -> str:
         """
