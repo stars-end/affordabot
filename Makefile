@@ -360,7 +360,8 @@ endif
 	done
 	@# Run full verification
 	@echo "🚀 Running verify-all against PR environment..."
-	$(MAKE) verify-all API_URL=$(PR_BACKEND_URL) BASE_URL=$(PR_FRONTEND_URL)
+	BACKEND_URL=$(PR_BACKEND_URL) FRONTEND_URL=$(PR_FRONTEND_URL) \
+		$(MAKE) verify-all API_URL=$(PR_BACKEND_URL) BASE_URL=$(PR_FRONTEND_URL)
 	@# Run story-driven verification on PR frontend
 	@echo "📖 Running story verification on PR frontend..."
 	$(MAKE) verify-admin-pipeline FRONTEND_URL=$(PR_FRONTEND_URL)
@@ -396,7 +397,7 @@ endif
 		fi; \
 	fi
 	@# Quick discovery check only
-	$(MAKE) verify-discovery API_URL=$(PR_BACKEND_URL)
+	BACKEND_URL=$(PR_BACKEND_URL) FRONTEND_URL=$(PR_FRONTEND_URL) \
+		$(MAKE) verify-discovery API_URL=$(PR_BACKEND_URL)
 	@echo "✅ verify-pr-lite complete for PR #$(PR)"
 	@echo "   For full verification: make verify-pr PR=$(PR)"
-
