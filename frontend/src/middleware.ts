@@ -10,12 +10,15 @@ const isProtected = createRouteMatcher([
 export default clerkMiddleware(async (auth, req) => {
     if (isProtected(req)) {
         const forwardedHostForBypass = req.headers.get('x-forwarded-host')?.split(',')[0]?.trim();
-        const hostForBypass = (forwardedHostForBypass || req.headers.get('host') || '').replace(/:\d+$/, '');
+        const hostHeader = req.headers.get('host')?.trim();
+        const bypassHostCandidates = [forwardedHostForBypass, hostHeader]
+            .filter(Boolean)
+            .map((h) => (h as string).replace(/:\d+$/, ''));
 
         // Railway PR preview environments are non-production and are primarily for CI verification.
         // Avoid coupling verification runs to Clerk credentials by allowing /admin to load in PR previews.
         const isRailwayPrPreview =
-            hostForBypass.includes('-pr-') && hostForBypass.endsWith('.up.railway.app');
+            bypassHostCandidates.some((h) => h.includes('-pr-') && h.endsWith('.up.railway.app'));
         if (isRailwayPrPreview) {
             return NextResponse.next();
         }
@@ -23,7 +26,7 @@ export default clerkMiddleware(async (auth, req) => {
         // Railway dev env: allow cookie-gated bypass for verification runners (no Clerk creds).
         // Keeps prod locked down (no bypass on custom domains).
         const isRailwayDev =
-            hostForBypass.includes('frontend-dev-') && hostForBypass.endsWith('.up.railway.app');
+            bypassHostCandidates.some((h) => h.includes('-dev-') && h.endsWith('.up.railway.app'));
         if (isRailwayDev && req.cookies.get('x-test-user')?.value === 'admin') {
             return NextResponse.next();
         }
