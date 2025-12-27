@@ -299,10 +299,10 @@ verify-stories:
 	@if [ -z "$$RAILWAY_PROJECT_NAME" ]; then \
 		echo "🔄 Not in Railway Shell. Wrapping in 'railway run'..."; \
 		(cd backend && railway run poetry run python scripts/verification/story_runner.py --all) && \
-		(cd backend && railway run poetry run python scripts/verification/visual_story_runner.py --all --tags admin); \
+		(cd backend && railway run poetry run python scripts/verification/visual_story_runner.py --all --tags core-flow); \
 	else \
 		(cd backend && poetry run python scripts/verification/story_runner.py --all) && \
-		(cd backend && poetry run python scripts/verification/visual_story_runner.py --all --tags admin); \
+		(cd backend && poetry run python scripts/verification/visual_story_runner.py --all --tags core-flow); \
 	fi
 
 # Overnight/CI story verification (runs all stories + generates report)

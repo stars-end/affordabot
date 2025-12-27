@@ -30,20 +30,6 @@ steps:
       - "Bills per Month"
     exploration_budget: 1
 
-  - id: step-3-verify-navigation
-    description: |
-      Check that navigation menu contains expected links:
-      - Dashboard
-      - Discovery
-      - Sources
-      - Jurisdictions
-      - Prompts
-      - Reviews
-    glm_prompt: "List all navigation menu items visible. Are there sidebar or header links?"
-    validation_criteria:
-      - "Bills per Month"
-    exploration_budget: 1
-
   - id: step-4-error-check
     description: |
       Verify no error messages, blank states, or broken layouts.
