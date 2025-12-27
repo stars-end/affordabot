@@ -29,12 +29,13 @@ from db.postgres_client import PostgresDB
 from services.ingestion_service import IngestionService
 from services.storage.s3_storage import S3Storage
 from services.llm.orchestrator import AnalysisPipeline
-from llm_common.core import LLMConfig
+from llm_common.core import LLMClient, LLMConfig
 from llm_common.providers import ZaiClient, OpenRouterClient
 from llm_common.web_search import WebSearchClient
 from llm_common.embeddings.openai import OpenAIEmbeddingService
 # from llm_common.retrieval.pgvector_backend import PgVectorBackend # Not needed if using Local
 from services.retrieval.local_pgvector import LocalPgVectorBackend
+from llm_common.core.models import LLMResponse, LLMUsage
 
 # Logging Setup
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - [E2E-AUDIT] - %(levelname)s - %(message)s')
@@ -42,6 +43,9 @@ logger = logging.getLogger("e2e_audit")
 
 async def main():
     logger.info("🚀 Starting E2E Glass Box Audit Verification")
+    real_mode = os.environ.get("VERIFY_REAL_LLM") == "1"
+    if not real_mode:
+        logger.info("🧪 VERIFY_REAL_LLM not set; running in deterministic MOCK mode (no external LLM/search dependencies).")
     
     # 1. Setup Database
     db = PostgresDB()
@@ -68,39 +72,28 @@ async def main():
     logger.info("✅ Storage Service Initialized")
 
     # Embedding (OpenRouter)
-    if not os.getenv("OPENROUTER_API_KEY"):
-        logger.error("❌ OPENROUTER_API_KEY missing! Required for embeddings.")
-        return
+    if real_mode:
+        if not os.getenv("OPENROUTER_API_KEY"):
+            logger.error("❌ OPENROUTER_API_KEY missing! Required for embeddings in VERIFY_REAL_LLM=1 mode.")
+            return
 
-    embedding_service = OpenAIEmbeddingService(
-        base_url="https://openrouter.ai/api/v1",
-        api_key=os.getenv("OPENROUTER_API_KEY"),
-        # Using a reliable embedding model on OR, or fallback to Qwen
-        # model="qwen/qwen-turbo", 
-        # Actually Qwen Turbo is chat. We ideally need an embedding model.
-        # If standard OpenAI client, use text-embedding-ada-002?
-        # Let's try to stick to what UniversalHarvester uses or a known working one.
-        # UniversalHarvester used "qwen/qwen3-embedding-8b" (mocked in mind or real?)
-        # Let's use a standard one: 'amazon/titan-embed-text-v1' or check docs.
-        # For now, let's use a placeholder and see if OR supports it, or use Z.ai if they have one?
-        # Z.ai has embedding-2. Let's use Z.ai for embedding if OR is tricky?
-        # User asked for "OpenRouter embedding workflow".
-        # Let's assume "qwen/qwen-2-7b-instruct" acts as embedding? No.
-        # I will use "text-embedding-ada-002" mapping if using OpenAI client directed at OR?
-        # No, OR hosts specific models.
-        # Let's use "amazon/titan-embed-text-v1" if available, or just mocking for the *audit* if real embedding is blocking?
-        # User said "provide logs... embedding". I must try real.
-        # Let's try standard 'text-embedding-3-small' if OR proxies it.
-        # Safe bet: Z.ai embedding-3 (actually Z.ai supports standard OpenAI compat).
-        # But Requirement: "OpenRouter... for embedding workflow".
-        # I will use 'qwen/qwen-2.5-72b-instruct'? No.
-        # Let's check if the client supports it.
-        # Revert: UniversalHarvester config had model="qwen/qwen3-embedding-8b"
-        # I will use that.
-        model="qwen/qwen3-embedding-8b", 
-        dimensions=4096
-    )
-    logger.info("✅ Embedding Service Initialized (OpenRouter)")
+        embedding_service = OpenAIEmbeddingService(
+            base_url="https://openrouter.ai/api/v1",
+            api_key=os.getenv("OPENROUTER_API_KEY"),
+            model="qwen/qwen3-embedding-8b",
+            dimensions=4096,
+        )
+        logger.info("✅ Embedding Service Initialized (OpenRouter)")
+    else:
+        class MockEmbeddingService:
+            async def embed_documents(self, texts: list[str]) -> list[list[float]]:
+                return [[0.1] * 4096 for _ in texts]
+
+            async def embed_query(self, text: str) -> list[float]:
+                return [0.1] * 4096
+
+        embedding_service = MockEmbeddingService()
+        logger.info("✅ Embedding Service Initialized (Mock)")
 
     # Vector Backend
     # Use LocalPgVectorBackend to reuse existing DB connection
@@ -118,26 +111,93 @@ async def main():
         storage_backend=storage
     )
 
-    # LLM Clients (Z.ai + Fallback)
-    llm_config = LLMConfig(
-        api_key=os.getenv("ZAI_API_KEY"), 
-        provider="zai",
-        default_model="glm-4.6" # Fix P0: Use confirmed generic model ID
-    )
-    llm_client = ZaiClient(llm_config)
-    
-    fallback_client = None
-    if os.getenv("OPENROUTER_API_KEY"):
-        or_config = LLMConfig(
-            api_key=os.getenv("OPENROUTER_API_KEY"),
-            provider="openrouter",
-            default_model="openai/gpt-4o-mini"
+    # LLM Clients (Z.ai + Fallback) OR deterministic mocks
+    if real_mode:
+        llm_config = LLMConfig(
+            api_key=os.getenv("ZAI_API_KEY"),
+            provider="zai",
+            default_model="glm-4.6",  # Fix P0: Use confirmed generic model ID
         )
-        fallback_client = OpenRouterClient(or_config)
-    
-    search_client = WebSearchClient(api_key=os.getenv("ZAI_API_KEY"))
+        llm_client: LLMClient = ZaiClient(llm_config)
+
+        fallback_client = None
+        if os.getenv("OPENROUTER_API_KEY"):
+            or_config = LLMConfig(
+                api_key=os.getenv("OPENROUTER_API_KEY"),
+                provider="openrouter",
+                default_model="openai/gpt-4o-mini",
+            )
+            fallback_client = OpenRouterClient(or_config)
+
+        search_client = WebSearchClient(api_key=os.getenv("ZAI_API_KEY"))
+    else:
+        from datetime import datetime
+        from schemas.analysis import ImpactEvidence, LegislationAnalysisResponse, LegislationImpact, ReviewCritique
+
+        class MockLLMClient(LLMClient):
+            def __init__(self):
+                super().__init__(LLMConfig(api_key="mock", provider="zai", default_model="mock-model"))
+
+            async def chat_completion(self, messages, model=None, **kwargs):
+                msg_str = str(messages).lower()
+                if "policy reviewer" in msg_str:
+                    resp = ReviewCritique(passed=True, critique="mock-ok", missing_impacts=[], factual_errors=[])
+                    content = resp.model_dump_json()
+                else:
+                    resp = LegislationAnalysisResponse(
+                        bill_number="MOCK-BILL-001",
+                        impacts=[
+                            LegislationImpact(
+                                impact_number=1,
+                                relevant_clause="mock clause",
+                                legal_interpretation="mock interpretation",
+                                impact_description="mock impact",
+                                evidence=[ImpactEvidence(source_name="Mock", url="http://mock", excerpt="mock")],
+                                chain_of_causality="mock",
+                                confidence_score=0.5,
+                                p10=0.0,
+                                p25=0.0,
+                                p50=0.0,
+                                p75=0.0,
+                                p90=0.0,
+                            )
+                        ],
+                        total_impact_p50=0.0,
+                        analysis_timestamp=datetime.now().isoformat(),
+                        model_used=model or "mock-model",
+                    )
+                    content = resp.model_dump_json()
+
+                return LLMResponse(
+                    id="mock-llm",
+                    model=model or "mock-model",
+                    content=content,
+                    finish_reason="stop",
+                    usage=LLMUsage(prompt_tokens=1, completion_tokens=1, total_tokens=2),
+                )
+
+            async def validate_api_key(self):
+                return True
+
+            async def stream_completion(self, **kwargs):
+                raise NotImplementedError
+
+        class MockSearch(WebSearchClient):
+            def __init__(self):
+                super().__init__(api_key="mock")
+
+            async def search(self, query):
+                return []
+
+        llm_client = MockLLMClient()
+        fallback_client = None
+        search_client = MockSearch()
 
     pipeline = AnalysisPipeline(llm_client, search_client, db, fallback_client=fallback_client)
+    if not real_mode:
+        async def _mock_research(*_args, **_kwargs):
+            return {"collected_data": [{"snippet": "mock research"}]}
+        pipeline.research_agent.run = _mock_research
 
     # 3. Execution Trace
     logger.info("STEP 1: Search Simulation (Mock Data) -> Raw Scrape")
@@ -180,7 +240,7 @@ async def main():
 
     # 4. Run Ingestion (MinIO -> Embedding -> PgVector)
     logger.info("⚙️    # 4. Ingest (Should embed + vector store)")
-    logger.info("STEP 2: Ingestion & Embedding (Real OpenRouter -> Remote PgVector)")
+    logger.info("STEP 2: Ingestion & Embedding (Real OpenRouter -> Remote PgVector)" if real_mode else "STEP 2: Ingestion & Embedding (Mock)")
     chunks_created = await ingestion.process_raw_scrape(scrape_id)
     if chunks_created > 0:
         logger.info(f"✅ Ingestion Complete: {chunks_created} chunks created.")
@@ -189,14 +249,10 @@ async def main():
         return
     
     # 5. Run Analysis Pipeline (Should use Z.ai + Search)
-    logger.info("STEP 3: Analysis Pipeline (Real Z.ai GLM-4.6)")
-    logger.info("🧠 Running Analysis Pipeline (Real LLM)...")
+    logger.info("STEP 3: Analysis Pipeline (Real Z.ai GLM-4.6)" if real_mode else "STEP 3: Analysis Pipeline (Mock)")
+    logger.info("🧠 Running Analysis Pipeline (Real LLM)..." if real_mode else "🧠 Running Analysis Pipeline (Mock LLM)...")
     
-    models = {
-        "research": "glm-4.6",
-        "generate": "glm-4.6",
-        "review": "glm-4.6"
-    }
+    models = {"research": "glm-4.6", "generate": "glm-4.6", "review": "glm-4.6"} if real_mode else {"research": "mock", "generate": "mock", "review": "mock"}
 
     try:
         analysis = await pipeline.run(

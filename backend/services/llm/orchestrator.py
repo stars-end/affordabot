@@ -4,7 +4,8 @@ from llm_common.web_search import WebSearchClient
 from llm_common.agents import ResearchAgent
 from llm_common.core.models import LLMMessage, MessageRole
 from typing import List, Dict, Any
-from pydantic import BaseModel
+import re
+from pydantic import BaseModel, ValidationError
 from schemas.analysis import LegislationAnalysisResponse, ReviewCritique
 from datetime import datetime
 
@@ -236,42 +237,89 @@ class AnalysisPipeline:
         json_instruction = f"\n\nRespond with valid JSON matching this schema:\n{schema}"
         if llm_messages:
             llm_messages[-1].content += json_instruction
-            
-        try:
-            response = await self.llm.chat_completion(
-                messages=llm_messages,
-                model=model,
-                response_format={"type": "json_object"},
-                temperature=0.1
-            )
-        except Exception as e:
-            if self.fallback_llm:
+
+        def _normalize_json_text(text: str) -> str:
+            content = text.strip()
+            if content.startswith("```"):
+                content = content.split("\n", 1)[1] if "\n" in content else content
+                if content.endswith("```"):
+                    content = content[:-3].strip()
+                if content.startswith("json"):
+                    content = content[4:].strip()
+            return content
+
+        def _extract_bill_number() -> str | None:
+            combined = "\n".join(str(m.content) for m in llm_messages)
+            match = re.search(r"(?m)^\\s*Bill:\\s*([^\\s\\(]+)", combined)
+            return match.group(1) if match else None
+
+        def _fallback_model(validation_error: str) -> BaseModel:
+            if response_model is LegislationAnalysisResponse:
+                return LegislationAnalysisResponse(
+                    bill_number=_extract_bill_number() or "UNKNOWN",
+                    impacts=[],
+                    total_impact_p50=0.0,
+                    analysis_timestamp=datetime.now().isoformat(),
+                    model_used=model,
+                )
+            if response_model is ReviewCritique:
+                return ReviewCritique(
+                    passed=False,
+                    critique=f"LLM output did not match schema after retries: {validation_error}",
+                    missing_impacts=[],
+                    factual_errors=[validation_error[:500]],
+                )
+            raise ValidationError(f"LLM output did not match schema after retries: {validation_error}", response_model)  # type: ignore[arg-type]
+
+        async def _call_llm(call_messages: list[LLMMessage], *, temperature: float) -> str:
+            try:
+                response = await self.llm.chat_completion(
+                    messages=call_messages,
+                    model=model,
+                    response_format={"type": "json_object"},
+                    temperature=temperature,
+                )
+                return _normalize_json_text(response.content)
+            except Exception as e:
+                if not self.fallback_llm:
+                    raise
                 print(f"Primary LLM failed: {e}. Retrying with Fallback LLM...")
-                # Use fallback's default model structure or override if needed
                 fallback_model = self.fallback_llm.config.default_model or "google/gemini-2.0-flash-exp"
                 response = await self.fallback_llm.chat_completion(
-                    messages=llm_messages,
+                    messages=call_messages,
                     model=fallback_model,
                     response_format={"type": "json_object"},
-                    temperature=0.1
+                    temperature=temperature,
                 )
-            else:
-                raise e
-        
-        content = response.content
-        # Strip markdown code blocks if present
-        content = response.content.strip()
-        if content.startswith("```"):
-            # Remove opening fence
-            content = content.split("\n", 1)[1] if "\n" in content else content
-            # Remove closing fence
-            if content.endswith("```"):
-                content = content[:-3].strip()
-            # Also handle if it started with ```json
-            if content.startswith("json"):
-                content = content[4:].strip()
+                return _normalize_json_text(response.content)
 
-        return response_model.model_validate_json(content)
+        content = await _call_llm(llm_messages, temperature=0.1)
+        last_error = ""
+        try:
+            return response_model.model_validate_json(content)
+        except Exception as e:
+            last_error = str(e)
+
+        for _attempt in range(2):
+            repair_prompt = (
+                "Your previous response did not validate against the required JSON schema.\n"
+                "Return ONLY valid JSON that matches the schema exactly (all required fields present; correct types; no extra keys).\n\n"
+                f"Schema:\n{schema}\n\n"
+                f"Validation error:\n{last_error}\n\n"
+                "Previous response:\n"
+                f"{content}\n"
+            )
+            repair_messages = list(llm_messages)
+            repair_messages.append(LLMMessage(role=MessageRole.ASSISTANT, content=content))
+            repair_messages.append(LLMMessage(role=MessageRole.USER, content=repair_prompt))
+
+            content = await _call_llm(repair_messages, temperature=0.0)
+            try:
+                return response_model.model_validate_json(content)
+            except Exception as e:
+                last_error = str(e)
+
+        return _fallback_model(last_error)
 
     async def _generate_step(
         self,
