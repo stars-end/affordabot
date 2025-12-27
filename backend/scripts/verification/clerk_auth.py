@@ -6,8 +6,12 @@ from playwright.async_api import Page
 
 
 async def _is_authenticated(page: Page) -> bool:
-    content = (await page.content()).lower()
-    return ("sign in" not in content) and ("sign up" not in content) and ("clerk" not in content)
+    url = (page.url or "").lower()
+    if "sign-in" in url or "sign-up" in url:
+        return False
+    if await _has_email_field(page) or await _has_password_field(page):
+        return False
+    return True
 
 
 async def _has_email_field(page: Page) -> bool:
@@ -72,4 +76,3 @@ async def clerk_login(page: Page, base_url: str, output_dir: Path) -> bool:
         await page.screenshot(path=str(output_dir / "auth_failed.png"), full_page=True)
         (output_dir / "auth_failed.html").write_text(await page.content(), encoding="utf-8")
     return ok
-
