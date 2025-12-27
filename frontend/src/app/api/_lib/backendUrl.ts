@@ -12,9 +12,8 @@ function inferRailwayBackendUrlFromHost(hostHeader?: string): string | undefined
 }
 
 export function getBackendUrl(hostHeader?: string): string {
-  const derivedForPr =
-    hostHeader && hostHeader.includes('-pr-') ? inferRailwayBackendUrlFromHost(hostHeader) : undefined;
-  if (derivedForPr) return normalizeBackendUrl(derivedForPr);
+  const derivedFromRailwayHost = inferRailwayBackendUrlFromHost(hostHeader);
+  if (derivedFromRailwayHost) return normalizeBackendUrl(derivedFromRailwayHost);
 
   const raw =
     process.env.RAILWAY_SERVICE_BACKEND_URL ||

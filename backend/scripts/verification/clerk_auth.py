@@ -1,6 +1,7 @@
 import os
 import re
 from pathlib import Path
+from urllib.parse import urlparse
 from urllib.parse import quote
 
 from playwright.async_api import Page
@@ -72,6 +73,7 @@ async def clerk_login(page: Page, base_url: str, output_dir: Path) -> bool:
 
     Strategy:
     - If already authenticated, proceed.
+    - First, try cookie-gated bypass (for Railway dev/PR verification runs).
     - Otherwise, login via email/password using `TEST_USER_EMAIL` / `TEST_USER_PASSWORD`.
 
     Note: Do not set global extra headers like `x-test-user` on the page context; they can
@@ -79,36 +81,43 @@ async def clerk_login(page: Page, base_url: str, output_dir: Path) -> bool:
     """
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Check if already authenticated
-    await page.goto(f"{base_url}/admin", wait_until="networkidle", timeout=60_000)
-    if await _is_authenticated(page):
-        return True
-
-    # Ensure redirect_url points at the public base URL (Clerk can sometimes derive localhost behind proxies).
-    redirect_url = quote(f"{base_url}/admin", safe="")
-    await page.goto(f"{base_url}/sign-in?redirect_url={redirect_url}", wait_until="networkidle", timeout=60_000)
-
-    # UI login with env credentials
-    email = os.environ.get("TEST_USER_EMAIL")
-    password = os.environ.get("TEST_USER_PASSWORD")
-    if not email or not password:
-        try:
+    # Cookie-gated bypass (preferred for non-prod verification runs).
+    # - Railway PR: middleware bypasses /admin unconditionally.
+    # - Railway dev: middleware bypasses /admin when `x-test-user=admin` cookie is present.
+    # Safe in prod because the middleware only honors this cookie on Railway preview/dev hosts.
+    try:
+        parsed = urlparse(base_url)
+        host = parsed.hostname
+        if host:
             await page.context.add_cookies(
                 [
                     {
                         "name": "x-test-user",
                         "value": "admin",
-                        "url": base_url,
+                        "domain": host,
                         "path": "/",
+                        "secure": parsed.scheme == "https",
+                        "sameSite": "Lax",
                     }
                 ]
             )
-            await page.goto(f"{base_url}/admin", wait_until="networkidle", timeout=60_000)
-            if await _is_authenticated(page):
-                return True
-        except Exception:
-            pass
+    except Exception:
+        # Best-effort only; fall back to normal auth below.
+        pass
 
+    # Check if already authenticated
+    await page.goto(f"{base_url}/admin", wait_until="domcontentloaded", timeout=60_000)
+    if await _is_authenticated(page):
+        return True
+
+    # Ensure redirect_url points at the public base URL (Clerk can sometimes derive localhost behind proxies).
+    redirect_url = quote(f"{base_url}/admin", safe="")
+    await page.goto(f"{base_url}/sign-in?redirect_url={redirect_url}", wait_until="domcontentloaded", timeout=60_000)
+
+    # UI login with env credentials
+    email = os.environ.get("TEST_USER_EMAIL")
+    password = os.environ.get("TEST_USER_PASSWORD")
+    if not email or not password:
         await page.screenshot(path=str(output_dir / "auth_missing_creds.png"), full_page=True)
         return False
 
@@ -135,13 +144,13 @@ async def clerk_login(page: Page, base_url: str, output_dir: Path) -> bool:
     # it can incorrectly point at localhost. After completing sign-in, force navigation
     # back to the desired in-app route and verify auth there.
     try:
-        await page.goto(f"{base_url}/admin", wait_until="networkidle", timeout=60_000)
+        await page.goto(f"{base_url}/admin", wait_until="domcontentloaded", timeout=60_000)
     except Exception:
         pass
 
     # Final check: should be on /admin (or at least not show Clerk login UI)
     try:
-        await page.wait_for_load_state("networkidle", timeout=60_000)
+        await page.wait_for_load_state("domcontentloaded", timeout=60_000)
     except Exception:
         pass
 
