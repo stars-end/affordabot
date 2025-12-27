@@ -6,7 +6,9 @@ import { getBackendUrl } from '../../_lib/backendUrl';
 
 export async function GET(request: NextRequest) {
     try {
-        const BACKEND_URL = getBackendUrl();
+        const BACKEND_URL = getBackendUrl(
+            request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? undefined
+        );
         const { searchParams } = new URL(request.url);
         const jurisdiction = searchParams.get('jurisdiction');
         const limit = searchParams.get('limit') || '50';

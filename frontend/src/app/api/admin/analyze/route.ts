@@ -4,7 +4,9 @@ import { getBackendUrl } from '../../_lib/backendUrl';
 
 export async function POST(request: NextRequest) {
     try {
-        const BACKEND_URL = getBackendUrl();
+        const BACKEND_URL = getBackendUrl(
+            request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? undefined
+        );
         const body = await request.json();
 
         const response = await fetch(`${BACKEND_URL}/admin/analyze`, {
