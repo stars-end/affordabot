@@ -44,6 +44,15 @@ tool selection helpers, evidence/provenance envelopes, context pointer stores, o
 
 ## 4) Jules‑Ready Packets
 
+### Not Jules‑Ready (human decisions)
+
+- `affordabot-ahpb.12` Decision: Affordabot frontend unification timing (MVP vs post‑MVP)
+
+## 5) Fire-and-forget packet docs (read these first)
+
+- `docs/bd-affordabot-ahpb/packets/affordabot-ahpb.10.md`
+- `docs/bd-affordabot-ahpb/packets/affordabot-ahpb.11.md`
+
 ### Packet: `affordabot-ahpb.10` — TOOL_SELECTION_SMALL_MODEL_GLM_4_5_AIR
 
 **Repo:** `affordabot`  
@@ -80,4 +89,3 @@ tool selection helpers, evidence/provenance envelopes, context pointer stores, o
 
 **Stop condition:**
 - Generation/review steps no longer inject “all artifacts” into prompts.
-

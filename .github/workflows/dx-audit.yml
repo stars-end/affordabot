@@ -1,0 +1,47 @@
+name: Weekly DX Audit
+
+on:
+  schedule:
+    - cron: '0 0 */3 * *'  # Every Monday at midnight UTC
+  workflow_dispatch:  # Manual trigger
+
+jobs:
+  audit:
+    runs-on: [self-hosted, linux, x64]
+    permissions:
+      contents: read   # For checkout
+      actions: read    # For CI run data (gh api repos/.../actions/runs)
+      issues: write    # For creating tracking issues
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 100  # Need commit history for analysis
+
+      - name: Checkout Agent Skills
+        uses: actions/checkout@v4
+        with:
+          repository: stars-end/agent-skills
+          path: agent-skills
+
+      - name: Setup Python via mise
+        uses: ./.github/actions/setup-python-mise
+
+      - name: Run DX audit
+        uses: ./agent-skills/github-actions/actions/dx-auditor
+        with:
+          lookback-commits: 60
+          lookback-runs: 30
+          output-file: docs/DX_AUDIT_LOG.md
+          beads-epic: bd-991y
+          repo-writer-token: ${{ secrets.REPO_WRITER_PAT }}
+          assignee: ${{ github.actor }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ANTHROPIC_API_KEY: ${{ secrets.GLM_API_KEY }}
+          ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
+          ANTHROPIC_DEFAULT_SONNET_MODEL: glm-4.7
+
+      - name: Show report (skip commit for now)
+        run: |
+          echo "=== DX Audit Report ==="
+          cat docs/DX_AUDIT_LOG.md || echo "No report generated"
