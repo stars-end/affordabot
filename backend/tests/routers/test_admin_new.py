@@ -46,11 +46,13 @@ def client():
     app.dependency_overrides = {}
 
 def test_list_sessions(client):
+    client.cookies.set("x-test-user", "admin")
     response = client.get("/admin/traces")
     assert response.status_code == 200
     assert response.json() == ["query-1", "query-2"]
 
 def test_get_traces(client):
+    client.cookies.set("x-test-user", "admin")
     response = client.get("/admin/traces/query-1")
     assert response.status_code == 200
     data = response.json()

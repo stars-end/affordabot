@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 import jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jwt import PyJWKClient
 from pydantic import BaseModel
@@ -161,13 +161,26 @@ clerk_auth = ClerkAuth()
 
 
 async def require_admin_user(
-    credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer()),
+    request: Request,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False)),
 ) -> UserProfile:
-    """Ensure the current JWT represents an admin user."""
-    
-    # 1. Validate Token via ClerkAuth logic manually (reuse logic or instance)
-    # We call the instance to get the profile
-    # Note: Dependency injection usually handles this, but since we want to extend logic...
+    """
+    Ensure the current JWT represents an admin user.
+    Also allows a test bypass via middleware-injected state.
+    """
+    # Test bypass check (priority)
+    if hasattr(request.state, "user") and isinstance(request.state.user, UserProfile):
+        if request.state.user.public_metadata.get("role") == "admin":
+            return request.state.user
+
+    if not credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+        
+    # 1. Validate Token via ClerkAuth logic
     user_profile = await clerk_auth(credentials)
 
     # 2. Check Admin Role/Allowlist

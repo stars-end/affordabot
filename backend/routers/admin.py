@@ -2,8 +2,13 @@ from fastapi import APIRouter, Depends, Request, HTTPException
 from typing import List, Optional
 from pydantic import BaseModel
 from services.glass_box import GlassBoxService, AgentStep, PipelineStep
+from auth.clerk import require_admin_user
 
-router = APIRouter(prefix="/admin", tags=["admin"])
+router = APIRouter(
+    prefix="/admin",
+    tags=["admin"],
+    dependencies=[Depends(require_admin_user)],
+)
 
 
 # Pydantic models for API responses

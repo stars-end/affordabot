@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react';
 import { Box, Typography, List, ListItem, ListItemButton, ListItemText, Paper, CircularProgress, Accordion, AccordionSummary, AccordionDetails, Alert } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { listAgentSessions, getAgentTraces, getRunSteps, AgentStep } from '../api/admin';
@@ -9,17 +8,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 export default function GlassBoxViewer() {
     const { runId } = useParams();
     const navigate = useNavigate();
-    const [selectedQuery, setSelectedQuery] = useState<string | null>(runId || null);
-
-    // Sync state with URL param
-    useEffect(() => {
-        if (runId && runId !== selectedQuery) {
-            setSelectedQuery(runId);
-        }
-    }, [runId, selectedQuery]);
 
     const handleSelectQuery = (q: string) => {
-        setSelectedQuery(q);
         navigate(`/admin/runs/${q}`);
     };
 
@@ -30,16 +20,16 @@ export default function GlassBoxViewer() {
 
     // 1. Fetch Legacy Traces
     const { data: traces, isLoading: loadingTraces } = useQuery({
-        queryKey: ['agent-traces', selectedQuery],
-        queryFn: () => getAgentTraces(selectedQuery!),
-        enabled: !!selectedQuery
+        queryKey: ['agent-traces', runId],
+        queryFn: () => getAgentTraces(runId!),
+        enabled: !!runId
     });
 
     // 2. Fetch Granular Steps (New)
     const { data: granularSteps, isLoading: loadingSteps } = useQuery({
-        queryKey: ['pipeline-steps', selectedQuery],
-        queryFn: () => getRunSteps(selectedQuery!),
-        enabled: !!selectedQuery
+        queryKey: ['pipeline-steps', runId],
+        queryFn: () => getRunSteps(runId!),
+        enabled: !!runId
     });
 
     const isLoading = loadingTraces || loadingSteps;
@@ -58,7 +48,7 @@ export default function GlassBoxViewer() {
                         {queries?.map((q) => (
                             <ListItem key={q} disablePadding>
                                 <ListItemButton
-                                    selected={q === selectedQuery}
+                                    selected={q === runId}
                                     onClick={() => handleSelectQuery(q)}
                                 >
                                     <ListItemText primary={q.substring(0, 15) + '...'} secondary="Trace ID" />
@@ -73,12 +63,12 @@ export default function GlassBoxViewer() {
             {/* Main: Traces */}
             <Paper sx={{ flex: 1, overflow: 'auto', p: 2 }}>
                 <Typography variant="h6" gutterBottom>
-                    Execution Trace: {selectedQuery || "Select a session"}
+                    Execution Trace: {runId || "Select a session"}
                 </Typography>
 
                 {isLoading && <CircularProgress />}
 
-                {!isLoading && selectedQuery && !hasGranularData && !hasLegacyData && (
+                {!isLoading && runId && !hasGranularData && !hasLegacyData && (
                     <Alert severity="info">No trace data found for this session.</Alert>
                 )}
 

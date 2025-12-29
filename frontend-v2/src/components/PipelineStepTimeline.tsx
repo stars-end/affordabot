@@ -17,7 +17,7 @@ function StatusIcon({ status }: { status: string }) {
     return <PlayCircleIcon color="action" />;
 }
 
-function JsonViewer({ data }: { data: any }) {
+function JsonViewer({ data }: { data: unknown }) {
     return (
         <Paper variant="outlined" sx={{ p: 1, bgcolor: 'background.default', maxHeight: 300, overflow: 'auto' }}>
             <pre style={{ margin: 0, fontSize: '0.8rem' }}>{JSON.stringify(data, null, 2)}</pre>
