@@ -291,15 +291,32 @@ async def get_legislation(jurisdiction: str, limit: int = 10):
     scraper_class, _ = SCRAPERS[jurisdiction]
     scraper = scraper_class()
     
-    legislation = await db.get_legislation_by_jurisdiction(
+    legislation_data = await db.get_legislation_by_jurisdiction(
         jurisdiction_name=scraper.jurisdiction_name,
         limit=limit
     )
     
+    # Adapt to the frontend's expected format
+    legislation_list = []
+    for leg in legislation_data:
+        for impact in leg.get('impacts', []):
+            if 'confidence_score' in impact:
+                impact['confidence'] = impact.pop('confidence_score')
+        legislation_list.append({
+            "bill_number": leg.get("bill_number"),
+            "title": leg.get("title"),
+            "jurisdiction": leg.get("jurisdiction", jurisdiction),
+            "status": leg.get("status"),
+            "impacts": leg.get("impacts", []),
+            "total_impact_p50": sum(i.get('p50', 0) for i in leg.get('impacts', [])),
+            "analysis_timestamp": leg.get("created_at").isoformat() if leg.get("created_at") else None,
+            "model_used": "n/a"
+        })
+
     return {
         "jurisdiction": jurisdiction,
-        "count": len(legislation),
-        "legislation": legislation
+        "count": len(legislation_list),
+        "legislation": legislation_list
     }
 
 @app.get("/legislation/{jurisdiction}/{bill_number}")
