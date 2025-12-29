@@ -16,6 +16,7 @@ from llm_common.agents import (
     TaskPlanner,
     ToolContextManager,
     ToolRegistry,
+    ToolSelector,
 )
 from llm_common.agents.provenance import EvidenceEnvelope
 from llm_common.core import LLMClient
@@ -56,6 +57,7 @@ class PolicyAgent:
         context_manager: ToolContextManager,
         planner: Optional[TaskPlanner] = None,
         executor: Optional[AgenticExecutor] = None,
+        selector: Optional[ToolSelector] = None,
     ):
         """
         Initialize PolicyAgent.
@@ -66,15 +68,16 @@ class PolicyAgent:
             context_manager: Tool context persistence
             planner: Optional custom planner
             executor: Optional custom executor
+            selector: Optional custom tool selector
         """
         self.client = llm_client
         self.registry = tool_registry
         self.context_manager = context_manager
         
         self.planner = planner or TaskPlanner(llm_client)
-        self.executor = executor or AgenticExecutor(
-            llm_client, tool_registry, context_manager
-        )
+        self.selector = selector or ToolSelector(llm_client)
+        # Executor is now created dynamically.
+        self.executor = executor
 
     async def analyze(self, query: str, jurisdiction: str = "San Jose") -> PolicyAnalysisResult:
         """
@@ -91,18 +94,12 @@ class PolicyAgent:
         logger.info(f"PolicyAgent: Analyzing '{query}' for {jurisdiction}")
         
         try:
-            # Enrich query with jurisdiction context
-            enriched_query = f"{query} (context: {jurisdiction})"
-            
-            # Plan the research strategy
-            plan = await self.planner.create_plan(
-                enriched_query,
-                context=f"Research policy question for {jurisdiction} jurisdiction. "
-                        f"Use available tools: {[t.name for t in self.registry.tools]}"
+            enriched_query, plan, executor = await self._select_and_plan(
+                query, jurisdiction
             )
             
             # Execute plan and collect results
-            results = await self.executor.execute_plan(plan, query_id)
+            results = await executor.execute_plan(plan, query_id)
             
             # Collect evidence from results
             all_evidence: List[EvidenceEnvelope] = []
@@ -161,8 +158,9 @@ class PolicyAgent:
         )
         
         try:
-            enriched_query = f"{query} (context: {jurisdiction})"
-            plan = await self.planner.create_plan(enriched_query)
+            enriched_query, plan, executor = await self._select_and_plan(
+                query, jurisdiction
+            )
             
             yield StreamEvent(
                 type="thinking",
@@ -170,7 +168,7 @@ class PolicyAgent:
             )
             
             # Stream execution
-            async for event in self.executor.run_stream(plan, query_id):
+            async for event in executor.run_stream(plan, query_id):
                 yield event
             
             # Final synthesis
@@ -186,6 +184,32 @@ class PolicyAgent:
             
         except Exception as e:
             yield StreamEvent(type="error", data={"error": str(e)})
+
+    async def _select_and_plan(self, query: str, jurisdiction: str):
+        # Enrich query with jurisdiction context
+        enriched_query = f"{query} (context: {jurisdiction})"
+
+        # Select tools
+        selected_tool_schemas = await self.selector.select_tools(
+            query=enriched_query,
+            tools=self.registry.get_tools_schema(),
+        )
+        selected_tool_names = [t["name"] for t in selected_tool_schemas]
+        logger.info(f"Selected tools: {selected_tool_names}")
+
+        # Create a filtered registry and a new executor
+        filtered_registry = self.registry.filtered_registry(selected_tool_names)
+        executor = AgenticExecutor(
+            self.client, filtered_registry, self.context_manager
+        )
+
+        # Plan the research strategy
+        plan = await self.planner.create_plan(
+            enriched_query,
+            context=f"Research policy question for {jurisdiction} jurisdiction. "
+            f"Use available tools: {selected_tool_names}",
+        )
+        return enriched_query, plan, executor
 
     async def _load_context_blob(self, *, query_id: str, query: str) -> str:
         """
