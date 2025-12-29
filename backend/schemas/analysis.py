@@ -27,6 +27,9 @@ class LegislationImpact(BaseModel):
 class LegislationAnalysisResponse(BaseModel):
     """Complete analysis of a single bill/regulation."""
     bill_number: str
+    title: str = Field(description="Title of the legislation")
+    jurisdiction: str = Field(description="Jurisdiction of the legislation")
+    status: str = Field(description="Current status of the legislation")
     impacts: List[LegislationImpact] = Field(default_factory=list)
     total_impact_p50: float = Field(description="Sum of median impacts")
     analysis_timestamp: str
