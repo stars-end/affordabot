@@ -68,6 +68,9 @@ async def main():
         async def analyze(self, text, number, jurisdiction):
             from schemas.analysis import LegislationAnalysisResponse, LegislationImpact, ImpactEvidence
             return LegislationAnalysisResponse(
+                title="Mock Bill Title",
+                jurisdiction=jurisdiction,
+                status="Mock Status",
                 bill_number=number,
                 impacts=[
                     LegislationImpact(
@@ -183,6 +186,9 @@ async def main():
             
             if "policy analyst" in msg_str: # Generate Step
                 resp = LegislationAnalysisResponse(
+                    title="Mock Bill From Loop",
+                    jurisdiction="Mock Jurisdiction",
+                    status="Under Review",
                     bill_number="Test Bill 123",
                     impacts=[
                         LegislationImpact(
