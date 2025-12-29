@@ -1,3 +1,4 @@
+from llm_common.agents.provenance import Evidence, EvidenceEnvelope
 from llm_common.agents.tools import (
     BaseTool,
     ToolMetadata,
@@ -43,21 +44,57 @@ class ZaiSearchTool(BaseTool):
             bill_number: The bill's official number.
 
         Returns:
-            A ToolResult containing the research package, including a summary,
-            key facts, and a list of sources.
+            A ToolResult containing an EvidenceEnvelope with the research results.
         """
         try:
             research_package: ResearchPackage = await self._service.search_exhaustively(
                 bill_text=bill_text, bill_number=bill_number
             )
 
-            # Extract source URLs for citation
-            source_urls = [source.url for source in research_package.sources if source.url]
+            envelope = EvidenceEnvelope(
+                source_tool=self.metadata.name,
+                metadata={"bill_number": bill_number},
+            )
+
+            for source in research_package.sources:
+                if source.url:
+                    evidence = Evidence(
+                        kind="url",
+                        label=source.title or "Source",
+                        url=source.url,
+                        content=source.content or "",
+                        excerpt=source.content[:500] if source.content else "",
+                        metadata={
+                            "publisher": source.publisher,
+                            "publish_date": str(source.publish_date)
+                            if source.publish_date
+                            else None,
+                        },
+                    )
+                    envelope.add(evidence)
+
+            # Also add summary and key facts as evidence
+            envelope.add(
+                Evidence(
+                    kind="summary",
+                    label="Research Summary",
+                    content=research_package.summary,
+                    excerpt=research_package.summary[:500],
+                )
+            )
+            for i, fact in enumerate(research_package.key_facts):
+                envelope.add(
+                    Evidence(
+                        kind="fact",
+                        label=f"Key Fact {i+1}",
+                        content=fact,
+                        excerpt=fact[:500],
+                    )
+                )
 
             return ToolResult(
                 success=True,
-                data=research_package.model_dump(),
-                source_urls=source_urls,
+                data={"envelope": envelope.model_dump()},
             )
         except Exception as e:
             return ToolResult(success=False, error=f"An unexpected error occurred: {e}")
