@@ -145,6 +145,9 @@ async def main():
                     content = resp.model_dump_json()
                 else:
                     resp = LegislationAnalysisResponse(
+                        title="Mock Bill Title",
+                        jurisdiction="Mock Jurisdiction",
+                        status="Mock Status",
                         bill_number="MOCK-BILL-001",
                         impacts=[
                             LegislationImpact(

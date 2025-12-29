@@ -57,6 +57,9 @@ class ImpactVerifyingLLM(LLMClient):
         # Return canned High Impact response for the 'generate' step
         if "policy analyst" in msg_str.lower():
             resp = LegislationAnalysisResponse(
+                title="Mock Bill",
+                jurisdiction="Mock Verif",
+                status="Mocked",
                 bill_number="BILL-TEST-101",
                 impacts=[
                     LegislationImpact(
