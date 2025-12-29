@@ -18,6 +18,9 @@ async def test_analysis_pipeline_integration():
     # Mock Generate Response
     analysis_obj = LegislationAnalysisResponse(
         bill_number="AB-1234",
+        title="Test Bill",
+        jurisdiction="San Jose",
+        status="introduced",
         impacts=[
             LegislationImpact(
                 impact_number=1, 

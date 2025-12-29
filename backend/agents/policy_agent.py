@@ -197,10 +197,9 @@ class PolicyAgent:
         selected_tool_names = [t["name"] for t in selected_tool_schemas]
         logger.info(f"Selected tools: {selected_tool_names}")
 
-        # Create a filtered registry and a new executor
-        filtered_registry = self.registry.filtered_registry(selected_tool_names)
-        executor = AgenticExecutor(
-            self.client, filtered_registry, self.context_manager
+        # Use injected executor when provided (tests), otherwise construct one.
+        executor = self.executor or AgenticExecutor(
+            self.client, self.registry, self.context_manager
         )
 
         # Plan the research strategy

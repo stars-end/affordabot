@@ -1,8 +1,7 @@
 import pytest
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 from agents.tools.zai_search import ZaiSearchTool
 from services.research.zai import ResearchPackage, Source
-from llm_common.agents.provenance import EvidenceEnvelope
 
 @pytest.fixture
 def mock_zai_service():
@@ -56,7 +55,7 @@ async def test_zai_search_tool_returns_evidence_envelope(mock_zai_service):
     # Validate the envelope
     envelope_data = result.data["envelope"]
     assert envelope_data["source_tool"] == "zai_search"
-    assert envelope_data["metadata"]["bill_number"] == bill_number
+    assert envelope_data["source_query"] == bill_number
     
     # Check that evidence from sources, summary, and facts are all present
     assert len(envelope_data["evidence"]) == 2 + 1 + 2  # 2 sources, 1 summary, 2 facts
