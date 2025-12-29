@@ -6,15 +6,12 @@
 
 # Conditionally determine the command wrapper for verification tasks.
 # - If inside a Railway shell (RAILWAY_PROJECT_NAME is set), commands run directly.
-# - If not in a shell but a RAILS_TOKEN is present, use 'railway run'.
-# - Otherwise, no wrapper is used, and the environment must be configured manually.
+# - If a RAILWAY_TOKEN is present, use 'railway run' to inject env.
+# - Otherwise, no wrapper is used, and env must be configured manually.
 RUN_CMD :=
 ifeq ($(shell test -n "$$RAILWAY_PROJECT_NAME" && echo 1), 1)
 	# Inside Railway shell, env vars are already present.
 	RUN_CMD :=
-else ifeq ($(shell railway status >/dev/null 2>&1 && echo 1), 1)
-	# Local machine is authenticated + linked (non-interactive); use 'railway run'.
-	RUN_CMD := railway run
 else ifeq ($(shell test -n "$$RAILWAY_TOKEN" && echo 1), 1)
 	# Not in shell, but token is available. Use 'railway run'.
 	RUN_CMD := railway run

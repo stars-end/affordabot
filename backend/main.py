@@ -11,6 +11,7 @@ from sentry_sdk.integrations.fastapi import FastApiIntegration
 from sentry_sdk.integrations.logging import LoggingIntegration
 from routers import admin, sources, discovery, prompts
 from services.scraper.registry import SCRAPERS
+from middleware.auth import TestAuthBypassMiddleware
 
 # Initialize Sentry
 if os.getenv("SENTRY_DSN"):
@@ -57,6 +58,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Add test auth bypass middleware
+app.add_middleware(TestAuthBypassMiddleware)
 
 # Include admin router
 app.include_router(admin.router)

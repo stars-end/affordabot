@@ -3,7 +3,7 @@ export interface Impact {
     impact_description: string;
     confidence_score: number;
     p50: number;
-    evidence: any[];
+    evidence: unknown[];
 }
 
 export interface Legislation {

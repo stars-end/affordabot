@@ -1,7 +1,7 @@
 export interface AgentStep {
     tool: string;
-    args: Record<string, any>;
-    result: any;
+    args: Record<string, unknown>;
+    result: unknown;
     task_id: string;
     query_id: string;
     timestamp: number;
@@ -22,9 +22,9 @@ export interface PipelineStep {
     step_number: number;
     step_name: string;
     status: string;
-    input_context?: Record<string, any>;
-    output_result?: Record<string, any>;
-    model_info?: Record<string, any>;
+    input_context?: Record<string, unknown>;
+    output_result?: Record<string, unknown>;
+    model_info?: Record<string, unknown>;
     duration_ms?: number;
     created_at?: string;
 }
