@@ -8,9 +8,9 @@ BACKEND_DIR = Path(__file__).resolve().parent.parent.parent
 MIGRATIONS_DIR = BACKEND_DIR / "migrations"
 
 def run_migrations():
-    db_url = os.environ.get("DATABASE_URL")
+    db_url = os.environ.get("DATABASE_URL_PUBLIC") or os.environ.get("DATABASE_URL")
     if not db_url:
-        print("❌ DATABASE_URL is not set.")
+        print("❌ DATABASE_URL_PUBLIC/DATABASE_URL is not set.")
         sys.exit(1)
 
     print("🚀 Connecting to database...")
