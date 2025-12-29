@@ -53,7 +53,7 @@ class ZaiSearchTool(BaseTool):
 
             envelope = EvidenceEnvelope(
                 source_tool=self.metadata.name,
-                metadata={"bill_number": bill_number},
+                source_query=bill_number,
             )
 
             for source in research_package.sources:

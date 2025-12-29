@@ -7,18 +7,21 @@ from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
-class SearchResult(BaseModel):
+class Source(BaseModel):
     url: str
     title: str
-    snippet: str
+    publisher: Optional[str] = None
+    publish_date: Optional[str] = None
+    snippet: Optional[str] = None
     content: Optional[str] = None
 
 class ResearchPackage(BaseModel):
     summary: str
-    key_facts: List[str]
-    opposition_arguments: List[str]
-    fiscal_estimates: List[str]
-    sources: List[SearchResult]
+    key_facts: List[str] = []
+    opposition_arguments: List[str] = []
+    fiscal_estimates: List[str] = []
+    sources: List[Source] = []
+    confidence_score: Optional[float] = None
 
 class ZaiResearchService:
     def __init__(self):
@@ -105,7 +108,7 @@ class ZaiResearchService:
         
         return queries[:40]
 
-    async def _execute_search(self, query: str) -> List[SearchResult]:
+    async def _execute_search(self, query: str) -> List[Source]:
         """Execute a single search query via Z.ai MCP."""
         try:
             # Execute the tool via MCP
@@ -120,7 +123,7 @@ class ZaiResearchService:
             # Parse MCP result
             # MCP tools/call returns {result: {content: [{type: "text", text: "..."}]}}
             content_list = response.get("result", {}).get("content", [])
-            results = []
+            results: List[Source] = []
             
             for content in content_list:
                 if content.get("type") == "text":
@@ -136,14 +139,14 @@ class ZaiResearchService:
                         data = json.loads(text)
                         if isinstance(data, list):
                             for item in data:
-                                results.append(SearchResult(
+                                results.append(Source(
                                     url=item.get("url") or item.get("link"),
                                     title=item.get("title"),
                                     snippet=item.get("snippet") or item.get("body")
                                 ))
                         elif isinstance(data, dict) and "results" in data:
                              for item in data["results"]:
-                                results.append(SearchResult(
+                                results.append(Source(
                                     url=item.get("url") or item.get("link"),
                                     title=item.get("title"),
                                     snippet=item.get("snippet") or item.get("body")
@@ -199,7 +202,7 @@ class ZaiResearchService:
             opposition_arguments=["Arg 1", "Arg 2"],
             fiscal_estimates=["$1M cost"],
             sources=[
-                SearchResult(
+                Source(
                     url="https://example.com",
                     title="Example Source",
                     snippet="This is a mock search result."
