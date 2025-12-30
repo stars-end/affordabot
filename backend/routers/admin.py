@@ -419,3 +419,69 @@ async def get_run_steps(
     Get granular execution steps for a pipeline run.
     """
     return await service.get_pipeline_steps(run_id)
+
+
+# ============================================================================
+# STUB ENDPOINTS (Prevent 404s - TODO: Implement fully)
+# ============================================================================
+
+@router.get("/reviews")
+async def list_reviews(request: Request):
+    """List pipeline reviews. Stub endpoint."""
+    db = get_db(request)
+    if not db:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    # Return empty list for now - can be expanded later
+    return {"reviews": [], "message": "Reviews endpoint - implementation pending"}
+
+
+@router.post("/reviews/{review_id}")
+async def update_review(review_id: str, request: Request):
+    """Update a review. Stub endpoint."""
+    return {"status": "success", "message": f"Review {review_id} update - implementation pending"}
+
+
+@router.get("/models")
+async def list_models(request: Request):
+    """List available LLM models. Stub endpoint."""
+    import os
+    
+    # Return configured models from environment
+    return {
+        "models": [
+            {
+                "id": "glm-4.7",
+                "name": "GLM-4.7",
+                "provider": "zai",
+                "status": "active" if os.getenv("ZAI_API_KEY") else "unconfigured"
+            },
+            {
+                "id": "gemini-2.0-flash-exp",
+                "name": "Gemini 2.0 Flash",
+                "provider": "openrouter",
+                "status": "active" if os.getenv("OPENROUTER_API_KEY") else "unconfigured"
+            }
+        ]
+    }
+
+
+@router.get("/health/models")
+async def check_model_health(request: Request):
+    """Check health of LLM models. Stub endpoint."""
+    import os
+    
+    return {
+        "zai": "healthy" if os.getenv("ZAI_API_KEY") else "missing_key",
+        "openrouter": "healthy" if os.getenv("OPENROUTER_API_KEY") else "missing_key"
+    }
+
+
+@router.post("/analyze")
+async def run_analysis(request: Request):
+    """Run ad-hoc analysis. Stub endpoint."""
+    return {
+        "status": "pending",
+        "message": "Analysis endpoint - implementation pending. Use /scrape/{jurisdiction} for full pipeline."
+    }
+

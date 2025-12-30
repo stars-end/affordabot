@@ -63,10 +63,10 @@ app.add_middleware(
 app.add_middleware(TestAuthBypassMiddleware)
 
 # Include admin router
-app.include_router(admin.router)
-app.include_router(sources.router)
-app.include_router(discovery.router)
-app.include_router(prompts.router)
+app.include_router(admin.router, prefix="/api")
+app.include_router(sources.router, prefix="/api")
+app.include_router(discovery.router, prefix="/api")
+app.include_router(prompts.router, prefix="/api")
 
 # Add rate limiting middleware (60 requests/minute per IP)
 # app.middleware("http")(RateLimiter(requests_per_minute=60))
