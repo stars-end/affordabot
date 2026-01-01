@@ -28,20 +28,41 @@ REQUIRED_VERIFY_VARS := \
 
 # Helper to ensure environment is configured for verification.
 # If not using 'railway run', it checks that all required env vars are set.
+# Helper to ensure environment is configured for verification.
+# If not using 'railway run', it checks that all required env vars are set.
 check-verify-env:
 	@if [ -z "$(RUN_CMD)" ]; then \
 		echo "ℹ️  'railway run' not used. Checking for required env vars..."; \
+		MISSING_VARS=0; \
 		for var in $(REQUIRED_VERIFY_VARS); do \
 			if [ -z "$$(eval echo \"\$$$${var}\")" ]; then \
 				echo "❌ Error: Missing required environment variable: $${var}"; \
-				echo "   Please set it or run inside 'railway shell' or with 'RAILWAY_TOKEN'."; \
-				exit 1; \
+				MISSING_VARS=1; \
 			fi; \
 		done; \
+		if [ "$$MISSING_VARS" -eq 1 ]; then \
+			echo ""; \
+			echo "💡 Fix this by running:"; \
+			echo "   1. make auth       (to login and link project)"; \
+			echo "   2. railway run make <target>"; \
+			echo ""; \
+			exit 1; \
+		fi; \
 		echo "✅ All required environment variables are set."; \
 	else \
 		echo "ℹ️  Using '$(RUN_CMD)' to inject environment variables."; \
 	fi
+
+# Authenticate with Railway (Login + Link)
+auth:
+	@echo "🔐 Authenticating with Railway..."
+	@if ! command -v railway >/dev/null; then \
+		echo "❌ Railway CLI not found. Installing..."; \
+		npm install -g @railway/cli; \
+	fi
+	railway login
+	@echo "🔗 Linking project..."
+	railway link
 
 # Default target
 help:
