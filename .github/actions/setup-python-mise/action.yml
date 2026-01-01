@@ -1,0 +1,48 @@
+name: 'Setup Python (Self-Hosted Compatible)'
+description: 'Sets up Python using mise on self-hosted runners, or actions/setup-python on GitHub-hosted runners'
+
+inputs:
+  python-version:
+    description: 'Python version to use'
+    required: false
+    default: '3.13'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup mise and Python
+      shell: bash
+      run: |
+        # Check if mise is available (self-hosted runner)
+        # Check if mise is available (self-hosted runner)
+        if ! command -v mise &> /dev/null && [ ! -f "$HOME/.local/bin/mise" ]; then
+          echo "⚠️ mise not found - installing..."
+          curl -sSfL https://mise.run | sh
+        else
+          echo "🔧 mise detected"
+        fi
+
+        # Ensure mise is in PATH and activated
+        export PATH="$HOME/.local/bin:$PATH"
+        
+        if command -v mise &> /dev/null; then
+           eval "$(mise activate bash)"
+           
+           # Install tools from .mise.toml if present
+           if [ -f ".mise.toml" ]; then
+             mise install
+           fi
+           
+           # Verify Python is available
+           python_path=$(mise which python 2>/dev/null || which python3)
+           python_version=$($python_path --version)
+           echo "✅ Python available: $python_version"
+           echo "   Path: $python_path"
+           
+           # Add mise shims to PATH for subsequent steps
+           echo "$HOME/.local/share/mise/shims" >> $GITHUB_PATH
+           echo "MISE_PYTHON_ACTIVE=true" >> $GITHUB_ENV
+        else
+           echo "❌ Failed to setup mise. GitHub-hosted runners should use actions/setup-python@v5"
+           exit 1
+        fi
