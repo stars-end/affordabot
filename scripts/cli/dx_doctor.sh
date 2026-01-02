@@ -53,11 +53,26 @@ else
   echo "[!] missing guardrails stamp. Run '/sync-i --force true' in CC/OC"
 fi
 
-# 6) Agent Mail (optional)
+# 6) Agent Mail (optional - DEPRECATED for coordination, used for niche cases)
 if [[ -n "${AGENT_MAIL_URL:-}" && -n "${AGENT_MAIL_BEARER_TOKEN:-}" ]]; then
   echo "[✓] Agent Mail env: configured"
 else
-  echo "[i] Agent Mail env: not configured yet (coordinator will provide token + setup)"
+  echo "[i] Agent Mail env: not configured (OK if using Slack Coordination)"
+fi
+
+# 6b) Slack Coordination (Required for V2)
+if [[ -n "${SLACK_MCP_XOXP_TOKEN:-}" ]]; then
+    echo "[✓] Slack MCP Token: present"
+    # Basic connectivity check
+    if curl -s -H "Authorization: Bearer $SLACK_MCP_XOXP_TOKEN" "https://slack.com/api/auth.test" | grep -q '"ok":true'; then
+        echo "[✓] Slack API: connected"
+    else
+        echo "[!] Slack API: connection failed (check token scopes)"
+        ERRORS=$((ERRORS+1))
+    fi
+else
+    echo "[!] Slack MCP Token: missing (export SLACK_MCP_XOXP_TOKEN=xoxp-...)"
+    ERRORS=$((ERRORS+1))
 fi
 
 # 7) Agent Skills Check (Fail-Open but Loud)
