@@ -60,3 +60,6 @@ backend/artifacts/verification/stories/*.json
 artifacts/verification/
 .verify-*.log
 .verify-*.pid
+
+# bv (beads viewer) local config and caches
+.bv/

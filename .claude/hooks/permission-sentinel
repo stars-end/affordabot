@@ -1,0 +1,14 @@
+#!/bin/bash
+# Only target scripts/ and bin/ directories
+FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E "^(scripts|bin)/.*\.(sh|py)$")
+if [ -n "$FILES" ]; then
+    for file in $FILES;
+    do
+        if head -n 1 "$file" | grep -q "^#!" 2>/dev/null;
+        then
+            chmod +x "$file"
+            git add "$file"
+        fi
+    done
+fi
+exit 0
