@@ -1,6 +1,6 @@
 from llm_common.agents.tools import BaseTool, ToolMetadata, ToolParameter, ToolResult
 from llm_common.agents.provenance import Evidence, EvidenceEnvelope
-from services.research.zai import ZaiResearchService, Source as ZaiSource
+from services.research.zai import ZaiResearchService
 
 class ZaiSearchTool(BaseTool):
     """A tool to perform exhaustive research using the Z.ai service."""
