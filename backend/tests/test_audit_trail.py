@@ -25,14 +25,12 @@ async def test_audit_logger_structure():
 @pytest.mark.asyncio
 async def test_audit_logger_writes_to_file(tmp_path, monkeypatch):
     """Test that AuditLogger writes JSON artifacts to file."""
-    import os
 
     # Set custom artifact directory BEFORE importing module
     artifact_dir = str(tmp_path / "audit_artifacts")
     monkeypatch.setenv("ARTIFACT_DIR", artifact_dir)
 
     # Reimport AuditLogger to pick up new env var
-    import importlib
     import sys
 
     if "services.audit.logger" in sys.modules:
@@ -69,12 +67,10 @@ async def test_audit_logger_writes_to_file(tmp_path, monkeypatch):
 @pytest.mark.asyncio
 async def test_audit_logger_multiple_steps(tmp_path, monkeypatch):
     """Test that AuditLogger handles multiple steps correctly."""
-    import os
 
     artifact_dir = str(tmp_path / "audit_artifacts")
     monkeypatch.setenv("ARTIFACT_DIR", artifact_dir)
 
-    import importlib
     import sys
 
     if "services.audit.logger" in sys.modules:
@@ -117,12 +113,10 @@ async def test_audit_logger_multiple_steps(tmp_path, monkeypatch):
 @pytest.mark.asyncio
 async def test_audit_logger_step_structure(tmp_path, monkeypatch):
     """Test that logged steps have all required fields."""
-    import os
 
     artifact_dir = str(tmp_path / "audit_artifacts")
     monkeypatch.setenv("ARTIFACT_DIR", artifact_dir)
 
-    import importlib
     import sys
 
     if "services.audit.logger" in sys.modules:
@@ -171,12 +165,10 @@ async def test_audit_logger_step_structure(tmp_path, monkeypatch):
 @pytest.mark.asyncio
 async def test_audit_logger_failed_step(tmp_path, monkeypatch):
     """Test that AuditLogger logs failed steps correctly."""
-    import os
 
     artifact_dir = str(tmp_path / "audit_artifacts")
     monkeypatch.setenv("ARTIFACT_DIR", artifact_dir)
 
-    import importlib
     import sys
 
     if "services.audit.logger" in sys.modules:
