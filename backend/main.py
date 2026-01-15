@@ -9,7 +9,7 @@ import logging
 import sentry_sdk
 from sentry_sdk.integrations.fastapi import FastApiIntegration
 from sentry_sdk.integrations.logging import LoggingIntegration
-from routers import admin, sources, discovery, prompts
+from routers import admin, sources, discovery, prompts, bills
 from services.scraper.registry import SCRAPERS
 from middleware.auth import TestAuthBypassMiddleware
 
@@ -67,6 +67,7 @@ app.include_router(admin.router, prefix="/api")
 app.include_router(sources.router, prefix="/api")
 app.include_router(discovery.router, prefix="/api")
 app.include_router(prompts.router, prefix="/api")
+app.include_router(bills.router, prefix="/api")
 
 # Add rate limiting middleware (60 requests/minute per IP)
 # app.middleware("http")(RateLimiter(requests_per_minute=60))
@@ -131,7 +132,7 @@ async def health_check_analysis():
         llm_config = LLMConfig(
             api_key=os.getenv("ZAI_API_KEY", "dummy"), 
             provider="zai",
-            default_model=os.getenv("LLM_MODEL_RESEARCH", "glm-4.6")
+            default_model=os.getenv("LLM_MODEL_RESEARCH", "glm-4.7")
         )
         llm_client = ZaiClient(llm_config)
         llm_ok = await llm_client.validate_api_key()
@@ -170,7 +171,7 @@ async def process_jurisdiction(jurisdiction: str, scraper_class, jur_type: str):
         llm_config = LLMConfig(
             api_key=os.getenv("ZAI_API_KEY"), 
             provider="zai",
-            default_model=os.getenv("LLM_MODEL_RESEARCH", "glm-4.6")
+            default_model=os.getenv("LLM_MODEL_RESEARCH", "glm-4.7")
         )
         llm_client = ZaiClient(llm_config)
         
@@ -215,9 +216,9 @@ async def process_jurisdiction(jurisdiction: str, scraper_class, jur_type: str):
                 # bill.bill_number is usually the ID.
                 
                 models = {
-                    "research": os.getenv("LLM_MODEL_RESEARCH", "glm-4.6"),
-                    "generate": os.getenv("LLM_MODEL_GENERATE", "glm-4.6"),
-                    "review": os.getenv("LLM_MODEL_REVIEW", "glm-4.6")
+                    "research": os.getenv("LLM_MODEL_RESEARCH", "glm-4.7"),
+                    "generate": os.getenv("LLM_MODEL_GENERATE", "glm-4.7"),
+                    "review": os.getenv("LLM_MODEL_REVIEW", "glm-4.7")
                 }
                 
                 await pipeline.run(
