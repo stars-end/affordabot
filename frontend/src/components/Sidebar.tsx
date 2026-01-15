@@ -19,6 +19,7 @@ export function Sidebar() {
     { id: 'admin-sources', label: '↳ Sources', icon: Settings, path: '/admin/sources' },
     { id: 'admin-prompts', label: '↳ Prompts', icon: FileText, path: '/admin/prompts' },
     { id: 'admin-reviews', label: '↳ Reviews', icon: Shield, path: '/admin/reviews' },
+    { id: 'admin-audits', label: '↳ Audit Trace', icon: Settings, path: '/admin/audits/trace' },
   ];
 
   return (

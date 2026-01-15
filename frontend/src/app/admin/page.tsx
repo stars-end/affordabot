@@ -23,6 +23,7 @@ import { ModelRegistry } from '@/components/admin/ModelRegistry';
 import { PromptEditor } from '@/components/admin/PromptEditor';
 import { JurisdictionMapper } from '@/components/admin/JurisdictionMapper';
 import { AnalyticsDashboard } from '@/components/admin/AnalyticsDashboard';
+import { AlertsWidget } from '@/components/AlertsWidget';
 
 export default function AdminDashboard() {
     const [activeTab, setActiveTab] = useState('overview');
