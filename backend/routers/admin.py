@@ -280,6 +280,54 @@ async def get_run_steps(
     return await service.get_pipeline_steps(run_id)
 
 
+@router.get("/pipeline-runs")
+async def list_pipeline_runs(
+    service: GlassBoxService = Depends(get_glass_box_service)
+):
+    """List recent pipeline runs."""
+    return await service.list_pipeline_runs()
+
+
+@router.get("/pipeline-runs/{run_id}")
+async def get_pipeline_run_details(
+    run_id: str,
+    service: GlassBoxService = Depends(get_glass_box_service)
+):
+    """Get details of a specific pipeline run."""
+    run = await service.get_pipeline_run(run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Pipeline run not found")
+    
+    # Also fetch steps
+    steps = await service.get_pipeline_steps(run_id)
+    run["steps"] = [step.model_dump() for step in steps]
+    
+    return run
+
+@router.get("/alerts")
+async def list_alerts(db: PostgresDB = Depends(get_db)):
+    """List system alerts."""
+    # Stub for now
+    return {
+        "alerts": [
+            {
+                "id": "alert-1",
+                "type": "error",
+                "message": "Analysis Pipeline Failure: Rate limit exceeded",
+                "created_at": "2025-01-14T10:00:00Z",
+                "acknowledged": False
+            },
+             {
+                "id": "alert-2",
+                "type": "warning",
+                "message": "Source 'CA Assembly' is stale (last scrape 48h ago)",
+                "created_at": "2025-01-14T09:00:00Z",
+                "acknowledged": False
+            }
+        ]
+    }
+
+
 # ============================================================================
 # STUB ENDPOINTS (Prevent 404s - TODO: Implement fully)
 # ============================================================================
