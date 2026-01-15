@@ -1,126 +1,71 @@
-"""
-ScraperTool for web page content extraction.
-
-This tool wraps the WebReader client for deep URL reading
-using Playwright and trafilatura for content extraction.
-"""
-
-import logging
-from typing import Any
-
-from llm_common.agents.tools import (
-    BaseTool,
-    ToolMetadata,
-    ToolParameter,
-    ToolResult,
-)
+from llm_common.agents.tools import BaseTool, ToolMetadata, ToolParameter, ToolResult
 from llm_common.agents.provenance import Evidence, EvidenceEnvelope
-
-logger = logging.getLogger(__name__)
-
+from services.scraper.registry import SCRAPERS
+from services.scraper.base import ScrapedBill
 
 class ScraperTool(BaseTool):
-    """
-    A tool for scraping web pages using the WebReader client.
-    
-    Integrates with Playwright/trafilatura for robust content extraction
-    and returns evidence envelope for provenance tracking.
-    """
-
-    def __init__(self, web_reader_client: Any = None):
-        """
-        Initialize ScraperTool.
-        
-        Args:
-            web_reader_client: Optional WebReaderClient instance.
-                              If None, uses mock mode.
-        """
-        self._web_reader = web_reader_client
+    """A tool to scrape legislative bills from a specific jurisdiction."""
 
     @property
     def metadata(self) -> ToolMetadata:
         return ToolMetadata(
-            name="scraper",
-            description=(
-                "Scrapes a web page and extracts the main content. "
-                "Returns structured content with source URL for citation."
-            ),
+            name="scrape_legislation",
+            description="Scrapes legislative bills from a specified jurisdiction.",
             parameters=[
                 ToolParameter(
-                    name="url",
+                    name="jurisdiction",
                     type="string",
-                    description="The URL of the web page to scrape.",
+                    description="The jurisdiction to scrape (e.g., 'california', 'san-jose').",
                     required=True,
-                ),
-                ToolParameter(
-                    name="extract_links",
-                    type="boolean",
-                    description="Whether to extract links from the page.",
-                    required=False,
                 ),
             ],
         )
 
-    async def execute(self, url: str, extract_links: bool = False) -> ToolResult:
+    async def execute(self, jurisdiction: str) -> ToolResult:
         """
-        Scrapes a web page and returns the content with provenance.
+        Executes the scraper for the given jurisdiction and wraps the results.
 
         Args:
-            url: The URL of the web page to scrape.
-            extract_links: Whether to extract links from the page.
+            jurisdiction: The jurisdiction to scrape.
 
         Returns:
-            A ToolResult containing the scraped content and evidence envelope.
+            A ToolResult containing the scraped bills and an EvidenceEnvelope.
         """
-        logger.info(f"ScraperTool: Scraping {url}")
-        
+        if jurisdiction not in SCRAPERS:
+            return ToolResult(success=False, error=f"Invalid jurisdiction: {jurisdiction}")
+
         try:
-            if self._web_reader:
-                # Use real WebReader client
-                result = await self._web_reader.read_url(url)
-                content = result.get("content", "")
-                title = result.get("title", "")
-                links = result.get("links", []) if extract_links else []
-            else:
-                # Mock mode for testing
-                content = f"[Mock] Content extracted from {url}"
-                title = f"Page at {url}"
-                links = []
-                logger.warning("ScraperTool: Using mock mode (no web_reader_client)")
-            
-            # Create evidence envelope
-            evidence = EvidenceEnvelope(
-                source_tool="scraper",
-                source_query=url,
-                evidence=[
+            scraper_class, _ = SCRAPERS[jurisdiction]
+            scraper_instance = scraper_class(jurisdiction_name=jurisdiction)
+            scraped_bills: list[ScrapedBill] = await scraper_instance.scrape()
+
+            evidence_items = []
+            for bill in scraped_bills:
+                evidence_items.append(
                     Evidence(
-                        kind="url",
-                        label=title or url,
-                        url=url,
-                        content=content[:500] if content else "",  # First 500 chars
-                        excerpt=content[:200] if content else "",
+                        kind="legislation",
+                        label=f"{bill.bill_number}: {bill.title}",
+                        content=bill.text or "",
+                        metadata={
+                            "bill_number": bill.bill_number,
+                            "title": bill.title,
+                            "introduced_date": str(bill.introduced_date),
+                            "status": bill.status,
+                        },
+                        tool_name=self.metadata.name,
                     )
-                ],
-            )
-            
-            return ToolResult(
-                success=True,
-                data={
-                    "url": url,
-                    "title": title,
-                    "content": content,
-                    "links": links,
-                    "content_length": len(content),
-                },
-                source_urls=[url],
-                evidence=[evidence],
-            )
-            
-        except Exception as e:
-            logger.error(f"ScraperTool failed for {url}: {e}")
-            return ToolResult(
-                success=False,
-                error=str(e),
-                source_urls=[url],
+                )
+
+            envelope = EvidenceEnvelope(
+                evidence=evidence_items,
+                source_tool=self.metadata.name,
+                source_query=f"Scrape legislation from {jurisdiction}",
             )
 
+            return ToolResult(
+                success=True,
+                data=[bill.model_dump() for bill in scraped_bills],
+                evidence=[envelope],
+            )
+        except Exception as e:
+            return ToolResult(success=False, error=f"ScraperTool failed for {jurisdiction}: {str(e)}")
