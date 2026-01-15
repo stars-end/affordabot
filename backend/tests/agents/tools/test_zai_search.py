@@ -1,77 +1,71 @@
 import pytest
-from unittest.mock import AsyncMock
-from agents.tools.zai_search import ZaiSearchTool
-from services.research.zai import ResearchPackage, Source
+from unittest.mock import AsyncMock, MagicMock
 
-@pytest.fixture
-def mock_zai_service():
-    """Fixture to create a mock ZaiResearchService."""
-    mock_service = AsyncMock()
-    
-    # Create a mock ResearchPackage
-    mock_package = ResearchPackage(
-        summary="This is a summary.",
-        key_facts=["Fact 1", "Fact 2"],
-        sources=[
-            Source(
-                url="http://example.com/source1",
-                title="Source 1",
-                publisher="Publisher 1",
-                publish_date="2024-01-01",
-                content="This is the content of source 1.",
-            ),
-            Source(
-                url="http://example.com/source2",
-                title="Source 2",
-                publisher="Publisher 2",
-                publish_date="2024-01-02",
-                content="This is the content of source 2.",
-            ),
-        ],
-        confidence_score=0.9,
-    )
-    
-    mock_service.search_exhaustively = AsyncMock(return_value=mock_package)
-    return mock_service
+from agents.tools.zai_search import ZaiSearchTool
+from services.research.zai import ResearchPackage, Source as ZaiSource, ZaiResearchService
+from llm_common.agents.provenance import EvidenceEnvelope
 
 @pytest.mark.asyncio
-async def test_zai_search_tool_returns_evidence_envelope(mock_zai_service):
+async def test_zai_search_tool_success():
     """
-    Test that the ZaiSearchTool's execute method returns a ToolResult
-    containing a valid EvidenceEnvelope.
+    Tests that ZaiSearchTool successfully calls the research service
+    and returns a properly formatted ToolResult with an EvidenceEnvelope.
     """
     # Arrange
-    tool = ZaiSearchTool(service=mock_zai_service)
-    bill_text = "This is a test bill."
-    bill_number = "AB 123"
-    
-    # Act
-    result = await tool.execute(bill_text, bill_number)
-    
-    # Assert
-    assert result.success is True
-    assert "envelope" in result.data
-    
-    # Validate the envelope
-    envelope_data = result.data["envelope"]
-    assert envelope_data["source_tool"] == "zai_search"
-    assert envelope_data["source_query"] == bill_number
-    
-    # Check that evidence from sources, summary, and facts are all present
-    assert len(envelope_data["evidence"]) == 2 + 1 + 2  # 2 sources, 1 summary, 2 facts
-    
-    # Check one piece of evidence in detail
-    source_evidence = next(e for e in envelope_data["evidence"] if e["kind"] == "url" and e["url"] == "http://example.com/source1")
-    assert source_evidence["label"] == "Source 1"
-    assert source_evidence["metadata"]["publisher"] == "Publisher 1"
-    
-    summary_evidence = next(e for e in envelope_data["evidence"] if e["kind"] == "summary")
-    assert summary_evidence["content"] == "This is a summary."
-    
-    fact_evidence = next(e for e in envelope_data["evidence"] if e["kind"] == "fact" and "Fact 1" in e["content"])
-    assert fact_evidence is not None
+    mock_service = MagicMock(spec=ZaiResearchService)
+    mock_research_package = ResearchPackage(
+        summary="This is a test summary.",
+        key_facts=["Fact 1", "Fact 2"],
+        sources=[
+            ZaiSource(url="http://example.com/source1", title="Source 1", snippet="Snippet 1"),
+            ZaiSource(url="http://example.com/source2", title="Source 2", snippet="Snippet 2"),
+        ],
+    )
+    mock_service.search_exhaustively = AsyncMock(return_value=mock_research_package)
 
-    # Verify the service method was called correctly
-    mock_zai_service.search_exhaustively.assert_called_once_with(
+    tool = ZaiSearchTool(zai_service=mock_service)
+    bill_text = "This is a sample bill text."
+    bill_number = "AB-123"
+
+    # Act
+    result = await tool.execute(bill_text=bill_text, bill_number=bill_number)
+
+    # Assert
+    mock_service.search_exhaustively.assert_called_once_with(
         bill_text=bill_text, bill_number=bill_number
     )
+
+    assert result.success is True
+    assert result.error is None
+    assert result.data["summary"] == "This is a test summary."
+    assert len(result.source_urls) == 2
+    assert "http://example.com/source1" in result.source_urls
+
+    assert len(result.evidence) == 1
+    envelope = result.evidence[0]
+    assert isinstance(envelope, EvidenceEnvelope)
+    assert envelope.source_tool == "zai_search"
+    assert len(envelope.evidence) == 2
+    assert envelope.evidence[0].kind == "url"
+    assert envelope.evidence[0].label == "Source 1"
+    assert envelope.evidence[0].content == "Snippet 1"
+
+@pytest.mark.asyncio
+async def test_zai_search_tool_failure():
+    """
+    Tests that ZaiSearchTool returns a failed ToolResult when the service raises an exception.
+    """
+    # Arrange
+    mock_service = MagicMock(spec=ZaiResearchService)
+    mock_service.search_exhaustively = AsyncMock(side_effect=Exception("Service unavailable"))
+
+    tool = ZaiSearchTool(zai_service=mock_service)
+
+    # Act
+    result = await tool.execute(bill_text="test", bill_number="test-123")
+
+    # Assert
+    assert result.success is False
+    assert "Service unavailable" in result.error
+    assert result.data is None
+    assert len(result.evidence) == 0
