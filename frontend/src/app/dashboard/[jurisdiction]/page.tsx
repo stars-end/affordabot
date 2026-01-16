@@ -56,12 +56,12 @@ export default function DashboardPage() {
     };
 
     const billsSummary = legislation.map((leg) => ({
-        id: leg.id,
+        id: leg.bill_number, // Use bill_number as ID to prevent duplicate key issues
         bill_number: leg.bill_number,
         title: leg.title,
         total_impact: leg.impacts?.reduce((sum: number, imp: any) => sum + (imp.p50 || 0), 0) || 0,
         avg_confidence: leg.impacts?.length > 0
-            ? leg.impacts.reduce((sum: number, imp: any) => sum + (imp.confidence_score || 0), 0) / leg.impacts.length
+            ? leg.impacts.reduce((sum: number, imp: any) => sum + (Number(imp.confidence_score) || 0), 0) / leg.impacts.length
             : 0,
         impact_count: leg.impacts?.length || 0,
     }));
@@ -120,7 +120,8 @@ export default function DashboardPage() {
                     bills={billsSummary}
                     jurisdiction={jurisdictionName}
                     onSelectBill={(billId) => {
-                        const bill = legislation.find(l => l.id === billId);
+                        // billId is now bill_number
+                        const bill = legislation.find(l => l.bill_number === billId);
                         if (bill) {
                             setSelectedBill(bill);
                             setView('detail');
@@ -160,7 +161,7 @@ export default function DashboardPage() {
                                     impactNumber: impact.impact_number,
                                     description: impact.description,
                                     clause: impact.relevant_clause,
-                                    confidence: impact.confidence_score,
+                                    confidence: Number(impact.confidence_score) || 0,
                                     p10: impact.p10,
                                     p25: impact.p25,
                                     p50: impact.p50,

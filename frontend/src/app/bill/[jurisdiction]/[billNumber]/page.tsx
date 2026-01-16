@@ -28,7 +28,7 @@ export default function BillDetailPage() {
                         impactNumber: imp.impact_number,
                         clause: imp.relevant_clause,
                         description: imp.description || imp.impact_description,
-                        confidence: imp.confidence_score || 0,
+                        confidence: Number(imp.confidence_score) || 0,
                         chainOfCausality: imp.chain_of_causality
                     }))
                 };
