@@ -108,3 +108,21 @@ jobs:
               body: `## Overnight RAG Pipeline Verification Failure\n\n**Run ID**: ${context.runId}\n**Summary**: ${summary}\n\n[View Workflow Run](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`,
               labels: ['verification', 'automated', 'rag-pipeline']
             });
+
+      # Emit VERIFY_COMPLETE event to Agent Event Bus
+      - name: Emit Verification Event
+        if: always()
+        env:
+          SLACK_MCP_XOXB_TOKEN: ${{ secrets.SLACK_MCP_XOXB_TOKEN }}
+          SLACK_MCP_ADD_MESSAGE_TOOL: "true"
+        run: |
+          # Determine pass/fail
+          if [ "${{ job.status }}" = "success" ]; then
+            PASSED="true"
+          else
+            PASSED="false"
+          fi
+          
+          # Run emit script (best-effort)
+          ./scripts/emit-review-event.sh "affordabot" "0" "$PASSED" "" "Overnight verification ${{ job.status }}" || echo "Warning: Failed to emit event"
+
