@@ -83,8 +83,17 @@ export default function SearchPage() {
 
                 {!loading && searched && results.length === 0 && (
                     <div className="text-center py-12 border border-dashed border-gray-200 rounded-xl bg-white/50">
-                        <p className="text-gray-500 text-lg">No results found for &quot;{query}&quot;</p>
-                        <p className="text-gray-400 text-sm mt-2">Try a different search term</p>
+                        <Search className="w-12 h-12 text-purple-300 mx-auto mb-4" />
+                        <p className="text-gray-600 text-lg font-medium mb-2">Search Coming Soon</p>
+                        <p className="text-gray-500 text-sm mb-4">
+                            Full-text search is being developed. In the meantime, browse our jurisdiction dashboards.
+                        </p>
+                        <a
+                            href="/dashboard/california"
+                            className="inline-block px-6 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg font-medium hover:shadow-lg transition-all"
+                        >
+                            Browse California Bills
+                        </a>
                     </div>
                 )}
 
