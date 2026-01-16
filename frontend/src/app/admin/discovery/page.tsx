@@ -123,9 +123,17 @@ export default function DiscoveryPage() {
                 ))}
             </div>
 
+            {loading && (
+                <div className="text-center py-12 text-muted-foreground border rounded-lg border-dashed">
+                    <Loader2 className="h-8 w-8 animate-spin mx-auto mb-3" />
+                    <p>Searching for sources in {jurisdiction}...</p>
+                </div>
+            )}
+
             {!loading && results.length === 0 && (
                 <div className="text-center py-12 text-muted-foreground border rounded-lg border-dashed">
-                    No discovery results yet. Run a search to begin.
+                    <Search className="h-8 w-8 mx-auto mb-3 opacity-50" />
+                    <p>No discovery results yet. Enter a jurisdiction name and run a search.</p>
                 </div>
             )}
         </div>
