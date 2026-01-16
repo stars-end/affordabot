@@ -28,7 +28,7 @@ export default function BillDetailPage() {
                         impactNumber: imp.impact_number,
                         clause: imp.relevant_clause,
                         description: imp.description || imp.impact_description,
-                        confidence: imp.confidence_score,
+                        confidence: imp.confidence_score || 0,
                         chainOfCausality: imp.chain_of_causality
                     }))
                 };
@@ -73,9 +73,9 @@ export default function BillDetailPage() {
         );
     }
 
-    const totalImpact = bill.impacts?.reduce((sum: number, imp: any) => sum + imp.p50, 0) || 0;
+    const totalImpact = bill.impacts?.reduce((sum: number, imp: any) => sum + (imp.p50 || 0), 0) || 0;
     const avgConfidence = bill.impacts?.length > 0
-        ? bill.impacts.reduce((sum: number, imp: any) => sum + imp.confidence, 0) / bill.impacts.length
+        ? bill.impacts.reduce((sum: number, imp: any) => sum + (imp.confidence || 0), 0) / bill.impacts.length
         : 0;
 
     return (
