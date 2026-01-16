@@ -26,8 +26,8 @@ class ResearchPackage(BaseModel):
 class ZaiResearchService:
     def __init__(self):
         self.api_key = os.getenv("ZAI_API_KEY")
-        # MCP Endpoint for Web Search
-        self.mcp_url = "https://api.z.ai/api/mcp/web_search_prime/mcp"
+        # Use the same endpoint as llm-common WebSearchClient
+        self.mcp_url = "https://open.z.ai/api/v1/search"
         self.tool_name = "search" # Default, will try to discover
         
         if not self.api_key:
@@ -58,25 +58,23 @@ class ZaiResearchService:
             return response.json()
 
     async def check_health(self) -> bool:
-        """Check if Z.ai MCP is accessible by listing tools."""
+        """Check if Z.ai search API is accessible."""
         if not self.api_key:
             return False
         
         try:
-            # Call tools/list to check connectivity and discover tool name
-            result = await self._call_mcp("tools/list")
-            tools = result.get("result", {}).get("tools", [])
-            
-            # Look for a search tool
-            for tool in tools:
-                if "search" in tool["name"].lower():
-                    self.tool_name = tool["name"]
-                    logger.info(f"Discovered Z.ai search tool: {self.tool_name}")
-                    return True
-            
-            # If we got a response but no search tool, it's technically "healthy" but useless
-            # But let's return True as connectivity is there
-            return True
+            # Simple connectivity check using a minimal search
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                response = await client.post(
+                    "https://open.z.ai/api/v1/search",
+                    headers={
+                        "Authorization": f"Bearer {self.api_key}",
+                        "Content-Type": "application/json"
+                    },
+                    json={"query": "test", "count": 1}
+                )
+                # 200 = success, 401 = bad key, 429 = rate limit (but healthy)
+                return response.status_code in [200, 429]
         except Exception as e:
             logger.error(f"Z.ai Health Check Failed: {e}")
             return False
