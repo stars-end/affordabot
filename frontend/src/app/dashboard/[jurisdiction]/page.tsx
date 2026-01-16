@@ -61,7 +61,7 @@ export default function DashboardPage() {
         title: leg.title,
         total_impact: leg.impacts?.reduce((sum: number, imp: any) => sum + (imp.p50 || 0), 0) || 0,
         avg_confidence: leg.impacts?.length > 0
-            ? leg.impacts.reduce((sum: number, imp: any) => sum + (imp.confidence_factor || 0), 0) / leg.impacts.length
+            ? leg.impacts.reduce((sum: number, imp: any) => sum + (imp.confidence_score || 0), 0) / leg.impacts.length
             : 0,
         impact_count: leg.impacts?.length || 0,
     }));
@@ -79,8 +79,8 @@ export default function DashboardPage() {
                     <button
                         onClick={() => setView('summary')}
                         className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${view === 'summary'
-                                ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/30'
-                                : 'bg-white/50 text-gray-600 hover:bg-white/80'
+                            ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/30'
+                            : 'bg-white/50 text-gray-600 hover:bg-white/80'
                             }`}
                     >
                         Summary View
@@ -160,7 +160,7 @@ export default function DashboardPage() {
                                     impactNumber: impact.impact_number,
                                     description: impact.description,
                                     clause: impact.relevant_clause,
-                                    confidence: impact.confidence_factor,
+                                    confidence: impact.confidence_score,
                                     p10: impact.p10,
                                     p25: impact.p25,
                                     p50: impact.p50,

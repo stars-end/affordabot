@@ -9,11 +9,17 @@ export function Sidebar() {
   const pathname = usePathname();
 
   const menuItems = [
+    { id: 'search', label: 'Search Bills', icon: LayoutDashboard, path: '/search' },
     { id: 'california', label: 'California', icon: MapPin, path: '/dashboard/california' },
     { id: 'santa-clara', label: 'Santa Clara Co.', icon: MapPin, path: '/dashboard/santa-clara-county' },
     { id: 'san-jose', label: 'San Jose', icon: Building2, path: '/dashboard/san-jose' },
     { id: 'saratoga', label: 'Saratoga', icon: Building2, path: '/dashboard/saratoga' },
     { id: 'admin', label: 'Admin Console', icon: Shield, path: '/admin' },
+    { id: 'admin-discovery', label: '↳ Discovery', icon: LayoutDashboard, path: '/admin/discovery' },
+    { id: 'admin-sources', label: '↳ Sources', icon: Settings, path: '/admin/sources' },
+    { id: 'admin-prompts', label: '↳ Prompts', icon: FileText, path: '/admin/prompts' },
+    { id: 'admin-reviews', label: '↳ Reviews', icon: Shield, path: '/admin/reviews' },
+    { id: 'admin-audits', label: '↳ Audit Trace', icon: Settings, path: '/admin/audits/trace' },
   ];
 
   return (
