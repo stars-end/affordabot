@@ -59,14 +59,7 @@ export default function AdminDashboard() {
                         <Settings className="w-4 h-4 mr-2" />
                         Models
                     </TabsTrigger>
-                    <TabsTrigger value="prompts" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                        <FileText className="w-4 h-4 mr-2" />
-                        Prompts
-                    </TabsTrigger>
-                    <TabsTrigger value="analytics" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                        <BarChart className="w-4 h-4 mr-2" />
-                        Analytics
-                    </TabsTrigger>
+
                 </TabsList>
 
                 {/* Overview Tab */}
@@ -94,15 +87,7 @@ export default function AdminDashboard() {
                     <ModelRegistry />
                 </TabsContent>
 
-                {/* Prompts Tab */}
-                <TabsContent value="prompts" className="space-y-6">
-                    <PromptEditor />
-                </TabsContent>
 
-                {/* Analytics Tab */}
-                <TabsContent value="analytics">
-                    <AnalyticsDashboard />
-                </TabsContent>
             </Tabs>
         </div>
     );

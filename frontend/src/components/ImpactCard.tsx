@@ -118,19 +118,30 @@ export default function ImpactCard({ impact }: { impact: ImpactProps }) {
                     </button>
                     {isEvidenceOpen && (
                         <div className="p-4 pt-0 space-y-4 border-t border-white/10">
-                            {impact.evidence.map((ev, idx) => (
-                                <div key={idx} className="pl-4 border-l-2 border-purple-400">
-                                    <a
-                                        href={ev.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="flex items-center gap-1 text-sm font-bold text-purple-600 hover:text-purple-800 transition-colors"
-                                    >
-                                        {ev.source_name} <ExternalLink className="w-3 h-3" />
-                                    </a>
-                                    <p className="text-xs text-gray-600 mt-1 italic">&quot;{ev.excerpt}&quot;</p>
-                                </div>
-                            ))}
+                            {impact.evidence.map((ev, idx) => {
+                                const hasValidUrl = ev.url && ev.url.startsWith('http');
+                                return (
+                                    <div key={idx} className="pl-4 border-l-2 border-purple-400">
+                                        {hasValidUrl ? (
+                                            <a
+                                                href={ev.url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="flex items-center gap-1 text-sm font-bold text-purple-600 hover:text-purple-800 transition-colors"
+                                            >
+                                                {ev.source_name || 'Source'} <ExternalLink className="w-3 h-3" />
+                                            </a>
+                                        ) : (
+                                            <span className="text-sm font-bold text-gray-600">
+                                                {ev.source_name || 'Source unavailable'}
+                                            </span>
+                                        )}
+                                        {ev.excerpt && (
+                                            <p className="text-xs text-gray-600 mt-1 italic">&quot;{ev.excerpt}&quot;</p>
+                                        )}
+                                    </div>
+                                );
+                            })}
                         </div>
                     )}
                 </div>
