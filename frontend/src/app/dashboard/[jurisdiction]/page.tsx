@@ -161,7 +161,7 @@ export default function DashboardPage() {
                                     impactNumber: impact.impact_number,
                                     description: impact.description,
                                     clause: impact.relevant_clause,
-                                    confidence: impact.confidence_score,
+                                    confidence: Number(impact.confidence_score) || 0,
                                     p10: impact.p10,
                                     p25: impact.p25,
                                     p50: impact.p50,

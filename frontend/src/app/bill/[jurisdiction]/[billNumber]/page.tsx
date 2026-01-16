@@ -23,17 +23,14 @@ export default function BillDetailPage() {
                 // Map backend snake_case to frontend camelCase if needed
                 const mappedBill = {
                     ...data,
-                    impacts: data.impacts?.map((imp: any) => {
-                        console.log('Raw impact:', imp.impact_number, imp.confidence_score, typeof imp.confidence_score);
-                        return {
-                            ...imp,
-                            impactNumber: imp.impact_number,
-                            clause: imp.relevant_clause,
-                            description: imp.description || imp.impact_description,
-                            confidence: Number(imp.confidence_score) || 0,
-                            chainOfCausality: imp.chain_of_causality
-                        };
-                    })
+                    impacts: data.impacts?.map((imp: any) => ({
+                        ...imp,
+                        impactNumber: imp.impact_number,
+                        clause: imp.relevant_clause,
+                        description: imp.description || imp.impact_description,
+                        confidence: Number(imp.confidence_score) || 0,
+                        chainOfCausality: imp.chain_of_causality
+                    }))
                 };
                 setBill(mappedBill);
             } catch (err) {
