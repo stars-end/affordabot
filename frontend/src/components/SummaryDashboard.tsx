@@ -20,14 +20,17 @@ interface SummaryDashboardProps {
 
 export default function SummaryDashboard({ bills, jurisdiction, onSelectBill }: SummaryDashboardProps) {
     // Transform data for scatter plot
-    const chartData = bills.map((bill) => ({
-        name: bill.bill_number,
-        confidence: Math.round(bill.avg_confidence * 100),
-        impact: bill.total_impact,
-        impacts: bill.impact_count,
-        id: bill.id,
-        title: bill.title
-    }));
+    const chartData = bills.map((bill) => {
+        console.log('Bill Summary:', bill.bill_number, bill.avg_confidence);
+        return {
+            name: bill.bill_number,
+            confidence: Math.round(bill.avg_confidence * 100),
+            impact: bill.total_impact,
+            impacts: bill.impact_count,
+            id: bill.id,
+            title: bill.title
+        };
+    });
 
     const totalImpact = bills.reduce((sum, bill) => sum + bill.total_impact, 0);
     const avgConfidence = bills.length > 0
