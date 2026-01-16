@@ -53,7 +53,7 @@ export default function SummaryDashboard({ bills, jurisdiction, onSelectBill }: 
                         <div className="p-2 rounded-lg bg-green-100 text-green-600">
                             <TrendingUp className="w-5 h-5" />
                         </div>
-                        <h3 className="text-sm font-medium text-gray-600">Annual Impact (Median)</h3>
+                        <h3 className="text-sm font-medium text-gray-600">Annual Impact (Total)</h3>
                     </div>
                     <p className="text-3xl font-bold text-gray-800">${totalImpact.toLocaleString()}</p>
                     <p className="text-xs text-gray-500 mt-1">Per typical family</p>
