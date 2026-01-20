@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
+import { useUser } from '@clerk/nextjs';
 import { Sidebar } from '@/components/Sidebar';
 import SummaryDashboard from '@/components/SummaryDashboard';
 import ImpactCard from '@/components/ImpactCard';
@@ -19,6 +20,7 @@ export default function DashboardPage() {
     const params = useParams();
     const jurisdictionId = params.jurisdiction as string;
     const jurisdictionName = JURISDICTION_NAMES[jurisdictionId] || jurisdictionId;
+    const { isSignedIn } = useUser();
 
     const [loading, setLoading] = useState(false);
     const [scraping, setScraping] = useState(false);
@@ -85,14 +87,17 @@ export default function DashboardPage() {
                     >
                         Summary View
                     </button>
-                    <button
-                        onClick={handleScrape}
-                        disabled={scraping}
-                        className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-white/50 text-gray-600 hover:bg-white/80 transition-colors disabled:opacity-50"
-                    >
-                        {scraping ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                        {scraping ? 'Scraping...' : 'Scrape & Analyze'}
-                    </button>
+                    {/* P0 Security: Only show scrape button to authenticated users */}
+                    {isSignedIn && (
+                        <button
+                            onClick={handleScrape}
+                            disabled={scraping}
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-white/50 text-gray-600 hover:bg-white/80 transition-colors disabled:opacity-50"
+                        >
+                            {scraping ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                            {scraping ? 'Scraping...' : 'Scrape & Analyze'}
+                        </button>
+                    )}
                 </div>
             </div>
 
