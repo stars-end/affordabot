@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
         const jurisdiction = searchParams.get('jurisdiction');
         const limit = searchParams.get('limit') || '50';
 
-        let url = `${BACKEND_URL}/admin/scrapes?limit=${limit}`;
+        let url = `${BACKEND_URL}/api/admin/scrapes?limit=${limit}`;
         if (jurisdiction) {
             url += `&jurisdiction=${jurisdiction}`;
         }

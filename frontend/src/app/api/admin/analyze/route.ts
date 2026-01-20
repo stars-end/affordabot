@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
         );
         const body = await request.json();
 
-        const response = await fetch(`${BACKEND_URL}/admin/analyze`, {
+        const response = await fetch(`${BACKEND_URL}/api/admin/analyze`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

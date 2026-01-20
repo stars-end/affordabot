@@ -12,7 +12,7 @@ export async function GET(
         const backendUrl = getBackendUrl(
             request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? undefined
         );
-        const response = await fetch(`${backendUrl}/admin/prompts/${type}`);
+        const response = await fetch(`${backendUrl}/api/admin/prompts/${type}`);
 
         if (!response.ok) {
             const error = await response.text();

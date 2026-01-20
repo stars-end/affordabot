@@ -12,7 +12,7 @@ export async function GET(
         const backendUrl = getBackendUrl(
             request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? undefined
         );
-        const response = await fetch(`${backendUrl}/admin/tasks/${taskId}`);
+        const response = await fetch(`${backendUrl}/api/admin/tasks/${taskId}`);
 
         if (!response.ok) {
             // Pass through the error from backend if possible, or generic
