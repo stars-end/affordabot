@@ -53,9 +53,16 @@ export default function ImpactCard({ impact }: { impact: ImpactProps }) {
     };
 
     const getConfidenceColor = (conf: number) => {
+        if (isNaN(conf) || conf === null || conf === undefined) return 'bg-gray-100 text-gray-500 border-gray-200';
         if (conf > 0.8) return 'bg-emerald-100 text-emerald-700 border-emerald-200';
         if (conf > 0.6) return 'bg-yellow-100 text-yellow-700 border-yellow-200';
         return 'bg-orange-100 text-orange-700 border-orange-200';
+    };
+
+    // Safe confidence display helper
+    const formatConfidence = (conf: number): string => {
+        if (isNaN(conf) || conf === null || conf === undefined || conf === 0) return 'N/A';
+        return `${Math.round(conf * 100)}%`;
     };
 
     return (
@@ -71,7 +78,7 @@ export default function ImpactCard({ impact }: { impact: ImpactProps }) {
                     </div>
                 </div>
                 <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getConfidenceColor(impact.confidence)}`}>
-                    {Math.round(impact.confidence * 100)}% Confidence
+                    {formatConfidence(impact.confidence)} Confidence
                 </span>
             </div>
 
