@@ -8,7 +8,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         const backendUrl = getBackendUrl(
             request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? undefined
         );
-        const response = await fetch(`${backendUrl}/admin/jurisdictions/${params.id}`, {
+        const response = await fetch(`${backendUrl}/api/admin/jurisdictions/${params.id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body),

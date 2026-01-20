@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
         const backendUrl = getBackendUrl(
             request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? undefined
         );
-        const response = await fetch(`${backendUrl}/admin/health/models`);
+        const response = await fetch(`${backendUrl}/api/admin/health/models`);
         if (!response.ok) {
             throw new Error(`Backend responded with ${response.status}`);
         }

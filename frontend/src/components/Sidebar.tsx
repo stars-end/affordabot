@@ -3,17 +3,25 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useUser } from '@clerk/nextjs';
 import { LayoutDashboard, Building2, MapPin, Settings, FileText, Shield } from 'lucide-react';
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { isSignedIn } = useUser();
 
-  const menuItems = [
-    { id: 'search', label: 'Search Bills', icon: LayoutDashboard, path: '/search' },
+  // Public menu items - visible to all users
+  const publicMenuItems = [
+    // P1 Fix: Removed search link - functionality not implemented
+    // { id: 'search', label: 'Search Bills', icon: LayoutDashboard, path: '/search' },
     { id: 'california', label: 'California', icon: MapPin, path: '/dashboard/california' },
     { id: 'santa-clara', label: 'Santa Clara Co.', icon: MapPin, path: '/dashboard/santa-clara-county' },
     { id: 'san-jose', label: 'San Jose', icon: Building2, path: '/dashboard/san-jose' },
     { id: 'saratoga', label: 'Saratoga', icon: Building2, path: '/dashboard/saratoga' },
+  ];
+
+  // Admin menu items - P2 Fix: Only visible to authenticated users
+  const adminMenuItems = [
     { id: 'admin', label: 'Admin Console', icon: Shield, path: '/admin' },
     { id: 'admin-discovery', label: '↳ Discovery', icon: LayoutDashboard, path: '/admin/discovery' },
     { id: 'admin-sources', label: '↳ Sources', icon: Settings, path: '/admin/sources' },
@@ -21,6 +29,11 @@ export function Sidebar() {
     { id: 'admin-reviews', label: '↳ Reviews', icon: Shield, path: '/admin/reviews' },
     { id: 'admin-audits', label: '↳ Audit Trace', icon: Settings, path: '/admin/audits/trace' },
   ];
+
+  // Combine menu items: show admin items only if signed in
+  const menuItems = isSignedIn
+    ? [...publicMenuItems, ...adminMenuItems]
+    : publicMenuItems;
 
   return (
     <div className="w-64 bg-white/10 backdrop-blur-md border-r border-white/20 min-h-screen p-6 flex flex-col">

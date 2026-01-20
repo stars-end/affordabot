@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
         const backendUrl = getBackendUrl(
             request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? undefined
         );
-        const response = await fetch(`${backendUrl}/admin/prompts`);
+        const response = await fetch(`${backendUrl}/api/admin/prompts`);
 
         if (!response.ok) {
             const error = await response.text();
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
         );
         const body = await request.json();
 
-        const response = await fetch(`${BACKEND_URL}/admin/prompts`, {
+        const response = await fetch(`${BACKEND_URL}/api/admin/prompts`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

@@ -19,10 +19,15 @@ interface SummaryDashboardProps {
 }
 
 export default function SummaryDashboard({ bills, jurisdiction, onSelectBill }: SummaryDashboardProps) {
+    // Safe confidence display helper - handles NaN/undefined/null
+    const safeConfidencePercent = (conf: number): string => {
+        if (isNaN(conf) || conf === null || conf === undefined || conf === 0) return 'N/A';
+        return `${Math.round(conf * 100)}%`;
+    };
     // Transform data for scatter plot
     const chartData = bills.map((bill) => ({
         name: bill.bill_number,
-        confidence: Math.round(bill.avg_confidence * 100),
+        confidence: isNaN(bill.avg_confidence) ? 0 : Math.round(bill.avg_confidence * 100),
         impact: bill.total_impact,
         impacts: bill.impact_count,
         id: bill.id,
@@ -66,7 +71,7 @@ export default function SummaryDashboard({ bills, jurisdiction, onSelectBill }: 
                         </div>
                         <h3 className="text-sm font-medium text-gray-600">Avg Confidence</h3>
                     </div>
-                    <p className="text-3xl font-bold text-gray-800">{Math.round(avgConfidence * 100)}%</p>
+                    <p className="text-3xl font-bold text-gray-800">{safeConfidencePercent(avgConfidence)}</p>
                 </div>
             </div>
 
@@ -78,8 +83,8 @@ export default function SummaryDashboard({ bills, jurisdiction, onSelectBill }: 
                 </p>
 
                 {bills.length > 0 ? (
-                    <div className="h-80 w-full">
-                        <ResponsiveContainer width="100%" height="100%">
+                    <div className="h-80 w-full" style={{ minWidth: '300px', minHeight: '320px' }}>
+                        <ResponsiveContainer width="100%" height="100%" minWidth={300} minHeight={300}>
                             <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
                                 <XAxis type="number" dataKey="confidence" name="Confidence" unit="%" domain={[0, 100]} />
                                 <YAxis type="number" dataKey="impact" name="Impact" unit="$" />
@@ -143,7 +148,7 @@ export default function SummaryDashboard({ bills, jurisdiction, onSelectBill }: 
                                             ${bill.total_impact.toLocaleString()}
                                         </div>
                                         <p className="text-xs text-gray-500">
-                                            {Math.round(bill.avg_confidence * 100)}% confidence
+                                            {safeConfidencePercent(bill.avg_confidence)} confidence
                                         </p>
                                     </div>
                                     <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-purple-600 transition-colors" />

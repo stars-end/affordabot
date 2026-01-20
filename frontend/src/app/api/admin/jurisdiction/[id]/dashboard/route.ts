@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   const response = await fetch(
-    `${getBackendUrl(request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? undefined)}/admin/jurisdiction/${params.id}/dashboard`
+    `${getBackendUrl(request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? undefined)}/api/admin/jurisdiction/${params.id}/dashboard`
   );
   const body = await response.text();
   return new NextResponse(body, {
