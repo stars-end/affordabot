@@ -83,8 +83,8 @@ export default function SummaryDashboard({ bills, jurisdiction, onSelectBill }: 
                 </p>
 
                 {bills.length > 0 ? (
-                    <div className="h-80 w-full">
-                        <ResponsiveContainer width="100%" height="100%">
+                    <div className="h-80 w-full" style={{ minWidth: '300px', minHeight: '320px' }}>
+                        <ResponsiveContainer width="100%" height="100%" minWidth={300} minHeight={300}>
                             <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
                                 <XAxis type="number" dataKey="confidence" name="Confidence" unit="%" domain={[0, 100]} />
                                 <YAxis type="number" dataKey="impact" name="Impact" unit="$" />
