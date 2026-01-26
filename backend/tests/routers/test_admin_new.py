@@ -1,6 +1,7 @@
 import pytest
 from unittest.mock import AsyncMock, patch
 from fastapi.testclient import TestClient
+import os
 from main import app
 from services.glass_box import GlassBoxService, AgentStep
 from routers.admin import get_db
@@ -62,9 +63,53 @@ def client(mock_db):
     app.dependency_overrides[get_glass_box_service] = lambda: mock_service
     app.dependency_overrides[get_db] = lambda: mock_db
 
+    # Secret for unit tests
+    UNIT_TEST_SECRET = "unit-test-secret"
+
     with patch("main.db", mock_db):
-        with TestClient(app) as c:
-            yield c
+        prev_env = os.environ.get("RAILWAY_ENVIRONMENT_NAME")
+        prev_secret = os.environ.get("TEST_AUTH_BYPASS_SECRET")
+        os.environ["RAILWAY_ENVIRONMENT_NAME"] = "dev"
+        os.environ["TEST_AUTH_BYPASS_SECRET"] = UNIT_TEST_SECRET
+        try:
+            # Ensure bypass middleware host allowlist passes (default TestClient host is "testserver")
+            with TestClient(app, base_url="http://localhost") as c:
+                # Helper to set signed cookie
+                def set_auth(role="admin"):
+                    import hmac
+                    import hashlib
+                    import base64
+                    import json
+                    import time
+                    
+                    payload = {
+                        "sub": f"test_{role}",
+                        "role": role,
+                        "email": f"test_{role}@example.com",
+                        "exp": int(time.time()) + 3600
+                    }
+                    payload_json = json.dumps(payload, separators=(',', ':'))
+                    payload_b64 = base64.urlsafe_b64encode(payload_json.encode()).decode().rstrip("=")
+                    
+                    msg = f"v1.{payload_b64}"
+                    sig = hmac.new(UNIT_TEST_SECRET.encode(), msg.encode(), hashlib.sha256).digest()
+                    sig_b64 = base64.urlsafe_b64encode(sig).decode().rstrip("=")
+                    
+                    token = f"{msg}.{sig_b64}"
+                    c.cookies.set("x-test-user", token)
+                
+                c.set_auth = set_auth
+                yield c
+        finally:
+            if prev_env is None:
+                os.environ.pop("RAILWAY_ENVIRONMENT_NAME", None)
+            else:
+                os.environ["RAILWAY_ENVIRONMENT_NAME"] = prev_env
+            
+            if prev_secret is None:
+                os.environ.pop("TEST_AUTH_BYPASS_SECRET", None)
+            else:
+                os.environ["TEST_AUTH_BYPASS_SECRET"] = prev_secret
 
     # Teardown
     app.dependency_overrides = {}
@@ -72,7 +117,7 @@ def client(mock_db):
 
 def test_list_jurisdictions(client, mock_db):
     mock_db._fetch.return_value = JURISDICTIONS_DATA
-    client.cookies.set("x-test-user", "admin")
+    client.set_auth("admin")
     response = client.get("/api/admin/jurisdictions")
     assert response.status_code == 200
     assert len(response.json()) == 2
@@ -84,7 +129,7 @@ def test_get_jurisdiction(client, mock_db):
         {"count": 10}, # Bill count
         {"count": 5} # Source count
     ]
-    client.cookies.set("x-test-user", "admin")
+    client.set_auth("admin")
     response = client.get(f"/api/admin/jurisdictions/{JURISDICTIONS_DATA[0]['id']}")
     assert response.status_code == 200
     data = response.json()
@@ -99,7 +144,7 @@ def test_get_jurisdiction_dashboard(client, mock_db):
         {"count": 95}, # Processed scrapes
         {"last_scrape": "2023-10-27T10:00:00Z"} # Last scrape
     ]
-    client.cookies.set("x-test-user", "admin")
+    client.set_auth("admin")
     response = client.get(f"/api/admin/jurisdiction/{JURISDICTIONS_DATA[0]['id']}/dashboard")
     assert response.status_code == 200
     data = response.json()
@@ -110,7 +155,7 @@ def test_get_jurisdiction_dashboard(client, mock_db):
 
 def test_list_prompts(client, mock_db):
     mock_db._fetch.return_value = PROMPTS_DATA
-    client.cookies.set("x-test-user", "admin")
+    client.set_auth("admin")
     response = client.get("/api/admin/prompts")
     assert response.status_code == 200
     assert len(response.json()) == 1
@@ -118,14 +163,14 @@ def test_list_prompts(client, mock_db):
 
 def test_get_prompt(client, mock_db):
     mock_db._fetchrow.return_value = PROMPTS_DATA[0]
-    client.cookies.set("x-test-user", "admin")
+    client.set_auth("admin")
     response = client.get("/api/admin/prompts/test_prompt")
     assert response.status_code == 200
     assert response.json()["system_prompt"] == "You are a test prompt."
 
 def test_update_prompt(client, mock_db):
     mock_db.update_system_prompt.return_value = 2 # New version
-    client.cookies.set("x-test-user", "admin")
+    client.set_auth("admin")
     response = client.post(
         "/api/admin/prompts",
         json={"type": "test_prompt", "system_prompt": "This is the new prompt."}
@@ -145,7 +190,7 @@ def test_list_scrapes(client, mock_db):
             "metadata": {"status": "success"}
         }
     ]
-    client.cookies.set("x-test-user", "admin")
+    client.set_auth("admin")
     response = client.get("/api/admin/scrapes")
     assert response.status_code == 200
     data = response.json()
