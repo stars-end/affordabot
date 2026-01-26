@@ -70,3 +70,40 @@ Quick check: `gh pr view N --json files | jq '.files | length'`
 Quick check: `gh pr view N --json files | jq '.files | length'` shows file count.
 
 For full V3 guide, see `stars-end/prime-radiant-ai` or run `/help-dx`.
+
+---
+
+## Skills Architecture
+
+This repo follows the [agentskills.io](https://agentskills.io) specification for skill organization.
+
+### Global Skills (~/agent-skills)
+Workflow and automation skills managed centrally:
+- **Core workflows**: beads-workflow, sync-feature-branch, create-pull-request, finish-feature
+- **Issue management**: issue-first, fix-pr-feedback
+- **Planning**: plan-refine
+- **And 30+ more** in categories: core/, extended/, health/, infra/, dispatch/, search/
+
+### Repo-Specific Context Skills (.claude/skills/context-*)
+Domain-specific knowledge for Affordabot:
+
+| Skill | Purpose |
+|-------|---------|
+| backend-engineer | Backend engineering patterns |
+| context-admin-ui | Admin interface conventions |
+| context-analytics | Analytics and metrics |
+| context-api-contracts | API contracts and validation |
+| context-database-schema | Supabase schema and RLS |
+| context-dx-meta | DX patterns and conventions |
+| context-infrastructure | Infrastructure patterns |
+| context-llm-pipeline | LLM processing pipeline |
+| context-scrapers | Web scraping patterns |
+| context-security-resolver | Security patterns |
+| context-testing-infrastructure | Testing patterns |
+| context-ui-design | UI/UX conventions |
+
+### Auto-Update
+Context skills are automatically updated via GitHub Actions (`pr-context-update.yml`).
+
+### See Also
+- [~/agent-skills/AGENTS.md](https://github.com/stars-end/agent-skills/blob/master/AGENTS.md) - Global skills documentation
