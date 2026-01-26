@@ -7,7 +7,7 @@ on:
 
 jobs:
   verify-nightly:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, epyc6]
     timeout-minutes: 120
     
     steps:
