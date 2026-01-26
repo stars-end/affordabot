@@ -2343,8 +2343,8 @@ pgvector = ["asyncpg (>=0.29.0,<0.31.0)", "pgvector (>=0.3.0,<0.4.0)", "sqlalche
 [package.source]
 type = "git"
 url = "https://github.com/stars-end/llm-common.git"
-reference = "981f943"
-resolved_reference = "981f9437a131d74166db91ac21d2d9c226e8a0f4"
+reference = "5110568"
+resolved_reference = "5110568a50e1cb32b12aa0afdbbc422b2f216f45"
 
 [[package]]
 name = "lupa"
@@ -6749,4 +6749,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.13"
-content-hash = "39302a3114e9a92a2fa09a10ae1d320e8d6e593e503f3b4718a6a7df62b2455c"
+content-hash = "d1d60bb5c2bc61bc2b726ef3af6a07d2e688ad806f9e9a98fc3a1aadb989c15f"
