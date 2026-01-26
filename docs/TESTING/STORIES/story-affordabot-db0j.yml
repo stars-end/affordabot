@@ -1,0 +1,13 @@
+name: affordabot-db0j Verification
+description: Automated verification for feature affordabot-db0j
+
+steps:
+  - name: Login
+    path: /login
+    action: check_element
+    selector: "input[name='email']"
+
+  # TODO: Add specific feature verification steps here
+  # - name: Check New Feature
+  #   path: /dashboard
+  #   ...
