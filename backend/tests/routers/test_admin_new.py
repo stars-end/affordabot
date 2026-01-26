@@ -204,7 +204,7 @@ def test_get_dashboard_stats(client, mock_db):
         {"count": 25}, # Sources
         {"count": 1000} # Chunks
     ]
-    client.cookies.set("x-test-user", "admin")
+    client.set_auth("admin")
     response = client.get("/api/admin/stats")
     assert response.status_code == 200
     assert response.json() == {
@@ -215,13 +215,13 @@ def test_get_dashboard_stats(client, mock_db):
     }
 
 def test_list_sessions(client):
-    client.cookies.set("x-test-user", "admin")
+    client.set_auth("admin")
     response = client.get("/api/admin/traces")
     assert response.status_code == 200
     assert response.json() == ["query-1", "query-2"]
 
 def test_get_traces(client):
-    client.cookies.set("x-test-user", "admin")
+    client.set_auth("admin")
     response = client.get("/api/admin/traces/query-1")
     assert response.status_code == 200
     data = response.json()
