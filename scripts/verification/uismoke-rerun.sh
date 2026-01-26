@@ -38,17 +38,21 @@ fi
 
 echo "🔥 Rerunning failures: $FAILURES"
 
-# Execute uismoke run with filter
-mkdir -p artifacts/debug
+# artifacts/verification/rerun/<timestamp>
+TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+OUTPUT_DIR="../artifacts/verification/rerun/${TIMESTAMP}"
+mkdir -p "$OUTPUT_DIR"
+
 TARGET_URL=${BASE_URL:-${RAILWAY_DEV_FRONTEND_URL:-https://frontend-dev-5093.up.railway.app}}
 
 cd backend
 poetry run uismoke run \
     --stories ../docs/TESTING/STORIES \
     --base-url ${TARGET_URL} \
-    --output ../artifacts/debug \
+    --output "$OUTPUT_DIR" \
     --auth-mode cookie_bypass \
     --cookie-name ${COOKIE_NAME:-x-test-user} --cookie-value ${COOKIE_VALUE:-admin} --cookie-signed \
+    --cookie-secret-env TEST_AUTH_BYPASS_SECRET \
     --mode qa --repro 1 \
     --tracing \
     --only-stories $FAILURES

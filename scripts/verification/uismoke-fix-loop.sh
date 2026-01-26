@@ -23,10 +23,11 @@ fi
 FAILURES=$(jq -r '.story_results[] | select(.status != "pass") | .story_id' artifacts/verification/${RUN_TYPE}/${LAST_RUN}/run.json)
 
 if [ -n "$FAILURES" ]; then
-    echo -e "\n🔥 Stories needing attention:"
-    echo "$FAILURES"
-    echo -e "\n💡 To rerun a specific story locally:"
-    echo "poetry run uismoke run --stories docs/TESTING/STORIES --base-url http://localhost:3000 --output artifacts/debug --only-stories <story_id>"
+    echo -e "\n🔥 Stories needing attention: $FAILURES"
+    echo -e "\n💡 To rerun locally (auth-bypass):"
+    echo "make verify-stories ARGS=\"--only-stories $FAILURES\""
+    echo -e "\n💡 To rerun locally (real-auth):"
+    echo "make verify-nightly ARGS=\"--only-stories $FAILURES\""
 else
     echo "✨ No failures found in last run."
 fi
