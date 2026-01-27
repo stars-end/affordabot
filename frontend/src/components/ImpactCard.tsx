@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, ExternalLink, Info, Quote } from 'lucide-react';
+import { ChevronDown, ChevronUp, ExternalLink, Quote } from 'lucide-react';
 
 interface Evidence {
     source_name: string;
@@ -53,10 +53,10 @@ export default function ImpactCard({ impact }: { impact: ImpactProps }) {
     };
 
     const getConfidenceColor = (conf: number) => {
-        if (isNaN(conf) || conf === null || conf === undefined) return 'bg-gray-100 text-gray-500 border-gray-200';
-        if (conf > 0.8) return 'bg-emerald-100 text-emerald-700 border-emerald-200';
-        if (conf > 0.6) return 'bg-yellow-100 text-yellow-700 border-yellow-200';
-        return 'bg-orange-100 text-orange-700 border-orange-200';
+        if (isNaN(conf) || conf === null || conf === undefined) return 'bg-slate-100 text-slate-500 border-slate-200';
+        if (conf > 0.8) return 'bg-prism-green/10 text-prism-green border-prism-green/30';
+        if (conf > 0.6) return 'bg-prism-yellow/10 text-prism-yellow border-prism-yellow/30';
+        return 'bg-prism-pink/10 text-prism-pink border-prism-pink/30';
     };
 
     // Safe confidence display helper
@@ -66,47 +66,51 @@ export default function ImpactCard({ impact }: { impact: ImpactProps }) {
     };
 
     return (
-        <div className="max-w-3xl mx-auto my-4 p-6 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 shadow-xl transition-all hover:shadow-2xl hover:bg-white/20">
+        <div className="card-prism p-6 transition-all hover:shadow-md">
+            {/* Header */}
             <div className="flex justify-between items-start mb-4">
                 <div>
-                    <h3 className="text-lg font-bold text-purple-900">Impact #{impact.impactNumber}</h3>
-                    <div className="mt-1 flex items-baseline gap-2">
-                        <span className="text-3xl font-bold text-gray-900">
+                    <div className="flex items-center gap-2 mb-1">
+                        <span className="label-uppercase text-slate-500">Impact #{impact.impactNumber}</span>
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                        <span className="text-3xl font-numbers font-bold text-slate-900">
                             ${Math.round(currentCost).toLocaleString()}
                         </span>
-                        <span className="text-sm text-gray-500 font-normal">/year</span>
+                        <span className="text-sm text-slate-500">/year</span>
                     </div>
                 </div>
-                <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getConfidenceColor(impact.confidence)}`}>
+                <span className={`px-3 py-1 rounded text-xs font-semibold border ${getConfidenceColor(impact.confidence)}`}>
                     {formatConfidence(impact.confidence)} Confidence
                 </span>
             </div>
 
-            <div className="mb-6">
-                <h4 className="text-sm font-medium text-gray-500 mb-1">Description</h4>
-                <p className="text-gray-800 leading-relaxed">{impact.description}</p>
+            {/* Description */}
+            <div className="mb-4">
+                <p className="text-slate-700 leading-relaxed">{impact.description}</p>
             </div>
 
-            <div className="mb-6 bg-white/30 p-4 rounded-xl border border-white/20">
+            {/* Relevant Clause */}
+            <div className="mb-4 p-4 bg-slate-50 border border-slate-200 rounded">
                 <div className="flex items-center gap-2 mb-2">
-                    <Quote className="w-4 h-4 text-purple-500" />
-                    <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wide">Relevant Clause</h4>
+                    <Quote className="w-4 h-4 text-prism-cyan" />
+                    <span className="label-uppercase text-slate-500">Relevant Clause</span>
                 </div>
-                <p className="italic text-gray-700 text-sm leading-relaxed">&quot;{impact.clause}&quot;</p>
+                <p className="italic text-slate-600 text-sm leading-relaxed">&ldquo;{impact.clause}&rdquo;</p>
             </div>
 
             {/* Chain of Causality */}
             {impact.chainOfCausality && (
-                <div className="mb-4 border border-white/20 rounded-xl overflow-hidden bg-white/5">
+                <div className="mb-4 border border-slate-200 rounded overflow-hidden">
                     <button
                         onClick={() => setIsChainOpen(!isChainOpen)}
-                        className="w-full flex items-center justify-between p-4 hover:bg-white/10 transition-colors text-left"
+                        className="w-full flex items-center justify-between p-3 bg-slate-50 hover:bg-slate-100 transition-colors text-left"
                     >
-                        <span className="font-medium text-gray-800">Chain of Causality</span>
-                        {isChainOpen ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
+                        <span className="font-medium text-slate-700 text-sm">Chain of Causality</span>
+                        {isChainOpen ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
                     </button>
                     {isChainOpen && (
-                        <div className="p-4 pt-0 text-sm text-gray-600 border-t border-white/10">
+                        <div className="p-3 text-sm text-slate-600 border-t border-slate-200">
                             {impact.chainOfCausality}
                         </div>
                     )}
@@ -115,36 +119,36 @@ export default function ImpactCard({ impact }: { impact: ImpactProps }) {
 
             {/* Evidence */}
             {impact.evidence && impact.evidence.length > 0 && (
-                <div className="mb-6 border border-white/20 rounded-xl overflow-hidden bg-white/5">
+                <div className="mb-4 border border-slate-200 rounded overflow-hidden">
                     <button
                         onClick={() => setIsEvidenceOpen(!isEvidenceOpen)}
-                        className="w-full flex items-center justify-between p-4 hover:bg-white/10 transition-colors text-left"
+                        className="w-full flex items-center justify-between p-3 bg-slate-50 hover:bg-slate-100 transition-colors text-left"
                     >
-                        <span className="font-medium text-gray-800">Evidence ({impact.evidence.length} sources)</span>
-                        {isEvidenceOpen ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
+                        <span className="font-medium text-slate-700 text-sm">Evidence ({impact.evidence.length} sources)</span>
+                        {isEvidenceOpen ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
                     </button>
                     {isEvidenceOpen && (
-                        <div className="p-4 pt-0 space-y-4 border-t border-white/10">
+                        <div className="p-3 space-y-3 border-t border-slate-200">
                             {impact.evidence.map((ev, idx) => {
                                 const hasValidUrl = ev.url && ev.url.startsWith('http');
                                 return (
-                                    <div key={idx} className="pl-4 border-l-2 border-purple-400">
+                                    <div key={idx} className="pl-3 border-l-2 border-prism-cyan">
                                         {hasValidUrl ? (
                                             <a
                                                 href={ev.url}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                className="flex items-center gap-1 text-sm font-bold text-purple-600 hover:text-purple-800 transition-colors"
+                                                className="flex items-center gap-1 text-sm font-medium text-prism-cyan hover:text-prism-cyan/80 transition-colors"
                                             >
                                                 {ev.source_name || 'Source'} <ExternalLink className="w-3 h-3" />
                                             </a>
                                         ) : (
-                                            <span className="text-sm font-bold text-gray-600">
+                                            <span className="text-sm font-medium text-slate-600">
                                                 {ev.source_name || 'Source unavailable'}
                                             </span>
                                         )}
                                         {ev.excerpt && (
-                                            <p className="text-xs text-gray-600 mt-1 italic">&quot;{ev.excerpt}&quot;</p>
+                                            <p className="text-xs text-slate-500 mt-1 italic">&ldquo;{ev.excerpt}&rdquo;</p>
                                         )}
                                     </div>
                                 );
@@ -155,8 +159,8 @@ export default function ImpactCard({ impact }: { impact: ImpactProps }) {
             )}
 
             {/* Percentile Slider */}
-            <div className="mt-6 pt-6 border-t border-white/20">
-                <div className="flex justify-between text-sm font-medium text-gray-600 mb-2">
+            <div className="pt-4 border-t border-slate-200">
+                <div className="flex justify-between text-xs font-medium text-slate-500 mb-2">
                     <span>Conservative (10%)</span>
                     <span>Worst Case (90%)</span>
                 </div>
@@ -167,18 +171,17 @@ export default function ImpactCard({ impact }: { impact: ImpactProps }) {
                     step="1"
                     value={selectedPercentile}
                     onChange={handleSliderChange}
-                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                    className="w-full h-2 bg-slate-200 rounded appearance-none cursor-pointer accent-prism-cyan"
                 />
-                <div className="flex justify-between text-xs text-gray-500 mt-2">
+                <div className="flex justify-between text-xs text-slate-400 mt-2 font-numbers">
                     <span>${impact.p10.toLocaleString()}</span>
-                    <span className="font-bold text-purple-700 text-sm">${impact.p50.toLocaleString()}</span>
+                    <span className="font-semibold text-prism-cyan">${impact.p50.toLocaleString()}</span>
                     <span>${impact.p90.toLocaleString()}</span>
                 </div>
-                <p className="text-center mt-3 text-sm text-gray-600">
-                    Selected: <span className="font-bold text-purple-700">{selectedPercentile}th Percentile</span>
+                <p className="text-center mt-3 text-sm text-slate-600">
+                    Selected: <span className="font-semibold text-prism-cyan">{selectedPercentile}th Percentile</span>
                 </p>
             </div>
         </div>
     );
 }
-

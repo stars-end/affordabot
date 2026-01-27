@@ -2,7 +2,6 @@
 
 export const dynamic = 'force-dynamic';
 
-import { Suspense } from "react";
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,7 +9,6 @@ import {
     Card,
     CardContent,
     CardDescription,
-    CardFooter,
     CardHeader,
     CardTitle,
 } from "@/components/ui/card"
@@ -49,20 +47,18 @@ export default function DiscoveryPage() {
     }
 
     const handleApprove = async (result: DiscoveryResult) => {
-        // Create source from result
         try {
             await fetch("/api/sources", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    jurisdiction_id: "todo-lookup-id", // In real app, we'd look this up
+                    jurisdiction_id: "todo-lookup-id",
                     url: result.url,
                     type: result.category,
                     source_method: "scrape",
                     status: "active"
                 })
             })
-            // Remove from list
             setResults(results.filter(r => r.url !== result.url))
         } catch (error) {
             console.error("Failed to approve source:", error)
@@ -70,72 +66,130 @@ export default function DiscoveryPage() {
     }
 
     return (
-        <div className="p-8 space-y-6">
-            <div className="space-y-2">
-                <h1 className="text-3xl font-bold tracking-tight">Auto-Discovery</h1>
-                <p className="text-muted-foreground">
-                    Discover new sources using template-based search.
-                </p>
+        <div className="space-y-6">
+            {/* Header */}
+            <div>
+                <div className="flex items-center gap-2 mb-2">
+                    <span className="text-sm text-slate-500">ADMIN</span>
+                    <span className="text-slate-300">/</span>
+                    <span className="text-sm text-slate-900 font-medium">AUTO-DISCOVERY</span>
+                </div>
+                <h1 className="text-2xl font-bold text-slate-900">Discovery Queue</h1>
+                <p className="text-slate-500 mt-1">Discover new sources using template-based search</p>
             </div>
 
+            {/* Search */}
             <div className="flex gap-4 max-w-xl">
                 <Input
                     type="text"
                     placeholder="Enter jurisdiction name (e.g. San Jose)"
                     value={jurisdiction}
                     onChange={(e) => setJurisdiction(e.target.value)}
+                    className="border-slate-200"
                 />
-                <Button onClick={runDiscovery} disabled={loading || !jurisdiction}>
+                <Button onClick={runDiscovery} disabled={loading || !jurisdiction} className="bg-slate-900 hover:bg-slate-800">
                     {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Run Discovery
                 </Button>
             </div>
 
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {/* Results Grid */}
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {results.length === 0 && !loading && (
+                    <>
+                        {/* Demo Cards */}
+                        <Card className="card-prism border-slate-200">
+                            <CardHeader className="pb-3">
+                                <div className="flex justify-between items-start">
+                                    <Badge className="bg-prism-cyan/10 text-prism-cyan border-prism-cyan/30">City Council</Badge>
+                                    <Badge variant="outline" className="text-slate-500">San Jose</Badge>
+                                </div>
+                                <CardTitle className="text-base mt-2">City Council Meeting Minutes</CardTitle>
+                                <CardDescription className="text-xs">sanjoseca.gov</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm text-slate-600 mb-4">Official meeting minutes and agendas from San Jose City Council sessions.</p>
+                                <div className="flex gap-2">
+                                    <Button size="sm" className="flex-1 bg-prism-green hover:bg-prism-green/90 text-white">
+                                        <Check className="mr-1 h-3 w-3" /> Approve
+                                    </Button>
+                                    <Button size="sm" variant="outline" className="flex-1 border-slate-200">
+                                        <X className="mr-1 h-3 w-3" /> Reject
+                                    </Button>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="card-prism border-slate-200">
+                            <CardHeader className="pb-3">
+                                <div className="flex justify-between items-start">
+                                    <Badge className="bg-prism-yellow/10 text-prism-yellow border-prism-yellow/30">Legislation</Badge>
+                                    <Badge variant="outline" className="text-slate-500">San Jose</Badge>
+                                </div>
+                                <CardTitle className="text-base mt-2">Municipal Code Database</CardTitle>
+                                <CardDescription className="text-xs">codepublishing.com</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm text-slate-600 mb-4">Comprehensive database of San Jose municipal codes and ordinances.</p>
+                                <div className="flex gap-2">
+                                    <Button size="sm" className="flex-1 bg-prism-green hover:bg-prism-green/90 text-white">
+                                        <Check className="mr-1 h-3 w-3" /> Approve
+                                    </Button>
+                                    <Button size="sm" variant="outline" className="flex-1 border-slate-200">
+                                        <X className="mr-1 h-3 w-3" /> Reject
+                                    </Button>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="card-prism border-slate-200">
+                            <CardHeader className="pb-3">
+                                <div className="flex justify-between items-start">
+                                    <Badge className="bg-prism-pink/10 text-prism-pink border-prism-pink/30">Housing</Badge>
+                                    <Badge variant="outline" className="text-slate-500">San Jose</Badge>
+                                </div>
+                                <CardTitle className="text-base mt-2">Housing Department Notices</CardTitle>
+                                <CardDescription className="text-xs">sanjoseca.gov/housing</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm text-slate-600 mb-4">Public notices and updates from the San Jose Housing Department.</p>
+                                <div className="flex gap-2">
+                                    <Button size="sm" className="flex-1 bg-prism-green hover:bg-prism-green/90 text-white">
+                                        <Check className="mr-1 h-3 w-3" /> Approve
+                                    </Button>
+                                    <Button size="sm" variant="outline" className="flex-1 border-slate-200">
+                                        <X className="mr-1 h-3 w-3" /> Reject
+                                    </Button>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </>
+                )}
+
                 {results.map((result, i) => (
-                    <Card key={i}>
-                        <CardHeader>
+                    <Card key={i} className="card-prism border-slate-200">
+                        <CardHeader className="pb-3">
                             <div className="flex justify-between items-start">
-                                <Badge>{result.category}</Badge>
-                                <Badge variant="outline">{result.jurisdiction_name}</Badge>
+                                <Badge className="bg-prism-cyan/10 text-prism-cyan border-prism-cyan/30">{result.category}</Badge>
+                                <Badge variant="outline" className="text-slate-500">{result.jurisdiction_name}</Badge>
                             </div>
-                            <CardTitle className="text-lg mt-2 line-clamp-2" title={result.title}>
-                                {result.title}
-                            </CardTitle>
-                            <CardDescription className="line-clamp-1" title={result.url}>
-                                {result.url}
-                            </CardDescription>
+                            <CardTitle className="text-base mt-2">{result.title}</CardTitle>
+                            <CardDescription className="text-xs">{new URL(result.url).hostname}</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <p className="text-sm text-muted-foreground line-clamp-3">
-                                {result.snippet}
-                            </p>
+                            <p className="text-sm text-slate-600 mb-4">{result.snippet}</p>
+                            <div className="flex gap-2">
+                                <Button size="sm" onClick={() => handleApprove(result)} className="flex-1 bg-prism-green hover:bg-prism-green/90 text-white">
+                                    <Check className="mr-1 h-3 w-3" /> Approve
+                                </Button>
+                                <Button size="sm" variant="outline" className="flex-1 border-slate-200">
+                                    <X className="mr-1 h-3 w-3" /> Reject
+                                </Button>
+                            </div>
                         </CardContent>
-                        <CardFooter className="flex justify-between">
-                            <Button variant="ghost" size="sm" onClick={() => setResults(results.filter(r => r !== result))}>
-                                <X className="mr-2 h-4 w-4" /> Reject
-                            </Button>
-                            <Button size="sm" onClick={() => handleApprove(result)}>
-                                <Check className="mr-2 h-4 w-4" /> Approve
-                            </Button>
-                        </CardFooter>
                     </Card>
                 ))}
             </div>
-
-            {loading && (
-                <div className="text-center py-12 text-muted-foreground border rounded-lg border-dashed">
-                    <Loader2 className="h-8 w-8 animate-spin mx-auto mb-3" />
-                    <p>Searching for sources in {jurisdiction}...</p>
-                </div>
-            )}
-
-            {!loading && results.length === 0 && (
-                <div className="text-center py-12 text-muted-foreground border rounded-lg border-dashed">
-                    <Search className="h-8 w-8 mx-auto mb-3 opacity-50" />
-                    <p>No discovery results yet. Enter a jurisdiction name and run a search.</p>
-                </div>
-            )}
         </div>
     )
 }

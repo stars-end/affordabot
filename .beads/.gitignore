@@ -10,9 +10,6 @@ daemon.log
 daemon.pid
 bd.sock
 
-# Local-only version marker
-.local_version
-
 # Legacy database files
 db.sqlite
 bd.db
@@ -21,7 +18,3 @@ bd.db
 !*.jsonl
 !metadata.json
 !config.json
-
-# Ignore Beads merge artifacts (base/left/right) that are not meant for git.
-beads.*.jsonl
-beads.*.meta.json
