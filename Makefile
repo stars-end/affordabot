@@ -344,6 +344,7 @@ verify-nightly: ## Run High-stability verification (3 reruns for flakes)
 		--email-env TEST_USER_EMAIL --password-env TEST_USER_PASSWORD \
 		--suite-timeout 5400 --story-timeout 900 --nav-timeout-ms 120000 --action-timeout-ms 60000 \
 		--mode qa --repro 3 \
+		--fail-on-classifications reproducible_suite_timeout reproducible_auth_failed reproducible_timeout \
 		--tracing
 
 # Quality Gate (P0 subset, fast, no reruns)
@@ -360,7 +361,9 @@ verify-gate: ## Run fast Quality Gate verification
 		--cookie-secret-env TEST_AUTH_BYPASS_SECRET \
 		--email-env TEST_USER_EMAIL --password-env TEST_USER_PASSWORD \
 		--suite-timeout 5400 --story-timeout 900 --nav-timeout-ms 120000 --action-timeout-ms 60000 \
-		--mode gate --repro 1 --deterministic-only
+		--mode gate --repro 1 --deterministic-only \
+		--exclude-stories affordabot_clerk_flow \
+		--fail-on-classifications flaky_recovered flaky_inconclusive single_unknown
 
 # Fail triage (generate Beads issues)
 verify-triage: ## Analyze last run and generate Beads plan
