@@ -33,7 +33,7 @@ jobs:
         run: |
           cd backend
           poetry run pip install playwright
-          poetry run playwright install chromium --with-deps
+          poetry run playwright install chromium
 
       - name: Run Nightly Verification
         run: |
