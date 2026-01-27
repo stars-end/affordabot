@@ -22,6 +22,7 @@ permissions:
 jobs:
   update-epic-contexts:
     runs-on: [self-hosted, linux, x64]
+    continue-on-error: true  # Non-blocking - failures don't block PRs
 
     steps:
       - name: Checkout repository
