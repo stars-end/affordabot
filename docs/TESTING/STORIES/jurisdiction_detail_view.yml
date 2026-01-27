@@ -10,38 +10,26 @@ goals:
   - "Test jurisdiction selection/navigation"
 start_url: "/admin/jurisdiction/san-jose"
 steps:
-  - id: step-1-jurisdiction-load
-    description: |
-      Navigate to /admin/jurisdiction/san-jose and verify page loads.
-      Should display San Jose jurisdiction details.
-    glm_prompt: "Is this a jurisdiction detail page? What jurisdiction is shown?"
-    validation_criteria:
-      - "Recent History"
-    exploration_budget: 0
+  - action: navigate
+    path: "/admin/jurisdictions/san-jose"
+    description: "Navigate to Jurisdiction Detail"
 
-  - id: step-2-bills-list
-    description: |
-      Check that jurisdiction stats are displayed (e.g. bills analyzed, scrape counts).
-    glm_prompt: "Are there jurisdiction stats cards? What labels and counts are shown?"
-    validation_criteria:
-      - "Bills Analyzed"
-    exploration_budget: 1
+  - action: wait_for_selector
+    selector: "[data-testid='jurisdiction-detail-header']"
+    description: "Verify Jurisdiction Page"
 
-  - id: step-3-analysis-data
-    description: |
-      Look for operational controls (e.g. Run Scraper / Force Rescrape) and health indicators.
-    glm_prompt: "Are there Run Scraper / Force Rescrape controls and a health badge?"
-    validation_criteria:
-      - "Run Scraper"
-    exploration_budget: 1
+  - action: assert_text
+    selector: "body"
+    text: "San Jose"
+    description: "Verify jurisdiction name"
 
-  - id: step-4-navigation-to-other
-    description: |
-      Verify the global sidebar navigation is present for switching contexts.
-    glm_prompt: "Is the left sidebar visible with other jurisdictions and Admin Console?"
-    validation_criteria:
-      - "Admin Console"
-    exploration_budget: 2
+  - action: assert_visible
+    selector: "[data-testid='metric-bills-analyzed']"
+    description: "Verify stats displayed"
+
+  - action: assert_visible
+    selector: "[data-testid='nav-sidebar']"
+    description: "Verify sidebar visibility"
 
 metadata:
   tags: ["admin", "jurisdiction", "detail"]

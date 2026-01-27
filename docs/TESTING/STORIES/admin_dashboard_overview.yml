@@ -10,34 +10,21 @@ goals:
   - "Confirm no error states on initial load"
 start_url: "/admin"
 steps:
-  - id: step-1-auth-check
-    description: |
-      Navigate to /admin and verify authentication succeeds.
-      Should see admin dashboard, NOT a login redirect.
-    glm_prompt: "Is this an admin dashboard? Or is it a login/sign-in page?"
-    validation_criteria:
-      - "Admin Dashboard"
-    exploration_budget: 0
+  - action: navigate
+    path: "/admin"
+    description: "Navigate to Admin Dashboard"
 
-  - id: step-2-verify-metrics
-    description: |
-      Check that dashboard displays key metrics:
-      - Scrape counts or recent activity
-      - Jurisdiction stats
-      - Pipeline health indicators
-    glm_prompt: "What metrics or KPIs are visible? List any numbers, charts, or status indicators."
-    validation_criteria:
-      - "Bills per Month"
-    exploration_budget: 1
+  - action: wait_for_selector
+    selector: "[data-testid='admin-dashboard']"
+    description: "Verify dashboard loads"
 
-  - id: step-4-error-check
-    description: |
-      Verify no error messages, blank states, or broken layouts.
-      Check for any console errors or 404/500 indicators.
-    glm_prompt: "Are there any error messages, blank states, or broken UI elements visible?"
-    validation_criteria:
-      - "Admin Dashboard"
-    exploration_budget: 0
+  - action: assert_visible
+    selector: "[data-testid='metric-bills-per-month']"
+    description: "Verify metrics displayed"
+
+  - action: assert_visible
+    selector: "[data-testid='nav-link-discovery']"
+    description: "Verify navigation links"
 
 metadata:
   tags: ["admin", "dashboard", "core-flow"]

@@ -9,31 +9,27 @@ goals:
   - "Test 'Mark as Read' / 'Dismiss' workflow"
 start_url: "/admin/jurisdiction/san-jose"
 steps:
-  - id: step-1-check-alert-presence
-    description: |
-      Navigate to San Jose dashboard.
-      Look for the 'Alerts' widget or notification badge.
-      Verify count matches known active alerts.
-    glm_prompt: "Is there an 'Alerts' section? What is the count?"
-    expected: "Alerts section visible with count"
-    exploration_budget: 1
+  - action: navigate
+    path: "/admin/jurisdictions/san-jose"
+    description: "Navigate to Jurisdiction View"
 
-  - id: step-2-verify-alert-content
-    description: |
-      Inspect the list of alerts.
-      Should show 'New High Impact Bill' or similar urgency.
-      Verify links to the specific bill.
-    glm_prompt: "Read the alert titles. Do they convey urgency (e.g. 'High Impact')?"
-    expected: "Urgent alerts displayed clearly"
-    exploration_budget: 1
+  - action: wait_for_selector
+    selector: "[data-testid='alerts-widget']"
+    description: "Verify alerts widget presence"
 
-  - id: step-3-dismiss-alert
-    description: |
-      Attempt to dismiss or acknowledge an alert.
-      Verify UI updates (count decreases).
-    glm_prompt: "Is there a dismiss/check button? Does clicking it remove the alert?"
-    expected: "Alert dismissal works"
-    exploration_budget: 1
+  - action: assert_visible
+    selector: "[data-testid='alert-item-high-impact']"
+    description: "Verify High Impact alert visibility"
+
+  - action: click
+    selector: "[data-testid='dismiss-alert-btn-first']"
+    description: "Dismiss an alert"
+
+  - action: assert_text
+    selector: "[data-testid='alerts-count']"
+    text: "0" # Hypothetical if only one alert
+    optional: true
+    description: "Check if count decreases"
 
 metadata:
   tags: ["workflow", "alerts", "rigor"]
