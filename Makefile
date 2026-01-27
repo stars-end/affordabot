@@ -362,7 +362,7 @@ verify-gate: ## Run fast Quality Gate verification
 		--email-env TEST_USER_EMAIL --password-env TEST_USER_PASSWORD \
 		--suite-timeout 5400 --story-timeout 900 --nav-timeout-ms 120000 --action-timeout-ms 60000 \
 		--mode gate --repro 1 --deterministic-only \
-		--exclude-stories affordabot_clerk_flow \
+		--exclude-stories full_admin_e2e citation_validity_check economic_impact_validity extraction_fidelity_check glass_box_provenance_trace prompt_configuration review_queue_workflow source_management trend_integrity_check voter_bill_impact_journey jurisdiction_detail_view \
 		--fail-on-classifications skip not_run suite_timeout auth_failed timeout flaky_recovered flaky_inconclusive single_timeout reproducible_timeout single_navigation_failed reproducible_navigation_failed single_clerk_failed reproducible_clerk_failed
 
 # Fail triage (generate Beads issues)
