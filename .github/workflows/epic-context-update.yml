@@ -22,6 +22,7 @@ permissions:
 jobs:
   update-epic-contexts:
     runs-on: [self-hosted, linux, x64]
+    continue-on-error: true  # Non-blocking - failures don't block PRs
 
     steps:
       - name: Checkout repository
@@ -30,19 +31,25 @@ jobs:
           fetch-depth: 0  # Need full history for git log analysis
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install dependencies
+      - name: Check dependencies
         run: |
-          # Install jq for JSON parsing
-          sudo apt-get update
-          sudo apt-get install -y jq
+          # Verify jq is available (pre-installed on runner)
+          if ! command -v jq &>/dev/null; then
+            echo "⚠️  jq not found - install with: sudo apt-get install -y jq"
+            echo "Continuing without jq (may limit functionality)"
+          fi
 
-          # Install Beads CLI (if available for metadata fetching)
-          if curl -fsSL https://github.com/steveyegge/beads/releases/latest/download/bd-linux -o bd 2>/dev/null; then
-            chmod +x bd
-            sudo mv bd /usr/local/bin/
-            echo "✅ Beads CLI installed"
+          # Use Beads CLI from PATH or install to workspace
+          if ! command -v bd &>/dev/null; then
+            if curl -fsSL https://github.com/steveyegge/beads/releases/latest/download/bd-linux -o ./bd 2>/dev/null; then
+              chmod +x ./bd
+              export PATH="$PWD:$PATH"
+              echo "✅ Beads CLI installed to workspace"
+            else
+              echo "⚠️  Beads CLI not available (will use git metadata only)"
+            fi
           else
-            echo "⚠️  Beads CLI not available (will use git metadata only)"
+            echo "✅ Beads CLI found in PATH"
           fi
 
       - name: Detect active epics from recent commits
