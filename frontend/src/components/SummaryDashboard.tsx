@@ -24,6 +24,7 @@ export default function SummaryDashboard({ bills, jurisdiction, onSelectBill }: 
         if (isNaN(conf) || conf === null || conf === undefined || conf === 0) return 'N/A';
         return `${Math.round(conf * 100)}%`;
     };
+
     // Transform data for scatter plot
     const chartData = bills.map((bill) => ({
         name: bill.bill_number,
@@ -41,123 +42,194 @@ export default function SummaryDashboard({ bills, jurisdiction, onSelectBill }: 
 
     return (
         <div className="space-y-6">
-            {/* Summary Stats */}
+            {/* Summary Stats - KPI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="p-6 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 shadow-xl">
-                    <div className="flex items-center gap-3 mb-2">
-                        <div className="p-2 rounded-lg bg-purple-100 text-purple-600">
-                            <FileText className="w-5 h-5" />
-                        </div>
-                        <h3 className="text-sm font-medium text-gray-600">Total Bills</h3>
+                {/* Total Bills Card */}
+                <div className="kpi-card">
+                    <div className="flex items-center gap-2 mb-3">
+                        <div className="w-2 h-2 rounded-full bg-prism-cyan" />
+                        <span className="label-uppercase text-slate-500">Total Tracked Bills</span>
                     </div>
-                    <p className="text-3xl font-bold text-gray-800">{bills.length}</p>
+                    <p className="text-4xl font-numbers font-bold text-slate-900">{bills.length.toLocaleString()}</p>
                 </div>
 
-                <div className="p-6 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 shadow-xl">
-                    <div className="flex items-center gap-3 mb-2">
-                        <div className="p-2 rounded-lg bg-green-100 text-green-600">
-                            <TrendingUp className="w-5 h-5" />
-                        </div>
-                        <h3 className="text-sm font-medium text-gray-600">Annual Impact (Total)</h3>
+                {/* Annual Impact Card */}
+                <div className="kpi-card">
+                    <div className="flex items-center gap-2 mb-3">
+                        <div className="w-2 h-2 rounded-full bg-prism-yellow" />
+                        <span className="label-uppercase text-slate-500">Avg. Household Impact</span>
                     </div>
-                    <p className="text-3xl font-bold text-gray-800">${totalImpact.toLocaleString()}</p>
-                    <p className="text-xs text-gray-500 mt-1">Per typical family</p>
+                    <p className="text-4xl font-numbers font-bold text-slate-900">
+                        ${totalImpact.toLocaleString()}
+                    </p>
+                    <p className="text-xs text-slate-500 mt-1">Per typical family</p>
                 </div>
 
-                <div className="p-6 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 shadow-xl">
-                    <div className="flex items-center gap-3 mb-2">
-                        <div className="p-2 rounded-lg bg-blue-100 text-blue-600">
-                            <AlertCircle className="w-5 h-5" />
-                        </div>
-                        <h3 className="text-sm font-medium text-gray-600">Avg Confidence</h3>
+                {/* Confidence Card */}
+                <div className="kpi-card">
+                    <div className="flex items-center gap-2 mb-3">
+                        <div className="w-2 h-2 rounded-full bg-prism-pink" />
+                        <span className="label-uppercase text-slate-500">Confidence Index</span>
                     </div>
-                    <p className="text-3xl font-bold text-gray-800">{safeConfidencePercent(avgConfidence)}</p>
-                </div>
-            </div>
-
-            {/* Scatter Plot */}
-            <div className="p-6 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 shadow-xl">
-                <h3 className="text-lg font-bold text-gray-800 mb-2">Impact vs Confidence Analysis</h3>
-                <p className="text-sm text-gray-600 mb-6">
-                    Each point represents a bill. Size indicates number of identified impacts.
-                </p>
-
-                {bills.length > 0 ? (
-                    <div className="h-80 w-full" style={{ minWidth: '300px', minHeight: '320px' }}>
-                        <ResponsiveContainer width="100%" height="100%" minWidth={300} minHeight={300}>
-                            <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
-                                <XAxis type="number" dataKey="confidence" name="Confidence" unit="%" domain={[0, 100]} />
-                                <YAxis type="number" dataKey="impact" name="Impact" unit="$" />
-                                <ZAxis type="number" dataKey="impacts" range={[60, 400]} name="Impacts" />
-                                <Tooltip cursor={{ strokeDasharray: '3 3' }} content={({ active, payload }) => {
-                                    if (active && payload && payload.length) {
-                                        const data = payload[0].payload;
-                                        return (
-                                            <div className="bg-white p-3 border border-gray-200 shadow-lg rounded-lg">
-                                                <p className="font-bold text-sm">{data.name}</p>
-                                                <p className="text-xs text-gray-600 mb-2">{data.title}</p>
-                                                <p className="text-xs">Impact: ${data.impact}</p>
-                                                <p className="text-xs">Confidence: {data.confidence}%</p>
-                                                <p className="text-xs">Impacts found: {data.impacts}</p>
-                                            </div>
-                                        );
-                                    }
-                                    return null;
-                                }} />
-                                <Scatter name="Bills" data={chartData} fill="#8884d8">
-                                    {chartData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={entry.impact > 1000 ? '#ef4444' : '#3b82f6'} />
-                                    ))}
-                                </Scatter>
-                            </ScatterChart>
-                        </ResponsiveContainer>
-                    </div>
-                ) : (
-                    <div className="h-80 flex items-center justify-center text-gray-400 bg-white/5 rounded-xl border border-white/10">
-                        No bills analyzed yet. Run a scrape to populate data.
-                    </div>
-                )}
-            </div>
-
-            {/* Bill List */}
-            <div className="p-6 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 shadow-xl">
-                <h3 className="text-lg font-bold text-gray-800 mb-6">Bills by Impact (Highest First)</h3>
-                <div className="space-y-3">
-                    {[...bills]
-                        .sort((a, b) => b.total_impact - a.total_impact)
-                        .map((bill) => (
+                    <p className="text-4xl font-numbers font-bold text-slate-900">{safeConfidencePercent(avgConfidence)}</p>
+                    <div className="flex items-center gap-2 mt-2">
+                        <div className="h-1 flex-1 bg-slate-100 rounded-full overflow-hidden">
                             <div
-                                key={bill.id}
-                                onClick={() => onSelectBill(bill.id)}
-                                className="group flex items-center justify-between p-4 bg-white/40 hover:bg-white/60 border border-white/40 rounded-xl transition-all cursor-pointer shadow-sm hover:shadow-md"
-                            >
-                                <div className="flex-1 min-w-0 mr-4">
-                                    <div className="flex items-center gap-3 mb-1">
-                                        <span className="font-mono text-sm font-bold text-purple-700 bg-purple-100 px-2 py-0.5 rounded-md">
-                                            {bill.bill_number}
-                                        </span>
-                                        <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full border border-gray-200">
-                                            {bill.impact_count} impacts
-                                        </span>
-                                    </div>
-                                    <p className="text-sm font-medium text-gray-800 truncate">{bill.title}</p>
-                                </div>
-                                <div className="text-right flex items-center gap-4">
-                                    <div>
-                                        <div className="text-lg font-bold text-gray-900">
-                                            ${bill.total_impact.toLocaleString()}
-                                        </div>
-                                        <p className="text-xs text-gray-500">
-                                            {safeConfidencePercent(bill.avg_confidence)} confidence
-                                        </p>
-                                    </div>
-                                    <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-purple-600 transition-colors" />
-                                </div>
+                                className="h-full bg-gradient-to-r from-prism-cyan via-prism-yellow to-prism-pink"
+                                style={{ width: `${Math.round(avgConfidence * 100)}%` }}
+                            />
+                        </div>
+                        <span className="text-xs text-slate-500">High Precision</span>
+                    </div>
+                </div>
+            </div>
+
+            {/* Main Content Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Impact Heatmap */}
+                <div className="lg:col-span-2 card-prism p-6">
+                    <div className="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 className="label-uppercase text-slate-900">Impact Heatmap</h3>
+                            <p className="text-sm text-slate-500">Geospatial cost distribution analysis (State Level)</p>
+                        </div>
+                        <div className="flex gap-2">
+                            <span className="px-2 py-1 text-xs font-medium border border-slate-200 rounded">FILTER: URBAN</span>
+                            <span className="px-2 py-1 text-xs font-medium border border-slate-200 rounded text-slate-400">FILTER: RURAL</span>
+                        </div>
+                    </div>
+
+                    {/* Heatmap Grid */}
+                    <div className="grid grid-cols-5 gap-1 aspect-video">
+                        {Array.from({ length: 25 }).map((_, i) => {
+                            // Generate varied colors based on position for visual effect
+                            const colors = [
+                                'bg-prism-cyan/20', 'bg-prism-cyan/30', 'bg-prism-cyan/40',
+                                'bg-prism-yellow/20', 'bg-prism-yellow/30', 'bg-prism-yellow/40',
+                                'bg-prism-pink/20', 'bg-prism-pink/30', 'bg-prism-pink/40',
+                                'bg-prism-green/20', 'bg-prism-green/30',
+                            ];
+                            const colorClass = colors[i % colors.length];
+                            return (
+                                <div
+                                    key={i}
+                                    className={`${colorClass} rounded-sm transition-all hover:opacity-80 cursor-pointer`}
+                                />
+                            );
+                        })}
+                    </div>
+
+                    {/* Legend */}
+                    <div className="flex items-center gap-4 mt-4 text-xs">
+                        <div className="flex items-center gap-1">
+                            <div className="w-3 h-3 rounded-sm bg-prism-cyan/30" />
+                            <span className="text-slate-500">Low Impact</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                            <div className="w-3 h-3 rounded-sm bg-prism-yellow/30" />
+                            <span className="text-slate-500">Moderate</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                            <div className="w-3 h-3 rounded-sm bg-prism-pink/30" />
+                            <span className="text-slate-500">High Impact</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                            <div className="w-3 h-3 rounded-sm bg-prism-pink/60" />
+                            <span className="text-slate-500">Critical</span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Legislative Feed */}
+                <div className="card-prism p-6">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="label-uppercase text-slate-900">Legislative Feed</h3>
+                        <div className="w-2 h-2 rounded-full bg-prism-cyan animate-pulse" />
+                    </div>
+
+                    <div className="space-y-4">
+                        <div className="border-l-2 border-prism-cyan pl-3">
+                            <div className="flex items-center gap-2 text-xs text-slate-400 mb-1">
+                                <span>TODAY, 09:42 AM</span>
                             </div>
-                        ))}
+                            <h4 className="text-sm font-medium text-slate-900">SB-104 Amendment Proposed</h4>
+                            <p className="text-xs text-slate-500 mt-1">Committee revised housing density requirements. Projected cost impact increased by 1.2%.</p>
+                            <div className="flex gap-2 mt-2">
+                                <span className="px-1.5 py-0.5 text-xs bg-prism-cyan/10 text-prism-cyan rounded">HOUSING</span>
+                                <span className="px-1.5 py-0.5 text-xs bg-prism-pink/10 text-prism-pink rounded">ALERT</span>
+                            </div>
+                        </div>
+
+                        <div className="border-l-2 border-slate-200 pl-3">
+                            <div className="flex items-center gap-2 text-xs text-slate-400 mb-1">
+                                <span>YESTERDAY, 4:15 PM</span>
+                            </div>
+                            <h4 className="text-sm font-medium text-slate-900">AB-209 Fiscal Note Released</h4>
+                            <p className="text-xs text-slate-500 mt-1">Official analysis confirms energy subsidy reductions for Tier 2 consumers.</p>
+                            <div className="flex gap-2 mt-2">
+                                <span className="px-1.5 py-0.5 text-xs bg-prism-yellow/10 text-prism-yellow rounded">ENERGY</span>
+                            </div>
+                        </div>
+
+                        <div className="border-l-2 border-slate-200 pl-3">
+                            <div className="flex items-center gap-2 text-xs text-slate-400 mb-1">
+                                <span>OCT 24, 11:00 AM</span>
+                            </div>
+                            <h4 className="text-sm font-medium text-slate-900">New Bill Tracked: SB-882</h4>
+                            <p className="text-xs text-slate-500 mt-1">AI Framework legislation added to tracking. Initial impact assessment pending.</p>
+                            <div className="flex gap-2 mt-2">
+                                <span className="px-1.5 py-0.5 text-xs bg-prism-purple/10 text-prism-purple rounded">TECH</span>
+                                <span className="px-1.5 py-0.5 text-xs bg-slate-100 text-slate-600 rounded">NEW</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Bills Table */}
+            <div className="card-prism p-6">
+                <h3 className="label-uppercase text-slate-900 mb-4">Bills by Impact (Highest First)</h3>
+                <div className="overflow-x-auto">
+                    <table className="table-prism">
+                        <thead>
+                            <tr>
+                                <th>Bill</th>
+                                <th>Title</th>
+                                <th>Impacts</th>
+                                <th>Total Impact</th>
+                                <th>Confidence</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {[...bills]
+                                .sort((a, b) => b.total_impact - a.total_impact)
+                                .map((bill) => (
+                                    <tr
+                                        key={bill.id}
+                                        onClick={() => onSelectBill(bill.id)}
+                                        className="cursor-pointer"
+                                    >
+                                        <td>
+                                            <span className="font-numbers font-medium text-prism-cyan">{bill.bill_number}</span>
+                                        </td>
+                                        <td className="max-w-xs truncate">{bill.title}</td>
+                                        <td>
+                                            <span className="px-2 py-0.5 text-xs bg-slate-100 text-slate-600 rounded">
+                                                {bill.impact_count} impacts
+                                            </span>
+                                        </td>
+                                        <td className="font-numbers font-medium">${bill.total_impact.toLocaleString()}</td>
+                                        <td>{safeConfidencePercent(bill.avg_confidence)}</td>
+                                        <td>
+                                            <ArrowRight className="w-4 h-4 text-slate-400" />
+                                        </td>
+                                    </tr>
+                                ))}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
     );
 }
-

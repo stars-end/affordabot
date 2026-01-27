@@ -12,15 +12,13 @@ export function Sidebar() {
 
   // Public menu items - visible to all users
   const publicMenuItems = [
-    // P1 Fix: Removed search link - functionality not implemented
-    // { id: 'search', label: 'Search Bills', icon: LayoutDashboard, path: '/search' },
     { id: 'california', label: 'California', icon: MapPin, path: '/dashboard/california' },
     { id: 'santa-clara', label: 'Santa Clara Co.', icon: MapPin, path: '/dashboard/santa-clara-county' },
     { id: 'san-jose', label: 'San Jose', icon: Building2, path: '/dashboard/san-jose' },
     { id: 'saratoga', label: 'Saratoga', icon: Building2, path: '/dashboard/saratoga' },
   ];
 
-  // Admin menu items - P2 Fix: Only visible to authenticated users
+  // Admin menu items - only visible to authenticated users
   const adminMenuItems = [
     { id: 'admin', label: 'Admin Console', icon: Shield, path: '/admin' },
     { id: 'admin-discovery', label: '↳ Discovery', icon: LayoutDashboard, path: '/admin/discovery' },
@@ -36,20 +34,25 @@ export function Sidebar() {
     : publicMenuItems;
 
   return (
-    <div className="w-64 bg-white/10 backdrop-blur-md border-r border-white/20 min-h-screen p-6 flex flex-col">
+    <div className="w-64 bg-white border-r border-slate-200 min-h-screen p-6 flex flex-col">
+      {/* Logo */}
       <div className="flex items-center gap-3 mb-10 px-2">
-        <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
-          <FileText className="text-white w-6 h-6" />
+        <div className="w-10 h-10 relative">
+          {/* Prism logo - overlapping triangles */}
+          <svg viewBox="0 0 40 40" className="w-full h-full">
+            <polygon points="20,4 32,32 8,32" fill="#22d3ee" opacity="0.8" />
+            <polygon points="20,8 30,30 10,30" fill="#fbbf24" opacity="0.8" transform="translate(2, -1)" />
+            <polygon points="20,12 28,28 12,28" fill="#f472b6" opacity="0.8" transform="translate(-1, 1)" />
+          </svg>
         </div>
         <div>
-          <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-blue-600">
-            AffordaBot
-          </h1>
-          <p className="text-xs text-gray-500">Legislation Analysis</p>
+          <h1 className="text-xl font-bold text-slate-900 tracking-tight">AFFORDABOT</h1>
+          <p className="text-xs text-slate-500 uppercase tracking-wider">Solid Sculpture Refraction</p>
         </div>
       </div>
 
-      <nav className="space-y-2 flex-1">
+      {/* Navigation */}
+      <nav className="space-y-1 flex-1">
         {menuItems.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.path;
@@ -58,32 +61,25 @@ export function Sidebar() {
             <Link
               key={item.id}
               href={item.path}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group ${isActive
-                ? 'bg-white/20 text-purple-700 shadow-sm border border-white/20'
-                : 'text-gray-600 hover:bg-white/10 hover:text-purple-600'
+              className={`w-full flex items-center gap-3 px-3 py-2 rounded transition-all duration-150 text-sm font-medium ${isActive
+                  ? 'bg-slate-900 text-white'
+                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                 }`}
             >
-              <Icon className={`w-5 h-5 transition-colors ${isActive ? 'text-purple-600' : 'text-gray-400 group-hover:text-purple-500'
-                }`} />
-              <span className="font-medium">{item.label}</span>
-              {isActive && (
-                <div className="ml-auto w-1.5 h-1.5 rounded-full bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.5)]"></div>
-              )}
+              <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-400'}`} />
+              <span>{item.label}</span>
             </Link>
           );
         })}
       </nav>
 
-      <div className="mt-auto pt-6 border-t border-white/10">
-        <div className="bg-gradient-to-br from-purple-500/10 to-blue-500/10 rounded-xl p-4 border border-white/20">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center">
-              <span className="text-xs font-bold text-purple-600">AI</span>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-800">Analysis Active</p>
-              <p className="text-xs text-gray-500">Monitoring bills...</p>
-            </div>
+      {/* Status indicator */}
+      <div className="mt-auto pt-6 border-t border-slate-200">
+        <div className="flex items-center gap-3 px-2">
+          <div className="w-2 h-2 rounded-full bg-prism-green animate-pulse" />
+          <div>
+            <p className="text-sm font-medium text-slate-700">System Online</p>
+            <p className="text-xs text-slate-500">Monitoring active</p>
           </div>
         </div>
       </div>
