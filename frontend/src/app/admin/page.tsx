@@ -34,7 +34,7 @@ export default function AdminDashboard() {
                         <span className="text-slate-300">/</span>
                         <span className="text-sm text-slate-900 font-medium">SYSTEM PIPELINE & LOGS</span>
                     </div>
-                    <h1 className="text-2xl font-bold text-slate-900">Ingestion Pipeline</h1>
+                    <h1 className="text-2xl font-bold text-slate-900">Admin Dashboard</h1>
                 </div>
 
                 <div className="flex items-center gap-4">
