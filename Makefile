@@ -324,6 +324,7 @@ verify-stories: ## Run QA verification (mode=qa, repro=1)
 		--auth-mode cookie_bypass \
 		--cookie-name $${COOKIE_NAME:-x-test-user} --cookie-value $${COOKIE_VALUE:-admin} --cookie-signed \
 		--cookie-secret-env TEST_AUTH_BYPASS_SECRET \
+		--cookie-domain auto \
 		--email-env TEST_USER_EMAIL --password-env TEST_USER_PASSWORD \
 		--suite-timeout 5400 --story-timeout 900 --nav-timeout-ms 120000 --action-timeout-ms 60000 \
 		--mode qa --repro 1 \
@@ -341,6 +342,7 @@ verify-nightly: ## Run High-stability verification (3 reruns for flakes)
 		--auth-mode cookie_bypass \
 		--cookie-name $${COOKIE_NAME:-x-test-user} --cookie-value $${COOKIE_VALUE:-admin} --cookie-signed \
 		--cookie-secret-env TEST_AUTH_BYPASS_SECRET \
+		--cookie-domain auto \
 		--email-env TEST_USER_EMAIL --password-env TEST_USER_PASSWORD \
 		--suite-timeout 5400 --story-timeout 900 --nav-timeout-ms 120000 --action-timeout-ms 60000 \
 		--mode qa --repro 3 \
@@ -359,6 +361,7 @@ verify-gate: ## Run fast Quality Gate verification
 		--auth-mode cookie_bypass \
 		--cookie-name $${COOKIE_NAME:-x-test-user} --cookie-value $${COOKIE_VALUE:-admin} --cookie-signed \
 		--cookie-secret-env TEST_AUTH_BYPASS_SECRET \
+		--cookie-domain auto \
 		--email-env TEST_USER_EMAIL --password-env TEST_USER_PASSWORD \
 		--suite-timeout 5400 --story-timeout 900 --nav-timeout-ms 120000 --action-timeout-ms 60000 \
 		--mode gate --repro 1 --deterministic-only \

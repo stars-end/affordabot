@@ -33,7 +33,8 @@ export default clerkMiddleware(async (auth, req) => {
                     );
 
                     const b64urlToUint8 = (b64url: string) => {
-                        const b64 = b64url.replace(/-/g, '+').replace(/_/g, '/');
+                        const padding = '='.repeat((4 - b64url.length % 4) % 4);
+                        const b64 = (b64url + padding).replace(/-/g, '+').replace(/_/g, '/');
                         const bin = atob(b64);
                         const arr = new Uint8Array(bin.length);
                         for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
@@ -44,7 +45,8 @@ export default clerkMiddleware(async (auth, req) => {
                     const isValid = await crypto.subtle.verify('HMAC', key, sig, encoder.encode(msg));
 
                     if (isValid) {
-                        const payload = JSON.parse(atob(payloadB64.replace(/-/g, '+').replace(/_/g, '/')));
+                        const padding = '='.repeat((4 - payloadB64.length % 4) % 4);
+                        const payload = JSON.parse(atob((payloadB64 + padding).replace(/-/g, '+').replace(/_/g, '/')));
                         if (!payload.exp || Date.now() / 1000 < payload.exp) {
                             return NextResponse.next();
                         }
