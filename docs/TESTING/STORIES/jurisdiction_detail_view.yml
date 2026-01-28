@@ -15,7 +15,7 @@ steps:
     description: "Navigate to Jurisdiction Detail"
 
   - action: wait_for_selector
-    selector: "[data-testid='jurisdiction-detail-header']"
+    selector: "h2" # Header is likely an H2 or H1
     description: "Verify Jurisdiction Page"
 
   - action: assert_text

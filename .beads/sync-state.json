@@ -1,7 +1,7 @@
 {
-  "last_failure": "2026-01-27T10:09:49.661901-08:00",
-  "failure_count": 1,
-  "backoff_until": "2026-01-27T10:10:19.661901-08:00",
+  "last_failure": "2026-01-27T15:30:18.592993-08:00",
+  "failure_count": 2,
+  "backoff_until": "2026-01-27T15:31:18.592994-08:00",
   "needs_manual_sync": false,
-  "failure_reason": "git pull failed: exit status 1\nfatal: couldn't find remote ref fix/update-llm-common-pin\n"
+  "failure_reason": "git pull failed: exit status 1\nfatal: couldn't find remote ref fix/uismoke-auth-bypass-bd-dwb\n"
 }
