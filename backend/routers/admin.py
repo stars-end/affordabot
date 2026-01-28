@@ -377,3 +377,8 @@ async def run_analysis(request: Request):
         "message": "Analysis endpoint - implementation pending. Use /scrape/{jurisdiction} for full pipeline."
     }
 
+@router.get("/analyses")
+async def list_analyses(request: Request):
+    """List analysis history. Stub endpoint for now."""
+    return []
+

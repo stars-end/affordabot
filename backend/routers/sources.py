@@ -14,6 +14,7 @@ def get_db() -> PostgresDB:
 def get_source_service(db: PostgresDB = Depends(get_db)) -> SourceService:
     return SourceService(db)
 
+@router.get("", response_model=List[dict])
 @router.get("/", response_model=List[dict])
 async def list_sources(
     jurisdiction_id: Optional[str] = None,

@@ -173,7 +173,7 @@ export function AnalysisLab() {
                     jurisdiction,
                     bill_id: billId,
                     step,
-                    model_override: modelOverride || null,
+                    model_override: (modelOverride && modelOverride !== '__default__') ? modelOverride : null,
                 }),
             });
 
@@ -361,7 +361,7 @@ export function AnalysisLab() {
                                 <SelectValue placeholder="Default (Auto-select based on priority)" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="">Default (Auto-select)</SelectItem>
+                                <SelectItem value="__default__">Default (Auto-select)</SelectItem>
                                 {models.map(m => (
                                     <SelectItem key={m.value} value={m.value}>
                                         {m.label}
