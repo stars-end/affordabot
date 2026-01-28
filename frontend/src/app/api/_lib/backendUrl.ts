@@ -12,14 +12,20 @@ function inferRailwayBackendUrlFromHost(hostHeader?: string): string | undefined
 }
 
 export function getBackendUrl(hostHeader?: string): string {
-  const derivedFromRailwayHost = inferRailwayBackendUrlFromHost(hostHeader);
-  if (derivedFromRailwayHost) return normalizeBackendUrl(derivedFromRailwayHost);
-
-  const raw =
+  // 1. Prefer explicit environment variables
+  const explicitUrl =
+    process.env.NEXT_PUBLIC_BACKEND_URL ||
     process.env.RAILWAY_SERVICE_BACKEND_URL ||
     process.env.BACKEND_URL ||
     process.env.NEXT_PUBLIC_API_URL ||
-    process.env.VITE_API_URL ||
-    'http://localhost:8000';
-  return normalizeBackendUrl(raw);
+    process.env.VITE_API_URL;
+
+  if (explicitUrl) return normalizeBackendUrl(explicitUrl);
+
+  // 2. Fallback to inference (flaky if service hashes differ)
+  const derivedFromRailwayHost = inferRailwayBackendUrlFromHost(hostHeader);
+  if (derivedFromRailwayHost) return normalizeBackendUrl(derivedFromRailwayHost);
+
+  // 3. Fallback to localhost
+  return 'http://localhost:8000';
 }
