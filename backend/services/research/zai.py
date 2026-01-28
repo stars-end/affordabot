@@ -27,7 +27,7 @@ class ZaiResearchService:
     def __init__(self):
         self.api_key = os.getenv("ZAI_API_KEY")
         # Use the same endpoint as llm-common WebSearchClient
-        self.mcp_url = "https://open.z.ai/api/v1/search"
+        self.mcp_url = "https://api.z.ai/api/v1/search"
         self.tool_name = "search" # Default, will try to discover
         
         if not self.api_key:
@@ -66,7 +66,7 @@ class ZaiResearchService:
             # Simple connectivity check using a minimal search
             async with httpx.AsyncClient(timeout=5.0) as client:
                 response = await client.post(
-                    "https://open.z.ai/api/v1/search",
+                    "https://api.z.ai/api/v1/search",
                     headers={
                         "Authorization": f"Bearer {self.api_key}",
                         "Content-Type": "application/json"

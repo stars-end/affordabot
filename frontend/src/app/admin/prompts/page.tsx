@@ -1,5 +1,9 @@
 "use client";
 
+export const dynamic = 'force-dynamic';
+
+
+
 import React, { useState, useEffect } from 'react';
 import { promptService, SystemPrompt } from '@/services/PromptService';
 import { Button } from "@/components/ui/button"
