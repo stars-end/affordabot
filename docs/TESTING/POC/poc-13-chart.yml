@@ -1,4 +1,6 @@
 story_id: poc-13-chart
+sid: "poc-13"
+persona: "QA Engineer"
 description: "Verify chart/canvas presence"
 metadata:
   start_url: "/dashboard"

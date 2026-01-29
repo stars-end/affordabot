@@ -1,4 +1,6 @@
 story_id: poc-03-type
+sid: "poc-03"
+persona: "QA Engineer"
 description: "Verify typing into a search input"
 metadata:
   start_url: "/dashboard"

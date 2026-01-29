@@ -1,4 +1,6 @@
 story_id: poc-07-wait
+sid: "poc-07"
+persona: "QA Engineer"
 description: "Verify conditional wait for an element"
 metadata:
   start_url: "/dashboard"

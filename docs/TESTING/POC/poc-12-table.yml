@@ -1,4 +1,6 @@
 story_id: poc-12-table
+sid: "poc-12"
+persona: "QA Engineer"
 description: "Verify data extraction from a table"
 metadata:
   start_url: "/dashboard"

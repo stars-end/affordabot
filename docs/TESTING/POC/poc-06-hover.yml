@@ -1,4 +1,6 @@
 story_id: poc-06-hover
+sid: "poc-06"
+persona: "QA Engineer"
 description: "Verify hover state triggers a menu"
 metadata:
   start_url: "/dashboard"

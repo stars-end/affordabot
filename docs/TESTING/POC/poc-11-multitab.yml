@@ -1,4 +1,6 @@
 story_id: poc-11-multitab
+sid: "poc-11"
+persona: "QA Engineer"
 description: "Verify interaction with multiple tabs"
 metadata:
   start_url: "/dashboard"

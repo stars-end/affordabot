@@ -1,4 +1,6 @@
 story_id: poc-02-click
+sid: "poc-02"
+persona: "QA Engineer"
 description: "Verify clicking a navigation element"
 metadata:
   start_url: "/dashboard"

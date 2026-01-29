@@ -1,4 +1,6 @@
 story_id: poc-05-scroll
+sid: "poc-05"
+persona: "QA Engineer"
 description: "Verify scrolling to an element"
 metadata:
   start_url: "/dashboard"

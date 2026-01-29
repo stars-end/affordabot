@@ -1,4 +1,6 @@
 story_id: poc-09-auth-token
+sid: "poc-09"
+persona: "QA Engineer"
 description: "Verify auth bypass using Authorization: Bearer v1. header"
 metadata:
   start_url: "/api/v2/user/profile"

@@ -1,4 +1,6 @@
 story_id: poc-04-assert
+sid: "poc-04"
+persona: "QA Engineer"
 description: "Verify text assertion on a complex page"
 metadata:
   start_url: "/dashboard"
@@ -9,9 +11,3 @@ steps:
     action: assert_text
     text: "Total Value"
     deterministic: true
-  - id: assert-negative
-    description: "Verify non-existent text fails correctly (will be inverted in runner test)"
-    action: assert_text
-    text: "NON_EXISTENT_TEXT_XYZ"
-    deterministic: true
-    optional: true

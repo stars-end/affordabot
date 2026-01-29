@@ -1,4 +1,6 @@
 story_id: poc-14-error-404
+sid: "poc-14"
+persona: "QA Engineer"
 description: "Verify error state detection (404)"
 metadata:
   start_url: "/non-existent-page"
