@@ -2343,8 +2343,8 @@ pgvector = ["asyncpg (>=0.29.0,<0.31.0)", "pgvector (>=0.3.0,<0.4.0)", "sqlalche
 [package.source]
 type = "git"
 url = "https://github.com/stars-end/llm-common.git"
-reference = "7e2ac2b"
-resolved_reference = "7e2ac2b218daed56b6547393d314f1c8710f8a1e"
+reference = "3353780"
+resolved_reference = "3353780526aeead0d13b8e84a46f4073bf6098ba"
 
 [[package]]
 name = "loguru"
@@ -6784,4 +6784,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.13"
-content-hash = "fe222c589b3fce0c540323b848babefc97838af19950c6c41bb5f33aaec250a9"
+content-hash = "788315c5a0ce877ee0969142df7c20a8141f1cb0216ec482f6e622861e28eeaf"
