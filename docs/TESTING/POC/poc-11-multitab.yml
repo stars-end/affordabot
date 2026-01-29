@@ -1,0 +1,16 @@
+story_id: poc-11-multitab
+description: "Verify interaction with multiple tabs"
+metadata:
+  start_url: "/dashboard"
+  deterministic: true
+steps:
+  - id: click-external-link
+    description: "Click a link that opens in a new tab"
+    action: click
+    selector: "a[target='_blank']"
+    deterministic: true
+  - id: check-new-tab
+    description: "Verify the new tab has expected content"
+    action: assert_text
+    text: "EODHD APIs"
+    deterministic: true

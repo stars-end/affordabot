@@ -1,0 +1,17 @@
+story_id: poc-04-assert
+description: "Verify text assertion on a complex page"
+metadata:
+  start_url: "/dashboard"
+  deterministic: true
+steps:
+  - id: assert-portfolio
+    description: "Verify portfolio summary exists"
+    action: assert_text
+    text: "Total Value"
+    deterministic: true
+  - id: assert-negative
+    description: "Verify non-existent text fails correctly (will be inverted in runner test)"
+    action: assert_text
+    text: "NON_EXISTENT_TEXT_XYZ"
+    deterministic: true
+    optional: true

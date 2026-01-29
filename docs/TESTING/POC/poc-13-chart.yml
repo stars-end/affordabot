@@ -1,0 +1,11 @@
+story_id: poc-13-chart
+description: "Verify chart/canvas presence"
+metadata:
+  start_url: "/dashboard"
+  deterministic: true
+steps:
+  - id: check-chart-presence
+    description: "Verify Recharts SVG or Canvas is present"
+    action: wait_for_selector
+    selector: ".recharts-surface, canvas"
+    deterministic: true

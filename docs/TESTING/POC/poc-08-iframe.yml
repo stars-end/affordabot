@@ -1,0 +1,17 @@
+story_id: poc-08-iframe
+description: "Verify strict iframe interaction (Plaid Link)"
+metadata:
+  start_url: "/settings/accounts"
+  deterministic: true
+steps:
+  - id: click-add-account
+    description: "Click Add Account"
+    action: click
+    selector: "button:has-text('Add Account')"
+    deterministic: true
+  - id: click-plaid-continue
+    description: "Click Continue in Plaid iframe"
+    action: frame_click
+    frame_selector: "iframe[title*='Plaid']"
+    selector: "button:has-text('Continue')"
+    deterministic: true

@@ -1,0 +1,11 @@
+story_id: poc-12-table
+description: "Verify data extraction from a table"
+metadata:
+  start_url: "/dashboard"
+  deterministic: true
+steps:
+  - id: check-table-content
+    description: "Verify table has expected tickers"
+    action: assert_text
+    text: "AAPL"
+    deterministic: true

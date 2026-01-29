@@ -1,0 +1,11 @@
+story_id: poc-14-error-404
+description: "Verify error state detection (404)"
+metadata:
+  start_url: "/non-existent-page"
+  deterministic: true
+steps:
+  - id: check-404
+    description: "Verify 404 page is shown"
+    action: assert_text
+    text: "Page Not Found"
+    deterministic: true

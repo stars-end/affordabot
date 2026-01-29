@@ -1,0 +1,12 @@
+story_id: poc-07-wait
+description: "Verify conditional wait for an element"
+metadata:
+  start_url: "/dashboard"
+  deterministic: true
+steps:
+  - id: wait-for-data
+    description: "Wait for the performance data to load"
+    action: wait_for_selector
+    selector: "[data-testid='performance-data-ready']"
+    timeout_ms: 5000
+    deterministic: true
