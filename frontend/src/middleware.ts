@@ -27,7 +27,8 @@ export default clerkMiddleware(async (auth, req) => {
         // Keeps prod locked down (no bypass on custom domains).
         const isRailwayDev =
             bypassHostCandidates.some((h) => h.includes('-dev-') && h.endsWith('.up.railway.app'));
-        if (isRailwayDev && req.cookies.get('x-test-user')?.value === 'admin') {
+        const bypassCookie = req.cookies.get('x-test-user')?.value;
+        if (isRailwayDev && bypassCookie?.startsWith('v1.')) {
             return NextResponse.next();
         }
 

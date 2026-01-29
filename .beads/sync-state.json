@@ -1,7 +1,7 @@
 {
-  "last_failure": "2026-01-29T06:07:50.167372-08:00",
-  "failure_count": 2,
-  "backoff_until": "2026-01-29T06:08:50.167372-08:00",
-  "needs_manual_sync": false,
+  "last_failure": "2026-01-29T11:44:22.938237-08:00",
+  "failure_count": 5,
+  "backoff_until": "2026-01-29T11:54:22.938237-08:00",
+  "needs_manual_sync": true,
   "failure_reason": "git pull failed: exit status 1\nfatal: couldn't find remote ref feature/bd-4ra-auth-bypass-standardization\n"
 }
