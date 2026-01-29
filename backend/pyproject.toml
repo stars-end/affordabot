@@ -48,6 +48,7 @@ scrapy-playwright = "^0.0.44"
 psycopg2-binary = "^2.9.11"
 pyjwt = {extras = ["crypto"], version = "^2.10.1"}
 pgvector = "^0.4.2"
+loguru = "^0.7.3"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "*"
