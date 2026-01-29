@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-import { getBackendUrl } from '../_lib/backendUrl';
+import { fetchWithAuth } from '../_lib/fetchUtils';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,7 +8,7 @@ export async function GET(request: NextRequest) {
   const jurisdiction_id = searchParams.get('jurisdiction_id');
   const qs = jurisdiction_id ? `?jurisdiction_id=${encodeURIComponent(jurisdiction_id)}` : '';
 
-  const response = await fetch(`${getBackendUrl(request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? undefined)}/api/sources${qs}`);
+  const response = await fetchWithAuth(request, `/api/sources${qs}`);
   const body = await response.text();
   return new NextResponse(body, {
     status: response.status,
@@ -19,7 +18,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   const payload = await request.text();
-  const response = await fetch(`${getBackendUrl(request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? undefined)}/api/sources/`, {
+  const response = await fetchWithAuth(request, '/api/sources/', {
     method: 'POST',
     headers: { 'content-type': request.headers.get('content-type') ?? 'application/json' },
     body: payload,

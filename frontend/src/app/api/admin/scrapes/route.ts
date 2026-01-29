@@ -1,24 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { fetchWithAuth } from '../../_lib/fetchUtils';
 
 export const dynamic = 'force-dynamic';
 
-import { getBackendUrl } from '../../_lib/backendUrl';
-
 export async function GET(request: NextRequest) {
     try {
-        const BACKEND_URL = getBackendUrl(
-            request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? undefined
-        );
         const { searchParams } = new URL(request.url);
         const jurisdiction = searchParams.get('jurisdiction');
         const limit = searchParams.get('limit') || '50';
 
-        let url = `${BACKEND_URL}/api/admin/scrapes?limit=${limit}`;
+        let path = `/api/admin/scrapes?limit=${limit}`;
         if (jurisdiction) {
-            url += `&jurisdiction=${jurisdiction}`;
+            path += `&jurisdiction=${jurisdiction}`;
         }
 
-        const response = await fetch(url);
+        const response = await fetchWithAuth(request, path);
 
         if (!response.ok) {
             const error = await response.text();
