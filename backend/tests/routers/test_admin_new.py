@@ -64,6 +64,21 @@ def client(mock_db):
 
     with patch("main.db", mock_db):
         with TestClient(app) as c:
+            # Create signed token for auth bypass
+            from llm_common.agents.token_utils import sign_token
+            import os
+            import time
+            
+            secret = os.environ.get("TEST_AUTH_BYPASS_SECRET", "test-secret-123")
+            payload = {
+                "sub": "admin",
+                "role": "admin",
+                "email": "admin@example.com",
+                "exp": int(time.time()) + 3600
+            }
+            token = sign_token(payload, secret)
+            c.cookies.set("x-test-user", token)
+            
             yield c
 
     # Teardown
@@ -72,7 +87,6 @@ def client(mock_db):
 
 def test_list_jurisdictions(client, mock_db):
     mock_db._fetch.return_value = JURISDICTIONS_DATA
-    client.cookies.set("x-test-user", "admin")
     response = client.get("/api/admin/jurisdictions")
     assert response.status_code == 200
     assert len(response.json()) == 2
@@ -84,7 +98,6 @@ def test_get_jurisdiction(client, mock_db):
         {"count": 10}, # Bill count
         {"count": 5} # Source count
     ]
-    client.cookies.set("x-test-user", "admin")
     response = client.get(f"/api/admin/jurisdictions/{JURISDICTIONS_DATA[0]['id']}")
     assert response.status_code == 200
     data = response.json()
@@ -99,7 +112,6 @@ def test_get_jurisdiction_dashboard(client, mock_db):
         {"count": 95}, # Processed scrapes
         {"last_scrape": "2023-10-27T10:00:00Z"} # Last scrape
     ]
-    client.cookies.set("x-test-user", "admin")
     response = client.get(f"/api/admin/jurisdiction/{JURISDICTIONS_DATA[0]['id']}/dashboard")
     assert response.status_code == 200
     data = response.json()
@@ -110,7 +122,6 @@ def test_get_jurisdiction_dashboard(client, mock_db):
 
 def test_list_prompts(client, mock_db):
     mock_db._fetch.return_value = PROMPTS_DATA
-    client.cookies.set("x-test-user", "admin")
     response = client.get("/api/admin/prompts")
     assert response.status_code == 200
     assert len(response.json()) == 1
@@ -118,14 +129,12 @@ def test_list_prompts(client, mock_db):
 
 def test_get_prompt(client, mock_db):
     mock_db._fetchrow.return_value = PROMPTS_DATA[0]
-    client.cookies.set("x-test-user", "admin")
     response = client.get("/api/admin/prompts/test_prompt")
     assert response.status_code == 200
     assert response.json()["system_prompt"] == "You are a test prompt."
 
 def test_update_prompt(client, mock_db):
     mock_db.update_system_prompt.return_value = 2 # New version
-    client.cookies.set("x-test-user", "admin")
     response = client.post(
         "/api/admin/prompts",
         json={"type": "test_prompt", "system_prompt": "This is the new prompt."}
@@ -145,7 +154,6 @@ def test_list_scrapes(client, mock_db):
             "metadata": {"status": "success"}
         }
     ]
-    client.cookies.set("x-test-user", "admin")
     response = client.get("/api/admin/scrapes")
     assert response.status_code == 200
     data = response.json()
@@ -159,7 +167,6 @@ def test_get_dashboard_stats(client, mock_db):
         {"count": 25}, # Sources
         {"count": 1000} # Chunks
     ]
-    client.cookies.set("x-test-user", "admin")
     response = client.get("/api/admin/stats")
     assert response.status_code == 200
     assert response.json() == {
@@ -170,13 +177,11 @@ def test_get_dashboard_stats(client, mock_db):
     }
 
 def test_list_sessions(client):
-    client.cookies.set("x-test-user", "admin")
     response = client.get("/api/admin/traces")
     assert response.status_code == 200
     assert response.json() == ["query-1", "query-2"]
 
 def test_get_traces(client):
-    client.cookies.set("x-test-user", "admin")
     response = client.get("/api/admin/traces/query-1")
     assert response.status_code == 200
     data = response.json()
