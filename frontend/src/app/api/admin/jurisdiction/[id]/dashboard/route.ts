@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-import { getBackendUrl } from '../../../../_lib/backendUrl';
+import { fetchWithAuth } from '../../../../_lib/fetchUtils';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
-  const response = await fetch(
-    `${getBackendUrl(request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? undefined)}/api/admin/jurisdiction/${params.id}/dashboard`
-  );
+  const response = await fetchWithAuth(request, `/api/admin/jurisdiction/${params.id}/dashboard`);
   const body = await response.text();
   return new NextResponse(body, {
     status: response.status,

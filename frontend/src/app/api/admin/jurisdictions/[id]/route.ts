@@ -1,14 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-import { getBackendUrl } from '../../../_lib/backendUrl';
+import { fetchWithAuth } from '../../../_lib/fetchUtils';
 
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
     try {
         const body = await request.json();
-        const backendUrl = getBackendUrl(
-            request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? undefined
-        );
-        const response = await fetch(`${backendUrl}/api/admin/jurisdictions/${params.id}`, {
+        const response = await fetchWithAuth(request, `/api/admin/jurisdictions/${params.id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body),
