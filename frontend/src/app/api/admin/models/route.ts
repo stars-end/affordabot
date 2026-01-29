@@ -1,13 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-import { getBackendUrl } from '../../_lib/backendUrl';
+import { fetchWithAuth } from '../../_lib/fetchUtils';
 
 export async function GET(request: NextRequest) {
     try {
-        const backendUrl = getBackendUrl(
-            request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? undefined
-        );
-        const response = await fetch(`${backendUrl}/api/admin/models`);
+        const response = await fetchWithAuth(request, '/api/admin/models');
 
         if (!response.ok) {
             const error = await response.text();
@@ -24,8 +20,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.json(
             {
                 error: 'Internal server error',
-                details: error instanceof Error ? error.message : String(error),
-                backend_url: getBackendUrl()
+                details: error instanceof Error ? error.message : String(error)
             },
             { status: 500 }
         );
@@ -34,12 +29,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
     try {
-        const BACKEND_URL = getBackendUrl(
-            request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? undefined
-        );
         const body = await request.json();
 
-        const response = await fetch(`${BACKEND_URL}/api/admin/models`, {
+        const response = await fetchWithAuth(request, '/api/admin/models', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

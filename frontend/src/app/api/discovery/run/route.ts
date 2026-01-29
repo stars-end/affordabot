@@ -1,19 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-import { getBackendUrl } from '../../_lib/backendUrl';
+import { fetchWithAuth } from '../../_lib/fetchUtils';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   const payload = await request.text();
-  const response = await fetch(
-    `${getBackendUrl(request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? undefined)}/api/discovery/run`,
-    {
-      method: 'POST',
-      headers: { 'content-type': request.headers.get('content-type') ?? 'application/json' },
-      body: payload,
-    }
-  );
+  const response = await fetchWithAuth(request, '/api/discovery/run', {
+    method: 'POST',
+    headers: { 'content-type': request.headers.get('content-type') ?? 'application/json' },
+    body: payload,
+  });
   const body = await response.text();
   return new NextResponse(body, {
     status: response.status,
