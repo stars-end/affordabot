@@ -1,0 +1,19 @@
+story_id: poc-03-type
+sid: "poc-03"
+persona: "QA Engineer"
+description: "Verify typing into a search input"
+metadata:
+  start_url: "/dashboard"
+  deterministic: true
+steps:
+  - id: type-search
+    description: "Type AAPL into the ticker search"
+    action: type
+    selector: "input[placeholder*='Search Ticker']"
+    text: "AAPL"
+    deterministic: true
+  - id: verify-results
+    description: "Verify AAPL results appear"
+    action: assert_text
+    text: "Apple Inc"
+    deterministic: true

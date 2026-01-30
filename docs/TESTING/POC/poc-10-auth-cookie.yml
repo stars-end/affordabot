@@ -1,0 +1,13 @@
+story_id: poc-10-auth-cookie
+sid: "poc-10"
+persona: "QA Engineer"
+description: "Verify auth bypass using x-test-user cookie"
+metadata:
+  start_url: "/dashboard"
+  deterministic: true
+steps:
+  - id: check-cookie-auth
+    description: "Verify we are logged in via cookie"
+    action: assert_text
+    text: "Portfolio Performance"
+    deterministic: true

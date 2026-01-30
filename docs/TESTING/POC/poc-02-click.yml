@@ -1,0 +1,18 @@
+story_id: poc-02-click
+sid: "poc-02"
+persona: "QA Engineer"
+description: "Verify clicking a navigation element"
+metadata:
+  start_url: "/dashboard"
+  deterministic: true
+steps:
+  - id: click-settings
+    description: "Click the settings link in sidebar"
+    action: click
+    selector: "a[href='/settings']"
+    deterministic: true
+  - id: verify-settings
+    description: "Verify we are on settings page"
+    action: assert_text
+    text: "Account Settings"
+    deterministic: true

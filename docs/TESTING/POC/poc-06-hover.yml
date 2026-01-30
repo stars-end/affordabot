@@ -1,0 +1,18 @@
+story_id: poc-06-hover
+sid: "poc-06"
+persona: "QA Engineer"
+description: "Verify hover state triggers a menu"
+metadata:
+  start_url: "/dashboard"
+  deterministic: true
+steps:
+  - id: hover-profile
+    description: "Hover over the profile icon"
+    action: hover
+    selector: "[data-testid='profile-trigger']"
+    deterministic: true
+  - id: verify-menu
+    description: "Verify dropdown menu appears"
+    action: assert_text
+    text: "Sign Out"
+    deterministic: true

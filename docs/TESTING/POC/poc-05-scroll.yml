@@ -1,0 +1,18 @@
+story_id: poc-05-scroll
+sid: "poc-05"
+persona: "QA Engineer"
+description: "Verify scrolling to an element"
+metadata:
+  start_url: "/dashboard"
+  deterministic: true
+steps:
+  - id: scroll-to-footer
+    description: "Scroll to the bottom of the page"
+    action: scroll
+    selector: "footer"
+    deterministic: true
+  - id: verify-footer-visible
+    description: "Verify footer text is visible"
+    action: assert_text
+    text: "© 2026 Prime Radiant"
+    deterministic: true

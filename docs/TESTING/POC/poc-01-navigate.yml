@@ -1,0 +1,14 @@
+story_id: poc-01-navigate
+sid: "poc-01"
+persona: "QA Engineer"
+description: "Verify basic navigation to a protected route using auth bypass"
+metadata:
+  start_url: "/dashboard"
+  deterministic: true
+steps:
+  - id: check-dashboard
+    description: "Verify we are on the dashboard"
+    action: assert_text
+    target: body
+    text: "Portfolio Performance"
+    deterministic: true
