@@ -241,6 +241,31 @@ verify-env: check-verify-env
 # Run ALL verifications against Railway dev environment
 # Sequence: Discovery → Environment → Auth → Storage → RAG Pipeline → E2E Glass Box → Admin UI → Stories
 # NOTE: verify-discovery MUST be first - validates LLM query generation before any pipeline runs!
+# Standardized verification targets (EPIC 4)
+verify-gate: ## Run P0 Quality Gate (Deterministic only)
+	@echo "🔬 Running P0 Quality Gate (Deterministic)..."
+	@mkdir -p artifacts/verification
+	@cd backend && poetry run python -m llm_common.agents.uismoke_runner run \
+		--stories ../docs/TESTING/STORIES \
+		--exclude-stories "*clerk*" \
+		--deterministic-only \
+		--mode gate \
+		--output ../artifacts/verification/gate
+
+verify-nightly: ## Run Full Regression Suite
+	@echo "🌙 Running Full Regression Suite (Nightly)..."
+	@mkdir -p artifacts/verification
+	@cd backend && poetry run python -m llm_common.agents.uismoke_runner run \
+		--stories ../docs/TESTING/STORIES \
+		--repro 3 \
+		--mode qa \
+		--output ../artifacts/verification/nightly
+
+verify-contract: ## Verify Makefile compliance with contract
+	@echo "🔍 Checking Makefile contract..."
+	@bash /Users/fengning/llm-common/scripts/contract-check.sh
+
+# DEPRECATED: Use verify-gate or verify-nightly
 verify-dev: verify-discovery verify-env verify-auth verify-storage verify-pipeline verify-e2e verify-admin-pipeline verify-stories ## Full verification against Railway dev
 	@echo "============================================================"
 	@echo "✅ FULL PIPELINE VERIFICATION COMPLETE!"
