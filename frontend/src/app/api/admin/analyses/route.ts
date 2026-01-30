@@ -1,24 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-import { getBackendUrl } from '../../_lib/backendUrl';
+import { fetchWithAuth } from '../../_lib/fetchUtils';
 
 export async function GET(request: NextRequest) {
     try {
-        const BACKEND_URL = getBackendUrl(
-            request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? undefined
-        );
         const { searchParams } = new URL(request.url);
         const jurisdiction = searchParams.get('jurisdiction');
         const billId = searchParams.get('bill_id');
         const step = searchParams.get('step');
         const limit = searchParams.get('limit') || '50';
 
-        let url = `${BACKEND_URL}/api/admin/analyses?limit=${limit}`;
-        if (jurisdiction) url += `&jurisdiction=${jurisdiction}`;
-        if (billId) url += `&bill_id=${billId}`;
-        if (step) url += `&step=${step}`;
+        let path = `/api/admin/analyses?limit=${limit}`;
+        if (jurisdiction) path += `&jurisdiction=${jurisdiction}`;
+        if (billId) path += `&bill_id=${billId}`;
+        if (step) path += `&step=${step}`;
 
-        const response = await fetch(url);
+        const response = await fetchWithAuth(request, path);
 
         if (!response.ok) {
             const error = await response.text();

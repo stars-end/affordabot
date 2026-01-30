@@ -6,7 +6,6 @@ from starlette.responses import Response
 from typing import Callable
 
 from llm_common.agents import verify_token
-from auth.clerk import UserProfile
 
 class TestAuthBypassMiddleware(BaseHTTPMiddleware):
     """Standardized Auth Bypass for Affordabot."""
@@ -34,12 +33,16 @@ class TestAuthBypassMiddleware(BaseHTTPMiddleware):
                 
                 # Attach bypass user to request state
                 logger.info(f"🎭 Auth Bypass: Authenticated as {payload.get('sub')}")
+                # To avoid circular import, we do a local import.
+                from auth.clerk import UserProfile
+                
                 # For Affordabot, we create a dummy UserProfile for compatibility
                 request.state.user = UserProfile(
-                    email=payload.get("sub", "qa@example.com"),
-                    external_id=f"test_{payload.get('sub', 'qa')}",
+                    id=payload.get("sub", "test_user"),
+                    email=payload.get("email", payload.get("sub", "test@example.com")),
                     first_name="Test",
-                    last_name="User"
+                    last_name="User",
+                    public_metadata={"role": payload.get("role", "user")}
                 )
             except ValueError as ve:
                 logger.warning(f"AuthBypass: Token verification failed: {ve}")

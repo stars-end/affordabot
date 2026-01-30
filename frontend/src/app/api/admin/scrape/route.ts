@@ -1,15 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-import { getBackendUrl } from '../../_lib/backendUrl';
+import { fetchWithAuth } from '../../_lib/fetchUtils';
 
 export async function POST(request: NextRequest) {
     try {
-        const BACKEND_URL = getBackendUrl(
-            request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? undefined
-        );
         const body = await request.json();
 
-        const response = await fetch(`${BACKEND_URL}/api/admin/scrape`, {
+        const response = await fetchWithAuth(request, '/api/admin/scrape', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -32,8 +28,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
             {
                 error: 'Internal server error',
-                details: error instanceof Error ? error.message : String(error),
-                backend_url: getBackendUrl()
+                details: error instanceof Error ? error.message : String(error)
             },
             { status: 500 }
         );

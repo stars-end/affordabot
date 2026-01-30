@@ -1,15 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-import { getBackendUrl } from '../../_lib/backendUrl';
+import { fetchWithAuth } from '../../_lib/fetchUtils';
 
 export async function POST(request: NextRequest) {
     try {
-        const BACKEND_URL = getBackendUrl(
-            request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? undefined
-        );
         const body = await request.json();
 
-        const response = await fetch(`${BACKEND_URL}/api/admin/analyze`, {
+        const response = await fetchWithAuth(request, '/api/admin/analyze', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

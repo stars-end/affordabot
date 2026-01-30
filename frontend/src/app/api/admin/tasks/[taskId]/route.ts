@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-import { getBackendUrl } from '../../../_lib/backendUrl';
+import { fetchWithAuth } from '../../../_lib/fetchUtils';
 
 export async function GET(
     request: NextRequest,
@@ -9,10 +8,7 @@ export async function GET(
     const taskId = params.taskId;
 
     try {
-        const backendUrl = getBackendUrl(
-            request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? undefined
-        );
-        const response = await fetch(`${backendUrl}/api/admin/tasks/${taskId}`);
+        const response = await fetchWithAuth(request, `/api/admin/tasks/${taskId}`);
 
         if (!response.ok) {
             // Pass through the error from backend if possible, or generic
