@@ -1,5 +1,10 @@
 ---
 name: context-admin-ui
+activation:
+  - "admin ui"
+  - "dashboard"
+  - "admin panel"
+  - "task management"
 description: Admin dashboard, task management, and review interfaces.
 tags: [frontend, ui, admin]
 ---

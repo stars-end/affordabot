@@ -1,5 +1,10 @@
 ---
 name: context-database-schema
+activation:
+  - "database schema"
+  - "migrations"
+  - "supabase"
+  - "rls policies"
 description: |
   Supabase PostgreSQL schema management, 86+ migrations, RLS policies, and type generation.
   Handles table creation, schema changes, migrations, foreign key constraints, and migration workflows.

@@ -1,5 +1,10 @@
 ---
 name: context-llm-pipeline
+activation:
+  - "llm"
+  - "rag pipeline"
+  - "embeddings"
+  - "ai orchestration"
 description: RAG pipeline, embeddings, LLM interactions, and flow orchestration.
 tags: [backend, ai, rag]
 ---

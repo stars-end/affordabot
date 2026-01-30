@@ -1,5 +1,10 @@
 ---
 name: context-analytics
+activation:
+  - "analytics"
+  - "metrics"
+  - "performance"
+  - "dashboard data"
 description: |
   Portfolio analytics, metrics calculation, performance tracking, and dashboard data. Use when working with analytics code, files, or integration. Invoke when navigating analytics codebase, searching for analytics files, debugging analytics errors, or discussing analytics patterns. Keywords: analytics, analytics
 tags: []

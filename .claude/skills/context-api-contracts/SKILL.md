@@ -1,5 +1,10 @@
 ---
 name: context-api-contracts
+activation:
+  - "api contracts"
+  - "api endpoints"
+  - "routes"
+  - "type definitions"
 description: |
   Frontend-backend API contracts, routes, clients, and type definitions.
   Handles API endpoint definitions, request/response types, route configuration, and cross-stack integration.

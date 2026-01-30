@@ -1,5 +1,11 @@
 ---
 name: context-dx-meta
+activation:
+  - "dx workflow"
+  - "skill creation"
+  - "slash commands"
+  - "beads"
+  - "serena"
 description: |
   DX V3 workflow system, skills, slash commands, Beads issue tracking, and Serena code navigation.
   Handles skill creation, command configuration, workflow automation, and Beads/Serena integration.

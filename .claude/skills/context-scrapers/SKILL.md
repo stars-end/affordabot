@@ -1,5 +1,10 @@
 ---
 name: context-scrapers
+activation:
+  - "scraper"
+  - "scraping"
+  - "web crawler"
+  - "data extraction"
 description: Web scraping spiders (Scrapy), parsers, and source management.
 tags: [backend, data, scrapers]
 ---
