@@ -249,10 +249,10 @@ verify-gate: ## Run P0 Quality Gate (Deterministic only)
 	@# 2. Exclude "clerk-auth" specifically as it requires real creds/emails (flaky in CI)
 	@# 3. Fail on 'timeout', 'crash', 'assertion' (strict mode)
 	@# 4. Use localhost:8000 by default (backend-lint-and-test runs locally)
-	@poetry run python -m llm_common.agents.uismoke_runner run \
-		--stories $(STORY_DIR) \
+	@cd backend && poetry run python -m llm_common.agents.uismoke_runner run \
+		--stories ../$(STORY_DIR) \
 		--base-url $(BASE_URL) \
-		--output $(ARTIFACTS_DIR)/gate \
+		--output ../$(ARTIFACTS_DIR)/gate \
 		--exclude-stories "*clerk*" \
 		--deterministic-only \
 		--fail-on-classifications timeout crash assertion
