@@ -244,13 +244,18 @@ verify-env: check-verify-env
 # Standardized verification targets (EPIC 4)
 verify-gate: ## Run P0 Quality Gate (Deterministic only)
 	@echo "🔬 Running P0 Quality Gate (Deterministic)..."
-	@mkdir -p artifacts/verification
-	@cd backend && poetry run python -m llm_common.agents.uismoke_runner run \
-		--stories ../docs/TESTING/STORIES \
+	@# Gate policies:
+	@# 1. Deterministic only (no LLM, fast)
+	@# 2. Exclude "clerk-auth" specifically as it requires real creds/emails (flaky in CI)
+	@# 3. Fail on 'timeout', 'crash', 'assertion' (strict mode)
+	@# 4. Use localhost:8000 by default (backend-lint-and-test runs locally)
+	@poetry run python -m llm_common.agents.uismoke_runner run \
+		--stories $(STORY_DIR) \
+		--base-url $(BASE_URL) \
+		--output $(ARTIFACTS_DIR)/gate \
 		--exclude-stories "*clerk*" \
 		--deterministic-only \
-		--mode gate \
-		--output ../artifacts/verification/gate
+		--fail-on-classifications timeout crash assertion
 
 verify-nightly: ## Run Full Regression Suite
 	@echo "🌙 Running Full Regression Suite (Nightly)..."
