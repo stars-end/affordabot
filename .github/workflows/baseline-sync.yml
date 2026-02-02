@@ -1,0 +1,104 @@
+name: Sync Agent Skills Baseline
+
+on:
+  schedule:
+    - cron: '0 6-18/2 * * *'  # Every 2 hours, 6am-6pm
+  workflow_dispatch:
+
+concurrency:
+  group: baseline-sync
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest  # Runner policy: hosted
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Create fragments directory
+        run: mkdir -p fragments  # FIX 5
+      
+      - name: Fetch agent-skills baseline
+        run: |
+          curl -fsSL \
+            https://raw.githubusercontent.com/stars-end/agent-skills/master/dist/universal-baseline.md \
+            -o fragments/universal-baseline.md.new
+          
+          # FIX 4: Extract SHA from baseline header
+          SOURCE_SHA=$(grep "^<!-- Source SHA:" fragments/universal-baseline.md.new | sed 's/.*: \(.*\) -->/\1/')
+          
+          if [[ -z "$SOURCE_SHA" ]]; then
+            echo "❌ FATAL: Could not extract SHA from baseline header"
+            echo "This is a publisher bug. Baseline must include SHA."
+            cat fragments/universal-baseline.md.new | head -20
+            exit 1
+          fi
+          
+          echo "SOURCE_SHA=$SOURCE_SHA" >> $GITHUB_ENV
+          echo "✅ Using agent-skills@${SOURCE_SHA:0:8}"
+      
+      - name: Check if changed
+        id: check
+        run: |
+          if [[ ! -f fragments/universal-baseline.md ]]; then
+            echo "First-run: baseline doesn't exist yet"
+            mv fragments/universal-baseline.md.new fragments/universal-baseline.md
+            echo "changed=true" >> $GITHUB_OUTPUT
+          elif ! diff -q fragments/universal-baseline.md.new fragments/universal-baseline.md; then
+            echo "Baseline changed"
+            mv fragments/universal-baseline.md.new fragments/universal-baseline.md
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "No changes to baseline"
+            rm fragments/universal-baseline.md.new
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Set up Python
+        if: steps.check.outputs.changed == 'true'
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install PyYAML
+        if: steps.check.outputs.changed == 'true'
+        run: pip install pyyaml
+      
+      - name: Regenerate AGENTS.md
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          chmod +x scripts/agents-md-compile.zsh
+          make regenerate-agents-md
+      
+      - name: Create/update rolling PR
+        if: steps.check.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: bot/agent-baseline-sync
+          title: 'chore: sync agent-skills baseline'
+          draft: true
+          labels: automation,low-priority
+          body: |
+            **Automated baseline sync**
+            
+            Source: `agent-skills@${{ env.SOURCE_SHA }}`
+            
+            This PR updates:
+            - `fragments/universal-baseline.md`
+            - `AGENTS.md` (regenerated)
+            
+            **Merge instructions**:
+            - Review changes (allowlisted files only)
+            - Mark ready when convenient
+            - Squash merge
+            - **Merge cadence**: Daily or 2× weekly, not blocking
+            
+            Rolling PR - updates push to same branch.
+          commit-message: |
+            chore: sync agent-skills baseline
+            
+            Source: agent-skills@${{ env.SOURCE_SHA }}
+          delete-branch: false

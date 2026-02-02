@@ -1,0 +1,39 @@
+name: Verify AGENTS.md Freshness
+
+on:
+  pull_request:
+    paths:
+      - '.claude/skills/**/SKILL.md'
+      - 'fragments/**'
+      - 'AGENTS.md'
+      - 'scripts/agents-md-compile.zsh'
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest  # Runner policy: hosted
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install PyYAML
+        run: pip install pyyaml
+      
+      - name: Regenerate AGENTS.md
+        run: |
+          chmod +x scripts/agents-md-compile.zsh
+          make regenerate-agents-md
+      
+      - name: Check for staleness
+        run: |
+          if ! git diff --exit-code AGENTS.md; then
+            echo "❌ AGENTS.md is stale"
+            echo ""
+            echo "Run: make regenerate-agents-md"
+            echo "Then commit both SKILL.md and AGENTS.md changes"
+            exit 1
+          fi
+          echo "✅ AGENTS.md is up to date"

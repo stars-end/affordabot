@@ -431,3 +431,8 @@ endif
 		$(MAKE) verify-discovery API_URL=$(PR_BACKEND_URL)
 	@echo "✅ verify-pr-lite complete for PR #$(PR)"
 	@echo "   For full verification: make verify-pr PR=$(PR)"
+
+regenerate-agents-md:
+	@zsh scripts/agents-md-compile.zsh
+
+.PHONY: regenerate-agents-md

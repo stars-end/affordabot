@@ -1,6 +1,3 @@
-<!-- AUTO-GENERATED - DO NOT EDIT DIRECTLY -->
-<!-- Generated at: 2026-02-02T20:57:47Z -->
-
 # Universal Baseline — Agent Skills
 <!-- AUTO-GENERATED -->
 <!-- Source SHA: b6d064d5f5a91e610359e4aa8b4ee4191db57945 -->
@@ -243,25 +240,3 @@ When ending a work session, MUST complete ALL steps:
 **Details**: Each skill's SKILL.md contains full documentation  
 **Specification**: https://agentskills.io/specification  
 **Source**: Generated from agent-skills commit shown in header
-
----
-
-# Repo Addendum: Affordabot
-
-## Tech Stack
-- **Frontend**: Next.js 14+ (App Router), TailwindCSS, Clerk Auth.
-- **Backend**: Python 3.12+, FastAPI, SQLAlchemy, Poetry.
-- **Shared**: `llm-common` git dependency.
-
-## Development Rules
-- Use `make dev` to start both frontend and backend.
-- UI changes MUST be verified with Playwright (`make e2e`).
-- All economic analysis MUST use `z.ai` models.
-- Backend routes MUST be registered in `backend/main.py`.
-
----
-
-## Context Skills Index
-
-| Skill | Purpose |
-|-------|---------|

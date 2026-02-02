@@ -11,7 +11,7 @@ on:
       dry_run:
         description: 'Dry Run (Simulate Only)'
         required: false
-        default: 'false'
+        default: false
         type: boolean
 
 concurrency:
@@ -63,16 +63,6 @@ jobs:
             ln -sf "$HOME/agent-skills/scripts/dx-dispatch.py" "$HOME/.local/bin/dx-dispatch" 2>/dev/null || true
           fi
       
-      - name: Initialize Beads
-        run: |
-          if [ -d ".beads" ]; then
-            echo "Initializing Beads DB..."
-            bd init
-            bd config list
-          else
-            echo "WARNING: .beads directory not found"
-          fi
-          
       - name: Install dependencies
         run: |
           python3 -m venv .venv
