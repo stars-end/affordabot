@@ -1,14 +1,30 @@
 #!/bin/bash
-# Only target scripts/ and bin/ directories
-FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E "^(scripts|bin)/.*\.(sh|py)$")
-if [ -n "$FILES" ]; then
-    for file in $FILES;
-    do
-        if head -n 1 "$file" | grep -q "^#!" 2>/dev/null;
-        then
-            chmod +x "$file"
-            git add "$file"
-        fi
-    done
+# pre-commit hook - Block commits to canonical repos
+
+GIT_DIR=$(git rev-parse --git-dir 2>/dev/null || echo "")
+
+# Allow commits in worktrees
+if [[ "$GIT_DIR" =~ worktrees ]]; then
+    exit 0
 fi
-exit 0
+
+# Block commits in canonical repos
+cat <<EOF
+
+╔═══════════════════════════════════════════════════════════╗
+║  🚨 COMMIT BLOCKED: Canonical Repository                ║
+╚═══════════════════════════════════════════════════════════╝
+
+This is a canonical repository that resets to origin/master
+daily at 3am. Commits here will be lost.
+
+Use worktrees for all development work:
+  dx-worktree create bd-xxxx $(basename $(git rev-parse --show-toplevel))
+  cd /tmp/agents/bd-xxxx/$(basename $(git rev-parse --show-toplevel))
+
+Then commit there instead.
+
+To bypass (testing only): git commit --no-verify
+
+EOF
+exit 1

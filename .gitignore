@@ -63,3 +63,4 @@ artifacts/verification/
 
 # bv (beads viewer) local config and caches
 .bv/
+.CANONICAL_REPO
