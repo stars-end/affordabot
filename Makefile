@@ -1,4 +1,4 @@
-.PHONY: help install dev build test lint clean ci e2e ci-lite
+.PHONY: help install dev build test lint clean ci e2e ci-lite setup-git-hooks
 
 # ============================================================
 # CI/Verification Helpers
@@ -79,6 +79,10 @@ help:
 	@echo "  ci-lite      - Fast local validation (<30s)"
 	@echo "  clean        - Clean build artifacts"
 	@echo "  ci           - Run full CI suite locally"
+	@echo "  setup-git-hooks - Install repo-local git hooks (V5)"
+
+setup-git-hooks:
+	@bash scripts/setup-git-hooks.sh
 
 # Install dependencies
 install:
