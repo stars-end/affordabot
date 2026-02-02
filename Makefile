@@ -427,3 +427,8 @@ endif
 		$(MAKE) verify-discovery API_URL=$(PR_BACKEND_URL)
 	@echo "✅ verify-pr-lite complete for PR #$(PR)"
 	@echo "   For full verification: make verify-pr PR=$(PR)"
+
+setup-git-hooks:
+	@scripts/setup-git-hooks.sh
+
+.PHONY: setup-git-hooks
