@@ -65,12 +65,15 @@ jobs:
       
       - name: Initialize Beads
         run: |
-          if [ -d ".beads" ]; then
-            echo "Initializing Beads DB..."
-            bd init
-            bd config list
+          export BEADS_DIR="${BEADS_DIR:-$HOME/bd/.beads}"
+          echo "Using external BEADS_DIR: $BEADS_DIR"
+          if [ -d "$BEADS_DIR" ]; then
+            echo "Beads DB exists at $BEADS_DIR"
+            if [ -f "$BEADS_DIR/config.yaml" ]; then
+              bd config list
+            fi
           else
-            echo "WARNING: .beads directory not found"
+            echo "WARNING: BEADS_DIR not found: $BEADS_DIR"
           fi
           
       - name: Install dependencies

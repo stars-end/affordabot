@@ -63,3 +63,7 @@ artifacts/verification/
 
 # bv (beads viewer) local config and caches
 .bv/
+
+# External Beads database (repo-local .beads/ no longer used)
+.beads/
+**/.beads/

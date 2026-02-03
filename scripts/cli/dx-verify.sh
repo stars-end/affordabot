@@ -159,18 +159,19 @@ for script in bd-context bd-what bd-link-pr bd-retroactive; do
     fi
 done
 
-# Test 6: Beads initialization
-log_test "Checking Beads initialization..."
-if [ -f .beads/config.yml ]; then
-    log_pass "Beads initialized (.beads/config.yml exists)"
+# Test 6: Beads initialization (External DB)
+log_test "Checking Beads initialization (external DB)..."
+export BEADS_DIR="${BEADS_DIR:-$HOME/bd/.beads}"
+if [ -f "$BEADS_DIR/config.yaml" ]; then
+    log_pass "Beads initialized ($BEADS_DIR/config.yaml exists)"
 else
-    log_warn "Beads not initialized (run: bd init <prefix>)"
+    log_warn "Beads not initialized (run: bd init <prefix> in $BEADS_DIR)"
 fi
 
-if [ -f .beads/issues.jsonl ]; then
+if [ -f "$BEADS_DIR/issues.jsonl" ]; then
     # Check if JSONL is valid
     if command -v jq >/dev/null 2>&1; then
-        if cat .beads/issues.jsonl | while read -r line; do [ -z "$line" ] || echo "$line" | jq . >/dev/null; done 2>/dev/null; then
+        if cat "$BEADS_DIR/issues.jsonl" | while read -r line; do [ -z "$line" ] || echo "$line" | jq . >/dev/null; done 2>/dev/null; then
             log_pass "Beads issues.jsonl is valid JSON Lines"
         else
             log_fail "Beads issues.jsonl has invalid format"

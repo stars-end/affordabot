@@ -1,10 +1,9 @@
 name: Auto-Merge Beads JSONL
 
+# DISABLED: Beads JSONL is now stored in external DB (BEADS_DIR)
+# This workflow is kept for historical reference only
 on:
-  pull_request:
-    types: [opened, synchronize]
-    paths:
-      - '.beads/issues.jsonl'
+  workflow_dispatch:  # Manual-only (disabled for auto-run on PR events)
 
 jobs:
   auto-merge-jsonl:

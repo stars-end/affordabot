@@ -51,7 +51,9 @@ def _is_git_dirty(root: Path) -> tuple[bool, int]:
 
 def _http_ok(url: str, timeout_s: float = 0.75) -> bool:
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "dx-doctor/agent_bootstrap"})
+        req = urllib.request.Request(
+            url, headers={"User-Agent": "dx-doctor/agent_bootstrap"}
+        )
         with urllib.request.urlopen(req, timeout=timeout_s) as resp:  # noqa: S310 - controlled URL
             return 200 <= int(resp.status) < 300
     except Exception:
@@ -72,12 +74,16 @@ def _try_agent_mail_health() -> tuple[bool, str]:
     for url in candidates:
         if _http_ok(url):
             return True, url
-    return False, candidates[0] if candidates else "http://127.0.0.1:8765/health/liveness"
+    return False, candidates[
+        0
+    ] if candidates else "http://127.0.0.1:8765/health/liveness"
 
 
 def _find_agent_skills_dir() -> Path | None:
     candidates: list[Path] = []
-    env_path = os.environ.get("AGENT_SKILLS_DIR") or os.environ.get("DX_AGENT_SKILLS_DIR")
+    env_path = os.environ.get("AGENT_SKILLS_DIR") or os.environ.get(
+        "DX_AGENT_SKILLS_DIR"
+    )
     if env_path:
         candidates.append(Path(env_path).expanduser())
     candidates.extend(
@@ -97,12 +103,19 @@ def _agent_skills_update() -> tuple[bool, str]:
     if not skills_dir:
         return False, "not found (set AGENT_SKILLS_DIR)"
 
-    inside = _run(["git", "rev-parse", "--is-inside-work-tree"], cwd=skills_dir, timeout_s=5.0)
+    inside = _run(
+        ["git", "rev-parse", "--is-inside-work-tree"], cwd=skills_dir, timeout_s=5.0
+    )
     if inside.returncode != 0 or inside.stdout != "true":
         return False, f"not a git repo ({skills_dir})"
 
     dirty, dirty_count = _is_git_dirty(skills_dir)
-    branch = _run(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=skills_dir, timeout_s=5.0).stdout or "unknown"
+    branch = (
+        _run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=skills_dir, timeout_s=5.0
+        ).stdout
+        or "unknown"
+    )
 
     origin_head = _run(
         ["git", "symbolic-ref", "--quiet", "refs/remotes/origin/HEAD"],
@@ -112,27 +125,43 @@ def _agent_skills_update() -> tuple[bool, str]:
     default_branch = origin_head.split("/")[-1] if origin_head else "master"
     upstream = f"origin/{default_branch}"
 
-    _run(["git", "fetch", "--quiet", "--prune", "origin"], cwd=skills_dir, timeout_s=15.0)
+    _run(
+        ["git", "fetch", "--quiet", "--prune", "origin"], cwd=skills_dir, timeout_s=15.0
+    )
 
-    behind = _run(["git", "rev-list", "--count", f"HEAD..{upstream}"], cwd=skills_dir, timeout_s=5.0)
-    behind_n = int(behind.stdout) if behind.returncode == 0 and behind.stdout.isdigit() else 0
+    behind = _run(
+        ["git", "rev-list", "--count", f"HEAD..{upstream}"],
+        cwd=skills_dir,
+        timeout_s=5.0,
+    )
+    behind_n = (
+        int(behind.stdout) if behind.returncode == 0 and behind.stdout.isdigit() else 0
+    )
 
     if behind_n <= 0:
         return True, f"up-to-date ({branch})"
 
     if dirty:
-        return False, f"behind {behind_n} commits but dirty ({dirty_count} changes) — pull manually"
+        return (
+            False,
+            f"behind {behind_n} commits but dirty ({dirty_count} changes) — pull manually",
+        )
 
-    pulled = _run(["git", "pull", "--ff-only", "--quiet", "origin", default_branch], cwd=skills_dir, timeout_s=30.0)
+    pulled = _run(
+        ["git", "pull", "--ff-only", "--quiet", "origin", default_branch],
+        cwd=skills_dir,
+        timeout_s=30.0,
+    )
     if pulled.returncode == 0:
         return True, f"updated (pulled {behind_n} commits → {branch})"
     return False, f"behind {behind_n} commits (pull failed; branch={branch})"
 
 
 def _beads_import(root: Path) -> tuple[bool, str]:
-    jsonl_path = root / ".beads" / "issues.jsonl"
+    beads_dir = Path(os.environ.get("BEADS_DIR", os.path.expanduser("~/bd/.beads")))
+    jsonl_path = beads_dir / "issues.jsonl"
     if not jsonl_path.exists():
-        return False, "no .beads/issues.jsonl"
+        return False, f"no BEADS_DIR/issues.jsonl (BEADS_DIR={beads_dir})"
 
     bd = _run(["bd", "--help"], cwd=root, timeout_s=5.0)
     if bd.returncode != 0:
@@ -156,7 +185,10 @@ def _beads_import(root: Path) -> tuple[bool, str]:
 
     combined = "\n".join([res.stdout, res.stderr]).strip()
     for line in combined.splitlines():
-        m = re.search(r"Import complete:\s*(\d+)\s*created,\s*(\d+)\s*updated,\s*(\d+)\s*unchanged", line)
+        m = re.search(
+            r"Import complete:\s*(\d+)\s*created,\s*(\d+)\s*updated,\s*(\d+)\s*unchanged",
+            line,
+        )
         if m:
             created, updated, unchanged = m.group(1), m.group(2), m.group(3)
             return True, f"created={created} updated={updated} unchanged={unchanged}"
@@ -214,4 +246,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
