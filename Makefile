@@ -160,11 +160,6 @@ clean:
 	rm -rf backend/.pytest_cache
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 
-# Regenerate AGENTS.md from fragments
-regenerate-agents-md:
-	@echo "🔄 Regenerating AGENTS.md..."
-	@./scripts/agents-md-compile.zsh
-
 # Run local CI
 ci:
 	@echo "Running local CI..."
@@ -236,6 +231,12 @@ verify-env: check-verify-env
 
 # ============================================================
 # Verification Targets (Harmonized Naming Convention)
+
+# Story and verification configuration (aligned with prime-radiant-ai)
+STORY_DIR := docs/TESTING/STORIES/production
+ARTIFACTS_DIR := artifacts/verification
+BASE_URL := http://localhost:3000
+
 # ============================================================
 # verify-local    - Fast local checks (lint, unit tests) - no network
 # verify-dev      - Full verification against Railway dev environment
@@ -246,6 +247,36 @@ verify-env: check-verify-env
 # Run ALL verifications against Railway dev environment
 # Sequence: Discovery → Environment → Auth → Storage → RAG Pipeline → E2E Glass Box → Admin UI → Stories
 # NOTE: verify-discovery MUST be first - validates LLM query generation before any pipeline runs!
+# Standardized verification targets (EPIC 4)
+verify-gate: ## Run P0 Quality Gate (Deterministic only)
+	@echo "🔬 Running P0 Quality Gate (Deterministic)..."
+	@# Gate policies:
+	@# 1. Deterministic only (no LLM, fast)
+	@# 2. Exclude "clerk-auth" specifically as it requires real creds/emails (flaky in CI)
+	@# 3. Fail on 'timeout', 'crash', 'assertion' (strict mode)
+	@# 4. Use localhost:8000 by default (backend-lint-and-test runs locally)
+	@cd backend && poetry run python -m llm_common.agents.uismoke_runner run \
+		--stories ../$(STORY_DIR) \
+		--base-url $(BASE_URL) \
+		--output ../$(ARTIFACTS_DIR)/gate \
+		--exclude-stories "*clerk*" \
+		--deterministic-only \
+		--fail-on-classifications timeout crash assertion
+
+verify-nightly: ## Run Full Regression Suite
+	@echo "🌙 Running Full Regression Suite (Nightly)..."
+	@mkdir -p artifacts/verification
+	@cd backend && poetry run python -m llm_common.agents.uismoke_runner run \
+		--stories ../docs/TESTING/STORIES \
+		--repro 3 \
+		--mode qa \
+		--output ../artifacts/verification/nightly
+
+verify-contract: ## Verify Makefile compliance with contract
+	@echo "🔍 Checking Makefile contract..."
+	@bash /Users/fengning/llm-common/scripts/contract-check.sh
+
+# DEPRECATED: Use verify-gate or verify-nightly
 verify-dev: verify-discovery verify-env verify-auth verify-storage verify-pipeline verify-e2e verify-admin-pipeline verify-stories ## Full verification against Railway dev
 	@echo "============================================================"
 	@echo "✅ FULL PIPELINE VERIFICATION COMPLETE!"

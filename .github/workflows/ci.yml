@@ -93,12 +93,23 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:password@localhost:5432/affordabot
 
-      - name: Seed Database
-        run: |
-          cd backend
-          poetry run python scripts/db-commands/seed_schema.py
+      - name: Run P0 Quality Gate (UISmoke)
         env:
-          DATABASE_URL: postgresql://postgres:password@localhost:5432/affordabot
+          ZAI_API_KEY: ${{ secrets.ZAI_API_KEY }}
+          TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
+          TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
+          TEST_AUTH_BYPASS_SECRET: ${{ secrets.TEST_AUTH_BYPASS_SECRET }}
+        run: |
+          # The gate excludes Clerk stories and runs in deterministic-only mode
+          make verify-gate
+
+      - name: Upload Gate Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gate-artifacts
+          path: artifacts/verification/gate
+          retention-days: 7
 
       # Note: verify_sanjose_pipeline.py requires Railway DB with SSL
       # Run comprehensive verification via: make verify-all

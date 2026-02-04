@@ -59,23 +59,20 @@ jobs:
           poetry run playwright install chromium
 
           
-      - name: Run Admin Pipeline Verification (GLM-4.6V + Screenshots)
+      - name: Run Unified Verification (Nightly)
         env:
           ZAI_API_KEY: ${{ secrets.ZAI_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
           TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
+          TEST_AUTH_BYPASS_SECRET: ${{ secrets.TEST_AUTH_BYPASS_SECRET }}
           FRONTEND_URL: ${{ github.event.inputs.base_url || 'https://frontend-dev-5093.up.railway.app' }}
         run: |
           export PATH="$HOME/.local/bin:$HOME/.local/share/mise/shims:$PATH"
           eval "$(mise activate bash)"
-          mkdir -p artifacts/verification
-          cd backend
-          # Run the real admin pipeline verification with screenshots + GLM-4.6V
-          poetry run python scripts/verification/admin_pipeline_agent.py \
-            --url "$FRONTEND_URL" \
-            --output ../artifacts/verification/admin_pipeline
+          # Standardization: use the canonical Makefile target
+          make verify-nightly
           
 
       - name: Upload Artifacts
@@ -86,28 +83,22 @@ jobs:
           path: artifacts/verification/
           retention-days: 30
           
-      - name: Create Issue on Failure
-        if: failure()
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            let summary = 'RAG pipeline verification failed - see artifacts for details.';
-            try {
-              const jsonPath = 'artifacts/verification/summary.json';
-              if (fs.existsSync(jsonPath)) {
-                const data = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
-                summary = `Total: ${data.summary.total}, Passed: ${data.summary.passed}, Failed: ${data.summary.failed}`;
-              }
-            } catch (e) {}
-            
-            await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: `🔴 Overnight RAG Verification Failed - ${new Date().toISOString().split('T')[0]}`,
-              body: `## Overnight RAG Pipeline Verification Failure\n\n**Run ID**: ${context.runId}\n**Summary**: ${summary}\n\n[View Workflow Run](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`,
-              labels: ['verification', 'automated', 'rag-pipeline']
-            });
+      - name: Triage & Report to Beads
+        if: always()
+        env:
+          ZAI_API_KEY: ${{ secrets.ZAI_API_KEY }}
+        run: |
+          export PATH="$HOME/.local/bin:$HOME/.local/share/mise/shims:$PATH"
+          eval "$(mise activate bash)"
+          # Find the latest nightly run dir
+          RUN_DIR=$(ls -td artifacts/verification/nightly/*/ | head -n 1)
+          if [ -z "$RUN_DIR" ]; then
+            echo "⚠️ No run directory found for triage."
+            exit 0
+          fi
+          echo "🔍 Triaging run: $RUN_DIR"
+          cd backend
+          poetry run python -m llm_common.agents.uismoke_runner triage --run-dir "../$RUN_DIR"
 
       # Emit VERIFY_COMPLETE event to Agent Event Bus
       - name: Emit Verification Event
