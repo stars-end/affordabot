@@ -10,32 +10,22 @@ goals:
   - "Verify URL list rendering if sources found"
 start_url: "/admin/discovery"
 steps:
-  - id: step-1-page-load
-    description: |
-      Navigate to /admin/discovery and verify the discovery interface loads.
-      Should see search controls and a way to enter a jurisdiction.
-    glm_prompt: "Is this a discovery/search interface? Describe the search inputs and controls visible."
-    validation_criteria:
-      - "Auto-Discovery"
-    exploration_budget: 0
+  - action: navigate
+    path: "/admin/discovery"
+    description: "Navigate to Discovery"
 
-  - id: step-2-jurisdiction-input
-    description: |
-      Check that there is an input for jurisdiction name (e.g. "San Jose").
-      Verify the control is visible and usable.
-    glm_prompt: "Is there a jurisdiction input? What placeholder text is shown?"
-    validation_criteria:
-      - "Enter jurisdiction name"
-    exploration_budget: 1
+  - action: wait_for_selector
+    selector: "[data-testid='jurisdiction-input']"
+    description: "Verify discovery interface loads"
 
-  - id: step-3-empty-state
-    description: |
-      Without running discovery, confirm the empty state is rendered (no results yet).
-      This verifies the page doesn't crash and results area renders cleanly.
-    glm_prompt: "Is there an empty state message indicating no results yet?"
-    validation_criteria:
-      - "No discovery results yet"
-    exploration_budget: 0
+  - action: type
+    selector: "[data-testid='jurisdiction-input']"
+    text: "San Jose"
+    description: "Enter jurisdiction"
+
+  - action: assert_visible
+    selector: "[data-testid='no-results-message']"
+    description: "Confirm initial empty state"
 
 metadata:
   tags: ["admin", "discovery", "search"]

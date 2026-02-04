@@ -38,7 +38,7 @@ sentry-sdk = {extras = ["fastapi"], version = "*"}
 sendgrid = "*"
 eval_type_backport = "*"
 scrapy = "*"
-llm-common = {git = "https://github.com/stars-end/llm-common.git", rev = "3353780"}
+llm-common = { git = "https://github.com/stars-end/llm-common.git", rev = "d3d9e3ceb1f82a44a440123c68f19db7e6cb3aa1" }
 playwright = "^1.56.0"
 city-scrapers-core = "^0.10.1"
 tenacity = "^8.0.0"
@@ -48,7 +48,6 @@ scrapy-playwright = "^0.0.44"
 psycopg2-binary = "^2.9.11"
 pyjwt = {extras = ["crypto"], version = "^2.10.1"}
 pgvector = "^0.4.2"
-loguru = "^0.7.3"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "*"

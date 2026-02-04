@@ -11,77 +11,76 @@ goals:
 start_url: "/admin"
 steps:
   # Phase 1: Dashboard entry
-  - id: step-1-dashboard
-    description: |
-      Start at admin dashboard.
-      Verify all navigation links are visible and functional.
-    glm_prompt: "Describe the admin dashboard. List all navigation items visible."
-    validation_criteria:
-      - "Admin Dashboard"
-    exploration_budget: 1
+  - action: navigate
+    path: "/admin"
+    description: "Navigate to Admin Dashboard"
+
+  - action: wait_for_selector
+    selector: "[data-testid='admin-dashboard']"
+    description: "Verify dashboard loads"
 
   # Phase 2: Discovery search
-  - id: step-2-discovery
-    description: |
-      Navigate to /admin/discovery.
-      Verify the discovery page loads and the Run Discovery control is present.
-    glm_prompt: "Are you on the discovery page? What controls are visible?"
-    validation_criteria:
-      - "Auto-Discovery"
-    exploration_budget: 2
+  - action: navigate
+    path: "/admin/discovery"
+    description: "Navigate to Discovery"
+
+  - action: wait_for_selector
+    selector: "[data-testid='run-discovery-btn']"
+    description: "Verify discovery controls present"
 
   # Phase 3: View sources
-  - id: step-3-sources
-    description: |
-      Navigate to /admin/sources.
-      Verify sources list loads with status indicators.
-    glm_prompt: "Is this the sources page? How many sources are listed?"
-    validation_criteria:
-      - "Source Management"
-    exploration_budget: 1
+  - action: navigate
+    path: "/admin/sources"
+    description: "Navigate to Sources"
+
+  - action: wait_for_selector
+    selector: "[data-testid='sources-list']"
+    description: "Verify sources list"
 
   # Phase 4: Jurisdiction detail
-  - id: step-4-jurisdiction
-    description: |
-      Navigate to San Jose's dashboard view.
-      Verify the jurisdiction dashboard loads and lists bills.
-    glm_prompt: "Is this the San Jose dashboard page? What key sections are visible?"
-    validation_criteria:
-      - "San Jose"
-      - "Bills by Impact"
-    exploration_budget: 2
+  - action: navigate
+    path: "/admin/jurisdictions/san-jose"
+    description: "Navigate to San Jose Dashboard"
+
+  - action: wait_for_selector
+    selector: "[data-testid='jurisdiction-dashboard']"
+    description: "Verify San Jose dashboard loads"
+
+  - action: assert_text
+    selector: "body"
+    text: "Bills by Impact"
+    description: "Verify bills list present"
 
   # Phase 5: Prompts configuration
-  - id: step-5-prompts
-    description: |
-      Navigate to /admin/prompts.
-      Verify prompt templates are listed.
-    glm_prompt: "Is this the prompts page? What prompt categories are visible?"
-    validation_criteria:
-      - "System Prompts"
-    exploration_budget: 1
+  - action: navigate
+    path: "/admin/prompts"
+    description: "Navigate to Prompts"
+
+  - action: wait_for_selector
+    selector: "[data-testid='system-prompts-list']"
+    description: "Verify prompts listed"
 
   # Phase 6: Review queue
-  - id: step-6-reviews
-    description: |
-      Navigate to /admin/reviews.
-      Check for pending reviews or empty state.
-    glm_prompt: "Is this the review queue? Are there items pending review?"
-    validation_criteria:
-      - "Template Reviews"
-    exploration_budget: 1
+  - action: navigate
+    path: "/admin/reviews"
+    description: "Navigate to Reviews"
+
+  - action: wait_for_selector
+    selector: "[data-testid='template-reviews-queue']"
+    description: "Verify review queue"
 
   # Phase 7: Return to dashboard
-  - id: step-7-return
-    description: |
-      Navigate back to /admin.
-      Verify no state or navigation issues.
-    glm_prompt: "Are you back on the dashboard? Any errors or issues visible?"
-    validation_criteria:
-      - "Admin Dashboard"
-    exploration_budget: 0
+  - action: navigate
+    path: "/admin"
+    description: "Return to Admin"
+
+  - action: wait_for_selector
+    selector: "[data-testid='admin-dashboard']"
+    description: "Verify dashboard re-loads"
 
 metadata:
+  requires_real_clerk: true
+  auth_redirect_check_path: "/admin"
   tags: ["admin", "e2e", "full-flow"]
   priority: 0
   estimated_duration_seconds: 120
