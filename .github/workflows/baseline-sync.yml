@@ -47,23 +47,14 @@ jobs:
           chmod +x scripts/agents-md-compile.zsh
           ./scripts/agents-md-compile.zsh
 
-      - name: Create Pull Request
+
+      - name: Push rolling branch (no PR)
         if: steps.check.outputs.changed == 'true'
-        uses: peter-evans/create-pull-request@v7
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: 'chore: sync baseline from agent-skills'
-          title: 'chore: sync baseline from agent-skills'
-          body: |
-            Automated baseline sync from agent-skills.
-
-            - Updated fragments/universal-baseline.md
-            - Regenerated AGENTS.md
-
-            **Note**: Review changes before merging.
-          branch: bot/agent-baseline-sync
-          delete-branch: true
-          draft: true
-          add-paths: |
-            fragments/universal-baseline.md
-            AGENTS.md
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -B bot/agent-baseline-sync
+          git add fragments/universal-baseline.md AGENTS.md
+          git commit -m "chore: sync baseline from agent-skills" || exit 0
+          git push --force-with-lease origin bot/agent-baseline-sync
+          echo "✅ Updated branch bot/agent-baseline-sync. Create/maintain PR manually once."
