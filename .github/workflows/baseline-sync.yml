@@ -56,5 +56,9 @@ jobs:
           git checkout -B bot/agent-baseline-sync
           git add fragments/universal-baseline.md AGENTS.md
           git commit -m "chore: sync baseline from agent-skills" || exit 0
+          # Ensure remote-tracking ref exists so --force-with-lease can work reliably
+          git fetch --no-tags --prune origin \
+            +refs/heads/bot/agent-baseline-sync:refs/remotes/origin/bot/agent-baseline-sync \
+            || true
           git push --force-with-lease origin bot/agent-baseline-sync
           echo "✅ Updated branch bot/agent-baseline-sync. Create/maintain PR manually once."
