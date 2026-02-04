@@ -5,15 +5,11 @@ name: Update Epic Context
 # Non-blocking: runs async after push completes
 
 on:
-  push:
-    branches:
-      - 'feature-bd-*'      # Epic feature branches (e.g., feature-bd-7vu)
-      - 'claude/**'          # Agent branches (may contain epic work)
-  workflow_dispatch:        # Manual trigger for testing
+  workflow_dispatch:
     inputs:
-      epic_id:
-        description: 'Specific epic ID to regenerate (e.g., bd-7vu)'
-        required: false
+      epic_branch:
+        description: 'Epic branch to regenerate context for'
+        required: true
         type: string
 
 permissions:
@@ -55,10 +51,11 @@ jobs:
       - name: Detect active epics from recent commits
         id: detect_epics
         run: |
-          if [ -n "${{ github.event.inputs.epic_id }}" ]; then
-            # Manual trigger: use specified epic
-            epics="${{ github.event.inputs.epic_id }}"
-            echo "Manual trigger for epic: $epics"
+          if [ -n "${{ github.event.inputs.epic_branch }}" ]; then
+            # Manual trigger: use specified epic from branch name
+            # Extract bd-xxxx from feature-bd-xxxx
+            epics=$(echo "${{ github.event.inputs.epic_branch }}" | grep -oP 'bd-[a-z0-9]+\b')
+            echo "Manual trigger for epic: $epics (from branch ${{ github.event.inputs.epic_branch }})"
           else
             # Auto trigger: detect from recent commits (last 100)
             epics=$(git log -100 --format=%B | \
@@ -89,11 +86,6 @@ jobs:
             echo "================================================"
 
             # Run regeneration script
-            if [ ! -f scripts/epic-context-regenerate.sh ]; then
-              echo "Skipping: scripts/epic-context-regenerate.sh not present (manual-only workflow)"
-              exit 0
-            fi
-
             bash scripts/epic-context-regenerate.sh "$epic_id"
 
             if [ $? -eq 0 ]; then

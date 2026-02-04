@@ -1,5 +1,10 @@
 ---
 name: context-infrastructure
+activation:
+  - "railway deployment"
+  - "ci/cd"
+  - "github actions"
+  - "smoke tests"
 description: |
   Railway deployment, CI/CD workflows, GitHub Actions, and smoke tests.
   Handles Railway configuration, GitHub Actions workflows, deployment automation, and health checks.
