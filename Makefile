@@ -160,11 +160,6 @@ clean:
 	rm -rf backend/.pytest_cache
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 
-# Regenerate AGENTS.md from fragments
-regenerate-agents-md:
-	@echo "🔄 Regenerating AGENTS.md..."
-	@./scripts/agents-md-compile.zsh
-
 # Run local CI
 ci:
 	@echo "Running local CI..."
