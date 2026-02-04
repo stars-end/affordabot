@@ -5,7 +5,13 @@ from typing import List, Optional
 from services.source_service import SourceService, SourceCreate, SourceUpdate
 from db.postgres_client import PostgresDB
 
-router = APIRouter(prefix="/sources", tags=["sources"])
+from auth.clerk import require_admin_user
+
+router = APIRouter(
+    prefix="/admin/sources", 
+    tags=["sources"],
+    dependencies=[Depends(require_admin_user)]
+)
 
 # Simple dependency for DB connection
 def get_db() -> PostgresDB:
@@ -14,7 +20,6 @@ def get_db() -> PostgresDB:
 def get_source_service(db: PostgresDB = Depends(get_db)) -> SourceService:
     return SourceService(db)
 
-@router.get("", response_model=List[dict])
 @router.get("/", response_model=List[dict])
 async def list_sources(
     jurisdiction_id: Optional[str] = None,

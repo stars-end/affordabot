@@ -12,12 +12,6 @@ name: PR Context Update
 #   - Contributes to bd-ek3 (Claude Code GitHub Actions docs)
 
 on:
-  pull_request:
-    types: [closed]
-    branches:
-      - master
-      - main
-
   workflow_dispatch:
     inputs:
       pr_number:

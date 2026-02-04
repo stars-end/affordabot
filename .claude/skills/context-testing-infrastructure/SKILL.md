@@ -1,5 +1,11 @@
 ---
 name: context-testing-infrastructure
+activation:
+  - "testing"
+  - "test setup"
+  - "fixtures"
+  - "mocks"
+  - "playwright"
 description: |
   Tiered testing strategy (UI mock, auth stub, full-stack), fixtures, mocks, and test configuration.
   Handles test setup, Playwright E2E tests, pytest backend tests, mocking strategies, and CI test configuration.
