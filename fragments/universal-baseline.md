@@ -1,9 +1,3 @@
-# AGENTS.md — Affordabot
-
-<!-- AUTO-GENERATED — DO NOT EDIT DIRECTLY -->
-<!-- Regenerate: make regenerate-agents-md -->
-<!-- Source: fragments/universal-baseline.md + fragments/repo-addendum.md -->
-
 # Universal Baseline — Agent Skills
 <!-- AUTO-GENERATED -->
 <!-- Source SHA: 2a1450763b3bb25255bcc6b4cf08f73677842f0b -->
@@ -413,6 +407,3 @@ dx-janitor --dry-run --verbose
 **Details**: Each skill's SKILL.md contains full documentation  
 **Specification**: https://agentskills.io/specification  
 **Source**: Generated from agent-skills commit shown in header
-
----
-

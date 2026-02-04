@@ -1,0 +1,45 @@
+name: Verify AGENTS.md
+
+on:
+  pull_request:
+    paths:
+      - 'fragments/**'
+      - 'AGENTS.md'
+      - 'scripts/agents-md-compile.zsh'
+      - '.github/workflows/verify-agents-md.yml'
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Ensure fragments directory exists
+        run: mkdir -p fragments
+
+      - name: Backup current AGENTS.md
+        run: cp AGENTS.md AGENTS.md.backup || true
+
+      - name: Regenerate AGENTS.md
+        run: |
+          chmod +x scripts/agents-md-compile.zsh
+          ./scripts/agents-md-compile.zsh
+
+      - name: Check for differences
+        run: |
+          if diff -q AGENTS.md AGENTS.md.backup > /dev/null 2>&1; then
+            echo "✅ AGENTS.md is up to date"
+            rm AGENTS.md.backup
+            exit 0
+          else
+            echo "❌ AGENTS.md is stale or was edited directly"
+            echo ""
+            echo "Run the following locally to regenerate:"
+            echo "  make regenerate-agents-md"
+            echo ""
+            echo "Or review the diff:"
+            diff AGENTS.md.backup AGENTS.md || true
+            rm AGENTS.md.backup
+            exit 1
+          fi
