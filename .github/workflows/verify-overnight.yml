@@ -1,128 +1,56 @@
-# Overnight Verification CI Workflow
-# Runs comprehensive RAG pipeline verification at 2 AM Pacific (10:00 UTC) daily
-# Uses GLM-4.6V for visual validation via UISmokeAgent
-
-name: Overnight Verification
+name: Verify Overnight
 
 on:
   schedule:
-    # 2 AM Pacific = 10:00 UTC (PST) or 09:00 UTC (PDT)
-    - cron: '0 10 * * *'
+    - cron: '0 8 * * *' # 12am PST
   workflow_dispatch:
-    inputs:
-      base_url:
-        description: 'Frontend URL to verify (default: production)'
-        required: false
-        default: ''
-
-env:
-  PYTHON_VERSION: '3.13'
 
 jobs:
-  verify-affordabot:
-    runs-on: self-hosted
-    permissions:
-      contents: read
-      issues: write
-    timeout-minutes: 45
+  verify-nightly:
+    runs-on: [self-hosted, epyc6]
+    timeout-minutes: 120
     
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        
-      - name: Setup mise (pre-installed)
+      - uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+
+      - name: Install Dependencies
         run: |
-          export PATH="$HOME/.local/bin:$PATH"
-          eval "$(mise activate bash)"
-          mise install --yes
-          echo "PATH=$HOME/.local/bin:$HOME/.local/share/mise/shims:$PATH" >> $GITHUB_ENV
-          
-      - name: Clean old artifacts
-        run: |
-          # Remove any old artifacts with colons in filename
-          find artifacts/verification -name "*:*" -delete 2>/dev/null || true
-          
-      - name: Install Dependencies  
-        run: |
-          export PATH="$HOME/.local/bin:$HOME/.local/share/mise/shims:$PATH"
-          eval "$(mise activate bash)"
           cd backend
-          # Use mise-provided Python for Poetry
-          poetry env use $(which python)
-          poetry install
-          
+          poetry install --no-interaction --no-root
+
       - name: Install Playwright
         run: |
-          export PATH="$HOME/.local/bin:$HOME/.local/share/mise/shims:$PATH"
-          eval "$(mise activate bash)"
           cd backend
+          poetry run pip install playwright
           poetry run playwright install chromium
 
-          
-      - name: Run Admin Pipeline Verification (GLM-4.6V + Screenshots)
+      - name: Run Nightly Verification
+        run: |
+          ./scripts/verification/uismoke-overnight.sh
         env:
-          ZAI_API_KEY: ${{ secrets.ZAI_API_KEY }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
           TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
           TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
-          FRONTEND_URL: ${{ github.event.inputs.base_url || 'https://frontend-dev-5093.up.railway.app' }}
-        run: |
-          export PATH="$HOME/.local/bin:$HOME/.local/share/mise/shims:$PATH"
-          eval "$(mise activate bash)"
-          mkdir -p artifacts/verification
-          cd backend
-          # Run the real admin pipeline verification with screenshots + GLM-4.6V
-          poetry run python scripts/verification/admin_pipeline_agent.py \
-            --url "$FRONTEND_URL" \
-            --output ../artifacts/verification/admin_pipeline
-          
+          TEST_AUTH_BYPASS_SECRET: ${{ secrets.TEST_AUTH_BYPASS_SECRET }}
+          PLAID_TEST_USER: ${{ secrets.PLAID_TEST_USER }}
+          PLAID_TEST_PASS: ${{ secrets.PLAID_TEST_PASS }}
+          ZAI_API_KEY: ${{ secrets.ZAI_API_KEY }}
+          BASE_URL: https://frontend-dev-5093.up.railway.app
 
       - name: Upload Artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: verification-report-${{ github.run_id }}
+          name: verification-artifacts
           path: artifacts/verification/
-          retention-days: 30
-          
-      - name: Create Issue on Failure
-        if: failure()
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            let summary = 'RAG pipeline verification failed - see artifacts for details.';
-            try {
-              const jsonPath = 'artifacts/verification/summary.json';
-              if (fs.existsSync(jsonPath)) {
-                const data = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
-                summary = `Total: ${data.summary.total}, Passed: ${data.summary.passed}, Failed: ${data.summary.failed}`;
-              }
-            } catch (e) {}
-            
-            await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: `🔴 Overnight RAG Verification Failed - ${new Date().toISOString().split('T')[0]}`,
-              body: `## Overnight RAG Pipeline Verification Failure\n\n**Run ID**: ${context.runId}\n**Summary**: ${summary}\n\n[View Workflow Run](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`,
-              labels: ['verification', 'automated', 'rag-pipeline']
-            });
-
-      # Emit VERIFY_COMPLETE event to Agent Event Bus
-      - name: Emit Verification Event
-        if: always()
-        env:
-          SLACK_MCP_XOXB_TOKEN: ${{ secrets.SLACK_MCP_XOXB_TOKEN }}
-          SLACK_MCP_ADD_MESSAGE_TOOL: "true"
-        run: |
-          # Determine pass/fail
-          if [ "${{ job.status }}" = "success" ]; then
-            PASSED="true"
-          else
-            PASSED="false"
-          fi
-          
-          # Run emit script (best-effort)
-          ./scripts/emit-review-event.sh "affordabot" "0" "$PASSED" "" "Overnight verification ${{ job.status }}" || echo "Warning: Failed to emit event"
-
