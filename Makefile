@@ -233,7 +233,7 @@ verify-env: check-verify-env
 # Verification Targets (Harmonized Naming Convention)
 
 # Story and verification configuration (aligned with prime-radiant-ai)
-STORY_DIR := docs/TESTING/STORIES/production
+STORY_DIR := docs/TESTING/STORIES
 ARTIFACTS_DIR := artifacts/verification
 BASE_URL := http://localhost:3000
 
