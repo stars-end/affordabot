@@ -173,3 +173,62 @@ class GlassBoxService:
                     queries.add(p.name)
                     
         return sorted(list(queries))
+
+    async def list_pipeline_runs(self, limit: int = 50) -> List[Dict[str, Any]]:
+        """List recent pipeline runs."""
+        if not self.db:
+            return []
+            
+        try:
+            query = """
+                SELECT id, bill_id, jurisdiction, status, started_at, completed_at, error 
+                FROM pipeline_runs 
+                ORDER BY started_at DESC 
+                LIMIT $1
+            """
+            rows = await self.db._fetch(query, limit)
+            return [
+                {
+                    "id": str(r["id"]),
+                    "bill_id": r["bill_id"],
+                    "jurisdiction": r["jurisdiction"],
+                    "status": r["status"],
+                    "started_at": str(r["started_at"]) if r["started_at"] else None,
+                    "completed_at": str(r["completed_at"]) if r["completed_at"] else None,
+                    "error": r["error"]
+                }
+                for r in rows
+            ]
+        except Exception as e:
+            logger.error(f"Error listing pipeline runs: {e}")
+            return []
+
+    async def get_pipeline_run(self, run_id: str) -> Optional[Dict[str, Any]]:
+        """Get details of a specific pipeline run."""
+        if not self.db:
+            return None
+            
+        try:
+            query = """
+                SELECT id, bill_id, jurisdiction, status, started_at, completed_at, error, models, result 
+                FROM pipeline_runs 
+                WHERE id::text = $1
+            """
+            r = await self.db._fetchrow(query, run_id)
+            if not r:
+                return None
+                
+            return {
+                "id": str(r["id"]),
+                "bill_id": r["bill_id"],
+                "jurisdiction": r["jurisdiction"],
+                "status": r["status"],
+                "started_at": str(r["started_at"]) if r["started_at"] else None,
+                "completed_at": str(r["completed_at"]) if r["completed_at"] else None,
+                "error": r["error"],
+                "models": json.loads(r["models"]) if isinstance(r["models"], str) else r["models"],
+                "result": json.loads(r["result"]) if isinstance(r["result"], str) else r["result"]
+            }
+        except Exception as e:
+            logger.error(f"Error getting pipeline run {run_id}: {e}")
+            return None
