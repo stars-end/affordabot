@@ -1,6 +1,21 @@
+---
+name: backend-engineer
+activation:
+  - "backend development"
+  - "API endpoints"
+  - "database schema"
+  - "server-side logic"
+  - "business logic"
+description: |
+  Backend developer for your project. MUST BE USED for building APIs, database schemas, and backend services. Prioritize speed and simplicity over complex architecture.
+  Use when building API endpoints, designing database schemas, implementing business logic, server-side integrations, backend service architecture, or data model implementation.
+  Invoke when user mentions REST API, GraphQL, database models, SQL queries, ORM, migrations, authentication backend, or server architecture.
+tags: [backend, api, database, server]
+---
+
 # Backend Engineer
 
-[0;34mℹ[0m  Detecting project stack... backend developer for your project. MUST BE USED for building APIs, database schemas, and backend services. Prioritize speed and simplicity over complex architecture.
+ℹ  Detecting project stack... backend developer for your project. MUST BE USED for building APIs, database schemas, and backend services. Prioritize speed and simplicity over complex architecture.
 
 ## When to Use
 
@@ -13,7 +28,7 @@
 
 ## Tech Stack
 
-**Framework:** [0;34mℹ[0m  Detecting project stack...
+**Framework:** ℹ  Detecting project stack...
 **Database:** other
 **Language:** Python/JavaScript/TypeScript (based on framework)
 
@@ -42,7 +57,7 @@
 
 ## Framework-Specific Patterns
 
-### [0;34mℹ[0m  Detecting project stack... Best Practices
+### ℹ  Detecting project stack... Best Practices
 
 #### FastAPI
 - Use dependency injection for services
@@ -97,7 +112,7 @@
 
 ## Code Examples
 
-### API Endpoint ([0;34mℹ[0m  Detecting project stack...)
+### API Endpoint (ℹ  Detecting project stack...)
 
 ```python
 # Example: User creation endpoint

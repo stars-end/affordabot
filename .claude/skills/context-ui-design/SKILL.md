@@ -1,5 +1,11 @@
 ---
 name: context-ui-design
+activation:
+  - "ui design"
+  - "Material-UI"
+  - "theme"
+  - "design system"
+  - "accessibility"
 description: |
   UI theme system, design tokens, Material-UI patterns, and accessibility standards.
   Handles theme customization, component styling, design system patterns, and accessibility features.
