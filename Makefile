@@ -144,6 +144,8 @@ ci-lite:
 	@$(MAKE) lint
 	@echo "🐍 Backend unit tests (Fail Fast)..."
 	cd backend && poetry run pytest tests/ -q --maxfail=1 || echo "⚠️  Tests failed"
+	@echo "🔍 Checking for bespoke UI runners..."
+	@python3 ./scripts/ci/check_bespoke_runners.py
 	@echo "✅ CI Lite completed"
 
 
@@ -309,29 +311,76 @@ verify-admin-pipeline: check-verify-env
 		--url "$${TARGET_URL}" \
 		--output ../artifacts/verification/admin_pipeline
 
-# Story-driven verification using docs/TESTING/STORIES/*.yml
-# Validates admin console against user stories with GLM-4.6V visual analysis
-verify-stories:
-	@echo "📖 Running Story-Driven Verification (Deep Validity & Persona)..."
-	@echo "   [Logic] Running backend python logic verifiers..."
-	@# Visual stories must target the deployed frontend (Railway dev by default), not localhost.
+verify-stories: ## Run QA verification (mode=qa, repro=1)
+	@echo "🧪 Running QA UISmoke Verification (llm-common)..."
+	@mkdir -p artifacts/verification/uismoke
+	@# Visual stories must target the deployed frontend (Railway dev by default).
 	@TARGET_URL="$(or $(FRONTEND_URL),$(RAILWAY_DEV_FRONTEND_URL))"; \
 	echo "   Using FRONTEND_URL=$${TARGET_URL}"; \
-	if [ -z "$$RAILWAY_PROJECT_NAME" ]; then \
-		echo "🔄 Not in Railway Shell. Wrapping in 'railway run'..."; \
-		(cd backend && railway run poetry run python scripts/verification/story_runner.py --all) && \
-		(cd backend && railway run poetry run python scripts/verification/visual_story_runner.py --all --tags core-flow --url "$${TARGET_URL}"); \
-	else \
-		(cd backend && poetry run python scripts/verification/story_runner.py --all) && \
-		(cd backend && poetry run python scripts/verification/visual_story_runner.py --all --tags core-flow --url "$${TARGET_URL}"); \
-	fi
+	cd backend && $(RUN_CMD) poetry run uismoke run \
+		--stories ../docs/TESTING/STORIES \
+		--base-url "$${TARGET_URL}" \
+		--output ../artifacts/verification/uismoke \
+		--auth-mode cookie_bypass \
+		--cookie-name $${COOKIE_NAME:-x-test-user} --cookie-value $${COOKIE_VALUE:-admin} --cookie-signed \
+		--cookie-secret-env TEST_AUTH_BYPASS_SECRET \
+		--cookie-domain auto \
+		--email-env TEST_USER_EMAIL --password-env TEST_USER_PASSWORD \
+		--suite-timeout 5400 --story-timeout 900 --nav-timeout-ms 120000 --action-timeout-ms 60000 \
+		--mode qa --repro 1 \
+		--tracing
 
-# Overnight/CI story verification (runs all stories + generates report)
-verify-stories-overnight:
-	@echo "🌙 Running Overnight Story Verification..."
-	@mkdir -p artifacts/verification/overnight
-	$(MAKE) verify-admin-pipeline FRONTEND_URL=$(RAILWAY_DEV_FRONTEND_URL)
-	@echo "📊 Stories verified. Report: artifacts/verification/admin_pipeline/report.md"
+# Overnight / High-stability verification (N reruns)
+verify-nightly: ## Run High-stability verification (3 reruns for flakes)
+	@echo "🌙 Running Nightly UISmoke Verification (Repro=3)..."
+	@mkdir -p artifacts/verification/nightly
+	@TARGET_URL="$(or $(FRONTEND_URL),$(RAILWAY_DEV_FRONTEND_URL))"; \
+	cd backend && $(RUN_CMD) poetry run uismoke run \
+		--stories ../docs/TESTING/STORIES \
+		--base-url "$${TARGET_URL}" \
+		--output ../artifacts/verification/nightly \
+		--auth-mode cookie_bypass \
+		--cookie-name $${COOKIE_NAME:-x-test-user} --cookie-value $${COOKIE_VALUE:-admin} --cookie-signed \
+		--cookie-secret-env TEST_AUTH_BYPASS_SECRET \
+		--cookie-domain auto \
+		--email-env TEST_USER_EMAIL --password-env TEST_USER_PASSWORD \
+		--suite-timeout 5400 --story-timeout 900 --nav-timeout-ms 120000 --action-timeout-ms 60000 \
+		--mode qa --repro 3 \
+		--fail-on-classifications skip not_run suite_timeout auth_failed timeout flaky_recovered flaky_inconclusive single_timeout reproducible_timeout single_navigation_failed reproducible_navigation_failed single_clerk_failed reproducible_clerk_failed \
+		--tracing
+
+# Quality Gate (P0 subset, fast, no reruns)
+verify-gate: ## Run fast Quality Gate verification
+	@echo "🚧 Running UISmoke Quality Gate..."
+	@mkdir -p artifacts/verification/gate
+	@TARGET_URL="$(or $(FRONTEND_URL),$(RAILWAY_DEV_FRONTEND_URL))"; \
+	cd backend && $(RUN_CMD) poetry run uismoke run \
+		--stories ../docs/TESTING/STORIES \
+		--base-url "$${TARGET_URL}" \
+		--output ../artifacts/verification/gate \
+		--auth-mode cookie_bypass \
+		--cookie-name $${COOKIE_NAME:-x-test-user} --cookie-value $${COOKIE_VALUE:-admin} --cookie-signed \
+		--cookie-secret-env TEST_AUTH_BYPASS_SECRET \
+		--cookie-domain auto \
+		--email-env TEST_USER_EMAIL --password-env TEST_USER_PASSWORD \
+		--suite-timeout 5400 --story-timeout 900 --nav-timeout-ms 120000 --action-timeout-ms 60000 \
+		--mode gate --repro 1 --deterministic-only \
+		--only-stories admin_dashboard_overview alert_system_verification discovery_search_flow jurisdiction_detail_view \
+		--fail-on-classifications skip not_run suite_timeout auth_failed timeout flaky_recovered flaky_inconclusive single_timeout reproducible_timeout single_navigation_failed reproducible_navigation_failed single_clerk_failed reproducible_clerk_failed
+
+# Fail triage (generate Beads issues)
+verify-triage: ## Analyze last run and generate Beads plan
+	@echo "📋 Triaging failures and generating Beads plan..."
+	@cd backend && poetry run uismoke triage \
+		--run-dir ../artifacts/verification/$${TARGET_DIR:-uismoke}/$$(ls -t ../artifacts/verification/$${TARGET_DIR:-uismoke} | head -1) $${ARGS:-}
+
+# Rerun failures from last run
+verify-stories-failures: ## Rerun failing stories from the last run (QA mode)
+	@echo "🔄 Rerunning failing stories..."
+	@./scripts/verification/uismoke-rerun.sh uismoke
+
+# Overnight/CI story verification (deprecated, use verify-nightly)
+verify-stories-overnight: verify-nightly
 
 
 # Full E2E verification with auth on Railway PR environment
