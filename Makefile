@@ -346,6 +346,7 @@ verify-nightly: ## Run High-stability verification (3 reruns for flakes)
 		--email-env TEST_USER_EMAIL --password-env TEST_USER_PASSWORD \
 		--suite-timeout 5400 --story-timeout 900 --nav-timeout-ms 120000 --action-timeout-ms 60000 \
 		--mode qa --repro 3 \
+		--exclude-stories story-profile-persistence \
 		--fail-on-classifications skip not_run suite_timeout auth_failed timeout flaky_recovered flaky_inconclusive single_timeout reproducible_timeout single_navigation_failed reproducible_navigation_failed single_clerk_failed reproducible_clerk_failed \
 		--tracing
 

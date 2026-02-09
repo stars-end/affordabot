@@ -79,6 +79,7 @@ steps:
     description: "Verify dashboard re-loads"
 
 metadata:
+  wait_after_login_ms: 2000
   requires_real_clerk: true
   auth_redirect_check_path: "/admin"
   tags: ["admin", "e2e", "full-flow"]

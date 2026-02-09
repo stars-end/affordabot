@@ -34,5 +34,6 @@ steps:
     exploration_budget: 1
 
 metadata:
+  wait_after_login_ms: 2000
   tags: ["rigor", "data-integrity", "dashboard"]
   priority: 2

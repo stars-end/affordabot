@@ -32,6 +32,7 @@ steps:
     description: "Verify sidebar visibility"
 
 metadata:
+  wait_after_login_ms: 2000
   tags: ["admin", "jurisdiction", "detail"]
   priority: 1
   estimated_duration_seconds: 30

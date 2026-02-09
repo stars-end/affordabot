@@ -37,6 +37,7 @@ steps:
     exploration_budget: 1
 
 metadata:
+  wait_after_login_ms: 2000
   tags: ["economics", "validity", "golden-data"]
   priority: 1
   requires_seed_data: true

@@ -32,5 +32,6 @@ steps:
     description: "Check if count decreases"
 
 metadata:
+  wait_after_login_ms: 2000
   tags: ["workflow", "alerts", "rigor"]
   priority: 1
