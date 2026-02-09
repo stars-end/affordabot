@@ -37,5 +37,6 @@ steps:
     exploration_budget: 2
 
 metadata:
+  wait_after_login_ms: 2000
   tags: ["debug", "glass-box", "traceability"]
   priority: 1

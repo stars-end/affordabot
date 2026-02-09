@@ -37,5 +37,6 @@ steps:
     exploration_budget: 1
 
 metadata:
+  wait_after_login_ms: 2000
   tags: ["voter", "search", "impact-clarity"]
   priority: 2
