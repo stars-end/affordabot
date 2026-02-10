@@ -132,9 +132,9 @@ jobs:
 
           # NOTE: Use a real word-boundary pattern. Do NOT double-escape \b in a raw string.
           if not re.search(r"\bbd-[a-z0-9]+\b", title):
-            print("ERROR: PR title missing Feature-Key (bd-XXXX)")
+            print("ERROR: PR title missing Feature-Key (bd-<beads-id>)")
             print("Include the Beads id in the PR title, e.g.:")
-            print("  bd-abcd: Short summary")
+            print("  bd-f6fh: Short summary")
             sys.exit(1)
 
           if author in {"dependabot[bot]", "renovate[bot]", "github-actions[bot]"}:
