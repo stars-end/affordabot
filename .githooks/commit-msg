@@ -24,6 +24,13 @@ if ! grep -qi '^Feature-Key:' "$MSG_FILE"; then
   exit 1
 fi
 
+# Check Agent exists
+if ! grep -qi '^Agent:' "$MSG_FILE"; then
+  echo "⛔ Missing 'Agent:' trailer in commit message." >&2
+  echo "   Add a line like: Agent: codex" >&2
+  exit 1
+fi
+
 # Extract Feature-Key value
 FEATURE_KEY=$(grep -i '^Feature-Key:' "$MSG_FILE" | head -1 | sed 's/Feature-Key:\s*//' | xargs)
 

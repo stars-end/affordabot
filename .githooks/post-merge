@@ -2,6 +2,8 @@
 # Beads: Import JSONL changes after pull/merge
 set -euo pipefail
 
+"$(dirname "${BASH_SOURCE[0]}")/_bootstrap.sh" >/dev/null 2>&1 || true
+
 # Check if bd is available
 if ! command -v bd &> /dev/null; then
   exit 0
