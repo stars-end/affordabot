@@ -31,6 +31,10 @@ install_shim() {
     fi
   fi
 
+  # IMPORTANT: if $shim is a symlink, "cat > $shim" would overwrite the link target
+  # (which can be a repo-tracked file like hooks/pre-commit). Always unlink first.
+  rm -f "$shim" 2>/dev/null || true
+
   cat >"$shim" <<'SHIM'
 #!/usr/bin/env bash
 # DX_GITHOOKS_SHIM
