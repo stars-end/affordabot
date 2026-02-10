@@ -2,6 +2,42 @@
 # Non-blocking pre-commit hook
 # Just reminds user to run validation.
 
+# Canonical guard: block commits in canonical clones (allow in worktrees).
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+REPO_NAME="$(basename -- "$REPO_ROOT")"
+CANONICAL_REPOS=(agent-skills prime-radiant-ai affordabot llm-common)
+
+GIT_DIR="$(git rev-parse --git-dir)"
+GIT_COMMON_DIR="$(git rev-parse --git-common-dir)"
+IS_WORKTREE=0
+if [[ "$GIT_DIR" != "$GIT_COMMON_DIR" ]]; then
+  IS_WORKTREE=1
+fi
+
+is_canonical=0
+for r in "${CANONICAL_REPOS[@]}"; do
+  if [[ "$REPO_NAME" == "$r" ]]; then
+    is_canonical=1
+    break
+  fi
+done
+
+if [[ "$is_canonical" == "1" && "$IS_WORKTREE" == "0" ]]; then
+  cat >&2 <<EOF
+
+❌ CANONICAL COMMIT BLOCKED: $REPO_NAME
+
+You are in the canonical clone:
+  $REPO_ROOT
+
+Create a worktree and commit there:
+  dx-worktree create <beads-id> $REPO_NAME
+  cd /tmp/agents/<beads-id>/$REPO_NAME
+
+EOF
+  exit 1
+fi
+
 echo "ℹ️  Did you run 'make ci-lite' (or 'scripts/ci/lint.sh')?"
 echo "   It takes <30s and catches most issues."
 # exit 0 to allow commit anyway (warn-only)
