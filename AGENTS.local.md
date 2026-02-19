@@ -1,5 +1,14 @@
 # Affordabot Local Context
 
+## Skills Architecture
+
+This repo uses a compiled AGENTS.md from:
+- **Global skills**: `~/agent-skills/AGENTS.global.md` (workflow skills)
+- **Local context**: This file (repo-specific content)
+- **Context skills**: `.claude/skills/context-*/` (domain knowledge)
+
+**Auto-Update**: Context skills are automatically updated via GitHub Actions when PRs are merged.
+
 ## Verification
 
 | Target | Command | When |
