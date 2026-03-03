@@ -196,13 +196,20 @@ dx-doctor
 
 **Before starting work**:
 ```bash
-bd sync --dry-run  # Check for remote changes
-bd sync            # Pull latest JSONL from remote
+export BEADS_DOLT_SERVER_HOST=100.107.173.83
+export BEADS_DOLT_SERVER_PORT=3307
+cd ~/bd
+bd dolt test --json
 ```
 
-**Failure mode**: Merge conflicts in `.beads/*.jsonl`
-- Use `beads-guard` skill for conflict prevention
-- Resolve manually if conflicts occur
+**Failure mode**: `bd dolt test --json` fails
+- Use `beads-dolt-fleet` for topology and listener checks
+
+### Compatibility fallback (manual only)
+
+- If you must interact with legacy JSONL artifacts, use compatibility mode explicitly:
+  - `BEADS_LEGACY_SYNC=1 ~/agent-skills/scripts/bd-sync-safe.sh`
+  - `BEADS_LEGACY_JSONL_VERIFY=1 scripts/beads-doctor.sh` (where relevant)
 
 ### Feature-Key Trailers
 
@@ -225,8 +232,9 @@ Role: {engineer-type}
 | `bd list` | Show all issues |
 | `bd create "title" --type task` | Create new issue |
 | `bd start bd-xxx` | Start working on issue |
-| `bd sync` | Pull latest JSONL from remote |
-| `bd export -o .beads/issues.jsonl` | Export to JSONL |
+| `bd dolt test --json` | Contract check (active) |
+| `bd status --json` | Active contract state summary |
+| `BEADS_LEGACY_SYNC=1 ~/agent-skills/scripts/bd-sync-safe.sh` | Legacy sync fallback (compatibility-only) |
 
 ---
 
@@ -489,8 +497,10 @@ session:
 3. **Update issue status** - Close finished work, update in-progress items
 4. **PUSH TO REMOTE** - This is MANDATORY:
    ```bash
+   cd ~/bd
+   BEADS_DOLT_SERVER_HOST=100.107.173.83 BEADS_DOLT_SERVER_PORT=3307 \
+     bd dolt test --json
    git pull --rebase
-   bd sync
    git push
    git status  # MUST show "up to date with origin"
    ```
