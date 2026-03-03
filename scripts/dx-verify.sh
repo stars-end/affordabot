@@ -169,15 +169,20 @@ else
 fi
 
 if [ -f "$BEADS_DIR/issues.jsonl" ]; then
-    # Check if JSONL is valid
-    if command -v jq >/dev/null 2>&1; then
-        if cat "$BEADS_DIR/issues.jsonl" | while read -r line; do [ -z "$line" ] || echo "$line" | jq . >/dev/null; done 2>/dev/null; then
-            log_pass "Beads issues.jsonl is valid JSON Lines"
-        else
-            log_fail "Beads issues.jsonl has invalid format"
-        fi
+    if [ "${BEADS_LEGACY_JSONL_VERIFY:-0}" != "1" ]; then
+        log_warn "Beads legacy JSONL verification is disabled (active contract uses Dolt SQL)"
+        log_warn "Set BEADS_LEGACY_JSONL_VERIFY=1 to validate issues.jsonl explicitly."
     else
-        log_warn "jq not available, skipping JSONL validation"
+        # Check if JSONL is valid
+        if command -v jq >/dev/null 2>&1; then
+            if cat "$BEADS_DIR/issues.jsonl" | while read -r line; do [ -z "$line" ] || echo "$line" | jq . >/dev/null; done 2>/dev/null; then
+                log_pass "Beads issues.jsonl is valid JSON Lines"
+            else
+                log_fail "Beads issues.jsonl has invalid format"
+            fi
+        else
+            log_warn "jq not available, skipping JSONL validation"
+        fi
     fi
 fi
 

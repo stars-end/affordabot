@@ -158,6 +158,9 @@ def _agent_skills_update() -> tuple[bool, str]:
 
 
 def _beads_import(root: Path) -> tuple[bool, str]:
+    if os.getenv("ALLOW_BEADS_LEGACY_JSONL_IMPORT", "0") != "1":
+        return True, "legacy compatibility import disabled (active Beads contract is Dolt SQL)"
+
     beads_dir = Path(os.environ.get("BEADS_DIR", os.path.expanduser("~/bd/.beads")))
     jsonl_path = beads_dir / "issues.jsonl"
     if not jsonl_path.exists():
