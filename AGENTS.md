@@ -196,13 +196,19 @@ dx-doctor
 
 **Before starting work**:
 ```bash
-bd sync --dry-run  # Check for remote changes
-bd sync            # Pull latest JSONL from remote
+cd ~/bd
+export BEADS_DOLT_SERVER_HOST="${BEADS_DOLT_SERVER_HOST:-100.107.173.83}"
+export BEADS_DOLT_SERVER_PORT=3307
+beads-dolt dolt test --json
+beads-dolt status --json | jq -c '.summary'
 ```
 
-**Failure mode**: Merge conflicts in `.beads/*.jsonl`
-- Use `beads-guard` skill for conflict prevention
-- Resolve manually if conflicts occur
+**Failure mode**:
+- `beads-dolt dolt test --json` reports `connection_ok: false`
+- `beads-dolt status --json` fails or errors
+- `jq` not available
+
+Run `~/.agent/skills/health/bd-doctor/fix.sh` or `beads-dolt-fleet` after checking endpoint reachability.
 
 ### Feature-Key Trailers
 
@@ -225,8 +231,10 @@ Role: {engineer-type}
 | `bd list` | Show all issues |
 | `bd create "title" --type task` | Create new issue |
 | `bd start bd-xxx` | Start working on issue |
-| `bd sync` | Pull latest JSONL from remote |
-| `bd export -o .beads/issues.jsonl` | Export to JSONL |
+| `beads-dolt dolt test --json` | Beads health check (hub-spoke) |
+| `beads-dolt status --json` | Source of truth issue summary |
+| `bd sync` | Legacy JSONL sync compatibility (manual use only) |
+| `bd export -o .beads/issues.jsonl` | Legacy JSONL compatibility export |
 
 ---
 
