@@ -57,6 +57,7 @@ Shared-library usage is inconsistent:
 ### UI Preservation
 
 - The current deployed Next.js app in `frontend/` is the preservation target.
+- The deployed dev surface at `frontend-dev-5093.up.railway.app` is confirmed to be `frontend/`, not `frontend-v2`, based on the live Next.js response signature (`x-powered-by: Next.js`, `/_next/static/...`, and HTML matching the current App Router shell).
 - The current `affordabot` visual language remains repo-specific.
 - Visual changes are only allowed when required to keep existing behavior stable or to repair current broken functionality.
 
@@ -84,30 +85,39 @@ Canonical frontend surface:
 
 Actions:
 
-- move CI build/test ownership to `frontend/`
+- add `frontend/` CI coverage before removing any existing `frontend-v2` CI job
+- move CI build/test ownership to `frontend/` after the new checks are green under the preservation gate
 - move default local dev flow to `frontend/`
 - retire `frontend-v2` from default workflows
 - keep `frontend-v2` only long enough to confirm no active dependency remains, then archive/remove it
 
 Preservation rule:
 
-- before any structural frontend cleanup, freeze screenshots and route expectations for the current deployed experience
+- before any structural frontend cleanup, freeze screenshots and route expectations for the current deployed experience through committed visual baselines and CI enforcement
 
 ### 2. Visual Preservation Layer
 
 Adopt Prime's process, not Prime's theme:
 
-- capture screenshot baselines for key `affordabot` routes
+- capture screenshot baselines for preserved `affordabot` routes using Playwright visual regression against `frontend/`
+- commit the initial baselines in-repo
+- enforce the visual suite in CI for PRs that touch `frontend/`
+- use a default visual-diff threshold of `<= 0.5%` unless a route needs a narrower tolerance
 - add route-level no-regression checks
 - add a small frontend evidence section for implementation PRs touching preserved routes
+- add a lightweight CI guard that rejects Prime-specific theme token imports or variable names in `affordabot`
 
-Candidate preserved routes:
+Preserved route contract:
 
-- `/dashboard/california`
-- `/dashboard/santa-clara-county`
-- `/dashboard/san-jose`
-- `/dashboard/saratoga`
-- any current landing/auth/admin routes still in regular use
+- `bd-s8id.1` must create an exhaustive route manifest in `docs/PRESERVED_ROUTES.md`
+- each route must be assigned one of:
+  - `preserve`
+  - `auth-preserve`
+  - `admin-preserve`
+  - `api-contract`
+  - `deprecated`
+- each preserved route must map to a visual baseline or explicit non-visual verification rule
+- no frontend cleanup may start until the manifest, baselines, and CI gates exist together
 
 ### 3. Windmill Orchestration
 
@@ -166,10 +176,11 @@ Outcome:
 
 Includes:
 
-- identify active frontend surface
-- capture visual baselines
-- document preserved routes/components
-- define acceptance gates for frontend-preserving work
+- confirm the currently deployed frontend surface and record the evidence
+- create `docs/PRESERVED_ROUTES.md` with an exhaustive route inventory and disposition for each route
+- capture Playwright visual baselines for preserved routes and commit them
+- wire the visual suite into CI for changes touching `frontend/`
+- define acceptance gates for frontend-preserving work, including the anti-Prime-token check and Tailwind version pin
 
 ### Phase 2: Frontend Stack Convergence
 
@@ -179,7 +190,10 @@ Outcome:
 
 Includes:
 
-- CI/build/dev changes
+- add a parallel CI job for `frontend/` before removing the `frontend-v2` job
+- fix any surfaced `frontend/` build or lint issues under the preservation gate before switching defaults
+- update Makefile and root package workflow references, including `install`, `dev`, `dev-frontend-v2`, and `build`
+- audit deploy hooks and service references to confirm `frontend-v2` is not an active deployment surface
 - removal of `frontend-v2` from default workflows
 - validation that preserved routes still render identically enough
 
@@ -260,15 +274,27 @@ Final integration:
 
 ### Frontend Preservation Gates
 
-- preserved route screenshots remain within agreed thresholds
+- Playwright visual regression baselines are committed for each preserved route
+- preserved route screenshots remain within agreed thresholds (`<= 0.5%` by default)
+- CI runs the visual suite on every PR that touches `frontend/`
+- `docs/PRESERVED_ROUTES.md` exists and covers every App Router route with a disposition
 - deployed-signature routes still render with the current `affordabot` design language
 - current user-visible layout and styling are not unintentionally replaced with Prime patterns
 
 ### Frontend Canonicalization Gates
 
+- a temporary dual-CI period validates both `frontend/` and `frontend-v2` before the legacy job is removed
 - CI validates `frontend/`, not `frontend-v2`
 - default `make dev` / build paths use the canonical frontend
+- root install/dev/build scripts no longer point engineers at `frontend-v2`
 - no active deploy path depends on `frontend-v2`
+- the deployed frontend surface is re-verified immediately before retiring `frontend-v2`
+
+### Frontend Theme Isolation Gates
+
+- CI rejects Prime-specific theme-token imports or CSS variable names in `frontend/`
+- no implementation PR imports Prime shell/layout code into `affordabot`
+- `affordabot` remains pinned to Tailwind `v4.x` during this migration; any future Tailwind major upgrade requires fresh visual baselines
 
 ### Windmill Gates
 
@@ -289,12 +315,16 @@ Final integration:
 1. A frontend cleanup accidentally changes the preserved GUI.
 2. Windmill migration changes job timing or execution semantics before parity is proven.
 3. `llm-common` cleanup removes a fallback that is still covering a packaging/runtime gap.
+4. Switching CI from `frontend-v2` to `frontend/` creates pressure for opportunistic fixes that bypass the preservation contract.
+5. Prime theme tokens or shell patterns leak into `affordabot` during stack-alignment work.
 
 ### Mitigations
 
 1. Do preservation gates first, not after the cleanup.
 2. Keep backend business logic stable and migrate scheduling separately from logic changes.
 3. Remove shared-library fallbacks only after direct verification in `affordabot` runtime paths.
+4. Run a temporary dual-CI window so `frontend/` problems surface before the legacy job is removed.
+5. Add a machine-checkable anti-Prime-token guard instead of relying on reviewer memory alone.
 
 ### Rollback
 
@@ -321,6 +351,13 @@ Review focus:
 - frontend convergence sequence
 - whether the plan is sufficiently protective of the existing `affordabot` GUI
 
+Revisions incorporated from consultant feedback:
+
+- preservation gate is now defined in terms of Playwright baselines, route manifest, CI enforcement, and thresholded diffs
+- CI migration is explicitly sequenced through a temporary dual-CI period
+- Makefile/default-workflow audit is called out directly
+- anti-Prime-token and Tailwind-version gates are now part of the plan
+
 ### Consultant 2
 
 Review focus:
@@ -338,3 +375,4 @@ Why first:
 - it establishes the preserved GUI as an explicit contract
 - it reduces the risk of accidental visual damage during the rest of the migration
 - it unlocks the three main implementation tracks in parallel
+- it resolves the highest-risk ambiguity first: what must be preserved, how that preservation is enforced, and how future frontend work is prevented from drifting aesthetically
