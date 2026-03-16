@@ -137,6 +137,7 @@ Preserved route contract:
   - `preserve`
   - `auth-preserve`
   - `admin-preserve`
+  - `redirect-contract`
   - `api-contract`
   - `deprecated`
 - each preserved route must map to a visual baseline or explicit non-visual verification rule
@@ -147,6 +148,7 @@ Implementation details:
 - dashboard and bill-detail preserved routes should use Playwright network interception with canonical fixture payloads so screenshots are stable across environments
 - admin preserved routes should use either fixture-backed API interception or stable built-in empty/demo states, depending on which produces the least test-only code
 - auth routes should prove render/redirect health without forcing exact Clerk-hosted visuals into the blocking baseline
+- redirect-only routes such as `/` should preserve redirect behavior and destination rather than force a meaningless page-level screenshot
 - the preservation suite should assert both screenshot stability and core visible text markers so failures are easier to diagnose
 
 ### 3. Windmill Orchestration
@@ -181,8 +183,12 @@ Implementation details:
 - each migrated job should have one clear owner:
   - Windmill for schedule/orchestration
   - backend for business logic and execution
+- for long-running current cron jobs, prefer Windmill execution that preserves exit-code and log observability over fire-and-forget HTTP triggers
+- if an HTTP trigger is retained, it must expose explicit completion status that Windmill can poll before marking the run successful
+- all Windmill-to-backend HTTP triggers must use a simple shared-secret auth contract such as `Authorization: Bearer $CRON_SECRET` or `X-Cron-Secret: $CRON_SECRET`
 - public cron endpoints should be replaced with internal-only triggers or wrappers where feasible
 - removal of Railway cron config happens only after each target job has a parity checklist and successful dev/staging proof
+- `scripts/daily_scrape.py` and the current public `/cron/daily-scrape` route require explicit migration handling because they are inconsistent with the rest of the backend cron surface and should be retired, auth-gated, or moved into the backend cron layout during the Windmill cutover
 
 ### 4. `llm-common` Alignment
 
@@ -201,7 +207,11 @@ Preferred direction:
 Primary cleanup candidates:
 
 - `.gitmodules`
+- `packages/llm-common/`
 - bootstrap/install scripts that require `packages/llm-common`
+- `Makefile` install flow and any unconditional submodule initialization
+- CI checkout settings that still require recursive submodules
+- dead runtime dependencies such as `prefect>=2.0.0` if they are no longer imported anywhere
 - inline `MockEmbeddingService` implementations
 - local pgvector fallback paths that should be replaced by stable shared backends
 
@@ -210,6 +220,7 @@ Implementation details:
 - remove the assumption that engineers must initialize a local `packages/llm-common` checkout to work on `affordabot`
 - standardize one install/bootstrap path in CI and local docs
 - treat each fallback as a live runtime dependency until proven otherwise; delete only with direct verification
+- `LocalPgVectorBackend` is presumed necessary until the shared backend is proven to handle affordabot's `document_id` mapping and UUID/JSON serialization safely
 
 ## Implementation Surface
 
@@ -239,6 +250,7 @@ Required implementation points:
 - add preserved-route Playwright specs with canonical fixtures for dashboards and bill detail routes
 - add admin-route preserved coverage where the Prism shell is visible and meaningful
 - keep Clerk auth routes in smoke coverage unless exact snapshotting becomes trivial
+- reconcile the current Playwright auth bypass with the middleware contract so admin preservation tests use the same signed-cookie path the app actually checks
 - add a CI guard that rejects Prime-specific theme token leakage
 
 Acceptance criteria:
@@ -297,8 +309,12 @@ Expected file areas:
 Required implementation points:
 
 - inventory each existing Railway Cron job and map it to a Windmill job or justified retirement
+- choose the execution shape per job explicitly:
+  - default: Windmill runs the existing CLI/script entrypoint in a way that preserves exit-code observability
+  - exception: an authenticated backend HTTP trigger is allowed only if Windmill also observes final success/failure through polling or callback state
 - add thin internal backend trigger endpoints or wrappers as needed
 - commit Windmill assets and runbook/docs
+- retire or auth-gate the current public `/cron/daily-scrape` endpoint as part of the migration
 - remove Railway cron entries after successful parity verification
 
 Acceptance criteria:
@@ -328,6 +344,8 @@ Required implementation points:
 - remove submodule-first assumptions from install/bootstrap flows
 - update docs and CI to the single dependency model
 - verify and either remove or explicitly justify repo-local fallbacks
+- treat `LocalPgVectorBackend` as a known-risk compatibility layer that requires targeted parity testing before removal
+- if `.3` and `.4` proceed in parallel, keep cron-script import cleanup owned by `.4` so Windmill migration work does not invalidate parity testing
 
 Acceptance criteria:
 
@@ -423,9 +441,10 @@ Includes:
 Execution order inside the phase:
 
 1. map current cron inventory
-2. add Windmill assets and backend triggers
-3. prove parity per job in dev/staging
-4. remove Railway scheduler ownership
+2. choose and document the observability-preserving execution contract for each job
+3. add Windmill assets and backend triggers
+4. prove parity per job in dev/staging, including failure observability rather than success-only triggering
+5. remove Railway scheduler ownership
 
 ### Phase 4: Shared Library Alignment
 
@@ -445,6 +464,10 @@ Execution order inside the phase:
 2. clean install/bootstrap/docs
 3. verify fallbacks one-by-one
 4. remove unjustified compatibility layers
+
+Coordination note:
+
+- `bd-s8id.3` and `bd-s8id.4` may proceed in parallel for planning and isolated edits, but `bd-s8id.4` must land or otherwise freeze shared dependency/import changes before `bd-s8id.3` performs final Windmill parity validation on cron execution paths
 
 ### Phase 5: Integration and Cutover Validation
 
@@ -520,10 +543,12 @@ Backend/orchestration track:
 
 - backend tests for migrated trigger paths
 - Windmill parity verification per migrated job
+- explicit proof that Windmill observes both success and failure for each migrated job shape
 
 Shared library track:
 
 - clean install/bootstrap run using the new single dependency model
+- targeted verification that the shared pgvector backend can replace `LocalPgVectorBackend` before any removal
 
 ### Frontend Preservation Gates
 
@@ -576,6 +601,7 @@ Shared library track:
 3. `llm-common` cleanup removes a fallback that is still covering a packaging/runtime gap.
 4. Switching CI from `frontend-v2` to `frontend/` creates pressure for opportunistic fixes that bypass the preservation contract.
 5. Prime theme tokens or shell patterns leak into `affordabot` during stack-alignment work.
+6. Windmill HTTP triggers could mask long-running job failures if success is measured only at trigger time.
 
 ### Mitigations
 
@@ -584,6 +610,7 @@ Shared library track:
 3. Remove shared-library fallbacks only after direct verification in `affordabot` runtime paths.
 4. Run a temporary dual-CI window so `frontend/` problems surface before the legacy job is removed.
 5. Add a machine-checkable anti-Prime-token guard instead of relying on reviewer memory alone.
+6. Preserve execution observability by preferring CLI/script execution for long-running jobs or requiring explicit completion polling for any HTTP-triggered path.
 
 ### Rollback
 
