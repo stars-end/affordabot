@@ -1,0 +1,81 @@
+{
+  "legislation": [
+    {
+      "bill_number": "AB-1234",
+      "title": "Housing Affordability Act of 2025",
+      "jurisdiction": "california",
+      "status": "Active",
+      "introduced_date": "2025-01-15",
+      "effective_date": "2025-07-01",
+      "full_text": "An act to add Section 65852.5 to the Government Code, relating to housing.",
+      "impacts": [
+        {
+          "id": "imp-1",
+          "impact_number": 1,
+          "description": "Increases housing supply by streamlining approval for multifamily developments near transit",
+          "relevant_clause": "Section 3(a)(1)",
+          "confidence_score": 0.82,
+          "impact_description": "Transit-oriented development incentive",
+          "chain_of_causality": "Bill removes CEQA review for qualifying projects -> faster approvals -> increased supply -> downward pressure on rents",
+          "p10": 1200000000,
+          "p25": 2400000000,
+          "p50": 3800000000,
+          "p75": 5500000000,
+          "p90": 7200000000,
+          "evidence": ["CA HCD Report 2024", "TOD Study UC Berkeley"]
+        },
+        {
+          "id": "imp-2",
+          "impact_number": 2,
+          "description": "Reduces permitting costs for affordable housing developments",
+          "relevant_clause": "Section 5(b)(2)",
+          "confidence_score": 0.75,
+          "impact_description": "Fee waiver for affordable units",
+          "chain_of_causality": "Waives impact fees for projects with 20%+ affordable units -> lower development cost -> more affordable units built",
+          "p10": 800000000,
+          "p25": 1500000000,
+          "p50": 2200000000,
+          "p75": 3100000000,
+          "p90": 4500000000,
+          "evidence": ["Fee Waiver Analysis 2024"]
+        }
+      ]
+    },
+    {
+      "bill_number": "SB-5678",
+      "title": "Small Business Tax Relief Act",
+      "jurisdiction": "california",
+      "status": "Active",
+      "introduced_date": "2025-02-10",
+      "effective_date": "2026-01-01",
+      "full_text": "An act to amend Sections 17001 and 23101 of the Revenue and Taxation Code.",
+      "impacts": [
+        {
+          "id": "imp-3",
+          "impact_number": 1,
+          "description": "Provides tax credits for small businesses with fewer than 50 employees",
+          "relevant_clause": "Section 2(a)",
+          "confidence_score": 0.90,
+          "impact_description": "Small business tax credit",
+          "chain_of_causality": "Tax credit reduces operating costs -> small businesses retain more revenue -> local economic stimulus",
+          "p10": 500000000,
+          "p25": 900000000,
+          "p50": 1400000000,
+          "p75": 2000000000,
+          "p90": 2800000000,
+          "evidence": ["FTB Economic Impact Study"]
+        }
+      ]
+    },
+    {
+      "bill_number": "AB-9012",
+      "title": "Climate Resilience Infrastructure Bond",
+      "jurisdiction": "california",
+      "status": "Enacted",
+      "introduced_date": "2024-06-01",
+      "effective_date": "2025-03-15",
+      "full_text": "An act to authorize the issuance of bonds for climate resilience infrastructure projects.",
+      "impacts": []
+    }
+  ]
+}

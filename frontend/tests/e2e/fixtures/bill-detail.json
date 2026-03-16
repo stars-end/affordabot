@@ -1,0 +1,41 @@
+{
+  "bill_number": "AB-1234",
+  "title": "Housing Affordability Act of 2025",
+  "jurisdiction": "california",
+  "status": "Active",
+  "introduced_date": "2025-01-15",
+  "effective_date": "2025-07-01",
+  "full_text": "An act to add Section 65852.5 to the Government Code, relating to housing.\n\nSECTION 1. Section 65852.5 is added to the Government Code, to read:\n\n65852.5. (a) For purposes of this section, \"transit-rich area\" means a parcel within one-half mile of a major transit stop.\n\n(b) A development proposed within a transit-rich area shall be deemed a use by right if it meets all of the following criteria:\n   (1) The development is consistent with the applicable zoning standards and general plan.\n   (2) The development provides not less than 20 percent of the total units as affordable housing.\n   (3) The development does not require the demolition of affordable housing.",
+  "impacts": [
+    {
+      "id": "imp-1",
+      "impact_number": 1,
+      "description": "Increases housing supply by streamlining approval for multifamily developments near transit",
+      "relevant_clause": "Section 3(a)(1)",
+      "confidence_score": 0.82,
+      "impact_description": "Transit-oriented development incentive",
+      "chain_of_causality": "Bill removes CEQA review for qualifying projects -> faster approvals -> increased supply -> downward pressure on rents",
+      "p10": 1200000000,
+      "p25": 2400000000,
+      "p50": 3800000000,
+      "p75": 5500000000,
+      "p90": 7200000000,
+      "evidence": ["CA HCD Report 2024", "TOD Study UC Berkeley"]
+    },
+    {
+      "id": "imp-2",
+      "impact_number": 2,
+      "description": "Reduces permitting costs for affordable housing developments",
+      "relevant_clause": "Section 5(b)(2)",
+      "confidence_score": 0.75,
+      "impact_description": "Fee waiver for affordable units",
+      "chain_of_causality": "Waives impact fees for projects with 20%+ affordable units -> lower development cost -> more affordable units built",
+      "p10": 800000000,
+      "p25": 1500000000,
+      "p50": 2200000000,
+      "p75": 3100000000,
+      "p90": 4500000000,
+      "evidence": ["Fee Waiver Analysis 2024"]
+    }
+  ]
+}

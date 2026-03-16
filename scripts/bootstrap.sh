@@ -1,30 +1,22 @@
 #!/bin/bash
 set -e
 
-echo "🚀 Bootstrapping Affordabot..."
+echo "  Bootstrapping Affordabot..."
 
-# 1. Initialize submodules
-echo "📦 Initializing submodules..."
-git submodule update --init --recursive
+# 1. Backend uses git-pinned llm-common (no submodule needed)
+echo "  Backend uses git-pinned llm-common (via pyproject.toml)."
 
-# 2. Check for backend/llm-common
-if [ ! -f "packages/llm-common/pyproject.toml" ]; then
-    echo "❌ Error: packages/llm-common is empty. Submodule init failed."
-    exit 1
-fi
-
-echo "✅ Submodules ready."
-
-# 3. Install backend dependencies (if requested)
+# 2. Install backend dependencies (if requested)
 if [ "$1" == "--install" ]; then
-    echo "🐍 Installing backend dependencies..."
+    echo "  Installing backend dependencies..."
     cd backend
-    if [ -f "requirements.txt" ]; then
-        pip install -r requirements.txt
+    if command -v poetry >/dev/null 2>&1; then
+        poetry install --no-interaction --no-root
     else
-        echo "⚠️ No requirements.txt found in backend/"
+        echo "  Warning: Poetry not found. Install Poetry first."
+        echo "  Then run: cd backend && poetry install"
     fi
     cd ..
 fi
 
-echo "✨ Bootstrap complete! You can now run the app."
+echo "  Bootstrap complete! You can now run the app."

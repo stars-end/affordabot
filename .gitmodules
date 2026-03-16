@@ -1,3 +1,4 @@
-[submodule "packages/llm-common"]
-	path = packages/llm-common
-	url = ../llm-common.git
+# Affordabot uses git-pinned llm-common (no local submodule).
+#
+# Legacy submodule entry removed in bd-s8id.4.
+# Install via: cd backend && poetry install

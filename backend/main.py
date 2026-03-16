@@ -245,25 +245,118 @@ async def process_jurisdiction(jurisdiction: str, scraper_class, jur_type: str):
         logger.error(f"{jurisdiction}: Scraping failed: {e}")
         return {"jurisdiction": jurisdiction, "error": str(e)}
 
+# --- Authenticated Cron Trigger Endpoints (bd-s8id.3) ---
+# These endpoints are used by Windmill as the scheduler of record.
+# Auth: Authorization: Bearer $CRON_SECRET or X-Cron-Secret: $CRON_SECRET
+
+CRON_SECRET = os.environ.get("CRON_SECRET")
+
+
+def _verify_cron_auth(request: Request) -> bool:
+    """Verify cron secret from Authorization header or X-Cron-Secret header."""
+    if not CRON_SECRET:
+        logger.warning("CRON_SECRET not set — cron auth rejected")
+        return False
+
+    # Check Authorization: Bearer token
+    auth_header = request.headers.get("authorization", "")
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:]
+        if token == CRON_SECRET:
+            return True
+
+    # Check X-Cron-Secret header
+    cron_header = request.headers.get("x-cron-secret", "")
+    if cron_header == CRON_SECRET:
+        return True
+
+    return False
+
+
+@app.post("/cron/discovery")
+async def cron_discovery(request: Request, background_tasks: BackgroundTasks):
+    """
+    Authenticated cron trigger for discovery pipeline.
+    Replaces Railway Cron scheduling for this job.
+    Auth: Authorization: Bearer $CRON_SECRET or X-Cron-Secret: $CRON_SECRET
+    """
+    if not _verify_cron_auth(request):
+        raise HTTPException(status_code=401, detail="Invalid cron credentials")
+
+    logger.info("Cron trigger: discovery run")
+    background_tasks.add_task(
+        _run_script_job, "backend/scripts/cron/run_discovery.py", "discovery"
+    )
+    return {"status": "triggered", "job": "discovery"}
+
+
 @app.post("/cron/daily-scrape")
-async def daily_scrape(background_tasks: BackgroundTasks):
+async def cron_daily_scrape(request: Request, background_tasks: BackgroundTasks):
     """
     Cron endpoint to scrape all jurisdictions daily.
-    Triggered by Railway Cron at 6 AM PT.
+    Auth: Authorization: Bearer $CRON_SECRET or X-Cron-Secret: $CRON_SECRET
     """
-    logger.info("Starting daily scrape for all jurisdictions")
-    
-    results = []
-    for jurisdiction, (scraper_class, jur_type) in SCRAPERS.items():
-        # Run in background to avoid timeout
-        background_tasks.add_task(process_jurisdiction, jurisdiction, scraper_class, jur_type)
-        results.append({"jurisdiction": jurisdiction, "status": "queued"})
-    
-    return {
-        "status": "success",
-        "message": "Daily scrape initiated for all jurisdictions",
-        "jurisdictions": results
-    }
+    if not _verify_cron_auth(request):
+        raise HTTPException(status_code=401, detail="Invalid cron credentials")
+
+    logger.info("Cron trigger: daily scrape")
+    background_tasks.add_task(
+        _run_script_job, "scripts/daily_scrape.py", "daily_scrape"
+    )
+    return {"status": "triggered", "job": "daily_scrape"}
+
+
+@app.post("/cron/rag-spiders")
+async def cron_rag_spiders(request: Request, background_tasks: BackgroundTasks):
+    """
+    Authenticated cron trigger for RAG spiders.
+    Auth: Authorization: Bearer $CRON_SECRET or X-Cron-Secret: $CRON_SECRET
+    """
+    if not _verify_cron_auth(request):
+        raise HTTPException(status_code=401, detail="Invalid cron credentials")
+
+    logger.info("Cron trigger: rag spiders")
+    background_tasks.add_task(
+        _run_script_job, "backend/scripts/cron/run_rag_spiders.py", "rag_spiders"
+    )
+    return {"status": "triggered", "job": "rag_spiders"}
+
+
+@app.post("/cron/universal-harvester")
+async def cron_universal_harvester(request: Request, background_tasks: BackgroundTasks):
+    """
+    Authenticated cron trigger for universal harvester.
+    Auth: Authorization: Bearer $CRON_SECRET or X-Cron-Secret: $CRON_SECRET
+    """
+    if not _verify_cron_auth(request):
+        raise HTTPException(status_code=401, detail="Invalid cron credentials")
+
+    logger.info("Cron trigger: universal harvester")
+    background_tasks.add_task(
+        _run_script_job, "backend/scripts/cron/run_universal_harvester.py", "universal_harvester"
+    )
+    return {"status": "triggered", "job": "universal_harvester"}
+
+
+async def _run_script_job(script_path: str, job_name: str):
+    """Run a cron script job with logging."""
+    import asyncio
+    import sys
+
+    logger.info(f"Cron job '{job_name}' starting: {script_path}")
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            sys.executable, script_path,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await proc.communicate()
+        if proc.returncode != 0:
+            logger.error(f"Cron job '{job_name}' failed (exit {proc.returncode}): {stderr[-500:]}")
+        else:
+            logger.info(f"Cron job '{job_name}' succeeded (exit {proc.returncode})")
+    except Exception as e:
+        logger.error(f"Cron job '{job_name}' exception: {e}")
 
 @app.post("/scrape/{jurisdiction}")
 async def scrape_and_analyze(jurisdiction: str) -> Dict[str, Any]:
