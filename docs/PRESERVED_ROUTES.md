@@ -56,10 +56,11 @@ When real Clerk keys are configured, the middleware uses `clerkMiddleware` which
 
 When `NEXT_PUBLIC_TEST_AUTH_BYPASS=true` and the Clerk publishable key contains `placeholder`:
 - Clerk SDK is not loaded (no import at request time).
-- The CI middleware still validates the signed bypass cookie for `/admin` routes using the same `verifySignedBypassCookie` function.
-- Invalid or missing bypass cookie returns 401 (no redirect since Clerk is unavailable).
+- The CI middleware validates the signed bypass cookie for `/admin` routes using the same `verifySignedBypassCookie` function.
+- When `TEST_AUTH_BYPASS_SECRET` is set: invalid or missing bypass cookie returns 401 (no redirect since Clerk is unavailable).
+- When `TEST_AUTH_BYPASS_SECRET` is unset: admin routes pass through without auth check (permissive fallback for local dev).
 - Public routes pass through unconditionally.
-- This means the admin preservation tests genuinely exercise the signed-cookie contract in CI.
+- This means the admin preservation tests genuinely exercise the signed-cookie contract in CI (where the secret is always set).
 
 The bypass does NOT weaken production auth — it only operates in non-production environments.
 

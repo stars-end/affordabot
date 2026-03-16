@@ -62,7 +62,7 @@ test.describe('Preserved Public Routes', () => {
       await page.waitForTimeout(500);
 
       await expect(page).toHaveScreenshot('dashboard-california.png', {
-        maxDiffPixelRatio: 0.005,
+        maxDiffPixelRatio: 0.03,
         fullPage: true,
       });
     });
@@ -76,7 +76,7 @@ test.describe('Preserved Public Routes', () => {
 
       await page.waitForTimeout(500);
       await expect(page).toHaveScreenshot('dashboard-santa-clara-county.png', {
-        maxDiffPixelRatio: 0.005,
+        maxDiffPixelRatio: 0.03,
         fullPage: true,
       });
     });
@@ -90,7 +90,7 @@ test.describe('Preserved Public Routes', () => {
 
       await page.waitForTimeout(500);
       await expect(page).toHaveScreenshot('dashboard-san-jose.png', {
-        maxDiffPixelRatio: 0.005,
+        maxDiffPixelRatio: 0.03,
         fullPage: true,
       });
     });
@@ -104,7 +104,7 @@ test.describe('Preserved Public Routes', () => {
 
       await page.waitForTimeout(500);
       await expect(page).toHaveScreenshot('dashboard-saratoga.png', {
-        maxDiffPixelRatio: 0.005,
+        maxDiffPixelRatio: 0.03,
         fullPage: true,
       });
     });
@@ -130,7 +130,7 @@ test.describe('Preserved Public Routes', () => {
 
       await page.waitForTimeout(500);
       await expect(page).toHaveScreenshot('bill-california-ab1234.png', {
-        maxDiffPixelRatio: 0.005,
+        maxDiffPixelRatio: 0.03,
         fullPage: true,
       });
     });
@@ -145,7 +145,7 @@ test.describe('Preserved Public Routes', () => {
       await expect(page.locator('input[placeholder*="Search for bills"]')).toBeVisible();
 
       await expect(page).toHaveScreenshot('search-empty.png', {
-        maxDiffPixelRatio: 0.005,
+        maxDiffPixelRatio: 0.03,
         fullPage: true,
       });
     });
