@@ -14,11 +14,5 @@
       "defaultBase": "main",
       "requireBeads": true
     }
-  },
-  "hooks": {
-    "session-start": {
-      "enabled": true,
-      "loadBeads": true
-    }
   }
 }
