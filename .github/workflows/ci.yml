@@ -74,14 +74,14 @@ jobs:
           NEXT_PUBLIC_TEST_AUTH_BYPASS: 'true'
           RAILWAY_ENVIRONMENT_NAME: 'dev'
           TEST_AUTH_BYPASS_SECRET: ci-test-secret-for-playwright-only
-        run: cd frontend && npx playwright test --update-snapshots || true
+        run: cd frontend && npx playwright test
 
-      - name: Upload Playwright Snapshots (initial baseline)
+      - name: Upload Playwright Report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-snapshots
-          path: frontend/tests/e2e/__snapshots__
+          name: playwright-report
+          path: frontend/playwright-report/
           retention-days: 30
 
   backend-lint-and-test:

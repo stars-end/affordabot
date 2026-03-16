@@ -274,7 +274,7 @@ def _verify_cron_auth(request: Request) -> bool:
 
 
 @app.post("/cron/discovery")
-async def cron_discovery(background_tasks: BackgroundTasks):
+async def cron_discovery(request: Request, background_tasks: BackgroundTasks):
     """
     Authenticated cron trigger for discovery pipeline.
     Replaces Railway Cron scheduling for this job.
@@ -291,7 +291,7 @@ async def cron_discovery(background_tasks: BackgroundTasks):
 
 
 @app.post("/cron/daily-scrape")
-async def cron_daily_scrape(background_tasks: BackgroundTasks):
+async def cron_daily_scrape(request: Request, background_tasks: BackgroundTasks):
     """
     Cron endpoint to scrape all jurisdictions daily.
     Auth: Authorization: Bearer $CRON_SECRET or X-Cron-Secret: $CRON_SECRET
@@ -307,7 +307,7 @@ async def cron_daily_scrape(background_tasks: BackgroundTasks):
 
 
 @app.post("/cron/rag-spiders")
-async def cron_rag_spiders(background_tasks: BackgroundTasks):
+async def cron_rag_spiders(request: Request, background_tasks: BackgroundTasks):
     """
     Authenticated cron trigger for RAG spiders.
     Auth: Authorization: Bearer $CRON_SECRET or X-Cron-Secret: $CRON_SECRET
@@ -323,7 +323,7 @@ async def cron_rag_spiders(background_tasks: BackgroundTasks):
 
 
 @app.post("/cron/universal-harvester")
-async def cron_universal_harvester(background_tasks: BackgroundTasks):
+async def cron_universal_harvester(request: Request, background_tasks: BackgroundTasks):
     """
     Authenticated cron trigger for universal harvester.
     Auth: Authorization: Bearer $CRON_SECRET or X-Cron-Secret: $CRON_SECRET
@@ -342,6 +342,7 @@ async def _run_script_job(script_path: str, job_name: str):
     """Run a cron script job with logging."""
     import asyncio
     import subprocess
+    import sys
 
     logger.info(f"Cron job '{job_name}' starting: {script_path}")
     try:

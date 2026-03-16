@@ -21,8 +21,9 @@ const billDetailFixture = JSON.parse(
 async function mockLegislationAPI(page, jurisdiction: string) {
   await page.route('**/legislation/**', async (route) => {
     const url = route.request().url();
-    // Return legislation list for the jurisdiction
-    if (url.includes(`/legislation/${jurisdiction}`) && !url.includes('/legislation/')) {
+    // Match list endpoint: /legislation/{jurisdiction} but NOT detail: /legislation/{jurisdiction}/{billNumber}
+    const listPattern = new RegExp(`/legislation/${jurisdiction}(\\?|$)`);
+    if (listPattern.test(url)) {
       await route.fulfill({ json: legislationFixture });
     } else {
       await route.continue();

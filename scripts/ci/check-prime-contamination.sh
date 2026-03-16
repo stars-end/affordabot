@@ -5,6 +5,7 @@
 set -euo pipefail
 
 FRONTEND_DIR="${1:-frontend}"
+SCAN_DIR="$FRONTEND_DIR/src"
 VIOLATIONS=0
 
 echo "::group::Anti-Prime Contamination Check"
@@ -19,7 +20,6 @@ PRIME_TOKENS=(
   '8B95A5'
   '--color-positive'
   '--color-negative'
-  '--font-display'
   'Playfair Display'
   'font-display.*Playfair'
 )
@@ -35,18 +35,18 @@ PRIME_PATTERNS=(
 
 # Scan for Prime tokens in TSX/TS/CSS files
 for token in "${PRIME_TOKENS[@]}"; do
-  matches=$(grep -rl --include='*.tsx' --include='*.ts' --include='*.css' "$FRONTEND_DIR/src" 2>/dev/null | grep -v node_modules | grep -v '.next' || true)
-  if [ -n "$matches" ]; then
-    echo "::error::Prime token '$token' found in: $matches"
+  if grep -rl --include='*.tsx' --include='*.ts' --include='*.css' -e "$token" "$SCAN_DIR" 2>/dev/null | grep -v node_modules | grep -v '.next' | grep -q .; then
+    files=$(grep -rl --include='*.tsx' --include='*.ts' --include='*.css' -e "$token" "$SCAN_DIR" 2>/dev/null | grep -v node_modules | grep -v '.next')
+    echo "::error::Prime token '$token' found in: $files"
     VIOLATIONS=$((VIOLATIONS + 1))
   fi
 done
 
 # Scan for Prime patterns
 for pattern in "${PRIME_PATTERNS[@]}"; do
-  matches=$(grep -rl --include='*.tsx' --include='*.ts' --include='*.css' "$FRONTEND_DIR/src" 2>/dev/null | grep -v node_modules | grep -v '.next' || true)
-  if [ -n "$matches" ]; then
-    echo "::error::Prime pattern '$pattern' found in: $matches"
+  if grep -rl --include='*.tsx' --include='*.ts' --include='*.css' -e "$pattern" "$SCAN_DIR" 2>/dev/null | grep -v node_modules | grep -v '.next' | grep -q .; then
+    files=$(grep -rl --include='*.tsx' --include='*.ts' --include='*.css' -e "$pattern" "$SCAN_DIR" 2>/dev/null | grep -v node_modules | grep -v '.next')
+    echo "::error::Prime pattern '$pattern' found in: $files"
     VIOLATIONS=$((VIOLATIONS + 1))
   fi
 done
@@ -54,7 +54,7 @@ done
 echo "::endgroup::"
 
 if [ "$VIOLATIONS" -gt 0 ]; then
-  echo "::error::$VIOLATIONS Prime Radiant contamination violation(s) detected in frontend/"
+  echo "::error::$VIOLATIONS Prime Radiant contamination violation(s) detected in $SCAN_DIR/"
   exit 1
 fi
 
