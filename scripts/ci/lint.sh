@@ -32,16 +32,6 @@ else
      ERRORS=$((ERRORS+1))
 fi
 
-# 3. Frontend V2 (Vite): pnpm lint
-echo "⚛️  Frontend V2: running pnpm lint..."
-if cd "$REPO_ROOT/frontend-v2" && pnpm lint; then
-     echo -e "${GREEN}✓ Frontend V2 lint passed${RESET}"
-else
-     echo -e "${RED}❌ Frontend V2 lint failed${RESET}"
-     ERRORS=$((ERRORS+1))
-fi
-
-
 # Exit Logic
 if [ "$ERRORS" -gt 0 ]; then
     if [ "${CI:-}" == "true" ]; then

@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import { useUser } from '@clerk/nextjs';
 import SummaryDashboard from '@/components/SummaryDashboard';
 import ImpactCard from '@/components/ImpactCard';
 import { getLegislation, scrapeJurisdiction } from '@/lib/api';
@@ -19,7 +18,6 @@ export default function DashboardPage() {
     const params = useParams();
     const jurisdictionId = params.jurisdiction as string;
     const jurisdictionName = JURISDICTION_NAMES[jurisdictionId] || jurisdictionId;
-    const { isSignedIn } = useUser();
 
     const [loading, setLoading] = useState(false);
     const [scraping, setScraping] = useState(false);

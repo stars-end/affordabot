@@ -1,5 +1,9 @@
 # AffordaBot - Root Railway Configuration
 # Individual services have their own railway.toml files
+#
+# NOTE: Cron scheduling has migrated to Windmill (bd-s8id.3).
+# Railway cron entries removed. See ops/windmill/README.md for the
+# current scheduling setup and docs/CRON_ARCHITECTURE.md for details.
 
 [build]
 builder = "RAILPACK"
@@ -7,19 +11,3 @@ builder = "RAILPACK"
 [deploy]
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
-
-[[cron]]
-schedule = "0 5 * * *"
-command = "python backend/scripts/cron/run_discovery.py"
-
-[[cron]]
-schedule = "0 6 * * *"
-command = "python scripts/daily_scrape.py"
-
-[[cron]]
-schedule = "0 7 * * *"
-command = "python backend/scripts/cron/run_rag_spiders.py"
-
-[[cron]]
-schedule = "0 8 * * *"
-command = "python backend/scripts/cron/run_universal_harvester.py"

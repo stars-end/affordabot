@@ -17,8 +17,7 @@ bd create "title" --type task
 
 ## Repo Layout
 
-- `frontend/` - React/Next.js job application UI
-- `frontend-v2/` - New version (WIP)
+- `frontend/` - Next.js Prism GUI (canonical frontend)
 - `backend/` - FastAPI Python API
 - `affordabot_scraper/` - LinkedIn scraper service
 - `tests/` - Playwright E2E tests

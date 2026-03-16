@@ -15,32 +15,60 @@ It exists to keep stack-alignment work from silently changing the current GUI wh
 
 ## Initial Route Inventory
 
-| Route | Disposition | Required gate |
+| Route | Disposition | Required gate | Test file | Test name |
+| --- | --- | --- | --- | --- |
+| `/` | `redirect-contract` | Redirect smoke to `/dashboard/california` | `preserved-public.spec.ts` | `homepage redirects to dashboard/california` |
+| `/dashboard/california` | `preserve` | Visual baseline + PR evidence | `preserved-public.spec.ts` | `dashboard/california — preserved visual baseline` |
+| `/dashboard/santa-clara-county` | `preserve` | Visual baseline + PR evidence | `preserved-public.spec.ts` | `dashboard/santa-clara-county — preserved visual baseline` |
+| `/dashboard/san-jose` | `preserve` | Visual baseline + PR evidence | `preserved-public.spec.ts` | `dashboard/san-jose — preserved visual baseline` |
+| `/dashboard/saratoga` | `preserve` | Visual baseline + PR evidence | `preserved-public.spec.ts` | `dashboard/saratoga — preserved visual baseline` |
+| `/dashboard/[jurisdiction]` | `preserve` | Visual baseline for canonical fixtures + route smoke | `preserved-public.spec.ts` | `dashboard/[jurisdiction] — generic jurisdiction route smoke` |
+| `/search` | `preserve` | Visual baseline + route smoke | `preserved-public.spec.ts` | `search — preserved visual baseline (empty state)` |
+| `/bill/[jurisdiction]/[billNumber]` | `preserve` | Visual baseline for canonical fixture + route smoke | `preserved-public.spec.ts` | `bill/california/AB-1234 — preserved visual baseline` |
+| `/sign-in/[[...sign-in]]` | `auth-preserve` | Render health (no fatal errors); skipped in CI mode (requires real Clerk keys) | `preserved-auth.spec.ts` | `sign-in — renders without fatal errors` |
+| `/sign-up/[[...sign-up]]` | `auth-preserve` | Render health (no fatal errors); skipped in CI mode (requires real Clerk keys) | `preserved-auth.spec.ts` | `sign-up — renders without fatal errors` |
+| `/admin` | `admin-preserve` | Visual baseline + route smoke | `preserved-admin.spec.ts` | `admin — preserved visual baseline` |
+| `/admin/audits/trace` | `admin-preserve` | Visual baseline + route smoke | `preserved-admin.spec.ts` | `admin/audits/trace — preserved visual baseline` |
+| `/admin/discovery` | `admin-preserve` | Visual baseline + route smoke | `preserved-admin.spec.ts` | `admin/discovery — preserved visual baseline` |
+| `/admin/jurisdiction/[id]` | `admin-preserve` | Visual baseline or stable fixture-backed smoke | `preserved-admin.spec.ts` | `admin/jurisdiction/test-jurisdiction — preserved visual baseline` |
+| `/admin/prompts` | `admin-preserve` | Visual baseline + route smoke | `preserved-admin.spec.ts` | `admin/prompts — preserved visual baseline` |
+| `/admin/reviews` | `admin-preserve` | Visual baseline + route smoke | `preserved-admin.spec.ts` | `admin/reviews — preserved visual baseline` |
+| `/admin/sources` | `admin-preserve` | Visual baseline + route smoke | `preserved-admin.spec.ts` | `admin/sources — preserved visual baseline` |
+| `/api/search` | `api-contract` | Response contract verification | — | — |
+| `/api/sources` | `api-contract` | Response contract verification | — | — |
+
+## Auth Bypass Contract
+
+Admin preservation tests use a signed-cookie bypass that matches the middleware contract:
+
+1. Cookie name: `x-test-user`
+2. Value format: `v1.{base64url_payload}.{base64url_signature}`
+3. HMAC-SHA-256 signed with `TEST_AUTH_BYPASS_SECRET`
+4. Only active when `RAILWAY_ENVIRONMENT_NAME` is `dev` or `staging`
+5. Helper: `tests/e2e/auth-setup.ts` generates the cookie
+
+The bypass does NOT weaken production auth — it only operates in non-production environments.
+
+## Fixtures
+
+| Fixture file | Used by | Contents |
 | --- | --- | --- |
-| `/` | `redirect-contract` | Redirect smoke to `/dashboard/california` |
-| `/dashboard/california` | `preserve` | Visual baseline + PR evidence |
-| `/dashboard/santa-clara-county` | `preserve` | Visual baseline + PR evidence |
-| `/dashboard/san-jose` | `preserve` | Visual baseline + PR evidence |
-| `/dashboard/saratoga` | `preserve` | Visual baseline + PR evidence |
-| `/dashboard/[jurisdiction]` | `preserve` | Visual baseline for canonical fixtures + route smoke |
-| `/search` | `preserve` | Visual baseline + route smoke |
-| `/bill/[jurisdiction]/[billNumber]` | `preserve` | Visual baseline for canonical fixture + route smoke |
-| `/sign-in/[[...sign-in]]` | `auth-preserve` | Visual baseline + auth-shell smoke |
-| `/sign-up/[[...sign-up]]` | `auth-preserve` | Visual baseline + auth-shell smoke |
-| `/admin` | `admin-preserve` | Visual baseline + route smoke |
-| `/admin/audits/trace` | `admin-preserve` | Visual baseline + route smoke |
-| `/admin/discovery` | `admin-preserve` | Visual baseline + route smoke |
-| `/admin/jurisdiction/[id]` | `admin-preserve` | Visual baseline or stable fixture-backed smoke |
-| `/admin/prompts` | `admin-preserve` | Visual baseline + route smoke |
-| `/admin/reviews` | `admin-preserve` | Visual baseline + route smoke |
-| `/admin/sources` | `admin-preserve` | Visual baseline + route smoke |
-| `/api/search` | `api-contract` | Response contract verification |
-| `/api/sources` | `api-contract` | Response contract verification |
+| `tests/e2e/fixtures/legislation-california.json` | Dashboard routes | 3 California bills with impacts |
+| `tests/e2e/fixtures/bill-detail.json` | Bill detail route | AB-1234 full detail with impacts |
+
+## Anti-Prime Contamination
+
+CI runs `scripts/ci/check-prime-contamination.sh` which scans `frontend/src` for:
+- Prime-specific color tokens (`--color-navy`, `--navy-800`, `C5A55A`, `1E3A6A`, etc.)
+- Prime-specific fonts (`Playfair Display`)
+- Prime-specific patterns (`prime-radiant`, `PrimeRadiant`, `T-Split`, `Account Rail`)
+
+Violations block the PR.
 
 ## Required Outputs For `bd-s8id.1`
 
-- Map every `preserve`, `auth-preserve`, and `admin-preserve` route above to a Playwright visual test in `frontend/`, and every `redirect-contract` route to a redirect assertion.
-- Commit initial visual baselines in-repo.
-- Add CI execution for the visual suite on PRs that touch `frontend/`.
-- Revisit this registry before `bd-s8id.2` starts and mark any newly discovered routes with a disposition instead of leaving them implicit.
-- Keep the registry repo-local so future contributors can see what must not change aesthetically.
+- [x] Map every `preserve`, `auth-preserve`, and `admin-preserve` route above to a Playwright test in `frontend/`, and every `redirect-contract` route to a redirect assertion.
+- [x] Initial baselines generated on first CI run (uploaded as artifact).
+- [x] CI runs the preservation suite for PRs that touch `frontend/`.
+- [x] Anti-Prime contamination check gates PRs.
+- [x] Keep the registry repo-local so future contributors can see what must not change aesthetically.

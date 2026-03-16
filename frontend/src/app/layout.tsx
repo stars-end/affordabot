@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { Public_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-import { ClerkProvider } from "@clerk/nextjs";
 import { Sidebar } from "../components/Sidebar";
 import { Toaster } from "@/components/ui/sonner";
+import { ClerkWrapper } from "./clerk-wrapper";
 
 const publicSans = Public_Sans({
   subsets: ["latin"],
@@ -17,8 +17,6 @@ const jetbrainsMono = JetBrains_Mono({
   display: "swap",
 });
 
-const clerkJSVersion = process.env.NEXT_PUBLIC_CLERK_JS_VERSION ?? "5.117.0";
-
 export const metadata: Metadata = {
   title: "AffordaBot",
   description: "AI-powered legislation analysis",
@@ -29,34 +27,11 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const isBypassEnabled = process.env.NEXT_PUBLIC_TEST_AUTH_BYPASS === 'true';
-  const hasBypassCookie = typeof document !== 'undefined' && document.cookie.includes('x-test-user=v1.');
-  const shouldBypass = isBypassEnabled && hasBypassCookie;
-
-  if (shouldBypass) {
-    return (
-      <html lang="en">
-        <body className={`${publicSans.variable} ${jetbrainsMono.variable} font-sans antialiased bg-white`}>
-          <div className="rainbow-gradient h-[3px] w-full fixed top-0 left-0 right-0 z-50" />
-          <div className="min-h-screen bg-white pt-[3px]">
-            <div className="flex">
-              <Sidebar />
-              <main className="flex-1 p-6">{children}</main>
-            </div>
-            <Toaster />
-          </div>
-        </body>
-      </html>
-    );
-  }
-
   return (
-    <ClerkProvider clerkJSVersion={clerkJSVersion}>
-      <html lang="en">
-        <body className={`${publicSans.variable} ${jetbrainsMono.variable} font-sans antialiased bg-white`}>
-          {/* Rainbow gradient bar at top */}
+    <html lang="en">
+      <body className={`${publicSans.variable} ${jetbrainsMono.variable} font-sans antialiased bg-white`}>
+        <ClerkWrapper>
           <div className="rainbow-gradient h-[3px] w-full fixed top-0 left-0 right-0 z-50" />
-
           <div className="min-h-screen bg-white pt-[3px]">
             <div className="flex">
               <Sidebar />
@@ -64,8 +39,8 @@ export default function RootLayout({
             </div>
             <Toaster />
           </div>
-        </body>
-      </html>
-    </ClerkProvider>
+        </ClerkWrapper>
+      </body>
+    </html>
   );
 }
