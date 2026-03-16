@@ -341,7 +341,6 @@ async def cron_universal_harvester(request: Request, background_tasks: Backgroun
 async def _run_script_job(script_path: str, job_name: str):
     """Run a cron script job with logging."""
     import asyncio
-    import subprocess
     import sys
 
     logger.info(f"Cron job '{job_name}' starting: {script_path}")
