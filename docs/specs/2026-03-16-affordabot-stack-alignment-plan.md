@@ -1,4 +1,4 @@
-# Affordabot Stack Alignment Plan
+# Affordabot Stack Alignment Implementation Spec
 
 ## Summary
 
@@ -75,6 +75,29 @@ Explicitly not shared:
 - product design language
 - tokens, palette, typography direction, and layout composition
 
+## Final Decisions
+
+These decisions are resolved for this implementation and should not be reopened during normal execution unless a blocking runtime fact contradicts them.
+
+1. `affordabot` stays on Next.js.
+2. `frontend/` is the only canonical frontend surface.
+3. The GUI preservation gate is `ALL_IN_NOW`, not advisory.
+4. Public and admin Prism routes receive blocking Playwright visual coverage with stable mocked fixtures where needed.
+5. Clerk auth routes receive smoke coverage first, not pixel-perfect visual baselines.
+6. Non-production testability fixes for Clerk and Next build/runtime issues are in scope for `bd-s8id.1`.
+7. CI ownership moves to `frontend/` once the preservation gate is real and green.
+8. `frontend-v2` leaves all default workflows as part of the convergence work; deletion waits for deploy/dependency verification.
+9. Windmill replaces Railway Cron using thin authenticated backend trigger contracts.
+10. `llm-common` converges on the git-pinned dependency model; mixed submodule assumptions are removed.
+
+## Implementation Principles
+
+- Preserve the Prism GUI by changing infrastructure and runtime seams under it, not by redesigning surfaces.
+- Prefer one decisive cutover per concern over long-lived dual-path maintenance.
+- Where visual stability matters, use deterministic test fixtures instead of live backend state.
+- Where runtime assumptions block testing, fix the runtime assumption rather than weakening the gate.
+- Only keep local compatibility layers when they protect runtime behavior that the shared stack cannot yet cover.
+
 ## Architecture / Design
 
 ### 1. Frontend Canonicalization
@@ -119,6 +142,13 @@ Preserved route contract:
 - each preserved route must map to a visual baseline or explicit non-visual verification rule
 - no frontend cleanup may start until the manifest, baselines, and CI gates exist together
 
+Implementation details:
+
+- dashboard and bill-detail preserved routes should use Playwright network interception with canonical fixture payloads so screenshots are stable across environments
+- admin preserved routes should use either fixture-backed API interception or stable built-in empty/demo states, depending on which produces the least test-only code
+- auth routes should prove render/redirect health without forcing exact Clerk-hosted visuals into the blocking baseline
+- the preservation suite should assert both screenshot stability and core visible text markers so failures are easier to diagnose
+
 ### 3. Windmill Orchestration
 
 Target contract:
@@ -145,6 +175,15 @@ Design preference:
 - thin orchestration adapters over large rewrites
 - internal authenticated job contract over public cron entrypoints
 
+Implementation details:
+
+- add `ops/windmill/README.md` plus committed function/job assets modeled on Prime's structure
+- each migrated job should have one clear owner:
+  - Windmill for schedule/orchestration
+  - backend for business logic and execution
+- public cron endpoints should be replaced with internal-only triggers or wrappers where feasible
+- removal of Railway cron config happens only after each target job has a parity checklist and successful dev/staging proof
+
 ### 4. `llm-common` Alignment
 
 Target contract:
@@ -166,6 +205,161 @@ Primary cleanup candidates:
 - inline `MockEmbeddingService` implementations
 - local pgvector fallback paths that should be replaced by stable shared backends
 
+Implementation details:
+
+- remove the assumption that engineers must initialize a local `packages/llm-common` checkout to work on `affordabot`
+- standardize one install/bootstrap path in CI and local docs
+- treat each fallback as a live runtime dependency until proven otherwise; delete only with direct verification
+
+## Implementation Surface
+
+### `bd-s8id.1` — Freeze Current Next GUI Contract And Visual Preservation Gates
+
+Primary outcomes:
+
+- `frontend/` becomes testable and buildable in CI-friendly non-production mode
+- preserved routes have committed baselines or explicit smoke-only treatment
+- CI can block on Prism GUI regressions
+
+Expected file areas:
+
+- `frontend/playwright.config.ts`
+- `frontend/tests/e2e/**`
+- `frontend/src/app/layout.tsx`
+- `frontend/src/middleware.ts`
+- `frontend/src/app/**`
+- `docs/PRESERVED_ROUTES.md`
+- `.github/workflows/ci.yml`
+- optional small test-fixture helpers under `frontend/tests/`
+
+Required implementation points:
+
+- add a safe non-production test mode so invalid/missing Clerk keys do not break build/test execution for public pages
+- fix current `frontend/` build blockers that prevent CI ownership
+- add preserved-route Playwright specs with canonical fixtures for dashboards and bill detail routes
+- add admin-route preserved coverage where the Prism shell is visible and meaningful
+- keep Clerk auth routes in smoke coverage unless exact snapshotting becomes trivial
+- add a CI guard that rejects Prime-specific theme token leakage
+
+Acceptance criteria:
+
+1. `frontend/` builds in CI-compatible mode without requiring production Clerk configuration.
+2. Preserved public/admin routes have committed visual baselines or explicit smoke-only classification in `docs/PRESERVED_ROUTES.md`.
+3. The CI workflow runs the new preservation checks for changes touching `frontend/`.
+4. Prime-specific theme token leakage is machine-checked.
+
+### `bd-s8id.2` — Canonicalize Frontend Stack Around `frontend` And Retire `frontend-v2` Defaults
+
+Primary outcomes:
+
+- engineers land on `frontend/` by default
+- legacy `frontend-v2` stops consuming CI and developer attention
+
+Expected file areas:
+
+- `.github/workflows/ci.yml`
+- `Makefile`
+- root `package.json`
+- `frontend/railway.toml`
+- repo docs referencing local dev/build flows
+- `frontend-v2/**` only if final cleanup/removal is safe
+
+Required implementation points:
+
+- switch CI from dual coverage to `frontend/` as the canonical frontend job once `bd-s8id.1` gates are green
+- update `make install`, `make dev`, `make build`, and related developer entry points
+- verify no active Railway or repo automation path still depends on `frontend-v2`
+- remove or archive `frontend-v2` only after dependency/deploy truth is confirmed
+
+Acceptance criteria:
+
+1. Default dev/build/install flows point at `frontend/`.
+2. CI no longer treats `frontend-v2` as the canonical frontend.
+3. No active deploy surface depends on `frontend-v2`.
+
+### `bd-s8id.3` — Migrate Scheduled Orchestration From Railway Cron To Windmill
+
+Primary outcomes:
+
+- Windmill owns scheduling
+- backend logic remains largely unchanged
+
+Expected file areas:
+
+- `railway.toml`
+- `ops/windmill/**`
+- `backend/main.py`
+- `backend/scripts/cron/**`
+- `scripts/daily_scrape.py`
+- `docs/CRON_ARCHITECTURE.md`
+- any auth/config helpers needed for internal trigger endpoints
+
+Required implementation points:
+
+- inventory each existing Railway Cron job and map it to a Windmill job or justified retirement
+- add thin internal backend trigger endpoints or wrappers as needed
+- commit Windmill assets and runbook/docs
+- remove Railway cron entries after successful parity verification
+
+Acceptance criteria:
+
+1. Every existing scheduled responsibility has a declared Windmill owner or explicit deprecation decision.
+2. Dev/staging parity is proven before Railway cron removal.
+3. Root `railway.toml` no longer acts as scheduler of record.
+
+### `bd-s8id.4` — Align `llm-common` Dependency Model And Remove Fallback Drift
+
+Primary outcomes:
+
+- one supported `llm-common` consumption path
+- less bootstrap/install confusion
+
+Expected file areas:
+
+- `backend/pyproject.toml`
+- `.gitmodules`
+- `Makefile`
+- `scripts/bootstrap.sh`
+- backend services/scripts using local fallback implementations
+- docs describing local setup
+
+Required implementation points:
+
+- remove submodule-first assumptions from install/bootstrap flows
+- update docs and CI to the single dependency model
+- verify and either remove or explicitly justify repo-local fallbacks
+
+Acceptance criteria:
+
+1. `affordabot` uses one clear `llm-common` dependency model.
+2. Bootstrap/install docs no longer require a local submodule checkout.
+3. Remaining fallbacks are explicitly justified rather than accidental drift.
+
+### `bd-s8id.5` — Run Integrated Validation, Docs Cleanup, And Deployment Cutover Checks
+
+Primary outcomes:
+
+- repo defaults, docs, CI, and runtime behavior match the new reality
+
+Expected file areas:
+
+- `docs/**`
+- `.github/workflows/**`
+- `Makefile`
+- cleanup of stale scripts/config after prior tasks land
+
+Required implementation points:
+
+- run end-to-end validation across preserved GUI, frontend defaults, Windmill scheduling, and shared-lib setup
+- remove stale docs and references to retired paths
+- re-verify deployed surface and routing assumptions before closing the epic
+
+Acceptance criteria:
+
+1. Integrated validation passes across all completed subtasks.
+2. Docs/default workflows describe the post-migration stack accurately.
+3. No stale canonical-path guidance remains for retired frontend or cron flows.
+
 ## Execution Phases
 
 ### Phase 1: Preservation Gate
@@ -182,6 +376,14 @@ Includes:
 - wire the visual suite into CI for changes touching `frontend/`
 - define acceptance gates for frontend-preserving work, including the anti-Prime-token check and Tailwind version pin
 
+Execution order inside the phase:
+
+1. make `frontend/` buildable/testable in CI-safe mode
+2. finalize preserved route manifest
+3. add stable Playwright fixture strategy
+4. commit initial baselines
+5. wire blocking CI gates
+
 ### Phase 2: Frontend Stack Convergence
 
 Outcome:
@@ -197,6 +399,14 @@ Includes:
 - removal of `frontend-v2` from default workflows
 - validation that preserved routes still render identically enough
 
+Execution order inside the phase:
+
+1. prove `frontend/` CI is green and blocking
+2. switch default dev/build/install paths
+3. remove legacy CI ownership
+4. verify deploy/dependency truth for `frontend-v2`
+5. archive/remove legacy frontend only if unused
+
 ### Phase 3: Windmill Migration
 
 Outcome:
@@ -210,6 +420,13 @@ Includes:
 - verification scripts
 - removal of root cron scheduling after parity is proven
 
+Execution order inside the phase:
+
+1. map current cron inventory
+2. add Windmill assets and backend triggers
+3. prove parity per job in dev/staging
+4. remove Railway scheduler ownership
+
 ### Phase 4: Shared Library Alignment
 
 Outcome:
@@ -221,6 +438,13 @@ Includes:
 - dependency source cleanup
 - fallback removal where safe
 - script/bootstrap cleanup
+
+Execution order inside the phase:
+
+1. standardize dependency source
+2. clean install/bootstrap/docs
+3. verify fallbacks one-by-one
+4. remove unjustified compatibility layers
 
 ### Phase 5: Integration and Cutover Validation
 
@@ -234,6 +458,13 @@ Includes:
 - docs cleanup
 - stale path removal
 - final deployment/cutover checks
+
+Execution order inside the phase:
+
+1. run integrated verification
+2. reconcile docs/defaults with implementation
+3. remove stale references
+4. re-verify deployed surface assumptions
 
 ## Beads Structure
 
@@ -272,6 +503,28 @@ Final integration:
 
 ## Validation
 
+### Core Commands
+
+Frontend preservation track:
+
+- `pnpm --dir frontend build`
+- `pnpm --dir frontend exec playwright test`
+- any route-scoped visual update command added by `bd-s8id.1`
+
+Frontend convergence track:
+
+- updated canonical frontend CI job in `.github/workflows/ci.yml`
+- targeted `make` entry point verification after defaults are switched
+
+Backend/orchestration track:
+
+- backend tests for migrated trigger paths
+- Windmill parity verification per migrated job
+
+Shared library track:
+
+- clean install/bootstrap run using the new single dependency model
+
 ### Frontend Preservation Gates
 
 - Playwright visual regression baselines are committed for each preserved route
@@ -295,6 +548,12 @@ Final integration:
 - CI rejects Prime-specific theme-token imports or CSS variable names in `frontend/`
 - no implementation PR imports Prime shell/layout code into `affordabot`
 - `affordabot` remains pinned to Tailwind `v4.x` during this migration; any future Tailwind major upgrade requires fresh visual baselines
+
+### Auth Coverage Gates
+
+- Clerk-backed auth routes render without fatal runtime errors
+- auth pages are covered by smoke checks even if they are not part of the initial pixel-perfect baseline set
+- non-production test mode does not weaken production auth behavior
 
 ### Windmill Gates
 
@@ -340,6 +599,17 @@ Windmill:
 Shared library:
 
 - revert to prior pin/fallbacks if shared dependency upgrade breaks runtime behavior
+
+## Stop Conditions
+
+Pause and re-confirm with the founder if any of these occur:
+
+- preserving the current Prism GUI would require abandoning the Next runtime decision
+- a required testability fix weakens production auth/security behavior
+- Windmill migration requires substantive business-logic rewrites rather than thin orchestration changes
+- `llm-common` alignment breaks a production-critical path with no safe shared alternative
+
+Otherwise, proceed without reopening the already-resolved decision set.
 
 ## Consultant Review Focus
 
