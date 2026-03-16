@@ -70,3 +70,7 @@ artifacts/verification/
 
 # DX session lock files
 .dx-session-lock
+
+# llm-tldr local runtime artifacts
+backend/.tldr/
+backend/.tldrignore
