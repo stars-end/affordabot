@@ -97,10 +97,18 @@ install:
 
 # Run development servers
 dev:
+dev:
 	@echo "Starting development servers (Backend + Frontend V2)..."
-	pnpm concurrently -n "BACKEND,FRONTEND" -c "blue,green" \
-		"$(MAKE) dev-backend" \
-		"$(MAKE) dev-frontend-v2"
+	@if [ -n "$$RAILWAY_ENVIRONMENT" ]; then \
+		pnpm concurrently -n "BACKEND,FRONTEND" -c "blue,green" \
+			"$(MAKE) dev-backend" \
+			"$(MAKE) dev-frontend-v2"; \
+	else \
+		echo "ℹ️  Not in a Railway shell. Auto-wrapping with 'railway run'..."; \
+		railway run pnpm concurrently -n "BACKEND,FRONTEND" -c "blue,green" \
+			"$(MAKE) dev-backend" \
+			"$(MAKE) dev-frontend-v2"; \
+	fi
 
 # Run development servers via Railway (Pilot)
 dev-railway:
