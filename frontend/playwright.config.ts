@@ -16,6 +16,9 @@ export default defineConfig({
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: process.env.CI ? 'list' : 'html',
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
+  /* Use platform-agnostic snapshot names so baselines work on both macOS and Linux CI */
+  snapshotPathTemplate: '{testDir}/{testFileName}-snapshots/{arg}{ext}',
+
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
     baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3000',
@@ -38,7 +41,7 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,
     env: {
-      // CI-safe env vars loaded from .env.ci by the CI workflow
+      // CI-safe env vars passed via CI workflow env: block (no .env.ci dependency)
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || '',
       CLERK_SECRET_KEY: process.env.CLERK_SECRET_KEY || '',
       NEXT_PUBLIC_TEST_AUTH_BYPASS: 'true',

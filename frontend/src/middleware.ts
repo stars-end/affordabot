@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
 const CLERK_KEY = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ?? '';
 const isCIClerkKey = CLERK_KEY.includes('placeholder');
@@ -41,9 +42,25 @@ async function verifySignedBypassCookie(cookieHeader: string | null, secret: str
     }
 }
 
-// CI middleware: no Clerk dependency, bypass cookie only
+// CI middleware: validates signed bypass cookie for admin routes,
+// allows all public routes without Clerk dependency.
 function ciMiddleware() {
-    return async (req: Request) => {
+    return async (req: NextRequest) => {
+        // Admin routes require the signed bypass cookie even in CI mode
+        if (isProtectedRoute(req.nextUrl.pathname)) {
+            const secret = process.env.TEST_AUTH_BYPASS_SECRET;
+            if (!secret) {
+                return NextResponse.next();
+            }
+            const cookieHeader = req.headers.get('cookie');
+            if (!await verifySignedBypassCookie(cookieHeader, secret)) {
+                // Return 401 instead of redirecting (Clerk not available in CI)
+                return new NextResponse('Unauthorized: invalid or missing bypass cookie', {
+                    status: 401,
+                    headers: { 'Content-Type': 'text/plain' },
+                });
+            }
+        }
         return NextResponse.next();
     };
 }

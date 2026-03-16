@@ -44,8 +44,22 @@ Admin preservation tests use a signed-cookie bypass that matches the middleware 
 1. Cookie name: `x-test-user`
 2. Value format: `v1.{base64url_payload}.{base64url_signature}`
 3. HMAC-SHA-256 signed with `TEST_AUTH_BYPASS_SECRET`
-4. Only active when `RAILWAY_ENVIRONMENT_NAME` is `dev` or `staging`
-5. Helper: `tests/e2e/auth-setup.ts` generates the cookie
+4. Helper: `tests/e2e/auth-setup.ts` generates the cookie
+
+### Production path (Clerk available)
+
+When real Clerk keys are configured, the middleware uses `clerkMiddleware` which checks:
+- If `RAILWAY_ENVIRONMENT_NAME` is `dev` or `staging` AND `TEST_AUTH_BYPASS_SECRET` is set, the signed bypass cookie grants access to `/admin` routes without a Clerk session.
+- Otherwise, standard Clerk auth is enforced (redirect to `/sign-in` if not authenticated).
+
+### CI path (placeholder Clerk keys)
+
+When `NEXT_PUBLIC_TEST_AUTH_BYPASS=true` and the Clerk publishable key contains `placeholder`:
+- Clerk SDK is not loaded (no import at request time).
+- The CI middleware still validates the signed bypass cookie for `/admin` routes using the same `verifySignedBypassCookie` function.
+- Invalid or missing bypass cookie returns 401 (no redirect since Clerk is unavailable).
+- Public routes pass through unconditionally.
+- This means the admin preservation tests genuinely exercise the signed-cookie contract in CI.
 
 The bypass does NOT weaken production auth — it only operates in non-production environments.
 

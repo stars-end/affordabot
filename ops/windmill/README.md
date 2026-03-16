@@ -38,7 +38,18 @@ against `CRON_SECRET` environment variable.
 
 | Route | Disposition |
 | --- | --- |
-| `/cron/daily-scrape` | Retired — public unauthenticated path removed |
+| Railway Cron scheduling of `/cron/daily-scrape` | Retired — scheduling moved to Windmill |
+
+### Active Routes
+
+All cron trigger endpoints remain live and auth-gated:
+
+| Route | Method | Windmill Job |
+| --- | --- | --- |
+| `/cron/discovery` | POST | `discovery_run` |
+| `/cron/daily-scrape` | POST | `daily_scrape` |
+| `/cron/rag-spiders` | POST | `rag_spiders` |
+| `/cron/universal-harvester` | POST | `universal_harvester` |
 
 ## Local Testing
 

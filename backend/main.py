@@ -255,7 +255,7 @@ CRON_SECRET = os.environ.get("CRON_SECRET")
 def _verify_cron_auth(request: Request) -> bool:
     """Verify cron secret from Authorization header or X-Cron-Secret header."""
     if not CRON_SECRET:
-        logger.warning("CRON_SECRET not set — cron auth disabled")
+        logger.warning("CRON_SECRET not set — cron auth rejected")
         return False
 
     # Check Authorization: Bearer token

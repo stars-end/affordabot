@@ -41,7 +41,7 @@ X-Cron-Secret: $CRON_SECRET
 ```
 
 The backend validates these against the `CRON_SECRET` environment variable.
-When `CRON_SECRET` is not set, cron auth is disabled (dev mode only).
+When `CRON_SECRET` is not set, all cron trigger endpoints return 401.
 
 ### Assets
 
@@ -73,7 +73,7 @@ All endpoints require auth (see Auth Contract above).
 | --- | --- |
 | Prefect orchestration | Removed (`bd-s8id.4`) — dependency `prefect>=2.0.0` deleted |
 | Railway Cron scheduling | Migrated to Windmill (`bd-s8id.3`) — entries removed from `railway.toml` |
-| Public `/cron/daily-scrape` (unauthenticated) | Auth-gated — now requires `CRON_SECRET` |
+| Unauthenticated `/cron/daily-scrape` | No longer exists — all cron endpoints require `CRON_SECRET` |
 
 ## Local Testing
 

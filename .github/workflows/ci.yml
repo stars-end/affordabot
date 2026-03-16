@@ -30,13 +30,12 @@ jobs:
       - name: Install dependencies
         run: cd frontend && pnpm install --frozen-lockfile
 
-      - name: Load CI env
-        run: |
-          cd frontend
-          cp .env.ci .env.local
-
       - name: Build frontend (Next.js)
         run: cd frontend && pnpm build
+        env:
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_ci_placeholder_for_build_only
+          CLERK_SECRET_KEY: sk_test_ci_placeholder_for_build_only
+          NEXT_PUBLIC_TEST_AUTH_BYPASS: 'true'
 
   frontend-preservation:
     name: Frontend Preservation Gate
@@ -58,11 +57,6 @@ jobs:
 
       - name: Install Playwright Browsers
         run: cd frontend && npx playwright install --with-deps chromium
-
-      - name: Load CI env
-        run: |
-          cd frontend
-          cp .env.ci .env.local
 
       - name: Anti-Prime Contamination Check
         run: bash scripts/ci/check-prime-contamination.sh frontend
