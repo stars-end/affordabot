@@ -1,3 +1,4 @@
+import os
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -9,6 +10,42 @@ SOURCE_BY_ENDPOINT = {
     "rag-spiders": "windmill:f/affordabot/rag_spiders",
     "universal-harvester": "windmill:f/affordabot/universal_harvester",
 }
+
+
+def send_slack_alert(
+    webhook_url: Optional[str],
+    severity: str,
+    title: str,
+    message: str,
+    env: str = "dev",
+) -> None:
+    """Send Windmill cron alerts using the same webhook-driven pattern as Prime."""
+    if not webhook_url:
+        return
+
+    emoji_map = {"INFO": "✅", "WARNING": "⚠️", "ERROR": "🔴", "CRITICAL": "🚨"}
+    emoji = emoji_map.get(severity, "📢")
+    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    hostname = os.uname().nodename.split(".")[0]
+
+    payload = {
+        "text": f"[{severity}] {emoji} {title}",
+        "blocks": [
+            {"type": "section", "text": {"type": "mrkdwn", "text": f"*[{severity}]* {emoji} *{title}*"}},
+            {"type": "section", "text": {"type": "mrkdwn", "text": message}},
+            {
+                "type": "context",
+                "elements": [{"type": "mrkdwn", "text": f"env={env} | host={hostname} | time={timestamp}"}],
+            },
+        ],
+    }
+
+    try:
+        resp = requests.post(webhook_url, json=payload, timeout=10)
+        resp.raise_for_status()
+        print(f"Slack alert sent: [{severity}] {title}")
+    except Exception as exc:
+        print(f"Failed to send Slack alert: {exc}")
 
 
 def main(
@@ -48,6 +85,13 @@ def main(
             "env": env,
         }
         print(error)
+        send_slack_alert(
+            slack_webhook_url,
+            "ERROR",
+            f"Affordabot {endpoint}: REQUEST_FAILED",
+            f"Request to `{url}` failed: `{exc}`",
+            env,
+        )
         raise
 
     try:
@@ -65,8 +109,16 @@ def main(
             "env": env,
         }
         print(error)
+        send_slack_alert(
+            slack_webhook_url,
+            "ERROR",
+            f"Affordabot {endpoint}: HTTP_{response.status_code}",
+            f"Endpoint `{url}` returned `{response.status_code}`.\n```{payload}```",
+            env,
+        )
         response.raise_for_status()
 
+    result_status = payload.get("status", "unknown") if isinstance(payload, dict) else "unknown"
     result = {
         "endpoint": endpoint,
         "status": "succeeded",
@@ -76,5 +128,21 @@ def main(
         "env": env,
         "slack_configured": bool(slack_webhook_url),
     }
+    if result_status == "succeeded":
+        send_slack_alert(
+            slack_webhook_url,
+            "INFO",
+            f"Affordabot {endpoint}: SUCCESS",
+            f"Endpoint `{endpoint}` completed successfully.\n```{payload}```",
+            env,
+        )
+    else:
+        send_slack_alert(
+            slack_webhook_url,
+            "ERROR",
+            f"Affordabot {endpoint}: FAILED",
+            f"Endpoint `{endpoint}` returned a non-success payload.\n```{payload}```",
+            env,
+        )
     print(result)
     return result

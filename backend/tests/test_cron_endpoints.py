@@ -46,6 +46,7 @@ def test_cron_endpoint_runs_synchronously_with_valid_auth(monkeypatch):
     assert response.status_code == 200
     assert response.json()["status"] == "succeeded"
     assert response.json()["job"] == "discovery"
+    assert response.json()["script_path"].endswith("backend/scripts/cron/run_discovery.py")
 
 
 def test_cron_endpoint_accepts_prime_style_shared_instance_header(monkeypatch):
@@ -73,3 +74,22 @@ def test_cron_endpoint_returns_500_on_job_failure(monkeypatch):
 
     assert response.status_code == 500
     assert response.json()["detail"]["status"] == "failed"
+
+
+def test_daily_scrape_endpoint_uses_backend_scoped_script(monkeypatch):
+    monkeypatch.setattr(main, "CRON_SECRET", "test-secret")
+    captured = {}
+
+    async def _capture_job(script_path: str, job_name: str):
+        captured["script_path"] = script_path
+        return await _successful_job(script_path, job_name)
+
+    monkeypatch.setattr(main, "_run_script_job", _capture_job)
+
+    response = client.post(
+        "/cron/daily-scrape",
+        headers={"Authorization": "Bearer test-secret"},
+    )
+
+    assert response.status_code == 200
+    assert captured["script_path"].endswith("backend/scripts/cron/run_daily_scrape.py")

@@ -23,7 +23,7 @@ value:
           value: 7200
         slack_webhook_url:
           type: static
-          value: null
+          value: $var:f/affordabot/SLACK_WEBHOOK_URL
       path: f/affordabot/trigger_cron_job
       retry:
         attempts: 3

@@ -12,6 +12,7 @@ from sentry_sdk.integrations.logging import LoggingIntegration
 from routers import admin, sources, discovery, prompts, bills
 from services.scraper.registry import SCRAPERS
 from middleware.auth import TestAuthBypassMiddleware
+from pathlib import Path
 
 # Initialize Sentry
 if os.getenv("SENTRY_DSN"):
@@ -251,6 +252,12 @@ async def process_jurisdiction(jurisdiction: str, scraper_class, jur_type: str):
 # or X-PR-CRON-SECRET: $CRON_SECRET for Prime-style shared-instance wrappers.
 
 CRON_SECRET = os.environ.get("CRON_SECRET")
+BACKEND_ROOT = Path(__file__).resolve().parent
+
+
+def _backend_script_path(relative_path: str) -> str:
+    """Resolve cron scripts relative to the deployed backend service root."""
+    return str((BACKEND_ROOT / relative_path).resolve())
 
 
 def _verify_cron_auth(request: Request) -> bool:
@@ -290,7 +297,9 @@ async def cron_discovery(request: Request):
         raise HTTPException(status_code=401, detail="Invalid cron credentials")
 
     logger.info("Cron trigger: discovery run")
-    result = await _run_script_job("backend/scripts/cron/run_discovery.py", "discovery")
+    result = await _run_script_job(
+        _backend_script_path("scripts/cron/run_discovery.py"), "discovery"
+    )
     if result["status"] != "succeeded":
         raise HTTPException(status_code=500, detail=result)
     return result
@@ -306,7 +315,9 @@ async def cron_daily_scrape(request: Request):
         raise HTTPException(status_code=401, detail="Invalid cron credentials")
 
     logger.info("Cron trigger: daily scrape")
-    result = await _run_script_job("scripts/daily_scrape.py", "daily_scrape")
+    result = await _run_script_job(
+        _backend_script_path("scripts/cron/run_daily_scrape.py"), "daily_scrape"
+    )
     if result["status"] != "succeeded":
         raise HTTPException(status_code=500, detail=result)
     return result
@@ -322,7 +333,9 @@ async def cron_rag_spiders(request: Request):
         raise HTTPException(status_code=401, detail="Invalid cron credentials")
 
     logger.info("Cron trigger: rag spiders")
-    result = await _run_script_job("backend/scripts/cron/run_rag_spiders.py", "rag_spiders")
+    result = await _run_script_job(
+        _backend_script_path("scripts/cron/run_rag_spiders.py"), "rag_spiders"
+    )
     if result["status"] != "succeeded":
         raise HTTPException(status_code=500, detail=result)
     return result
@@ -339,7 +352,7 @@ async def cron_universal_harvester(request: Request):
 
     logger.info("Cron trigger: universal harvester")
     result = await _run_script_job(
-        "backend/scripts/cron/run_universal_harvester.py", "universal_harvester"
+        _backend_script_path("scripts/cron/run_universal_harvester.py"), "universal_harvester"
     )
     if result["status"] != "succeeded":
         raise HTTPException(status_code=500, detail=result)
