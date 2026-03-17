@@ -1,0 +1,8 @@
+schedule: 0 0 7 * * ?
+on_failure: ""
+script_path: f/affordabot/rag_spiders
+args:
+  env: dev
+timezone: Etc/UTC
+is_flow: true
+enabled: true

@@ -23,18 +23,21 @@ This replaces the legacy Prefect orchestration (removed in `bd-s8id.4`) and Rail
 
 ### Execution Model
 
-Default: Windmill runs the existing CLI/script entrypoint directly.
-This preserves exit-code and log observability (no fire-and-forget HTTP triggers).
+Canonical shared-instance model: Windmill runs a thin wrapper that POSTs to the backend cron endpoint.
+The backend then executes the real script synchronously and returns a final success/failure payload.
+This keeps one execution plane in Railway while preserving Windmill observability.
 
 ### Auth Contract
 
-All cron trigger endpoints require:
+Windmill wrappers send:
 
 ```
 Authorization: Bearer $CRON_SECRET
+X-PR-CRON-SECRET: $CRON_SECRET
+X-PR-CRON-SOURCE: windmill:f/affordabot/<job>
 ```
 
-Or:
+The backend also accepts:
 
 ```
 X-Cron-Secret: $CRON_SECRET
@@ -45,8 +48,14 @@ When `CRON_SECRET` is not set, all cron trigger endpoints return 401.
 
 ### Assets
 
-Committed Windmill job definitions: `ops/windmill/jobs/`
+Committed Windmill workspace definitions: `ops/windmill/f/affordabot/`
+Windmill sync config: `ops/windmill/wmill.yaml`
 Runbook: `ops/windmill/README.md`
+
+Required Windmill workspace variables:
+
+- `f/affordabot/BACKEND_PUBLIC_URL`
+- `f/affordabot/CRON_SECRET`
 
 ## Backend Trigger Endpoints
 
@@ -78,10 +87,9 @@ All endpoints require auth (see Auth Contract above).
 ## Local Testing
 
 ```bash
-# Run a single job locally
-export PYTHONPATH=backend
-source backend/.env
-python scripts/daily_scrape.py
+# Push affordabot workspace assets to the shared Windmill instance
+cd ops/windmill
+wmill sync push --workspace affordabot
 
 # Test authenticated trigger endpoint
 curl -X POST -H "Authorization: Bearer $CRON_SECRET" \

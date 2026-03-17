@@ -1,0 +1,43 @@
+summary: Affordabot daily scrape
+description: Schedule daily at 06:00 UTC. Triggers the backend daily scrape cron endpoint.
+value:
+  modules:
+  - id: a
+    value:
+      type: script
+      input_transforms:
+        endpoint:
+          type: static
+          value: daily-scrape
+        backend_url:
+          type: static
+          value: $var:f/affordabot/BACKEND_PUBLIC_URL
+        cron_secret:
+          type: static
+          value: $var:f/affordabot/CRON_SECRET
+        env:
+          type: static
+          value: dev
+        timeout_seconds:
+          type: static
+          value: 7200
+        slack_webhook_url:
+          type: static
+          value: null
+      path: f/affordabot/trigger_cron_job
+      retry:
+        attempts: 3
+        backoff:
+          initial_interval: 60
+          max_interval: 900
+          multiplier: 2
+concurrency:
+  limit: 1
+  key: affordabot-cron
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order: []
+  properties: {}
+  required: []
+ws_error_handler_muted: false

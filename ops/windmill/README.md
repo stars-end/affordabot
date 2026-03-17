@@ -20,19 +20,39 @@ As of `bd-s8id.3`, scheduling moved from root `railway.toml` Railway Cron to Win
 
 ### Execution Model
 
-Default: Windmill runs the existing CLI/script entrypoint directly.
-This preserves exit-code and log observability (no fire-and-forget HTTP triggers).
+Canonical shared-instance model: Windmill triggers authenticated backend cron endpoints over HTTP.
+The backend executes the underlying script synchronously and returns a success/failure payload,
+so Windmill preserves final job observability without needing the repository mounted in the worker.
+
+Committed Windmill assets:
+
+- `ops/windmill/wmill.yaml`
+- `ops/windmill/f/affordabot/trigger_cron_job.py`
+- `ops/windmill/f/affordabot/*.flow/flow.yaml`
+- `ops/windmill/f/affordabot/*.schedule.yaml`
+
+Required workspace variables:
+
+- `f/affordabot/BACKEND_PUBLIC_URL`
+- `f/affordabot/CRON_SECRET`
 
 ### Auth Contract
 
-All Windmill-to-backend HTTP calls use:
+Shared-instance wrappers send:
 
 ```
 Authorization: Bearer $CRON_SECRET
+X-PR-CRON-SECRET: $CRON_SECRET
+X-PR-CRON-SOURCE: windmill:f/affordabot/<job>
 ```
 
-The backend validates this via `X-Cron-Secret` header or `Authorization: Bearer` token
-against `CRON_SECRET` environment variable.
+The backend accepts:
+
+- `Authorization: Bearer $CRON_SECRET`
+- `X-Cron-Secret: $CRON_SECRET`
+- `X-PR-CRON-SECRET: $CRON_SECRET`
+
+All are validated against the backend `CRON_SECRET` environment variable.
 
 ### Retired Routes
 
@@ -54,14 +74,17 @@ All cron trigger endpoints remain live and auth-gated:
 ## Local Testing
 
 ```bash
-# Run a single job locally (with Railway env for secrets)
-railway run -p <project-id> -e <env> -s backend -- python backend/scripts/cron/run_discovery.py
+# Sync the affordabot workspace assets into the shared Windmill instance
+cd ops/windmill
+wmill sync push --workspace affordabot
 
-# Test the authenticated trigger endpoint
-curl -H "Authorization: Bearer $CRON_SECRET" https://backend-dev-3d99.up.railway.app/cron/discovery
+# Test the authenticated trigger endpoint directly
+curl -X POST \
+  -H "Authorization: Bearer $CRON_SECRET" \
+  https://backend-dev-3d99.up.railway.app/cron/discovery
 ```
 
 ## Rollback
 
 If Windmill parity fails, Railway cron entries remain in git history and can be restored.
-The backend cron trigger endpoints are additive and don't remove existing functionality.
+The backend cron trigger endpoints remain additive and can still be exercised directly.

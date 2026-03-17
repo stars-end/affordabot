@@ -1,0 +1,8 @@
+schedule: 0 0 5 * * ?
+on_failure: ""
+script_path: f/affordabot/discovery_run
+args:
+  env: dev
+timezone: Etc/UTC
+is_flow: true
+enabled: true

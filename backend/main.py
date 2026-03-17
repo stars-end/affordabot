@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from services.notifications.email import EmailNotificationService
@@ -247,13 +247,14 @@ async def process_jurisdiction(jurisdiction: str, scraper_class, jur_type: str):
 
 # --- Authenticated Cron Trigger Endpoints (bd-s8id.3) ---
 # These endpoints are used by Windmill as the scheduler of record.
-# Auth: Authorization: Bearer $CRON_SECRET or X-Cron-Secret: $CRON_SECRET
+# Auth: Authorization: Bearer $CRON_SECRET, X-Cron-Secret: $CRON_SECRET,
+# or X-PR-CRON-SECRET: $CRON_SECRET for Prime-style shared-instance wrappers.
 
 CRON_SECRET = os.environ.get("CRON_SECRET")
 
 
 def _verify_cron_auth(request: Request) -> bool:
-    """Verify cron secret from Authorization header or X-Cron-Secret header."""
+    """Verify cron secret from supported internal cron auth headers."""
     if not CRON_SECRET:
         logger.warning("CRON_SECRET not set — cron auth rejected")
         return False
@@ -270,11 +271,16 @@ def _verify_cron_auth(request: Request) -> bool:
     if cron_header == CRON_SECRET:
         return True
 
+    # Prime-style shared Windmill instance header
+    pr_cron_header = request.headers.get("x-pr-cron-secret", "")
+    if pr_cron_header == CRON_SECRET:
+        return True
+
     return False
 
 
 @app.post("/cron/discovery")
-async def cron_discovery(request: Request, background_tasks: BackgroundTasks):
+async def cron_discovery(request: Request):
     """
     Authenticated cron trigger for discovery pipeline.
     Replaces Railway Cron scheduling for this job.
@@ -284,14 +290,14 @@ async def cron_discovery(request: Request, background_tasks: BackgroundTasks):
         raise HTTPException(status_code=401, detail="Invalid cron credentials")
 
     logger.info("Cron trigger: discovery run")
-    background_tasks.add_task(
-        _run_script_job, "backend/scripts/cron/run_discovery.py", "discovery"
-    )
-    return {"status": "triggered", "job": "discovery"}
+    result = await _run_script_job("backend/scripts/cron/run_discovery.py", "discovery")
+    if result["status"] != "succeeded":
+        raise HTTPException(status_code=500, detail=result)
+    return result
 
 
 @app.post("/cron/daily-scrape")
-async def cron_daily_scrape(request: Request, background_tasks: BackgroundTasks):
+async def cron_daily_scrape(request: Request):
     """
     Cron endpoint to scrape all jurisdictions daily.
     Auth: Authorization: Bearer $CRON_SECRET or X-Cron-Secret: $CRON_SECRET
@@ -300,14 +306,14 @@ async def cron_daily_scrape(request: Request, background_tasks: BackgroundTasks)
         raise HTTPException(status_code=401, detail="Invalid cron credentials")
 
     logger.info("Cron trigger: daily scrape")
-    background_tasks.add_task(
-        _run_script_job, "scripts/daily_scrape.py", "daily_scrape"
-    )
-    return {"status": "triggered", "job": "daily_scrape"}
+    result = await _run_script_job("scripts/daily_scrape.py", "daily_scrape")
+    if result["status"] != "succeeded":
+        raise HTTPException(status_code=500, detail=result)
+    return result
 
 
 @app.post("/cron/rag-spiders")
-async def cron_rag_spiders(request: Request, background_tasks: BackgroundTasks):
+async def cron_rag_spiders(request: Request):
     """
     Authenticated cron trigger for RAG spiders.
     Auth: Authorization: Bearer $CRON_SECRET or X-Cron-Secret: $CRON_SECRET
@@ -316,14 +322,14 @@ async def cron_rag_spiders(request: Request, background_tasks: BackgroundTasks):
         raise HTTPException(status_code=401, detail="Invalid cron credentials")
 
     logger.info("Cron trigger: rag spiders")
-    background_tasks.add_task(
-        _run_script_job, "backend/scripts/cron/run_rag_spiders.py", "rag_spiders"
-    )
-    return {"status": "triggered", "job": "rag_spiders"}
+    result = await _run_script_job("backend/scripts/cron/run_rag_spiders.py", "rag_spiders")
+    if result["status"] != "succeeded":
+        raise HTTPException(status_code=500, detail=result)
+    return result
 
 
 @app.post("/cron/universal-harvester")
-async def cron_universal_harvester(request: Request, background_tasks: BackgroundTasks):
+async def cron_universal_harvester(request: Request):
     """
     Authenticated cron trigger for universal harvester.
     Auth: Authorization: Bearer $CRON_SECRET or X-Cron-Secret: $CRON_SECRET
@@ -332,14 +338,16 @@ async def cron_universal_harvester(request: Request, background_tasks: Backgroun
         raise HTTPException(status_code=401, detail="Invalid cron credentials")
 
     logger.info("Cron trigger: universal harvester")
-    background_tasks.add_task(
-        _run_script_job, "backend/scripts/cron/run_universal_harvester.py", "universal_harvester"
+    result = await _run_script_job(
+        "backend/scripts/cron/run_universal_harvester.py", "universal_harvester"
     )
-    return {"status": "triggered", "job": "universal_harvester"}
+    if result["status"] != "succeeded":
+        raise HTTPException(status_code=500, detail=result)
+    return result
 
 
 async def _run_script_job(script_path: str, job_name: str):
-    """Run a cron script job with logging."""
+    """Run a cron script job synchronously and return a serializable result."""
     import asyncio
     import sys
 
@@ -351,12 +359,33 @@ async def _run_script_job(script_path: str, job_name: str):
             stderr=asyncio.subprocess.PIPE,
         )
         stdout, stderr = await proc.communicate()
+        stdout_text = stdout.decode("utf-8", errors="replace")
+        stderr_text = stderr.decode("utf-8", errors="replace")
+        result = {
+            "job": job_name,
+            "script_path": script_path,
+            "exit_code": proc.returncode,
+            "status": "succeeded" if proc.returncode == 0 else "failed",
+            "stdout_tail": stdout_text[-4000:],
+            "stderr_tail": stderr_text[-4000:],
+        }
         if proc.returncode != 0:
-            logger.error(f"Cron job '{job_name}' failed (exit {proc.returncode}): {stderr[-500:]}")
+            logger.error(
+                f"Cron job '{job_name}' failed (exit {proc.returncode}): {result['stderr_tail'][-500:]}"
+            )
         else:
             logger.info(f"Cron job '{job_name}' succeeded (exit {proc.returncode})")
+        return result
     except Exception as e:
         logger.error(f"Cron job '{job_name}' exception: {e}")
+        return {
+            "job": job_name,
+            "script_path": script_path,
+            "exit_code": -1,
+            "status": "failed",
+            "stdout_tail": "",
+            "stderr_tail": str(e),
+        }
 
 @app.post("/scrape/{jurisdiction}")
 async def scrape_and_analyze(jurisdiction: str) -> Dict[str, Any]:

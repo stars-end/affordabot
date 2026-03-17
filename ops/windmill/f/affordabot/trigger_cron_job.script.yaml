@@ -1,0 +1,30 @@
+summary: Affordabot cron trigger
+description: Trigger an affordabot backend cron endpoint from the shared Windmill instance.
+lock: ""
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  properties:
+    endpoint:
+      type: string
+      description: Cron endpoint suffix, without the /cron/ prefix.
+      default: null
+      originalType: string
+    env:
+      type: string
+      description: Environment label for logs.
+      default: dev
+      originalType: string
+    timeout_seconds:
+      type: integer
+      description: HTTP timeout for the synchronous backend run.
+      default: 7200
+      originalType: number
+    slack_webhook_url:
+      type: string
+      description: Optional Slack webhook reserved for future alerting.
+      default: null
+      originalType: string
+  required:
+    - endpoint
