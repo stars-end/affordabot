@@ -99,9 +99,9 @@ function prodMiddleware() {
 }
 
 // Select middleware based on environment
-// CI mode: when placeholder keys are used, Clerk is not invoked
+// Test bypass mode: uses CI middleware without Clerk dependency
 // Production: Clerk middleware handles auth with bypass cookie support
-const middleware = (isTestBypass && isCIClerkKey) ? ciMiddleware() : prodMiddleware();
+const middleware = isTestBypass ? ciMiddleware() : prodMiddleware();
 export default middleware;
 
 export const config = {

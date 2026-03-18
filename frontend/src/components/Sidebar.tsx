@@ -5,12 +5,10 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LayoutDashboard, Building2, MapPin, Settings, FileText, Shield } from 'lucide-react';
 
-// CI-safe Clerk detection: when in test bypass mode with placeholder keys,
-// ClerkProvider is not mounted, so Clerk hooks will throw.
+// CI-safe Clerk detection: when in test bypass mode,
+// ClerkProvider is not mounted with SSR, so Clerk hooks will throw.
 // isCIMode is resolved at module load time from env vars baked in at build.
-const isCIMode = process.env.NEXT_PUBLIC_TEST_AUTH_BYPASS === 'true'
-  && (process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY !== undefined
-    && process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY.includes('placeholder'));
+const isCIMode = process.env.NEXT_PUBLIC_TEST_AUTH_BYPASS === 'true';
 
 /**
  * SidebarInner is the real component that uses Clerk's useUser hook.
