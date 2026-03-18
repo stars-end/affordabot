@@ -38,3 +38,11 @@ Role: {engineer-type}
 | `beads-dolt status --json` | Source-of-truth issue summary |
 | `bd sync` | Legacy JSONL compatibility (manual use only) |
 | `bd export -o .beads/issues.jsonl` | Legacy JSONL compatibility export |
+
+## Auth and Secrets
+
+- Prefer cached OP service-account mode by default for any auth that needs to survive across tool calls or repeated secret reads.
+- Use `~/agent-skills/scripts/dx-load-railway-auth.sh -- <cmd>` or an equivalent one-shell invocation when OP and Railway auth must be loaded together.
+- If a command needs both `OP_SERVICE_ACCOUNT_TOKEN` and `RAILWAY_API_TOKEN`, load them in the same shell invocation rather than relying on exported state between tool calls.
+- Canonical Windmill CLI source is `op://dev/Agent-Secrets-Production/WINDMILL_API_TOKEN`.
+- Treat standalone references like "windmill dev api token" as legacy or ambiguous unless a specific migration step explicitly requires them.
