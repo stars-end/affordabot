@@ -1,538 +1,176 @@
 # CI and Testing Infrastructure
 
-**Last Updated**: 2025-12-07
-**Status**: Complete and Operational
+**Last Updated**: 2026-03-18  
+**Status**: Aligned with the shared-stack cutover
 
 ## Overview
 
-Comprehensive CI/CD and testing infrastructure for affordabot, including local development, automated testing, and GitHub Actions continuous integration.
+Affordabot now treats the preserved Next.js Prism UI, shared-instance Windmill wrappers, and backend cron endpoints as the canonical test surface.
 
-## Local Development
+The defaults are intentionally narrow:
 
-### Makefile Commands
+- preserved-route Playwright tests are the default frontend gate
+- legacy Playwright specs are quarantined and opt-in only
+- backend pytest covers the Windmill wrapper and alert contract
 
-All common development tasks are available via Make:
+## Local Commands
 
-```bash
-# View all available commands
-make help
-
-# Install dependencies
-make install          # Installs pnpm dependencies
-                     # Backend uses venv: source backend/venv/bin/activate
-                     # Then: pip install -r backend/requirements.txt
-
-# Development
-make dev-frontend    # Start Next.js dev server (localhost:3000)
-make dev-backend     # Instructions for backend setup
-
-# Building
-make build           # Build frontend production bundle
-
-# Testing
-make test            # Run all Playwright tests
-make e2e             # Run Playwright E2E tests explicitly
-
-# CI
-make ci              # Run full CI suite locally (build + e2e)
-
-# Cleanup
-make clean           # Remove build artifacts and caches
-```
-
-### Running Local CI
-
-Before pushing, verify everything works:
+### Makefile
 
 ```bash
-# Full CI suite (what GitHub Actions runs)
-make ci
-
-# Expected output:
-# === Build Check ===
-# ✓ Route (app)                                  196 kB         102 kB
-# ✓ Route (app)/admin                            136 kB         102 kB
-#
-# === E2E Tests ===
-# ✓  [chromium] › smoke.spec.ts:4:3 › Smoke Tests › homepage loads successfully
-# ✓  [chromium] › smoke.spec.ts:11:3 › Smoke Tests › dashboard page is accessible
-# ✓  [chromium] › smoke.spec.ts:17:3 › Smoke Tests › admin page is accessible
-#
-# 3 passed (8.2s)
+make test         # Canonical preserved-route Playwright suite
+make e2e          # Alias for the canonical preserved-route suite
+make test-legacy  # Quarantined legacy Playwright specs
+make ci           # Build + canonical preserved-route suite
+make ci-lite      # Fast local validation
 ```
 
-## Backend Testing (Python)
+### Frontend
 
-### Configuration
-**File**: `backend/pyproject.toml`
-**Framework**: `pytest`
+```bash
+cd frontend
+pnpm test                 # Canonical preserved-route suite
+pnpm test:headed          # Canonical preserved-route suite with browser visible
+pnpm test:ui              # Canonical preserved-route suite in Playwright UI
+pnpm test:legacy          # Quarantined legacy Playwright specs
+pnpm test:legacy:headed   # Legacy suite with browser visible
+pnpm test:report          # Open last Playwright report
+```
 
-### Running Tests
+### Backend
+
 ```bash
 cd backend
 poetry run pytest
+poetry run pytest tests/ops/test_windmill_contract.py -q
 ```
 
-### Test Structure
-- `backend/tests/`
-  - `test_ingestion_service.py`: Logic verification for Ingestion.
-  - `test_source_service.py`: Logic verification for Source management.
-  - `test_search_pipeline_service.py`: Search pipeline logic.
-  - `conftest.py`: Fixtures (mock_supabase).
+## Canonical Frontend Contract
 
-### Mocking Strategy
-We use `unittest.mock.MagicMock` to mock `SupabaseDB` and external services.
-This allows running tests without a real database connection.
+### Preserved Suite
 
-Example:
-```python
-@pytest.fixture
-def mock_supabase():
-    mock = MagicMock()
-    # Mock table().select().execute() chain
-    mock.table.return_value.select.return_value.execute.return_value.data = []
-    return mock
-```
+The canonical preserved-route suite lives in:
 
-## E2E Testing with Playwright
+- `frontend/tests/e2e/preserved-public.spec.ts`
+- `frontend/tests/e2e/preserved-admin.spec.ts`
+- `frontend/tests/e2e/preserved-auth.spec.ts`
 
-### Configuration
+These tests protect the current Prism GUI and match the CI preservation gate.
 
-**File**: `frontend/playwright.config.ts`
+### Legacy Suite
 
-**Key Features**:
-- Test directory: `frontend/tests/e2e/`
-- Base URL: `http://localhost:3000` (configurable via `PLAYWRIGHT_BASE_URL`)
-- Auto-starts dev server before tests
-- Retries: 2 on CI, 0 locally
-- Workers: 1 on CI, parallel locally
-- Browser: Chromium only (for speed)
-- Reports: HTML report in `frontend/playwright-report/`
+Older exploratory Playwright specs live in:
 
-**WebServer Configuration**:
-```typescript
-webServer: {
-  command: 'pnpm dev',
-  url: 'http://localhost:3000',
-  reuseExistingServer: !process.env.CI,
-  timeout: 120 * 1000,
-}
-```
+- `frontend/tests/legacy-e2e/smoke.spec.ts`
+- `frontend/tests/legacy-e2e/audit_trail.spec.ts`
 
-### Test Suite
+They are not part of the blocking preservation contract. Keep them only for explicit manual investigation, migration follow-up, or future modernization.
 
-**File**: `frontend/tests/e2e/smoke.spec.ts`
+### Playwright Configuration
 
-**Current Tests** (3 total):
-1. **Homepage loads successfully**
-   - Navigates to `/`
-   - Waits for network idle
-   - Verifies page has title
-   - Checks body is visible
+- Canonical config: `frontend/playwright.config.ts`
+- Legacy-only config: `frontend/playwright.legacy.config.ts`
+- Reports: `frontend/playwright-report/`
+- Canonical snapshots: `frontend/tests/e2e/*-snapshots/`
 
-2. **Dashboard page is accessible**
-   - Navigates to `/dashboard/ca`
-   - Waits for network idle
-   - Checks body is visible
+## Backend and Windmill Contract Coverage
 
-3. **Admin page is accessible**
-   - Navigates to `/admin`
-   - Waits for network idle
-   - Checks body is visible
+### Cron Endpoint Tests
 
-### Running Tests
+`backend/tests/test_cron_endpoints.py` verifies:
+
+- missing auth returns `401`
+- valid auth runs the backend cron handlers synchronously
+- Prime-style shared-instance headers are accepted
+- failed jobs surface `500`
+- `daily-scrape` uses the backend-scoped entrypoint
+
+### Windmill Wrapper Tests
+
+`backend/tests/ops/test_windmill_contract.py` verifies:
+
+- each committed shared-instance flow still points at `f/affordabot/trigger_cron_job`
+- required Windmill vars are still referenced:
+  - `BACKEND_PUBLIC_URL`
+  - `CRON_SECRET`
+  - `SLACK_WEBHOOK_URL`
+- schedules still point at the expected four affordabot flows
+- stale `BACKEND_INTERNAL_URL` does not reappear in repo assets
+- Slack success and failure alert branches still execute
+
+## GitHub Actions
+
+Workflow: `.github/workflows/ci.yml`
+
+### Frontend Lint & Build
+
+- installs dependencies
+- builds `frontend/`
+
+### Frontend Preservation Gate
+
+Runs only the canonical preserved suite:
+
+- `tests/e2e/preserved-public.spec.ts`
+- `tests/e2e/preserved-admin.spec.ts`
+- `tests/e2e/preserved-auth.spec.ts`
+
+It does not run the quarantined legacy specs.
+
+### Backend Lint & Test
+
+Runs backend pytest, including the Windmill contract coverage.
+
+### Beads Validation
+
+Checks for required Beads metadata on PR commits.
+
+## Expected Local Verification
+
+Before opening a PR for stack-affecting work, run:
 
 ```bash
-# Run all tests (headless)
-cd frontend && pnpm test
-
-# Run with UI (interactive)
-cd frontend && pnpm test:ui
-
-# Run with browser visible
-cd frontend && pnpm test:headed
-
-# View last test report
-cd frontend && pnpm test:report
+make ci
+cd backend && poetry run pytest tests/ops/test_windmill_contract.py tests/test_cron_endpoints.py -q
 ```
 
-### Writing New Tests
-
-Add tests to `frontend/tests/e2e/`:
-
-```typescript
-import { test, expect } from '@playwright/test';
-
-test.describe('Feature Name', () => {
-  test('should do something', async ({ page }) => {
-    await page.goto('/your-page');
-    await page.waitForLoadState('networkidle');
-
-    // Your assertions
-    await expect(page.locator('.your-element')).toBeVisible();
-  });
-});
-```
-
-## GitHub Actions CI
-
-### Workflow Configuration
-
-**File**: `.github/workflows/ci.yml`
-
-**Triggers**:
-- Pull requests to `main` or `master`
-- Pushes to `main` or `master`
-- Manual workflow dispatch
-
-**Concurrency**: Auto-cancels superseded runs per branch
-
-### Jobs
-
-#### 1. Frontend Lint & Build
-
-**Duration**: ~42s
-**Runs on**: `ubuntu-latest`
-
-**Steps**:
-1. Checkout code
-2. Setup pnpm (auto-detects version from `packageManager` field)
-3. Setup Node.js 20 with pnpm cache
-4. Install dependencies (`pnpm install --frozen-lockfile`)
-5. Build frontend (`cd frontend && pnpm build`)
-
-**Success Criteria**: Build completes without errors
-
-#### 2. Frontend E2E Tests
-
-**Duration**: ~1m2s
-**Runs on**: `ubuntu-latest`
-**Depends on**: Frontend Lint & Build
-
-**Steps**:
-1. Checkout code
-2. Setup pnpm and Node.js
-3. Install dependencies
-4. Install Playwright browsers (`playwright install --with-deps chromium`)
-5. Run tests (`cd frontend && pnpm test` with `CI=true`)
-6. Upload Playwright report (always, even on failure)
-
-**Success Criteria**: All 3 smoke tests pass
-
-**Artifacts**: Playwright report (retained 30 days)
-
-#### 3. Beads Validation
-
-**Runs on**: `ubuntu-latest`
-**Condition**: Only on pull requests
-
-**Steps**:
-1. Checkout with full history (`fetch-depth: 0`)
-2. Check for `Feature-Key:` trailer in commits
-
-**Success Criteria**: At least one commit has `Feature-Key: bd-xyz` trailer
-
-### Viewing CI Results
+If you changed legacy specs intentionally, also run:
 
 ```bash
-# View latest CI run
-gh run list --limit 1
-
-# View specific run details
-gh run view <run-id>
-
-# View failed job logs
-gh run view <run-id> --log-failed
-
-# Watch live run
-gh run watch <run-id>
-```
-
-### CI Run Example
-
-Latest successful run: [19803145451](https://github.com/fengning-starsend/affordabot/actions/runs/19803145451)
-
-```
-✓ Frontend Lint & Build in 42s
-✓ Frontend E2E Tests in 1m2s
-- Beads Validation (skipped - not a PR)
-
-Total: 1m50s
-Status: SUCCESS
-```
-
-## pnpm Configuration
-
-### Package Manager Version
-
-**Specified in**: `frontend/package.json`
-
-```json
-{
-  "packageManager": "pnpm@9.1.0"
-}
-```
-
-This ensures:
-- GitHub Actions auto-detects correct pnpm version
-- Railway RAILPACK uses correct version
-- All developers use same version
-
-### Monorepo vs Service Lockfiles
-
-**Root lockfile**: `pnpm-lock.yaml` (134K)
-- Used for local development
-- Contains all workspace dependencies
-
-**Frontend lockfile**: `frontend/pnpm-lock.yaml` (131K)
-- Generated with `pnpm install --ignore-workspace`
-- Used by Railway deployments
-- No workspace dependencies (e.g., no `turbo`)
-
-**Why both?**
-- Root: Local development with workspace features
-- Frontend: Railway needs service-specific lockfile matching package.json exactly
-
-**Regenerate frontend lockfile**:
-```bash
-cd frontend
-yes | pnpm install --ignore-workspace
-```
-
-## Railway Deployment
-
-### Frontend Service
-
-**Configuration**: `frontend/railway.toml`
-
-```toml
-[build]
-builder = "RAILPACK"
-# Auto-detects pnpm via packageManager field
-watchPatterns = ["frontend/**/*", "pnpm-lock.yaml"]
-
-[deploy]
-startCommand = "pnpm start"
-healthcheckPath = "/"
-healthcheckTimeout = 100
-restartPolicyType = "ON_FAILURE"
-restartPolicyMaxRetries = 3
-```
-
-### Checking Deployment Status
-
-```bash
-# List recent deployments
-railway deployment list --limit 5
-
-# View deployment logs
-railway logs --deployment <deployment-id>
-
-# View build logs
-railway logs --build <build-id>
-```
-
-### Successful Deployment Example
-
-```bash
-$ railway deployment list --limit 1
-6cc3e316-bd0b-413a-a6d8-0ce2d31e2006 | SUCCESS | frontend | ...
+cd frontend && pnpm test:legacy
 ```
 
 ## Troubleshooting
 
-### Local Testing Issues
-
 | Issue | Solution |
-|-------|----------|
-| `make: command not found` | Install build-essential (Linux) or Xcode CLI tools (Mac) |
-| `pnpm: command not found` | Run `npm install -g pnpm@9.1.0` |
-| Playwright tests fail locally | Run `cd frontend && pnpm exec playwright install --with-deps chromium` |
-| Port 3000 already in use | Kill process: `lsof -ti:3000 \| xargs kill -9` |
-
-### CI Failures
-
-| Issue | Solution |
-|-------|----------|
-| Build fails on lockfile | Run `pnpm install` locally and commit updated lockfile |
-| E2E tests timeout | Check webServer configuration in playwright.config.ts |
-| Playwright browser install fails | Verify `--with-deps chromium` in GitHub Actions |
-| Feature-Key validation fails | Add `Feature-Key: bd-xyz` trailer to commits |
-
-### Railway Deployment Issues
-
-| Issue | Solution |
-|-------|----------|
-| `ERR_PNPM_OUTDATED_LOCKFILE` | Regenerate frontend lockfile with `--ignore-workspace` |
-| Build timeout | Check watchPatterns in railway.toml |
-| Health check fails | Verify healthcheckPath and timeout settings |
-
-## Testing Strategy
-
-### Test Pyramid
-
-```
-        /\
-       /E2E\		← 3 smoke tests (Playwright)
-      /    \
-     /------\
-    /  Unit  \       ← Future: Component tests
-   /----------\
-  / Integration \    ← Future: API integration tests
- /--------------\
-```
-
-**Current Focus**: E2E smoke tests to verify critical user paths
-
-**Future**:
-- Unit tests for components (React Testing Library)
-- Integration tests for API routes
-- Visual regression tests (Percy/Chromatic)
-
-### Test Coverage Goals
-
-**Current**: Critical path coverage (homepage, dashboard, admin)
-
-**Short-term goals**:
-- [ ] Add authentication flow tests
-- [ ] Add form submission tests
-- [ ] Add error state tests
-
-**Long-term goals**:
-- [ ] 80%+ component test coverage
-- [ ] API contract testing
-- [ ] Performance regression testing
-- [ ] E2E tests for admin dashboard
-- [ ] Mobile responsive tests
-- [ ] Accessibility tests (a11y)
-
-## Performance Metrics
-
-### Build Times
-
-| Environment | Build Time | Bundle Size |
-|-------------|-----------|-------------|
-| Local | ~15s | 365 kB total |
-| CI (GitHub Actions) | ~42s | Same |
-| Railway | ~2-3min | Same |
-
-### Test Times
-
-| Test Suite | Local | CI |
-|-----------|-------|-----|
-| E2E (3 tests) | ~8s | ~1m2s |
-| Full CI | ~23s | ~1m50s |
-
-**Why CI slower?**
-- Cold start (no cache)
-- Single worker (CI=true)
-- Browser installation overhead
+| --- | --- |
+| Playwright browsers missing locally | `cd frontend && pnpm exec playwright install --with-deps chromium` |
+| Canonical preserved suite passes but legacy suite fails | Expected unless you touched the legacy lane; they are non-blocking by default |
+| Windmill wrapper tests fail | Re-check `ops/windmill/f/affordabot/*` flow, schedule, and script contracts |
+| Slack alert-path tests fail | Inspect `ops/windmill/f/affordabot/trigger_cron_job.py` before changing alert payload semantics |
+| Backend pytest fails after dependency edits | Regenerate `backend/poetry.lock` and rerun `poetry install --no-interaction --no-root` |
 
 ## File Structure
 
-```
+```text
 affordabot/
-├── .github/
-│   └── workflows/
-│       └── ci.yml              # GitHub Actions workflow
+├── .github/workflows/ci.yml
+├── Makefile
+├── docs/CI_AND_TESTING.md
 ├── frontend/
-│   ├── playwright.config.ts   # Playwright configuration
-│   ├── tests/
-│   │   └── e2e/
-│   │       └── smoke.spec.ts  # Smoke tests
-│   ├── .gitignore             # Ignores test-results/, playwright-report/
-│   └── package.json           # packageManager: pnpm@9.1.0
-├── Makefile                   # Local development commands
-└── docs/
-    └── CI_AND_TESTING.md      # This file
+│   ├── playwright.config.ts
+│   ├── playwright.legacy.config.ts
+│   └── tests/
+│       ├── e2e/
+│       │   ├── preserved-public.spec.ts
+│       │   ├── preserved-admin.spec.ts
+│       │   ├── preserved-auth.spec.ts
+│       │   └── fixtures/
+│       └── legacy-e2e/
+│           ├── smoke.spec.ts
+│           └── audit_trail.spec.ts
+└── backend/
+    └── tests/
+        ├── test_cron_endpoints.py
+        └── ops/test_windmill_contract.py
 ```
-
-## Best Practices
-
-### Before Committing (Tiered Approach)
-
-**1. The "Every Commit" Check (Fast):**
-```bash
-make ci-lite
-# Checks: Linting + Backend Unit Tests (<30s)
-```
-
-**2. The "Structural Change" Check (Slow):**
-*Run this if you modified: `layout.tsx`, `middleware.ts`, `package.json`, or global Context.*
-```bash
-make build
-# Checks: Next.js Static Generation + Type Safety (~1m)
-```
-
-**3. The "Deep Verification" Check:**
-```bash
-make ci
-# Checks: Everything above + E2E Smoke Tests
-```
-
-### Before Creating PR
-
-```bash
-# 1. Ensure Feature-Key in commits
-git log --format=%B -1 | grep "Feature-Key:"
-
-# 2. Push and verify CI passes
-git push origin <branch>
-gh run watch
-```
-
-### When Adding Features
-
-```bash
-# 1. Add E2E test for critical path
-# File: frontend/tests/e2e/<feature>.spec.ts
-
-# 2. Verify test passes locally
-cd frontend && pnpm test
-
-# 3. Update documentation
-# File: docs/CI_AND_TESTING.md (this file)
-```
-
-## Next Steps
-
-### Immediate
-- [x] Local CI with Makefile
-- [x] Playwright E2E tests (3 smoke tests)
-- [x] GitHub Actions CI workflow
-- [x] Railway deployment integration
-- [x] Backend Unit Tests (pytest)
-
-### Short-term
-- [ ] Add authentication flow tests
-- [ ] Add component unit tests
-- [ ] Add API integration tests
-- [ ] Setup test coverage reporting
-
-### Long-term
-- [ ] Visual regression testing
-- [ ] Performance regression testing
-- [ ] E2E tests for admin dashboard
-- [ ] Mobile responsive tests
-- [ ] Accessibility tests (a11y)
-
-## Resources
-
-- **Playwright Docs**: https://playwright.dev/docs/intro
-- **GitHub Actions Docs**: https://docs.github.com/en/actions
-- **Railway Docs**: https://docs.railway.com/
-- **pnpm Docs**: https://pnpm.io/
-
-## Changelog
-
-### 2025-12-07
-- ✅ Added Backend Testing section
-- ✅ Updated Next Steps (Backend Unit Tests done)
-
-### 2025-11-30
-- ✅ Created Makefile with 11 commands
-- ✅ Added Playwright with 3 smoke tests
-- ✅ Created GitHub Actions CI workflow (2 jobs)
-- ✅ Fixed Railway deployment (pnpm lockfile)
-- ✅ All CI passing (local + GitHub Actions + Railway)
-- ✅ Created this documentation

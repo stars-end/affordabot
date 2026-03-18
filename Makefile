@@ -1,4 +1,4 @@
-.PHONY: help install dev build test lint clean ci e2e ci-lite
+.PHONY: help install dev build test test-legacy lint clean ci e2e ci-lite
 
 # ============================================================
 # CI/Verification Helpers
@@ -67,8 +67,9 @@ help:
 	@echo "  dev-backend  - Run backend dev server"
 	@echo "  dev-railway  - Run all services via Railway (Pilot)"
 	@echo "  build        - Build frontend production bundle"
-	@echo "  test         - Run Playwright preservation tests"
-	@echo "  e2e          - Run Playwright e2e tests"
+	@echo "  test         - Run the canonical Playwright preservation suite"
+	@echo "  e2e          - Alias for the canonical Playwright preservation suite"
+	@echo "  test-legacy  - Run quarantined legacy Playwright specs"
 	@echo "  lint         - Run linters (Python + frontend)"
 	@echo "  ci-lite      - Fast local validation (<30s)"
 	@echo "  clean        - Clean build artifacts"
@@ -109,12 +110,16 @@ build:
 # Run preservation tests
 test:
 	@echo "Running Playwright preservation tests..."
-	cd frontend && pnpm exec playwright test
+	cd frontend && pnpm test
 
 # Run e2e tests
 e2e:
-	@echo "Running Playwright e2e tests..."
-	cd frontend && pnpm exec playwright test
+	@echo "Running canonical preserved-route Playwright tests..."
+	cd frontend && pnpm test
+
+test-legacy:
+	@echo "Running legacy Playwright specs..."
+	cd frontend && pnpm test:legacy
 
 # Run linters
 lint:
@@ -149,7 +154,7 @@ ci:
 	$(MAKE) build
 	@echo ""
 	@echo "=== Preservation Tests ==="
-	$(MAKE) e2e
+	$(MAKE) test
 
 # Check for Railway Shell environment
 check-railway-shell:

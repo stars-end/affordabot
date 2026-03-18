@@ -68,7 +68,7 @@ jobs:
           NEXT_PUBLIC_TEST_AUTH_BYPASS: 'true'
           RAILWAY_ENVIRONMENT_NAME: 'dev'
           TEST_AUTH_BYPASS_SECRET: ci-test-secret-for-playwright-only
-        run: cd frontend && npx playwright test tests/e2e/preserved-public.spec.ts tests/e2e/preserved-admin.spec.ts tests/e2e/preserved-auth.spec.ts
+        run: cd frontend && pnpm test
 
       - name: Upload Playwright Report
         if: always()

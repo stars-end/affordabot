@@ -64,6 +64,22 @@ When `NEXT_PUBLIC_TEST_AUTH_BYPASS=true` and the Clerk publishable key contains 
 
 The bypass does NOT weaken production auth — it only operates in non-production environments.
 
+## Default Test Surfaces
+
+The preserved-route suite is the canonical frontend contract and the default everywhere:
+
+- `make test`
+- `make e2e`
+- `cd frontend && pnpm test`
+
+Legacy exploratory Playwright specs are intentionally quarantined under `frontend/tests/legacy-e2e/` and only run via:
+
+- `make test-legacy`
+- `cd frontend && pnpm test:legacy`
+
+They are kept for manual investigation and migration follow-up, not as part of the stack-preservation gate.
+Stale pre-Prism admin assertions were removed rather than preserved in a permanently failing lane.
+
 ## Fixtures
 
 | Fixture file | Used by | Contents |
