@@ -16,6 +16,7 @@ from uuid import uuid4
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
 
 from db.postgres_client import PostgresDB
+from llm_common import WebSearchClient
 from services.auto_discovery_service import AutoDiscoveryService
 
 # Logging
@@ -27,7 +28,10 @@ async def main():
     logger.info(f"🚀 Starting Discovery (Task {task_id})")
     
     db = PostgresDB()
-    discovery_service = AutoDiscoveryService()
+    search_client = WebSearchClient(
+        api_key=os.environ.get("ZAI_API_KEY", "mock-key"),
+    )
+    discovery_service = AutoDiscoveryService(search_client=search_client, db_client=db)
     
     # 1. Log Start
     try:
