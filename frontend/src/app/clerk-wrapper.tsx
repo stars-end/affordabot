@@ -10,7 +10,7 @@ import React from 'react';
 const CLERK_KEY = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ?? '';
 const isCIClerkKey = CLERK_KEY.includes('placeholder');
 const isTestBypass = process.env.NEXT_PUBLIC_TEST_AUTH_BYPASS === 'true';
-const skipSSR = isTestBypass && isCIClerkKey;
+const skipSSR = isTestBypass;
 
 // Lazy-loaded ClerkProvider that only loads on the client in CI mode
 const LazyClerkProvider = dynamic(
