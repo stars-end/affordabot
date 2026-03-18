@@ -42,6 +42,11 @@ Alerting follows the same Windmill-script webhook pattern used by Prime's EODHD 
 - route them to `#railway-dev-alerts` with the workspace `SLACK_WEBHOOK_URL`
 - remove the stale `BACKEND_INTERNAL_URL` variable from the affordabot workspace if it still exists
 
+Automated contract coverage lives in `backend/tests/ops/test_windmill_contract.py` and verifies:
+- the committed shared-instance flow/schedule wrappers still point at `f/affordabot/trigger_cron_job`
+- the required Windmill variables remain in the contract
+- the Slack alert success/failure branches still fire as expected
+
 ### Auth Contract
 
 Shared-instance wrappers send:
@@ -80,6 +85,10 @@ All cron trigger endpoints remain live and auth-gated:
 ## Local Testing
 
 ```bash
+# Contract tests for the shared-instance wrappers and alert path
+cd backend
+poetry run pytest tests/ops/test_windmill_contract.py -q
+
 # Sync the affordabot workspace assets into the shared Windmill instance
 cd ops/windmill
 wmill sync push --workspace affordabot

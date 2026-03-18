@@ -1,0 +1,194 @@
+from importlib.util import module_from_spec, spec_from_file_location
+from pathlib import Path
+
+import pytest
+import requests
+
+
+ROOT = Path(__file__).resolve().parents[3]
+WINDMILL_DIR = ROOT / "ops" / "windmill" / "f" / "affordabot"
+TRIGGER_SCRIPT_PATH = WINDMILL_DIR / "trigger_cron_job.py"
+
+
+spec = spec_from_file_location("windmill_trigger_cron_job", TRIGGER_SCRIPT_PATH)
+windmill_trigger = module_from_spec(spec)
+assert spec.loader is not None
+spec.loader.exec_module(windmill_trigger)
+
+
+class DummyResponse:
+    def __init__(self, status_code=200, payload=None, text=""):
+        self.status_code = status_code
+        self._payload = payload if payload is not None else {}
+        self.text = text
+
+    def json(self):
+        return self._payload
+
+    def raise_for_status(self):
+        if self.status_code >= 400:
+            raise requests.HTTPError(f"HTTP {self.status_code}")
+
+
+@pytest.mark.parametrize(
+    ("job_name", "endpoint", "schedule"),
+    [
+        ("discovery_run", "discovery", "schedule: 0 0 5 * * ?"),
+        ("daily_scrape", "daily-scrape", "schedule: 0 0 6 * * ?"),
+        ("rag_spiders", "rag-spiders", "schedule: 0 0 7 * * ?"),
+        ("universal_harvester", "universal-harvester", "schedule: 0 0 8 * * ?"),
+    ],
+)
+def test_shared_instance_windmill_assets_reference_trigger_contract(job_name, endpoint, schedule):
+    flow_text = (WINDMILL_DIR / f"{job_name}.flow" / "flow.yaml").read_text()
+    schedule_text = (WINDMILL_DIR / f"{job_name}.schedule.yaml").read_text()
+
+    assert "path: f/affordabot/trigger_cron_job" in flow_text
+    assert f"value: {endpoint}" in flow_text
+    assert "value: $var:f/affordabot/BACKEND_PUBLIC_URL" in flow_text
+    assert "value: $var:f/affordabot/CRON_SECRET" in flow_text
+    assert "value: $var:f/affordabot/SLACK_WEBHOOK_URL" in flow_text
+    assert "value: 7200" in flow_text
+    assert "BACKEND_INTERNAL_URL" not in flow_text
+
+    assert f"script_path: f/affordabot/{job_name}" in schedule_text
+    assert "is_flow: true" in schedule_text
+    assert "enabled: true" in schedule_text
+    assert schedule in schedule_text
+
+
+def test_trigger_script_schema_keeps_slack_webhook_input():
+    schema_text = (WINDMILL_DIR / "trigger_cron_job.script.yaml").read_text()
+
+    assert "slack_webhook_url:" in schema_text
+    assert "Optional Slack webhook for Prime-style dev alert notifications." in schema_text
+    assert "timeout_seconds:" in schema_text
+
+
+def test_send_slack_alert_posts_webhook_payload(monkeypatch):
+    captured = {}
+
+    def fake_post(url, json, timeout):
+        captured["url"] = url
+        captured["json"] = json
+        captured["timeout"] = timeout
+        return DummyResponse(status_code=200, payload={"ok": True})
+
+    monkeypatch.setattr(windmill_trigger.requests, "post", fake_post)
+
+    windmill_trigger.send_slack_alert(
+        "https://hooks.slack.test/services/123",
+        "INFO",
+        "Affordabot discovery: SUCCESS",
+        "Everything worked",
+        "dev",
+    )
+
+    assert captured["url"] == "https://hooks.slack.test/services/123"
+    assert captured["timeout"] == 10
+    assert captured["json"]["text"].startswith("[INFO] ✅ Affordabot discovery: SUCCESS")
+    assert captured["json"]["blocks"][1]["text"]["text"] == "Everything worked"
+    assert "env=dev" in captured["json"]["blocks"][2]["elements"][0]["text"]
+
+
+def test_main_success_posts_expected_headers_and_info_alert(monkeypatch):
+    captured = {"alerts": []}
+
+    def fake_post(url, headers, timeout):
+        captured["url"] = url
+        captured["headers"] = headers
+        captured["timeout"] = timeout
+        return DummyResponse(status_code=200, payload={"status": "succeeded", "job": "daily_scrape"})
+
+    def fake_alert(webhook_url, severity, title, message, env):
+        captured["alerts"].append((webhook_url, severity, title, message, env))
+
+    monkeypatch.setattr(windmill_trigger.requests, "post", fake_post)
+    monkeypatch.setattr(windmill_trigger, "send_slack_alert", fake_alert)
+
+    result = windmill_trigger.main(
+        endpoint="daily-scrape",
+        backend_url="https://backend.example.com/",
+        cron_secret="secret-123",
+        env="dev",
+        timeout_seconds=321,
+        slack_webhook_url="https://hooks.slack.test/services/abc",
+    )
+
+    assert captured["url"] == "https://backend.example.com/cron/daily-scrape"
+    assert captured["timeout"] == 321
+    assert captured["headers"]["Authorization"] == "Bearer secret-123"
+    assert captured["headers"]["X-PR-CRON-SECRET"] == "secret-123"
+    assert captured["headers"]["X-PR-CRON-SOURCE"] == "windmill:f/affordabot/daily_scrape"
+    assert captured["alerts"] == [
+        (
+            "https://hooks.slack.test/services/abc",
+            "INFO",
+            "Affordabot daily-scrape: SUCCESS",
+            "Endpoint `daily-scrape` completed successfully.\n```{'status': 'succeeded', 'job': 'daily_scrape'}```",
+            "dev",
+        )
+    ]
+    assert result["status"] == "succeeded"
+    assert result["response"]["job"] == "daily_scrape"
+    assert result["slack_configured"] is True
+
+
+def test_main_http_failure_sends_error_alert(monkeypatch):
+    alerts = []
+
+    def fake_post(url, headers, timeout):
+        return DummyResponse(status_code=500, payload={"status": "failed", "detail": "boom"})
+
+    def fake_alert(webhook_url, severity, title, message, env):
+        alerts.append((severity, title, message, env))
+
+    monkeypatch.setattr(windmill_trigger.requests, "post", fake_post)
+    monkeypatch.setattr(windmill_trigger, "send_slack_alert", fake_alert)
+
+    with pytest.raises(requests.HTTPError):
+        windmill_trigger.main(
+            endpoint="discovery",
+            backend_url="https://backend.example.com",
+            cron_secret="secret-123",
+            slack_webhook_url="https://hooks.slack.test/services/abc",
+        )
+
+    assert alerts == [
+        (
+            "ERROR",
+            "Affordabot discovery: HTTP_500",
+            "Endpoint `https://backend.example.com/cron/discovery` returned `500`.\n```{'status': 'failed', 'detail': 'boom'}```",
+            "dev",
+        )
+    ]
+
+
+def test_main_request_exception_sends_error_alert(monkeypatch):
+    alerts = []
+
+    def fake_post(url, headers, timeout):
+        raise requests.RequestException("network down")
+
+    def fake_alert(webhook_url, severity, title, message, env):
+        alerts.append((severity, title, message, env))
+
+    monkeypatch.setattr(windmill_trigger.requests, "post", fake_post)
+    monkeypatch.setattr(windmill_trigger, "send_slack_alert", fake_alert)
+
+    with pytest.raises(requests.RequestException):
+        windmill_trigger.main(
+            endpoint="rag-spiders",
+            backend_url="https://backend.example.com",
+            cron_secret="secret-123",
+            slack_webhook_url="https://hooks.slack.test/services/abc",
+        )
+
+    assert alerts == [
+        (
+            "ERROR",
+            "Affordabot rag-spiders: REQUEST_FAILED",
+            "Request to `https://backend.example.com/cron/rag-spiders` failed: `network down`",
+            "dev",
+        )
+    ]
