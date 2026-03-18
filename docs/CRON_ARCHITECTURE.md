@@ -17,7 +17,7 @@ This replaces the legacy Prefect orchestration (removed in `bd-s8id.4`) and Rail
 | Windmill Job | Schedule | Script Entry | Auth |
 | --- | --- | --- | --- |
 | `discovery_run` | `0 5 * * *` UTC | `python backend/scripts/cron/run_discovery.py` | Bearer token |
-| `daily_scrape` | `0 6 * * *` UTC | `python scripts/daily_scrape.py` | Bearer token |
+| `daily_scrape` | `0 6 * * *` UTC | `python backend/scripts/cron/run_daily_scrape.py` | Bearer token |
 | `rag_spiders` | `0 7 * * *` UTC | `python backend/scripts/cron/run_rag_spiders.py` | Bearer token |
 | `universal_harvester` | `0 8 * * *` UTC | `python backend/scripts/cron/run_universal_harvester.py` | Bearer token |
 
@@ -56,13 +56,14 @@ Required Windmill workspace variables:
 
 - `f/affordabot/BACKEND_PUBLIC_URL`
 - `f/affordabot/CRON_SECRET`
+- `f/affordabot/SLACK_WEBHOOK_URL`
 
 ## Backend Trigger Endpoints
 
 | Endpoint | Method | Script |
 | --- | --- | --- |
 | `/cron/discovery` | POST | `backend/scripts/cron/run_discovery.py` |
-| `/cron/daily-scrape` | POST | `scripts/daily_scrape.py` |
+| `/cron/daily-scrape` | POST | `backend/scripts/cron/run_daily_scrape.py` |
 | `/cron/rag-spiders` | POST | `backend/scripts/cron/run_rag_spiders.py` |
 | `/cron/universal-harvester` | POST | `backend/scripts/cron/run_universal_harvester.py` |
 
@@ -75,6 +76,7 @@ All endpoints require auth (see Auth Contract above).
 3. **Logging:** Writes status to `admin_tasks` and `scrape_history` tables.
 4. **Observability:** View real-time status in the Admin Dashboard (`/admin`).
 5. **Auth:** All trigger endpoints require `CRON_SECRET` authentication.
+6. **Alerts:** Windmill wrappers can post success/failure messages to `#railway-dev-alerts` via `SLACK_WEBHOOK_URL`, matching Prime's pattern.
 
 ## Retired
 

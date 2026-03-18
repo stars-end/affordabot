@@ -14,7 +14,7 @@ As of `bd-s8id.3`, scheduling moved from root `railway.toml` Railway Cron to Win
 | Windmill Job | Former Railway Cron | Schedule | Script Entry |
 | --- | --- | --- | --- |
 | `discovery_run` | `run_discovery.py` at 0500 UTC | `0 5 * * *` | `python backend/scripts/cron/run_discovery.py` |
-| `daily_scrape` | `daily_scrape.py` at 0600 UTC | `0 6 * * *` | `python scripts/daily_scrape.py` |
+| `daily_scrape` | `daily_scrape.py` at 0600 UTC | `0 6 * * *` | `python backend/scripts/cron/run_daily_scrape.py` |
 | `rag_spiders` | `run_rag_spiders.py` at 0700 UTC | `0 7 * * *` | `python backend/scripts/cron/run_rag_spiders.py` |
 | `universal_harvester` | `run_universal_harvester.py` at 0800 UTC | `0 8 * * *` | `python backend/scripts/cron/run_universal_harvester.py` |
 
@@ -35,6 +35,12 @@ Required workspace variables:
 
 - `f/affordabot/BACKEND_PUBLIC_URL`
 - `f/affordabot/CRON_SECRET`
+- `f/affordabot/SLACK_WEBHOOK_URL`
+
+Alerting follows the same Windmill-script webhook pattern used by Prime's EODHD flows:
+- success/failure messages originate from `f/affordabot/trigger_cron_job`
+- route them to `#railway-dev-alerts` with the workspace `SLACK_WEBHOOK_URL`
+- remove the stale `BACKEND_INTERNAL_URL` variable from the affordabot workspace if it still exists
 
 ### Auth Contract
 

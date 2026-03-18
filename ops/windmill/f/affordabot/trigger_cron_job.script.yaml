@@ -23,7 +23,7 @@ schema:
       originalType: number
     slack_webhook_url:
       type: string
-      description: Optional Slack webhook reserved for future alerting.
+      description: Optional Slack webhook for Prime-style dev alert notifications.
       default: null
       originalType: string
   required:

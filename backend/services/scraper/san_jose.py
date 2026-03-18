@@ -38,6 +38,12 @@ class SanJoseScraper(BaseScraper):
                 
                 bills = []
                 for matter in matters:
+                    title = (
+                        matter.get("MatterTitle")
+                        or matter.get("MatterName")
+                        or matter.get("MatterFile")
+                        or "Untitled"
+                    )
                     # Get matter text
                     matter_id = matter.get("MatterId")
                     full_text = ""
@@ -60,12 +66,12 @@ class SanJoseScraper(BaseScraper):
                     
                     # Fallback to Title if no text found
                     if not full_text:
-                        full_text = matter.get("MatterTitle", "")
+                        full_text = title
                     
                     bills.append(ScrapedBill(
                         bill_number=matter.get("MatterFile", "Unknown"),
-                        title=matter.get("MatterTitle", "Untitled"),
-                        text=full_text or matter.get("MatterName", ""),
+                        title=title,
+                        text=full_text or matter.get("MatterName") or title,
                         introduced_date=datetime.fromisoformat(matter["MatterIntroDate"].replace("Z", "+00:00")).date() if matter.get("MatterIntroDate") else None,
                         status=matter.get("MatterStatusName", "Unknown"),
                         raw_html=str(matter)
