@@ -5,6 +5,8 @@ import { Sidebar } from "../components/Sidebar";
 import { Toaster } from "@/components/ui/sonner";
 import { ClerkWrapper } from "./clerk-wrapper";
 
+export const dynamic = 'force-dynamic';
+
 const publicSans = Public_Sans({
   subsets: ["latin"],
   variable: "--font-display",
