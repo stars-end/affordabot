@@ -1,0 +1,375 @@
+# Affordabot California Pipeline Truth Remediation
+
+Date: 2026-03-19
+Status: Proposed
+Beads Epic: `bd-tytc`
+Planning Task: `bd-tytc.1`
+Audit Input: `bd-hvji.1`
+
+## Executive Verdict
+
+The California legislation path is not a degraded research pipeline. It is a broken truth pipeline.
+
+The current system:
+- fails to acquire real bill text for California bills
+- bypasses retrieval/RAG entirely in the legislation-analysis path
+- performs shallow, bill-agnostic research
+- forces quantified output through a rigid schema even when evidence is absent
+- persists hallucinated-looking estimates as if they were valid analysis
+- misrepresents weak backend outputs in the frontend through misleading labels and placeholder UI
+
+This plan assumes `ALL_IN_NOW`.
+
+No phased coexistence, no “soft” transition period, and no dev-only tolerance for unsupported quantified outputs.
+
+## Big-Bang Objective
+
+Replace the current California legislation analysis path with a truthful, evidence-gated pipeline that:
+- acquires real California bill text and provenance
+- uses retrieval and bill-specific research in the actual legislation-analysis path
+- refuses quantification when evidence is insufficient
+- stores and exposes source-of-truth fields honestly
+- prevents unsupported analyses from being ranked or displayed as authoritative
+- backfills and re-verifies affected California bills, especially `SB 277` and `ACR 117`
+
+## Root-Cause Ranking
+
+### Primary
+
+1. Source acquisition failure
+   - California ingestion extracts `versions[0].note` or bill title instead of actual bill text.
+   - The official linked bill text/PDF/HTML is not followed.
+   - The stored legislation payload ends up detached from ground truth.
+
+### Secondary
+
+2. Legislation path bypasses retrieval/RAG
+   - The `AnalysisPipeline` does not use the retrieval path that exists elsewhere.
+   - pgvector/retrieval is effectively orphaned for the legislation-analysis workflow.
+   - Audit/telemetry currently implies embedding/retrieval happened even when it did not.
+
+3. Research depth is too shallow and not legislation-specific
+   - The runtime path performs shallow web-search collection rather than true bill-specific research.
+   - Research does not produce a strong “insufficient evidence” contract when it fails.
+
+### Tertiary
+
+4. Schema and quantification contract force fabricated precision
+   - Required `p10/p25/p50/p75/p90` and required evidence lists create pressure to invent numbers and placeholder evidence.
+   - There is no explicit non-quantified “insufficient evidence” state.
+
+5. Review and validation are advisory, not truth-enforcing
+   - Review is LLM-only and cannot programmatically block placeholder evidence, fake URLs, or unsupported math.
+
+### Amplifiers
+
+6. Persistence/API contract hides truth gaps
+   - Synthetic titles, placeholder text, dropped/mutated confidence fields, and missing model/source metadata obscure the real state.
+
+7. Frontend mislabels and decorates invalid outputs
+   - confidence is transformed into an “Impact Score”
+   - unsupported analyses are ranked beside valid ones
+   - hardcoded placeholder panels imply system completeness
+
+## Non-Negotiable Remediation Decisions
+
+1. California quantified outputs must be quarantined until the repaired pipeline proves evidence sufficiency.
+2. Real bill text and source provenance are mandatory before California analysis is considered valid.
+3. Retrieval/RAG must be part of the actual legislation-analysis path, not only the chat path.
+4. Quantification must be evidence-gated, not schema-forced.
+5. Review must include programmatic truth validation, not only LLM critique.
+6. The frontend must display uncertainty and incompleteness honestly.
+7. Existing suspect California analyses must be backfilled or invalidated, not grandfathered.
+
+## Immediate Safety Action
+
+Before deeper remediation is complete, the system should stop presenting unsupported California analyses as authoritative.
+
+Required stop-the-bleeding behavior:
+- remove California bills with `research_incomplete`, `missing_bill_text`, or `insufficient_evidence` from “highest impact” ranking
+- suppress quantified impact cards when the bill lacks validated source text and quantitative basis
+- replace current values with an explicit `Research incomplete` / `No defensible estimate yet` state
+- disable misleading “Impact Score” display derived from confidence
+
+This is part of the big-bang plan, not a separate mini-project.
+
+## Beads Subtasks
+
+### `bd-tytc.1` Big-bang spec: California pipeline truth remediation
+
+Purpose:
+- freeze the remediation design
+- encode sequencing
+- prepare consultant review
+
+Acceptance:
+- this spec exists
+- consultant review prompts cover all raised failure modes
+
+### `bd-tytc.3` Impl: California bill-text ingestion and source fidelity
+
+Purpose:
+- fix California source acquisition so the system actually gets the right bill text
+
+Required changes:
+- follow official linked bill text/PDF/HTML from California/OpenStates version records instead of using `versions[].note`
+- store:
+  - source URL
+  - source type
+  - version identifier/note
+  - extraction status
+  - extraction error when applicable
+  - raw text provenance
+- stop storing title-or-note placeholders as if they were bill text
+- support bill-targeted fetch/re-ingest for specific bill numbers like `SB 277` and `ACR 117`
+- remove fictional/mock California fallback behavior from normal runtime paths
+- fix bulk-discovery limitations so important bills are not silently missed because of low result limits or updated-order truncation
+- verify whether official California legislative sources should be queried directly in addition to OpenStates
+
+Acceptance:
+- `SB 277` and `ACR 117` both have real bill text persisted
+- relevant clause extraction can point to actual source text
+- placeholder text like `Introduced` is no longer treated as bill content
+
+### `bd-tytc.4` Impl: legislation retrieval and research depth unification
+
+Purpose:
+- make the actual legislation-analysis pipeline use real retrieval and deeper bill-specific research
+
+Required changes:
+- integrate retrieval/RAG into the legislation-analysis path
+- stop treating pgvector as a sidecar asset that the legislation path never queries
+- unify the `PolicyAgent`/retrieval capabilities and the `AnalysisPipeline` legislation workflow where appropriate
+- ensure research can:
+  - retrieve actual bill text chunks
+  - search for official fiscal notes and committee analyses
+  - gather bill-specific sources rather than generic snippet search
+- replace shallow fixed-query behavior with legislation-aware research depth and explicit insufficiency signaling
+- ensure the planner/research prompts are legislation-specific, not finance/ticker-oriented
+- add bill-identity disambiguation so searches do not confuse current California bills with older bills that reuse the same number
+
+Acceptance:
+- the legislation-analysis path uses retrieved bill-context evidence in runtime
+- research emits explicit insufficiency when bill-specific evidence is not found
+- `SB 277` and `ACR 117` show real retrieval artifacts, not only generic web snippets
+
+Dependencies:
+- blocked by `bd-tytc.3`
+
+### `bd-tytc.2` Impl: evidence-gated quantification and schema truthfulness
+
+Purpose:
+- stop schema pressure from forcing invented quantification
+
+Required changes:
+- redesign the analysis response contract so unsupported bills can fail gracefully
+- make percentile outputs optional or otherwise gated behind evidence sufficiency
+- add a structured non-quantified state such as:
+  - `research_incomplete`
+  - `insufficient_evidence`
+  - `qualitative_only`
+- require quantified impacts to include:
+  - numeric basis
+  - assumptions
+  - estimate method
+  - cited source linkage
+- reject placeholder evidence such as fake URLs, synthetic source names, or generic unsupported evidence blobs
+- ensure “bill-specific clause” fields can be absent or explicitly marked unresolved rather than fabricated
+
+Acceptance:
+- no bill can emit `p10..p90` without a defensible evidence basis
+- the system can represent “I do not have enough evidence to quantify this”
+- `SB 277` would no longer be able to surface a `$15,000,000` estimate under title-only or evidence-poor conditions
+
+Dependencies:
+- blocked by `bd-tytc.3`
+
+### `bd-tytc.5` Impl: review, persistence, and telemetry honesty
+
+Purpose:
+- make validation and stored truth reflect what really happened
+
+Required changes:
+- add programmatic validators before persistence for:
+  - bill-text presence
+  - evidence URL validity
+  - official-source requirements where applicable
+  - numeric-basis requirements for quantification
+  - placeholder/fabricated evidence detection
+- demote LLM review from sole gatekeeper to one input in a harder validation chain
+- persist real metadata:
+  - model used
+  - evidence sufficiency state
+  - bill-text acquisition status
+  - quantification eligibility state
+- remove or correct cosmetic audit steps that imply embedding/retrieval happened when they did not
+- ensure stored titles/text/status fields reflect source truth instead of synthetic placeholders like `Analysis: <bill>`
+
+Acceptance:
+- invalid analyses are blocked before persistence
+- pipeline traces do not falsely imply retrieval or embedding occurred
+- stored records distinguish valid quantified analysis from incomplete research states
+
+Dependencies:
+- blocked by `bd-tytc.2`
+- blocked by `bd-tytc.4`
+
+### `bd-tytc.6` Impl: frontend truth contract and quarantine of invalid outputs
+
+Purpose:
+- stop the UI from amplifying or disguising backend truth failures
+
+Required changes:
+- remove confidence-to-impact-score misuse
+- stop ranking unsupported California analyses in “Bills by Impact”
+- surface `research_incomplete` and `insufficient_evidence` explicitly
+- remove hardcoded unrelated placeholder content from:
+  - bill detail page
+  - sector breakdown
+  - legislative feed
+  - decorative “data” blocks that imply grounded analysis
+- show effective date only when actually derived and stored
+- keep invalid or qualitative-only analyses visually distinct from validated quantified analyses
+
+Acceptance:
+- the UI no longer presents weak/incomplete analyses as authoritative ranked outputs
+- confidence is labeled as confidence, not “Impact Score”
+- placeholder mock content is removed from the California analysis experience
+
+Dependencies:
+- blocked by `bd-tytc.2`
+- blocked by `bd-tytc.5`
+
+### `bd-tytc.7` Impl: backfill, re-run, and end-to-end truth verification
+
+Purpose:
+- repair existing data and lock in the corrected behavior
+
+Required changes:
+- invalidate or quarantine previously generated suspect California analyses
+- re-ingest and re-run `SB 277` and `ACR 117`
+- compare final outputs against source truth manually
+- add end-to-end truth tests that assert:
+  - missing bill text blocks quantification
+  - placeholder evidence cannot pass validation
+  - retrieval is actually invoked in the legislation path
+  - unsupported bills are not ranked as quantified outputs
+- add durable fixtures or audit tests for the two anchor bills
+
+Acceptance:
+- `SB 277` and `ACR 117` are reprocessed under the new contract
+- no unsupported quantified outputs survive in the California dashboard
+- the new truth gates are covered by regression tests
+
+Dependencies:
+- blocked by `bd-tytc.3`
+- blocked by `bd-tytc.4`
+- blocked by `bd-tytc.5`
+- blocked by `bd-tytc.6`
+
+## Big-Bang Implementation Order
+
+1. `bd-tytc.3` California bill-text ingestion and source fidelity
+2. `bd-tytc.4` legislation retrieval and research depth unification
+3. `bd-tytc.2` evidence-gated quantification and schema truthfulness
+4. `bd-tytc.5` review, persistence, and telemetry honesty
+5. `bd-tytc.6` frontend truth contract and quarantine of invalid outputs
+6. `bd-tytc.7` backfill, re-run, and end-to-end truth verification
+
+This is intentionally big-bang:
+- no temporary dev coexistence where invalid California outputs remain user-visible
+- no “keep ranking but add disclaimers” compromise
+- no acceptance of fake telemetry or schema-coerced quantification during transition
+
+## Required Validation Gates
+
+### Gate A: Source Fidelity
+
+Must prove:
+- actual source URL fetched
+- actual bill text persisted
+- actual clause extraction can be traced to source text
+
+Required for:
+- `SB 277`
+- `ACR 117`
+
+### Gate B: Retrieval and Research Depth
+
+Must prove:
+- legislation-analysis path uses retrieval or equivalent source-grounded context
+- research artifacts are bill-specific
+- insufficiency is represented explicitly when evidence fails
+
+### Gate C: Quantification Eligibility
+
+Must prove:
+- no percentiles emitted without numeric basis
+- invalid evidence cannot satisfy the contract
+- unsupported bills fall back to non-quantified state
+
+### Gate D: Honest Persistence and Telemetry
+
+Must prove:
+- pipeline runs show what actually happened
+- no fake “embedding” or retrieval steps
+- model/source/evidence state is persisted truthfully
+
+### Gate E: Frontend Truthfulness
+
+Must prove:
+- no misuse of confidence as impact score
+- no ranking of invalid California outputs
+- no hardcoded placeholder panels implying real analysis
+
+### Gate F: Reprocessed Bill Audit
+
+Must prove for `SB 277` and `ACR 117`:
+- final displayed state matches repaired source/research truth
+- if quantification is still unsupported, the UI says so plainly
+
+## Consultant-Coverage Matrix
+
+This plan explicitly addresses:
+
+### Issues I raised
+- source acquisition failure as primary root cause
+- legislation path must use retrieval
+- evidence gate before quantification
+- frontend confidence/impact-score misuse
+- suppression of unsupported rankings
+
+### Issues Gemini raised
+- California scraper using wrong text field
+- RAG illusion / bypass
+- shallow five-query research
+- schema-driven hallucination
+- fake telemetry and low-confidence distortion
+
+### Issues Opus raised
+- stage-by-stage cascading failure
+- official California source not actually followed
+- OpenStates-only bulk discovery problems
+- requirement to express “I don’t know”
+- review step not capable of catching fabricated evidence/math
+- hardcoded placeholder UI sections that compound false confidence
+
+## Open Questions To Resolve During Implementation
+
+1. Should official California legislative sources become the primary ingestion source, with OpenStates as discovery metadata only?
+2. What minimum evidence standard is required for a quantified California impact?
+3. Which source classes count as sufficient for direct fiscal quantification versus qualitative-only analysis?
+4. How much of the chat-path retrieval stack should be unified versus factored into a shared legislation-analysis service?
+
+These are implementation decisions inside the remediation, not reasons to delay the big-bang fix.
+
+## Consultant Review Request
+
+Before implementation starts, run:
+- one frontend/product-truth architecture review
+- one backend/research/orchestration architecture review
+
+Both reviews must check whether this plan:
+- fixes every diagnosed failure mode
+- sequences the big-bang cutover safely
+- avoids leaving unsupported California outputs visible in dev
