@@ -74,3 +74,6 @@ artifacts/verification/
 # llm-tldr local runtime artifacts
 backend/.tldr/
 backend/.tldrignore
+
+# Claude Code worktree metadata
+.claude/worktrees/
