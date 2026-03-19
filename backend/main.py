@@ -20,10 +20,10 @@ if os.getenv("SENTRY_DSN"):
         dsn=os.getenv("SENTRY_DSN"),
         integrations=[
             FastApiIntegration(),
-            LoggingIntegration(level=logging.INFO, event_level=logging.ERROR)
+            LoggingIntegration(level=logging.INFO, event_level=logging.ERROR),
         ],
         traces_sample_rate=0.1,
-        environment=os.getenv("ENVIRONMENT", "development")
+        environment=os.getenv("ENVIRONMENT", "development"),
     )
     logger = logging.getLogger(__name__)
     logger.info("Sentry initialized")
@@ -33,13 +33,13 @@ else:
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 
 app = FastAPI(title="Affordabot API")
 db = PostgresDB()
 email_service = EmailNotificationService()
+
 
 @app.on_event("startup")
 async def startup_db():
@@ -47,9 +47,11 @@ async def startup_db():
     app.state.db = db
     logger.info("✅ Database connected (Postgres/Railway)")
 
+
 @app.on_event("shutdown")
 async def shutdown_db():
     await db.close()
+
 
 # Add CORS middleware
 app.add_middleware(
@@ -77,6 +79,7 @@ app.include_router(bills.router, prefix="/api")
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     import traceback
+
     error_msg = f"{str(exc)}\n{traceback.format_exc()}"
     logger.error(f"Global exception: {error_msg}")
     return JSONResponse(
@@ -84,28 +87,33 @@ async def global_exception_handler(request: Request, exc: Exception):
         content={"detail": str(exc), "traceback": traceback.format_exc()},
     )
 
+
 # Jurisdiction mapping
+
 
 @app.get("/")
 async def root():
     return {
         "message": "Welcome to AffordaBot API",
         "jurisdictions": list(SCRAPERS.keys()),
-        "version": "1.0.0"
+        "version": "1.0.0",
     }
+
 
 @app.get("/health")
 async def health_check():
     """Health check endpoint for monitoring."""
     # Check Z.ai health
     from services.research.zai import ZaiResearchService
+
     zai_health = await ZaiResearchService().check_health()
 
     return {
         "status": "healthy",
         "database": "connected" if db.is_connected() else "disconnected",
-        "zai_research": "connected" if zai_health else "disconnected"
+        "zai_research": "connected" if zai_health else "disconnected",
     }
+
 
 @app.get("/health/jurisdictions")
 async def health_check_jurisdictions():
@@ -115,11 +123,9 @@ async def health_check_jurisdictions():
         scraper = scraper_class()
         is_healthy = await scraper.check_health()
         results[jurisdiction] = "healthy" if is_healthy else "unhealthy"
-    
-    return {
-        "status": "success",
-        "jurisdictions": results
-    }
+
+    return {"status": "success", "jurisdictions": results}
+
 
 @app.get("/health/analysis")
 async def health_check_analysis():
@@ -128,40 +134,41 @@ async def health_check_analysis():
         from llm_common.core import LLMConfig
         from llm_common.providers import ZaiClient
         from llm_common.web_search import WebSearchClient
-        
+
         # Check LLM
         llm_config = LLMConfig(
-            api_key=os.getenv("ZAI_API_KEY", "dummy"), 
+            api_key=os.getenv("ZAI_API_KEY", "dummy"),
             provider="zai",
-            default_model=os.getenv("LLM_MODEL_RESEARCH", "glm-4.7")
+            default_model=os.getenv("LLM_MODEL_RESEARCH", "glm-4.7"),
         )
         llm_client = ZaiClient(llm_config)
         llm_ok = await llm_client.validate_api_key()
-        
+
         # Check Search
         _ = WebSearchClient(api_key=os.getenv("ZAI_API_KEY", "dummy"))
         # WebSearchClient doesn't have explicit check_health, assume OK if init passed or add check if available
         # But we can try a simple search?
-        search_ok = True 
-        
+        search_ok = True
+
         status = "healthy" if llm_ok else "degraded"
         return {
             "status": status,
             "details": {
                 "llm": "connected" if llm_ok else "error",
-                "search": "connected" if search_ok else "unknown"
-            }
+                "search": "connected" if search_ok else "unknown",
+            },
         }
     except Exception as e:
         logger.error(f"Analysis health check failed: {e}")
         return {"status": "unhealthy", "error": str(e)}
 
+
 async def process_jurisdiction(jurisdiction: str, scraper_class, jur_type: str):
     """Background task to process a single jurisdiction."""
     logger.info(f"Starting scrape for {jurisdiction}")
-    
+
     scraper = scraper_class()
-    
+
     # Initialize Agentic Pipeline
     try:
         from services.llm.orchestrator import AnalysisPipeline
@@ -170,81 +177,86 @@ async def process_jurisdiction(jurisdiction: str, scraper_class, jur_type: str):
         from llm_common.web_search import WebSearchClient
 
         llm_config = LLMConfig(
-            api_key=os.getenv("ZAI_API_KEY"), 
+            api_key=os.getenv("ZAI_API_KEY"),
             provider="zai",
-            default_model=os.getenv("LLM_MODEL_RESEARCH", "glm-4.7")
+            default_model=os.getenv("LLM_MODEL_RESEARCH", "glm-4.7"),
         )
         llm_client = ZaiClient(llm_config)
-        
+
         # Initialize fallback client (OpenRouter)
         fallback_client = None
         if os.getenv("OPENROUTER_API_KEY"):
             or_config = LLMConfig(
                 api_key=os.getenv("OPENROUTER_API_KEY"),
                 provider="openrouter",
-                default_model="google/gemini-2.0-flash-exp"
+                default_model="google/gemini-2.0-flash-exp",
             )
             fallback_client = OpenRouterClient(or_config)
-            
+
         search_client = WebSearchClient(api_key=os.getenv("ZAI_API_KEY"))
-        
-        pipeline = AnalysisPipeline(llm_client, search_client, db, fallback_client=fallback_client)
-        
+
+        pipeline = AnalysisPipeline(
+            llm_client, search_client, db, fallback_client=fallback_client
+        )
+
     except Exception as e:
         logger.error(f"Failed to initialize AnalysisPipeline: {e}")
         return {"jurisdiction": jurisdiction, "error": f"Pipeline Init Failed: {e}"}
-    
+
     try:
         # 1. Scrape legislation
         bills = await scraper.scrape()
         logger.info(f"{jurisdiction}: Found {len(bills)} bills")
-        
+
         if not bills:
             return {"jurisdiction": jurisdiction, "status": "no bills"}
-        
+
         # 2. Get or create jurisdiction in DB
         _ = await db.get_or_create_jurisdiction(
-            name=scraper.jurisdiction_name,
-            type=jur_type
+            name=scraper.jurisdiction_name, type=jur_type
         )
-        
+
         processed = 0
-        
+
         errors = []
-        for bill in bills[:3]:
+        for bill in bills:
             try:
                 # However, pipeline needs bill_id, bill_text.
                 # bill.bill_number is usually the ID.
-                
+
                 models = {
                     "research": os.getenv("LLM_MODEL_RESEARCH", "glm-4.7"),
                     "generate": os.getenv("LLM_MODEL_GENERATE", "glm-4.7"),
-                    "review": os.getenv("LLM_MODEL_REVIEW", "glm-4.7")
+                    "review": os.getenv("LLM_MODEL_REVIEW", "glm-4.7"),
                 }
-                
+
                 await pipeline.run(
                     bill_id=bill.bill_number,
                     bill_text=bill.text,
                     jurisdiction=scraper.jurisdiction_name,
-                    models=models
+                    models=models,
                 )
-                
+
                 # ... (existing code)
-                
+
                 processed += 1
                 logger.info(f"{jurisdiction}: Processed {bill.bill_number}")
-            
+
             except Exception as e:
                 import traceback
+
                 error_details = f"{str(e)}\n{traceback.format_exc()}"
                 errors.append({"bill": bill.bill_number, "error": error_details})
-                logger.error(f"{jurisdiction}: Error processing {bill.bill_number}: {e}")
-        
+                logger.error(
+                    f"{jurisdiction}: Error processing {bill.bill_number}: {e}"
+                )
+
         return {"jurisdiction": jurisdiction, "processed": processed, "errors": errors}
-    
+
     except Exception as e:
         logger.error(f"{jurisdiction}: Scraping failed: {e}")
         return {"jurisdiction": jurisdiction, "error": str(e)}
+
 
 # --- Authenticated Cron Trigger Endpoints (bd-s8id.3) ---
 # These endpoints are used by Windmill as the scheduler of record.
@@ -352,7 +364,8 @@ async def cron_universal_harvester(request: Request):
 
     logger.info("Cron trigger: universal harvester")
     result = await _run_script_job(
-        _backend_script_path("scripts/cron/run_universal_harvester.py"), "universal_harvester"
+        _backend_script_path("scripts/cron/run_universal_harvester.py"),
+        "universal_harvester",
     )
     if result["status"] != "succeeded":
         raise HTTPException(status_code=500, detail=result)
@@ -367,7 +380,8 @@ async def _run_script_job(script_path: str, job_name: str):
     logger.info(f"Cron job '{job_name}' starting: {script_path}")
     try:
         proc = await asyncio.create_subprocess_exec(
-            sys.executable, script_path,
+            sys.executable,
+            script_path,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
@@ -400,21 +414,25 @@ async def _run_script_job(script_path: str, job_name: str):
             "stderr_tail": str(e),
         }
 
+
 @app.post("/scrape/{jurisdiction}")
 async def scrape_and_analyze(jurisdiction: str) -> Dict[str, Any]:
     """
     Scrape legislation from a jurisdiction, analyze with LLM, and store in database.
     """
     if jurisdiction not in SCRAPERS:
-        raise HTTPException(status_code=404, detail=f"Jurisdiction '{jurisdiction}' not supported")
-    
+        raise HTTPException(
+            status_code=404, detail=f"Jurisdiction '{jurisdiction}' not supported"
+        )
+
     scraper_class, jur_type = SCRAPERS[jurisdiction]
     result = await process_jurisdiction(jurisdiction, scraper_class, jur_type)
-    
+
     if "error" in result:
         raise HTTPException(status_code=500, detail=result["error"])
-    
+
     return result
+
 
 @app.get("/legislation/{jurisdiction}")
 async def get_legislation(jurisdiction: str, limit: int = 10):
@@ -422,38 +440,46 @@ async def get_legislation(jurisdiction: str, limit: int = 10):
     Get stored legislation for a jurisdiction with impacts.
     """
     if jurisdiction not in SCRAPERS:
-        raise HTTPException(status_code=404, detail=f"Jurisdiction '{jurisdiction}' not supported")
-    
+        raise HTTPException(
+            status_code=404, detail=f"Jurisdiction '{jurisdiction}' not supported"
+        )
+
     scraper_class, _ = SCRAPERS[jurisdiction]
     scraper = scraper_class()
-    
+
     legislation_data = await db.get_legislation_by_jurisdiction(
-        jurisdiction_name=scraper.jurisdiction_name,
-        limit=limit
+        jurisdiction_name=scraper.jurisdiction_name, limit=limit
     )
-    
+
     # Adapt to the frontend's expected format
     legislation_list = []
     for leg in legislation_data:
-        for impact in leg.get('impacts', []):
-            if 'confidence_score' in impact:
-                impact['confidence'] = impact.pop('confidence_score')
-        legislation_list.append({
-            "bill_number": leg.get("bill_number"),
-            "title": leg.get("title"),
-            "jurisdiction": leg.get("jurisdiction", jurisdiction),
-            "status": leg.get("status"),
-            "impacts": leg.get("impacts", []),
-            "total_impact_p50": sum(i.get('p50', 0) for i in leg.get('impacts', [])),
-            "analysis_timestamp": leg.get("created_at").isoformat() if leg.get("created_at") else None,
-            "model_used": "n/a"
-        })
+        for impact in leg.get("impacts", []):
+            if "confidence_score" in impact:
+                impact["confidence"] = impact.pop("confidence_score")
+        legislation_list.append(
+            {
+                "bill_number": leg.get("bill_number"),
+                "title": leg.get("title"),
+                "jurisdiction": leg.get("jurisdiction", jurisdiction),
+                "status": leg.get("status"),
+                "impacts": leg.get("impacts", []),
+                "total_impact_p50": sum(
+                    i.get("p50", 0) for i in leg.get("impacts", [])
+                ),
+                "analysis_timestamp": leg.get("created_at").isoformat()
+                if leg.get("created_at")
+                else None,
+                "model_used": "n/a",
+            }
+        )
 
     return {
         "jurisdiction": jurisdiction,
         "count": len(legislation_list),
-        "legislation": legislation_list
+        "legislation": legislation_list,
     }
+
 
 @app.get("/legislation/{jurisdiction}/{bill_number}")
 async def get_bill_details(jurisdiction: str, bill_number: str):
@@ -461,11 +487,15 @@ async def get_bill_details(jurisdiction: str, bill_number: str):
     Get details for a specific bill including impacts.
     """
     if jurisdiction not in SCRAPERS:
-        raise HTTPException(status_code=404, detail=f"Jurisdiction '{jurisdiction}' not supported")
+        raise HTTPException(
+            status_code=404, detail=f"Jurisdiction '{jurisdiction}' not supported"
+        )
 
     bill = await db.get_bill(jurisdiction, bill_number)
 
     if not bill:
-        raise HTTPException(status_code=404, detail=f"Bill '{bill_number}' not found in {jurisdiction}")
+        raise HTTPException(
+            status_code=404, detail=f"Bill '{bill_number}' not found in {jurisdiction}"
+        )
 
     return bill
