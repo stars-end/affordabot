@@ -4,47 +4,57 @@ import sys
 import os
 
 # Add backend to path
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
+sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
 
 from scripts.cron.run_universal_harvester import UniversalHarvester
+
 
 @pytest.mark.asyncio
 async def test_harvester_flow():
     """Verify Universal Harvester logic with mocks."""
-    
+
     # Mock DB
     mock_db = MagicMock()
     mock_db.create_admin_task = AsyncMock()
     mock_db.update_admin_task = AsyncMock()
     mock_db.create_raw_scrape = AsyncMock(return_value="scrape_123")
     mock_db._fetch = AsyncMock()
-    
+
     # Mock Sources Response
     mock_sources = [
-        {"id": "src_1", "name": "Test Web", "type": "web", "scrape_url": "http://example.com"}
+        {
+            "id": "src_1",
+            "name": "Test Web",
+            "type": "web",
+            "scrape_url": "http://example.com",
+        }
     ]
     # The implementation calls await self.db._fetch(...)
     mock_db._fetch.return_value = mock_sources
-    
+
     # Mock Ingestion Service
-    with patch('services.ingestion_service.IngestionService') as MockIngestion, \
-         patch('llm_common.embeddings.EmbeddingService') as _MockEmbed, \
-         patch('services.vector_backend_factory.create_vector_backend') as _MockBackend, \
-         patch.dict(sys.modules, {
-             'llm_common.embeddings.mock': MagicMock(),
-             'llm_common.embeddings.openai': MagicMock(),
-             'services.storage': MagicMock(),
-             'llm_common.retrieval.pgvector_backend': MagicMock(),
-         }):
-        
+    with (
+        patch("services.ingestion_service.IngestionService") as MockIngestion,
+        patch("llm_common.embeddings.EmbeddingService") as _MockEmbed,
+        patch("services.vector_backend_factory.create_vector_backend") as _MockBackend,
+        patch.dict(
+            sys.modules,
+            {
+                "llm_common.embeddings.mock": MagicMock(),
+                "llm_common.embeddings.openai": MagicMock(),
+                "services.storage": MagicMock(),
+                "services.retrieval.local_pgvector": MagicMock(),
+            },
+        ),
+    ):
         instance = MockIngestion.return_value
         instance.process_raw_scrape = AsyncMock(return_value=5)
-        
+
         # Mock HTTPX
-        with patch('httpx.AsyncClient') as MockClient:
+        with patch("httpx.AsyncClient") as MockClient:
             mock_client_instance = AsyncMock()
             MockClient.return_value.__aenter__.return_value = mock_client_instance
-            
+
             # Mock Z.ai Response
             mock_response = MagicMock()
             mock_response.status_code = 200
@@ -52,29 +62,29 @@ async def test_harvester_flow():
                 "choices": [{"message": {"content": "# Clean Markdown Content"}}]
             }
             mock_client_instance.post.return_value = mock_response
-            
+
             # Run
             runner = UniversalHarvester()
-            runner.db = mock_db # Inject mock DB
-            
+            runner.db = mock_db  # Inject mock DB
+
             # Implementation does NOT use client.table().insert() anymore, it uses process_raw_scrape directly?
-            # Let's check run_universal_harvester.py again. 
+            # Let's check run_universal_harvester.py again.
             # It calls await self._process_source -> ... -> but does it insert into raw_scrapes?
             # The test previously mocked `mock_db.client.table().insert()...`
             # If the implementation calls that, we need to mock it.
             # But line 63 of run_universal_harvester calls self._process_source.
-            
+
             await runner.run()
-            
+
             # Verifications
             # 1. Check Source Fetch
             # (Implied by flow reaching loop)
-            
+
             # 2. Check Z.ai Call
             mock_client_instance.post.assert_called_once()
-            
+
             # 3. Check Raw Scrape Insert
             # table("raw_scrapes").insert(...)
-            
+
             # 4. Check Ingestion Trigger
             instance.process_raw_scrape.assert_called_with("scrape_123")

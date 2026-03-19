@@ -118,7 +118,7 @@ class LocalPgVectorBackend(RetrievalBackend):
         self,
         embedding: List[float],
         top_k: int = 5,
-        min_score: float = 0.0,
+        min_score: float | None = None,
         filters: Optional[Dict[str, Any]] = None,
     ) -> List[RetrievedChunk]:
         """
@@ -160,7 +160,7 @@ class LocalPgVectorBackend(RetrievalBackend):
                         params.append(str(value))
                         param_idx += 1
 
-            params.append(top_k)
+            params.append(str(top_k))
 
             where_sql = ""
             if where_clauses:
@@ -183,7 +183,7 @@ class LocalPgVectorBackend(RetrievalBackend):
                     float(row.get("similarity", 0)) if row.get("similarity") else 0.0
                 )
 
-                if similarity < min_score:
+                if min_score is not None and similarity < min_score:
                     continue
 
                 meta = row.get("metadata")
@@ -196,7 +196,6 @@ class LocalPgVectorBackend(RetrievalBackend):
                     embedding=None,
                     metadata=meta or {},
                     score=similarity,
-                    document_id=row.get("document_id"),
                     source=meta.get("source_url")
                     or meta.get("url")
                     or meta.get("source_id")
@@ -216,7 +215,7 @@ class LocalPgVectorBackend(RetrievalBackend):
         self,
         query: str,
         top_k: int = 5,
-        min_score: float = 0.0,
+        min_score: float | None = None,
         filters: Optional[Dict[str, Any]] = None,
     ) -> List[RetrievedChunk]:
         """
@@ -245,7 +244,8 @@ class LocalPgVectorBackend(RetrievalBackend):
 
         try:
             embedding = await self._embedding_fn(query)
-            return await self.query(embedding, top_k, min_score, filters)
+            effective_min_score = min_score if min_score is not None else 0.0
+            return await self.query(embedding, top_k, effective_min_score, filters)
         except Exception as e:
             logger.error(f"LocalPgVectorBackend.retrieve failed: {e}")
             if self._fail_closed:
