@@ -633,3 +633,19 @@ Both reviews must check whether this plan:
 - fixes every diagnosed failure mode
 - sequences the big-bang cutover safely
 - avoids leaving unsupported California outputs visible in dev
+
+## Open Decisions Resolved
+
+### 1. Non-California Invalidation Scope
+**Decision:** Platform-wide quarantine/invalidation now, but only California backfill in this epic.
+- **Why:** Safest truth posture without exploding the scope of `bd-tytc`. A linked follow-up epic will be created for non-California reprocessing.
+
+### 2. Quantification Source Tiers
+**Decision:** Direct fiscal quantification requires at least one "Tier A" official source (e.g., official fiscal notes, committee analyses, agency estimates).
+- **Why:** Stops hallucinated percentiles. If only Tier B sources (think tanks, news) exist, the analysis defaults to `qualitative_only` unless a strictly constrained analog estimate is approved. Tier C (generic web search) never unlocks numbers.
+
+### 3. Canonical Legislation Research Runtime
+**Decision:** Build a shared extracted legislation-research service (Option 2).
+- **Why:** `llm-common` already contains the robust `AgenticExecutor` and `EvidenceEnvelope` infrastructure. We will extract the research phase (planning, tool execution, and evidence collection) into a shared service.
+- `AnalysisPipeline` will consume this service to obtain structured `EvidenceEnvelope` items for its deterministic schema generation.
+- `PolicyAgent` can consume this same service for open-ended chat queries without forcing the deterministic background job to behave like a chatbot.
