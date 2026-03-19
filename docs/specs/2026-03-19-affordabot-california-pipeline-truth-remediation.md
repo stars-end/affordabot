@@ -38,6 +38,93 @@ Important scope note:
 - California remains the validation anchor because its failures are the clearest and most urgent
 - acceptance criteria below name California bills explicitly, but the read/write truth fixes must apply system-wide
 
+## Control-Plane Split
+
+The remediation must reuse the existing transparency surfaces rather than creating a second observability stack.
+
+### Existing `/api/admin` and Glass Box surfaces
+
+Role:
+- canonical backend truth surface for pipeline execution state
+- source of truth for `pipeline_runs`, `pipeline_steps`, sufficiency breakdowns, and bill-level diagnostics
+- operator/debug UI and API for historical inspection
+
+What belongs here:
+- run list and run detail
+- structured pipeline step payloads
+- sufficiency breakdown fields
+- data-gap summary inputs
+- bill-level diagnostic trace APIs
+- document-health/static ingestion diagnostics
+
+What does **not** belong here:
+- fake or virtual runtime steps
+- mock evidence presented as real evidence
+- a second ad hoc tracing schema outside `pipeline_runs` / `pipeline_steps`
+
+### Deterministic coordination layer
+
+Role:
+- watchdog and invariant-enforcement consumer of the existing backend truth surfaces
+- evaluates whether a run is healthy, stuck, invalid, or alert-worthy
+
+What belongs here:
+- periodic polling or event-driven checks over `/api/admin` and/or direct DB truth
+- rules like:
+  - retrieval expected but zero chunks returned
+  - quantification emitted while `quantification_eligible = false`
+  - run stuck in intermediate state too long
+  - mock fallback detected in production
+  - missing bill text or missing official-source provenance
+- deterministic alert triggering and escalation
+
+What does **not** belong here:
+- a second persistence layer for traces
+- reimplementation of pipeline-step storage
+- synthetic run-state inference disconnected from backend truth
+
+### Live monitor / OpenClaw output
+
+Role:
+- operator-facing live stream / dashboard over the same structured truth emitted by the backend
+- useful for active scrape/RAG/evidence/analysis observation during runs
+
+What belongs here:
+- live per-bill lifecycle view
+- run progress
+- sufficiency breakdown rendering
+- retrieval-vs-web evidence counts
+- data-gap summary rendering
+- alert stream / incident console
+
+What does **not** belong here:
+- primary persistence
+- independent derivation of truth from raw logs
+- bespoke parsing of opaque JSON blobs when normalized fields should exist already
+
+### Windmill
+
+Role:
+- scheduler of record for cron-triggered scrape/RAG/harvest flows
+- source of trigger/run status for scheduled execution only
+
+What belongs here:
+- schedule/orchestration state
+- trigger success/failure
+- job-level alerts and retries
+- correlation metadata such as source job name and trigger origin
+
+What does **not** belong here:
+- canonical evidence truth
+- bill-analysis provenance storage
+- replacement for `/api/admin` or Glass Box
+
+Summary:
+- Windmill = scheduler/orchestration plane
+- backend `/api/admin` + Glass Box = canonical truth plane
+- deterministic coordination = watchdog / policy / alert plane
+- OpenClaw live monitor = operator presentation plane
+
 ## Root-Cause Ranking
 
 ### Primary
@@ -98,6 +185,7 @@ Important scope note:
 6. The frontend must display uncertainty and incompleteness honestly.
 7. Existing suspect California analyses must be backfilled or invalidated, not grandfathered.
 8. Cross-jurisdiction retrieval leakage is unacceptable; retrieval filters and chunk metadata must isolate jurisdictions and source classes.
+9. Existing `/api/admin` + Glass Box surfaces remain canonical; new alerting/monitoring must extend them rather than duplicate them.
 
 ## Current RAG and Evidence Reality Check
 
@@ -136,6 +224,12 @@ Required stop-the-bleeding behavior:
 
 This is part of the big-bang plan, not a separate mini-project.
 This quarantine behavior must land at the beginning of the remediation, not wait until the final frontend cleanup phase.
+
+Immediate visibility/alert posture:
+- scheduled jobs continue to run through Windmill as scheduler of record
+- backend truth is surfaced through existing `/api/admin` and Glass Box APIs
+- alerting consumes those truth surfaces plus Windmill trigger outcomes
+- no new shadow observability stack is introduced
 
 ## Beads Subtasks
 
@@ -266,6 +360,7 @@ Dependencies:
 
 Purpose:
 - make validation and stored truth reflect what really happened
+- upgrade the existing Glass Box/admin surfaces into truthful, queryable observability rather than building a parallel tracing system
 
 Required changes:
 - add programmatic validators before persistence for:
@@ -288,15 +383,48 @@ Required changes:
   - `web_research_sources_found`: int
   - `fiscal_notes_detected`: bool
 - ensure this breakdown is visible in the "Glass Box" admin view to allow for rapid debugging of data gaps
+- keep `/api/admin/pipeline-runs`, `/api/admin/pipeline-runs/{id}`, and related Glass Box surfaces as the canonical execution-truth APIs; do not introduce a second tracing store or parallel admin namespace
 - remove or correct cosmetic audit steps that imply embedding/retrieval happened when they did not, specifically mandating the removal of the "Virtual" Step 0.5 embedding log from the runtime orchestrator since static document chunk counts belong in a "Document Health" view, not in a dynamic pipeline execution trace
 - ensure stored titles/text/status fields reflect source truth instead of synthetic placeholders like `Analysis: <bill>`
 - explicitly remove persistence-side placeholder injection in `backend/services/llm/orchestrator.py:_complete_pipeline_run()` so it no longer writes synthetic title/text/status fields such as `Analysis: <bill>` and `Full text placeholder`
 - harmonize the stored analysis/evidence contract enough that provenance-bearing evidence remains queryable and does not fork permanently into incompatible runtime-only vs stored-only shapes
+- add normalized truth fields that downstream consumers can rely on without brittle blob parsing, including:
+  - `retriever_invoked`
+  - `quantification_eligible`
+  - `insufficiency_reason`
+  - trigger source/correlation metadata for Windmill-initiated runs where applicable
+- expose a document-health view through the existing admin surface for static ingestion/vector status, separate from dynamic run traces
 
 Acceptance:
 - invalid analyses are blocked before persistence
 - pipeline traces do not falsely imply retrieval or embedding occurred
 - stored records distinguish valid quantified analysis from incomplete research states
+- existing `/api/admin` endpoints are sufficient for downstream watchdog/live-monitor consumers without inventing a second truth source
+
+### `bd-tytc.8` Impl: deterministic alerting and control-plane integration
+
+Purpose:
+- add deterministic coordination and live monitoring on top of the canonical backend truth surfaces and Windmill trigger outcomes
+
+Required changes:
+- define alert rules over canonical backend truth, for example:
+  - retrieval expected but zero chunks retrieved
+  - `quantification_eligible = false` yet quantified output emitted
+  - run stuck or failed repeatedly
+  - production mock fallback detected
+  - missing bill text / missing official-source provenance
+- route scheduled-job trigger outcomes from Windmill into the same alert model using correlation metadata rather than a separate observability store
+- ensure alerting can post to the existing channel pattern used by Windmill (`#railway-dev-alerts`) while preserving bill/run correlation
+- allow a deterministic coordination process to consume `/api/admin` and Windmill outcomes as watchdog inputs
+- allow OpenClaw/live-monitor surfaces to consume the normalized truth fields and alert stream without re-parsing raw blobs
+
+Acceptance:
+- alerting consumes canonical truth surfaces and Windmill run outcomes without duplicating trace storage
+- deterministic coordination can identify invalid or stuck runs from structured fields alone
+- live-monitor consumers can render run status and data gaps from normalized payloads
+
+Dependencies:
+- blocked by `bd-tytc.5`
 
 Dependencies:
 - blocked by `bd-tytc.2`
@@ -317,6 +445,7 @@ Required changes:
   - qualitative-only
   - research-incomplete
 - require that when a bill is qualitative-only or research-incomplete, the UI provides a "Data Gap Summary" (e.g., "Full bill text available, but no external fiscal analysis found") based on the sufficiency breakdown telemetry
+- ensure admin/live-monitor views render the same normalized sufficiency breakdown and data-gap summary emitted by the backend truth surfaces
 - remove hardcoded unrelated placeholder content from:
   - bill detail page
   - sector breakdown
@@ -335,6 +464,7 @@ Acceptance:
 Dependencies:
 - blocked by `bd-tytc.2`
 - blocked by `bd-tytc.5`
+- blocked by `bd-tytc.8`
 
 ### `bd-tytc.7` Impl: backfill, re-run, and end-to-end truth verification
 
@@ -365,6 +495,7 @@ Dependencies:
 - blocked by `bd-tytc.3`
 - blocked by `bd-tytc.4`
 - blocked by `bd-tytc.5`
+- blocked by `bd-tytc.8`
 - blocked by `bd-tytc.6`
 
 ## Big-Bang Implementation Order
@@ -374,8 +505,9 @@ Dependencies:
 3. `bd-tytc.4` legislation retrieval and research depth unification
 4. `bd-tytc.2` evidence-gated quantification and schema truthfulness
 5. `bd-tytc.5` review, persistence, and telemetry honesty
-6. remainder of `bd-tytc.6` frontend truth contract cleanup
-7. `bd-tytc.7` backfill, re-run, and end-to-end truth verification
+6. `bd-tytc.8` deterministic alerting and control-plane integration
+7. remainder of `bd-tytc.6` frontend truth contract cleanup
+8. `bd-tytc.7` backfill, re-run, and end-to-end truth verification
 
 This is intentionally big-bang:
 - no temporary dev coexistence where invalid California outputs remain user-visible
@@ -419,6 +551,14 @@ Must prove:
 - pipeline runs show what actually happened
 - no fake “embedding” or retrieval steps
 - model/source/evidence state is persisted truthfully
+- the existing `/api/admin` + Glass Box surfaces expose the normalized truth fields needed by downstream consumers
+
+### Gate D2: Alerting and Control Plane
+
+Must prove:
+- Windmill scheduled runs can be correlated to backend run truth
+- deterministic coordination can alert from canonical truth fields without reading opaque blobs
+- live-monitor / OpenClaw consumers can render normalized run state and data gaps from the same source of truth
 
 ### Gate E: Frontend Truthfulness
 
@@ -473,6 +613,7 @@ This plan explicitly addresses:
 3. Quantification eligibility must be decided by deterministic evidence sufficiency gates before generation, not delegated to the model.
 4. Mock and placeholder retrieval paths are not acceptable production fallbacks for California analysis; broken retrieval must fail closed, not silently substitute example documents.
 5. Platform-level truth fixes must be treated as platform changes even when California is used as the anchor validation surface.
+6. Windmill remains the scheduler/orchestration plane; backend `/api/admin` + Glass Box remain the canonical truth plane.
 
 ## Open Questions To Resolve During Implementation
 
