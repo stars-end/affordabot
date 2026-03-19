@@ -37,43 +37,48 @@ Replace the current California legislation analysis path with a truthful, eviden
 
 ### Primary
 
-1. Source acquisition failure
+1. Retrieval/evidence chain is not connected
+   - The legislation-analysis runtime does not execute against the retrieval substrate that exists elsewhere in the codebase.
+   - The local retrieval interface is broken at the contract boundary today: retrieval-capable paths depend on `retrieve()`, while the local backend’s `retrieve()` is currently a stub that returns no results.
+   - Structured evidence/provenance tooling exists, but the legislation path does not preserve or consume it.
+
+2. Source acquisition failure
    - California ingestion extracts `versions[0].note` or bill title instead of actual bill text.
    - The official linked bill text/PDF/HTML is not followed.
    - The stored legislation payload ends up detached from ground truth.
 
 ### Secondary
 
-2. Legislation path bypasses retrieval/RAG
+3. Legislation path bypasses retrieval/RAG
    - The `AnalysisPipeline` does not use the retrieval path that exists elsewhere.
    - pgvector/retrieval is effectively orphaned for the legislation-analysis workflow.
    - Audit/telemetry currently implies embedding/retrieval happened even when it did not.
 
-3. Research depth is too shallow and not legislation-specific
+4. Research depth is too shallow and not legislation-specific
    - The runtime path performs shallow web-search collection rather than true bill-specific research.
    - Research does not produce a strong “insufficient evidence” contract when it fails.
    - The planner prompt is still finance/ticker-oriented and the available research path is constrained to generic search tooling.
 
 ### Tertiary
 
-4. Schema and quantification contract force fabricated precision
+5. Schema and quantification contract force fabricated precision
    - Required `p10/p25/p50/p75/p90` and required evidence lists create pressure to invent numbers and placeholder evidence.
    - There is no explicit non-quantified “insufficient evidence” state.
 
-5. Review and validation are advisory, not truth-enforcing
+6. Review and validation are advisory, not truth-enforcing
    - Review is LLM-only and cannot programmatically block placeholder evidence, fake URLs, or unsupported math.
 
-6. Evidence provenance is dropped before generation
+7. Evidence provenance is dropped before generation
    - Chat-path tools can emit structured `EvidenceEnvelope` provenance, but the legislation path reduces research output to loosely structured `collected_data`.
    - `_generate_step()` receives a stringified blob of research snippets instead of a validated evidence contract.
    - This means the analysis model is not reasoning over enforceable citations, only over unverified text fragments.
 
 ### Amplifiers
 
-7. Persistence/API contract hides truth gaps
+8. Persistence/API contract hides truth gaps
    - Synthetic titles, placeholder text, dropped/mutated confidence fields, and missing model/source metadata obscure the real state.
 
-8. Frontend mislabels and decorates invalid outputs
+9. Frontend mislabels and decorates invalid outputs
    - confidence is transformed into an “Impact Score”
    - unsupported analyses are ranked beside valid ones
    - hardcoded placeholder panels imply system completeness
@@ -108,6 +113,8 @@ What the legislation-analysis path actually does today:
 
 Current conclusion:
 - retrieval exists, but not on the California legislation execution path
+- even where retrieval-like interfaces exist, the local backend contract is broken because `LocalPgVectorBackend.retrieve()` currently returns `[]`
+- `RetrieverTool` must be wired with a real backend and embedder; otherwise it stays in mock mode
 - evidence/provenance machinery exists, but is not preserved into generation
 - the first failure is therefore upstream of quantification: source text + retrieval + evidence contract all fail before the model is asked to estimate anything
 
@@ -155,6 +162,7 @@ Required changes:
 - stop storing title-or-note placeholders as if they were bill text
 - support bill-targeted fetch/re-ingest for specific bill numbers like `SB 277` and `ACR 117`
 - delete fictional/mock California fallback behavior from normal runtime paths rather than conditionally bypassing it
+- delete scraper-level mock fallback methods rather than leaving them as available runtime substitutes
 - fix bulk-discovery limitations so important bills are not silently missed because of low result limits or updated-order truncation
 
 Acceptance:
@@ -171,6 +179,10 @@ Required changes:
 - make the legislation-analysis path call a retrieval-backed research service directly; remove “where appropriate” ambiguity about whether retrieval is optional
 - stop treating pgvector as a sidecar asset that the legislation path never queries
 - unify the `PolicyAgent`/retrieval capabilities and the `AnalysisPipeline` legislation workflow behind one canonical legislation-research path
+- implement the retrieval contract end to end rather than only “integrating RAG” conceptually, including:
+  - make `backend/services/retrieval/local_pgvector.py:LocalPgVectorBackend.retrieve()` actually perform retrieval instead of returning `[]`
+  - ensure `RetrieverTool` is instantiated with a real retrieval backend and embedder rather than defaulting to mock mode
+  - repair or remove dead import paths such as `llm_common.retrieval.pgvector_backend` in the universal harvester path
 - ensure research can:
   - retrieve actual bill text chunks
   - search for official fiscal notes and committee analyses
@@ -183,12 +195,14 @@ Required changes:
 - add bill-identity disambiguation so searches do not confuse current California bills with older bills that reuse the same number
 - preserve structured provenance through the legislation path so retrieval/search results are passed forward as evidence envelopes or equivalent typed evidence objects rather than flattened snippet blobs
 - choose and document one canonical research runtime for legislation analysis; do not leave `ResearchAgent` vs `ZaiResearchService` ambiguity unresolved
+- ensure the legislation path can represent a hard “no useful evidence found” outcome before generation, instead of forcing research outputs to look successful
 
 Acceptance:
 - the legislation-analysis path uses retrieved bill-context evidence in runtime
 - research emits explicit insufficiency when bill-specific evidence is not found
 - `SB 277` and `ACR 117` show real retrieval artifacts, not only generic web snippets
 - evidence passed into generation retains URL/internal-document provenance instead of collapsing to ad hoc lists of dicts
+- the configured retrieval backend returns real chunks through the same method signature the runtime actually calls
 
 Dependencies:
 - blocked by `bd-tytc.3`
@@ -211,6 +225,7 @@ Required changes:
   - assumptions
   - estimate method
   - cited source linkage
+- redesign evidence requirements so the system can return zero validated evidence items when research fails, rather than forcing `min_items=1` at all times
 - reject placeholder evidence such as fake URLs, synthetic source names, or generic unsupported evidence blobs
 - ensure “bill-specific clause” fields can be absent or explicitly marked unresolved rather than fabricated
 - define concrete minimum sufficiency rules in code, not in the model prompt, including at minimum:
@@ -218,12 +233,14 @@ Required changes:
   - at least one source has a verifiable HTTP URL
   - quantified output is blocked automatically when no official fiscal note, government cost estimate, or other approved numeric basis is present
 - require the generation step to consume typed evidence/provenance structures or a normalized evidence contract rather than raw stringified search output
+- add construction-time validation for evidence objects so fabricated URLs/source names/excerpts are rejected before persistence-time validation
 
 Acceptance:
 - no bill can emit `p10..p90` without a defensible evidence basis
 - the system can represent “I do not have enough evidence to quantify this”
 - `SB 277` would no longer be able to surface a `$15,000,000` estimate under title-only or evidence-poor conditions
 - quantification is blocked by deterministic code gates before the LLM is asked to fill percentile fields
+- the evidence schema no longer forces fake support when the truthful state is “nothing defensible was found”
 
 Dependencies:
 - blocked by `bd-tytc.3`
@@ -349,6 +366,7 @@ Must prove:
 - research artifacts are bill-specific
 - insufficiency is represented explicitly when evidence fails
 - structured evidence/provenance survives from retrieval/search into generation and review
+- the runtime retrieval interface returns real chunks from the configured backend rather than empty stubs or mock documents
 
 ### Gate C: Quantification Eligibility
 
@@ -408,6 +426,7 @@ This plan explicitly addresses:
 1. OpenStates is discovery/metadata only for California; the official California legislature-linked text/PDF/HTML source is canonical for bill text.
 2. Retrieval is mandatory on the legislation-analysis path; the implementation may factor this as a shared legislation-research service, but the path may not fall back to web-search-only analysis when retrieval is available.
 3. Quantification eligibility must be decided by deterministic evidence sufficiency gates before generation, not delegated to the model.
+4. Mock and placeholder retrieval paths are not acceptable production fallbacks for California analysis; broken retrieval must fail closed, not silently substitute example documents.
 
 ## Open Questions To Resolve During Implementation
 
