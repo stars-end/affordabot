@@ -23,9 +23,8 @@ from datetime import datetime
 from typing import List, Dict, Any, Optional, Callable, Awaitable
 from uuid import uuid4
 
-from llm_common.core import LLMClient, LLMMessage, MessageRole
+from llm_common.core import LLMClient
 from llm_common.web_search import WebSearchClient
-from llm_common.agents import ToolRegistry, AgenticExecutor, ToolContextManager
 from llm_common.agents.provenance import Evidence, EvidenceEnvelope
 from llm_common.retrieval import RetrievedChunk
 
@@ -103,8 +102,6 @@ class LegislationResearchService:
         retrieval_backend: Any = None,
         embedding_fn: Optional[Callable[[str], Awaitable[List[float]]]] = None,
         db_client: Any = None,
-        tool_registry: Optional[ToolRegistry] = None,
-        context_manager: Optional[ToolContextManager] = None,
     ):
         """
         Initialize LegislationResearchService.
@@ -115,16 +112,12 @@ class LegislationResearchService:
             retrieval_backend: Vector retrieval backend (LocalPgVectorBackend)
             embedding_fn: Async function to embed queries
             db_client: Database client for fetching bill context
-            tool_registry: Optional tool registry for AgenticExecutor
-            context_manager: Optional context manager for AgenticExecutor
         """
         self.llm = llm_client
         self.search = search_client
         self.retrieval_backend = retrieval_backend
         self.embedding_fn = embedding_fn
         self.db = db_client
-        self.tool_registry = tool_registry
-        self.context_manager = context_manager
 
         if not self.retrieval_backend:
             logger.warning(
@@ -321,7 +314,6 @@ class LegislationResearchService:
                         confidence=chunk.score if chunk.score else 0.5,
                         metadata={
                             "chunk_id": chunk.chunk_id,
-                            "document_id": chunk.document_id,
                             "score": chunk.score,
                             "jurisdiction": chunk.metadata.get("jurisdiction"),
                         },
