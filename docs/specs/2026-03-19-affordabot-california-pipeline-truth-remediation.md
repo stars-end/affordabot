@@ -284,12 +284,25 @@ Required changes:
 - make the legislation-analysis path call a retrieval-backed research service directly; remove “where appropriate” ambiguity about whether retrieval is optional
 - stop treating pgvector as a sidecar asset that the legislation path never queries
 - unify the `PolicyAgent`/retrieval capabilities and the `AnalysisPipeline` legislation workflow behind one canonical legislation-research path
+- implement this as a shared legislation-research service built on `llm-common` primitives rather than by adopting the current generic `ResearchAgent` unchanged
+- use the following `llm-common` components as explicit implementation dependencies for this shared service:
+  - `llm_common.agents.executor.AgenticExecutor`
+  - `llm_common.agents.tools.BaseTool`
+  - `llm_common.agents.tools.ToolRegistry`
+  - `llm_common.agents.tools.ToolResult`
+  - `llm_common.agents.provenance.Evidence`
+  - `llm_common.agents.provenance.EvidenceEnvelope`
+  - `llm_common.retrieval.base.RetrievalBackend`
+  - `llm_common.retrieval.backends.pg_backend.PgVectorBackend` as the reference shape for embedder-backed retrieval
 - implement the retrieval contract end to end rather than only “integrating RAG” conceptually, including:
   - make `backend/services/retrieval/local_pgvector.py:LocalPgVectorBackend.retrieve()` actually perform retrieval instead of returning `[]`
-  - update `LocalPgVectorBackend` to accept/use an embedder dependency so text queries can be embedded at retrieval time
+  - make `LocalPgVectorBackend` conform to the canonical `llm-common` retrieval interface `retrieve(query, top_k, min_score, filters)` rather than Affordabot-local variants like `retrieve(query, k, filter)`
+  - update `LocalPgVectorBackend` to accept/use an embedder dependency so text queries can be embedded at retrieval time, mirroring `llm_common.retrieval.backends.pg_backend.PgVectorBackend`
   - make `LocalPgVectorBackend.query()` apply jurisdiction/source filters instead of ignoring the `filter` argument
   - ensure `RetrieverTool` is instantiated with a real retrieval backend and embedder; if the backend is missing in production, the tool MUST explicitly fail or return zero chunks rather than silently falling back to mock data
-  - repair the interface mismatch in `backend/services/llm/orchestrator.py:_research_step()` so that it properly unwraps the `PolicyAnalysisResult` object to preserve `EvidenceEnvelope` objects rather than using an incompatible dictionary getter (`.get("collected_data", [])`) which silently drops evidence
+  - replace `backend/services/llm/orchestrator.py:_research_step()` with a call to the shared legislation-research service instead of patching the current `ResearchAgent` path in place
+  - remove the existing direct `ResearchAgent` import/usage from the legislation pipeline once the shared service is active
+  - preserve `EvidenceEnvelope` objects across the research → generation boundary rather than using incompatible dictionary getters like `.get("collected_data", [])`
   - repair or remove dead import paths such as `llm_common.retrieval.pgvector_backend` in the universal harvester path
 - ensure research can:
   - retrieve actual bill text chunks
@@ -345,6 +358,17 @@ Required changes:
 - require the generation step to consume typed evidence/provenance structures or a normalized evidence contract rather than raw stringified search output
 - add construction-time validation for evidence objects so fabricated URLs/source names/excerpts are rejected before persistence-time validation
 - align backend persistence and frontend/API contracts with nullable or absent quantitative fields so “qualitative-only” and “research-incomplete” states are representable without type breakage
+- define a persistence adapter from `llm_common.agents.provenance.EvidenceEnvelope` into Affordabot’s stored impact-evidence representation so the persistence layer does not drop provenance fields that already exist upstream
+- preserve at minimum the following fields when evidence is serialized for storage:
+  - `id`
+  - `kind`
+  - `url`
+  - `excerpt`
+  - `content_hash`
+  - `derived_from`
+  - `tool_name`
+  - `tool_args`
+  - `confidence`
 
 Acceptance:
 - no bill can emit `p10..p90` without a defensible evidence basis
@@ -355,6 +379,7 @@ Acceptance:
 
 Dependencies:
 - blocked by `bd-tytc.3`
+- integration tests for evidence sufficiency gates require `bd-tytc.4` to produce real `EvidenceEnvelope` outputs, even though `bd-tytc.2` unit tests can proceed in parallel
 
 ### `bd-tytc.5` Impl: review, persistence, and telemetry honesty
 
@@ -614,14 +639,6 @@ This plan explicitly addresses:
 4. Mock and placeholder retrieval paths are not acceptable production fallbacks for California analysis; broken retrieval must fail closed, not silently substitute example documents.
 5. Platform-level truth fixes must be treated as platform changes even when California is used as the anchor validation surface.
 6. Windmill remains the scheduler/orchestration plane; backend `/api/admin` + Glass Box remain the canonical truth plane.
-
-## Open Questions To Resolve During Implementation
-
-1. Which exact source classes count as sufficient for direct fiscal quantification versus qualitative-only analysis?
-2. What is the minimum acceptable numeric-basis contract for a quantified impact when no formal fiscal note exists?
-3. Should the canonical legislation research runtime be a retrieval-backed `PolicyAgent` flow or a shared service extracted from both `PolicyAgent` and `AnalysisPipeline`?
-
-These are implementation decisions inside the remediation, not reasons to delay the big-bang fix.
 
 ## Consultant Review Request
 
