@@ -281,6 +281,12 @@ Required changes:
   - evidence sufficiency state
   - bill-text acquisition status
   - quantification eligibility state
+- require that the audit trail/telemetry logs a "Sufficiency Breakdown" containing:
+  - `source_text_present`: bool
+  - `rag_chunks_retrieved`: int
+  - `web_research_sources_found`: int
+  - `fiscal_notes_detected`: bool
+- ensure this breakdown is visible in the "Glass Box" admin view to allow for rapid debugging of data gaps
 - remove or correct cosmetic audit steps that imply embedding/retrieval happened when they did not
 - ensure stored titles/text/status fields reflect source truth instead of synthetic placeholders like `Analysis: <bill>`
 - explicitly remove persistence-side placeholder injection in `backend/services/llm/orchestrator.py:_complete_pipeline_run()` so it no longer writes synthetic title/text/status fields such as `Analysis: <bill>` and `Full text placeholder`
@@ -309,6 +315,7 @@ Required changes:
   - quantified
   - qualitative-only
   - research-incomplete
+- require that when a bill is qualitative-only or research-incomplete, the UI provides a "Data Gap Summary" (e.g., "Full bill text available, but no external fiscal analysis found") based on the sufficiency breakdown telemetry
 - remove hardcoded unrelated placeholder content from:
   - bill detail page
   - sector breakdown
@@ -340,6 +347,7 @@ Required changes:
   - file a clearly linked follow-up epic if jurisdiction-specific rollback is intentionally deferred
 - re-ingest and re-run `SB 277` and `ACR 117`
 - compare final outputs against source truth manually
+- add a "Pipeline Truth Diagnostic Utility" (CLI or Admin API) that can trace a single bill ID through every lifecycle stage: Scrape -> Raw Text -> Vector Chunks -> Research Proofs, and use this to validate the anchor bills `SB 277` and `ACR 117`
 - add end-to-end truth tests that assert:
   - missing bill text blocks quantification
   - placeholder evidence cannot pass validation
