@@ -194,7 +194,8 @@ Required changes:
   - make `backend/services/retrieval/local_pgvector.py:LocalPgVectorBackend.retrieve()` actually perform retrieval instead of returning `[]`
   - update `LocalPgVectorBackend` to accept/use an embedder dependency so text queries can be embedded at retrieval time
   - make `LocalPgVectorBackend.query()` apply jurisdiction/source filters instead of ignoring the `filter` argument
-  - ensure `RetrieverTool` is instantiated with a real retrieval backend and embedder rather than defaulting to mock mode
+  - ensure `RetrieverTool` is instantiated with a real retrieval backend and embedder; if the backend is missing in production, the tool MUST explicitly fail or return zero chunks rather than silently falling back to mock data
+  - repair the interface mismatch in `backend/services/llm/orchestrator.py:_research_step()` so that it properly unwraps the `PolicyAnalysisResult` object to preserve `EvidenceEnvelope` objects rather than using an incompatible dictionary getter (`.get("collected_data", [])`) which silently drops evidence
   - repair or remove dead import paths such as `llm_common.retrieval.pgvector_backend` in the universal harvester path
 - ensure research can:
   - retrieve actual bill text chunks
@@ -281,13 +282,13 @@ Required changes:
   - evidence sufficiency state
   - bill-text acquisition status
   - quantification eligibility state
-- require that the audit trail/telemetry logs a "Sufficiency Breakdown" containing:
+- require that the `_research_step` in the orchestrator inspects the structured evidence (e.g., `EvidenceEnvelope` objects) to dynamically compute and log a "Sufficiency Breakdown" containing:
   - `source_text_present`: bool
-  - `rag_chunks_retrieved`: int
+  - `rag_chunks_retrieved`: int (extracted directly from `source_tool="retriever"` evidence items)
   - `web_research_sources_found`: int
   - `fiscal_notes_detected`: bool
 - ensure this breakdown is visible in the "Glass Box" admin view to allow for rapid debugging of data gaps
-- remove or correct cosmetic audit steps that imply embedding/retrieval happened when they did not
+- remove or correct cosmetic audit steps that imply embedding/retrieval happened when they did not, specifically mandating the removal of the "Virtual" Step 0.5 embedding log from the runtime orchestrator since static document chunk counts belong in a "Document Health" view, not in a dynamic pipeline execution trace
 - ensure stored titles/text/status fields reflect source truth instead of synthetic placeholders like `Analysis: <bill>`
 - explicitly remove persistence-side placeholder injection in `backend/services/llm/orchestrator.py:_complete_pipeline_run()` so it no longer writes synthetic title/text/status fields such as `Analysis: <bill>` and `Full text placeholder`
 - harmonize the stored analysis/evidence contract enough that provenance-bearing evidence remains queryable and does not fork permanently into incompatible runtime-only vs stored-only shapes
