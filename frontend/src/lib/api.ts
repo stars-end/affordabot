@@ -2,16 +2,28 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || process.env.VITE_API_URL
 
 export type Jurisdiction = 'saratoga' | 'san-jose' | 'santa-clara-county' | 'california';
 
+export type SufficiencyState = 'research_incomplete' | 'insufficient_evidence' | 'qualitative_only' | 'quantified';
+
 export interface Impact {
     impactNumber: number;
     description: string;
     clause: string;
-    confidence: number;
-    p10: number;
-    p25: number;
-    p50: number;
-    p75: number;
-    p90: number;
+    confidence: number | null;
+    p10: number | null;
+    p25: number | null;
+    p50: number | null;
+    p75: number | null;
+    p90: number | null;
+    isQuantified?: boolean;
+    numericBasis?: string | null;
+    estimateMethod?: string | null;
+    evidence?: Array<{
+        source_name: string;
+        url: string;
+        excerpt: string;
+        source_tier?: string | null;
+    }>;
+    chainOfCausality?: string;
 }
 
 export interface Bill {
@@ -19,6 +31,9 @@ export interface Bill {
     title: string;
     jurisdiction: string;
     status: string;
+    sufficiencyState?: SufficiencyState | null;
+    insufficiencyReason?: string | null;
+    quantificationEligible?: boolean;
     impacts: Impact[];
 }
 
