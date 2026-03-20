@@ -10,6 +10,7 @@ Validates:
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
 from services.retrieval.local_pgvector import LocalPgVectorBackend
 
 

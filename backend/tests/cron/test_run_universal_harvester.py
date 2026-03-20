@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import MagicMock, patch, AsyncMock, call
+from unittest.mock import MagicMock, patch, AsyncMock
 import sys
 import os
 
@@ -27,8 +27,6 @@ async def test_harvester_flow():
 
     with (
         patch("services.ingestion_service.IngestionService") as MockIngestion,
-        patch("services.retrieval.local_pgvector.LocalPgVectorBackend") as MockBackend,
-        patch("services.storage.S3Storage") as MockStorage,
         patch.dict(
             os.environ,
             {"OPENROUTER_API_KEY": "test-key"},

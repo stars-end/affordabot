@@ -9,12 +9,11 @@ Validates:
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 from services.legislation_research import (
     LegislationResearchService,
     LegislationResearchResult,
-    SufficiencyBreakdown,
 )
 from llm_common.retrieval import RetrievedChunk
 
