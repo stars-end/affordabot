@@ -457,6 +457,9 @@ async def get_legislation(jurisdiction: str, limit: int = 10):
         for impact in leg.get("impacts", []):
             if "confidence_score" in impact:
                 impact["confidence"] = impact.pop("confidence_score")
+        quantified_impacts = [
+            i for i in leg.get("impacts", []) if i.get("p50") is not None
+        ]
         legislation_list.append(
             {
                 "bill_number": leg.get("bill_number"),
@@ -464,9 +467,14 @@ async def get_legislation(jurisdiction: str, limit: int = 10):
                 "jurisdiction": leg.get("jurisdiction", jurisdiction),
                 "status": leg.get("status"),
                 "impacts": leg.get("impacts", []),
-                "total_impact_p50": sum(
-                    i.get("p50", 0) for i in leg.get("impacts", [])
+                "total_impact_p50": (
+                    sum(i["p50"] for i in quantified_impacts)
+                    if quantified_impacts
+                    else None
                 ),
+                "sufficiency_state": leg.get("sufficiency_state"),
+                "insufficiency_reason": leg.get("insufficiency_reason"),
+                "quantification_eligible": leg.get("quantification_eligible"),
                 "analysis_timestamp": leg.get("created_at").isoformat()
                 if leg.get("created_at")
                 else None,

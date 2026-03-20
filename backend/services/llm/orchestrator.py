@@ -145,6 +145,7 @@ class AnalysisPipeline:
                 await self._complete_pipeline_run(
                     run_id,
                     bill_id,
+                    bill_text,
                     analysis,
                     ReviewCritique(
                         passed=False,
@@ -235,7 +236,7 @@ class AnalysisPipeline:
                 )
 
             await self._complete_pipeline_run(
-                run_id, bill_id, analysis, review, jurisdiction
+                run_id, bill_id, bill_text, analysis, review, jurisdiction
             )
             return analysis
 
@@ -493,6 +494,7 @@ class AnalysisPipeline:
         self,
         run_id: str,
         bill_id: str,
+        bill_text: str,
         analysis: LegislationAnalysisResponse,
         review: ReviewCritique,
         jurisdiction: str,
@@ -501,10 +503,12 @@ class AnalysisPipeline:
             bill_data = {
                 "bill_number": bill_id,
                 "title": analysis.title or bill_id,
-                "text": bill_text
-                if (bill_text := getattr(analysis, "_bill_text", None))
-                else "",
+                "text": bill_text or "",
                 "status": "analyzed",
+                "sufficiency_state": analysis.sufficiency_state.value,
+                "insufficiency_reason": analysis.insufficiency_reason,
+                "quantification_eligible": analysis.quantification_eligible,
+                "total_impact_p50": analysis.total_impact_p50,
             }
 
             if hasattr(self.db, "get_or_create_jurisdiction"):

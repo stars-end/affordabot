@@ -131,10 +131,11 @@ class PostgresDB:
             )
 
             if row:
-                # Update
                 update_query = """
                     UPDATE legislation 
-                    SET title = $1, text_content = $2, status = $3, updated_at = $4
+                    SET title = $1, text_content = $2, status = $3, updated_at = $4,
+                        sufficiency_state = $6, insufficiency_reason = $7,
+                        quantification_eligible = $8, total_impact_p50 = $9
                     WHERE id = $5
                     RETURNING id
                 """
@@ -145,14 +146,19 @@ class PostgresDB:
                     bill_data["status"],
                     datetime.now(),
                     row["id"],
+                    bill_data.get("sufficiency_state"),
+                    bill_data.get("insufficiency_reason"),
+                    bill_data.get("quantification_eligible", False),
+                    bill_data.get("total_impact_p50"),
                 )
                 return str(row["id"])
 
             # Insert
             insert_query = """
                 INSERT INTO legislation 
-                (jurisdiction_id, bill_number, title, text_content, introduced_date, status, raw_html, analysis_status)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                (jurisdiction_id, bill_number, title, text_content, introduced_date, status, raw_html, analysis_status,
+                 sufficiency_state, insufficiency_reason, quantification_eligible, total_impact_p50)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
                 RETURNING id
             """
             row = await self._fetchrow(
@@ -165,6 +171,10 @@ class PostgresDB:
                 bill_data["status"],
                 bill_data.get("raw_html"),
                 "pending",
+                bill_data.get("sufficiency_state"),
+                bill_data.get("insufficiency_reason"),
+                bill_data.get("quantification_eligible", False),
+                bill_data.get("total_impact_p50"),
             )
             return str(row["id"]) if row else None
 
@@ -768,6 +778,7 @@ class PostgresDB:
 
             leg_dict = dict(leg_row)
             leg_dict["jurisdiction"] = jur_row["name"]
+            leg_dict["full_text"] = leg_dict.pop("text_content", None)
 
             # Fetch impacts
             impact_rows = await self._fetch(
