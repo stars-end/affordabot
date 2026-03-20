@@ -16,7 +16,7 @@ import json
 import sys
 from pathlib import Path
 
-BACKEND_ROOT = Path(__file__).resolve().parents[3]
+BACKEND_ROOT = Path(__file__).resolve().parents[2]
 sys.path.append(str(BACKEND_ROOT))
 
 
@@ -35,8 +35,8 @@ async def diagnose_bill(db, jurisdiction: str, bill_id: str) -> dict:
         SELECT rs.id, rs.url, rs.created_at, rs.content_hash, rs.metadata, rs.data
         FROM raw_scrapes rs
         LEFT JOIN sources s ON rs.source_id = s.id
-        LEFT JOIN jurisdictions j ON s.jurisdiction_id = j.id
-        WHERE LOWER(j.name) = LOWER($1)
+        LEFT JOIN jurisdictions j ON s.jurisdiction_id::uuid = j.id
+        WHERE LOWER(j.name) LIKE '%' || LOWER($1) || '%'
           AND rs.metadata::json->>'bill_number' ILIKE $2
         ORDER BY rs.created_at DESC
         LIMIT 1
@@ -101,7 +101,7 @@ async def diagnose_bill(db, jurisdiction: str, bill_id: str) -> dict:
                l.sufficiency_state, l.insufficiency_reason, l.quantification_eligible, l.total_impact_p50
         FROM legislation l
         LEFT JOIN jurisdictions j ON l.jurisdiction_id = j.id
-        WHERE LOWER(j.name) = LOWER($1)
+        WHERE LOWER(j.name) LIKE '%' || LOWER($1) || '%'
           AND LOWER(l.bill_number) LIKE LOWER($2)
         ORDER BY l.created_at DESC
         LIMIT 1
