@@ -665,7 +665,7 @@ Bill Text: {bill_text[:5000]}
         try:
             bill_data = {
                 "bill_number": bill_id,
-                "title": getattr(analysis, "title", None) or bill_id,
+                "title": analysis.title or bill_id,
                 "text": bill_text or "",
                 "status": "analyzed",
                 "sufficiency_state": analysis.sufficiency_state.value
