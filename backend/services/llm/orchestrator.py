@@ -105,6 +105,7 @@ class AnalysisPipeline:
             source_data = await self.db.get_latest_scrape_for_bill(
                 jurisdiction, bill_id
             )
+            source_text_present = bool(bill_text and len(bill_text) > 100)
             if source_data:
                 await audit.log_step(
                     step_number=0,
@@ -123,43 +124,21 @@ class AnalysisPipeline:
                         "content_hash": source_data["content_hash"],
                         "metadata": source_data["metadata"],
                         "minio_blob_path": source_data.get("storage_uri", "N/A"),
+                        "source_text_present": source_text_present,
                     },
                     model_info={"model": "scraper", "provider": "firecrawl"},
                     duration_ms=0,
                 )
-
-                if source_data.get("document_id"):
-                    vector_stats = await self.db.get_vector_stats(
-                        source_data["document_id"]
-                    )
-                    await audit.log_step(
-                        step_number=1,
-                        step_name="embedding",
-                        status="completed",
-                        input_context={
-                            "document_id": source_data["document_id"],
-                            "chunk_strategy": "fixed_size",
-                            "chunk_size": 1000,
-                            "chunk_overlap": 200,
-                        },
-                        output_result={
-                            "vector_db": "pgvector",
-                            "chunks_generated": vector_stats.get("chunk_count", 0),
-                            "status": "indexed",
-                        },
-                        model_info={
-                            "model": "text-embedding-3-small",
-                            "provider": "openai",
-                        },
-                        duration_ms=0,
-                    )
             else:
                 await audit.log_step(
                     step_number=0,
                     step_name="ingestion_source",
                     status="skipped",
                     input_context={"jurisdiction": jurisdiction, "bill_id": bill_id},
-                    output_result={"error": "No raw scrape found for this bill."},
+                    output_result={
+                        "error": "No raw scrape found for this bill.",
+                        "source_text_present": source_text_present,
+                    },
                     model_info={"model": "scraper", "provider": "firecrawl"},
                     duration_ms=0,
                 )
@@ -238,6 +217,7 @@ class AnalysisPipeline:
                         factual_errors=[],
                     ),
                     jurisdiction,
+                    breakdown=breakdown,
                 )
                 return analysis
 
@@ -329,7 +309,13 @@ class AnalysisPipeline:
                 )
 
             await self._complete_pipeline_run(
-                run_id, bill_id, bill_text, analysis, review, jurisdiction
+                run_id,
+                bill_id,
+                bill_text,
+                analysis,
+                review,
+                jurisdiction,
+                breakdown=breakdown,
             )
 
             return analysis
@@ -660,13 +646,16 @@ Bill Text: {bill_text[:5000]}
         analysis: LegislationAnalysisResponse,
         review: ReviewCritique,
         jurisdiction: str,
+        breakdown: Any = None,
     ):
-        """Mark pipeline run as complete and store results."""
+        """Mark pipeline run as complete and store results with truthful metadata."""
         try:
             bill_data = {
                 "bill_number": bill_id,
-                "title": analysis.title or bill_id,
-                "text": bill_text or "",
+                "title": analysis.title
+                if analysis.title and analysis.title != ""
+                else None,
+                "text": bill_text if bill_text else None,
                 "status": "analyzed",
                 "sufficiency_state": analysis.sufficiency_state.value
                 if analysis.sufficiency_state
@@ -681,7 +670,9 @@ Bill Text: {bill_text[:5000]}
                     jurisdiction, "municipality"
                 )
                 if not jurisdiction_id:
-                    print(f"Failed to resolve jurisdiction_id for {jurisdiction}")
+                    logger.error(
+                        f"Failed to resolve jurisdiction_id for {jurisdiction}"
+                    )
                     return
 
                 if hasattr(self.db, "store_legislation"):
@@ -693,17 +684,29 @@ Bill Text: {bill_text[:5000]}
                         impact_dicts = [i.model_dump() for i in analysis.impacts]
                         if hasattr(self.db, "store_impacts"):
                             await self.db.store_impacts(legislation_id, impact_dicts)
-                        print(f"✅ Stored analysis results for {bill_id}")
+                        logger.info(f"Stored analysis results for {bill_id}")
 
             result_data = {
                 "analysis": analysis.model_dump(),
                 "review": review.model_dump(),
+                "sufficiency_breakdown": breakdown.model_dump() if breakdown else None,
+                "source_text_present": bool(bill_text and len(bill_text) > 100),
+                "retriever_invoked": True,
+                "rag_chunks_retrieved": breakdown.rag_chunks_retrieved
+                if breakdown
+                else 0,
+                "validated_evidence_count": len(analysis.impacts)
+                if analysis.impacts
+                else 0,
+                "quantification_eligible": analysis.quantification_eligible,
+                "insufficiency_reason": analysis.insufficiency_reason,
+                "model_used": analysis.model_used,
             }
             if hasattr(self.db, "complete_pipeline_run"):
                 await self.db.complete_pipeline_run(run_id, result_data)
 
         except Exception as e:
-            print(f"Failed to store results: {e}")
+            logger.error(f"Failed to store results: {e}")
             import traceback
 
             traceback.print_exc()

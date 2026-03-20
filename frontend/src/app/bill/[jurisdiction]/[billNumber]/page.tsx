@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import ImpactCard from '@/components/ImpactCard';
-import { Loader2, Share2, Copy, Calendar, FileText, ArrowLeft } from 'lucide-react';
+import { Loader2, Calendar, FileText, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { getBill } from '@/lib/api';
 
@@ -133,7 +133,7 @@ export default function BillDetailPage() {
                                 {avgConfidence > 0 ? `${Math.round(avgConfidence * 100)}%` : 'N/A'}
                             </p>
                         </div>
-                        {isQuantified && bill.effective_date && (
+                        {bill.effective_date && (
                             <div className="kpi-card min-w-[140px]">
                                 <span className="label-uppercase text-slate-500 block mb-1">Effective Date</span>
                                 <p className="text-lg font-numbers font-bold text-slate-900">
@@ -164,6 +164,12 @@ export default function BillDetailPage() {
                     </p>
                 </div>
             )}
+            {isQuantified && sufficiencyState && (
+                <div className="mb-6 p-3 bg-prism-green/5 border border-prism-green/20 rounded-lg">
+                    <p className="text-sm font-medium text-prism-green">Quantified</p>
+                    <p className="text-xs text-slate-500 mt-1">Cost estimates derived from official evidence sources with confidence scoring.</p>
+                </div>
+            )}
 
             {/* Main Content Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -180,34 +186,9 @@ export default function BillDetailPage() {
                                 <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed">{bill.full_text}</pre>
                             </div>
                         ) : (
-                            <div className="text-slate-500 text-sm">
-                                <p className="mb-4 text-slate-900 font-medium">117TH CONGRESS</p>
-                                <p className="mb-4 text-slate-900 font-medium">2D SESSION</p>
-                                <p className="mb-4 text-slate-900 font-medium">H. R. {bill.bill_number}</p>
-
-                                <p className="mb-4 text-slate-900 font-bold uppercase">Title I—Committee on Finance</p>
-
-                                <p className="mb-2 text-slate-900 font-medium">Subtitle A—Deficit Reduction</p>
-
-                                <p className="mb-2 text-slate-900 font-medium">SEC. 10001. AMENDMENT OF 1986 CODE.</p>
-
-                                <p className="mb-4 text-slate-600">
-                                    Except as otherwise expressly provided, whenever in this subtitle an amendment or repeal is expressed in terms of an amendment to, or repeal of, a section or other provision, the reference shall be considered to be made to a section or other provision of the Internal Revenue Code of 1986.
-                                </p>
-
-                                <p className="mb-4 text-slate-900 font-bold uppercase">Part 1—Corporate Tax Reform</p>
-
-                                <p className="mb-2 text-slate-900 font-medium">SEC. 10001. CORPORATE ALTERNATIVE MINIMUM TAX.</p>
-
-                                <p className="mb-2 text-slate-900 font-medium">(a) In General.—</p>
-
-                                <p className="mb-4 text-slate-900 font-medium">(1) GENERAL RULE.—Section 55 is amended to read as follows:</p>
-
-                                <p className="mb-2 text-slate-900 font-medium">&ldquo;SEC. 55. ALTERNATIVE MINIMUM TAX IMPOSED.</p>
-
-                                <p className="mb-4 text-slate-600 italic">
-                                    &ldquo;(a) In General.—In the case of a corporation (other than an S corporation, a regulated investment company, or a real estate investment trust), there is hereby imposed for each taxable year...
-                                </p>
+                            <div className="text-slate-400 text-sm py-8 text-center">
+                                <FileText className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                                <p>No bill text available</p>
                             </div>
                         )}
                     </div>
@@ -215,86 +196,38 @@ export default function BillDetailPage() {
 
                 {/* Right Column - Impact Analysis */}
                 <div className="lg:col-span-2 space-y-6">
-                    {/* Sector Breakdown */}
+                    {/* Sector Breakdown — only when quantified */}
+                    {isQuantified && (
                     <div className="card-prism p-6">
                         <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-2">
                                 <div className="w-2 h-2 rounded-full bg-prism-cyan" />
-                                <span className="label-uppercase text-slate-900">Sector Breakdown</span>
+                                <span className="label-uppercase text-slate-900">Impact Summary</span>
                             </div>
-                            <button className="text-xs text-prism-cyan hover:text-prism-cyan/80 font-medium">
-                                Export Data
-                            </button>
                         </div>
 
                         <div className="space-y-3">
-                            <div className="flex items-center justify-between text-sm">
-                                <span className="text-slate-600">Energy & Climate</span>
-                                <span className="font-numbers font-medium text-slate-900">+$369B</span>
-                            </div>
-                            <div className="h-8 bg-slate-100 rounded overflow-hidden">
-                                <div className="h-full bg-prism-cyan w-[85%]" />
-                            </div>
-
-                            <div className="flex items-center justify-between text-sm">
-                                <span className="text-slate-600">Healthcare (ACA)</span>
-                                <span className="font-numbers font-medium text-slate-900">+$64B</span>
-                            </div>
-                            <div className="h-8 bg-slate-100 rounded overflow-hidden">
-                                <div className="h-full bg-prism-green w-[45%]" />
-                            </div>
-
-                            <div className="flex items-center justify-between text-sm">
-                                <span className="text-slate-600">Drought Relief</span>
-                                <span className="font-numbers font-medium text-slate-900">+$4B</span>
-                            </div>
-                            <div className="h-8 bg-slate-100 rounded overflow-hidden">
-                                <div className="h-full bg-prism-yellow w-[15%]" />
-                            </div>
-                        </div>
-
-                        {/* Legend */}
-                        <div className="flex items-center gap-4 mt-4 text-xs text-slate-500">
-                            <span>0%</span>
-                            <div className="flex-1 h-px bg-slate-200" />
-                            <span>25%</span>
-                            <div className="flex-1 h-px bg-slate-200" />
-                            <span>50%</span>
-                            <div className="flex-1 h-px bg-slate-200" />
-                            <span>75%</span>
-                            <div className="flex-1 h-px bg-slate-200" />
-                            <span>100%</span>
+                            {quantifiedImpacts.map((imp: any) => {
+                                const maxP50 = Math.max(...quantifiedImpacts.map((i: any) => Math.abs(i.p50 || 0)), 1);
+                                const widthPct = Math.round((Math.abs(imp.p50 || 0) / maxP50) * 100);
+                                const barColor = (imp.p50 || 0) >= 0 ? 'bg-prism-cyan' : 'bg-prism-pink';
+                                return (
+                                    <div key={imp.impactNumber}>
+                                        <div className="flex items-center justify-between text-sm">
+                                            <span className="text-slate-600 truncate max-w-[70%]">{imp.description || `Impact #${imp.impactNumber}`}</span>
+                                            <span className={`font-numbers font-medium text-slate-900 ${(imp.p50 || 0) >= 0 ? '' : 'text-prism-pink'}`}>
+                                                {imp.p50 >= 0 ? '+' : ''}${(imp.p50 || 0).toLocaleString()}
+                                            </span>
+                                        </div>
+                                        <div className="h-6 bg-slate-100 rounded overflow-hidden mt-1">
+                                            <div className={`h-full ${barColor}`} style={{ width: `${widthPct}%` }} />
+                                        </div>
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
-
-                    {/* Cost Waterfall */}
-                    <div className="card-prism p-6">
-                        <div className="flex items-center gap-2 mb-4">
-                            <div className="w-2 h-2 rounded-full bg-prism-yellow" />
-                            <span className="label-uppercase text-slate-900">Cost Waterfall</span>
-                        </div>
-
-                        <div className="flex items-center gap-2 mb-4">
-                            <span className="px-2 py-1 text-xs bg-prism-green/10 text-prism-green rounded">
-                                NET DEFICIT REDUCTION: $300B+
-                            </span>
-                        </div>
-
-                        <div className="flex items-end gap-2 h-32">
-                            <div className="flex-1 flex flex-col items-center gap-1">
-                                <div className="w-full bg-prism-cyan rounded-t" style={{ height: '80%' }} />
-                                <span className="text-xs text-slate-500 font-numbers">$739B</span>
-                            </div>
-                            <div className="flex-1 flex flex-col items-center gap-1">
-                                <div className="w-full bg-prism-pink rounded-t" style={{ height: '40%' }} />
-                                <span className="text-xs text-slate-500 font-numbers">-$64B</span>
-                            </div>
-                            <div className="flex-1 flex flex-col items-center gap-1">
-                                <div className="w-full bg-prism-yellow rounded-t" style={{ height: '20%' }} />
-                                <span className="text-xs text-slate-500 font-numbers">-$40B</span>
-                            </div>
-                        </div>
-                    </div>
+                    )}
 
                     {/* Impact Cards */}
                     <div>
