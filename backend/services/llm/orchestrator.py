@@ -549,8 +549,7 @@ Bill Text: {bill_text[:5000]}
         try:
             bill_data = {
                 "bill_number": bill_id,
-                "title": f"Analysis: {bill_id}",
-                "text": "Full text placeholder",
+                "title": getattr(analysis, "title", None) or bill_id,
                 "status": "analyzed",
             }
 

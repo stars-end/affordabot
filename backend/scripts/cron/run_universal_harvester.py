@@ -153,23 +153,20 @@ class UniversalHarvester:
         from services.storage import S3Storage
         from services.retrieval.local_pgvector import LocalPgVectorBackend
         from llm_common.embeddings.openai import OpenAIEmbeddingService
-        from llm_common.embeddings.mock import MockEmbeddingService
+        from llm_common.embeddings import EmbeddingService
 
-        # Setup Services
         if os.environ.get("OPENAI_API_KEY") or os.environ.get("OPENROUTER_API_KEY"):
-            embedding_service = OpenAIEmbeddingService(
+            embedding_service: EmbeddingService = OpenAIEmbeddingService(
                 base_url="https://openrouter.ai/api/v1",
                 api_key=os.environ.get("OPENROUTER_API_KEY"),
                 model="qwen/qwen3-embedding-8b",
                 dimensions=4096,
             )
         else:
-            embedding_service = MockEmbeddingService()
-
-        # Create vector backend (Directly use PgVectorBackend with our connection string)
-        # Note: llm-common PgVectorBackend typically needs a connection string or pool.
-        # Our internal PostgresDB uses asyncpg directly.
-        # Check if we can reuse the pool or if we need to pass the dsn.
+            logger.error(
+                "No embedding API key configured; ingestion requires embeddings"
+            )
+            return
 
         vector_backend = LocalPgVectorBackend(
             table_name="document_chunks",
@@ -178,33 +175,10 @@ class UniversalHarvester:
             fail_closed=True,
         )
 
-        # Note: S3Storage uses env vars, no DB dep
         storage_backend = S3Storage()
 
-        # IngestionService typically takes supabase_client for updates.
-        # We need to UPDATE IngestionService to accept PostgresDB or generic Database Interface.
-        # For now, IngestionService is still tightly coupled to Supabase Client?
-        # Let's check IngestionService again. It calls self.supabase.table(...).
-
-        # CRITICAL: IngestionService needs to be refactored OR we mock the client.
-        # The prompt plan said "Update Universal Harvester".
-        # But IngestionService IS the logic.
-        # If IngestionService uses Supabase, we are still blocked.
-        # I must refactor IngestionService to accept `db_client` which can be `PostgresDB`.
-
-        # STOPGAP: For this file, I will just call IngestionService.
-        # But I need to pass it something compatible.
-        # If I pass `self.db` (PostgresDB) to `supabase_client` arg, it will crash on `.table()`.
-        # So I MUST refactor IngestionService first?
-        # Or I can implement a "SupabaseAdapter" wrapper around PostgresDB?
-        # Refactoring IngestionService is the cleaner V4 way.
-
-        # Let's assumes we will refactor IngestionService next.
-        # Pass `self.db` as a new arg `postgres_client` or generic `db_client`.
-
         ingestion_service = IngestionService(
-            supabase_client=None,  # Deprecated
-            postgres_client=self.db,  # NEW
+            postgres_client=self.db,
             vector_backend=vector_backend,
             embedding_service=embedding_service,
             storage_backend=storage_backend,

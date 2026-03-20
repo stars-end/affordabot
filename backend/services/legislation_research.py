@@ -326,7 +326,6 @@ class LegislationResearchService:
                     source_tool="retriever",
                     source_query=bill_id,
                     evidence=rag_evidence,
-                    metadata={"jurisdiction": jurisdiction, "type": "rag_retrieval"},
                 )
             )
 
@@ -355,7 +354,6 @@ class LegislationResearchService:
                     source_tool="web_search",
                     source_query=f"{jurisdiction} {bill_id}",
                     evidence=web_evidence,
-                    metadata={"jurisdiction": jurisdiction, "type": "web_research"},
                 )
             )
 

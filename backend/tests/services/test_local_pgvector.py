@@ -112,10 +112,10 @@ class TestRetrieveContract:
             )
 
             mock_query.assert_called_once()
-            call_kwargs = mock_query.call_args
-            assert call_kwargs[0][0] == [0.1] * 1536  # embedding
-            assert call_kwargs[1]["top_k"] == 10
-            assert call_kwargs[1]["filters"] == filters
+            call_args = mock_query.call_args
+            assert call_args[0][0] == [0.1] * 1536
+            assert call_args[0][1] == 10
+            assert call_args[0][3] == filters
 
 
 class TestQueryWithFilters:

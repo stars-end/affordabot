@@ -6,7 +6,6 @@ across ingested documents for policy analysis.
 """
 
 import logging
-import os
 from typing import Any, List, Optional
 
 from llm_common.agents.tools import (
@@ -27,24 +26,13 @@ class RetrieverTool(BaseTool):
     Performs RAG-style retrieval to find relevant documents
     for policy analysis and question answering.
 
-    In production mode (ENVIRONMENT=production), the tool fails closed
-    if no retrieval backend is configured, returning zero chunks instead
-    of falling back to mock data.
+    Always fails closed: if no retrieval backend is configured,
+    returns zero chunks rather than falling back to mock data.
     """
 
     def __init__(self, retrieval_backend: Any = None, embedding_client: Any = None):
-        """
-        Initialize RetrieverTool.
-
-        Args:
-            retrieval_backend: PgVector or other retrieval backend instance.
-            embedding_client: Client for generating query embeddings.
-        """
         self._retriever = retrieval_backend
         self._embedder = embedding_client
-        self._is_production = (
-            os.environ.get("ENVIRONMENT", "development").lower() == "production"
-        )
 
     @property
     def metadata(self) -> ToolMetadata:
@@ -97,35 +85,17 @@ class RetrieverTool(BaseTool):
         logger.info(f"RetrieverTool: Searching for '{query}' (k={k})")
 
         if not self._retriever:
-            if self._is_production:
-                logger.error(
-                    "RetrieverTool: No retrieval_backend in production mode. "
-                    "Returning zero results (fail closed)."
-                )
-                return ToolResult(
-                    success=False,
-                    data={"query": query, "documents": [], "count": 0},
-                    source_urls=[],
-                    evidence=[],
-                    error="No retrieval backend configured in production",
-                )
-            logger.warning(
-                "RetrieverTool: Using mock mode (no retrieval_backend, non-production)"
+            logger.error(
+                "RetrieverTool: No retrieval_backend configured. "
+                "Returning zero results (fail closed)."
             )
-            documents = [
-                {
-                    "content": f"[Mock Document 1] Relevant content for: {query}",
-                    "url": "https://example.org/doc1",
-                    "title": "Mock Policy Document",
-                    "score": 0.95,
-                },
-                {
-                    "content": f"[Mock Document 2] Additional context for: {query}",
-                    "url": "https://example.org/doc2",
-                    "title": "Mock Legislation",
-                    "score": 0.88,
-                },
-            ]
+            return ToolResult(
+                success=False,
+                data={"query": query, "documents": [], "count": 0},
+                source_urls=[],
+                evidence=[],
+                error="No retrieval backend configured",
+            )
         else:
             try:
                 documents = await self._retriever.retrieve(
@@ -135,15 +105,13 @@ class RetrieverTool(BaseTool):
                 )
             except Exception as e:
                 logger.error(f"RetrieverTool retrieval failed for '{query}': {e}")
-                if self._is_production:
-                    return ToolResult(
-                        success=False,
-                        data={"query": query, "documents": [], "count": 0},
-                        source_urls=[],
-                        evidence=[],
-                        error=f"Retrieval failed: {e}",
-                    )
-                documents = []
+                return ToolResult(
+                    success=False,
+                    data={"query": query, "documents": [], "count": 0},
+                    source_urls=[],
+                    evidence=[],
+                    error=f"Retrieval failed: {e}",
+                )
 
         source_urls: List[str] = []
         evidence_items: List[Evidence] = []

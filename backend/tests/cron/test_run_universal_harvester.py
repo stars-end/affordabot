@@ -1,9 +1,8 @@
 import pytest
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import MagicMock, patch, AsyncMock, call
 import sys
 import os
 
-# Add backend to path
 sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
 
 from scripts.cron.run_universal_harvester import UniversalHarvester
@@ -11,80 +10,105 @@ from scripts.cron.run_universal_harvester import UniversalHarvester
 
 @pytest.mark.asyncio
 async def test_harvester_flow():
-    """Verify Universal Harvester logic with mocks."""
-
-    # Mock DB
     mock_db = MagicMock()
     mock_db.create_admin_task = AsyncMock()
     mock_db.update_admin_task = AsyncMock()
     mock_db.create_raw_scrape = AsyncMock(return_value="scrape_123")
-    mock_db._fetch = AsyncMock()
+    mock_db._fetch = AsyncMock(
+        return_value=[
+            {
+                "id": "src_1",
+                "name": "Test Web",
+                "type": "web",
+                "scrape_url": "http://example.com",
+            }
+        ]
+    )
 
-    # Mock Sources Response
-    mock_sources = [
-        {
-            "id": "src_1",
-            "name": "Test Web",
-            "type": "web",
-            "scrape_url": "http://example.com",
-        }
-    ]
-    # The implementation calls await self.db._fetch(...)
-    mock_db._fetch.return_value = mock_sources
-
-    # Mock Ingestion Service
     with (
         patch("services.ingestion_service.IngestionService") as MockIngestion,
-        patch("llm_common.embeddings.EmbeddingService") as _MockEmbed,
-        patch("services.vector_backend_factory.create_vector_backend") as _MockBackend,
+        patch("services.retrieval.local_pgvector.LocalPgVectorBackend") as MockBackend,
+        patch("services.storage.S3Storage") as MockStorage,
         patch.dict(
-            sys.modules,
-            {
-                "llm_common.embeddings.mock": MagicMock(),
-                "llm_common.embeddings.openai": MagicMock(),
-                "services.storage": MagicMock(),
-                "services.retrieval.local_pgvector": MagicMock(),
-            },
+            os.environ,
+            {"OPENROUTER_API_KEY": "test-key"},
         ),
     ):
-        instance = MockIngestion.return_value
-        instance.process_raw_scrape = AsyncMock(return_value=5)
+        mock_embed_svc = MagicMock()
+        mock_embed_svc.embed_query = MagicMock(
+            return_value=AsyncMock(return_value=[0.1] * 4096)
+        )
+        with patch(
+            "llm_common.embeddings.openai.OpenAIEmbeddingService",
+            return_value=mock_embed_svc,
+        ):
+            instance = MockIngestion.return_value
+            instance.process_raw_scrape = AsyncMock(return_value=5)
 
-        # Mock HTTPX
-        with patch("httpx.AsyncClient") as MockClient:
-            mock_client_instance = AsyncMock()
-            MockClient.return_value.__aenter__.return_value = mock_client_instance
+            with patch("httpx.AsyncClient") as MockClient:
+                mock_client_instance = AsyncMock()
+                MockClient.return_value.__aenter__.return_value = mock_client_instance
 
-            # Mock Z.ai Response
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = {
-                "choices": [{"message": {"content": "# Clean Markdown Content"}}]
+                mock_response = MagicMock()
+                mock_response.status_code = 200
+                mock_response.json.return_value = {
+                    "choices": [{"message": {"content": "# Clean Markdown Content"}}]
+                }
+                mock_client_instance.post.return_value = mock_response
+
+                runner = UniversalHarvester()
+                runner.db = mock_db
+
+                await runner.run()
+
+                mock_client_instance.post.assert_called_once()
+                instance.process_raw_scrape.assert_called_with("scrape_123")
+
+                MockIngestion.assert_called_once()
+                call_kwargs = MockIngestion.call_args
+                assert "postgres_client" in call_kwargs.kwargs or (
+                    len(call_kwargs.args) >= 1
+                ), "IngestionService must receive postgres_client"
+                assert "supabase_client" not in call_kwargs.kwargs, (
+                    "IngestionService must NOT receive deprecated supabase_client kwarg"
+                )
+
+
+@pytest.mark.asyncio
+async def test_harvester_no_embedding_key_skips():
+    mock_db = MagicMock()
+    mock_db.create_admin_task = AsyncMock()
+    mock_db.update_admin_task = AsyncMock()
+    mock_db.create_raw_scrape = AsyncMock(return_value="scrape_123")
+    mock_db._fetch = AsyncMock(
+        return_value=[
+            {
+                "id": "src_1",
+                "name": "Test Web",
+                "type": "web",
+                "scrape_url": "http://example.com",
             }
-            mock_client_instance.post.return_value = mock_response
+        ]
+    )
 
-            # Run
-            runner = UniversalHarvester()
-            runner.db = mock_db  # Inject mock DB
+    with (
+        patch("httpx.AsyncClient") as MockClient,
+        patch.dict(
+            os.environ, {"OPENROUTER_API_KEY": "", "OPENAI_API_KEY": ""}, clear=False
+        ),
+    ):
+        mock_client_instance = AsyncMock()
+        MockClient.return_value.__aenter__.return_value = mock_client_instance
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "choices": [{"message": {"content": "# Clean Markdown Content"}}]
+        }
+        mock_client_instance.post.return_value = mock_response
 
-            # Implementation does NOT use client.table().insert() anymore, it uses process_raw_scrape directly?
-            # Let's check run_universal_harvester.py again.
-            # It calls await self._process_source -> ... -> but does it insert into raw_scrapes?
-            # The test previously mocked `mock_db.client.table().insert()...`
-            # If the implementation calls that, we need to mock it.
-            # But line 63 of run_universal_harvester calls self._process_source.
+        runner = UniversalHarvester()
+        runner.db = mock_db
 
-            await runner.run()
+        await runner.run()
 
-            # Verifications
-            # 1. Check Source Fetch
-            # (Implied by flow reaching loop)
-
-            # 2. Check Z.ai Call
-            mock_client_instance.post.assert_called_once()
-
-            # 3. Check Raw Scrape Insert
-            # table("raw_scrapes").insert(...)
-
-            # 4. Check Ingestion Trigger
-            instance.process_raw_scrape.assert_called_with("scrape_123")
+        mock_db._fetch.assert_called_once()

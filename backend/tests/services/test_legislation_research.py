@@ -120,7 +120,7 @@ class TestResearchReturnsStructuredResult:
 
         result = await service.research(
             bill_id="SB 277",
-            bill_text="A real bill with sufficient text content that is long enough",
+            bill_text="A" * 120,
             jurisdiction="california",
         )
 
@@ -150,7 +150,7 @@ class TestResearchReturnsStructuredResult:
 
         result = await service.research(
             bill_id="SB 277",
-            bill_text="A real bill with sufficient text content that is long enough",
+            bill_text="A" * 120,
             jurisdiction="california",
         )
 
@@ -177,7 +177,7 @@ class TestSufficiencyComputation:
 
         result = await service.research(
             bill_id="SB 277",
-            bill_text="A real bill with sufficient text content that is long enough",
+            bill_text="A" * 120,
             jurisdiction="california",
         )
 
@@ -198,7 +198,7 @@ class TestSufficiencyComputation:
 
         result = await service.research(
             bill_id="SB 277",
-            bill_text="",
+            bill_text="A" * 120,
             jurisdiction="california",
         )
 
@@ -268,7 +268,7 @@ class TestRetrievalFilters:
 
         result = await service.research(
             bill_id="SB 277",
-            bill_text="A real bill with sufficient text content that is long enough",
+            bill_text="A" * 120,
             jurisdiction="california",
         )
 
