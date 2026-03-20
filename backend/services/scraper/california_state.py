@@ -144,7 +144,6 @@ class CaliforniaStateScraper(BaseScraper):
             bill_detail = detail_response.json()
 
             versions = bill_detail.get("versions", [])
-            sources = bill_detail.get("sources", [])
             openstates_sources = bill_detail.get("sources", [])
 
             source_url = self._extract_leginfo_url(versions, openstates_sources)
