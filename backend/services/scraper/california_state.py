@@ -11,7 +11,7 @@ Architecture (bd-tytc.3):
 
 from typing import List, Dict, Any, Optional
 from datetime import datetime, date
-from dataclasses import dataclass, field
+from pydantic import BaseModel, Field
 import httpx
 import os
 import logging
@@ -25,35 +25,27 @@ logger = logging.getLogger("california_scraper")
 LEGISLATURE_BASE_URL = "https://leginfo.legislature.ca.gov"
 
 
-@dataclass
-class BillSourceProvenance:
-    source_url: str
-    source_type: str
-    version_identifier: str
-    version_note: str
-    extraction_status: str
+class BillSourceProvenance(BaseModel):
+    source_url: str = ""
+    source_type: str = "unknown"
+    version_identifier: str = ""
+    version_note: str = ""
+    extraction_status: str = "pending"
     extraction_error: Optional[str] = None
     content_hash: Optional[str] = None
 
 
-@dataclass
 class CaliforniaScrapedBill(ScrapedBill):
-    provenance: BillSourceProvenance = field(
-        default_factory=lambda: BillSourceProvenance(
-            source_url="",
-            source_type="unknown",
-            version_identifier="",
-            version_note="",
-            extraction_status="pending",
-        )
+    provenance: BillSourceProvenance = Field(
+        default_factory=lambda: BillSourceProvenance()
     )
     jurisdiction: str = "california"
     source_system: str = "openstates+leginfo"
 
 
 class CaliforniaStateScraper(BaseScraper):
-    def __init__(self, db_client=None):
-        super().__init__("State of California")
+    def __init__(self, db_client=None, jurisdiction_name: str = "State of California"):
+        super().__init__(jurisdiction_name)
         self.api_key = os.getenv("OPENSTATES_API_KEY")
         self.base_url = "https://v3.openstates.org"
         self.db = db_client
@@ -290,31 +282,72 @@ class CaliforniaStateScraper(BaseScraper):
             logger.error(f"Error fetching canonical text for {bill.bill_number}: {e}")
             return bill
 
+    _NAV_ELEMENTS = re.compile(
+        r"<(nav|header|footer|aside)[^>]*>.*?</\1>",
+        re.DOTALL | re.IGNORECASE,
+    )
+    _BOILERPLATE_CSS = [
+        "navigation",
+        "navbar",
+        "nav-bar",
+        "menu",
+        "skipnav",
+        "breadcrumb",
+        "footer",
+        "header",
+        "banner",
+        "skip-link",
+    ]
+
+    def _strip_boilerplate(self, html: str) -> str:
+        html = self._NAV_ELEMENTS.sub("", html)
+        for css_class in self._BOILERPLATE_CSS:
+            html = re.sub(
+                rf'<[^>]*class="[^"]*\b{css_class}\b[^"]*"[^>]*>.*?</[^>]+>',
+                "",
+                html,
+                flags=re.DOTALL | re.IGNORECASE,
+            )
+        html = re.sub(
+            r'<[^>]*id="[^"]*\b(nav|header|footer|menu)\b[^"]*"[^>]*>.*?</[^>]+>',
+            "",
+            html,
+            flags=re.DOTALL | re.IGNORECASE,
+        )
+        return html
+
     def _extract_text_from_html(self, html: str, bill_number: str) -> str:
         """
         Extract bill text from California legislature HTML.
 
-        The official leginfo pages have specific structures for bill text.
+        California leginfo bill text pages typically use:
+        - <div class="billText">...</div> or similar bill-text containers
+        - The actual text starts with legislative enacting clause like
+          'THE PEOPLE OF THE STATE OF CALIFORNIA DO ENACT AS FOLLOWS'
+
+        Falls back to body content ONLY after stripping nav/header chrome.
         """
-        text = html
+        cleaned = self._strip_boilerplate(html)
 
         patterns = [
             r'<div[^>]*class="[^"]*billText[^"]*"[^>]*>(.*?)</div>',
             r'<div[^>]*id="[^"]*bill_text[^"]*"[^>]*>(.*?)</div>',
+            r'<div[^>]*class="[^"]*bill_text[^"]*"[^>]*>(.*?)</div>',
             r'<div[^>]*id="[^"]*content[^"]*"[^>]*>(.*?)</div>',
             r'<td[^>]*class="[^"]*content[^"]*"[^>]*>(.*?)</td>',
+            r"<main[^>]*>(.*?)</main>",
         ]
 
         extracted = ""
         for pattern in patterns:
-            match = re.search(pattern, html, re.DOTALL | re.IGNORECASE)
+            match = re.search(pattern, cleaned, re.DOTALL | re.IGNORECASE)
             if match:
                 extracted = match.group(1)
                 break
 
         if not extracted:
             body_match = re.search(
-                r"<body[^>]*>(.*?)</body>", html, re.DOTALL | re.IGNORECASE
+                r"<body[^>]*>(.*?)</body>", cleaned, re.DOTALL | re.IGNORECASE
             )
             if body_match:
                 extracted = body_match.group(1)
@@ -330,7 +363,38 @@ class CaliforniaStateScraper(BaseScraper):
         text = re.sub(r"\s+", " ", text)
         text = text.strip()
 
+        if self._is_header_chrome(text):
+            return ""
+
         return text
+
+    def _is_header_chrome(self, text: str) -> bool:
+        """
+        Detect header/navigation chrome instead of real bill text.
+
+        California leginfo pages may return navigation text, breadcrumb trails,
+        or site chrome when the bill-text container is empty or misidentified.
+        """
+        if not text:
+            return True
+
+        chrome_indicators = [
+            r"(?i)^[A-Z\s]{5,}$",
+            r"(?i)^(home|my\s+subscription|help|about|contact)",
+            r"(?i)^(sign\s+in|log\s+in|register|search)",
+            r"(?i)^( california|legislature|leginfo)\s*$",
+            r"(?i)bill\s+number\s*:\s*$",
+            r"(?i)^(session|house|senate|assembly)\s*$",
+            r"(?i)^(navigation|menu|skip\s+to\s+content)",
+            r"(?i)^(legislative\s+(counsel|information|data))",
+        ]
+
+        first_line = text.split(".")[0].strip() if text else ""
+        for pattern in chrome_indicators:
+            if re.match(pattern, first_line):
+                return True
+
+        return False
 
     def _is_placeholder_text(self, text: str) -> bool:
         """

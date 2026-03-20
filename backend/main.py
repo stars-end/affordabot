@@ -217,12 +217,28 @@ async def process_jurisdiction(jurisdiction: str, scraper_class, jur_type: str):
         )
 
         processed = 0
+        skipped = 0
 
         errors = []
         for bill in bills:
             try:
-                # However, pipeline needs bill_id, bill_text.
-                # bill.bill_number is usually the ID.
+                if jurisdiction == "california":
+                    if not bill.text or len(bill.text) < 100:
+                        extraction_status = getattr(bill, "provenance", None)
+                        if extraction_status and hasattr(
+                            extraction_status, "extraction_status"
+                        ):
+                            status = extraction_status.extraction_status
+                            error = extraction_status.extraction_error
+                        else:
+                            status = "unknown"
+                            error = "No bill text available"
+                        logger.warning(
+                            f"{jurisdiction}: Skipping {bill.bill_number} - "
+                            f"extraction_status={status}, error={error}"
+                        )
+                        skipped += 1
+                        continue
 
                 models = {
                     "research": os.getenv("LLM_MODEL_RESEARCH", "glm-4.7"),
@@ -237,8 +253,6 @@ async def process_jurisdiction(jurisdiction: str, scraper_class, jur_type: str):
                     models=models,
                 )
 
-                # ... (existing code)
-
                 processed += 1
                 logger.info(f"{jurisdiction}: Processed {bill.bill_number}")
 
@@ -251,7 +265,12 @@ async def process_jurisdiction(jurisdiction: str, scraper_class, jur_type: str):
                     f"{jurisdiction}: Error processing {bill.bill_number}: {e}"
                 )
 
-        return {"jurisdiction": jurisdiction, "processed": processed, "errors": errors}
+        return {
+            "jurisdiction": jurisdiction,
+            "processed": processed,
+            "skipped": skipped,
+            "errors": errors,
+        }
 
     except Exception as e:
         logger.error(f"{jurisdiction}: Scraping failed: {e}")
