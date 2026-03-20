@@ -7,8 +7,6 @@ Does NOT require a live database connection.
 import sys
 from pathlib import Path
 
-import pytest
-
 # Ensure backend root is on sys.path for imports
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 if str(BACKEND_ROOT) not in sys.path:
