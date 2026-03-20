@@ -188,8 +188,6 @@ class TestMinScoreFilter:
     @pytest.mark.asyncio
     async def test_query_respects_min_score(self):
         """Results below min_score should be excluded."""
-        from llm_common.retrieval import RetrievedChunk
-
         mock_db = MagicMock()
 
         mock_rows = [
