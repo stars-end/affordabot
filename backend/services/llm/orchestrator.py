@@ -1,75 +1,103 @@
+"""
+Legislation Analysis Pipeline (bd-tytc.4).
+
+Orchestrates multi-step legislation analysis using the shared
+LegislationResearchService for retrieval-backed research.
+
+Workflow:
+1. Research: Retrieval-backed + web research via LegislationResearchService
+2. Generate: LLM analysis with structured output (LegislationAnalysisResponse)
+3. Review: LLM critique
+4. Refine: Regenerate if review failed
+"""
+
 from __future__ import annotations
+
 from llm_common.core import LLMClient
 from llm_common.web_search import WebSearchClient
-from llm_common.agents import ResearchAgent
 from llm_common.core.models import LLMMessage, MessageRole
 from typing import List, Dict, Any
 import re
 from pydantic import BaseModel, ValidationError
 from schemas.analysis import LegislationAnalysisResponse, ReviewCritique
 from datetime import datetime
+import logging
+
+from services.legislation_research import (
+    LegislationResearchService,
+    LegislationResearchResult,
+)
+
+logger = logging.getLogger(__name__)
+
 
 class AnalysisPipeline:
     """
     Orchestrate multi-step legislation analysis.
-    
-    Workflow:
-    1. Research: Agentic web search (TaskPlanner + AgenticExecutor)
-    2. Generate: LLM analysis with structured output (LegislationAnalysisResponse)
-    3. Review: LLM critique
-    4. Refine: Regenerate if review failed
+
+    Uses LegislationResearchService for retrieval-backed research
+    with structured EvidenceEnvelope provenance (bd-tytc.4).
     """
-    
+
     def __init__(
         self,
         llm_client: LLMClient,
         search_client: WebSearchClient,
         db_client: Any,
-        fallback_client: LLMClient | None = None
+        fallback_client: LLMClient | None = None,
+        retrieval_backend: Any = None,
+        embedding_fn: Any = None,
     ):
         """
         Initialize pipeline.
-        
+
         Args:
             llm_client: Primary LLM client (e.g. Z.ai)
             search_client: Web search client
             db_client: Database client
             fallback_client: Optional fallback/embedding provider (e.g. OpenRouter)
+            retrieval_backend: Vector retrieval backend for RAG
+            embedding_fn: Async function to embed text queries
         """
         self.llm = llm_client
         self.search = search_client
         self.db = db_client
         self.fallback_llm = fallback_client
-        self.research_agent = ResearchAgent(llm_client, search_client)
-    
+        self.retrieval_backend = retrieval_backend
+        self.embedding_fn = embedding_fn
+
+        self.research_service = LegislationResearchService(
+            llm_client=llm_client,
+            search_client=search_client,
+            retrieval_backend=retrieval_backend,
+            embedding_fn=embedding_fn,
+            db_client=db_client,
+        )
+
     async def run(
-        self,
-        bill_id: str,
-        bill_text: str,
-        jurisdiction: str,
-        models: Dict[str, str]
+        self, bill_id: str, bill_text: str, jurisdiction: str, models: Dict[str, str]
     ) -> LegislationAnalysisResponse:
         """
         Run full pipeline.
-        
+
         Args:
-            bill_id: Bill identifier (e.g., "AB-1234")
+            bill_id: Bill identifier (e.g., "SB-277")
             bill_text: Full bill text
             jurisdiction: Jurisdiction (e.g., "California")
-            models: {"research": "gpt-4o-mini", "generate": "claude-3.5-sonnet", "review": "glm-4.7"}
-        
+            models: {"research": "...", "generate": "...", "review": "..."}
+
         Returns:
             Final analysis (validated LegislationAnalysisResponse)
         """
         from services.audit.logger import AuditLogger
-        
+
         run_id = await self._create_pipeline_run(bill_id, jurisdiction, models)
         audit = AuditLogger(run_id, self.db)
-        
+
         try:
-            # Step 0: Ingestion Source (Synthetic Link)
-            # Step 0: Ingestion Source (Virtual)
-            source_data = await self.db.get_latest_scrape_for_bill(jurisdiction, bill_id)
+            source_data = await self.db.get_latest_scrape_for_bill(
+                jurisdiction, bill_id
+            )
             if source_data:
                 await audit.log_step(
                     step_number=0,
@@ -78,39 +106,45 @@ class AnalysisPipeline:
                     input_context={
                         "jurisdiction": jurisdiction,
                         "bill_id": bill_id,
-                        "bill_text_preview": bill_text[:500] + "..." if bill_text else "N/A"
+                        "bill_text_preview": bill_text[:500] + "..."
+                        if bill_text
+                        else "N/A",
                     },
                     output_result={
-                        "raw_scrape_id": str(source_data['id']),
-                        "source_url": source_data['url'],
-                        "content_hash": source_data['content_hash'],
-                        "metadata": source_data['metadata'],
-                        "minio_blob_path": source_data.get('storage_uri', 'N/A')
+                        "raw_scrape_id": str(source_data["id"]),
+                        "source_url": source_data["url"],
+                        "content_hash": source_data["content_hash"],
+                        "metadata": source_data["metadata"],
+                        "minio_blob_path": source_data.get("storage_uri", "N/A"),
                     },
                     model_info={"model": "scraper", "provider": "firecrawl"},
-                    duration_ms=0
+                    duration_ms=0,
                 )
 
-                # Step 0.5: Embedding / Vector Storage (Virtual)
-                if source_data.get('document_id'):
-                    vector_stats = await self.db.get_vector_stats(source_data['document_id'])
+                if source_data.get("document_id"):
+                    vector_stats = await self.db.get_vector_stats(
+                        source_data["document_id"]
+                    )
                     await audit.log_step(
-                        step_number=0.5,
+                        step_number=1,
                         step_name="embedding",
                         status="completed",
                         input_context={
-                            "document_id": source_data['document_id'],
+                            "document_id": source_data["document_id"],
                             "chunk_strategy": "fixed_size",
                             "chunk_size": 1000,
-                            "chunk_overlap": 200
+                            "chunk_overlap": 200,
                         },
                         output_result={
                             "vector_db": "pgvector",
-                            "chunks_generated": vector_stats.get('chunk_count', 0),
-                            "status": "indexed"
+                            "chunks_generated": vector_stats.get("chunk_count", 0),
+                            "status": "indexed",
                         },
-                        model_info={"model": "text-embedding-3-small", "provider": "openai"},
-                        duration_ms=0
+                        model_info={
+                            "model": "text-embedding-3-small",
+                            "provider": "openai",
+                        },
+                        duration_ms=0,
                     )
             else:
                 await audit.log_step(
@@ -120,121 +154,138 @@ class AnalysisPipeline:
                     input_context={"jurisdiction": jurisdiction, "bill_id": bill_id},
                     output_result={"error": "No raw scrape found for this bill."},
                     model_info={"model": "scraper", "provider": "firecrawl"},
-                    duration_ms=0
+                    duration_ms=0,
                 )
 
-            # Step 1: Research
             start_ts = datetime.now()
-            research_data = await self._research_step(bill_id, bill_text, jurisdiction, models["research"])
-            duration = int((datetime.now() - start_ts).total_seconds() * 1000)
-            
-            await audit.log_step(
-                step_number=1,
-                step_name="research",
-                status="completed",
-                input_context={"bill_id": bill_id, "prompt": "Research task planner"},
-                output_result={"research_data": research_data},
-                model_info={"model": models["research"]},
-                duration_ms=duration
-            )
-            
-            # Step 2: Generate
-            start_ts = datetime.now()
-            analysis = await self._generate_step(
-                bill_id, bill_text, jurisdiction, research_data, models["generate"]
+            research_result = await self._research_step(
+                bill_id, bill_text, jurisdiction, models["research"]
             )
             duration = int((datetime.now() - start_ts).total_seconds() * 1000)
-            
+
             await audit.log_step(
                 step_number=2,
-                step_name="generate",
-                status="completed",
-                input_context={"research_data_count": len(research_data)},
-                output_result=analysis.model_dump(),
-                model_info={"model": models["generate"]},
-                duration_ms=duration
+                step_name="research",
+                status="completed" if research_result.is_sufficient else "degraded",
+                input_context={"bill_id": bill_id, "jurisdiction": jurisdiction},
+                output_result={
+                    "rag_chunks": len(research_result.rag_chunks),
+                    "web_sources": len(research_result.web_sources),
+                    "evidence_envelopes": len(research_result.evidence_envelopes),
+                    "sufficiency_breakdown": research_result.sufficiency_breakdown,
+                    "is_sufficient": research_result.is_sufficient,
+                    "insufficiency_reason": research_result.insufficiency_reason,
+                },
+                model_info={"model": models["research"]},
+                duration_ms=duration,
             )
-            
-            # Step 3: Review
+
             start_ts = datetime.now()
-            review = await self._review_step(bill_id, analysis, research_data, models["review"])
+            analysis = await self._generate_step(
+                bill_id, bill_text, jurisdiction, research_result, models["generate"]
+            )
             duration = int((datetime.now() - start_ts).total_seconds() * 1000)
-            
+
             await audit.log_step(
                 step_number=3,
+                step_name="generate",
+                status="completed",
+                input_context={
+                    "evidence_envelope_count": len(research_result.evidence_envelopes),
+                    "is_sufficient": research_result.is_sufficient,
+                },
+                output_result=analysis.model_dump(),
+                model_info={"model": models["generate"]},
+                duration_ms=duration,
+            )
+
+            start_ts = datetime.now()
+            review = await self._review_step(
+                bill_id, analysis, research_result, models["review"]
+            )
+            duration = int((datetime.now() - start_ts).total_seconds() * 1000)
+
+            await audit.log_step(
+                step_number=4,
                 step_name="review",
                 status="completed",
                 input_context={"analysis_summary": "See generate step"},
                 output_result=review.model_dump(),
                 model_info={"model": models["review"]},
-                duration_ms=duration
+                duration_ms=duration,
             )
-            
-            # Step 4: Refine (if needed)
+
             if not review.passed:
                 start_ts = datetime.now()
                 analysis = await self._refine_step(
                     bill_id, analysis, review, bill_text, models["generate"]
                 )
                 duration = int((datetime.now() - start_ts).total_seconds() * 1000)
-                
+
                 await audit.log_step(
-                    step_number=4,
+                    step_number=5,
                     step_name="refine",
                     status="completed",
                     input_context={"critique": review.model_dump()},
                     output_result=analysis.model_dump(),
                     model_info={"model": models["generate"]},
-                    duration_ms=duration
+                    duration_ms=duration,
                 )
-            
-            # Mark run as complete
-            await self._complete_pipeline_run(run_id, bill_id, analysis, review, jurisdiction)
-            
+
+            await self._complete_pipeline_run(
+                run_id, bill_id, analysis, review, jurisdiction
+            )
+
             return analysis
-        
+
         except Exception as e:
             await self._fail_pipeline_run(run_id, str(e))
-            # Log failure to audit
             await audit.log_step(
-                step_number=99, 
-                step_name="pipeline_failure", 
-                status="failed", 
+                step_number=99,
+                step_name="pipeline_failure",
+                status="failed",
                 output_result={"error": str(e)},
-                model_info={"models_attempted": models}
+                model_info={"models_attempted": models},
             )
             raise
-    
+
     async def _research_step(
-        self,
-        bill_id: str,
-        bill_text: str,
-        jurisdiction: str,
-        model: str
-    ) -> List[Dict[str, Any]]:
+        self, bill_id: str, bill_text: str, jurisdiction: str, model: str
+    ) -> LegislationResearchResult:
         """
-        Research step: Use ResearchAgent to find information.
+        Research step using LegislationResearchService (bd-tytc.4).
+
+        Replaces generic ResearchAgent with retrieval-backed research
+        that returns structured EvidenceEnvelope provenance.
         """
-        # Note: ResearchAgent doesn't strictly support swapping model easily yet 
-        # without re-init, but we assume default client setup is fine or add that capability later.
-        
-        # Execute agent
-        agent_result = await self.research_agent.run(bill_id, bill_text, jurisdiction)
-        
-        return agent_result.get("collected_data", [])
-    
-    async def _chat(self, messages: List[Dict], model: str, response_model: type[BaseModel]) -> BaseModel:
+        result = await self.research_service.research(
+            bill_id=bill_id,
+            bill_text=bill_text,
+            jurisdiction=jurisdiction,
+            top_k=10,
+            min_score=0.5,
+        )
+
+        if not result.is_sufficient:
+            logger.warning(
+                f"Research insufficient for {bill_id}: {result.insufficiency_reason}"
+            )
+
+        return result
+
+    async def _chat(
+        self, messages: List[Dict], model: str, response_model: type[BaseModel]
+    ) -> BaseModel:
         """Helper to get structured output from LLMClient."""
-        # Convert dict messages to LLMMessage if needed, or rely on LLMClient handling dicts (usually it expects LLMMessage objects)
-        
         llm_messages = []
         for m in messages:
             role = MessageRole.USER if m["role"] == "user" else MessageRole.SYSTEM
             llm_messages.append(LLMMessage(role=role, content=m["content"]))
-            
-        # Append JSON instruction
+
         schema = response_model.model_json_schema()
-        json_instruction = f"\n\nRespond with valid JSON matching this schema:\n{schema}"
+        json_instruction = (
+            f"\n\nRespond with valid JSON matching this schema:\n{schema}"
+        )
         if llm_messages:
             llm_messages[-1].content += json_instruction
 
@@ -253,25 +304,9 @@ class AnalysisPipeline:
             match = re.search(r"(?m)^\\s*Bill:\\s*([^\\s\\(]+)", combined)
             return match.group(1) if match else None
 
-        def _fallback_model(validation_error: str) -> BaseModel:
-            if response_model is LegislationAnalysisResponse:
-                return LegislationAnalysisResponse(
-                    bill_number=_extract_bill_number() or "UNKNOWN",
-                    impacts=[],
-                    total_impact_p50=0.0,
-                    analysis_timestamp=datetime.now().isoformat(),
-                    model_used=model,
-                )
-            if response_model is ReviewCritique:
-                return ReviewCritique(
-                    passed=False,
-                    critique=f"LLM output did not match schema after retries: {validation_error}",
-                    missing_impacts=[],
-                    factual_errors=[validation_error[:500]],
-                )
-            raise ValidationError(f"LLM output did not match schema after retries: {validation_error}", response_model)  # type: ignore[arg-type]
-
-        async def _call_llm(call_messages: list[LLMMessage], *, temperature: float) -> str:
+        async def _call_llm(
+            call_messages: list[LLMMessage], *, temperature: float
+        ) -> str:
             try:
                 response = await self.llm.chat_completion(
                     messages=call_messages,
@@ -284,7 +319,10 @@ class AnalysisPipeline:
                 if not self.fallback_llm:
                     raise
                 print(f"Primary LLM failed: {e}. Retrying with Fallback LLM...")
-                fallback_model = self.fallback_llm.config.default_model or "google/gemini-2.0-flash-exp"
+                fallback_model = (
+                    self.fallback_llm.config.default_model
+                    or "google/gemini-2.0-flash-exp"
+                )
                 response = await self.fallback_llm.chat_completion(
                     messages=call_messages,
                     model=fallback_model,
@@ -310,8 +348,12 @@ class AnalysisPipeline:
                 f"{content}\n"
             )
             repair_messages = list(llm_messages)
-            repair_messages.append(LLMMessage(role=MessageRole.ASSISTANT, content=content))
-            repair_messages.append(LLMMessage(role=MessageRole.USER, content=repair_prompt))
+            repair_messages.append(
+                LLMMessage(role=MessageRole.ASSISTANT, content=content)
+            )
+            repair_messages.append(
+                LLMMessage(role=MessageRole.USER, content=repair_prompt)
+            )
 
             content = await _call_llm(repair_messages, temperature=0.0)
             try:
@@ -319,68 +361,144 @@ class AnalysisPipeline:
             except Exception as e:
                 last_error = str(e)
 
-        return _fallback_model(last_error)
+        if response_model is LegislationAnalysisResponse:
+            return LegislationAnalysisResponse(
+                bill_number=_extract_bill_number() or "UNKNOWN",
+                impacts=[],
+                total_impact_p50=0.0,
+                analysis_timestamp=datetime.now().isoformat(),
+                model_used=model,
+            )
+        if response_model is ReviewCritique:
+            return ReviewCritique(
+                passed=False,
+                critique=f"LLM output did not match schema after retries: {last_error}",
+                missing_impacts=[],
+                factual_errors=[last_error[:500]],
+            )
+        raise ValidationError(
+            f"LLM output did not match schema after retries: {last_error}",
+            response_model,
+        )  # type: ignore[arg-type]
 
     async def _generate_step(
         self,
         bill_id: str,
         bill_text: str,
         jurisdiction: str,
-        research_data: List[Dict],
-        model: str
+        research_result: LegislationResearchResult,
+        model: str,
     ) -> LegislationAnalysisResponse:
         """
-        Generate analysis using LLM.
+        Generate analysis using LLM with structured evidence.
         """
-        system_prompt = """
-        You are an expert policy analyst. Analyze legislation for cost-of-living impacts.
-        Use the provided research data to support your analysis.
-        Be conservative and evidence-based.
-        """
-        
+        evidence_context = self._format_evidence_for_generation(research_result)
+
+        sufficiency_note = ""
+        if not research_result.is_sufficient:
+            sufficiency_note = f"""
+IMPORTANT: Research insufficiency detected: {research_result.insufficiency_reason}
+
+Your analysis should acknowledge data gaps. If evidence is insufficient for 
+quantification, provide qualitative analysis only.
+"""
+
+        system_prompt = f"""
+You are an expert policy analyst. Analyze legislation for cost-of-living impacts.
+
+{sufficiency_note}
+
+Use the provided research data to support your analysis.
+Base your estimates only on the evidence provided.
+Be conservative and evidence-based.
+Cite sources when making claims.
+"""
+
         user_message = f"""
-        Bill: {bill_id} ({jurisdiction})
-        
-        Research Data:
-        {research_data}
-        
-        Bill Text:
-        {bill_text}
-        """
-        
-        return await self._chat(
+Bill: {bill_id} ({jurisdiction})
+
+Research Evidence:
+{evidence_context}
+
+Bill Text:
+{bill_text[:5000]}
+"""
+
+        result = await self._chat(
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_message}
+                {"role": "user", "content": user_message},
             ],
             model=model,
-            response_model=LegislationAnalysisResponse
+            response_model=LegislationAnalysisResponse,
         )
-    
+        return result  # type: ignore[return-value]
+
+    def _format_evidence_for_generation(
+        self, research_result: LegislationResearchResult
+    ) -> str:
+        """Format research evidence for generation prompt."""
+        parts = []
+
+        parts.append(
+            f"Research Sufficiency: {'Sufficient' if research_result.is_sufficient else 'Insufficient'}"
+        )
+        parts.append(f"RAG Chunks Retrieved: {len(research_result.rag_chunks)}")
+        parts.append(f"Web Sources Found: {len(research_result.web_sources)}")
+        parts.append("")
+
+        if research_result.rag_chunks:
+            parts.append("=== Internal Documents (RAG) ===")
+            for i, chunk in enumerate(research_result.rag_chunks[:5], 1):
+                source = (
+                    chunk.metadata.get("source_url")
+                    or chunk.metadata.get("source_id")
+                    or "unknown"
+                )
+                parts.append(f"[{i}] (Source: {source}, Score: {chunk.score:.2f})")
+                parts.append(chunk.content[:500])
+                parts.append("")
+
+        if research_result.web_sources:
+            parts.append("=== Web Research ===")
+            for i, source in enumerate(research_result.web_sources[:10], 1):
+                title = source.get("title", "Untitled")
+                url = source.get("url") or source.get("link", "")
+                snippet = source.get("snippet", "")[:300]
+                parts.append(f"[{i}] {title}")
+                parts.append(f"URL: {url}")
+                parts.append(f"Snippet: {snippet}")
+                parts.append("")
+
+        return "\n".join(parts)
+
     async def _review_step(
         self,
         bill_id: str,
         analysis: LegislationAnalysisResponse,
-        research_data: List[Dict],
-        model: str
+        research_result: LegislationResearchResult,
+        model: str,
     ) -> ReviewCritique:
         """Review analysis using LLM."""
         system_prompt = "You are a senior policy reviewer. Critique the following analysis for accuracy, evidence, and conservatism."
-        
+
+        evidence_summary = f"RAG chunks: {len(research_result.rag_chunks)}, Web sources: {len(research_result.web_sources)}, Sufficient: {research_result.is_sufficient}"
+
         user_message = f"""
-        Bill: {bill_id}
-        Analysis: {analysis.model_dump_json()}
-        Research: {research_data}
-        """
-        
-        return await self._chat(
+Bill: {bill_id}
+Analysis: {analysis.model_dump_json()}
+Evidence Summary: {evidence_summary}
+"""
+
+        result = await self._chat(
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_message}
+                {"role": "user", "content": user_message},
             ],
             model=model,
-            response_model=ReviewCritique
+            response_model=ReviewCritique,
         )
+        return result  # type: ignore[return-value]
 
     async def _refine_step(
         self,
@@ -388,83 +506,87 @@ class AnalysisPipeline:
         analysis: LegislationAnalysisResponse,
         review: ReviewCritique,
         bill_text: str,
-        model: str
+        model: str,
     ) -> LegislationAnalysisResponse:
         """Refine analysis based on critique."""
         system_prompt = "Refine the analysis based on the critique. Ensure all issues are addressed."
-        
+
         user_message = f"""
-        Original Analysis: {analysis.model_dump_json()}
-        Critique: {review.model_dump_json()}
-        Bill Text: {bill_text}
-        """
-        
-        return await self._chat(
+Original Analysis: {analysis.model_dump_json()}
+Critique: {review.model_dump_json()}
+Bill Text: {bill_text[:5000]}
+"""
+
+        result = await self._chat(
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_message}
+                {"role": "user", "content": user_message},
             ],
             model=model,
-            response_model=LegislationAnalysisResponse
+            response_model=LegislationAnalysisResponse,
         )
+        return result  # type: ignore[return-value]
 
-    # Database logging methods
-    async def _create_pipeline_run(self, bill_id: str, jurisdiction: str, models: Dict[str, str]) -> str:
+    async def _create_pipeline_run(
+        self, bill_id: str, jurisdiction: str, models: Dict[str, str]
+    ) -> str:
         """Create a new pipeline run record."""
-        # TODO: verify db methods exist or mock them
-        if hasattr(self.db, 'create_pipeline_run'):
+        if hasattr(self.db, "create_pipeline_run"):
             run_id = await self.db.create_pipeline_run(bill_id, jurisdiction, models)
             if run_id:
                 return run_id
         return "run_id_placeholder"
 
-    async def _log_step(self, run_id: str, step_name: str, model: str, data: Any):
-        """Log a pipeline step."""
-        print(f"Pipeline Run {run_id} Step {step_name}: Completed")
-
-    async def _complete_pipeline_run(self, run_id: str, bill_id: str, analysis: LegislationAnalysisResponse, review: ReviewCritique, jurisdiction: str):
+    async def _complete_pipeline_run(
+        self,
+        run_id: str,
+        bill_id: str,
+        analysis: LegislationAnalysisResponse,
+        review: ReviewCritique,
+        jurisdiction: str,
+    ):
         """Mark pipeline run as complete and store results."""
         try:
-            # 1. Store Legislation
             bill_data = {
                 "bill_number": bill_id,
-                "title": f"Analysis: {bill_id}",
-                "text": "Full text placeholder", 
-                "status": "analyzed"
+                "title": getattr(analysis, "title", None) or bill_id,
+                "status": "analyzed",
             }
-            
-            # Lookup jurisdiction ID
-            if hasattr(self.db, 'get_or_create_jurisdiction'):
-                jurisdiction_id = await self.db.get_or_create_jurisdiction(jurisdiction, "municipality")
+
+            if hasattr(self.db, "get_or_create_jurisdiction"):
+                jurisdiction_id = await self.db.get_or_create_jurisdiction(
+                    jurisdiction, "municipality"
+                )
                 if not jurisdiction_id:
                     print(f"Failed to resolve jurisdiction_id for {jurisdiction}")
                     return
 
-                if hasattr(self.db, 'store_legislation'):
-                    legislation_id = await self.db.store_legislation(jurisdiction_id, bill_data)
-                    
+                if hasattr(self.db, "store_legislation"):
+                    legislation_id = await self.db.store_legislation(
+                        jurisdiction_id, bill_data
+                    )
+
                     if legislation_id:
-                       # 2. Store Impacts
-                       impact_dicts = [i.model_dump() for i in analysis.impacts]
-                       if hasattr(self.db, 'store_impacts'):
-                           await self.db.store_impacts(legislation_id, impact_dicts)
-                       print(f"✅ Stored analysis results for {bill_id}")
-            
-            # 3. Update Pipeline Run
+                        impact_dicts = [i.model_dump() for i in analysis.impacts]
+                        if hasattr(self.db, "store_impacts"):
+                            await self.db.store_impacts(legislation_id, impact_dicts)
+                        print(f"✅ Stored analysis results for {bill_id}")
+
             result_data = {
                 "analysis": analysis.model_dump(),
-                "review": review.model_dump()
+                "review": review.model_dump(),
             }
-            if hasattr(self.db, 'complete_pipeline_run'):
+            if hasattr(self.db, "complete_pipeline_run"):
                 await self.db.complete_pipeline_run(run_id, result_data)
 
         except Exception as e:
             print(f"Failed to store results: {e}")
             import traceback
+
             traceback.print_exc()
 
     async def _fail_pipeline_run(self, run_id: str, error: str):
         """Mark pipeline run as failed."""
         print(f"Pipeline Run {run_id} Failed: {error}")
-        if hasattr(self.db, 'fail_pipeline_run'):
+        if hasattr(self.db, "fail_pipeline_run"):
             await self.db.fail_pipeline_run(run_id, error)

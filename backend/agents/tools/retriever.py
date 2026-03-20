@@ -22,19 +22,15 @@ logger = logging.getLogger(__name__)
 class RetrieverTool(BaseTool):
     """
     A tool for semantic search using PgVector backend.
-    
+
     Performs RAG-style retrieval to find relevant documents
     for policy analysis and question answering.
+
+    Always fails closed: if no retrieval backend is configured,
+    returns zero chunks rather than falling back to mock data.
     """
 
     def __init__(self, retrieval_backend: Any = None, embedding_client: Any = None):
-        """
-        Initialize RetrieverTool.
-        
-        Args:
-            retrieval_backend: PgVector or other retrieval backend instance.
-            embedding_client: Client for generating query embeddings.
-        """
         self._retriever = retrieval_backend
         self._embedder = embedding_client
 
@@ -87,89 +83,88 @@ class RetrieverTool(BaseTool):
             A ToolResult containing retrieved documents and evidence.
         """
         logger.info(f"RetrieverTool: Searching for '{query}' (k={k})")
-        
-        try:
-            if self._retriever:
-                # Use real retrieval backend
+
+        if not self._retriever:
+            logger.error(
+                "RetrieverTool: No retrieval_backend configured. "
+                "Returning zero results (fail closed)."
+            )
+            return ToolResult(
+                success=False,
+                data={"query": query, "documents": [], "count": 0},
+                source_urls=[],
+                evidence=[],
+                error="No retrieval backend configured",
+            )
+        else:
+            try:
                 documents = await self._retriever.retrieve(
                     query=query,
-                    k=k,
+                    top_k=k,
                     filters=filters or {},
                 )
+            except Exception as e:
+                logger.error(f"RetrieverTool retrieval failed for '{query}': {e}")
+                return ToolResult(
+                    success=False,
+                    data={"query": query, "documents": [], "count": 0},
+                    source_urls=[],
+                    evidence=[],
+                    error=f"Retrieval failed: {e}",
+                )
+
+        source_urls: List[str] = []
+        evidence_items: List[Evidence] = []
+
+        for i, doc in enumerate(documents):
+            if hasattr(doc, "source"):
+                url = doc.source
+                content = doc.content
+                title = getattr(doc, "metadata", {}).get("title", f"Document {i + 1}")
+                score = getattr(doc, "score", 0.0)
+            elif isinstance(doc, dict):
+                url = doc.get("url", "")
+                content = doc.get("content", "")
+                title = doc.get("title", f"Document {i + 1}")
+                score = doc.get("score", 0.0)
             else:
-                # Mock mode for testing
-                logger.warning("RetrieverTool: Using mock mode (no retrieval_backend)")
-                documents = [
-                    {
-                        "content": f"[Mock Document 1] Relevant content for: {query}",
-                        "url": "https://example.org/doc1",
-                        "title": "Mock Policy Document",
-                        "score": 0.95,
-                    },
-                    {
-                        "content": f"[Mock Document 2] Additional context for: {query}",
-                        "url": "https://example.org/doc2",
-                        "title": "Mock Legislation",
-                        "score": 0.88,
-                    },
-                ]
-            
-            # Extract source URLs and create evidence
-            source_urls: List[str] = []
-            evidence_items: List[Evidence] = []
-            
-            for i, doc in enumerate(documents):
-                if hasattr(doc, "url"):
-                    url = doc.url
-                    content = doc.content
-                    title = getattr(doc, "title", f"Document {i+1}")
-                elif isinstance(doc, dict):
-                    url = doc.get("url", "")
-                    content = doc.get("content", "")
-                    title = doc.get("title", f"Document {i+1}")
-                else:
-                    continue
-                
-                if url:
-                    source_urls.append(url)
-                
-                evidence_items.append(Evidence(
+                continue
+
+            if url:
+                source_urls.append(url)
+
+            evidence_items.append(
+                Evidence(
                     kind="internal",
                     label=title,
                     url=url,
                     content=content[:500] if content else "",
                     excerpt=content[:200] if content else "",
+                    confidence=score,
                     metadata={"rank": i + 1},
-                ))
-            
-            # Create evidence envelope
-            evidence = EvidenceEnvelope(
-                source_tool="retriever",
-                source_query=query,
-                evidence=evidence_items,
+                )
             )
-            
-            return ToolResult(
-                success=True,
-                data={
-                    "query": query,
-                    "documents": [
-                        {
-                            "content": e.content,
-                            "url": e.url,
-                            "title": e.label,
-                        }
-                        for e in evidence_items
-                    ],
-                    "count": len(evidence_items),
-                },
-                source_urls=source_urls,
-                evidence=[evidence],
-            )
-            
-        except Exception as e:
-            logger.error(f"RetrieverTool failed for '{query}': {e}")
-            return ToolResult(
-                success=False,
-                error=str(e),
-            )
+
+        evidence = EvidenceEnvelope(
+            source_tool="retriever",
+            source_query=query,
+            evidence=evidence_items,
+        )
+
+        return ToolResult(
+            success=True,
+            data={
+                "query": query,
+                "documents": [
+                    {
+                        "content": e.content,
+                        "url": e.url,
+                        "title": e.label,
+                    }
+                    for e in evidence_items
+                ],
+                "count": len(evidence_items),
+            },
+            source_urls=source_urls,
+            evidence=[evidence],
+        )
