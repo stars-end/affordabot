@@ -225,7 +225,21 @@ class CaliforniaStateScraper(BaseScraper):
             return bill
 
         try:
-            response = await client.get(source_url, timeout=30.0)
+            # Convert PDF/NavClient URLs to billTextClient URLs for text extraction
+            fetch_url = source_url
+            if "billPdf.xhtml" in source_url or "billNavClient.xhtml" in source_url:
+                import urllib.parse as up
+
+                parsed = up.urlparse(source_url)
+                qs = up.parse_qs(parsed.query)
+                bill_id = qs.get("bill_id", [None])[0]
+                if bill_id:
+                    fetch_url = f"{LEGISLATURE_BASE_URL}/faces/billTextClient.xhtml?bill_id={bill_id}"
+                    logger.info(
+                        f"Rewriting URL to billTextClient for {bill.bill_number}: {fetch_url}"
+                    )
+
+            response = await client.get(fetch_url, timeout=30.0)
             response.raise_for_status()
 
             content_type = response.headers.get("content-type", "")
@@ -345,6 +359,16 @@ class CaliforniaStateScraper(BaseScraper):
                 break
 
         if not extracted:
+            # Try bill text markers BEFORE body fallback
+            bill_marker = re.search(
+                r"(?:THE\s+PEOPLE\s+OF\s+THE\s+STATE\s+OF\s+CALIFORNIA|enact\s+as\s+follows)",
+                cleaned,
+                re.IGNORECASE,
+            )
+            if bill_marker:
+                extracted = cleaned[bill_marker.start() :]
+
+        if not extracted:
             body_match = re.search(
                 r"<body[^>]*>(.*?)</body>", cleaned, re.DOTALL | re.IGNORECASE
             )
@@ -376,6 +400,18 @@ class CaliforniaStateScraper(BaseScraper):
         """
         if not text:
             return True
+
+        # If text contains bill content markers, it's not chrome
+        bill_markers = [
+            r"(?i)THE\s+PEOPLE\s+OF\s+THE\s+STATE",
+            r"(?i)enact\s+as\s+follows",
+            r"(?i)SECTION\s+1\.",
+            r"(?i)SEC\.\s+1\.",
+            r"(?i)added\s+to\s+(the\s+)?(?:Penal|Health|Education|Government|Business|Civil|Code)",
+        ]
+        for pattern in bill_markers:
+            if re.search(pattern, text):
+                return False
 
         chrome_indicators = [
             r"(?i)^[A-Z\s]{5,}$",

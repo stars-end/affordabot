@@ -77,3 +77,4 @@ backend/.tldrignore
 
 # Claude Code worktree metadata
 .claude/worktrees/
+.mcp_data/
