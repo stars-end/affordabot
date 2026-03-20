@@ -160,7 +160,7 @@ class LocalPgVectorBackend(RetrievalBackend):
                         params.append(str(value))
                         param_idx += 1
 
-            params.append(str(top_k))
+            params.append(int(top_k))
 
             where_sql = ""
             if where_clauses:
