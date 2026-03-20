@@ -15,9 +15,8 @@ Alert rules evaluate against normalized fields:
 
 import json
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import List, Optional, Dict, Any
-from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
