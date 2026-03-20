@@ -2,7 +2,7 @@
 """
 E2E Glass Box Verification Script (P0 Audit)
 
-Runs the full Affordabot pipeline (Ingestion -> Embedding -> Analysis) 
+Runs the full Affordabot pipeline (Ingestion -> Embedding -> Analysis)
 using REAL clients (Z.ai/OpenRouter) and REAL database interactions.
 
 Goal: Generate traceable logs and data for "Proof of Work" audit.
@@ -33,20 +33,26 @@ from llm_common.core import LLMClient, LLMConfig
 from llm_common.providers import ZaiClient, OpenRouterClient
 from llm_common.web_search import WebSearchClient
 from llm_common.embeddings.openai import OpenAIEmbeddingService
+
 # from llm_common.retrieval.pgvector_backend import PgVectorBackend # Not needed if using Local
 from services.retrieval.local_pgvector import LocalPgVectorBackend
 from llm_common.core.models import LLMResponse, LLMUsage
 
 # Logging Setup
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - [E2E-AUDIT] - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - [E2E-AUDIT] - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger("e2e_audit")
+
 
 async def main():
     logger.info("🚀 Starting E2E Glass Box Audit Verification")
     real_mode = os.environ.get("VERIFY_REAL_LLM") == "1"
     if not real_mode:
-        logger.info("🧪 VERIFY_REAL_LLM not set; running in deterministic MOCK mode (no external LLM/search dependencies).")
-    
+        logger.info(
+            "🧪 VERIFY_REAL_LLM not set; running in deterministic MOCK mode (no external LLM/search dependencies)."
+        )
+
     # 1. Setup Database
     db = PostgresDB()
     await db.connect()
@@ -66,7 +72,7 @@ async def main():
     logger.info("✅ Ensured 'document_chunks' table exists")
 
     # 2. Setup Services (Real Clients)
-    
+
     # Storage
     storage = S3Storage()
     logger.info("✅ Storage Service Initialized")
@@ -74,7 +80,9 @@ async def main():
     # Embedding (OpenRouter)
     if real_mode:
         if not os.getenv("OPENROUTER_API_KEY"):
-            logger.error("❌ OPENROUTER_API_KEY missing! Required for embeddings in VERIFY_REAL_LLM=1 mode.")
+            logger.error(
+                "❌ OPENROUTER_API_KEY missing! Required for embeddings in VERIFY_REAL_LLM=1 mode."
+            )
             return
 
         embedding_service = OpenAIEmbeddingService(
@@ -85,6 +93,7 @@ async def main():
         )
         logger.info("✅ Embedding Service Initialized (OpenRouter)")
     else:
+
         class MockEmbeddingService:
             async def embed_documents(self, texts: list[str]) -> list[list[float]]:
                 return [[0.1] * 4096 for _ in texts]
@@ -98,8 +107,7 @@ async def main():
     # Vector Backend
     # Use LocalPgVectorBackend to reuse existing DB connection
     vector_backend = LocalPgVectorBackend(
-        table_name="document_chunks",
-        postgres_client=db
+        table_name="document_chunks", postgres_client=db
     )
     logger.info("✅ Vector Backend Initialized (LocalPgVector)")
 
@@ -108,7 +116,7 @@ async def main():
         postgres_client=db,
         vector_backend=vector_backend,
         embedding_service=embedding_service,
-        storage_backend=storage
+        storage_backend=storage,
     )
 
     # LLM Clients (Z.ai + Fallback) OR deterministic mocks
@@ -132,16 +140,30 @@ async def main():
         search_client = WebSearchClient(api_key=os.getenv("ZAI_API_KEY"))
     else:
         from datetime import datetime
-        from schemas.analysis import ImpactEvidence, LegislationAnalysisResponse, LegislationImpact, ReviewCritique
+        from schemas.analysis import (
+            ImpactEvidence,
+            LegislationAnalysisResponse,
+            LegislationImpact,
+            ReviewCritique,
+        )
 
         class MockLLMClient(LLMClient):
             def __init__(self):
-                super().__init__(LLMConfig(api_key="mock", provider="zai", default_model="mock-model"))
+                super().__init__(
+                    LLMConfig(
+                        api_key="mock", provider="zai", default_model="mock-model"
+                    )
+                )
 
             async def chat_completion(self, messages, model=None, **kwargs):
                 msg_str = str(messages).lower()
                 if "policy reviewer" in msg_str:
-                    resp = ReviewCritique(passed=True, critique="mock-ok", missing_impacts=[], factual_errors=[])
+                    resp = ReviewCritique(
+                        passed=True,
+                        critique="mock-ok",
+                        missing_impacts=[],
+                        factual_errors=[],
+                    )
                     content = resp.model_dump_json()
                 else:
                     resp = LegislationAnalysisResponse(
@@ -155,7 +177,13 @@ async def main():
                                 relevant_clause="mock clause",
                                 legal_interpretation="mock interpretation",
                                 impact_description="mock impact",
-                                evidence=[ImpactEvidence(source_name="Mock", url="http://mock", excerpt="mock")],
+                                evidence=[
+                                    ImpactEvidence(
+                                        source_name="Mock",
+                                        url="http://mock",
+                                        excerpt="mock",
+                                    )
+                                ],
                                 chain_of_causality="mock",
                                 confidence_score=0.5,
                                 p10=0.0,
@@ -176,7 +204,9 @@ async def main():
                     model=model or "mock-model",
                     content=content,
                     finish_reason="stop",
-                    usage=LLMUsage(prompt_tokens=1, completion_tokens=1, total_tokens=2),
+                    usage=LLMUsage(
+                        prompt_tokens=1, completion_tokens=1, total_tokens=2
+                    ),
                 )
 
             async def validate_api_key(self):
@@ -196,18 +226,36 @@ async def main():
         fallback_client = None
         search_client = MockSearch()
 
-    pipeline = AnalysisPipeline(llm_client, search_client, db, fallback_client=fallback_client)
+    pipeline = AnalysisPipeline(
+        llm_client, search_client, db, fallback_client=fallback_client
+    )
     if not real_mode:
+        from services.legislation_research import LegislationResearchResult
+
+        _mock_result = LegislationResearchResult(
+            bill_id="mock",
+            jurisdiction="mock",
+            sufficiency_breakdown={
+                "source_text_present": True,
+                "rag_chunks_retrieved": 0,
+                "web_research_sources_found": 0,
+                "fiscal_notes_detected": False,
+                "bill_text_chunks": 0,
+            },
+            is_sufficient=True,
+        )
+
         async def _mock_research(*_args, **_kwargs):
-            return {"collected_data": [{"snippet": "mock research"}]}
-        pipeline.research_agent.run = _mock_research
+            return _mock_result
+
+        pipeline.research_service.research = _mock_research
 
     # 3. Execution Trace
     logger.info("STEP 1: Search Simulation (Mock Data) -> Raw Scrape")
     logger.info("✅ Analysis Pipeline Initialized")
 
     # 3. Create Test Data (Simulating "Search -> Scrape")
-    
+
     # Audit ID
     audit_id = f"audit-{uuid.uuid4().hex[:8]}"
     jurisdiction = "San Jose (Audit)"
@@ -218,69 +266,101 @@ async def main():
     # await db.ensure_jurisdiction(jurisdiction, "municipality") # Method doesn't exist
     # Use get_or_create_jurisdiction instead
     await db.get_or_create_jurisdiction(jurisdiction, "municipality")
-    
+
     source_id = await db.get_or_create_source(
-        jurisdiction_id="web", # generic
+        jurisdiction_id="web",  # generic
         name="San Jose Audit Source",
         type="general",
-        url="http://sanjose.example.com/audit"
+        url="http://sanjose.example.com/audit",
     )
-    
+
     # Create Raw Scrape (The "Search Result")
     # Real text about an ADU bill to provoke analysis
     audit_text = f"<h1>San Jose ADU Bill {audit_id}</h1><p>This bill authorizes the construction of Accessory Dwelling Units (ADUs) in all single-family zones to alleviate the housing shortage. It waives impact fees for units under 750 sq ft.</p>"
-    
+
     logger.info("📥 Ingesting Test Scrape...")
-    
+
     # Insert raw scrape manually (simulating harvester)
     scrape_id = str(uuid.uuid4())
     scrape_data = json.dumps({"content": audit_text})
-    
-    await db._execute("""
+
+    await db._execute(
+        """
         INSERT INTO raw_scrapes (id, source_id, url, content_hash, content_type, data, processed)
         VALUES ($1, $2, $3, $4, $5, $6, $7)
-    """, scrape_id, source_id, f"http://sanjose.example.com/{bill_id}", f"hash-{audit_id}", "text/html", scrape_data, False)
+    """,
+        scrape_id,
+        source_id,
+        f"http://sanjose.example.com/{bill_id}",
+        f"hash-{audit_id}",
+        "text/html",
+        scrape_data,
+        False,
+    )
 
     # 4. Run Ingestion (MinIO -> Embedding -> PgVector)
     logger.info("⚙️    # 4. Ingest (Should embed + vector store)")
-    logger.info("STEP 2: Ingestion & Embedding (Real OpenRouter -> Remote PgVector)" if real_mode else "STEP 2: Ingestion & Embedding (Mock)")
+    logger.info(
+        "STEP 2: Ingestion & Embedding (Real OpenRouter -> Remote PgVector)"
+        if real_mode
+        else "STEP 2: Ingestion & Embedding (Mock)"
+    )
     chunks_created = await ingestion.process_raw_scrape(scrape_id)
     if chunks_created > 0:
         logger.info(f"✅ Ingestion Complete: {chunks_created} chunks created.")
     else:
         logger.error("❌ Ingestion Failed (0 chunks)")
         return
-    
+
     # 5. Run Analysis Pipeline (Should use Z.ai + Search)
-    logger.info("STEP 3: Analysis Pipeline (Real Z.ai GLM-4.6)" if real_mode else "STEP 3: Analysis Pipeline (Mock)")
-    logger.info("🧠 Running Analysis Pipeline (Real LLM)..." if real_mode else "🧠 Running Analysis Pipeline (Mock LLM)...")
-    
-    models = {"research": "glm-4.6", "generate": "glm-4.6", "review": "glm-4.6"} if real_mode else {"research": "mock", "generate": "mock", "review": "mock"}
+    logger.info(
+        "STEP 3: Analysis Pipeline (Real Z.ai GLM-4.6)"
+        if real_mode
+        else "STEP 3: Analysis Pipeline (Mock)"
+    )
+    logger.info(
+        "🧠 Running Analysis Pipeline (Real LLM)..."
+        if real_mode
+        else "🧠 Running Analysis Pipeline (Mock LLM)..."
+    )
+
+    models = (
+        {"research": "glm-4.6", "generate": "glm-4.6", "review": "glm-4.6"}
+        if real_mode
+        else {"research": "mock", "generate": "mock", "review": "mock"}
+    )
 
     try:
         analysis = await pipeline.run(
             bill_id=bill_id,
-            bill_text=audit_text, # In real flow, this might come from DB, but passing explicit for test
+            bill_text=audit_text,  # In real flow, this might come from DB, but passing explicit for test
             jurisdiction=jurisdiction,
-            models=models
+            models=models,
         )
-        
+
         logger.info("✅ Pipeline Execution Successful!")
         print(json.dumps(analysis.model_dump(), indent=2))
-        
+
         # 6. Verify Log Persistence for Glass Box
         # Check if pipeline run exists
-        runs = await db._fetch("SELECT id FROM pipeline_runs WHERE result->>'analysis' LIKE $1", f"%{bill_id}%")
+        runs = await db._fetch(
+            "SELECT id FROM pipeline_runs WHERE result->>'analysis' LIKE $1",
+            f"%{bill_id}%",
+        )
         if runs:
             logger.info(f"✅ Glass Box Trace Found: Run ID {runs[0]['id']}")
             print(f"\nPROOF_OF_WORK_RUN_ID: {runs[0]['id']}")
         else:
-            logger.warning("⚠️  Pipeline run not found in DB (might be async storage issue?)")
+            logger.warning(
+                "⚠️  Pipeline run not found in DB (might be async storage issue?)"
+            )
 
     except Exception as e:
         logger.error(f"❌ Pipeline Failed: {e}")
         import traceback
+
         traceback.print_exc()
+
 
 if __name__ == "__main__":
     asyncio.run(main())

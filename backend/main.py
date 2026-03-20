@@ -195,8 +195,32 @@ async def process_jurisdiction(jurisdiction: str, scraper_class, jur_type: str):
 
         search_client = WebSearchClient(api_key=os.getenv("ZAI_API_KEY"))
 
+        retrieval_backend = None
+        embedding_fn = None
+        if os.getenv("OPENROUTER_API_KEY"):
+            from services.retrieval.local_pgvector import LocalPgVectorBackend
+            from llm_common.embeddings.openai import OpenAIEmbeddingService
+
+            _embed_svc = OpenAIEmbeddingService(
+                base_url="https://openrouter.ai/api/v1",
+                api_key=os.getenv("OPENROUTER_API_KEY"),
+                model="qwen/qwen3-embedding-8b",
+                dimensions=4096,
+            )
+            retrieval_backend = LocalPgVectorBackend(
+                table_name="document_chunks",
+                postgres_client=db,
+                embedding_fn=_embed_svc.embed_query,
+            )
+            embedding_fn = _embed_svc.embed_query
+
         pipeline = AnalysisPipeline(
-            llm_client, search_client, db, fallback_client=fallback_client
+            llm_client,
+            search_client,
+            db,
+            fallback_client=fallback_client,
+            retrieval_backend=retrieval_backend,
+            embedding_fn=embedding_fn,
         )
 
     except Exception as e:
