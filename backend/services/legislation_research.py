@@ -43,6 +43,7 @@ class LegislationResearchResult:
     is_sufficient: bool = False
     insufficiency_reason: Optional[str] = None
     error: Optional[str] = None
+    retriever_invoked: bool = False
 
 
 @dataclass
@@ -156,6 +157,7 @@ class LegislationResearchService:
                 bill_id, jurisdiction, top_k, min_score
             )
             result.rag_chunks = rag_chunks
+            result.retriever_invoked = self.retrieval_backend is not None
 
             bill_context = self._format_rag_context(rag_chunks)
 
