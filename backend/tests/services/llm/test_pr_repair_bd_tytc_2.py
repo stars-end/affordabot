@@ -5,8 +5,6 @@ and sufficiency field persistence/readback.
 
 Feature-Key: bd-tytc.2
 """
-
-import pytest
 from schemas.analysis import (
     LegislationAnalysisResponse,
     LegislationImpact,

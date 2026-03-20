@@ -9,7 +9,7 @@ Feature-Key: bd-tytc.2
 from __future__ import annotations
 
 import re
-from typing import List, Optional
+from typing import List
 
 from schemas.analysis import (
     ImpactEvidence,

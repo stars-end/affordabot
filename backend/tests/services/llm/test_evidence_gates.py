@@ -10,8 +10,6 @@ from schemas.analysis import (
     SufficiencyState,
     LegislationImpact,
     LegislationAnalysisResponse,
-    PersistedEvidence,
-    SufficiencyBreakdown,
 )
 from services.llm.evidence_gates import (
     assess_sufficiency,

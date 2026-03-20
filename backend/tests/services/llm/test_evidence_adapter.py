@@ -3,8 +3,7 @@ import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
-import pytest
-from schemas.analysis import ImpactEvidence, PersistedEvidence, SourceTier
+from schemas.analysis import PersistedEvidence, SourceTier
 from services.llm.evidence_adapter import (
     envelope_to_persisted_evidence,
     persisted_to_impact_evidence,
