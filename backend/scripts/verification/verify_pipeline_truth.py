@@ -169,7 +169,7 @@ async def diagnose_bill(db, jurisdiction: str, bill_id: str) -> dict:
 
 async def main():
     parser = argparse.ArgumentParser(description="Pipeline truth diagnostic")
-    parser.add_argument("--jurisdiction", required=True)
+    parser.add_argument("--jurisdiction", default=None)
     parser.add_argument("--bill-id", default=None)
     parser.add_argument("--all-california", action="store_true")
     args = parser.parse_args()
@@ -179,19 +179,22 @@ async def main():
     db = PostgresDB()
     await db.connect()
 
-    if args.all_california:
-        bills = ["SB 277", "ACR 117"]
-        results = {}
-        for bill_id in bills:
-            results[bill_id] = await diagnose_bill(db, "california", bill_id)
-        print(json.dumps(results, indent=2, default=str))
-    elif args.bill_id:
-        result = await diagnose_bill(db, args.jurisdiction, args.bill_id)
-        print(json.dumps(result, indent=2, default=str))
-    else:
-        parser.error("Must provide --bill-id or --all-california")
-
-    await db.close()
+    try:
+        if args.all_california:
+            bills = ["SB 277", "ACR 117"]
+            results = {}
+            for bill_id in bills:
+                results[bill_id] = await diagnose_bill(db, "california", bill_id)
+            print(json.dumps(results, indent=2, default=str))
+        elif args.jurisdiction and args.bill_id:
+            result = await diagnose_bill(db, args.jurisdiction, args.bill_id)
+            print(json.dumps(result, indent=2, default=str))
+        else:
+            parser.error(
+                "Must provide --bill-id (with --jurisdiction) or --all-california"
+            )
+    finally:
+        await db.close()
 
 
 if __name__ == "__main__":

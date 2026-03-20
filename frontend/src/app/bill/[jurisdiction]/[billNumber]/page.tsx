@@ -78,10 +78,6 @@ export default function BillDetailPage() {
 
     const quantifiedImpacts = bill.impacts?.filter((imp: any) => imp.p50 != null) || [];
     const totalImpact = quantifiedImpacts.reduce((sum: number, imp: any) => sum + (imp.p50 || 0), 0);
-    const allConfidences = bill.impacts?.filter((imp: any) => imp.confidence != null).map((imp: any) => imp.confidence) || [];
-    const avgConfidence = allConfidences.length > 0
-        ? allConfidences.reduce((sum: number, c: number) => sum + c, 0) / allConfidences.length
-        : 0;
     const isQuantified = quantifiedImpacts.length > 0;
     const sufficiencyState = bill.sufficiency_state || bill.sufficiencyState;
     const insufficiencyReason = bill.insufficiency_reason || bill.insufficiencyReason;
@@ -125,12 +121,6 @@ export default function BillDetailPage() {
                             <span className="label-uppercase text-slate-500 block mb-1">Total Annual Cost</span>
                             <p className="text-2xl font-numbers font-bold text-slate-900">
                                 {isQuantified ? `$${totalImpact.toLocaleString()}` : 'N/A'}
-                            </p>
-                        </div>
-                        <div className="kpi-card min-w-[140px]">
-                            <span className="label-uppercase text-slate-500 block mb-1">Confidence</span>
-                            <p className="text-2xl font-numbers font-bold text-slate-900">
-                                {avgConfidence > 0 ? `${Math.round(avgConfidence * 100)}%` : 'N/A'}
                             </p>
                         </div>
                         {bill.effective_date && (

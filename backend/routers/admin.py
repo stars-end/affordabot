@@ -469,7 +469,7 @@ async def get_bill_truth(
     """
     try:
         scrape_query = """
-            SELECT rs.id, rs.url, rs.created_at, rs.content_hash, rs.metadata
+            SELECT rs.id, rs.url, rs.created_at, rs.content_hash, rs.metadata, rs.data
             FROM raw_scrapes rs
             LEFT JOIN sources s ON rs.source_id = s.id
             LEFT JOIN jurisdictions j ON s.jurisdiction_id = j.id

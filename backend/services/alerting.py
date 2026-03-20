@@ -125,6 +125,12 @@ class AlertingService:
     def _check_stale_scrape(run: Dict) -> Optional[str]:
         return None
 
+    _STALE_SCRAPE_TODO = (
+        "stale_scrape rule requires jurisdiction-level last_scrape timestamp "
+        "not available in pipeline_runs. Will need a JOIN to raw_scrapes "
+        "or a dedicated jurisdiction_health table."
+    )
+
     def evaluate_run(self, run: Dict) -> List[Alert]:
         alerts = []
         for rule in self.RULES:

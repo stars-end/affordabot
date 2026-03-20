@@ -23,8 +23,8 @@ sys.path.append(str(BACKEND_ROOT))
 
 async def quarantine_jurisdiction(db, jurisdiction: str, dry_run: bool = False) -> dict:
     """Quarantine all analyses for a jurisdiction that lack source text or provenance."""
-    query = """
-        UPDATE legislation SET analysis_status = 'quarantined'
+
+    where_clause = """
         WHERE jurisdiction_id = (
             SELECT id FROM jurisdictions WHERE LOWER(name) = LOWER($1)
         )
@@ -34,13 +34,12 @@ async def quarantine_jurisdiction(db, jurisdiction: str, dry_run: bool = False) 
             OR (sufficiency_state IN ('research_incomplete', 'insufficient_evidence')
                 AND analysis_status != 'quarantined')
         )
-        RETURNING id, bill_number, title, analysis_status, sufficiency_state, total_impact_p50
     """
 
     if dry_run:
-        check_query = query.replace(
-            "UPDATE legislation SET analysis_status = 'quarantined'",
-            "SELECT id, bill_number, title, analysis_status, sufficiency_state, total_impact_p50",
+        check_query = (
+            "SELECT id, bill_number, title, analysis_status, sufficiency_state, total_impact_p50 "
+            "FROM legislation " + where_clause
         )
         rows = await db._fetch(check_query, jurisdiction)
         return {
@@ -59,7 +58,11 @@ async def quarantine_jurisdiction(db, jurisdiction: str, dry_run: bool = False) 
             ],
         }
 
-    rows = await db._fetch(query, jurisdiction)
+    update_query = (
+        "UPDATE legislation SET analysis_status = 'quarantined' " + where_clause + " "
+        "RETURNING id, bill_number, title, analysis_status, sufficiency_state, total_impact_p50"
+    )
+    rows = await db._fetch(update_query, jurisdiction)
     return {
         "jurisdiction": jurisdiction,
         "dry_run": False,
