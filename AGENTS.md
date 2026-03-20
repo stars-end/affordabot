@@ -647,6 +647,14 @@ Role: {engineer-type}
 For database inspection, validation, or ad hoc SQL in Affordabot:
 
 - Use [$database-quickref](/Users/fengning/agent-skills/core/database-quickref/SKILL.md)
+- Preferred repo-native read-only path:
+  `~/agent-skills/scripts/dx-load-railway-auth.sh -- ~/agent-skills/scripts/dx-railway-postgres.sh --repo-root "$PWD" backend-python -- bash -lc 'cd backend && poetry run python scripts/db_inspect.py tables'`
+- Additional paved commands:
+  `... poetry run python scripts/db_inspect.py describe legislation`
+  `... poetry run python scripts/db_inspect.py jurisdiction-summary --limit 25`
+  `... poetry run python scripts/db_inspect.py pipeline-runs --limit 25`
+  `... poetry run python scripts/db_inspect.py raw-scrapes --hours 24 --limit 25`
+  `... poetry run python scripts/db_inspect.py query --sql 'SELECT COUNT(*) AS c FROM jurisdictions'`
 - Do not rely on ambient Railway project linkage from another repo
 - Do not guess Railway service names
 - Do not use interactive Railway CLI flows in non-TTY sessions
