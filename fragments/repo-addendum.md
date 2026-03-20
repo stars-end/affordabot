@@ -46,3 +46,15 @@ Role: {engineer-type}
 - If a command needs both `OP_SERVICE_ACCOUNT_TOKEN` and `RAILWAY_API_TOKEN`, load them in the same shell invocation rather than relying on exported state between tool calls.
 - Canonical Windmill CLI source is `op://dev/Agent-Secrets-Production/WINDMILL_API_TOKEN`.
 - Treat standalone references like "windmill dev api token" as legacy or ambiguous unless a specific migration step explicitly requires them.
+
+## Affordabot DB Access Rule
+
+For database inspection, validation, or ad hoc SQL in Affordabot:
+
+- Use [$database-quickref](/Users/fengning/agent-skills/core/database-quickref/SKILL.md)
+- Do not rely on ambient Railway project linkage from another repo
+- Do not guess Railway service names
+- Do not use interactive Railway CLI flows in non-TTY sessions
+- Do not treat `psql: No such file or directory` as a service-discovery problem
+- If no verified repo-native query runner exists and no working `psql` path is available, agents MUST stop with the exact blocker contract from `database-quickref`
+- In QA / audit passes, agents must not install packages ad hoc in Railway runtimes to work around missing DB tooling
