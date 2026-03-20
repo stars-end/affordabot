@@ -363,95 +363,27 @@ async def list_alerts(db: PostgresDB = Depends(get_db)):
     without a second truth store (bd-tytc.8).
     """
     try:
-        query = """
-            SELECT id, bill_id, jurisdiction, status, started_at, completed_at, error, result, models
-            FROM pipeline_runs
-            WHERE status IN ('completed', 'failed')
-            ORDER BY started_at DESC
-            LIMIT 50
-        """
-        rows = await db._fetch(query)
-        alerts = []
-        for r in rows:
-            result = (
-                json.loads(r["result"])
-                if isinstance(r["result"], str)
-                else (r["result"] or {})
-            )
-            run_id = str(r["id"])
-            bill_id = r["bill_id"]
-            jurisdiction = r["jurisdiction"]
-            status = r["status"]
-            started_at = str(r["started_at"]) if r["started_at"] else None
+        from services.alerting import AlertingService
 
-            if status == "failed":
-                alerts.append(
-                    {
-                        "id": f"run-fail-{run_id}",
-                        "type": "error",
-                        "severity": "high",
-                        "rule": "pipeline_failure",
-                        "message": f"Pipeline failed for {jurisdiction}/{bill_id}: {r.get('error', 'unknown')}",
-                        "jurisdiction": jurisdiction,
-                        "bill_id": bill_id,
-                        "run_id": run_id,
-                        "created_at": started_at,
-                        "acknowledged": False,
-                    }
-                )
-                continue
-
-            if result.get("quantification_eligible") is False and result.get(
-                "insufficiency_reason"
-            ):
-                alerts.append(
-                    {
-                        "id": f"insufficiency-{run_id}",
-                        "type": "warning",
-                        "severity": "medium",
-                        "rule": "quantification_not_eligible",
-                        "message": f"Quantification blocked for {jurisdiction}/{bill_id}: {result['insufficiency_reason']}",
-                        "jurisdiction": jurisdiction,
-                        "bill_id": bill_id,
-                        "run_id": run_id,
-                        "created_at": started_at,
-                        "acknowledged": False,
-                    }
-                )
-
-            if result.get("rag_chunks_retrieved", 0) == 0:
-                alerts.append(
-                    {
-                        "id": f"no-rag-{run_id}",
-                        "type": "warning",
-                        "severity": "medium",
-                        "rule": "zero_rag_chunks",
-                        "message": f"Zero RAG chunks retrieved for {jurisdiction}/{bill_id}",
-                        "jurisdiction": jurisdiction,
-                        "bill_id": bill_id,
-                        "run_id": run_id,
-                        "created_at": started_at,
-                        "acknowledged": False,
-                    }
-                )
-
-            if not result.get("source_text_present"):
-                alerts.append(
-                    {
-                        "id": f"no-source-text-{run_id}",
-                        "type": "warning",
-                        "severity": "high",
-                        "rule": "missing_source_text",
-                        "message": f"No source text present for {jurisdiction}/{bill_id}",
-                        "jurisdiction": jurisdiction,
-                        "bill_id": bill_id,
-                        "run_id": run_id,
-                        "created_at": started_at,
-                        "acknowledged": False,
-                    }
-                )
-
-        return {"alerts": alerts}
+        service = AlertingService(db_client=db)
+        alerts = await service.evaluate_recent_runs(limit=50)
+        return {
+            "alerts": [
+                {
+                    "id": f"{a.rule}-{a.run_id}",
+                    "type": "error" if a.severity == "high" else "warning",
+                    "severity": a.severity,
+                    "rule": a.rule,
+                    "message": a.message,
+                    "jurisdiction": a.jurisdiction,
+                    "bill_id": a.bill_id,
+                    "run_id": a.run_id,
+                    "created_at": a.created_at,
+                    "acknowledged": False,
+                }
+                for a in alerts
+            ]
+        }
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to compute alerts: {str(e)}"

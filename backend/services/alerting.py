@@ -13,6 +13,7 @@ Alert rules evaluate against normalized fields:
 - run status/duration
 """
 
+import json
 import logging
 from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Any
@@ -157,8 +158,6 @@ class AlertingService:
             rows = await self.db._fetch(query, limit)
             all_alerts = []
             for r in rows:
-                import json
-
                 result = (
                     json.loads(r["result"])
                     if isinstance(r["result"], str)

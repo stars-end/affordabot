@@ -218,6 +218,7 @@ class AnalysisPipeline:
                     ),
                     jurisdiction,
                     breakdown=breakdown,
+                    rag_chunks_retrieved=0,
                 )
                 return analysis
 
@@ -316,6 +317,7 @@ class AnalysisPipeline:
                 review,
                 jurisdiction,
                 breakdown=breakdown,
+                rag_chunks_retrieved=len(research_result.rag_chunks),
             )
 
             return analysis
@@ -647,6 +649,7 @@ Bill Text: {bill_text[:5000]}
         review: ReviewCritique,
         jurisdiction: str,
         breakdown: Any = None,
+        rag_chunks_retrieved: int = 0,
     ):
         """Mark pipeline run as complete and store results with truthful metadata."""
         try:
@@ -691,10 +694,8 @@ Bill Text: {bill_text[:5000]}
                 "review": review.model_dump(),
                 "sufficiency_breakdown": breakdown.model_dump() if breakdown else None,
                 "source_text_present": bool(bill_text and len(bill_text) > 100),
-                "retriever_invoked": True,
-                "rag_chunks_retrieved": breakdown.rag_chunks_retrieved
-                if breakdown
-                else 0,
+                "retriever_invoked": rag_chunks_retrieved > 0 or breakdown is not None,
+                "rag_chunks_retrieved": rag_chunks_retrieved,
                 "validated_evidence_count": len(analysis.impacts)
                 if analysis.impacts
                 else 0,

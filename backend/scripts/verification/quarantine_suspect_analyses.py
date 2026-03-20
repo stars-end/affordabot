@@ -29,11 +29,10 @@ async def quarantine_jurisdiction(db, jurisdiction: str, dry_run: bool = False) 
             SELECT id FROM jurisdictions WHERE LOWER(name) = LOWER($1)
         )
         AND (
-            (sufficiency_state IS NOT NULL
-             AND sufficiency_state IN ('research_incomplete', 'insufficient_evidence'))
-            OR analysis_status IS NULL
+            (analysis_status IS NULL AND sufficiency_state IS NULL)
             OR analysis_status = 'pending'
-            OR total_impact_p50 IS NULL
+            OR (sufficiency_state IN ('research_incomplete', 'insufficient_evidence')
+                AND analysis_status != 'quarantined')
         )
         RETURNING id, bill_number, title, analysis_status, sufficiency_state, total_impact_p50
     """
