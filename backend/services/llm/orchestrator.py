@@ -19,7 +19,12 @@ from llm_common.core.models import LLMMessage, MessageRole
 from typing import List, Dict, Any
 import re
 from pydantic import BaseModel, ValidationError
-from schemas.analysis import LegislationAnalysisResponse, ReviewCritique
+from schemas.analysis import (
+    LegislationAnalysisResponse,
+    LegislationImpact,
+    ReviewCritique,
+    SufficiencyState,
+)
 from datetime import datetime
 import logging
 
@@ -27,6 +32,8 @@ from services.legislation_research import (
     LegislationResearchService,
     LegislationResearchResult,
 )
+from services.llm.evidence_adapter import envelope_to_impact_evidence
+from services.llm.evidence_gates import assess_sufficiency, strip_quantification
 
 logger = logging.getLogger(__name__)
 
@@ -180,19 +187,91 @@ class AnalysisPipeline:
                 duration_ms=duration,
             )
 
-            start_ts = datetime.now()
-            analysis = await self._generate_step(
-                bill_id, bill_text, jurisdiction, research_result, models["generate"]
+            evidence_items = []
+            for envelope in research_result.evidence_envelopes:
+                envelope_data = (
+                    envelope.model_dump()
+                    if hasattr(envelope, "model_dump")
+                    else envelope
+                )
+                evidence_items.extend(envelope_to_impact_evidence(envelope_data))
+
+            breakdown = assess_sufficiency(
+                bill_text=bill_text,
+                evidence_list=evidence_items,
+                web_research_count=len(research_result.web_sources),
             )
-            duration = int((datetime.now() - start_ts).total_seconds() * 1000)
 
             await audit.log_step(
                 step_number=3,
+                step_name="sufficiency_gate",
+                status="completed",
+                input_context={"bill_id": bill_id},
+                output_result=breakdown.model_dump(),
+                model_info={"model": "deterministic", "provider": "evidence_gates"},
+                duration_ms=0,
+            )
+
+            if breakdown.sufficiency_state == SufficiencyState.RESEARCH_INCOMPLETE:
+                analysis = LegislationAnalysisResponse(
+                    bill_number=bill_id,
+                    title="",
+                    jurisdiction=jurisdiction,
+                    status="",
+                    sufficiency_state=breakdown.sufficiency_state,
+                    insufficiency_reason="; ".join(breakdown.insufficiency_reasons),
+                    quantification_eligible=False,
+                    impacts=[],
+                    total_impact_p50=None,
+                    analysis_timestamp=datetime.now().isoformat(),
+                    model_used=models.get("generate", "unknown"),
+                )
+                await self._complete_pipeline_run(
+                    run_id,
+                    bill_id,
+                    bill_text,
+                    analysis,
+                    ReviewCritique(
+                        passed=False,
+                        critique="Skipped: research incomplete",
+                        missing_impacts=[],
+                        factual_errors=[],
+                    ),
+                    jurisdiction,
+                )
+                return analysis
+
+            start_ts = datetime.now()
+            analysis = await self._generate_step(
+                bill_id,
+                bill_text,
+                jurisdiction,
+                research_result,
+                models["generate"],
+                breakdown,
+            )
+            duration = int((datetime.now() - start_ts).total_seconds() * 1000)
+
+            if not breakdown.quantification_eligible:
+                analysis.impacts = [
+                    LegislationImpact(**strip_quantification([imp.model_dump()])[0])
+                    for imp in analysis.impacts
+                ]
+                analysis.sufficiency_state = breakdown.sufficiency_state
+                analysis.insufficiency_reason = "; ".join(
+                    breakdown.insufficiency_reasons
+                )
+                analysis.quantification_eligible = False
+                analysis.total_impact_p50 = None
+
+            await audit.log_step(
+                step_number=4,
                 step_name="generate",
                 status="completed",
                 input_context={
                     "evidence_envelope_count": len(research_result.evidence_envelopes),
                     "is_sufficient": research_result.is_sufficient,
+                    "sufficiency_state": breakdown.sufficiency_state.value,
                 },
                 output_result=analysis.model_dump(),
                 model_info={"model": models["generate"]},
@@ -206,7 +285,7 @@ class AnalysisPipeline:
             duration = int((datetime.now() - start_ts).total_seconds() * 1000)
 
             await audit.log_step(
-                step_number=4,
+                step_number=5,
                 step_name="review",
                 status="completed",
                 input_context={"analysis_summary": "See generate step"},
@@ -218,12 +297,29 @@ class AnalysisPipeline:
             if not review.passed:
                 start_ts = datetime.now()
                 analysis = await self._refine_step(
-                    bill_id, analysis, review, bill_text, models["generate"]
+                    bill_id,
+                    analysis,
+                    review,
+                    bill_text,
+                    models["generate"],
+                    breakdown,
                 )
                 duration = int((datetime.now() - start_ts).total_seconds() * 1000)
 
+                if not breakdown.quantification_eligible:
+                    analysis.impacts = [
+                        LegislationImpact(**strip_quantification([imp.model_dump()])[0])
+                        for imp in analysis.impacts
+                    ]
+                    analysis.sufficiency_state = breakdown.sufficiency_state
+                    analysis.insufficiency_reason = "; ".join(
+                        breakdown.insufficiency_reasons
+                    )
+                    analysis.quantification_eligible = False
+                    analysis.total_impact_p50 = None
+
                 await audit.log_step(
-                    step_number=5,
+                    step_number=6,
                     step_name="refine",
                     status="completed",
                     input_context={"critique": review.model_dump()},
@@ -233,7 +329,7 @@ class AnalysisPipeline:
                 )
 
             await self._complete_pipeline_run(
-                run_id, bill_id, analysis, review, jurisdiction
+                run_id, bill_id, bill_text, analysis, review, jurisdiction
             )
 
             return analysis
@@ -364,8 +460,10 @@ class AnalysisPipeline:
         if response_model is LegislationAnalysisResponse:
             return LegislationAnalysisResponse(
                 bill_number=_extract_bill_number() or "UNKNOWN",
+                sufficiency_state=SufficiencyState.INSUFFICIENT_EVIDENCE,
+                quantification_eligible=False,
                 impacts=[],
-                total_impact_p50=0.0,
+                total_impact_p50=None,
                 analysis_timestamp=datetime.now().isoformat(),
                 model_used=model,
             )
@@ -388,6 +486,7 @@ class AnalysisPipeline:
         jurisdiction: str,
         research_result: LegislationResearchResult,
         model: str,
+        breakdown: Any = None,
     ) -> LegislationAnalysisResponse:
         """
         Generate analysis using LLM with structured evidence.
@@ -402,6 +501,12 @@ IMPORTANT: Research insufficiency detected: {research_result.insufficiency_reaso
 Your analysis should acknowledge data gaps. If evidence is insufficient for 
 quantification, provide qualitative analysis only.
 """
+        if breakdown and not breakdown.quantification_eligible:
+            sufficiency_note += (
+                "\nIMPORTANT: Quantification is NOT permitted for this bill. "
+                "Set all p10/p25/p50/p75/p90 fields to null. "
+                f"Reason: {'; '.join(breakdown.insufficiency_reasons)}\n"
+            )
 
         system_prompt = f"""
 You are an expert policy analyst. Analyze legislation for cost-of-living impacts.
@@ -507,9 +612,19 @@ Evidence Summary: {evidence_summary}
         review: ReviewCritique,
         bill_text: str,
         model: str,
+        breakdown: Any = None,
     ) -> LegislationAnalysisResponse:
         """Refine analysis based on critique."""
-        system_prompt = "Refine the analysis based on the critique. Ensure all issues are addressed."
+        quantification_note = ""
+        if breakdown and not breakdown.quantification_eligible:
+            quantification_note = (
+                "\n\nIMPORTANT: Quantification is NOT permitted for this bill. "
+                "Set all p10/p25/p50/p75/p90 fields to null."
+            )
+        system_prompt = (
+            "Refine the analysis based on the critique. Ensure all issues are addressed."
+            f"{quantification_note}"
+        )
 
         user_message = f"""
 Original Analysis: {analysis.model_dump_json()}
@@ -541,6 +656,7 @@ Bill Text: {bill_text[:5000]}
         self,
         run_id: str,
         bill_id: str,
+        bill_text: str,
         analysis: LegislationAnalysisResponse,
         review: ReviewCritique,
         jurisdiction: str,
@@ -549,8 +665,15 @@ Bill Text: {bill_text[:5000]}
         try:
             bill_data = {
                 "bill_number": bill_id,
-                "title": getattr(analysis, "title", None) or bill_id,
+                "title": analysis.title or bill_id,
+                "text": bill_text or "",
                 "status": "analyzed",
+                "sufficiency_state": analysis.sufficiency_state.value
+                if analysis.sufficiency_state
+                else None,
+                "insufficiency_reason": analysis.insufficiency_reason,
+                "quantification_eligible": analysis.quantification_eligible,
+                "total_impact_p50": analysis.total_impact_p50,
             }
 
             if hasattr(self.db, "get_or_create_jurisdiction"):

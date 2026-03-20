@@ -8,14 +8,19 @@ from urllib.parse import quote
 
 logger = logging.getLogger("postgres_db")
 
+
 class PostgresDB:
     def __init__(self, database_url: Optional[str] = None):
-        self.database_url = database_url or os.getenv("DATABASE_URL_PUBLIC") or os.getenv("DATABASE_URL")
+        self.database_url = (
+            database_url
+            or os.getenv("DATABASE_URL_PUBLIC")
+            or os.getenv("DATABASE_URL")
+        )
         # Handle transaction pooler url compatibility if needed (asyncpg usually needs strict formatting)
         # But generic postgres:// should work.
         if not self.database_url:
             logger.warning("DATABASE_URL not set. Database operations will fail.")
-        
+
         self.pool: Optional[asyncpg.Pool] = None
 
     async def connect(self):
@@ -28,14 +33,21 @@ class PostgresDB:
             try:
                 # Railway internal network and TCP Proxy don't support SSL upgrade
                 # Only use SSL for true external connections (External DBs, etc.)
-                use_ssl = 'railway.internal' not in self.database_url and 'proxy.rlwy.net' not in self.database_url
-                
+                use_ssl = (
+                    "railway.internal" not in self.database_url
+                    and "proxy.rlwy.net" not in self.database_url
+                )
+
                 if use_ssl:
-                    self.pool = await asyncpg.create_pool(self.database_url, ssl='require')
+                    self.pool = await asyncpg.create_pool(
+                        self.database_url, ssl="require"
+                    )
                     logger.info("Connected to DB with SSL")
                 else:
                     self.pool = await asyncpg.create_pool(self.database_url)
-                    logger.info("Connected to DB without SSL (Railway internal network)")
+                    logger.info(
+                        "Connected to DB without SSL (Railway internal network)"
+                    )
             except Exception as e:
                 logger.error(f"Failed to connect to DB: {e}")
                 raise
@@ -58,7 +70,7 @@ class PostgresDB:
             await self.connect()
         async with self.pool.acquire() as conn:
             return await conn.fetchrow(query, *args)
-    
+
     async def _fetch(self, query: str, *args) -> List[asyncpg.Record]:
         if not self.pool:
             await self.connect()
@@ -68,7 +80,9 @@ class PostgresDB:
     async def get_jurisdiction_by_name(self, name: str) -> Optional[Dict[str, Any]]:
         """Get jurisdiction config by name."""
         try:
-            row = await self._fetchrow("SELECT * FROM jurisdictions WHERE name = $1", name)
+            row = await self._fetchrow(
+                "SELECT * FROM jurisdictions WHERE name = $1", name
+            )
             return dict(row) if row else None
         except Exception as e:
             logger.error(f"Error in get_jurisdiction_by_name: {e}")
@@ -87,73 +101,96 @@ class PostgresDB:
                 normalized_type = "city"
 
             # Check if exists
-            row = await self._fetchrow("SELECT id FROM jurisdictions WHERE name = $1", name)
+            row = await self._fetchrow(
+                "SELECT id FROM jurisdictions WHERE name = $1", name
+            )
             if row:
-                return str(row['id'])
-            
+                return str(row["id"])
+
             # Create new
             row = await self._fetchrow(
                 "INSERT INTO jurisdictions (name, type) VALUES ($1, $2) RETURNING id",
-                name, normalized_type
+                name,
+                normalized_type,
             )
-            return str(row['id']) if row else None
+            return str(row["id"]) if row else None
         except Exception as e:
             logger.error(f"Error in get_or_create_jurisdiction: {e}")
             return None
 
-    async def store_legislation(self, jurisdiction_id: str, bill_data: Dict[str, Any]) -> Optional[str]:
+    async def store_legislation(
+        self, jurisdiction_id: str, bill_data: Dict[str, Any]
+    ) -> Optional[str]:
         """Store legislation in database."""
         try:
             # Check existing
             row = await self._fetchrow(
                 "SELECT id FROM legislation WHERE jurisdiction_id = $1 AND bill_number = $2",
-                jurisdiction_id, bill_data["bill_number"]
+                jurisdiction_id,
+                bill_data["bill_number"],
             )
-            
+
             if row:
-                # Update
                 update_query = """
                     UPDATE legislation 
-                    SET title = $1, text_content = $2, status = $3, updated_at = $4
+                    SET title = $1, text_content = $2, status = $3, updated_at = $4,
+                        sufficiency_state = $6, insufficiency_reason = $7,
+                        quantification_eligible = $8, total_impact_p50 = $9
                     WHERE id = $5
                     RETURNING id
                 """
                 await self._execute(
                     update_query,
-                    bill_data["title"], bill_data["text"], bill_data["status"], datetime.now(),
-                    row['id']
+                    bill_data["title"],
+                    bill_data["text"],
+                    bill_data["status"],
+                    datetime.now(),
+                    row["id"],
+                    bill_data.get("sufficiency_state"),
+                    bill_data.get("insufficiency_reason"),
+                    bill_data.get("quantification_eligible", False),
+                    bill_data.get("total_impact_p50"),
                 )
-                return str(row['id'])
-            
+                return str(row["id"])
+
             # Insert
             insert_query = """
                 INSERT INTO legislation 
-                (jurisdiction_id, bill_number, title, text_content, introduced_date, status, raw_html, analysis_status)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                (jurisdiction_id, bill_number, title, text_content, introduced_date, status, raw_html, analysis_status,
+                 sufficiency_state, insufficiency_reason, quantification_eligible, total_impact_p50)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
                 RETURNING id
             """
             row = await self._fetchrow(
                 insert_query,
-                jurisdiction_id, 
+                jurisdiction_id,
                 bill_data["bill_number"],
                 bill_data["title"],
                 bill_data["text"],
                 bill_data.get("introduced_date"),
                 bill_data["status"],
                 bill_data.get("raw_html"),
-                "pending"
+                "pending",
+                bill_data.get("sufficiency_state"),
+                bill_data.get("insufficiency_reason"),
+                bill_data.get("quantification_eligible", False),
+                bill_data.get("total_impact_p50"),
             )
-            return str(row['id']) if row else None
+            return str(row["id"]) if row else None
 
         except Exception as e:
             logger.error(f"Error in store_legislation: {e}")
             return None
 
-    async def create_legislation(self, jurisdiction_id: str, bill_data: Dict[str, Any]) -> Optional[str]:
+    async def create_legislation(
+        self, jurisdiction_id: str, bill_data: Dict[str, Any]
+    ) -> Optional[str]:
         """Alias for store_legislation."""
         return await self.store_legislation(jurisdiction_id, bill_data)
 
-    async def store_impacts(self, legislation_id: str, impacts: List[Dict[str, Any]]) -> bool:
+    async def store_impacts(
+        self, legislation_id: str, impacts: List[Dict[str, Any]]
+    ) -> bool:
         """Store impact analysis results."""
         if not self.pool:
             await self.connect()
@@ -162,15 +199,18 @@ class PostgresDB:
             async with self.pool.acquire() as conn:
                 async with conn.transaction():
                     # Delete existing
-                    await conn.execute("DELETE FROM impacts WHERE legislation_id = $1", legislation_id)
+                    await conn.execute(
+                        "DELETE FROM impacts WHERE legislation_id = $1", legislation_id
+                    )
 
                     # Insert new
                     if impacts:
                         insert_sql = """
                             INSERT INTO impacts
                             (legislation_id, impact_number, relevant_clause, description, evidence,
-                             chain_of_causality, confidence_score, p10, p25, p50, p75, p90)
-                            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+                             chain_of_causality, confidence_score, p10, p25, p50, p75, p90,
+                             sufficiency_state, quantification_eligible, numeric_basis, estimate_method)
+                            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
                         """
                         for impact in impacts:
                             evidence = json.dumps(impact.get("evidence", []))
@@ -178,29 +218,37 @@ class PostgresDB:
                                 insert_sql,
                                 legislation_id,
                                 impact["impact_number"],
-                                impact.get("relevant_clause"),
-                                impact["impact_description"],
+                                impact.get("relevant_clause", ""),
+                                impact.get("impact_description", ""),
                                 evidence,
-                                impact["chain_of_causality"],
-                                impact.get("confidence_score", impact.get("confidence_factor", 0.0)),
-                                impact["p10"],
-                                impact["p25"],
-                                impact["p50"],
-                                impact["p75"],
-                                impact["p90"],
+                                impact.get("chain_of_causality", ""),
+                                impact.get(
+                                    "confidence_score", impact.get("confidence_factor")
+                                ),
+                                impact.get("p10"),
+                                impact.get("p25"),
+                                impact.get("p50"),
+                                impact.get("p75"),
+                                impact.get("p90"),
+                                impact.get("sufficiency_state"),
+                                impact.get("quantification_eligible", False),
+                                impact.get("numeric_basis"),
+                                impact.get("estimate_method"),
                             )
 
                     # Update status
                     await conn.execute(
                         "UPDATE legislation SET analysis_status = 'completed' WHERE id = $1",
-                        legislation_id
+                        legislation_id,
                     )
             return True
         except Exception as e:
             logger.error(f"Error in store_impacts: {e}")
             return False
 
-    async def create_pipeline_run(self, bill_id: str, jurisdiction: str, models: Dict[str, str]) -> Optional[str]:
+    async def create_pipeline_run(
+        self, bill_id: str, jurisdiction: str, models: Dict[str, str]
+    ) -> Optional[str]:
         """Create a new pipeline run record."""
         try:
             row = await self._fetchrow(
@@ -209,9 +257,11 @@ class PostgresDB:
                 VALUES ($1, $2, $3, NOW())
                 RETURNING id
                 """,
-                bill_id, jurisdiction, json.dumps(models)
+                bill_id,
+                jurisdiction,
+                json.dumps(models),
             )
-            return str(row['id']) if row else None
+            return str(row["id"]) if row else None
         except Exception as e:
             logger.error(f"Error creating pipeline run: {e}")
             return None
@@ -225,7 +275,8 @@ class PostgresDB:
                 SET status = 'completed', result = $1, completed_at = NOW()
                 WHERE id = $2
                 """,
-                json.dumps(result), run_id
+                json.dumps(result),
+                run_id,
             )
             return True
         except Exception as e:
@@ -241,14 +292,17 @@ class PostgresDB:
                 SET status = 'failed', error = $1, completed_at = NOW()
                 WHERE id = $2
                 """,
-                error, run_id
+                error,
+                run_id,
             )
             return True
         except Exception as e:
             logger.error(f"Error failing pipeline run: {e}")
             return False
 
-    async def get_or_create_source(self, jurisdiction_id: str, name: str, type: str, url: str = None) -> Optional[str]:
+    async def get_or_create_source(
+        self, jurisdiction_id: str, name: str, type: str, url: str = None
+    ) -> Optional[str]:
         """Get source ID, creating if it doesn't exist."""
         try:
             # Railway schema requires sources.url NOT NULL. When upstream doesn't provide one,
@@ -261,25 +315,31 @@ class PostgresDB:
             if url:
                 row = await self._fetchrow("SELECT id FROM sources WHERE url = $1", url)
                 if row:
-                    return str(row['id'])
+                    return str(row["id"])
 
             row = await self._fetchrow(
                 "SELECT id FROM sources WHERE jurisdiction_id = $1 AND name = $2",
-                jurisdiction_id, name
+                jurisdiction_id,
+                name,
             )
             if row:
-                return str(row['id'])
-                
+                return str(row["id"])
+
             row = await self._fetchrow(
                 "INSERT INTO sources (jurisdiction_id, name, type, url) VALUES ($1, $2, $3, $4) RETURNING id",
-                jurisdiction_id, name, type, url
+                jurisdiction_id,
+                name,
+                type,
+                url,
             )
-            return str(row['id']) if row else None
+            return str(row["id"]) if row else None
         except Exception as e:
             logger.error(f"Error in get_or_create_source: {e}")
             return None
 
-    async def get_sources(self, jurisdiction_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    async def get_sources(
+        self, jurisdiction_id: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         """List sources, optionally filtered by jurisdiction."""
         if jurisdiction_id:
             query = "SELECT * FROM sources WHERE jurisdiction_id = $1"
@@ -298,14 +358,16 @@ class PostgresDB:
     async def create_source(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Create a new source."""
         columns = ", ".join(data.keys())
-        placeholders = ", ".join([f"${i+1}" for i in range(len(data))])
+        placeholders = ", ".join([f"${i + 1}" for i in range(len(data))])
         query = f"INSERT INTO sources ({columns}) VALUES ({placeholders}) RETURNING *"
         row = await self._fetchrow(query, *data.values())
         return dict(row)
 
-    async def update_source(self, source_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
+    async def update_source(
+        self, source_id: str, data: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Update an existing source."""
-        set_clause = ", ".join([f"{k} = ${i+2}" for i, k in enumerate(data.keys())])
+        set_clause = ", ".join([f"{k} = ${i + 2}" for i, k in enumerate(data.keys())])
         query = f"UPDATE sources SET {set_clause} WHERE id = $1 RETURNING *"
         row = await self._fetchrow(query, source_id, *data.values())
         return dict(row) if row else {}
@@ -316,35 +378,51 @@ class PostgresDB:
         await self._execute(query, source_id)
 
     # Admin Task Methods
-    async def create_admin_task(self, task_id: str, task_type: str, jurisdiction: str, status: str = "queued", config: Dict = None) -> bool:
+    async def create_admin_task(
+        self,
+        task_id: str,
+        task_type: str,
+        jurisdiction: str,
+        status: str = "queued",
+        config: Dict = None,
+    ) -> bool:
         try:
             await self._execute(
                 """
                 INSERT INTO admin_tasks (id, task_type, jurisdiction, status, config, created_at)
                 VALUES ($1, $2, $3, $4, $5, $6)
                 """,
-                task_id, task_type, jurisdiction, status, json.dumps(config) if config else None, datetime.now()
+                task_id,
+                task_type,
+                jurisdiction,
+                status,
+                json.dumps(config) if config else None,
+                datetime.now(),
             )
             return True
         except Exception as e:
             logger.error(f"Error creating admin task: {e}")
             return False
 
-    async def update_admin_task(self, task_id: str, status: str, result: Dict = None, error: str = None) -> bool:
+    async def update_admin_task(
+        self, task_id: str, status: str, result: Dict = None, error: str = None
+    ) -> bool:
         try:
             fields = ["status = $1", "completed_at = $2"]
             args = [status, datetime.now()]
-            
+
             if result:
                 fields.append("result = $" + str(len(args) + 1))
                 args.append(json.dumps(result))
             if error:
                 fields.append("error_message = $" + str(len(args) + 1))
                 args.append(error)
-            
-            args.append(task_id) # Last arg is ID
-            
-            query = f"UPDATE admin_tasks SET {', '.join(fields)} WHERE id = ${len(args)}"
+
+            args.append(task_id)  # Last arg is ID
+
+            query = (
+                f"UPDATE admin_tasks SET {', '.join(fields)} WHERE id = ${len(args)}"
+            )
             await self._execute(query, *args)
             return True
         except Exception as e:
@@ -366,7 +444,7 @@ class PostgresDB:
                 entry["status"],
                 entry.get("task_id"),
                 entry.get("error_message"),
-                entry.get("notes")
+                entry.get("notes"),
             )
             return True
         except Exception as e:
@@ -376,8 +454,10 @@ class PostgresDB:
     async def create_scrape_history(self, **kwargs) -> bool:
         """Wrapper for log_scrape_history using kwargs."""
         return await self.log_scrape_history(kwargs)
-            
-    async def get_latest_scrape_for_bill(self, jurisdiction: str, bill_number: str) -> Optional[Dict[str, Any]]:
+
+    async def get_latest_scrape_for_bill(
+        self, jurisdiction: str, bill_number: str
+    ) -> Optional[Dict[str, Any]]:
         """Find the latest raw scrape for a specific bill."""
         try:
             # Query using JSONB operator to find matching metadata
@@ -403,9 +483,9 @@ class PostgresDB:
         try:
             row = await self._fetchrow(
                 "SELECT count(*) as chunk_count FROM document_chunks WHERE document_id = $1",
-                document_id
+                document_id,
             )
-            return {"chunk_count": row['chunk_count'] if row else 0}
+            return {"chunk_count": row["chunk_count"] if row else 0}
         except Exception as e:
             print(f"❌ Error getting vector stats: {e}")
             return {"chunk_count": 0}
@@ -427,9 +507,9 @@ class PostgresDB:
                 scrape_record["url"],
                 json.dumps(scrape_record["metadata"]),
                 scrape_record.get("storage_uri"),
-                scrape_record.get("document_id")
+                scrape_record.get("document_id"),
             )
-            return str(row['id']) if row else None
+            return str(row["id"]) if row else None
         except Exception as e:
             logger.error(f"Error creating raw scrape: {e}")
             return None
@@ -437,7 +517,9 @@ class PostgresDB:
     async def get_admin_task(self, task_id: str) -> Optional[Dict[str, Any]]:
         """Get admin task by ID."""
         try:
-            row = await self._fetchrow("SELECT * FROM admin_tasks WHERE id = $1", task_id)
+            row = await self._fetchrow(
+                "SELECT * FROM admin_tasks WHERE id = $1", task_id
+            )
             return dict(row) if row else None
         except Exception as e:
             logger.error(f"Error fetching admin task: {e}")
@@ -453,7 +535,14 @@ class PostgresDB:
             logger.error(f"Error fetching model configs: {e}")
             return []
 
-    async def update_model_config(self, provider: str, model_name: str, use_case: str, priority: int, enabled: bool) -> bool:
+    async def update_model_config(
+        self,
+        provider: str,
+        model_name: str,
+        use_case: str,
+        priority: int,
+        enabled: bool,
+    ) -> bool:
         """Upsert model configuration."""
         try:
             query = """
@@ -465,7 +554,9 @@ class PostgresDB:
                     enabled = EXCLUDED.enabled,
                     updated_at = NOW()
             """
-            await self._execute(query, provider, model_name, use_case, priority, enabled)
+            await self._execute(
+                query, provider, model_name, use_case, priority, enabled
+            )
             return True
         except Exception as e:
             logger.error(f"Error updating model config: {e}")
@@ -477,31 +568,37 @@ class PostgresDB:
         try:
             row = await self._fetchrow(
                 "SELECT * FROM system_prompts WHERE prompt_type = $1 AND is_active = true",
-                prompt_type
+                prompt_type,
             )
             return dict(row) if row else None
         except Exception as e:
             logger.error(f"Error fetching system prompt: {e}")
             return None
 
-    async def update_system_prompt(self, prompt_type: str, system_prompt: str, description: str = None, user_id: str = "admin") -> Optional[int]:
+    async def update_system_prompt(
+        self,
+        prompt_type: str,
+        system_prompt: str,
+        description: str = None,
+        user_id: str = "admin",
+    ) -> Optional[int]:
         """Update system prompt (create new version). Returns new version number."""
         try:
             # Get next version
             ver_row = await self._fetchrow(
                 "SELECT version FROM system_prompts WHERE prompt_type = $1 ORDER BY version DESC LIMIT 1",
-                prompt_type
+                prompt_type,
             )
-            next_version = (ver_row['version'] + 1) if ver_row else 1
-            
+            next_version = (ver_row["version"] + 1) if ver_row else 1
+
             async with self.pool.acquire() as conn:
                 async with conn.transaction():
                     # Deactivate current
                     await conn.execute(
                         "UPDATE system_prompts SET is_active = false WHERE prompt_type = $1 AND is_active = true",
-                        prompt_type
+                        prompt_type,
                     )
-                    
+
                     # Insert new
                     await conn.execute(
                         """
@@ -509,7 +606,11 @@ class PostgresDB:
                         (prompt_type, version, system_prompt, description, is_active, activated_at, created_at, created_by)
                         VALUES ($1, $2, $3, $4, true, NOW(), NOW(), $5)
                         """,
-                        prompt_type, next_version, system_prompt, description or f"Version {next_version}", user_id
+                        prompt_type,
+                        next_version,
+                        system_prompt,
+                        description or f"Version {next_version}",
+                        user_id,
                     )
             return next_version
         except Exception as e:
@@ -517,29 +618,35 @@ class PostgresDB:
             return None
 
     # Analysis History Methods
-    async def get_analysis_history(self, jurisdiction: str = None, bill_id: str = None, step: str = None, limit: int = 50) -> List[Dict[str, Any]]:
+    async def get_analysis_history(
+        self,
+        jurisdiction: str = None,
+        bill_id: str = None,
+        step: str = None,
+        limit: int = 50,
+    ) -> List[Dict[str, Any]]:
         """Get analysis history with filters."""
         try:
             query = "SELECT * FROM analysis_history"
             conditions = []
             params = []
-            
+
             if jurisdiction:
-                conditions.append(f"jurisdiction = ${len(params)+1}")
+                conditions.append(f"jurisdiction = ${len(params) + 1}")
                 params.append(jurisdiction)
             if bill_id:
-                conditions.append(f"bill_id = ${len(params)+1}")
+                conditions.append(f"bill_id = ${len(params) + 1}")
                 params.append(bill_id)
             if step:
-                conditions.append(f"step = ${len(params)+1}")
+                conditions.append(f"step = ${len(params) + 1}")
                 params.append(step)
-                
+
             if conditions:
                 query += " WHERE " + " AND ".join(conditions)
-                
-            query += f" ORDER BY created_at DESC LIMIT ${len(params)+1}"
+
+            query += f" ORDER BY created_at DESC LIMIT ${len(params) + 1}"
             params.append(limit)
-            
+
             rows = await self._fetch(query, *params)
             return [dict(row) for row in rows]
         except Exception as e:
@@ -551,7 +658,9 @@ class PostgresDB:
         """Get pending template reviews."""
         try:
             # Assuming table 'template_reviews' exists; if not it might fail, but this is migration.
-            rows = await self._fetch("SELECT * FROM template_reviews WHERE status = 'pending'")
+            rows = await self._fetch(
+                "SELECT * FROM template_reviews WHERE status = 'pending'"
+            )
             return [dict(row) for row in rows]
         except Exception as e:
             logger.error(f"Error fetching pending reviews: {e}")
@@ -560,35 +669,45 @@ class PostgresDB:
     async def update_review_status(self, review_id: str, status: str) -> bool:
         """Update review status."""
         try:
-            await self._execute("UPDATE template_reviews SET status = $1 WHERE id = $2", status, review_id)
+            await self._execute(
+                "UPDATE template_reviews SET status = $1 WHERE id = $2",
+                status,
+                review_id,
+            )
             return True
         except Exception as e:
             logger.error(f"Error updating review status: {e}")
             return False
 
-    async def create_template_review(self, review_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    async def create_template_review(
+        self, review_data: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
         """Create a new template review entry."""
         try:
             # Check if template_reviews table exists and columns match
             # This assumes standard schema.
             columns = ", ".join(review_data.keys())
-            placeholders = ", ".join([f"${i+1}" for i in range(len(review_data))])
+            placeholders = ", ".join([f"${i + 1}" for i in range(len(review_data))])
             query = f"INSERT INTO template_reviews ({columns}) VALUES ({placeholders}) RETURNING *"
-            
+
             row = await self._fetchrow(query, *review_data.values())
             return dict(row) if row else None
         except Exception as e:
             logger.error(f"Error creating template review: {e}")
             return None
 
-    async def get_legislation_by_jurisdiction(self, jurisdiction_name: str, limit: int = 10) -> List[Dict[str, Any]]:
+    async def get_legislation_by_jurisdiction(
+        self, jurisdiction_name: str, limit: int = 10
+    ) -> List[Dict[str, Any]]:
         """Get recent legislation for a jurisdiction with impacts."""
         try:
             # Get jurisdiction ID
-            jur_row = await self._fetchrow("SELECT id FROM jurisdictions WHERE name = $1", jurisdiction_name)
+            jur_row = await self._fetchrow(
+                "SELECT id FROM jurisdictions WHERE name = $1", jurisdiction_name
+            )
             if not jur_row:
                 return []
-            jurisdiction_id = jur_row['id']
+            jurisdiction_id = jur_row["id"]
 
             # Get legislation
             legislation_rows = await self._fetch(
@@ -598,7 +717,8 @@ class PostgresDB:
                 ORDER BY created_at DESC
                 LIMIT $2
                 """,
-                jurisdiction_id, limit
+                jurisdiction_id,
+                limit,
             )
 
             results = []
@@ -607,21 +727,21 @@ class PostgresDB:
                 # Fetch impacts
                 impact_rows = await self._fetch(
                     "SELECT * FROM impacts WHERE legislation_id = $1 ORDER BY impact_number",
-                    leg['id']
+                    leg["id"],
                 )
 
                 impacts = []
                 for imp in impact_rows:
                     imp_dict = dict(imp)
                     # Parse evidence if it's a string (JSON)
-                    if isinstance(imp_dict.get('evidence'), str):
+                    if isinstance(imp_dict.get("evidence"), str):
                         try:
-                            imp_dict['evidence'] = json.loads(imp_dict['evidence'])
+                            imp_dict["evidence"] = json.loads(imp_dict["evidence"])
                         except json.JSONDecodeError:
                             pass
                     impacts.append(imp_dict)
 
-                leg_dict['impacts'] = impacts
+                leg_dict["impacts"] = impacts
                 results.append(leg_dict)
 
             return results
@@ -629,14 +749,19 @@ class PostgresDB:
             logger.error(f"Error in get_legislation_by_jurisdiction: {e}")
             return []
 
-    async def get_bill(self, jurisdiction_name: str, bill_number: str) -> Optional[Dict[str, Any]]:
+    async def get_bill(
+        self, jurisdiction_name: str, bill_number: str
+    ) -> Optional[Dict[str, Any]]:
         """Get specific bill with impacts."""
         try:
             # Get jurisdiction ID
-            jur_row = await self._fetchrow("SELECT id, name, type FROM jurisdictions WHERE name = $1", jurisdiction_name)
+            jur_row = await self._fetchrow(
+                "SELECT id, name, type FROM jurisdictions WHERE name = $1",
+                jurisdiction_name,
+            )
             if not jur_row:
                 return None
-            jurisdiction_id = jur_row['id']
+            jurisdiction_id = jur_row["id"]
 
             # Get legislation
             leg_row = await self._fetchrow(
@@ -644,33 +769,35 @@ class PostgresDB:
                 SELECT * FROM legislation
                 WHERE jurisdiction_id = $1 AND bill_number = $2
                 """,
-                jurisdiction_id, bill_number
+                jurisdiction_id,
+                bill_number,
             )
 
             if not leg_row:
                 return None
 
             leg_dict = dict(leg_row)
-            leg_dict['jurisdiction'] = jur_row['name']
+            leg_dict["jurisdiction"] = jur_row["name"]
+            leg_dict["full_text"] = leg_dict.pop("text_content", None)
 
             # Fetch impacts
             impact_rows = await self._fetch(
                 "SELECT * FROM impacts WHERE legislation_id = $1 ORDER BY impact_number",
-                leg_dict['id']
+                leg_dict["id"],
             )
 
             impacts = []
             for imp in impact_rows:
                 imp_dict = dict(imp)
                 # Parse evidence if it's a string (JSON)
-                if isinstance(imp_dict.get('evidence'), str):
+                if isinstance(imp_dict.get("evidence"), str):
                     try:
-                        imp_dict['evidence'] = json.loads(imp_dict['evidence'])
+                        imp_dict["evidence"] = json.loads(imp_dict["evidence"])
                     except json.JSONDecodeError:
                         pass
                 impacts.append(imp_dict)
 
-            leg_dict['impacts'] = impacts
+            leg_dict["impacts"] = impacts
             return leg_dict
 
         except Exception as e:

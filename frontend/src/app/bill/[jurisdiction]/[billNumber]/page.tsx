@@ -27,8 +27,14 @@ export default function BillDetailPage() {
                         impactNumber: imp.impact_number,
                         clause: imp.relevant_clause,
                         description: imp.description || imp.impact_description,
-                        confidence: Number(imp.confidence_score) || 0,
-                        chainOfCausality: imp.chain_of_causality
+                        confidence: imp.confidence_score != null ? Number(imp.confidence_score) : null,
+                        p10: imp.p10 != null ? Number(imp.p10) : null,
+                        p25: imp.p25 != null ? Number(imp.p25) : null,
+                        p50: imp.p50 != null ? Number(imp.p50) : null,
+                        p75: imp.p75 != null ? Number(imp.p75) : null,
+                        p90: imp.p90 != null ? Number(imp.p90) : null,
+                        isQuantified: imp.p50 != null,
+                        chainOfCausality: imp.chain_of_causality,
                     }))
                 };
                 setBill(mappedBill);
@@ -70,10 +76,15 @@ export default function BillDetailPage() {
         );
     }
 
-    const totalImpact = bill.impacts?.reduce((sum: number, imp: any) => sum + (imp.p50 || 0), 0) || 0;
-    const avgConfidence = bill.impacts?.length > 0
-        ? bill.impacts.reduce((sum: number, imp: any) => sum + (imp.confidence || 0), 0) / bill.impacts.length
+    const quantifiedImpacts = bill.impacts?.filter((imp: any) => imp.p50 != null) || [];
+    const totalImpact = quantifiedImpacts.reduce((sum: number, imp: any) => sum + (imp.p50 || 0), 0);
+    const allConfidences = bill.impacts?.filter((imp: any) => imp.confidence != null).map((imp: any) => imp.confidence) || [];
+    const avgConfidence = allConfidences.length > 0
+        ? allConfidences.reduce((sum: number, c: number) => sum + c, 0) / allConfidences.length
         : 0;
+    const isQuantified = quantifiedImpacts.length > 0;
+    const sufficiencyState = bill.sufficiency_state || bill.sufficiencyState;
+    const insufficiencyReason = bill.insufficiency_reason || bill.insufficiencyReason;
 
     return (
         <div className="max-w-7xl mx-auto">
@@ -113,26 +124,46 @@ export default function BillDetailPage() {
                         <div className="kpi-card min-w-[140px]">
                             <span className="label-uppercase text-slate-500 block mb-1">Total Annual Cost</span>
                             <p className="text-2xl font-numbers font-bold text-slate-900">
-                                ${totalImpact.toLocaleString()}
+                                {isQuantified ? `$${totalImpact.toLocaleString()}` : 'N/A'}
                             </p>
                         </div>
                         <div className="kpi-card min-w-[140px]">
-                            <span className="label-uppercase text-slate-500 block mb-1">Impact Score</span>
+                            <span className="label-uppercase text-slate-500 block mb-1">Confidence</span>
                             <p className="text-2xl font-numbers font-bold text-slate-900">
-                                {(avgConfidence * 10).toFixed(1)}/10
+                                {avgConfidence > 0 ? `${Math.round(avgConfidence * 100)}%` : 'N/A'}
                             </p>
                         </div>
-                        <div className="kpi-card min-w-[140px]">
-                            <span className="label-uppercase text-slate-500 block mb-1">Effective Date</span>
-                            <p className="text-lg font-numbers font-bold text-slate-900">
-                                {bill.effective_date
-                                    ? new Date(bill.effective_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-                                    : 'Jan 1, 2024'}
-                            </p>
-                        </div>
+                        {isQuantified && bill.effective_date && (
+                            <div className="kpi-card min-w-[140px]">
+                                <span className="label-uppercase text-slate-500 block mb-1">Effective Date</span>
+                                <p className="text-lg font-numbers font-bold text-slate-900">
+                                    {new Date(bill.effective_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                </p>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
+
+            {/* Insufficiency Banner */}
+            {!isQuantified && (sufficiencyState === 'research_incomplete' || sufficiencyState === 'insufficient_evidence') && (
+                <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                    <p className="text-sm font-medium text-amber-800">
+                        {sufficiencyState === 'research_incomplete' ? 'Research Incomplete' : 'Insufficient Evidence'}
+                    </p>
+                    {insufficiencyReason && (
+                        <p className="text-sm text-amber-700 mt-1">{insufficiencyReason}</p>
+                    )}
+                </div>
+            )}
+            {!isQuantified && sufficiencyState === 'qualitative_only' && (
+                <div className="mb-6 p-4 bg-slate-50 border border-slate-200 rounded-lg">
+                    <p className="text-sm font-medium text-slate-700">Qualitative Analysis Only</p>
+                    <p className="text-sm text-slate-500 mt-1">
+                        {insufficiencyReason || 'This bill has not been quantified due to insufficient Tier A (official) evidence sources.'}
+                    </p>
+                </div>
+            )}
 
             {/* Main Content Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
