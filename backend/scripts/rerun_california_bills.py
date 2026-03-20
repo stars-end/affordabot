@@ -15,7 +15,6 @@ import asyncio
 import json
 import os
 import sys
-import hashlib
 from pathlib import Path
 from uuid import uuid4
 
@@ -85,7 +84,7 @@ async def ingest_bill(db, bill_number: str, bill_text: str, metadata: dict) -> i
 
     openrouter_key = os.getenv("OPENROUTER_API_KEY")
     if not openrouter_key:
-        print(f"  ERROR: OPENROUTER_API_KEY not set, cannot generate embeddings")
+        print("  ERROR: OPENROUTER_API_KEY not set, cannot generate embeddings")
         return 0
 
     embeddings = await generate_embeddings(chunks, openrouter_key)
