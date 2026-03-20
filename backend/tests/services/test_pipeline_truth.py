@@ -10,15 +10,14 @@ Validates:
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 from datetime import datetime
 
-from services.glass_box import GlassBoxService, PipelineStep
-from services.alerting import AlertingService, Alert
+from services.glass_box import GlassBoxService
+from services.alerting import AlertingService
 from schemas.analysis import (
     SufficiencyState,
     LegislationAnalysisResponse,
-    ReviewCritique,
     SufficiencyBreakdown,
 )
 
@@ -48,13 +47,6 @@ class TestOrchestratorTruth:
             analysis_timestamp=datetime.now().isoformat(),
             model_used="test",
         )
-        review = ReviewCritique(
-            passed=False,
-            critique="Research incomplete",
-            missing_impacts=[],
-            factual_errors=[],
-        )
-
         assert analysis.title == ""
         assert analysis.total_impact_p50 is None
 
