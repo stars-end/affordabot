@@ -213,7 +213,7 @@ async def pipeline_runs(target: str, limit: int) -> dict[str, Any]:
           started_at,
           completed_at
         FROM pipeline_runs
-        ORDER BY started_at DESC NULLS LAST, created_at DESC NULLS LAST
+        ORDER BY started_at DESC NULLS LAST, id DESC
         LIMIT """
         + str(limit),
     )
