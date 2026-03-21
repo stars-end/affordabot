@@ -80,6 +80,8 @@ async def diagnose_bill(db, jurisdiction: str, bill_id: str) -> dict:
     # Stage 2: Vector chunks
     document_id = metadata.get("document_id")
     chunk_count = 0
+    chunk_lookup_method = "none"
+
     if document_id:
         chunk_query = (
             "SELECT COUNT(*) as cnt FROM document_chunks WHERE document_id = $1"
@@ -87,9 +89,23 @@ async def diagnose_bill(db, jurisdiction: str, bill_id: str) -> dict:
         chunk_row = await db._fetchrow(chunk_query, document_id)
         chunk_count = chunk_row["cnt"] if chunk_row else 0
 
+    if chunk_count == 0:
+        meta_chunk_query = (
+            "SELECT COUNT(*) as cnt FROM document_chunks "
+            "WHERE metadata::json->>'bill_number' = $1"
+        )
+        meta_row = await db._fetchrow(meta_chunk_query, bill_id)
+        meta_count = meta_row["cnt"] if meta_row else 0
+        if meta_count > 0:
+            chunk_count = meta_count
+            chunk_lookup_method = "metadata_bill_number"
+    else:
+        chunk_lookup_method = "document_id"
+
     result["stages"]["vector_chunks"] = {
         "document_id": document_id,
         "chunk_count": chunk_count,
+        "lookup_method": chunk_lookup_method,
         "status": "indexed" if chunk_count > 0 else "missing",
     }
     if chunk_count == 0 and extraction_status == "success":
@@ -127,7 +143,7 @@ async def diagnose_bill(db, jurisdiction: str, bill_id: str) -> dict:
 
     # Stage 4: Pipeline run
     pipe_query = """
-        SELECT id, status, started_at, completed_at, error, result
+        SELECT id, status, started_at, completed_at, error, result, trigger_source
         FROM pipeline_runs
         WHERE LOWER(bill_id) LIKE LOWER($1)
         ORDER BY started_at DESC
@@ -140,13 +156,46 @@ async def diagnose_bill(db, jurisdiction: str, bill_id: str) -> dict:
             if isinstance(pipe["result"], str)
             else (pipe["result"] or {})
         )
+        trigger_source = pipe.get("trigger_source", "manual")
+
+        steps_query = """
+            SELECT step_number, step_name, status
+            FROM pipeline_steps
+            WHERE run_id = $1
+            ORDER BY step_number ASC
+        """
+        step_rows = await db._fetch(steps_query, str(pipe["id"]))
+        steps_summary = (
+            [
+                {
+                    "step_number": r["step_number"],
+                    "step_name": r["step_name"],
+                    "status": r["status"],
+                }
+                for r in step_rows
+            ]
+            if step_rows
+            else []
+        )
+        has_persistence = any(
+            s["step_name"] == "persistence" and s["status"] == "completed"
+            for s in steps_summary
+        )
+
         result["stages"]["pipeline_run"] = {
             "run_id": str(pipe["id"]),
             "status": pipe["status"],
+            "trigger_source": trigger_source,
             "source_text_present": pipe_result.get("source_text_present"),
             "rag_chunks_retrieved": pipe_result.get("rag_chunks_retrieved", 0),
             "quantification_eligible": pipe_result.get("quantification_eligible"),
+            "pipeline_steps": steps_summary,
+            "persistence_step_present": has_persistence,
         }
+        if not has_persistence and pipe["status"] == "completed":
+            result["issues"].append(
+                "Pipeline completed but no persistence step recorded"
+            )
     else:
         result["stages"]["pipeline_run"] = {"status": "missing"}
         result["issues"].append("No pipeline run found")

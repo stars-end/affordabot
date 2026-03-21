@@ -99,6 +99,91 @@ class TestDiagnoseBillSqlGeneration:
         assert "total_impact_p50" in query
 
 
+class TestDiagnoseBillChunkLookup:
+    """Test that chunk lookup uses metadata.bill_number fallback (bd-hvji.9)."""
+
+    def test_chunk_lookup_uses_metadata_bill_number_fallback(self) -> None:
+        script = (
+            Path(__file__).resolve().parents[1]
+            / "scripts"
+            / "verification"
+            / "verify_pipeline_truth.py"
+        )
+        source = script.read_text()
+        assert "metadata::json->>'bill_number'" in source, (
+            "Chunk lookup should fall back to metadata.bill_number"
+        )
+
+    def test_chunk_lookup_includes_lookup_method(self) -> None:
+        script = (
+            Path(__file__).resolve().parents[1]
+            / "scripts"
+            / "verification"
+            / "verify_pipeline_truth.py"
+        )
+        source = script.read_text()
+        assert '"lookup_method"' in source, (
+            "Chunk stage should report which lookup method was used"
+        )
+
+    def test_pipeline_run_selects_trigger_source(self) -> None:
+        script = (
+            Path(__file__).resolve().parents[1]
+            / "scripts"
+            / "verification"
+            / "verify_pipeline_truth.py"
+        )
+        source = script.read_text()
+        assert (
+            "trigger_source"
+            in source.split("Stage 4: Pipeline run")[1].split("Stage 5")[0]
+            if "Stage 5" in source
+            else source.split("Stage 4: Pipeline run")[1]
+        ), "Pipeline run query should select trigger_source"
+
+    def test_pipeline_run_checks_persistence_step(self) -> None:
+        script = (
+            Path(__file__).resolve().parents[1]
+            / "scripts"
+            / "verification"
+            / "verify_pipeline_truth.py"
+        )
+        source = script.read_text()
+        assert "persistence_step_present" in source, (
+            "Pipeline run should check for persistence step"
+        )
+        assert "pipeline_steps" in source, "Pipeline run should include pipeline_steps"
+
+
+class TestRerunScriptTriggerSource:
+    """Test that rerun script passes trigger_source explicitly (bd-hvji.9)."""
+
+    def test_rerun_passes_trigger_source(self) -> None:
+        script = (
+            Path(__file__).resolve().parents[1]
+            / "scripts"
+            / "rerun_california_bills.py"
+        )
+        source = script.read_text()
+        assert 'trigger_source="manual"' in source, (
+            "Rerun script should explicitly pass trigger_source='manual' to pipeline.run"
+        )
+
+    def test_rerun_has_schema_preflight(self) -> None:
+        script = (
+            Path(__file__).resolve().parents[1]
+            / "scripts"
+            / "rerun_california_bills.py"
+        )
+        source = script.read_text()
+        assert "Schema Pre-flight" in source, (
+            "Rerun script should have schema pre-flight step"
+        )
+        assert "trigger_source TEXT" in source, (
+            "Schema pre-flight should ensure trigger_source column"
+        )
+
+
 class TestQuarantineSqlGeneration:
     """Test that quarantine script SQL references valid columns."""
 

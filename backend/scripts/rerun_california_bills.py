@@ -192,6 +192,7 @@ async def run_pipeline(db, bill_number: str, bill_text: str, jurisdiction: str):
         bill_text=bill_text,
         jurisdiction=jurisdiction,
         models=models,
+        trigger_source="manual",
     )
 
     print(f"  Pipeline complete for {bill_number}:")
@@ -267,6 +268,22 @@ async def main():
     ]
 
     try:
+        # Step 0: Ensure trigger_source column exists
+        print("=== Step 0: Schema Pre-flight ===")
+        try:
+            await db._execute("""
+                ALTER TABLE pipeline_runs
+                  ADD COLUMN IF NOT EXISTS trigger_source TEXT DEFAULT 'manual'
+            """)
+            print("  trigger_source column ensured")
+            await db._execute("""
+                CREATE INDEX IF NOT EXISTS idx_pipeline_runs_trigger_source
+                  ON pipeline_runs(trigger_source)
+            """)
+            print("  idx_pipeline_runs_trigger_source ensured")
+        except Exception as e:
+            print(f"  WARNING: schema pre-flight failed (non-blocking): {e}")
+
         # Step 1: Ingest/chunk
         print("=== Step 1: Ingestion/Chunking ===")
         for bill in bills:
