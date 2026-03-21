@@ -247,19 +247,24 @@ class PostgresDB:
             return False
 
     async def create_pipeline_run(
-        self, bill_id: str, jurisdiction: str, models: Dict[str, str]
+        self,
+        bill_id: str,
+        jurisdiction: str,
+        models: Dict[str, str],
+        trigger_source: str = "manual",
     ) -> Optional[str]:
         """Create a new pipeline run record."""
         try:
             row = await self._fetchrow(
                 """
-                INSERT INTO pipeline_runs (bill_id, jurisdiction, models, started_at)
-                VALUES ($1, $2, $3, NOW())
+                INSERT INTO pipeline_runs (bill_id, jurisdiction, models, trigger_source, started_at)
+                VALUES ($1, $2, $3, $4, NOW())
                 RETURNING id
                 """,
                 bill_id,
                 jurisdiction,
                 json.dumps(models),
+                trigger_source,
             )
             return str(row["id"]) if row else None
         except Exception as e:

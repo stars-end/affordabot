@@ -69,6 +69,7 @@ class TestGlassBoxTruthFields:
                 "error": None,
                 "models": "{}",
                 "result": '{"sufficiency_breakdown": {"source_text_present": true, "rag_chunks_retrieved": 3, "quantification_eligible": false}, "source_text_present": true, "retriever_invoked": true, "rag_chunks_retrieved": 3, "quantification_eligible": false, "insufficiency_reason": "no tier-a sources", "model_used": "glm-4.7"}',
+                "trigger_source": "manual",
             }
         )
 
@@ -82,6 +83,43 @@ class TestGlassBoxTruthFields:
         assert result["quantification_eligible"] is False
         assert result["insufficiency_reason"] == "no tier-a sources"
         assert result["sufficiency_breakdown"] is not None
+        assert result["trigger_source"] == "manual"
+
+    @pytest.mark.asyncio
+    async def test_list_pipeline_runs_includes_trigger_source(self):
+        """Pipeline run listing should include trigger_source field."""
+        mock_db = AsyncMock()
+        mock_db._fetch = AsyncMock(
+            return_value=[
+                {
+                    "id": "1",
+                    "bill_id": "SB 277",
+                    "jurisdiction": "California",
+                    "status": "completed",
+                    "started_at": datetime(2026, 3, 19, 12, 0, 0),
+                    "completed_at": datetime(2026, 3, 19, 12, 5, 0),
+                    "error": None,
+                    "trigger_source": "manual",
+                },
+                {
+                    "id": "2",
+                    "bill_id": "AB 100",
+                    "jurisdiction": "California",
+                    "status": "completed",
+                    "started_at": datetime(2026, 3, 19, 13, 0, 0),
+                    "completed_at": datetime(2026, 3, 19, 13, 5, 0),
+                    "error": None,
+                    "trigger_source": "windmill",
+                },
+            ]
+        )
+
+        service = GlassBoxService(db_client=mock_db)
+        runs = await service.list_pipeline_runs()
+
+        assert len(runs) == 2
+        assert runs[0]["trigger_source"] == "manual"
+        assert runs[1]["trigger_source"] == "windmill"
 
 
 class TestAlertingService:
@@ -181,3 +219,148 @@ class TestSufficiencyBreakdownSchema:
         assert data["source_text_present"] is True
         assert data["rag_chunks_retrieved"] == 5
         assert data["quantification_eligible"] is True
+
+
+class TestManualRunSlackSummary:
+    """Test Slack summary formatting for manual pipeline runs (bd-hvji.6)."""
+
+    def _make_steps(self):
+        return [
+            {
+                "step_name": "ingestion_source",
+                "status": "completed",
+                "output_result": {
+                    "raw_scrape_id": "rs-1",
+                    "source_url": "https://leginfo.legislature.ca.gov",
+                    "source_text_present": True,
+                },
+            },
+            {
+                "step_name": "research",
+                "status": "completed",
+                "output_result": {
+                    "rag_chunks": 5,
+                    "web_sources": 3,
+                    "evidence_envelopes": 4,
+                    "is_sufficient": True,
+                },
+            },
+            {
+                "step_name": "sufficiency_gate",
+                "status": "completed",
+                "output_result": {
+                    "sufficiency_state": "quantified",
+                    "rag_chunks_retrieved": 5,
+                    "web_research_sources_found": 3,
+                },
+            },
+            {
+                "step_name": "generate",
+                "status": "completed",
+                "output_result": {
+                    "sufficiency_state": "quantified",
+                    "impacts": [{"impact_number": 1}, {"impact_number": 2}],
+                    "quantification_eligible": True,
+                },
+            },
+            {
+                "step_name": "review",
+                "status": "completed",
+                "output_result": {
+                    "passed": True,
+                    "factual_errors": [],
+                    "missing_impacts": [],
+                },
+            },
+        ]
+
+    def test_all_stages_have_proof_lines(self):
+        from services.slack_summary import format_slack_summary
+
+        payload = format_slack_summary(
+            run_id="test-run-1",
+            bill_id="SB-277",
+            jurisdiction="California",
+            status="completed",
+            started_at="2026-03-21T10:00:00Z",
+            completed_at="2026-03-21T10:05:00Z",
+            trigger_source="manual",
+            steps=self._make_steps(),
+            result={"sufficiency_state": "quantified"},
+        )
+
+        blocks_text = str(payload["blocks"])
+        assert "Scrape/source:" in blocks_text
+        assert "Research:" in blocks_text
+        assert "Sufficiency gate:" in blocks_text
+        assert "Generate:" in blocks_text
+        assert "Review:" in blocks_text
+
+    def test_deep_links_present(self):
+        from services.slack_summary import format_slack_summary
+
+        payload = format_slack_summary(
+            run_id="run-deep-1",
+            bill_id="ACR-117",
+            jurisdiction="California",
+            status="completed",
+            started_at="2026-03-21T10:00:00Z",
+            completed_at="2026-03-21T10:05:00Z",
+            trigger_source="manual",
+            steps=self._make_steps(),
+        )
+
+        blocks_text = str(payload["blocks"])
+        assert "Full Audit Trace" in blocks_text
+        assert "/admin/audits/trace/run-deep-1" in blocks_text
+        assert "Bill Truth" in blocks_text
+        assert "/admin/bill-truth/california/ACR-117" in blocks_text
+
+    def test_sufficiency_state_in_summary(self):
+        from services.slack_summary import format_slack_summary
+
+        payload = format_slack_summary(
+            run_id="run-suff-1",
+            bill_id="SB-1",
+            jurisdiction="CA",
+            status="completed",
+            started_at="2026-03-21T10:00:00Z",
+            completed_at="2026-03-21T10:05:00Z",
+            trigger_source="manual",
+            steps=self._make_steps(),
+            result={"sufficiency_state": "research_incomplete"},
+        )
+
+        blocks_text = str(payload["blocks"])
+        assert "research_incomplete" in blocks_text
+
+    def test_insufficient_research_shows_reason(self):
+        from services.slack_summary import format_slack_summary
+
+        steps = [
+            {
+                "step_name": "research",
+                "status": "completed",
+                "output_result": {
+                    "rag_chunks": 0,
+                    "web_sources": 0,
+                    "evidence_envelopes": 0,
+                    "is_sufficient": False,
+                    "insufficiency_reason": "no tier-a sources found",
+                },
+            },
+        ]
+        payload = format_slack_summary(
+            run_id="run-insuff-1",
+            bill_id="SB-999",
+            jurisdiction="CA",
+            status="completed",
+            started_at="2026-03-21T10:00:00Z",
+            completed_at="2026-03-21T10:01:00Z",
+            trigger_source="manual",
+            steps=steps,
+        )
+
+        blocks_text = str(payload["blocks"])
+        assert "insufficient" in blocks_text
+        assert "no tier-a sources found" in blocks_text
