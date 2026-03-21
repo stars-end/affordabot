@@ -49,8 +49,8 @@ def resolve_database_url(target: str) -> str:
         return f"postgresql://{quote(pg_user)}:{quote(pg_password)}@{pg_host}:{pg_port}/{pg_database}"
 
     url = (
-        os.getenv("DATABASE_URL")
-        or os.getenv("DATABASE_URL_PUBLIC")
+        os.getenv("DATABASE_URL_PUBLIC")
+        or os.getenv("DATABASE_URL")
         or os.getenv("RAILWAY_DATABASE_URL")
     )
     if not url:
