@@ -450,8 +450,8 @@ class TestManualRunSlackSummary:
         assert "42 chunks" in blocks_text
         assert "doc-sb277-v2" in blocks_text
 
-    def test_slack_emit_skips_windmill_trigger_source(self):
-        """_emit_slack_summary logic: skip when trigger_source != manual."""
+    @pytest.mark.asyncio
+    async def test_slack_emit_skips_windmill_trigger_source(self):
         call_log = []
 
         async def fake_emit(*args, **kwargs):
@@ -476,18 +476,12 @@ class TestManualRunSlackSummary:
                 )
 
         pipe = FakePipeline()
-        import asyncio
-
-        asyncio.get_event_loop().run_until_complete(
-            pipe._emit_slack_summary(
-                "wind-run", "SB-1", "CA", "done", trigger_source="windmill"
-            )
+        await pipe._emit_slack_summary(
+            "wind-run", "SB-1", "CA", "done", trigger_source="windmill"
         )
         assert len(call_log) == 0
 
-        asyncio.get_event_loop().run_until_complete(
-            pipe._emit_slack_summary(
-                "man-run", "SB-2", "CA", "done", trigger_source="manual"
-            )
+        await pipe._emit_slack_summary(
+            "man-run", "SB-2", "CA", "done", trigger_source="manual"
         )
         assert len(call_log) == 1
