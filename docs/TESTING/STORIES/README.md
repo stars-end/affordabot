@@ -1,6 +1,12 @@
 # Admin Console User Stories
 
-Test stories for verifying the Affordabot admin console using UISmokeAgent with GLM-4.6V visual analysis.
+Test stories for verifying Affordabot admin and account flows.
+
+## Execution Engine Policy
+
+- **Default**: run Plaid sandbox stories with **Playwright**.
+- **Conditional**: run Plaid sandbox stories via `uismoke` only when the full flow is deterministic end to end in the current environment (stable selectors, fixed sandbox behavior, predictable post-link render).
+- The iframe proof-of-concept in [`../POC/poc-08-iframe.yml`](../POC/poc-08-iframe.yml) is not the production story contract.
 
 ## Stories
 
@@ -13,6 +19,8 @@ Test stories for verifying the Affordabot admin console using UISmokeAgent with 
 | [prompt_configuration](prompt_configuration.yml) | View and edit LLM prompts | P0 |
 | [review_queue_workflow](review_queue_workflow.yml) | Review generated analyses | P0 |
 | [full_admin_e2e](full_admin_e2e.yml) | Complete E2E admin workflow | P0 |
+| [plaid_sandbox_happy_path](plaid_sandbox_happy_path.yml) | Link sandbox account successfully from settings | P1 |
+| [plaid_sandbox_login_failure](plaid_sandbox_login_failure.yml) | Invalid credentials fail safely with no linked account | P1 |
 
 ## Running Stories
 
@@ -25,6 +33,10 @@ make verify-story STORY=admin_dashboard_overview
 
 # Run stories for PR verification
 make verify-pr PR=185
+
+# Plaid sandbox stories (default engine: Playwright)
+# Execute the concrete Plaid happy/failure automation with Playwright specs.
+# Use uismoke only when deterministic end-to-end conditions are met.
 ```
 
 ## Story Format
