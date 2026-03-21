@@ -207,7 +207,8 @@ class GlassBoxService:
 
         try:
             query = """
-                SELECT id, bill_id, jurisdiction, status, started_at, completed_at, error 
+                SELECT id, bill_id, jurisdiction, status, started_at, completed_at, error,
+                       trigger_source
                 FROM pipeline_runs 
                 ORDER BY started_at DESC 
                 LIMIT $1
@@ -224,6 +225,7 @@ class GlassBoxService:
                     if r["completed_at"]
                     else None,
                     "error": r["error"],
+                    "trigger_source": r.get("trigger_source", "manual"),
                 }
                 for r in rows
             ]
@@ -238,7 +240,8 @@ class GlassBoxService:
 
         try:
             query = """
-                SELECT id, bill_id, jurisdiction, status, started_at, completed_at, error, models, result 
+                SELECT id, bill_id, jurisdiction, status, started_at, completed_at, error, models, result,
+                       trigger_source
                 FROM pipeline_runs 
                 WHERE id::text = $1
             """
@@ -277,6 +280,7 @@ class GlassBoxService:
                 "analysis_quantification_eligible": analysis.get(
                     "quantification_eligible"
                 ),
+                "trigger_source": r.get("trigger_source", "manual"),
             }
         except Exception as e:
             logger.error(f"Error getting pipeline run {run_id}: {e}")

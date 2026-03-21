@@ -82,7 +82,12 @@ class AnalysisPipeline:
         )
 
     async def run(
-        self, bill_id: str, bill_text: str, jurisdiction: str, models: Dict[str, str]
+        self,
+        bill_id: str,
+        bill_text: str,
+        jurisdiction: str,
+        models: Dict[str, str],
+        trigger_source: str = "manual",
     ) -> LegislationAnalysisResponse:
         """
         Run full pipeline.
@@ -92,13 +97,16 @@ class AnalysisPipeline:
             bill_text: Full bill text
             jurisdiction: Jurisdiction (e.g., "California")
             models: {"research": "...", "generate": "...", "review": "..."}
+            trigger_source: "manual" or "windmill"
 
         Returns:
             Final analysis (validated LegislationAnalysisResponse)
         """
         from services.audit.logger import AuditLogger
 
-        run_id = await self._create_pipeline_run(bill_id, jurisdiction, models)
+        run_id = await self._create_pipeline_run(
+            bill_id, jurisdiction, models, trigger_source
+        )
         audit = AuditLogger(run_id, self.db)
 
         try:
@@ -322,6 +330,43 @@ class AnalysisPipeline:
                 retriever_invoked=research_result.retriever_invoked,
             )
 
+            legislation_id = None
+            if hasattr(self.db, "get_bill"):
+                try:
+                    bill = await self.db.get_bill(jurisdiction, bill_id)
+                    if bill:
+                        legislation_id = bill.get("id")
+                except Exception:
+                    pass
+
+            await audit.log_step(
+                step_number=7,
+                step_name="persistence",
+                status="completed",
+                input_context={"bill_id": bill_id, "jurisdiction": jurisdiction},
+                output_result={
+                    "legislation_id": legislation_id,
+                    "analysis_stored": True,
+                    "impacts_count": len(analysis.impacts),
+                    "sufficiency_state": analysis.sufficiency_state.value
+                    if analysis.sufficiency_state
+                    else None,
+                    "quantification_eligible": analysis.quantification_eligible,
+                    "total_impact_p50": analysis.total_impact_p50,
+                },
+                model_info={"model": "deterministic", "provider": "postgres"},
+                duration_ms=0,
+            )
+
+            await self._emit_slack_summary(
+                run_id,
+                bill_id,
+                jurisdiction,
+                "completed",
+                trigger_source,
+                analysis,
+            )
+
             return analysis
 
         except Exception as e:
@@ -332,6 +377,14 @@ class AnalysisPipeline:
                 status="failed",
                 output_result={"error": str(e)},
                 model_info={"models_attempted": models},
+            )
+            await self._emit_slack_summary(
+                run_id,
+                bill_id,
+                jurisdiction,
+                "failed",
+                trigger_source,
+                error=str(e),
             )
             raise
 
@@ -633,11 +686,17 @@ Bill Text: {bill_text[:5000]}
         return result  # type: ignore[return-value]
 
     async def _create_pipeline_run(
-        self, bill_id: str, jurisdiction: str, models: Dict[str, str]
+        self,
+        bill_id: str,
+        jurisdiction: str,
+        models: Dict[str, str],
+        trigger_source: str = "manual",
     ) -> str:
         """Create a new pipeline run record."""
         if hasattr(self.db, "create_pipeline_run"):
-            run_id = await self.db.create_pipeline_run(bill_id, jurisdiction, models)
+            run_id = await self.db.create_pipeline_run(
+                bill_id, jurisdiction, models, trigger_source=trigger_source
+            )
             if run_id:
                 return run_id
         return "run_id_placeholder"
@@ -720,3 +779,31 @@ Bill Text: {bill_text[:5000]}
         print(f"Pipeline Run {run_id} Failed: {error}")
         if hasattr(self.db, "fail_pipeline_run"):
             await self.db.fail_pipeline_run(run_id, error)
+
+    async def _emit_slack_summary(
+        self,
+        run_id: str,
+        bill_id: str,
+        jurisdiction: str,
+        status: str,
+        trigger_source: str,
+        analysis=None,
+        error: str = "",
+    ):
+        """Emit Slack summary for manual runs after pipeline completion."""
+        if trigger_source != "manual":
+            return
+
+        import os
+
+        webhook_url = os.environ.get("SLACK_WEBHOOK_URL")
+        if not webhook_url:
+            logger.debug("No SLACK_WEBHOOK_URL set, skipping Slack summary")
+            return
+
+        try:
+            from services.slack_summary import load_and_emit
+
+            await load_and_emit(self.db, webhook_url, run_id, trigger_source)
+        except Exception as exc:
+            logger.warning("Slack summary emit failed (non-blocking): %s", exc)

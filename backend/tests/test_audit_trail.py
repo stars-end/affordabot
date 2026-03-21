@@ -195,3 +195,166 @@ async def test_audit_logger_failed_step(tmp_path, monkeypatch):
         assert len(steps) == 1
         assert steps[0]["status"] == "failed"
         assert "error" in steps[0]["output_result"]
+
+
+@pytest.mark.asyncio
+async def test_slack_summary_format_includes_audit_link():
+    """Slack summary payload must include deep-link to /admin/audits/trace/{run_id}."""
+    from services.slack_summary import format_slack_summary, build_audit_url
+
+    run_id = "abc-123"
+    bill_id = "SB-277"
+    jurisdiction = "California"
+    steps = [
+        {
+            "step_name": "ingestion_source",
+            "status": "completed",
+            "output_result": {
+                "raw_scrape_id": "scrape-1",
+                "source_url": "https://leginfo.ca.gov",
+                "source_text_present": True,
+            },
+        },
+        {
+            "step_name": "chunk_index",
+            "status": "completed",
+            "output_result": {
+                "chunk_count": 12,
+                "document_id": "doc-abc-123",
+            },
+        },
+        {
+            "step_name": "research",
+            "status": "completed",
+            "output_result": {
+                "rag_chunks": 3,
+                "web_sources": 2,
+                "evidence_envelopes": 2,
+                "is_sufficient": True,
+            },
+        },
+        {
+            "step_name": "sufficiency_gate",
+            "status": "completed",
+            "output_result": {
+                "sufficiency_state": "quantified",
+                "rag_chunks_retrieved": 3,
+                "web_research_sources_found": 2,
+            },
+        },
+        {
+            "step_name": "generate",
+            "status": "completed",
+            "output_result": {
+                "sufficiency_state": "quantified",
+                "impacts": [{"impact_number": 1}],
+                "quantification_eligible": True,
+            },
+        },
+        {
+            "step_name": "review",
+            "status": "completed",
+            "output_result": {
+                "passed": True,
+                "factual_errors": [],
+                "missing_impacts": [],
+            },
+        },
+        {
+            "step_name": "persistence",
+            "status": "completed",
+            "output_result": {
+                "analysis_stored": True,
+                "legislation_id": "leg-42",
+                "impacts_count": 1,
+                "sufficiency_state": "quantified",
+                "quantification_eligible": True,
+                "total_impact_p50": 15000,
+            },
+        },
+    ]
+
+    payload = format_slack_summary(
+        run_id=run_id,
+        bill_id=bill_id,
+        jurisdiction=jurisdiction,
+        status="completed",
+        started_at="2026-03-21T10:00:00Z",
+        completed_at="2026-03-21T10:05:00Z",
+        trigger_source="manual",
+        steps=steps,
+        result={"sufficiency_state": "quantified"},
+    )
+
+    assert "blocks" in payload
+    assert len(payload["blocks"]) == 3
+    blocks_text = str(payload["blocks"])
+
+    assert build_audit_url(run_id) in blocks_text
+    assert "/admin/bill-truth/" in blocks_text
+    assert "trigger=manual" in blocks_text
+    assert "Scrape/source" in blocks_text
+    assert "Chunk/index" in blocks_text
+    assert "Research:" in blocks_text
+    assert "Sufficiency gate:" in blocks_text
+    assert "Generate:" in blocks_text
+    assert "Review:" in blocks_text
+    assert "Persistence:" in blocks_text
+
+
+@pytest.mark.asyncio
+async def test_slack_summary_failure_format():
+    """Slack summary for failed runs includes error details."""
+    from services.slack_summary import format_slack_summary
+
+    payload = format_slack_summary(
+        run_id="fail-1",
+        bill_id="TEST-001",
+        jurisdiction="California",
+        status="failed",
+        started_at="2026-03-21T10:00:00Z",
+        completed_at="2026-03-21T10:01:00Z",
+        trigger_source="manual",
+        steps=[
+            {
+                "step_name": "pipeline_failure",
+                "status": "failed",
+                "output_result": {"error": "Rate limit exceeded"},
+            }
+        ],
+    )
+
+    blocks_text = str(payload["blocks"])
+    assert "Pipeline failure" in blocks_text
+    assert "Rate limit exceeded" in blocks_text
+    assert "/admin/audits/trace/fail-1" in blocks_text
+
+
+@pytest.mark.asyncio
+async def test_slack_summary_skipped_without_webhook():
+    """emit_slack_summary returns False gracefully when no webhook is configured."""
+    from services.slack_summary import emit_slack_summary
+
+    result = await emit_slack_summary(
+        webhook_url=None,
+        run_id="test-1",
+        bill_id="SB-1",
+        jurisdiction="CA",
+        status="completed",
+        started_at="2026-03-21T10:00:00Z",
+        completed_at="2026-03-21T10:05:00Z",
+        trigger_source="manual",
+        steps=[],
+    )
+    assert result is False
+
+
+@pytest.mark.asyncio
+async def test_audit_link_generation():
+    """build_audit_url and build_bill_truth_url produce correct paths."""
+    from services.slack_summary import build_audit_url, build_bill_truth_url
+
+    audit = build_audit_url("run-42")
+    assert "/admin/audits/trace/run-42" in audit
+    truth = build_bill_truth_url("California", "SB-277")
+    assert "/admin/bill-truth/california/SB-277" in truth
