@@ -23,11 +23,13 @@ ADMIN_BASE_URL = os.environ.get(
 
 STAGE_PROOF_BUILDERS = {
     "ingestion_source": "_build_ingestion_proof",
+    "chunk_index": "_build_chunk_index_proof",
     "research": "_build_research_proof",
     "sufficiency_gate": "_build_sufficiency_proof",
     "generate": "_build_generate_proof",
     "review": "_build_review_proof",
     "refine": "_build_refine_proof",
+    "persistence": "_build_persistence_proof",
     "pipeline_failure": "_build_failure_proof",
 }
 
@@ -306,3 +308,34 @@ def _build_refine_proof(status: str, output: Dict) -> str:
 def _build_failure_proof(status: str, output: Dict) -> str:
     error = output.get("error", "unknown")
     return f"Pipeline failure: `{str(error)[:200]}`."
+
+
+def _build_chunk_index_proof(status: str, output: Dict) -> str:
+    chunks = output.get("chunk_count", output.get("chunks_created", 0))
+    doc_id = output.get("document_id", "?")
+    if status == "skipped":
+        return "Chunk/index: skipped — no documents to index."
+    return f"Chunk/index: {chunks} chunks created for document `{doc_id}`."
+
+
+def _build_persistence_proof(status: str, output: Dict) -> str:
+    stored = output.get("analysis_stored", False)
+    leg_id = output.get("legislation_id", "?")
+    impacts = output.get("impacts_count", 0)
+    suff = output.get("sufficiency_state", "?")
+    quant = output.get("quantification_eligible", False)
+    p50 = output.get("total_impact_p50")
+
+    if not stored:
+        return "Persistence: analysis NOT stored."
+
+    parts = [f"Persisted to legislation `{leg_id}`: {impacts} impacts"]
+    parts.append(f"sufficiency `{suff}`")
+    if quant and p50 is not None:
+        parts.append(f"p50={p50}")
+    elif quant:
+        parts.append("quantification eligible (no p50)")
+    else:
+        parts.append("quantification blocked")
+
+    return "Persistence: " + ", ".join(parts) + "."

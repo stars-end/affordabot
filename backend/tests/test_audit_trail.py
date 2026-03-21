@@ -216,6 +216,14 @@ async def test_slack_summary_format_includes_audit_link():
             },
         },
         {
+            "step_name": "chunk_index",
+            "status": "completed",
+            "output_result": {
+                "chunk_count": 12,
+                "document_id": "doc-abc-123",
+            },
+        },
+        {
             "step_name": "research",
             "status": "completed",
             "output_result": {
@@ -223,6 +231,15 @@ async def test_slack_summary_format_includes_audit_link():
                 "web_sources": 2,
                 "evidence_envelopes": 2,
                 "is_sufficient": True,
+            },
+        },
+        {
+            "step_name": "sufficiency_gate",
+            "status": "completed",
+            "output_result": {
+                "sufficiency_state": "quantified",
+                "rag_chunks_retrieved": 3,
+                "web_research_sources_found": 2,
             },
         },
         {
@@ -241,6 +258,18 @@ async def test_slack_summary_format_includes_audit_link():
                 "passed": True,
                 "factual_errors": [],
                 "missing_impacts": [],
+            },
+        },
+        {
+            "step_name": "persistence",
+            "status": "completed",
+            "output_result": {
+                "analysis_stored": True,
+                "legislation_id": "leg-42",
+                "impacts_count": 1,
+                "sufficiency_state": "quantified",
+                "quantification_eligible": True,
+                "total_impact_p50": 15000,
             },
         },
     ]
@@ -265,9 +294,12 @@ async def test_slack_summary_format_includes_audit_link():
     assert "/admin/bill-truth/" in blocks_text
     assert "trigger=manual" in blocks_text
     assert "Scrape/source" in blocks_text
+    assert "Chunk/index" in blocks_text
     assert "Research:" in blocks_text
+    assert "Sufficiency gate:" in blocks_text
     assert "Generate:" in blocks_text
     assert "Review:" in blocks_text
+    assert "Persistence:" in blocks_text
 
 
 @pytest.mark.asyncio

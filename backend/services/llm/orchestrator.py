@@ -330,6 +330,34 @@ class AnalysisPipeline:
                 retriever_invoked=research_result.retriever_invoked,
             )
 
+            legislation_id = None
+            if hasattr(self.db, "get_bill"):
+                try:
+                    bill = await self.db.get_bill(jurisdiction, bill_id)
+                    if bill:
+                        legislation_id = bill.get("id")
+                except Exception:
+                    pass
+
+            await audit.log_step(
+                step_number=7,
+                step_name="persistence",
+                status="completed",
+                input_context={"bill_id": bill_id, "jurisdiction": jurisdiction},
+                output_result={
+                    "legislation_id": legislation_id,
+                    "analysis_stored": True,
+                    "impacts_count": len(analysis.impacts),
+                    "sufficiency_state": analysis.sufficiency_state.value
+                    if analysis.sufficiency_state
+                    else None,
+                    "quantification_eligible": analysis.quantification_eligible,
+                    "total_impact_p50": analysis.total_impact_p50,
+                },
+                model_info={"model": "deterministic", "provider": "postgres"},
+                duration_ms=0,
+            )
+
             await self._emit_slack_summary(
                 run_id,
                 bill_id,

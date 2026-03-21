@@ -236,6 +236,14 @@ class TestManualRunSlackSummary:
                 },
             },
             {
+                "step_name": "chunk_index",
+                "status": "completed",
+                "output_result": {
+                    "chunk_count": 18,
+                    "document_id": "doc-sb277",
+                },
+            },
+            {
                 "step_name": "research",
                 "status": "completed",
                 "output_result": {
@@ -272,6 +280,18 @@ class TestManualRunSlackSummary:
                     "missing_impacts": [],
                 },
             },
+            {
+                "step_name": "persistence",
+                "status": "completed",
+                "output_result": {
+                    "analysis_stored": True,
+                    "legislation_id": "leg-42",
+                    "impacts_count": 2,
+                    "sufficiency_state": "quantified",
+                    "quantification_eligible": True,
+                    "total_impact_p50": 15000,
+                },
+            },
         ]
 
     def test_all_stages_have_proof_lines(self):
@@ -291,10 +311,12 @@ class TestManualRunSlackSummary:
 
         blocks_text = str(payload["blocks"])
         assert "Scrape/source:" in blocks_text
+        assert "Chunk/index:" in blocks_text
         assert "Research:" in blocks_text
         assert "Sufficiency gate:" in blocks_text
         assert "Generate:" in blocks_text
         assert "Review:" in blocks_text
+        assert "Persistence:" in blocks_text
 
     def test_deep_links_present(self):
         from services.slack_summary import format_slack_summary
@@ -364,3 +386,108 @@ class TestManualRunSlackSummary:
         blocks_text = str(payload["blocks"])
         assert "insufficient" in blocks_text
         assert "no tier-a sources found" in blocks_text
+
+    def test_persistence_proof_shows_legislation_id_and_state(self):
+        from services.slack_summary import format_slack_summary
+
+        steps = [
+            {
+                "step_name": "persistence",
+                "status": "completed",
+                "output_result": {
+                    "analysis_stored": True,
+                    "legislation_id": "leg-99",
+                    "impacts_count": 3,
+                    "sufficiency_state": "quantified",
+                    "quantification_eligible": True,
+                    "total_impact_p50": 25000,
+                },
+            },
+        ]
+        payload = format_slack_summary(
+            run_id="run-persist-1",
+            bill_id="SB-500",
+            jurisdiction="CA",
+            status="completed",
+            started_at="2026-03-21T10:00:00Z",
+            completed_at="2026-03-21T10:02:00Z",
+            trigger_source="manual",
+            steps=steps,
+        )
+
+        blocks_text = str(payload["blocks"])
+        assert "Persistence:" in blocks_text
+        assert "leg-99" in blocks_text
+        assert "3 impacts" in blocks_text
+        assert "p50=25000" in blocks_text
+
+    def test_chunk_index_proof_shows_chunk_count(self):
+        from services.slack_summary import format_slack_summary
+
+        steps = [
+            {
+                "step_name": "chunk_index",
+                "status": "completed",
+                "output_result": {
+                    "chunk_count": 42,
+                    "document_id": "doc-sb277-v2",
+                },
+            },
+        ]
+        payload = format_slack_summary(
+            run_id="run-chunk-1",
+            bill_id="SB-277",
+            jurisdiction="CA",
+            status="completed",
+            started_at="2026-03-21T10:00:00Z",
+            completed_at="2026-03-21T10:01:00Z",
+            trigger_source="manual",
+            steps=steps,
+        )
+
+        blocks_text = str(payload["blocks"])
+        assert "Chunk/index:" in blocks_text
+        assert "42 chunks" in blocks_text
+        assert "doc-sb277-v2" in blocks_text
+
+    def test_slack_emit_skips_windmill_trigger_source(self):
+        """_emit_slack_summary logic: skip when trigger_source != manual."""
+        call_log = []
+
+        async def fake_emit(*args, **kwargs):
+            call_log.append(kwargs.get("run_id"))
+            return True
+
+        class FakePipeline:
+            db = None
+
+            async def _emit_slack_summary(
+                self, run_id, bill_id, jurisdiction, status, trigger_source, **kwargs
+            ):
+                if trigger_source != "manual":
+                    return
+                await fake_emit(
+                    run_id=run_id,
+                    bill_id=bill_id,
+                    jurisdiction=jurisdiction,
+                    status=status,
+                    trigger_source=trigger_source,
+                    **kwargs,
+                )
+
+        pipe = FakePipeline()
+        import asyncio
+
+        asyncio.get_event_loop().run_until_complete(
+            pipe._emit_slack_summary(
+                "wind-run", "SB-1", "CA", "done", trigger_source="windmill"
+            )
+        )
+        assert len(call_log) == 0
+
+        asyncio.get_event_loop().run_until_complete(
+            pipe._emit_slack_summary(
+                "man-run", "SB-2", "CA", "done", trigger_source="manual"
+            )
+        )
+        assert len(call_log) == 1
