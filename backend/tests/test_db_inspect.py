@@ -122,3 +122,18 @@ async def test_jurisdiction_summary_uses_expected_projection(
     assert result["row_count"] == 1
     assert result["rows"][0]["name"] == "San Jose"
 
+
+@pytest.mark.asyncio
+async def test_pipeline_runs_orders_without_created_at(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def fake_run_query(target: str, sql: str) -> dict:
+        assert target == "primary"
+        assert "FROM pipeline_runs" in sql
+        assert "ORDER BY started_at DESC NULLS LAST, id DESC" in sql
+        assert "created_at" not in sql
+        return {"database": "primary", "row_count": 0, "rows": []}
+
+    monkeypatch.setattr(mod, "run_query", fake_run_query)
+    result = await mod.pipeline_runs("primary", 25)
+    assert result["row_count"] == 0
