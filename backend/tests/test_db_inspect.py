@@ -52,6 +52,27 @@ def test_resolve_database_url_prefers_pg_env_and_proxy(
     )
 
 
+def test_resolve_database_url_falls_back_to_public_url_when_internal_host_has_no_proxy(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("PGHOST", "postgres.railway.internal")
+    monkeypatch.setenv("PGPORT", "5432")
+    monkeypatch.setenv("PGUSER", "postgres")
+    monkeypatch.setenv("PGPASSWORD", "secret")
+    monkeypatch.setenv("PGDATABASE", "railway")
+    monkeypatch.delenv("RAILWAY_TCP_PROXY_DOMAIN", raising=False)
+    monkeypatch.delenv("RAILWAY_TCP_PROXY_PORT", raising=False)
+    monkeypatch.setenv(
+        "DATABASE_URL_PUBLIC",
+        "postgresql://public-user:public-secret@public.proxy.rlwy.net:15432/railway",
+    )
+
+    assert (
+        resolve_database_url("primary")
+        == "postgresql://public-user:public-secret@public.proxy.rlwy.net:15432/railway"
+    )
+
+
 def test_normalize_host_for_host_side_execution_rewrites_internal_hostname(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -69,8 +90,7 @@ def test_normalize_host_for_host_side_execution_rewrites_internal_hostname(
 def test_async_database_url_uses_asyncpg_scheme() -> None:
     assert to_async_database_url("postgres://host/db") == "postgresql+asyncpg://host/db"
     assert (
-        to_async_database_url("postgresql://host/db")
-        == "postgresql+asyncpg://host/db"
+        to_async_database_url("postgresql://host/db") == "postgresql+asyncpg://host/db"
     )
 
 
@@ -137,3 +157,15 @@ async def test_pipeline_runs_orders_without_created_at(
     monkeypatch.setattr(mod, "run_query", fake_run_query)
     result = await mod.pipeline_runs("primary", 25)
     assert result["row_count"] == 0
+
+
+@pytest.mark.asyncio
+async def test_pipeline_runs_includes_trigger_source(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def fake_run_query(target: str, sql: str) -> dict:
+        assert "trigger_source" in sql
+        return {"database": "primary", "row_count": 0, "rows": []}
+
+    monkeypatch.setattr(mod, "run_query", fake_run_query)
+    await mod.pipeline_runs("primary", 5)
