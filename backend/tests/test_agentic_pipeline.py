@@ -9,6 +9,7 @@ from schemas.analysis import (
 )
 from llm_common.core import LLMClient
 from llm_common.web_search import WebSearchClient
+from llm_common.agents.provenance import Evidence, EvidenceEnvelope
 
 
 def _make_legislation_response():
@@ -27,7 +28,11 @@ def _make_legislation_response():
                     {
                         "source_name": "Mock Source",
                         "url": "http://example.com",
-                        "excerpt": "Rent control is good",
+                        "excerpt": (
+                            "The ordinance limits annual rent increases for covered "
+                            "units, which directly lowers monthly rent growth for "
+                            "tenants compared with market-rate adjustments."
+                        ),
                     }
                 ],
                 chain_of_causality="ABC",
@@ -168,3 +173,300 @@ async def test_pipeline_stored_title_not_placeholder():
     stored_title = bill_data.get("title", "")
     assert "Analysis: " not in stored_title
     assert "placeholder" not in stored_title.lower()
+
+
+@pytest.mark.asyncio
+async def test_pipeline_overrides_model_generated_metadata_with_runtime_truth():
+    mock_llm = MagicMock(spec=LLMClient)
+    mock_search = MagicMock(spec=WebSearchClient)
+    mock_db = MagicMock()
+
+    analysis_obj = _make_legislation_response()
+    analysis_obj.bill_number = "WRONG"
+    analysis_obj.jurisdiction = "Wrong Place"
+    analysis_obj.model_used = "hallucinated-model"
+    analysis_obj.analysis_timestamp = "2024-05-22T00:00:00Z"
+    review_obj = _make_review_response()
+
+    mock_llm.chat_completion = AsyncMock(
+        side_effect=[
+            MagicMock(content=analysis_obj.model_dump_json()),
+            MagicMock(content=review_obj.model_dump_json()),
+        ]
+    )
+
+    mock_db.get_latest_scrape_for_bill = AsyncMock(return_value=None)
+    mock_db.create_pipeline_run = AsyncMock(return_value="run-1")
+    mock_db.get_or_create_jurisdiction = AsyncMock(return_value=1)
+    mock_db.store_legislation = AsyncMock(return_value=101)
+    mock_db.store_impacts = AsyncMock()
+    mock_db.complete_pipeline_run = AsyncMock()
+    mock_db.fail_pipeline_run = AsyncMock()
+
+    pipeline = AnalysisPipeline(mock_llm, mock_search, mock_db)
+
+    research_result = _make_research_result()
+    with patch.object(
+        pipeline.research_service,
+        "research",
+        new_callable=AsyncMock,
+        return_value=research_result,
+    ):
+        models = {"research": "m1", "generate": "m2", "review": "m3"}
+        result = await pipeline.run("AB-1234", "The bill text...", "San Jose", models)
+
+    assert result.bill_number == "AB-1234"
+    assert result.jurisdiction == "San Jose"
+    assert result.model_used == "m2"
+    assert result.analysis_timestamp != "2024-05-22T00:00:00Z"
+
+
+@pytest.mark.asyncio
+async def test_pipeline_forces_refine_when_review_lists_missing_impacts():
+    mock_llm = MagicMock(spec=LLMClient)
+    mock_search = MagicMock(spec=WebSearchClient)
+    mock_db = MagicMock()
+
+    analysis_obj = _make_legislation_response()
+    review_obj = ReviewCritique(
+        passed=True,
+        critique="Mostly fine",
+        missing_impacts=["State reimbursement timing"],
+        factual_errors=[],
+    )
+    refined_obj = _make_legislation_response()
+    refined_obj.impacts[0].impact_description = "Refined impact description"
+
+    mock_llm.chat_completion = AsyncMock(
+        side_effect=[
+            MagicMock(content=analysis_obj.model_dump_json()),
+            MagicMock(content=review_obj.model_dump_json()),
+            MagicMock(content=refined_obj.model_dump_json()),
+        ]
+    )
+
+    mock_db.get_latest_scrape_for_bill = AsyncMock(return_value=None)
+    mock_db.create_pipeline_run = AsyncMock(return_value="run-1")
+    mock_db.get_or_create_jurisdiction = AsyncMock(return_value=1)
+    mock_db.store_legislation = AsyncMock(return_value=101)
+    mock_db.store_impacts = AsyncMock()
+    mock_db.complete_pipeline_run = AsyncMock()
+    mock_db.fail_pipeline_run = AsyncMock()
+
+    pipeline = AnalysisPipeline(mock_llm, mock_search, mock_db)
+
+    research_result = _make_research_result()
+    with patch.object(
+        pipeline.research_service,
+        "research",
+        new_callable=AsyncMock,
+        return_value=research_result,
+    ):
+        models = {"research": "m1", "generate": "m2", "review": "m3"}
+        result = await pipeline.run("AB-1234", "The bill text...", "San Jose", models)
+
+    assert mock_llm.chat_completion.call_count == 3
+    assert result.impacts[0].impact_description == "Refined impact description"
+
+
+@pytest.mark.asyncio
+async def test_pipeline_fail_closed_when_claims_not_supported_by_excerpts():
+    mock_llm = MagicMock(spec=LLMClient)
+    mock_search = MagicMock(spec=WebSearchClient)
+    mock_db = MagicMock()
+
+    analysis_obj = _make_legislation_response()
+    analysis_obj.impacts[0].relevant_clause = (
+        "Resolved, That the Chief Clerk of the Assembly transmit copies "
+        "of this resolution to the author for appropriate distribution."
+    )
+    analysis_obj.impacts[0].legal_interpretation = (
+        "This concurrent resolution is non-binding and creates no new funding."
+    )
+    analysis_obj.impacts[0].impact_description = (
+        "This resolution merely recognizes maternal-health work and creates no "
+        "cost-of-living impact."
+    )
+    analysis_obj.impacts[0].evidence[0].excerpt = (
+        "Resolved, That the Chief Clerk of the Assembly transmit copies of this "
+        "resolution to the author for appropriate distribution."
+    )
+    review_obj = _make_review_response()
+    refined_obj = _make_legislation_response()
+    refined_obj.impacts[0].relevant_clause = analysis_obj.impacts[0].relevant_clause
+    refined_obj.impacts[0].legal_interpretation = analysis_obj.impacts[0].legal_interpretation
+    refined_obj.impacts[0].impact_description = analysis_obj.impacts[0].impact_description
+    refined_obj.impacts[0].evidence[0].excerpt = (
+        "Resolved, that the secretary transmits copies."
+    )
+
+    mock_llm.chat_completion = AsyncMock(
+        side_effect=[
+            MagicMock(content=analysis_obj.model_dump_json()),
+            MagicMock(content=review_obj.model_dump_json()),
+            MagicMock(content=refined_obj.model_dump_json()),
+        ]
+    )
+
+    mock_db.get_latest_scrape_for_bill = AsyncMock(return_value=None)
+    mock_db.create_pipeline_run = AsyncMock(return_value="run-1")
+    mock_db.get_or_create_jurisdiction = AsyncMock(return_value=1)
+    mock_db.store_legislation = AsyncMock(return_value=101)
+    mock_db.store_impacts = AsyncMock()
+    mock_db.complete_pipeline_run = AsyncMock()
+    mock_db.fail_pipeline_run = AsyncMock()
+
+    pipeline = AnalysisPipeline(mock_llm, mock_search, mock_db)
+
+    research_result = _make_research_result()
+    with patch.object(
+        pipeline.research_service,
+        "research",
+        new_callable=AsyncMock,
+        return_value=research_result,
+    ):
+        models = {"research": "m1", "generate": "m2", "review": "m3"}
+        await pipeline.run("AB-1234", "The bill text...", "San Jose", models)
+
+    assert mock_llm.chat_completion.call_count == 3
+    persisted = mock_db.complete_pipeline_run.call_args.args[1]
+    assert persisted["review"]["passed"] is False
+    assert any(
+        "do not materially support" in err.lower()
+        for err in persisted["review"]["factual_errors"]
+    )
+
+
+@pytest.mark.asyncio
+async def test_review_prompt_includes_evidence_excerpts():
+    mock_llm = MagicMock(spec=LLMClient)
+    mock_search = MagicMock(spec=WebSearchClient)
+    mock_db = MagicMock()
+
+    analysis_obj = _make_legislation_response()
+    review_obj = _make_review_response()
+
+    mock_llm.chat_completion = AsyncMock(
+        side_effect=[
+            MagicMock(content=analysis_obj.model_dump_json()),
+            MagicMock(content=review_obj.model_dump_json()),
+        ]
+    )
+
+    mock_db.get_latest_scrape_for_bill = AsyncMock(return_value=None)
+    mock_db.create_pipeline_run = AsyncMock(return_value="run-1")
+    mock_db.get_or_create_jurisdiction = AsyncMock(return_value=1)
+    mock_db.store_legislation = AsyncMock(return_value=101)
+    mock_db.store_impacts = AsyncMock()
+    mock_db.complete_pipeline_run = AsyncMock()
+    mock_db.fail_pipeline_run = AsyncMock()
+
+    pipeline = AnalysisPipeline(mock_llm, mock_search, mock_db)
+    research_result = _make_research_result()
+    research_result.rag_chunks = [
+        MagicMock(
+            content="Bill text excerpt",
+            score=0.8,
+            metadata={"source_url": "https://leginfo.legislature.ca.gov/sb277"},
+        )
+    ]
+    research_result.evidence_envelopes = [
+        EvidenceEnvelope(
+            id="env-1",
+            source_tool="retriever",
+            source_query="SB 277",
+            evidence=[
+                Evidence(
+                    id="rag-1",
+                    kind="internal",
+                    label="SB 277 source",
+                    url="https://leginfo.legislature.ca.gov/sb277",
+                    content="",
+                    excerpt="Section 1 requires officers to advise consent is voluntary and record consent.",
+                )
+            ],
+        )
+    ]
+
+    with patch.object(
+        pipeline.research_service,
+        "research",
+        new_callable=AsyncMock,
+        return_value=research_result,
+    ):
+        models = {"research": "m1", "generate": "m2", "review": "m3"}
+        await pipeline.run("AB-1234", "The bill text...", "San Jose", models)
+
+    review_call = mock_llm.chat_completion.await_args_list[1]
+    review_user_message = review_call.kwargs["messages"][1].content
+    assert "Evidence Excerpts:" in review_user_message
+    assert "advise consent is voluntary" in review_user_message
+
+
+@pytest.mark.asyncio
+async def test_pipeline_hydrates_weak_excerpt_from_research_provenance():
+    mock_llm = MagicMock(spec=LLMClient)
+    mock_search = MagicMock(spec=WebSearchClient)
+    mock_db = MagicMock()
+
+    analysis_obj = _make_legislation_response()
+    analysis_obj.impacts[0].impact_description = (
+        "District compliance procedures increase local administrative costs."
+    )
+    analysis_obj.impacts[0].evidence[0].url = "https://leginfo.legislature.ca.gov/sb277"
+    analysis_obj.impacts[0].evidence[0].excerpt = (
+        "The secretary of the Senate shall transmit chaptered copies."
+    )
+    review_obj = _make_review_response()
+
+    mock_llm.chat_completion = AsyncMock(
+        side_effect=[
+            MagicMock(content=analysis_obj.model_dump_json()),
+            MagicMock(content=review_obj.model_dump_json()),
+        ]
+    )
+
+    mock_db.get_latest_scrape_for_bill = AsyncMock(return_value=None)
+    mock_db.create_pipeline_run = AsyncMock(return_value="run-1")
+    mock_db.get_or_create_jurisdiction = AsyncMock(return_value=1)
+    mock_db.store_legislation = AsyncMock(return_value=101)
+    mock_db.store_impacts = AsyncMock()
+    mock_db.complete_pipeline_run = AsyncMock()
+    mock_db.fail_pipeline_run = AsyncMock()
+
+    pipeline = AnalysisPipeline(mock_llm, mock_search, mock_db)
+
+    research_result = _make_research_result()
+    research_result.evidence_envelopes = [
+        EvidenceEnvelope(
+            id="env-1",
+            source_tool="retriever",
+            source_query="SB 277",
+            evidence=[
+                Evidence(
+                    id="rag-1",
+                    kind="internal",
+                    label="SB 277 analysis",
+                    url="https://leginfo.legislature.ca.gov/sb277",
+                    content="",
+                    excerpt=(
+                        "This bill requires local educational agencies to track "
+                        "immunization records and enforce compliance procedures, "
+                        "which increases district administrative workload."
+                    ),
+                )
+            ],
+        )
+    ]
+
+    with patch.object(
+        pipeline.research_service,
+        "research",
+        new_callable=AsyncMock,
+        return_value=research_result,
+    ):
+        models = {"research": "m1", "generate": "m2", "review": "m3"}
+        result = await pipeline.run("AB-1234", "The bill text...", "San Jose", models)
+
+    assert mock_llm.chat_completion.call_count == 2
+    assert "requires local educational agencies" in result.impacts[0].evidence[0].excerpt
