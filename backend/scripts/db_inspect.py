@@ -196,7 +196,7 @@ async def jurisdiction_summary(target: str, limit: int) -> dict[str, Any]:
           COUNT(rs.id) AS raw_scrape_count,
           MAX(rs.created_at) AS last_scrape_at
         FROM jurisdictions j
-        LEFT JOIN sources s ON s.jurisdiction_id::uuid = j.id
+        LEFT JOIN sources s ON s.jurisdiction_id::text = j.id::text
         LEFT JOIN raw_scrapes rs ON rs.source_id = s.id
         GROUP BY j.id, j.name, j.type
         ORDER BY j.name
@@ -240,7 +240,7 @@ async def raw_scrapes_recent(target: str, hours: int, limit: int) -> dict[str, A
           j.name AS jurisdiction_name
         FROM raw_scrapes rs
         LEFT JOIN sources s ON rs.source_id = s.id
-        LEFT JOIN jurisdictions j ON s.jurisdiction_id::uuid = j.id
+        LEFT JOIN jurisdictions j ON s.jurisdiction_id::text = j.id::text
         WHERE rs.created_at >= NOW() - INTERVAL """
         + _quote_literal(f"{hours} hours")
         + """
