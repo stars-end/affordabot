@@ -124,6 +124,8 @@ async def test_jurisdiction_summary_uses_expected_projection(
     async def fake_run_query(target: str, sql: str) -> dict:
         assert target == "primary"
         assert "FROM jurisdictions j" in sql
+        assert "s.jurisdiction_id::text = j.id::text" in sql
+        assert "::uuid" not in sql
         return {
             "database": "primary",
             "row_count": 1,
@@ -141,6 +143,22 @@ async def test_jurisdiction_summary_uses_expected_projection(
 
     assert result["row_count"] == 1
     assert result["rows"][0]["name"] == "San Jose"
+
+
+@pytest.mark.asyncio
+async def test_raw_scrapes_recent_avoids_uuid_cast_on_source_jurisdiction(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def fake_run_query(target: str, sql: str) -> dict:
+        assert target == "primary"
+        assert "FROM raw_scrapes rs" in sql
+        assert "s.jurisdiction_id::text = j.id::text" in sql
+        assert "::uuid" not in sql
+        return {"database": "primary", "row_count": 0, "rows": []}
+
+    monkeypatch.setattr(mod, "run_query", fake_run_query)
+    result = await mod.raw_scrapes_recent("primary", 24, 25)
+    assert result["row_count"] == 0
 
 
 @pytest.mark.asyncio

@@ -50,6 +50,13 @@ class TestOrchestratorTruth:
         assert analysis.title == ""
         assert analysis.total_impact_p50 is None
 
+    def test_persistence_audit_step_not_hardcoded_as_stored(self):
+        """Persistence step should reflect actual storage outcome, not a hardcoded true."""
+        with open("services/llm/orchestrator.py") as f:
+            source = f.read()
+
+        assert '"analysis_stored": True' not in source
+
 
 class TestGlassBoxTruthFields:
     """Test that GlassBox exposes normalized truth fields."""

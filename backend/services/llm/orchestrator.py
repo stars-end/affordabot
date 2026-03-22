@@ -318,7 +318,7 @@ class AnalysisPipeline:
                     duration_ms=duration,
                 )
 
-            await self._complete_pipeline_run(
+            persistence = await self._complete_pipeline_run(
                 run_id,
                 bill_id,
                 bill_text,
@@ -330,24 +330,15 @@ class AnalysisPipeline:
                 retriever_invoked=research_result.retriever_invoked,
             )
 
-            legislation_id = None
-            if hasattr(self.db, "get_bill"):
-                try:
-                    bill = await self.db.get_bill(jurisdiction, bill_id)
-                    if bill:
-                        legislation_id = bill.get("id")
-                except Exception:
-                    pass
-
             await audit.log_step(
                 step_number=7,
                 step_name="persistence",
-                status="completed",
+                status="completed" if persistence.get("analysis_stored") else "failed",
                 input_context={"bill_id": bill_id, "jurisdiction": jurisdiction},
                 output_result={
-                    "legislation_id": legislation_id,
-                    "analysis_stored": True,
-                    "impacts_count": len(analysis.impacts),
+                    "legislation_id": persistence.get("legislation_id"),
+                    "analysis_stored": persistence.get("analysis_stored", False),
+                    "impacts_count": persistence.get("impacts_count", 0),
                     "sufficiency_state": analysis.sufficiency_state.value
                     if analysis.sufficiency_state
                     else None,
@@ -712,8 +703,13 @@ Bill Text: {bill_text[:5000]}
         breakdown: Any = None,
         rag_chunks_retrieved: int = 0,
         retriever_invoked: bool = False,
-    ):
+    ) -> Dict[str, Any]:
         """Mark pipeline run as complete and store results with truthful metadata."""
+        persistence: Dict[str, Any] = {
+            "legislation_id": None,
+            "analysis_stored": False,
+            "impacts_count": 0,
+        }
         try:
             bill_data = {
                 "bill_number": bill_id,
@@ -746,10 +742,22 @@ Bill Text: {bill_text[:5000]}
                     )
 
                     if legislation_id:
+                        persistence["legislation_id"] = legislation_id
+                        persistence["analysis_stored"] = True
                         impact_dicts = [i.model_dump() for i in analysis.impacts]
                         if hasattr(self.db, "store_impacts"):
-                            await self.db.store_impacts(legislation_id, impact_dicts)
+                            stored_impacts = await self.db.store_impacts(
+                                legislation_id, impact_dicts
+                            )
+                            if stored_impacts:
+                                persistence["impacts_count"] = len(analysis.impacts)
                         logger.info(f"Stored analysis results for {bill_id}")
+                    else:
+                        logger.warning(
+                            "store_legislation returned no id for %s (%s)",
+                            bill_id,
+                            jurisdiction,
+                        )
 
             result_data = {
                 "analysis": analysis.model_dump(),
@@ -773,6 +781,8 @@ Bill Text: {bill_text[:5000]}
             import traceback
 
             traceback.print_exc()
+
+        return persistence
 
     async def _fail_pipeline_run(self, run_id: str, error: str):
         """Mark pipeline run as failed."""

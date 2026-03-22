@@ -123,6 +123,8 @@ class PostgresDB:
     ) -> Optional[str]:
         """Store legislation in database."""
         try:
+            bill_title = bill_data.get("title") or bill_data["bill_number"]
+
             # Check existing
             row = await self._fetchrow(
                 "SELECT id FROM legislation WHERE jurisdiction_id = $1 AND bill_number = $2",
@@ -133,7 +135,7 @@ class PostgresDB:
             if row:
                 update_query = """
                     UPDATE legislation 
-                    SET title = $1, text_content = $2, status = $3, updated_at = $4,
+                    SET title = COALESCE($1, title), text_content = COALESCE($2, text_content), status = COALESCE($3, status), updated_at = $4,
                         sufficiency_state = $6, insufficiency_reason = $7,
                         quantification_eligible = $8, total_impact_p50 = $9
                     WHERE id = $5
@@ -141,7 +143,7 @@ class PostgresDB:
                 """
                 await self._execute(
                     update_query,
-                    bill_data["title"],
+                    bill_data.get("title"),
                     bill_data["text"],
                     bill_data["status"],
                     datetime.now(),
@@ -165,7 +167,7 @@ class PostgresDB:
                 insert_query,
                 jurisdiction_id,
                 bill_data["bill_number"],
-                bill_data["title"],
+                bill_title,
                 bill_data["text"],
                 bill_data.get("introduced_date"),
                 bill_data["status"],
