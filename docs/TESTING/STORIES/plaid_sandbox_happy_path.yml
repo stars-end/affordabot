@@ -1,0 +1,61 @@
+id: plaid_sandbox_happy_path
+description: "Link a sandbox institution successfully via Plaid Link from Affordabot account settings"
+persona: admin_operator
+priority: P1
+timeout_seconds: 300
+goals:
+  - "Verify Add Account launches Plaid Link from /settings/accounts"
+  - "Verify sandbox happy path completes and returns control to Affordabot"
+  - "Verify a linked account row appears after successful sandbox link"
+start_url: "/settings/accounts"
+steps:
+  - action: navigate
+    path: "/settings/accounts"
+    description: "Open account settings"
+
+  - action: wait_for_selector
+    selector: "button:has-text('Add Account')"
+    description: "Verify Add Account is visible"
+
+  - action: click
+    selector: "button:has-text('Add Account')"
+    description: "Launch Plaid Link"
+
+  - action: wait_for_selector
+    selector: "iframe[title*='Plaid']"
+    description: "Verify Plaid Link iframe is mounted"
+
+  - id: sandbox-step-01
+    description: |
+      In Plaid Link, select sandbox institution "Platypus OAuth Bank"
+      (or the sandbox institution configured for this environment).
+      Continue to sandbox credential entry.
+    expected: "Credential entry form is visible inside Plaid Link"
+
+  - id: sandbox-step-02
+    description: |
+      Enter sandbox credentials exactly:
+      - username: user_good
+      - password: pass_good
+      Submit and continue through account selection.
+    expected: "Link proceeds without error banner"
+
+  - id: sandbox-step-03
+    description: |
+      Select at least one account (for example Checking) and complete Link.
+      Wait for Plaid iframe to close and Affordabot to regain focus.
+    expected: "Plaid iframe closes and settings page remains active"
+
+  - action: assert_visible
+    selector: "[data-testid='linked-account-row'], [data-testid='account-card']"
+    description: "Verify at least one linked account is now displayed"
+
+metadata:
+  tags: ["plaid", "sandbox", "accounts", "happy-path"]
+  estimated_duration_seconds: 180
+  execution_engine_default: "playwright"
+  uismoke_role: "orchestration_or_proof_only_when_e2e_is_deterministic"
+  deterministic_requirements:
+    - "Stable selectors for Add Account, Link launch, and post-link account rendering"
+    - "Sandbox tenant with fixed institution list and predictable account payload"
+    - "No interactive MFA branch during run"
