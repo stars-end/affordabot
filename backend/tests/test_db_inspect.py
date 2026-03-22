@@ -52,6 +52,27 @@ def test_resolve_database_url_prefers_pg_env_and_proxy(
     )
 
 
+def test_resolve_database_url_falls_back_to_public_url_when_internal_host_has_no_proxy(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("PGHOST", "postgres.railway.internal")
+    monkeypatch.setenv("PGPORT", "5432")
+    monkeypatch.setenv("PGUSER", "postgres")
+    monkeypatch.setenv("PGPASSWORD", "secret")
+    monkeypatch.setenv("PGDATABASE", "railway")
+    monkeypatch.delenv("RAILWAY_TCP_PROXY_DOMAIN", raising=False)
+    monkeypatch.delenv("RAILWAY_TCP_PROXY_PORT", raising=False)
+    monkeypatch.setenv(
+        "DATABASE_URL_PUBLIC",
+        "postgresql://public-user:public-secret@public.proxy.rlwy.net:15432/railway",
+    )
+
+    assert (
+        resolve_database_url("primary")
+        == "postgresql://public-user:public-secret@public.proxy.rlwy.net:15432/railway"
+    )
+
+
 def test_normalize_host_for_host_side_execution_rewrites_internal_hostname(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

@@ -43,10 +43,17 @@ def resolve_database_url(target: str) -> str:
     if pg_host and pg_port and pg_user and pg_password and pg_database:
         proxy_domain = os.getenv("RAILWAY_TCP_PROXY_DOMAIN")
         proxy_port = os.getenv("RAILWAY_TCP_PROXY_PORT")
-        if pg_host.endswith(".railway.internal") and proxy_domain and proxy_port:
-            pg_host = proxy_domain
-            pg_port = proxy_port
-        return f"postgresql://{quote(pg_user)}:{quote(pg_password)}@{pg_host}:{pg_port}/{pg_database}"
+        if pg_host.endswith(".railway.internal"):
+            if proxy_domain and proxy_port:
+                pg_host = proxy_domain
+                pg_port = proxy_port
+            else:
+                pg_host = None
+
+        if pg_host:
+            return (
+                f"postgresql://{quote(pg_user)}:{quote(pg_password)}@{pg_host}:{pg_port}/{pg_database}"
+            )
 
     url = (
         os.getenv("DATABASE_URL_PUBLIC")
