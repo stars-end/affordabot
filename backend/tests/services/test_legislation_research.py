@@ -379,8 +379,11 @@ class TestWebResearchPrioritization:
 
         queries = [call.args[0] for call in search_client.search.call_args_list]
         assert queries[0].startswith('site:lao.ca.gov "SB 277" fiscal analysis')
-        assert queries[1].startswith('site:dof.ca.gov "SB 277" fiscal estimate')
-        assert queries[2].startswith(
+        assert queries[1].startswith(
+            'site:leganalysis.dof.ca.gov "SB 277" fiscal estimate'
+        )
+        assert queries[2].startswith('site:dof.ca.gov "SB 277" fiscal estimate')
+        assert queries[3].startswith(
             'site:leginfo.legislature.ca.gov "SB 277" committee analysis'
         )
 

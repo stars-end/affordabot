@@ -75,6 +75,7 @@ FISCAL_ARTIFACT_KEYWORDS = (
 
 CALIFORNIA_OFFICIAL_DOMAIN_WEIGHTS = {
     "lao.ca.gov": 140,
+    "leganalysis.dof.ca.gov": 135,
     "dof.ca.gov": 130,
     "leginfo.legislature.ca.gov": 125,
     "legislature.ca.gov": 115,
@@ -352,6 +353,7 @@ class LegislationResearchService:
         if jurisdiction_text == "california":
             ca_official_queries = [
                 f'site:lao.ca.gov "{bill_id}" fiscal analysis',
+                f'site:leganalysis.dof.ca.gov "{bill_id}" fiscal estimate',
                 f'site:dof.ca.gov "{bill_id}" fiscal estimate',
                 f'site:leginfo.legislature.ca.gov "{bill_id}" committee analysis',
                 f'site:leginfo.legislature.ca.gov "{bill_id}" fiscal',
