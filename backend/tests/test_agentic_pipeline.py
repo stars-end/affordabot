@@ -470,3 +470,160 @@ async def test_pipeline_hydrates_weak_excerpt_from_research_provenance():
 
     assert mock_llm.chat_completion.call_count == 2
     assert "requires local educational agencies" in result.impacts[0].evidence[0].excerpt
+
+
+@pytest.mark.asyncio
+async def test_pipeline_fail_closed_when_quantified_claim_lacks_numeric_support():
+    mock_llm = MagicMock(spec=LLMClient)
+    mock_search = MagicMock(spec=WebSearchClient)
+    mock_db = MagicMock()
+
+    analysis_obj = _make_legislation_response()
+    analysis_obj.impacts[0].impact_description = (
+        "The ordinance lowers household rent burdens by roughly $50 per month."
+    )
+    analysis_obj.impacts[0].numeric_basis = "claimed monthly savings estimate"
+    analysis_obj.impacts[0].evidence[0].source_name = "Committee Analysis"
+    analysis_obj.impacts[0].evidence[0].excerpt = (
+        "The ordinance limits annual rent increases and may reduce future rent growth "
+        "for covered tenants through stronger caps on adjustments."
+    )
+    review_obj = _make_review_response()
+    refined_obj = _make_legislation_response()
+
+    mock_llm.chat_completion = AsyncMock(
+        side_effect=[
+            MagicMock(content=analysis_obj.model_dump_json()),
+            MagicMock(content=review_obj.model_dump_json()),
+            MagicMock(content=refined_obj.model_dump_json()),
+        ]
+    )
+
+    mock_db.get_latest_scrape_for_bill = AsyncMock(return_value=None)
+    mock_db.create_pipeline_run = AsyncMock(return_value="run-1")
+    mock_db.get_or_create_jurisdiction = AsyncMock(return_value=1)
+    mock_db.store_legislation = AsyncMock(return_value=101)
+    mock_db.store_impacts = AsyncMock()
+    mock_db.complete_pipeline_run = AsyncMock()
+    mock_db.fail_pipeline_run = AsyncMock()
+
+    pipeline = AnalysisPipeline(mock_llm, mock_search, mock_db)
+    research_result = _make_research_result()
+    research_result.web_sources = [
+        {
+            "title": "Committee Fiscal Analysis",
+            "url": "https://lao.ca.gov/fiscal-note",
+            "snippet": "Fiscal impact analysis for the ordinance.",
+        }
+    ]
+    research_result.evidence_envelopes = [
+        EvidenceEnvelope(
+            id="env-q1",
+            source_tool="web_search",
+            source_query="AB-1234 fiscal impact",
+            evidence=[
+                Evidence(
+                    id="web-q1",
+                    kind="external",
+                    label="Committee Fiscal Analysis",
+                    url="https://lao.ca.gov/fiscal-note",
+                    content="",
+                    excerpt=(
+                        "Fiscal impact analysis finds the ordinance caps annual rent "
+                        "increases for covered tenants."
+                    ),
+                )
+            ],
+        )
+    ]
+    with patch.object(
+        pipeline.research_service,
+        "research",
+        new_callable=AsyncMock,
+        return_value=research_result,
+    ):
+        models = {"research": "m1", "generate": "m2", "review": "m3"}
+        await pipeline.run("AB-1234", "The bill text...", "San Jose", models)
+
+    persisted = mock_db.complete_pipeline_run.call_args.args[1]
+    assert persisted["review"]["passed"] is False
+    assert any(
+        "numeric fiscal support" in err.lower()
+        for err in persisted["review"]["factual_errors"]
+    )
+
+
+@pytest.mark.asyncio
+async def test_pipeline_allows_quantified_claim_with_numeric_fiscal_support():
+    mock_llm = MagicMock(spec=LLMClient)
+    mock_search = MagicMock(spec=WebSearchClient)
+    mock_db = MagicMock()
+
+    analysis_obj = _make_legislation_response()
+    analysis_obj.impacts[0].impact_description = (
+        "The ordinance lowers household rent burdens by roughly $50 per month."
+    )
+    analysis_obj.impacts[0].numeric_basis = "LAO fiscal note: $50 monthly savings"
+    analysis_obj.impacts[0].evidence[0].source_name = "LAO Fiscal Note"
+    analysis_obj.impacts[0].evidence[0].excerpt = (
+        "The LAO fiscal note estimates median tenant savings of $50 per month "
+        "under the rent cap, with annual household savings near $600."
+    )
+    review_obj = _make_review_response()
+
+    mock_llm.chat_completion = AsyncMock(
+        side_effect=[
+            MagicMock(content=analysis_obj.model_dump_json()),
+            MagicMock(content=review_obj.model_dump_json()),
+        ]
+    )
+
+    mock_db.get_latest_scrape_for_bill = AsyncMock(return_value=None)
+    mock_db.create_pipeline_run = AsyncMock(return_value="run-1")
+    mock_db.get_or_create_jurisdiction = AsyncMock(return_value=1)
+    mock_db.store_legislation = AsyncMock(return_value=101)
+    mock_db.store_impacts = AsyncMock()
+    mock_db.complete_pipeline_run = AsyncMock()
+    mock_db.fail_pipeline_run = AsyncMock()
+
+    pipeline = AnalysisPipeline(mock_llm, mock_search, mock_db)
+    research_result = _make_research_result()
+    research_result.web_sources = [
+        {
+            "title": "LAO Fiscal Note",
+            "url": "https://lao.ca.gov/fiscal-note",
+            "snippet": "Estimated $50 monthly tenant savings under the ordinance.",
+        }
+    ]
+    research_result.evidence_envelopes = [
+        EvidenceEnvelope(
+            id="env-q2",
+            source_tool="web_search",
+            source_query="AB-1234 fiscal impact",
+            evidence=[
+                Evidence(
+                    id="web-q2",
+                    kind="external",
+                    label="LAO Fiscal Note",
+                    url="https://lao.ca.gov/fiscal-note",
+                    content="",
+                    excerpt=(
+                        "The LAO fiscal note estimates median tenant savings of "
+                        "$50 per month under the rent cap, with annual savings "
+                        "near $600 per household."
+                    ),
+                )
+            ],
+        )
+    ]
+    with patch.object(
+        pipeline.research_service,
+        "research",
+        new_callable=AsyncMock,
+        return_value=research_result,
+    ):
+        models = {"research": "m1", "generate": "m2", "review": "m3"}
+        result = await pipeline.run("AB-1234", "The bill text...", "San Jose", models)
+
+    assert mock_llm.chat_completion.call_count == 2
+    assert result.impacts[0].p50 == 50.0

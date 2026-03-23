@@ -17,6 +17,7 @@ from services.llm.evidence_gates import (
     _is_placeholder_text,
     _has_verifiable_url,
     _detect_fiscal_notes,
+    supports_quantified_evidence,
 )
 
 
@@ -109,6 +110,28 @@ class TestFiscalNoteDetection:
             excerpt="Cost estimate analysis for the program.",
         )
         assert _detect_fiscal_notes([evidence]) is True
+
+
+class TestQuantifiedEvidenceSupport:
+    def test_supports_quantified_evidence_with_numeric_fiscal_excerpt(self):
+        assert (
+            supports_quantified_evidence(
+                excerpt="The LAO fiscal note estimates $50 million in annual General Fund costs.",
+                source_name="LAO Fiscal Note",
+                numeric_basis="$50M annual cost estimate",
+            )
+            is True
+        )
+
+    def test_rejects_quantified_evidence_without_numeric_signal(self):
+        assert (
+            supports_quantified_evidence(
+                excerpt="The bill increases administrative workload for local agencies.",
+                source_name="Committee Analysis",
+                numeric_basis="committee discussion",
+            )
+            is False
+        )
 
 
 class TestAssessSufficiency:
