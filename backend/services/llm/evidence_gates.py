@@ -40,6 +40,50 @@ FISCAL_NOTE_INDICATORS = [
     "legislative analyst",
 ]
 
+QUANTIFIED_SUPPORT_INDICATORS = [
+    "annual cost",
+    "annual savings",
+    "monthly cost",
+    "monthly savings",
+    "per household",
+    "general fund",
+    "appropriation",
+    "reimbursement",
+    "estimated at",
+]
+
+FISCAL_SUPPORT_KEYWORDS = [
+    "fiscal",
+    "budget",
+    "appropriation",
+    "cost",
+    "costs",
+    "expense",
+    "expenses",
+    "expenditure",
+    "revenue",
+    "funding",
+    "savings",
+    "fee",
+    "fees",
+    "tax",
+    "taxes",
+    "estimate",
+    "estimated",
+    "projection",
+    "projected",
+    "per year",
+    "annual",
+    "annually",
+]
+
+NUMERIC_SUPPORT_PATTERNS = (
+    r"\$\s?\d",
+    r"\d[\d,]*(?:\.\d+)?\s*(?:million|billion|thousand|m|k|bn)\b",
+    r"\d[\d,]*(?:\.\d+)?\s*%",
+    r"\b\d[\d,]*(?:\.\d+)?\b",
+)
+
 
 def _is_placeholder_text(text: str) -> bool:
     if not text or not text.strip():
@@ -75,6 +119,42 @@ def _detect_fiscal_notes(evidence_list: List[ImpactEvidence]) -> bool:
         if any(indicator in combined for indicator in FISCAL_NOTE_INDICATORS):
             return True
     return False
+
+
+def supports_quantified_evidence(
+    excerpt: str,
+    source_name: str = "",
+    numeric_basis: str | None = None,
+) -> bool:
+    """Return true when evidence contains materially supportive numeric fiscal basis."""
+    combined = " ".join(
+        part for part in [excerpt or "", source_name or "", numeric_basis or ""] if part
+    ).lower()
+    has_numeric_signal = bool(
+        re.search(
+            r"\$\s?\d|\b\d+(?:\.\d+)?\s*(?:million|billion|thousand|m|k|%)\b|\bper (?:month|year|household)\b",
+            combined,
+        )
+    )
+    has_fiscal_signal = any(
+        indicator in combined
+        for indicator in FISCAL_NOTE_INDICATORS + QUANTIFIED_SUPPORT_INDICATORS
+    )
+    return has_numeric_signal and has_fiscal_signal
+
+
+def has_material_fiscal_numeric_support(excerpt: str, source_name: str = "") -> bool:
+    """Return True only when excerpt carries concrete fiscal/numeric support."""
+    normalized = re.sub(r"\s+", " ", excerpt or "").strip()
+    if len(normalized) < 80:
+        return False
+
+    combined = f"{normalized.lower()} {(source_name or '').lower()}"
+    has_fiscal_context = any(keyword in combined for keyword in FISCAL_SUPPORT_KEYWORDS)
+    has_numeric_signal = any(
+        re.search(pattern, normalized.lower()) for pattern in NUMERIC_SUPPORT_PATTERNS
+    )
+    return has_fiscal_context and has_numeric_signal
 
 
 def assess_sufficiency(

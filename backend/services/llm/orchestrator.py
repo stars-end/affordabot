@@ -33,7 +33,11 @@ from services.legislation_research import (
     LegislationResearchResult,
 )
 from services.llm.evidence_adapter import envelope_to_impact_evidence
-from services.llm.evidence_gates import assess_sufficiency, strip_quantification
+from services.llm.evidence_gates import (
+    assess_sufficiency,
+    strip_quantification,
+    supports_quantified_evidence,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -801,6 +805,7 @@ Evidence Excerpts:
                 continue
 
             supported = False
+            quantified_supported = not impact.is_quantified
             for ev in impact.evidence:
                 excerpt = re.sub(r"\s+", " ", (ev.excerpt or "")).strip()
                 if self._is_weak_excerpt(excerpt):
@@ -809,11 +814,29 @@ Evidence Excerpts:
                 overlap = len(claim_tokens.intersection(excerpt_tokens))
                 if overlap >= 2:
                     supported = True
-                    break
+                    if impact.is_quantified and supports_quantified_evidence(
+                        excerpt=excerpt,
+                        source_name=ev.source_name or "",
+                        numeric_basis=impact.numeric_basis,
+                    ):
+                        quantified_supported = True
+                    if not impact.is_quantified:
+                        break
 
             if not supported:
                 issues.append(
                     f"Impact {impact.impact_number} evidence excerpts do not materially support the stated legal/impact claims."
+                )
+                continue
+
+            if impact.is_quantified and not impact.numeric_basis:
+                issues.append(
+                    f"Impact {impact.impact_number} is quantified but missing numeric_basis."
+                )
+
+            if impact.is_quantified and not quantified_supported:
+                issues.append(
+                    f"Impact {impact.impact_number} is quantified but cited evidence lacks numeric fiscal support."
                 )
 
         return issues
