@@ -627,3 +627,70 @@ async def test_pipeline_allows_quantified_claim_with_numeric_fiscal_support():
 
     assert mock_llm.chat_completion.call_count == 2
     assert result.impacts[0].p50 == 50.0
+
+
+@pytest.mark.asyncio
+async def test_pipeline_fail_closed_when_claim_extends_to_resident_burden_without_support():
+    mock_llm = MagicMock(spec=LLMClient)
+    mock_search = MagicMock(spec=WebSearchClient)
+    mock_db = MagicMock()
+
+    analysis_obj = _make_legislation_response()
+    analysis_obj.impacts[0].relevant_clause = (
+        "If the Commission on State Mandates determines that this act contains "
+        "costs mandated by the state, reimbursement to local agencies and school "
+        "districts for those costs shall be made."
+    )
+    analysis_obj.impacts[0].legal_interpretation = (
+        "The bill creates a reimbursement mechanism for local agency compliance costs."
+    )
+    analysis_obj.impacts[0].impact_description = (
+        "Potential indirect impact on the cost of living through state expenditures "
+        "and possible taxpayer burdens."
+    )
+    analysis_obj.impacts[0].chain_of_causality = (
+        "State reimbursement could draw on taxpayer funds and therefore affect the "
+        "cost of living for residents."
+    )
+    analysis_obj.impacts[0].evidence[0].source_name = "Bill Text"
+    analysis_obj.impacts[0].evidence[0].excerpt = (
+        "If the Commission on State Mandates determines that this act contains "
+        "costs mandated by the state, reimbursement to local agencies and school "
+        "districts for those costs shall be made."
+    )
+    review_obj = _make_review_response()
+    refined_obj = _make_legislation_response()
+
+    mock_llm.chat_completion = AsyncMock(
+        side_effect=[
+            MagicMock(content=analysis_obj.model_dump_json()),
+            MagicMock(content=review_obj.model_dump_json()),
+            MagicMock(content=refined_obj.model_dump_json()),
+        ]
+    )
+
+    mock_db.get_latest_scrape_for_bill = AsyncMock(return_value=None)
+    mock_db.create_pipeline_run = AsyncMock(return_value="run-1")
+    mock_db.get_or_create_jurisdiction = AsyncMock(return_value=1)
+    mock_db.store_legislation = AsyncMock(return_value=101)
+    mock_db.store_impacts = AsyncMock()
+    mock_db.complete_pipeline_run = AsyncMock()
+    mock_db.fail_pipeline_run = AsyncMock()
+
+    pipeline = AnalysisPipeline(mock_llm, mock_search, mock_db)
+    research_result = _make_research_result()
+    with patch.object(
+        pipeline.research_service,
+        "research",
+        new_callable=AsyncMock,
+        return_value=research_result,
+    ):
+        models = {"research": "m1", "generate": "m2", "review": "m3"}
+        await pipeline.run("AB-1234", "The bill text...", "San Jose", models)
+
+    persisted = mock_db.complete_pipeline_run.call_args.args[1]
+    assert persisted["review"]["passed"] is False
+    assert any(
+        "cost-of-living burdens without supporting evidence" in err.lower()
+        for err in persisted["review"]["factual_errors"]
+    )

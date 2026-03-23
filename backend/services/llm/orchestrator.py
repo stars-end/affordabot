@@ -83,6 +83,40 @@ EVIDENCE_STOPWORDS = {
     "through",
 }
 
+RESIDENT_BURDEN_CLAIM_INDICATORS = (
+    "cost of living",
+    "tax burden",
+    "taxpayer",
+    "taxpayers",
+    "household",
+    "households",
+    "resident",
+    "residents",
+    "public services",
+    "service reductions",
+)
+
+RESIDENT_BURDEN_EVIDENCE_TERMS = (
+    "tax",
+    "taxpayer",
+    "taxpayers",
+    "household",
+    "households",
+    "resident",
+    "residents",
+    "ratepayer",
+    "ratepayers",
+    "fee",
+    "fees",
+    "price",
+    "prices",
+    "bill increase",
+    "monthly bill",
+    "public services",
+    "service reduction",
+    "service cuts",
+)
+
 
 class AnalysisPipeline:
     """
@@ -797,6 +831,17 @@ Evidence Excerpts:
             claim_tokens = self._claim_tokens(impact)
             if not claim_tokens:
                 continue
+            claim_text = " ".join(
+                [
+                    impact.legal_interpretation or "",
+                    impact.impact_description or "",
+                    impact.chain_of_causality or "",
+                ]
+            ).lower()
+            requires_resident_burden_support = any(
+                indicator in claim_text
+                for indicator in RESIDENT_BURDEN_CLAIM_INDICATORS
+            )
 
             if not impact.evidence:
                 issues.append(
@@ -806,6 +851,7 @@ Evidence Excerpts:
 
             supported = False
             quantified_supported = not impact.is_quantified
+            resident_burden_supported = not requires_resident_burden_support
             for ev in impact.evidence:
                 excerpt = re.sub(r"\s+", " ", (ev.excerpt or "")).strip()
                 if self._is_weak_excerpt(excerpt):
@@ -820,6 +866,11 @@ Evidence Excerpts:
                         numeric_basis=impact.numeric_basis,
                     ):
                         quantified_supported = True
+                    if requires_resident_burden_support and any(
+                        term in excerpt.lower()
+                        for term in RESIDENT_BURDEN_EVIDENCE_TERMS
+                    ):
+                        resident_burden_supported = True
                     if not impact.is_quantified:
                         break
 
@@ -837,6 +888,11 @@ Evidence Excerpts:
             if impact.is_quantified and not quantified_supported:
                 issues.append(
                     f"Impact {impact.impact_number} is quantified but cited evidence lacks numeric fiscal support."
+                )
+
+            if requires_resident_burden_support and not resident_burden_supported:
+                issues.append(
+                    f"Impact {impact.impact_number} extends to resident/tax/cost-of-living burdens without supporting evidence."
                 )
 
         return issues
