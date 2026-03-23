@@ -142,21 +142,37 @@ async def diagnose_bill(db, jurisdiction: str, bill_id: str) -> dict:
         result["issues"].append("No legislation record")
 
     # Stage 4: Pipeline run
-    pipe_query = """
+    latest_pipe_query = """
         SELECT id, status, started_at, completed_at, error, result, trigger_source
         FROM pipeline_runs
         WHERE LOWER(bill_id) LIKE LOWER($1)
         ORDER BY started_at DESC
         LIMIT 1
     """
-    pipe = await db._fetchrow(pipe_query, f"%{bill_id}%")
+    completed_pipe_query = """
+        SELECT id, status, started_at, completed_at, error, result, trigger_source
+        FROM pipeline_runs
+        WHERE LOWER(bill_id) LIKE LOWER($1)
+          AND status = 'completed'
+        ORDER BY completed_at DESC NULLS LAST, started_at DESC
+        LIMIT 1
+    """
+    latest_pipe = await db._fetchrow(latest_pipe_query, f"%{bill_id}%")
+    completed_pipe = await db._fetchrow(completed_pipe_query, f"%{bill_id}%")
+    pipe = latest_pipe or completed_pipe
     if pipe:
+        selected_pipe = pipe
+        if latest_pipe and latest_pipe.get("status") != "completed" and completed_pipe:
+            selected_pipe = completed_pipe
+            result["issues"].append(
+                "Latest pipeline run not completed; audited latest completed run instead"
+            )
         pipe_result = (
-            json.loads(pipe["result"])
-            if isinstance(pipe["result"], str)
-            else (pipe["result"] or {})
+            json.loads(selected_pipe["result"])
+            if isinstance(selected_pipe["result"], str)
+            else (selected_pipe["result"] or {})
         )
-        trigger_source = pipe.get("trigger_source", "manual")
+        trigger_source = selected_pipe.get("trigger_source", "manual")
 
         steps_query = """
             SELECT step_number, step_name, status
@@ -164,7 +180,7 @@ async def diagnose_bill(db, jurisdiction: str, bill_id: str) -> dict:
             WHERE run_id = $1
             ORDER BY step_number ASC
         """
-        step_rows = await db._fetch(steps_query, str(pipe["id"]))
+        step_rows = await db._fetch(steps_query, str(selected_pipe["id"]))
         steps_summary = (
             [
                 {
@@ -183,8 +199,8 @@ async def diagnose_bill(db, jurisdiction: str, bill_id: str) -> dict:
         )
 
         result["stages"]["pipeline_run"] = {
-            "run_id": str(pipe["id"]),
-            "status": pipe["status"],
+            "run_id": str(selected_pipe["id"]),
+            "status": selected_pipe["status"],
             "trigger_source": trigger_source,
             "source_text_present": pipe_result.get("source_text_present"),
             "rag_chunks_retrieved": pipe_result.get("rag_chunks_retrieved", 0),
@@ -192,7 +208,10 @@ async def diagnose_bill(db, jurisdiction: str, bill_id: str) -> dict:
             "pipeline_steps": steps_summary,
             "persistence_step_present": has_persistence,
         }
-        if not has_persistence and pipe["status"] == "completed":
+        if latest_pipe:
+            result["stages"]["pipeline_run"]["latest_run_id"] = str(latest_pipe["id"])
+            result["stages"]["pipeline_run"]["latest_run_status"] = latest_pipe["status"]
+        if not has_persistence and selected_pipe["status"] == "completed":
             result["issues"].append(
                 "Pipeline completed but no persistence step recorded"
             )
@@ -201,10 +220,10 @@ async def diagnose_bill(db, jurisdiction: str, bill_id: str) -> dict:
         result["issues"].append("No pipeline run found")
 
     # Verdict
-    critical = ["no_scrape", "no_legislation", "no_pipeline_run"]
+    critical = ["No scrape", "No legislation", "No pipeline run"]
     warnings = [i for i in result["issues"] if "Extraction status" not in i]
 
-    if any(c in result["verdict"] for c in critical):
+    if any(any(c in issue for c in critical) for issue in result["issues"]):
         result["verdict"] = "critical_gaps"
     elif warnings:
         result["verdict"] = "warnings"
