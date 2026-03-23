@@ -361,6 +361,70 @@ class TestRetrievalFilters:
         assert fallback_call.kwargs["filters"]["bill_number"] == "SB 277"
 
 
+class TestWebResearchPrioritization:
+    @pytest.mark.asyncio
+    async def test_california_queries_prioritize_official_fiscal_sources(self):
+        search_client = _make_mock_search_client(results=[])
+        service = LegislationResearchService(
+            llm_client=_make_mock_llm_client(),
+            search_client=search_client,
+            retrieval_backend=_make_mock_retrieval_backend(),
+        )
+
+        await service._web_research(
+            bill_id="SB 277",
+            jurisdiction="california",
+            bill_context="",
+        )
+
+        queries = [call.args[0] for call in search_client.search.call_args_list]
+        assert queries[0].startswith('site:lao.ca.gov "SB 277" fiscal analysis')
+        assert queries[1].startswith(
+            'site:leganalysis.dof.ca.gov "SB 277" fiscal estimate'
+        )
+        assert queries[2].startswith('site:dof.ca.gov "SB 277" fiscal estimate')
+        assert queries[3].startswith(
+            'site:leginfo.legislature.ca.gov "SB 277" committee analysis'
+        )
+
+    @pytest.mark.asyncio
+    async def test_web_results_rank_official_fiscal_over_generic_news(self):
+        generic_result = {
+            "title": "General coverage of SB 277",
+            "url": "https://news.example.com/sb-277",
+            "snippet": "Overview article with no fiscal estimate.",
+        }
+        official_result = {
+            "title": "SB 277 Fiscal Analysis",
+            "url": "https://lao.ca.gov/reports/sb277-fiscal",
+            "snippet": "Fiscal impact and cost estimate for implementation.",
+        }
+
+        async def search_side_effect(query, count=5):
+            if "site:lao.ca.gov" in query:
+                return [official_result]
+            return [generic_result]
+
+        search_client = MagicMock()
+        search_client.search = AsyncMock(side_effect=search_side_effect)
+
+        service = LegislationResearchService(
+            llm_client=_make_mock_llm_client(),
+            search_client=search_client,
+            retrieval_backend=_make_mock_retrieval_backend(),
+        )
+
+        web_results = await service._web_research(
+            bill_id="SB 277",
+            jurisdiction="california",
+            bill_context="",
+        )
+
+        assert len(web_results) == 2
+        assert web_results[0]["url"] == "https://lao.ca.gov/reports/sb277-fiscal"
+        assert web_results[1]["url"] == "https://news.example.com/sb-277"
+
+
 class TestErrorHandling:
     @pytest.mark.asyncio
     async def test_research_graceful_on_retrieval_error(self):

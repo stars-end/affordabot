@@ -21,6 +21,7 @@ import logging
 import re
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional, Callable, Awaitable
+from urllib.parse import urlparse
 from uuid import uuid4
 
 from llm_common.core import LLMClient
@@ -59,6 +60,26 @@ SUPPORTING_EXCERPT_KEYWORDS = (
     "calmatters",
     "cmqcc",
 )
+
+FISCAL_ARTIFACT_KEYWORDS = (
+    "fiscal",
+    "cost estimate",
+    "appropriation",
+    "budget",
+    "committee analysis",
+    "analysis",
+    "department of finance",
+    "legislative analyst",
+    "lao",
+)
+
+CALIFORNIA_OFFICIAL_DOMAIN_WEIGHTS = {
+    "lao.ca.gov": 140,
+    "leganalysis.dof.ca.gov": 135,
+    "dof.ca.gov": 130,
+    "leginfo.legislature.ca.gov": 125,
+    "legislature.ca.gov": 115,
+}
 
 
 @dataclass
@@ -290,6 +311,38 @@ class LegislationResearchService:
         bill_context: str,
     ) -> List[Dict[str, Any]]:
         """Perform web research for the bill."""
+        queries = self._build_web_queries(bill_id=bill_id, jurisdiction=jurisdiction)
+        ranked_results = []
+        seen_urls = set()
+
+        for idx, query in enumerate(queries):
+            try:
+                raw_results = await self.search.search(query, count=5)
+                for item in self._normalize_web_results(raw_results):
+                    url = item.get("url") or item.get("link")
+                    if url and url not in seen_urls:
+                        ranked_results.append(
+                            (
+                                self._score_web_result(
+                                    item=item,
+                                    bill_id=bill_id,
+                                    jurisdiction=jurisdiction,
+                                    query=query,
+                                    discovery_index=idx,
+                                ),
+                                item,
+                            )
+                        )
+                        seen_urls.add(url)
+            except Exception as e:
+                logger.warning(f"Web search failed for '{query}': {e}")
+
+        ranked_results.sort(key=lambda ranked: ranked[0], reverse=True)
+        return [item for _, item in ranked_results[:20]]
+
+    def _build_web_queries(self, bill_id: str, jurisdiction: str) -> List[str]:
+        """Build ordered queries that prioritize official fiscal artifacts."""
+        jurisdiction_text = jurisdiction.strip().lower()
         queries = [
             f"{jurisdiction} {bill_id} fiscal impact analysis",
             f"{jurisdiction} {bill_id} committee analysis cost",
@@ -297,29 +350,71 @@ class LegislationResearchService:
             f"{jurisdiction} {bill_id} implementation cost estimate",
         ]
 
-        if jurisdiction.lower() == "california":
-            queries.extend(
-                [
-                    f"California {bill_id} LAO analysis",
-                    f"California {bill_id} Department of Finance estimate",
-                ]
+        if jurisdiction_text == "california":
+            ca_official_queries = [
+                f'site:lao.ca.gov "{bill_id}" fiscal analysis',
+                f'site:leganalysis.dof.ca.gov "{bill_id}" fiscal estimate',
+                f'site:dof.ca.gov "{bill_id}" fiscal estimate',
+                f'site:leginfo.legislature.ca.gov "{bill_id}" committee analysis',
+                f'site:leginfo.legislature.ca.gov "{bill_id}" fiscal',
+                f'site:legislature.ca.gov "{bill_id}" appropriations analysis',
+            ]
+            return ca_official_queries + queries
+
+        return queries
+
+    def _score_web_result(
+        self,
+        item: Dict[str, Any],
+        bill_id: str,
+        jurisdiction: str,
+        query: str,
+        discovery_index: int,
+    ) -> float:
+        """Score web results so official fiscal artifacts sort ahead of generic links."""
+        url = item.get("url") or item.get("link") or ""
+        domain = self._extract_domain(url)
+        text = " ".join(
+            (
+                item.get("title") or "",
+                item.get("snippet") or "",
+                item.get("content") or "",
+                url,
+                query,
             )
+        ).lower()
+        query_lower = query.lower()
+        jurisdiction_lower = jurisdiction.lower()
 
-        all_results = []
-        seen_urls = set()
+        score = 0.0
+        if domain:
+            if domain.endswith(".gov"):
+                score += 65.0
+            if domain.endswith(".ca.gov"):
+                score += 35.0
+            if jurisdiction_lower == "california":
+                score += CALIFORNIA_OFFICIAL_DOMAIN_WEIGHTS.get(domain, 0.0)
 
-        for query in queries:
-            try:
-                raw_results = await self.search.search(query, count=5)
-                for item in self._normalize_web_results(raw_results):
-                    url = item.get("url") or item.get("link")
-                    if url and url not in seen_urls:
-                        all_results.append(item)
-                        seen_urls.add(url)
-            except Exception as e:
-                logger.warning(f"Web search failed for '{query}': {e}")
+        score += sum(8.0 for kw in FISCAL_ARTIFACT_KEYWORDS if kw in text)
 
-        return all_results[:20]
+        bill_tokens = [t.lower() for t in re.findall(r"[a-zA-Z0-9]+", bill_id) if t]
+        if bill_tokens and all(token in text for token in bill_tokens):
+            score += 20.0
+
+        if "site:" in query_lower:
+            score += 25.0
+
+        # Keep deterministic order among near-ties while still favoring stronger signals.
+        score += max(0.0, 2.0 - discovery_index * 0.05)
+        return score
+
+    def _extract_domain(self, url: str) -> str:
+        if not url:
+            return ""
+        try:
+            return (urlparse(url).netloc or "").lower().lstrip("www.")
+        except Exception:
+            return ""
 
     def _normalize_web_results(self, raw_results: Any) -> List[Dict[str, Any]]:
         """Normalize llm-common WebSearchResponse and legacy result shapes."""
