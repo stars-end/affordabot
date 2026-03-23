@@ -130,8 +130,8 @@ async def run_pipeline(db, bill_number: str, bill_text: str, jurisdiction: str):
     """Run the full analysis pipeline for a bill."""
     from llm_common.core import LLMConfig
     from llm_common.providers import ZaiClient, OpenRouterClient
-    from llm_common.web_search import WebSearchClient
     from services.llm.orchestrator import AnalysisPipeline
+    from services.llm.web_search_factory import create_web_search_client
     from services.retrieval.local_pgvector import LocalPgVectorBackend
     from llm_common.embeddings.openai import OpenAIEmbeddingService
 
@@ -152,7 +152,7 @@ async def run_pipeline(db, bill_number: str, bill_text: str, jurisdiction: str):
         )
         fallback_client = OpenRouterClient(or_config)
 
-    search_client = WebSearchClient(api_key=os.getenv("ZAI_API_KEY"))
+    search_client = create_web_search_client(api_key=os.getenv("ZAI_API_KEY"))
 
     # Initialize retrieval backend
     retrieval_backend = None

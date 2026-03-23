@@ -12,6 +12,7 @@ from sentry_sdk.integrations.logging import LoggingIntegration
 from routers import admin, sources, discovery, prompts, bills
 from services.scraper.registry import SCRAPERS
 from middleware.auth import TestAuthBypassMiddleware
+from services.llm.web_search_factory import create_web_search_client
 from pathlib import Path
 
 # Initialize Sentry
@@ -133,7 +134,6 @@ async def health_check_analysis():
     try:
         from llm_common.core import LLMConfig
         from llm_common.providers import ZaiClient
-        from llm_common.web_search import WebSearchClient
 
         # Check LLM
         llm_config = LLMConfig(
@@ -145,7 +145,7 @@ async def health_check_analysis():
         llm_ok = await llm_client.validate_api_key()
 
         # Check Search
-        _ = WebSearchClient(api_key=os.getenv("ZAI_API_KEY", "dummy"))
+        _ = create_web_search_client(api_key=os.getenv("ZAI_API_KEY", "dummy"))
         # WebSearchClient doesn't have explicit check_health, assume OK if init passed or add check if available
         # But we can try a simple search?
         search_ok = True
@@ -174,7 +174,6 @@ async def process_jurisdiction(jurisdiction: str, scraper_class, jur_type: str):
         from services.llm.orchestrator import AnalysisPipeline
         from llm_common.core import LLMConfig
         from llm_common.providers import ZaiClient, OpenRouterClient
-        from llm_common.web_search import WebSearchClient
 
         llm_config = LLMConfig(
             api_key=os.getenv("ZAI_API_KEY"),
@@ -193,7 +192,7 @@ async def process_jurisdiction(jurisdiction: str, scraper_class, jur_type: str):
             )
             fallback_client = OpenRouterClient(or_config)
 
-        search_client = WebSearchClient(api_key=os.getenv("ZAI_API_KEY"))
+        search_client = create_web_search_client(api_key=os.getenv("ZAI_API_KEY"))
 
         retrieval_backend = None
         embedding_fn = None
