@@ -160,6 +160,69 @@ class TestResearchReturnsStructuredResult:
         assert len(web_envelopes) == 1
         assert web_envelopes[0].evidence[0].url == "https://lao.ca.gov/sb277"
 
+    @pytest.mark.asyncio
+    async def test_rag_excerpt_prefers_supportive_text_over_transmission_boilerplate(self):
+        chunk = _make_retrieved_chunk(
+            content=(
+                "The secretary of the Senate shall transmit chaptered copies to the "
+                "Chief Clerk of the Assembly. This bill requires local educational "
+                "agencies to notify guardians, maintain records, and implement new "
+                "immunization compliance procedures that increase administrative workload."
+            ),
+            score=0.88,
+        )
+        service = LegislationResearchService(
+            llm_client=_make_mock_llm_client(),
+            search_client=_make_mock_search_client(),
+            retrieval_backend=_make_mock_retrieval_backend(chunks=[chunk]),
+        )
+
+        result = await service.research(
+            bill_id="SB 277",
+            bill_text="A" * 120,
+            jurisdiction="california",
+        )
+
+        rag_envelope = [e for e in result.evidence_envelopes if e.source_tool == "retriever"][0]
+        excerpt = rag_envelope.evidence[0].excerpt.lower()
+        assert "implement new immunization compliance procedures" in excerpt
+        assert "secretary of the senate shall transmit" not in excerpt
+
+    @pytest.mark.asyncio
+    async def test_rag_excerpt_strips_markup_and_skips_resolution_transmission_clause(self):
+        chunk = _make_retrieved_chunk(
+            chunk_id="acr-1",
+            content=(
+                'Whereas" id="id_4FFF2AB2-6484-4A20-B71C-BC9998A5EEEF"> WHEREAS, '
+                "The United States ranks highest among industrialized nations in "
+                "maternal mortality; and WHEREAS, the California Maternal Quality "
+                "Care Collaborative has reduced maternal mortality through quality "
+                "improvement efforts; and be it further Resolved, That the Chief "
+                "Clerk of the Assembly transmit copies of this resolution to the "
+                "author for appropriate distribution."
+            ),
+            metadata={
+                "jurisdiction": "state of california",
+                "bill_number": "ACR 117",
+            },
+        )
+        service = LegislationResearchService(
+            llm_client=_make_mock_llm_client(),
+            search_client=_make_mock_search_client(),
+            retrieval_backend=_make_mock_retrieval_backend(chunks=[chunk]),
+        )
+
+        result = await service.research(
+            bill_id="ACR 117",
+            bill_text="A" * 120,
+            jurisdiction="california",
+        )
+
+        rag_envelope = [e for e in result.evidence_envelopes if e.source_tool == "retriever"][0]
+        excerpt = rag_envelope.evidence[0].excerpt.lower()
+        assert "maternal mortality" in excerpt
+        assert "chief clerk of the assembly" not in excerpt
+
 
 class TestSufficiencyComputation:
     @pytest.mark.asyncio
@@ -273,6 +336,29 @@ class TestRetrievalFilters:
 
         unique_ids = set(c.chunk_id for c in result.rag_chunks)
         assert len(unique_ids) == 1
+
+    @pytest.mark.asyncio
+    async def test_retrieve_falls_back_to_zero_threshold_for_bill_scoped_chunks(self):
+        chunk = _make_retrieved_chunk(chunk_id="fallback-1")
+        backend = MagicMock()
+        backend.retrieve = AsyncMock(side_effect=[[], [], [], [chunk]])
+        service = LegislationResearchService(
+            llm_client=_make_mock_llm_client(),
+            search_client=_make_mock_search_client(),
+            retrieval_backend=backend,
+        )
+
+        result = await service.research(
+            bill_id="SB 277",
+            bill_text="A" * 120,
+            jurisdiction="california",
+        )
+
+        assert [c.chunk_id for c in result.rag_chunks] == ["fallback-1"]
+        fallback_call = backend.retrieve.call_args_list[-1]
+        assert fallback_call.kwargs["query"] == "SB 277"
+        assert fallback_call.kwargs["min_score"] == 0.0
+        assert fallback_call.kwargs["filters"]["bill_number"] == "SB 277"
 
 
 class TestErrorHandling:

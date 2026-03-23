@@ -37,6 +37,48 @@ from services.llm.evidence_gates import assess_sufficiency, strip_quantification
 
 logger = logging.getLogger(__name__)
 
+EVIDENCE_BOILERPLATE_PATTERNS = (
+    r"secretary of (the )?senate shall transmit",
+    r"chief clerk of the assembly",
+    r"chaptered copies",
+    r"resolved, that the secretary",
+)
+
+EVIDENCE_STOPWORDS = {
+    "the",
+    "and",
+    "for",
+    "that",
+    "this",
+    "with",
+    "from",
+    "into",
+    "under",
+    "would",
+    "shall",
+    "should",
+    "about",
+    "their",
+    "there",
+    "have",
+    "has",
+    "been",
+    "will",
+    "are",
+    "was",
+    "were",
+    "than",
+    "then",
+    "when",
+    "what",
+    "where",
+    "which",
+    "while",
+    "because",
+    "without",
+    "through",
+}
+
 
 class AnalysisPipeline:
     """
@@ -186,6 +228,7 @@ class AnalysisPipeline:
             breakdown = assess_sufficiency(
                 bill_text=bill_text,
                 evidence_list=evidence_items,
+                rag_chunks_retrieved=len(research_result.rag_chunks),
                 web_research_count=len(research_result.web_sources),
             )
 
@@ -240,6 +283,7 @@ class AnalysisPipeline:
                 models["generate"],
                 breakdown,
             )
+            self._hydrate_analysis_evidence_from_research(analysis, research_result)
             duration = int((datetime.now() - start_ts).total_seconds() * 1000)
 
             if not breakdown.quantification_eligible:
@@ -253,6 +297,11 @@ class AnalysisPipeline:
                 )
                 analysis.quantification_eligible = False
                 analysis.total_impact_p50 = None
+
+            analysis.bill_number = bill_id
+            analysis.jurisdiction = jurisdiction
+            analysis.model_used = models["generate"]
+            analysis.analysis_timestamp = datetime.now().isoformat()
 
             await audit.log_step(
                 step_number=4,
@@ -272,6 +321,14 @@ class AnalysisPipeline:
             review = await self._review_step(
                 bill_id, analysis, research_result, models["review"]
             )
+            review = self._apply_fail_closed_review_gates(review, analysis)
+            if review.passed and (review.missing_impacts or review.factual_errors):
+                review.passed = False
+                if review.critique:
+                    review.critique += (
+                        " Auto-corrected: review cannot pass while listing "
+                        "missing impacts or factual errors."
+                    )
             duration = int((datetime.now() - start_ts).total_seconds() * 1000)
 
             await audit.log_step(
@@ -294,6 +351,7 @@ class AnalysisPipeline:
                     models["generate"],
                     breakdown,
                 )
+                self._hydrate_analysis_evidence_from_research(analysis, research_result)
                 duration = int((datetime.now() - start_ts).total_seconds() * 1000)
 
                 if not breakdown.quantification_eligible:
@@ -307,6 +365,12 @@ class AnalysisPipeline:
                     )
                     analysis.quantification_eligible = False
                     analysis.total_impact_p50 = None
+
+                analysis.bill_number = bill_id
+                analysis.jurisdiction = jurisdiction
+                analysis.model_used = models["generate"]
+                analysis.analysis_timestamp = datetime.now().isoformat()
+                review = self._apply_fail_closed_review_gates(review, analysis)
 
                 await audit.log_step(
                     step_number=6,
@@ -550,7 +614,10 @@ You are an expert policy analyst. Analyze legislation for cost-of-living impacts
 Use the provided research data to support your analysis.
 Base your estimates only on the evidence provided.
 Be conservative and evidence-based.
-Cite sources when making claims.
+Cite sources when making claims. For each impact, include at least one evidence
+excerpt that directly supports the impact_description and legal_interpretation.
+Do not mention institutions, legal effects, appropriations, or program details
+unless those details are directly visible in the cited excerpt(s).
 """
 
         user_message = f"""
@@ -598,6 +665,27 @@ Bill Text:
                 parts.append(chunk.content[:500])
                 parts.append("")
 
+        curated_evidence = []
+        for envelope in research_result.evidence_envelopes:
+            for evidence in getattr(envelope, "evidence", []) or []:
+                excerpt = getattr(evidence, "excerpt", "") or ""
+                if not excerpt:
+                    continue
+                curated_evidence.append(
+                    {
+                        "label": getattr(evidence, "label", "Evidence"),
+                        "url": getattr(evidence, "url", "") or "",
+                        "excerpt": excerpt,
+                    }
+                )
+        if curated_evidence:
+            parts.append("=== Curated Evidence Excerpts ===")
+            for i, item in enumerate(curated_evidence[:15], 1):
+                parts.append(f"[E{i}] {item['label']}")
+                parts.append(f"URL: {item['url']}")
+                parts.append(f"Excerpt: {item['excerpt'][:700]}")
+                parts.append("")
+
         if research_result.web_sources:
             parts.append("=== Web Research ===")
             for i, source in enumerate(research_result.web_sources[:10], 1):
@@ -622,11 +710,14 @@ Bill Text:
         system_prompt = "You are a senior policy reviewer. Critique the following analysis for accuracy, evidence, and conservatism."
 
         evidence_summary = f"RAG chunks: {len(research_result.rag_chunks)}, Web sources: {len(research_result.web_sources)}, Sufficient: {research_result.is_sufficient}"
+        evidence_context = self._format_evidence_for_generation(research_result)
 
         user_message = f"""
 Bill: {bill_id}
 Analysis: {analysis.model_dump_json()}
 Evidence Summary: {evidence_summary}
+Evidence Excerpts:
+{evidence_context}
 """
 
         result = await self._chat(
@@ -638,6 +729,121 @@ Evidence Summary: {evidence_summary}
             response_model=ReviewCritique,
         )
         return result  # type: ignore[return-value]
+
+    def _hydrate_analysis_evidence_from_research(
+        self,
+        analysis: LegislationAnalysisResponse,
+        research_result: LegislationResearchResult,
+    ) -> None:
+        """Replace weak generated excerpts with stronger provenance excerpts."""
+        evidence_by_url: Dict[str, Dict[str, str]] = {}
+        for envelope in research_result.evidence_envelopes:
+            for evidence in getattr(envelope, "evidence", []) or []:
+                url = (getattr(evidence, "url", "") or "").strip()
+                excerpt = (getattr(evidence, "excerpt", "") or "").strip()
+                evidence_id = (getattr(evidence, "id", "") or "").strip()
+                evidence_kind = (getattr(evidence, "kind", "") or "").strip()
+                if not url or not excerpt:
+                    continue
+                key = url.lower()
+                existing = evidence_by_url.get(key)
+                if not existing or len(excerpt) > len(existing.get("excerpt", "")):
+                    evidence_by_url[key] = {
+                        "excerpt": excerpt,
+                        "id": evidence_id,
+                        "kind": evidence_kind,
+                    }
+
+        for impact in analysis.impacts:
+            for ev in impact.evidence:
+                candidate = evidence_by_url.get((ev.url or "").strip().lower())
+                if not candidate:
+                    continue
+                if self._is_weak_excerpt(ev.excerpt):
+                    ev.excerpt = candidate["excerpt"]
+                if not ev.persisted_evidence_id and candidate.get("id"):
+                    ev.persisted_evidence_id = candidate["id"]
+                if not ev.persisted_evidence_kind and candidate.get("kind"):
+                    ev.persisted_evidence_kind = candidate["kind"]
+
+    def _apply_fail_closed_review_gates(
+        self,
+        review: ReviewCritique,
+        analysis: LegislationAnalysisResponse,
+    ) -> ReviewCritique:
+        """Force review failure when impact prose is unsupported by cited excerpts."""
+        support_issues = self._collect_claim_support_issues(analysis)
+        if not support_issues:
+            return review
+
+        review.passed = False
+        review.factual_errors = list(dict.fromkeys(review.factual_errors + support_issues))
+        gate_note = "Deterministic evidence gate: impact claims lack supporting excerpts."
+        review.critique = (
+            f"{review.critique} {gate_note}".strip() if review.critique else gate_note
+        )
+        return review
+
+    def _collect_claim_support_issues(
+        self, analysis: LegislationAnalysisResponse
+    ) -> List[str]:
+        """Return fail-closed issues for impacts without materially supporting excerpts."""
+        issues: List[str] = []
+        for impact in analysis.impacts:
+            claim_tokens = self._claim_tokens(impact)
+            if not claim_tokens:
+                continue
+
+            if not impact.evidence:
+                issues.append(
+                    f"Impact {impact.impact_number} has no cited evidence supporting prose claims."
+                )
+                continue
+
+            supported = False
+            for ev in impact.evidence:
+                excerpt = re.sub(r"\s+", " ", (ev.excerpt or "")).strip()
+                if self._is_weak_excerpt(excerpt):
+                    continue
+                excerpt_tokens = self._tokenize_text(excerpt)
+                overlap = len(claim_tokens.intersection(excerpt_tokens))
+                if overlap >= 2:
+                    supported = True
+                    break
+
+            if not supported:
+                issues.append(
+                    f"Impact {impact.impact_number} evidence excerpts do not materially support the stated legal/impact claims."
+                )
+
+        return issues
+
+    def _claim_tokens(self, impact: LegislationImpact) -> set[str]:
+        text = " ".join(
+            [
+                impact.legal_interpretation or "",
+                impact.impact_description or "",
+                impact.chain_of_causality or "",
+            ]
+        )
+        return self._tokenize_text(text)
+
+    def _tokenize_text(self, text: str) -> set[str]:
+        tokens = {
+            token
+            for token in re.findall(r"[a-z0-9]+", (text or "").lower())
+            if len(token) >= 4 and token not in EVIDENCE_STOPWORDS
+        }
+        return tokens
+
+    def _is_weak_excerpt(self, excerpt: str) -> bool:
+        normalized = re.sub(r"\s+", " ", excerpt or "").strip()
+        if len(normalized) < 80:
+            return True
+        lower = normalized.lower()
+        if any(re.search(pattern, lower) for pattern in EVIDENCE_BOILERPLATE_PATTERNS):
+            return True
+        return False
 
     async def _refine_step(
         self,

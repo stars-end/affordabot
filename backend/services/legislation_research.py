@@ -18,6 +18,7 @@ Used by:
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional, Callable, Awaitable
 from uuid import uuid4
@@ -28,6 +29,36 @@ from llm_common.agents.provenance import Evidence, EvidenceEnvelope
 from llm_common.retrieval import RetrievedChunk
 
 logger = logging.getLogger(__name__)
+
+BOILERPLATE_EXCERPT_PATTERNS = (
+    r"secretary of (the )?senate shall transmit",
+    r"chief clerk of the assembly",
+    r"chaptered copies",
+    r"resolved, that the secretary",
+    r"respectfully request the congress",
+    r"transmit copies of this resolution",
+)
+
+SUPPORTING_EXCERPT_KEYWORDS = (
+    "cost",
+    "fiscal",
+    "reimbursement",
+    "fund",
+    "appropriation",
+    "compliance",
+    "implement",
+    "implementation",
+    "require",
+    "requires",
+    "required",
+    "procedure",
+    "report",
+    "maternal",
+    "mortality",
+    "quality care",
+    "calmatters",
+    "cmqcc",
+)
 
 
 @dataclass
@@ -233,6 +264,23 @@ class LegislationResearchService:
             except Exception as e:
                 logger.warning(f"Retrieval query failed for '{query}': {e}")
 
+        if not all_chunks:
+            # Bill-scoped filters already guarantee relevance, so a zero-threshold
+            # fallback is safer than treating the bill as having no internal context.
+            try:
+                fallback_chunks = await self.retrieval_backend.retrieve(
+                    query=bill_id,
+                    top_k=top_k,
+                    min_score=0.0,
+                    filters=filters,
+                )
+                for chunk in fallback_chunks:
+                    if chunk.chunk_id and chunk.chunk_id not in seen_chunk_ids:
+                        all_chunks.append(chunk)
+                        seen_chunk_ids.add(chunk.chunk_id)
+            except Exception as e:
+                logger.warning(f"Fallback retrieval failed for '{bill_id}': {e}")
+
         return all_chunks[:top_k]
 
     async def _web_research(
@@ -342,7 +390,10 @@ class LegislationResearchService:
                         or chunk.metadata.get("url")
                         or "",
                         content=chunk.content[:1000] if chunk.content else "",
-                        excerpt=chunk.content[:300] if chunk.content else "",
+                        excerpt=self._extract_supporting_excerpt(
+                            chunk.content or "",
+                            bill_id=bill_id,
+                        ),
                         confidence=chunk.score if chunk.score else 0.5,
                         metadata={
                             "chunk_id": chunk.chunk_id,
@@ -371,7 +422,10 @@ class LegislationResearchService:
                         label=item.get("title", f"Web Result {i + 1}"),
                         url=item.get("url") or item.get("link") or "",
                         content=item.get("content") or item.get("snippet") or "",
-                        excerpt=item.get("snippet", "")[:300],
+                        excerpt=self._extract_supporting_excerpt(
+                            (item.get("content") or item.get("snippet") or ""),
+                            bill_id=bill_id,
+                        ),
                         confidence=0.6,
                         metadata={
                             "source": "web_search",
@@ -468,3 +522,67 @@ class LegislationResearchService:
             return "; ".join(reasons)
 
         return "insufficient evidence for quantification"
+
+    def _extract_supporting_excerpt(self, text: str, bill_id: str) -> str:
+        """Select a materially supportive excerpt instead of a blind prefix."""
+        cleaned = re.sub(r"<[^>]+>", " ", text or "")
+        cleaned = re.sub(r'"[^"]*"\s+id="[^"]*"', " ", cleaned)
+        cleaned = re.sub(r"\s+", " ", cleaned).strip()
+        normalized = cleaned
+        if not normalized:
+            return ""
+        if len(normalized) <= 120:
+            return normalized
+
+        bill_tokens = [
+            t.lower() for t in re.findall(r"[a-zA-Z0-9]+", bill_id) if len(t) > 1
+        ]
+        keywords = set(SUPPORTING_EXCERPT_KEYWORDS).union(bill_tokens)
+        sentences = [
+            s.strip() for s in re.split(r"(?<=[.!?;:])\s+|\n+", normalized) if s.strip()
+        ]
+
+        def _is_boilerplate(value: str) -> bool:
+            lower = value.lower()
+            return any(re.search(pattern, lower) for pattern in BOILERPLATE_EXCERPT_PATTERNS)
+
+        best_window = ""
+        best_score = -1
+        for idx, sentence in enumerate(sentences):
+            if len(sentence) < 40 or _is_boilerplate(sentence):
+                continue
+
+            lower = sentence.lower()
+            score = sum(1 for kw in keywords if kw in lower)
+            if any(token in lower for token in ("shall", "must", "require", "requires")):
+                score += 1
+            if re.search(r"\$\d|%|\d{2,}", sentence):
+                score += 1
+            if score <= 0:
+                continue
+
+            context_parts = []
+            for neighbor_idx in range(max(0, idx - 1), min(len(sentences), idx + 2)):
+                candidate = sentences[neighbor_idx]
+                if not _is_boilerplate(candidate):
+                    context_parts.append(candidate)
+            window = " ".join(context_parts).strip()
+            if len(window) > 650:
+                window = window[:650].rsplit(" ", 1)[0]
+            if score > best_score or (score == best_score and len(window) > len(best_window)):
+                best_score = score
+                best_window = window
+
+        if best_window:
+            return best_window
+
+        # Fallback: first non-boilerplate sentence window, else bounded prefix.
+        for idx, sentence in enumerate(sentences):
+            if len(sentence) >= 40 and not _is_boilerplate(sentence):
+                start = max(0, idx - 1)
+                end = min(len(sentences), idx + 2)
+                fallback = " ".join(sentences[start:end]).strip()
+                if fallback:
+                    return fallback[:650]
+
+        return normalized[:650]
