@@ -39,6 +39,69 @@ class GlassBoxService:
         self.db = db_client
         self.trace_dir = Path(trace_dir)
 
+    @staticmethod
+    def _json_or_value(value: Any) -> Any:
+        if isinstance(value, str):
+            try:
+                return json.loads(value)
+            except Exception:
+                return value
+        return value
+
+    @staticmethod
+    def _serialize_run_head(row: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+        if not row:
+            return None
+        return {
+            "id": str(row["id"]),
+            "bill_id": row.get("bill_id"),
+            "jurisdiction": row.get("jurisdiction"),
+            "status": row.get("status"),
+            "started_at": str(row["started_at"]) if row.get("started_at") else None,
+            "completed_at": str(row["completed_at"]) if row.get("completed_at") else None,
+            "error": row.get("error"),
+            "trigger_source": row.get("trigger_source", "manual"),
+        }
+
+    async def get_pipeline_run_heads(self, query_key: str) -> Dict[str, Optional[Dict[str, Any]]]:
+        """
+        Resolve canonical run heads for a bill/jurisdiction/run key:
+        - latest_run (most recent by started_at)
+        - latest_completed_run
+        - latest_failed_run
+        - exact_run (if query_key is a run id)
+        """
+        if not self.db:
+            return {
+                "latest_run": None,
+                "latest_completed_run": None,
+                "latest_failed_run": None,
+                "exact_run": None,
+            }
+
+        query = """
+            SELECT id, bill_id, jurisdiction, status, started_at, completed_at, error, trigger_source
+            FROM pipeline_runs
+            WHERE bill_id = $1 OR id::text = $1 OR jurisdiction = $1
+            ORDER BY started_at DESC
+            LIMIT 100
+        """
+        rows = await self.db._fetch(query, query_key)
+
+        latest_run = rows[0] if rows else None
+        latest_completed_run = next(
+            (r for r in rows if r.get("status") == "completed"), None
+        )
+        latest_failed_run = next((r for r in rows if r.get("status") == "failed"), None)
+        exact_run = next((r for r in rows if str(r.get("id")) == query_key), None)
+
+        return {
+            "latest_run": self._serialize_run_head(latest_run),
+            "latest_completed_run": self._serialize_run_head(latest_completed_run),
+            "latest_failed_run": self._serialize_run_head(latest_failed_run),
+            "exact_run": self._serialize_run_head(exact_run),
+        }
+
     async def get_pipeline_steps(self, run_id: str) -> List[PipelineStep]:
         """
         Retrieve granular pipeline steps from the pipeline_steps table.
@@ -47,16 +110,22 @@ class GlassBoxService:
             return []
 
         try:
+            heads = await self.get_pipeline_run_heads(run_id)
+            target_run = (
+                heads.get("exact_run")
+                or heads.get("latest_completed_run")
+                or heads.get("latest_run")
+            )
+            if not target_run:
+                return []
+
             query = """
-                SELECT * FROM pipeline_steps 
-                WHERE run_id = (
-                    SELECT id FROM pipeline_runs 
-                    WHERE bill_id = $1 OR id::text = $1 OR jurisdiction = $1
-                    ORDER BY started_at DESC LIMIT 1
-                )
+                SELECT *
+                FROM pipeline_steps
+                WHERE run_id = $1
                 ORDER BY step_number ASC
             """
-            rows = await self.db._fetch(query, run_id)
+            rows = await self.db._fetch(query, target_run["id"])
 
             steps = []
             for r in rows:
@@ -67,15 +136,9 @@ class GlassBoxService:
                         step_number=r["step_number"],
                         step_name=r["step_name"],
                         status=r["status"],
-                        input_context=json.loads(r["input_context"])
-                        if isinstance(r["input_context"], str)
-                        else r["input_context"],
-                        output_result=json.loads(r["output_result"])
-                        if isinstance(r["output_result"], str)
-                        else r["output_result"],
-                        model_info=json.loads(r["model_config"])
-                        if isinstance(r["model_config"], str)
-                        else r["model_config"],
+                        input_context=self._json_or_value(r["input_context"]),
+                        output_result=self._json_or_value(r["output_result"]),
+                        model_info=self._json_or_value(r["model_config"]),
                         duration_ms=r["duration_ms"],
                         created_at=r["created_at"],
                     )
@@ -94,16 +157,21 @@ class GlassBoxService:
         # 1. Try DB first (pipeline_runs)
         if self.db:
             try:
-                # We search by bill_id (which is used as query_id in UI) or jurisdiction
-                query = "SELECT * FROM pipeline_runs WHERE bill_id = $1 OR id::text = $1 OR jurisdiction = $1 ORDER BY started_at DESC LIMIT 1"
-                run = await self.db._fetchrow(query, query_id)
+                heads = await self.get_pipeline_run_heads(query_id)
+                target_run = (
+                    heads.get("exact_run")
+                    or heads.get("latest_completed_run")
+                    or heads.get("latest_run")
+                )
+                run = None
+                if target_run:
+                    run = await self.db._fetchrow(
+                        "SELECT * FROM pipeline_runs WHERE id::text = $1",
+                        target_run["id"],
+                    )
 
                 if run and run["result"]:
-                    data = (
-                        json.loads(run["result"])
-                        if isinstance(run["result"], str)
-                        else run["result"]
-                    )
+                    data = self._json_or_value(run["result"])
                     # Map pipeline steps (research, generate, review) to AgentStep
 
                     # Note: Using started_at as base timestamp
@@ -214,21 +282,49 @@ class GlassBoxService:
                 LIMIT $1
             """
             rows = await self.db._fetch(query, limit)
-            return [
-                {
-                    "id": str(r["id"]),
-                    "bill_id": r["bill_id"],
-                    "jurisdiction": r["jurisdiction"],
-                    "status": r["status"],
-                    "started_at": str(r["started_at"]) if r["started_at"] else None,
-                    "completed_at": str(r["completed_at"])
-                    if r["completed_at"]
-                    else None,
-                    "error": r["error"],
-                    "trigger_source": r.get("trigger_source", "manual"),
-                }
-                for r in rows
-            ]
+
+            heads_by_key: Dict[Any, Dict[str, Optional[str]]] = {}
+            for r in rows:
+                key = (r.get("bill_id"), r.get("jurisdiction"))
+                if key not in heads_by_key:
+                    heads_by_key[key] = {
+                        "latest_run_id": None,
+                        "latest_completed_run_id": None,
+                        "latest_failed_run_id": None,
+                    }
+                heads = heads_by_key[key]
+                run_id = str(r["id"])
+                if heads["latest_run_id"] is None:
+                    heads["latest_run_id"] = run_id
+                if r.get("status") == "completed" and heads["latest_completed_run_id"] is None:
+                    heads["latest_completed_run_id"] = run_id
+                if r.get("status") == "failed" and heads["latest_failed_run_id"] is None:
+                    heads["latest_failed_run_id"] = run_id
+
+            runs: List[Dict[str, Any]] = []
+            for r in rows:
+                run_id = str(r["id"])
+                key = (r.get("bill_id"), r.get("jurisdiction"))
+                heads = heads_by_key[key]
+                runs.append(
+                    {
+                        "id": run_id,
+                        "bill_id": r["bill_id"],
+                        "jurisdiction": r["jurisdiction"],
+                        "status": r["status"],
+                        "started_at": str(r["started_at"]) if r["started_at"] else None,
+                        "completed_at": str(r["completed_at"])
+                        if r["completed_at"]
+                        else None,
+                        "error": r["error"],
+                        "trigger_source": r.get("trigger_source", "manual"),
+                        "is_latest_run": run_id == heads["latest_run_id"],
+                        "is_latest_completed_run": run_id
+                        == heads["latest_completed_run_id"],
+                        "is_latest_failed_run": run_id == heads["latest_failed_run_id"],
+                    }
+                )
+            return runs
         except Exception as e:
             logger.error(f"Error listing pipeline runs: {e}")
             return []

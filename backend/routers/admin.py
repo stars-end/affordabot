@@ -537,38 +537,51 @@ async def get_bill_truth(
             FROM pipeline_runs
             WHERE LOWER(bill_id) LIKE LOWER($1)
             ORDER BY started_at DESC
-            LIMIT 1
+            LIMIT 50
         """
-        pipe_row = await db._fetchrow(pipeline_query, f"%{bill_id}%")
-        pipe_info = None
-        if pipe_row:
+        pipe_rows = await db._fetch(pipeline_query, f"%{bill_id}%")
+
+        def _pipe_info(row):
+            if not row:
+                return None
             result = (
-                json.loads(pipe_row["result"])
-                if isinstance(pipe_row["result"], str)
-                else (pipe_row["result"] or {})
+                json.loads(row["result"])
+                if isinstance(row["result"], str)
+                else (row["result"] or {})
             )
-            pipe_info = {
-                "run_id": str(pipe_row["id"]),
-                "status": pipe_row["status"],
-                "started_at": str(pipe_row["started_at"])
-                if pipe_row.get("started_at")
+            return {
+                "run_id": str(row["id"]),
+                "status": row["status"],
+                "started_at": str(row["started_at"]) if row.get("started_at") else None,
+                "completed_at": str(row["completed_at"])
+                if row.get("completed_at")
                 else None,
-                "completed_at": str(pipe_row["completed_at"])
-                if pipe_row.get("completed_at")
-                else None,
-                "error": pipe_row.get("error"),
+                "error": row.get("error"),
                 "sufficiency_breakdown": result.get("sufficiency_breakdown"),
                 "source_text_present": result.get("source_text_present"),
                 "rag_chunks_retrieved": result.get("rag_chunks_retrieved", 0),
                 "quantification_eligible": result.get("quantification_eligible"),
             }
 
+        latest_run = pipe_rows[0] if pipe_rows else None
+        latest_completed_run = next(
+            (row for row in pipe_rows if row.get("status") == "completed"), None
+        )
+        latest_failed_run = next(
+            (row for row in pipe_rows if row.get("status") == "failed"), None
+        )
+
         return {
             "jurisdiction": jurisdiction,
             "bill_id": bill_id,
             "scrape": scrape_info,
             "legislation": leg_info,
-            "pipeline_run": pipe_info,
+            "pipeline_run": _pipe_info(latest_run),
+            "pipeline_runs": {
+                "latest_run": _pipe_info(latest_run),
+                "latest_completed_run": _pipe_info(latest_completed_run),
+                "latest_failed_run": _pipe_info(latest_failed_run),
+            },
         }
     except Exception as e:
         raise HTTPException(

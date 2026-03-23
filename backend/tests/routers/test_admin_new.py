@@ -228,3 +228,53 @@ def test_get_traces(client):
     assert len(data) == 1
     assert data[0]["tool"] == "test_tool"
     assert data[0]["query_id"] == "query-1"
+
+
+def test_bill_truth_includes_latest_run_heads(client, mock_db):
+    mock_db._fetchrow.side_effect = [
+        None,  # scrape lookup
+        None,  # legislation lookup
+    ]
+    mock_db._fetch.return_value = [
+        {
+            "id": "run-new",
+            "bill_id": "SB 277",
+            "status": "interrupted",
+            "started_at": "2026-03-22T14:00:00Z",
+            "completed_at": None,
+            "error": "cancelled",
+            "result": '{"rag_chunks_retrieved": 0}',
+        },
+        {
+            "id": "run-failed",
+            "bill_id": "SB 277",
+            "status": "failed",
+            "started_at": "2026-03-22T13:00:00Z",
+            "completed_at": "2026-03-22T13:01:00Z",
+            "error": "timeout",
+            "result": '{"rag_chunks_retrieved": 0}',
+        },
+        {
+            "id": "run-completed",
+            "bill_id": "SB 277",
+            "status": "completed",
+            "started_at": "2026-03-22T12:00:00Z",
+            "completed_at": "2026-03-22T12:05:00Z",
+            "error": None,
+            "result": '{"rag_chunks_retrieved": 3, "quantification_eligible": false}',
+        },
+    ]
+
+    client.set_auth("admin")
+    response = client.get("/api/admin/bill-truth/california/SB-277")
+    assert response.status_code == 200
+    body = response.json()
+
+    assert body["pipeline_runs"]["latest_run"]["run_id"] == "run-new"
+    assert body["pipeline_runs"]["latest_run"]["status"] == "interrupted"
+    assert (
+        body["pipeline_runs"]["latest_completed_run"]["run_id"] == "run-completed"
+    )
+    assert body["pipeline_runs"]["latest_failed_run"]["run_id"] == "run-failed"
+    # Backward compatible alias remains the true latest run.
+    assert body["pipeline_run"]["run_id"] == "run-new"
