@@ -128,6 +128,160 @@ class TestGlassBoxTruthFields:
         assert runs[0]["trigger_source"] == "manual"
         assert runs[1]["trigger_source"] == "windmill"
 
+    @pytest.mark.asyncio
+    async def test_list_pipeline_runs_includes_latest_head_flags(self):
+        """Run list should mark latest/latest-completed/latest-failed heads per bill/jurisdiction."""
+        mock_db = AsyncMock()
+        mock_db._fetch = AsyncMock(
+            return_value=[
+                {
+                    "id": "3",
+                    "bill_id": "SB 277",
+                    "jurisdiction": "California",
+                    "status": "interrupted",
+                    "started_at": datetime(2026, 3, 19, 14, 0, 0),
+                    "completed_at": None,
+                    "error": "cancelled",
+                    "trigger_source": "manual",
+                },
+                {
+                    "id": "2",
+                    "bill_id": "SB 277",
+                    "jurisdiction": "California",
+                    "status": "failed",
+                    "started_at": datetime(2026, 3, 19, 13, 0, 0),
+                    "completed_at": datetime(2026, 3, 19, 13, 1, 0),
+                    "error": "timeout",
+                    "trigger_source": "manual",
+                },
+                {
+                    "id": "1",
+                    "bill_id": "SB 277",
+                    "jurisdiction": "California",
+                    "status": "completed",
+                    "started_at": datetime(2026, 3, 19, 12, 0, 0),
+                    "completed_at": datetime(2026, 3, 19, 12, 5, 0),
+                    "error": None,
+                    "trigger_source": "windmill",
+                },
+            ]
+        )
+
+        service = GlassBoxService(db_client=mock_db)
+        runs = await service.list_pipeline_runs()
+
+        latest = runs[0]
+        failed = runs[1]
+        completed = runs[2]
+        assert latest["is_latest_run"] is True
+        assert latest["is_latest_completed_run"] is False
+        assert latest["is_latest_failed_run"] is False
+        assert failed["is_latest_failed_run"] is True
+        assert completed["is_latest_completed_run"] is True
+
+    @pytest.mark.asyncio
+    async def test_get_traces_prefers_latest_completed_when_latest_is_interrupted(self):
+        """Trace lookup should use latest completed run when newest run is interrupted."""
+        mock_db = AsyncMock()
+        mock_db._fetch = AsyncMock(
+            return_value=[
+                {
+                    "id": "run-new",
+                    "bill_id": "SB 277",
+                    "jurisdiction": "California",
+                    "status": "interrupted",
+                    "started_at": datetime(2026, 3, 19, 14, 0, 0),
+                    "completed_at": None,
+                    "error": "cancelled",
+                    "trigger_source": "manual",
+                },
+                {
+                    "id": "run-old",
+                    "bill_id": "SB 277",
+                    "jurisdiction": "California",
+                    "status": "completed",
+                    "started_at": datetime(2026, 3, 19, 12, 0, 0),
+                    "completed_at": datetime(2026, 3, 19, 12, 5, 0),
+                    "error": None,
+                    "trigger_source": "manual",
+                },
+            ]
+        )
+        mock_db._fetchrow = AsyncMock(
+            return_value={
+                "id": "run-old",
+                "bill_id": "SB 277",
+                "jurisdiction": "California",
+                "status": "completed",
+                "started_at": datetime(2026, 3, 19, 12, 0, 0),
+                "completed_at": datetime(2026, 3, 19, 12, 5, 0),
+                "error": None,
+                "models": "{}",
+                "result": '{"research": {"rag_chunks": 3}}',
+                "trigger_source": "manual",
+            }
+        )
+
+        service = GlassBoxService(db_client=mock_db)
+        steps = await service.get_traces_for_query("SB 277")
+
+        assert len(steps) == 1
+        assert steps[0].task_id == "research"
+        assert steps[0].args["bill_id"] == "SB 277"
+        assert mock_db._fetchrow.await_args.args[1] == "run-old"
+
+    @pytest.mark.asyncio
+    async def test_get_pipeline_steps_prefers_latest_completed_when_latest_is_interrupted(self):
+        """Step lookup should use latest completed run when newest run is interrupted."""
+        mock_db = AsyncMock()
+        mock_db._fetch = AsyncMock(
+            side_effect=[
+                [
+                    {
+                        "id": "run-new",
+                        "bill_id": "SB 277",
+                        "jurisdiction": "California",
+                        "status": "interrupted",
+                        "started_at": datetime(2026, 3, 19, 14, 0, 0),
+                        "completed_at": None,
+                        "error": "cancelled",
+                        "trigger_source": "manual",
+                    },
+                    {
+                        "id": "run-old",
+                        "bill_id": "SB 277",
+                        "jurisdiction": "California",
+                        "status": "completed",
+                        "started_at": datetime(2026, 3, 19, 12, 0, 0),
+                        "completed_at": datetime(2026, 3, 19, 12, 5, 0),
+                        "error": None,
+                        "trigger_source": "manual",
+                    },
+                ],
+                [
+                    {
+                        "id": "step-1",
+                        "run_id": "run-old",
+                        "step_number": 1,
+                        "step_name": "research",
+                        "status": "completed",
+                        "input_context": '{"bill_id":"SB 277"}',
+                        "output_result": '{"rag_chunks": 3}',
+                        "model_config": '{"model":"glm-4.7"}',
+                        "duration_ms": 1000,
+                        "created_at": datetime(2026, 3, 19, 12, 1, 0),
+                    }
+                ],
+            ]
+        )
+
+        service = GlassBoxService(db_client=mock_db)
+        steps = await service.get_pipeline_steps("SB 277")
+
+        assert len(steps) == 1
+        assert steps[0].run_id == "run-old"
+        assert steps[0].step_name == "research"
+
 
 class TestAlertingService:
     """Test deterministic alert rules."""
