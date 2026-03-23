@@ -262,8 +262,8 @@ class LegislationResearchService:
 
         for query in queries:
             try:
-                results = await self.search.search(query, num_results=5)
-                for item in results:
+                raw_results = await self.search.search(query, count=5)
+                for item in self._normalize_web_results(raw_results):
                     url = item.get("url") or item.get("link")
                     if url and url not in seen_urls:
                         all_results.append(item)
@@ -272,6 +272,37 @@ class LegislationResearchService:
                 logger.warning(f"Web search failed for '{query}': {e}")
 
         return all_results[:20]
+
+    def _normalize_web_results(self, raw_results: Any) -> List[Dict[str, Any]]:
+        """Normalize llm-common WebSearchResponse and legacy result shapes."""
+        if raw_results is None:
+            return []
+
+        items: List[Any]
+        if hasattr(raw_results, "results"):
+            items = list(getattr(raw_results, "results") or [])
+        elif isinstance(raw_results, list):
+            items = raw_results
+        else:
+            return []
+
+        normalized: List[Dict[str, Any]] = []
+        for item in items:
+            if isinstance(item, dict):
+                normalized.append(item)
+            elif hasattr(item, "model_dump"):
+                normalized.append(item.model_dump())
+            else:
+                normalized.append(
+                    {
+                        "url": getattr(item, "url", ""),
+                        "title": getattr(item, "title", ""),
+                        "snippet": getattr(item, "snippet", ""),
+                        "content": getattr(item, "content", None),
+                        "link": getattr(item, "link", ""),
+                    }
+                )
+        return normalized
 
     def _format_rag_context(self, chunks: List[RetrievedChunk]) -> str:
         """Format retrieved chunks into context string."""
