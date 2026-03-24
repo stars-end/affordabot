@@ -16,11 +16,12 @@ from __future__ import annotations
 from llm_common.core import LLMClient
 from llm_common.web_search import WebSearchClient
 from llm_common.core.models import LLMMessage, MessageRole
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import re
 from pydantic import BaseModel, ValidationError
 from schemas.analysis import (
     LegislationAnalysisResponse,
+    ImpactEvidence,
     LegislationImpact,
     ReviewCritique,
     SufficiencyState,
@@ -303,6 +304,9 @@ class AnalysisPipeline:
                     "rag_chunks": len(research_result.rag_chunks),
                     "web_sources": len(research_result.web_sources),
                     "evidence_envelopes": len(research_result.evidence_envelopes),
+                    "evidence_details": self._serialize_evidence_envelopes(
+                        research_result
+                    ),
                     "sufficiency_breakdown": research_result.sufficiency_breakdown,
                     "is_sufficient": research_result.is_sufficient,
                     "insufficiency_reason": research_result.insufficiency_reason,
@@ -829,34 +833,129 @@ Evidence Excerpts:
     ) -> None:
         """Replace weak generated excerpts with stronger provenance excerpts."""
         evidence_by_url: Dict[str, Dict[str, str]] = {}
+        evidence_candidates: List[Dict[str, str]] = []
         for envelope in research_result.evidence_envelopes:
             for evidence in getattr(envelope, "evidence", []) or []:
                 url = (getattr(evidence, "url", "") or "").strip()
                 excerpt = (getattr(evidence, "excerpt", "") or "").strip()
                 evidence_id = (getattr(evidence, "id", "") or "").strip()
                 evidence_kind = (getattr(evidence, "kind", "") or "").strip()
-                if not url or not excerpt:
+                source_name = (
+                    getattr(evidence, "label", "")
+                    or getattr(evidence, "source_name", "")
+                    or ""
+                ).strip()
+                if not excerpt:
                     continue
+                candidate = {
+                    "url": url,
+                    "excerpt": excerpt,
+                    "id": evidence_id,
+                    "kind": evidence_kind,
+                    "source_name": source_name,
+                }
+                evidence_candidates.append(candidate)
                 key = url.lower()
-                existing = evidence_by_url.get(key)
-                if not existing or len(excerpt) > len(existing.get("excerpt", "")):
-                    evidence_by_url[key] = {
-                        "excerpt": excerpt,
-                        "id": evidence_id,
-                        "kind": evidence_kind,
-                    }
+                if key:
+                    existing = evidence_by_url.get(key)
+                    if not existing or len(excerpt) > len(existing.get("excerpt", "")):
+                        evidence_by_url[key] = candidate
 
         for impact in analysis.impacts:
             for ev in impact.evidence:
-                candidate = evidence_by_url.get((ev.url or "").strip().lower())
+                candidate = self._match_research_evidence_candidate(
+                    impact,
+                    ev,
+                    evidence_by_url,
+                    evidence_candidates,
+                )
                 if not candidate:
                     continue
                 if self._is_weak_excerpt(ev.excerpt):
                     ev.excerpt = candidate["excerpt"]
+                if not ev.url and candidate.get("url"):
+                    ev.url = candidate["url"]
+                if (
+                    not ev.source_name
+                    or ev.source_name.strip().lower() == "curated evidence excerpts"
+                ) and candidate.get("source_name"):
+                    ev.source_name = candidate["source_name"]
                 if not ev.persisted_evidence_id and candidate.get("id"):
                     ev.persisted_evidence_id = candidate["id"]
                 if not ev.persisted_evidence_kind and candidate.get("kind"):
                     ev.persisted_evidence_kind = candidate["kind"]
+
+    def _serialize_evidence_envelopes(
+        self, research_result: LegislationResearchResult
+    ) -> List[Dict[str, Any]]:
+        """Persist compact evidence provenance for auditability."""
+        serialized: List[Dict[str, Any]] = []
+        for envelope in research_result.evidence_envelopes:
+            items: List[Dict[str, Any]] = []
+            for evidence in getattr(envelope, "evidence", []) or []:
+                items.append(
+                    {
+                        "id": getattr(evidence, "id", "") or "",
+                        "kind": getattr(evidence, "kind", "") or "",
+                        "label": getattr(evidence, "label", "") or "",
+                        "url": getattr(evidence, "url", "") or "",
+                        "excerpt": getattr(evidence, "excerpt", "") or "",
+                        "confidence": getattr(evidence, "confidence", None),
+                    }
+                )
+            serialized.append(
+                {
+                    "id": getattr(envelope, "id", "") or "",
+                    "source_tool": getattr(envelope, "source_tool", "") or "",
+                    "source_query": getattr(envelope, "source_query", "") or "",
+                    "evidence": items,
+                }
+            )
+        return serialized
+
+    def _match_research_evidence_candidate(
+        self,
+        impact: LegislationImpact,
+        evidence: ImpactEvidence,
+        evidence_by_url: Dict[str, Dict[str, str]],
+        evidence_candidates: List[Dict[str, str]],
+    ) -> Optional[Dict[str, str]]:
+        """Find the best research candidate for a generated evidence item."""
+        url_key = (evidence.url or "").strip().lower()
+        if url_key and url_key in evidence_by_url:
+            return evidence_by_url[url_key]
+
+        normalized_excerpt = re.sub(r"\s+", " ", (evidence.excerpt or "")).strip().lower()
+        best_candidate: Optional[Dict[str, str]] = None
+        best_score = 0
+        impact_tokens = self._claim_tokens(impact)
+
+        for candidate in evidence_candidates:
+            score = 0
+            candidate_excerpt = re.sub(
+                r"\s+", " ", (candidate.get("excerpt", "") or "")
+            ).strip()
+            candidate_lower = candidate_excerpt.lower()
+            candidate_name = (candidate.get("source_name", "") or "").strip().lower()
+
+            if normalized_excerpt and candidate_lower:
+                if normalized_excerpt == candidate_lower:
+                    score += 100
+                elif normalized_excerpt in candidate_lower or candidate_lower in normalized_excerpt:
+                    score += 60
+
+            if evidence.source_name and candidate_name:
+                if evidence.source_name.strip().lower() == candidate_name:
+                    score += 20
+
+            overlap = len(impact_tokens.intersection(self._tokenize_text(candidate_excerpt)))
+            score += min(overlap, 12)
+
+            if score > best_score:
+                best_score = score
+                best_candidate = candidate
+
+        return best_candidate if best_score >= 4 else None
 
     def _apply_fail_closed_review_gates(
         self,

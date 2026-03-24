@@ -6,6 +6,9 @@ Does NOT require a live database connection.
 
 import sys
 from pathlib import Path
+from unittest.mock import AsyncMock
+
+import pytest
 
 # Ensure backend root is on sys.path for imports
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
@@ -181,6 +184,35 @@ class TestRerunScriptTriggerSource:
         )
         assert "trigger_source TEXT" in source, (
             "Schema pre-flight should ensure trigger_source column"
+        )
+
+
+class TestRerunScriptSourceResolution:
+    @pytest.mark.asyncio
+    async def test_resolve_bill_source_prefers_raw_scrape_text_and_source_url(self) -> None:
+        from scripts.rerun_california_bills import resolve_bill_source
+
+        db = AsyncMock()
+        db._fetchrow.return_value = {"text_content": "LEGISLATION TEXT"}
+        db.get_latest_scrape_for_bill.return_value = {
+            "url": "https://leginfo.legislature.ca.gov/faces/billPdf.xhtml?bill_id=202520260SB277",
+            "data": {
+                "content": "RAW SCRAPE TEXT " * 20,
+            },
+            "metadata": {
+                "source_type": "leginfo",
+                "extraction_status": "success",
+                "bill_number": "SB 277",
+            },
+        }
+
+        text, metadata = await resolve_bill_source(db, "SB 277")
+
+        assert text.startswith("RAW SCRAPE TEXT")
+        assert metadata["bill_number"] == "SB 277"
+        assert metadata["source_type"] == "leginfo"
+        assert metadata["source_url"].startswith(
+            "https://leginfo.legislature.ca.gov/faces/billPdf.xhtml"
         )
 
 

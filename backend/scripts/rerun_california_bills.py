@@ -126,6 +126,66 @@ async def ingest_bill(db, bill_number: str, bill_text: str, metadata: dict) -> i
     return stored
 
 
+def _extract_scrape_text(scrape_data) -> str:
+    """Extract canonical bill text from raw_scrapes.data payloads."""
+    if isinstance(scrape_data, str):
+        try:
+            scrape_data = json.loads(scrape_data)
+        except json.JSONDecodeError:
+            return ""
+    if isinstance(scrape_data, dict):
+        content = scrape_data.get("content")
+        if isinstance(content, str):
+            return content
+    return ""
+
+
+async def resolve_bill_source(db, bill_number: str) -> tuple[str, dict]:
+    """Prefer latest raw scrape text/metadata over legislation row fallbacks."""
+    leg = await db._fetchrow(
+        "SELECT text_content FROM legislation WHERE bill_number = $1",
+        bill_number,
+    )
+    legislation_text = leg["text_content"] if leg and leg["text_content"] else ""
+
+    source_data = await db.get_latest_scrape_for_bill("State of California", bill_number)
+    if source_data:
+        scrape_text = _extract_scrape_text(source_data.get("data"))
+        scrape_metadata = source_data.get("metadata") or {}
+        if isinstance(scrape_metadata, str):
+            try:
+                scrape_metadata = json.loads(scrape_metadata)
+            except json.JSONDecodeError:
+                scrape_metadata = {}
+
+        bill_text = scrape_text if len(scrape_text) >= 100 else legislation_text
+        metadata = {
+            **(scrape_metadata if isinstance(scrape_metadata, dict) else {}),
+            "bill_number": bill_number,
+            "jurisdiction": "state of california",
+            "source_type": (
+                scrape_metadata.get("source_type")
+                if isinstance(scrape_metadata, dict)
+                else None
+            )
+            or "leginfo",
+            "source_url": source_data.get("url")
+            or (
+                scrape_metadata.get("source_url")
+                if isinstance(scrape_metadata, dict)
+                else None
+            )
+            or "",
+        }
+        return bill_text, metadata
+
+    return legislation_text, {
+        "bill_number": bill_number,
+        "jurisdiction": "state of california",
+        "source_type": "leginfo",
+    }
+
+
 async def run_pipeline(db, bill_number: str, bill_text: str, jurisdiction: str):
     """Run the full analysis pipeline for a bill."""
     from llm_common.core import LLMConfig
@@ -268,6 +328,7 @@ async def main():
     ]
 
     try:
+        bill_texts: dict[str, str] = {}
         # Step 0: Ensure trigger_source column exists
         print("=== Step 0: Schema Pre-flight ===")
         try:
@@ -287,15 +348,12 @@ async def main():
         # Step 1: Ingest/chunk
         print("=== Step 1: Ingestion/Chunking ===")
         for bill in bills:
-            leg = await db._fetchrow(
-                "SELECT text_content FROM legislation WHERE bill_number = $1",
-                bill["bill_number"],
-            )
-            if not leg or not leg["text_content"]:
+            text, metadata = await resolve_bill_source(db, bill["bill_number"])
+            bill_texts[bill["bill_number"]] = text
+            if not text:
                 print(f"  SKIP {bill['bill_number']}: no text")
                 continue
 
-            text = leg["text_content"]
             if len(text) < 100:
                 print(
                     f"  SKIP {bill['bill_number']}: text too short ({len(text)} chars)"
@@ -308,22 +366,13 @@ async def main():
                 bill["bill_number"],
             )
 
-            metadata = {
-                "bill_number": bill["bill_number"],
-                "jurisdiction": bill["jurisdiction"].lower(),
-                "source_type": "leginfo",
-            }
-
             await ingest_bill(db, bill["bill_number"], text, metadata)
 
         # Step 2: Run pipeline
         print("\n=== Step 2: Analysis Pipeline ===")
         for bill in bills:
-            leg = await db._fetchrow(
-                "SELECT text_content FROM legislation WHERE bill_number = $1",
-                bill["bill_number"],
-            )
-            if not leg or not leg["text_content"] or len(leg["text_content"]) < 100:
+            bill_text = bill_texts.get(bill["bill_number"], "")
+            if not bill_text or len(bill_text) < 100:
                 print(f"  SKIP {bill['bill_number']}: no valid text")
                 continue
 
@@ -331,7 +380,7 @@ async def main():
                 await run_pipeline(
                     db,
                     bill["bill_number"],
-                    leg["text_content"],
+                    bill_text,
                     bill["jurisdiction"],
                 )
             except Exception as e:

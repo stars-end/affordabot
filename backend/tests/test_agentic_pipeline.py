@@ -538,6 +538,87 @@ async def test_pipeline_hydrates_weak_excerpt_from_research_provenance():
 
 
 @pytest.mark.asyncio
+async def test_pipeline_backfills_missing_evidence_url_from_research_provenance():
+    mock_llm = MagicMock(spec=LLMClient)
+    mock_search = MagicMock(spec=WebSearchClient)
+    mock_db = MagicMock()
+
+    analysis_obj = _make_legislation_response()
+    analysis_obj.impacts[0].impact_description = (
+        "The resolution has no direct impact on household cost of living."
+    )
+    analysis_obj.impacts[0].evidence[0].source_name = "Curated Evidence Excerpts"
+    analysis_obj.impacts[0].evidence[0].url = ""
+    analysis_obj.impacts[0].evidence[0].excerpt = (
+        "Resolved by the Assembly of the State of California, the Senate thereof "
+        "concurring, That the Legislature proclaims January 23, 2026, as Maternal "
+        "Health Awareness Day."
+    )
+    review_obj = _make_review_response()
+    refined_obj = _make_legislation_response()
+    refined_obj.impacts[0].impact_description = analysis_obj.impacts[0].impact_description
+    refined_obj.impacts[0].evidence[0].source_name = analysis_obj.impacts[0].evidence[0].source_name
+    refined_obj.impacts[0].evidence[0].url = analysis_obj.impacts[0].evidence[0].url
+    refined_obj.impacts[0].evidence[0].excerpt = analysis_obj.impacts[0].evidence[0].excerpt
+    final_review_obj = _make_review_response()
+
+    mock_llm.chat_completion = AsyncMock(
+        side_effect=[
+            MagicMock(content=analysis_obj.model_dump_json()),
+            MagicMock(content=review_obj.model_dump_json()),
+            MagicMock(content=refined_obj.model_dump_json()),
+            MagicMock(content=final_review_obj.model_dump_json()),
+        ]
+    )
+
+    mock_db.get_latest_scrape_for_bill = AsyncMock(return_value=None)
+    mock_db.create_pipeline_run = AsyncMock(return_value="run-1")
+    mock_db.get_or_create_jurisdiction = AsyncMock(return_value=1)
+    mock_db.store_legislation = AsyncMock(return_value=101)
+    mock_db.store_impacts = AsyncMock()
+    mock_db.complete_pipeline_run = AsyncMock()
+    mock_db.fail_pipeline_run = AsyncMock()
+
+    pipeline = AnalysisPipeline(mock_llm, mock_search, mock_db)
+    research_result = _make_research_result()
+    research_result.evidence_envelopes = [
+        EvidenceEnvelope(
+            id="env-acr117",
+            source_tool="retriever",
+            source_query="ACR 117",
+            evidence=[
+                Evidence(
+                    id="rag-acr117",
+                    kind="internal",
+                    label="ACR 117 Bill Text",
+                    url="https://leginfo.legislature.ca.gov/faces/billPdf.xhtml?bill_id=202520260ACR117",
+                    content="",
+                    excerpt=(
+                        "Resolved by the Assembly of the State of California, the Senate "
+                        "thereof concurring, That the Legislature proclaims January 23, "
+                        "2026, as Maternal Health Awareness Day."
+                    ),
+                )
+            ],
+        )
+    ]
+
+    with patch.object(
+        pipeline.research_service,
+        "research",
+        new_callable=AsyncMock,
+        return_value=research_result,
+    ):
+        models = {"research": "m1", "generate": "m2", "review": "m3"}
+        result = await pipeline.run("ACR 117", "The bill text...", "California", models)
+
+    hydrated = result.impacts[0].evidence[0]
+    assert hydrated.url == "https://leginfo.legislature.ca.gov/faces/billPdf.xhtml?bill_id=202520260ACR117"
+    assert hydrated.source_name == "ACR 117 Bill Text"
+    assert hydrated.persisted_evidence_id == "rag-acr117"
+
+
+@pytest.mark.asyncio
 async def test_pipeline_fail_closed_when_quantified_claim_lacks_numeric_support():
     mock_llm = MagicMock(spec=LLMClient)
     mock_search = MagicMock(spec=WebSearchClient)
