@@ -1,274 +1,562 @@
 # Mechanism-Backed Quantification Specification
 
 ## 1. Problem Statement
-Affordabot's current quantification strategy is too narrow. While the recent pipeline truth remediation (bd-tytc) successfully eliminated fake numbers by enforcing strict evidence gates, it inadvertently under-quantifies bills whose economic effects are real but indirect. The current pipeline fundamentally expects explicit "fiscal notes" or direct cost estimates in the text. The founder explicitly requires "mechanism-backed quantification" to model indirect effects—such as compliance costs, pass-through incidence, and adoption rates—grounded in real economic literature and empirical parameter classes, while still maintaining strict "no fake precision" fail-closed rules.
+Affordabot's current quantification path is intentionally conservative, but too narrow. After the recent truth-remediation work, the pipeline can reliably avoid fake numbers by requiring direct fiscal notes or official numeric estimates. That solved the hallucination problem, but it also blocks quantification for bills whose cost-of-living effects are real, causal, and economically analyzable through well-established mechanisms such as regulatory compliance burden, pass-through, or participation effects.
+
+The founder requires a stricter but broader framework:
+- quantify only when a real causal mechanism is identified
+- quantify only when the required parameters are sourced and auditable
+- propagate uncertainty explicitly without fake percentiles
+- preserve end-to-end provenance from raw scrape to persisted output
+
+This is not a generate-step enhancement. It is a whole-pipeline contract change affecting research, deterministic gates, generation, review, persistence, Slack, admin/glassbox, and verification.
 
 ## 2. Current-State Assessment
-Grounded in the current trunk (`b557c2098193f558fab61ed9144773e24870b657`):
-- **Orchestrator (`backend/services/llm/orchestrator.py`)**: Uses `LegislationResearchService` to fetch evidence, then forces outputs into a generic, falsely-precise `p10/p25/p50/p75/p90` array if quantified.
-- **Evidence Gates**: `assess_sufficiency` completely blocks quantification (`quantification_eligible = False`) if direct fiscal notes or official numeric estimates are missing.
-- **Observability**: `GlassBoxService` and `/api/admin` APIs expose `pipeline_runs` containing a flat analysis payload without tracking *how* numbers were derived (the mechanism) or what parameters were used.
-- **Slack Summary (`backend/services/slack_summary.py`)**: Emits a brief summary per run, noting `sufficiency_state` and whether the bill is `quantification_eligible`, but lacks mechanism insight.
+Grounded in current trunk and the existing PR `#335` baseline:
 
-## 3. Recommended Quantification Mode Taxonomy
-To expand safely, we must replace the single generic pathway with specific, mechanically sound quantification modes backed by established economic methodologies.
+- [orchestrator.py](backend/services/llm/orchestrator.py)
+  - Current step sequence is effectively `ingestion_source -> research -> sufficiency_gate -> generate -> review -> refine? -> persistence`.
+  - There is no explicit `mode_selection`, `parameter_resolution`, or `parameter_validation` step.
 
-### Recommended for First-Wave Implementation
-1. **`direct_fiscal`**: Straightforward extraction of official government cost estimates (formalizing the current capability).
-2. **`compliance_cost`**: Calculating direct regulatory burden on businesses or residents based on the Standard Cost Model (SCM).
+- [evidence_gates.py](backend/services/llm/evidence_gates.py)
+  - `assess_sufficiency()` is deterministic, but it is fiscal-note-centric.
+  - It decides `quantification_eligible` primarily from Tier A evidence plus detected fiscal-note-style numeric support.
+  - It has no concept of quantification modes, per-parameter validation, source hierarchies, or excerpt-as-gate.
 
-### Recommended for Second-Wave Implementation
-3. **`pass_through_incidence`**: Calculating how much of a new corporate tax, fee, or cost is passed on to consumers.
-4. **`adoption_take_up`**: Calculating the impact of an opt-in program based on eligibility and historical take-up rates.
+- [legislation_research.py](backend/services/legislation_research.py)
+  - Research retrieves bill text and bill-specific web results.
+  - Query construction currently emphasizes fiscal impact analysis, committee analysis, and government cost estimates.
+  - It does not yet deliberately retrieve parameter classes needed for mechanism-backed quantification such as BLS wages, CBP/QCEW counts, sector pass-through estimates, or take-up benchmarks.
 
-### Deferred (Out of Scope)
-5. **`supply_shock`**: General equilibrium effects and elasticity-driven price changes across entire markets (e.g., housing elasticity). **Deferral rationale**: Full CGE/dynamic scoring requires structural model choices (Solow-type, OLG, DSGE) that introduce ideological and parametric controversy (see CBO's practice of running 2+ models and bracketing results). Reduced-form GE corrections exist for specific channels (e.g., Saiz 2010 metro-level housing supply elasticities, Dube 2019 minimum-wage employment elasticities, Ramey 2019 fiscal multiplier ranges), but integrating them requires curated empirical lookup infrastructure that does not yet exist in the pipeline. **Intermediate path for future waves**: where credible reduced-form GE estimates exist in the literature (housing supply, employment effects of minimum wage, fiscal multipliers), they can be incorporated as mode-specific adjustment factors without a full CGE model. This is the approach recommended by Chetty's (2009) "sufficient statistics" framework for welfare analysis. **Implementation gate**: supply_shock should not be attempted until (a) a curated parameter store for sector-specific elasticities exists, and (b) the Wave 2 modes have been validated in production.
+- [analysis.py](backend/schemas/analysis.py)
+  - `LegislationImpact` still uses `p10/p25/p50/p75/p90`.
+  - `LegislationAnalysisResponse` still uses `total_impact_p50`.
+  - There is no canonical representation for `impact_mode`, `modeled_parameters`, or `scenario_bounds`.
 
-### 3.1 Mode Selection Mechanism
+- [slack_summary.py](backend/services/slack_summary.py)
+  - Slack proof builders assume the old flat quantified/unquantified model.
+  - Current summaries do not explain mechanism, parameter gaps, or uncertainty drivers.
 
-**Single-bill, single-mode assignment (Wave 1)**. Each bill-impact pair is assigned exactly one quantification mode. The orchestrator selects the mode using the following precedence rules:
+- [glass_box.py](backend/services/glass_box.py) and [admin.py](backend/routers/admin.py)
+  - Canonical DB-backed truth path exists and is the correct audit surface.
+  - Current responses expose flat run/analysis data, not parameter-level mechanism traces.
 
-1. **If an official fiscal note, CBO score, or government cost estimate exists** → `direct_fiscal`.
-2. **If the bill imposes a new regulatory obligation with identifiable compliance activities on a defined population** → `compliance_cost`.
-3. **If the bill levies a tax, fee, or cost on businesses that is plausibly shifted to consumers** → `pass_through_incidence` (Wave 2 only).
-4. **If the bill creates or modifies an opt-in benefit program** → `adoption_take_up` (Wave 2 only).
-5. **If none of the above conditions are met with sufficient evidence** → `qualitative_only` (fail closed).
+- [verify_pipeline_truth.py](backend/scripts/verification/verify_pipeline_truth.py)
+  - Current verifier checks scrape, chunk presence, legislation truth fields, pipeline run presence, and persistence step presence.
+  - It does not check mode selection, parameter sourcing, uncertainty construction, or post-generation validation.
 
-**Ambiguity resolution**: If a bill plausibly fits multiple modes (e.g., a new licensing fee that is both a compliance cost and a potential pass-through to consumers), the orchestrator MUST select the mode for which it has the strongest evidence support. It MUST NOT attempt to combine modes or produce multiple quantified impacts from different modes for the same bill-impact pair in Wave 1.
+## 3. Design Principles
+1. **Mode-backed, not vibes-backed**
+   - Every quantified impact must name a quantification mode.
 
-**Multi-mode composition (future design)**. A single bill may have multiple *distinct* impacts (e.g., a bill that both creates a licensing regime AND establishes a subsidy program). Each distinct impact may be assigned a different mode. However, the same dollar flow MUST NOT be double-counted across modes. Multi-impact composition is permitted only when the impacts are economically independent (i.e., the compliance cost of the licensing regime and the fiscal cost of the subsidy program do not overlap). The orchestrator must emit a `composition_note` field when multiple impacts are quantified for the same bill, explaining why they are independent.
+2. **Deterministic gates before and after LLM generation**
+   - LLMs may synthesize and narrate.
+   - Deterministic code must validate mode selection, parameter completeness, and output integrity.
 
-**Fail-closed on ambiguity**: If the orchestrator cannot determine the correct mode with high confidence, or if the available evidence supports multiple modes roughly equally, the bill fails closed to `qualitative_only`. Emitting a quantified impact under the wrong mode is worse than emitting no quantified impact.
+3. **Single-impact, single-mode in Wave 1**
+   - Each quantified impact uses exactly one primary mode.
+   - A bill may contain multiple impacts, but each impact remains single-mode.
 
----
+4. **Fail closed on ambiguity**
+   - If the mechanism is ambiguous, the parameters are missing, or the evidence is too contested, the system falls back to `qualitative_only`.
 
-## 4. Empirical Parameters and Literature by Mode
+5. **Canonical truth store stays the same**
+   - Detailed provenance remains in `pipeline_steps`, `pipeline_runs.result`, and downstream persisted analysis structures.
+   - Slack remains summary-only.
+   - Admin/glassbox remains the detailed operator surface.
 
-To prevent "hand-wavy" modes, Affordabot must extract and cite specific empirical parameters corresponding to established economic literature.
+## 4. Quantification Mode Taxonomy
 
-### A. Compliance Cost Mode
-**Methodology**: Based on the **Standard Cost Model (SCM)**, the methodology adopted by the OECD (2004, 2014) as the recommended approach for measuring administrative and regulatory burdens across member countries. Originally developed by the Dutch Ministry of Finance / SIRA Consulting in the late 1990s; also adopted by the European Commission for its Administrative Burden Reduction Programme (2007).
-**Core Empirical Formula**: `Cost = Population (P) × Frequency (F) × Time (T) × Wage (W)`
-This is the canonical simplification of the full SCM formula: `Cost_per_IO = (Internal_time × Internal_tariff + External_costs + Out_of_pocket) × Population × Frequency`. The simplified form omits external costs and out-of-pocket costs, which are secondary components for most regulatory obligations. The simplification is standard in the literature when the primary burden is internal staff time.
-**Required Parameters**:
-- `population`: Number of affected entities (businesses, residents).
-- `frequency`: How often the compliance task occurs per year.
-- `time_burden`: Hours required per task.
-- `wage_rate`: Hourly labor cost. Must include an overhead multiplier to reflect total employer cost. The 1.25x multiplier is a convention from European SCM practice (mandatory social contributions). The 1.33x multiplier is closer to US mandatory employer costs. Both are conservative — BLS Employer Costs for Employee Compensation (ECEC) data shows actual total compensation overhead in the US is closer to 1.40x for private industry. Implementations SHOULD default to 1.33x for US jurisdictions and note this is a convention, not an empirically derived constant.
+### 4.1 First-Wave Modes
+1. `direct_fiscal`
+   - Official fiscal note, CBO score, committee fiscal estimate, or agency cost estimate.
 
-**Population Sourcing Hierarchy** (required — fail closed if no source is available):
-1. **Bill text or accompanying fiscal note**: explicit count of affected entities stated in legislation or official analysis.
-2. **Census County Business Patterns (CBP)** or **BLS Quarterly Census of Employment and Wages (QCEW)**: for business-affecting regulations, use NAICS-code-filtered establishment counts at the relevant geographic level.
-3. **State licensing/regulatory registry**: for regulations targeting licensed professions or permitted activities, use the count from the relevant state agency's public registry or administrative data.
-4. **Fail closed**: If none of the above sources yields a defensible population count, the mode fails closed to `qualitative_only`. The orchestrator MUST NOT estimate or hallucinate a population figure.
+2. `compliance_cost`
+   - Standard Cost Model style administrative/regulatory burden:
+   - `Cost = Population × Frequency × Time × Wage`
 
-**Literature/Sources**: Bureau of Labor Statistics (OES wage data — the standard US source per OMB Circular A-4 for regulatory cost wage inputs), BLS ECEC (for overhead/benefits ratios), O*NET (task data), Regulatory Impact Statements (RIS), OECD SCM Manual (2004), OECD Regulatory Compliance Cost Assessment Guidance (2014).
+### 4.2 Second-Wave Modes
+3. `pass_through_incidence`
+   - Consumer price effect from a tax, fee, or business cost shifted through a market.
 
-**Known SCM limitations** (per Torriti 2007, Wegrich 2009, OECD 2014): SCM measures administrative/paperwork burden only, not substantive compliance costs (behavioral changes). The "normally efficient business" assumption introduces subjectivity. Population and frequency estimates may be unreliable. The model is static and does not capture learning/adaptation effects. These limitations are acceptable for Wave 1 because Affordabot's target is a first-order cost estimate with transparent parameters, not a comprehensive regulatory impact assessment.
+4. `adoption_take_up`
+   - Program fiscal effect from eligible population, take-up, and benefit/cost per participant.
 
-### B. Pass-Through Incidence Mode (Wave 2)
-**Methodology**: Based on structural incidence models, notably **Weyl and Fabinger (2013, Journal of Political Economy)**. The Weyl-Fabinger framework defines ρ as dp*/dt (the derivative of equilibrium price with respect to the tax). Under perfect competition, ρ = 1/(1 + η_D/η_S). Under imperfect competition, ρ depends on demand curvature and competitive conduct.
-**Core Empirical Formula**: `ΔP = ρ × ΔT` (Price Change = Pass-Through Rate × Tax/Cost Change).
-This is a valid local/marginal approximation. For large discrete tax changes, accuracy depends on the linearity of the pass-through function. ρ is not a constant — it varies with market concentration, demand curvature, supply elasticity, and tax magnitude.
-**Required Parameters**:
-- `total_levied_cost`: The initial statutory burden or tax amount.
-- `pass_through_rate` (ρ): The fraction of the cost shifted to consumers.
-- `literature_confidence`: One of `high`, `moderate`, or `contested`. Required for each parameter sourced from economic literature.
+### 4.3 Deferred Modes
+5. `supply_shock`
+   - Broad structural equilibrium or reduced-form elasticity adjustments with major regime-dependence risk.
+   - Deferred until curated parameter infrastructure exists and Wave 1/2 modes are production-credible.
 
-**Literature confidence classification**:
-- `high`: Multiple well-identified empirical studies with consistent findings and no major methodological controversy (e.g., gasoline tax pass-through: Chouinard & Perloff 2004, Doyle & Samphantharak 2008, Marion & Muehlegger 2011 — clustering around ρ ≈ 0.7–1.0).
-- `moderate`: Empirical estimates exist but show meaningful heterogeneity by context, or the study populations may not match the target jurisdiction (e.g., retail sales tax pass-through: Besley & Rosen 1999 found over-shifting (ρ > 1.0) for more than half of goods examined).
-- `contested`: The literature itself is actively disputed, estimates span a wide range, or meta-analyses have identified publication bias (e.g., corporate tax incidence on labor: Knaisch & Poeschel 2024 meta-regression found substantial publication bias; after correction, the average effect may be near zero, vs. published point estimates of ρ ≈ 0.3–0.7).
+## 5. Full Pipeline Operating Contract
+The current pipeline sequence is insufficient for mechanism-backed quantification. The required operating contract is:
 
-**Fail-closed on contested literature**: If `literature_confidence` is `contested`, the scenario_bounds MUST use the widest defensible range from the literature and the impact summary MUST flag the contested status. If the range is so wide as to be uninformative (e.g., ρ spanning 0.0–0.8), the mode SHOULD fail closed to `qualitative_only`.
+1. `ingestion_source`
+2. `chunk_index`
+3. `research_discovery`
+4. `mode_selection`
+5. `parameter_resolution`
+6. `sufficiency_gate`
+7. `generate`
+8. `parameter_validation`
+9. `review`
+10. `refine` (optional)
+11. `persistence`
+12. `notify_debug`
 
-**Important caveats** (per Fullerton & Metcalf 2002, Handbook of Public Economics):
-- Over-shifting (ρ > 1.0) is theoretically expected and empirically observed in imperfectly competitive markets. The model must not cap ρ at 1.0.
-- Pass-through is often asymmetric — tax increases and decreases may not pass through equally (Doyle & Samphantharak 2008).
-- Time horizon matters: short-run and long-run incidence can differ substantially.
-- Local market conditions dominate; national-average ρ may be misleading for specific jurisdictions.
+### 5.1 ingestion_source
+- Unchanged as the raw-source entry point.
+- Must continue to persist:
+  - raw scrape id
+  - source URL
+  - content hash
+  - source type
+  - source text presence
+- Mechanism-backed quantification is disallowed if raw-source provenance is incomplete.
 
-**Literature/Sources**: Must cite empirical tax incidence literature specific to the sector and, where possible, the geographic context. General references: Weyl & Fabinger (2013, JPE), Fullerton & Metcalf (2002), Besley & Rosen (1999, NTJ). Sector-specific: gasoline (Chouinard & Perloff 2004, Doyle & Samphantharak 2008), corporate (Arulampalam et al. 2012 — European Economic Review, not Econometrica; note Knaisch & Poeschel 2024 meta-analysis concerns).
+### 5.2 chunk_index
+- Structurally similar to today, but chunk metadata must remain parameter-provenance friendly.
+- Minimum metadata:
+  - `bill_number`
+  - `jurisdiction`
+  - `document_id`
+  - `source_url`
+  - `source_type`
+- If available, chunk metadata should also carry a semantic role hint such as:
+  - `bill_text`
+  - `committee_analysis`
+  - `fiscal_note`
+  - `agency_report`
+  - `academic_literature`
 
-**Wave 2 retrieval prerequisite**: This mode MUST NOT be enabled until a curated retrieval pipeline for sector-specific empirical pass-through literature is operational. The current general-purpose web search is insufficient to reliably surface the correct empirical estimates for a given tax type and sector. Implementation of this mode is gated on: (a) a curated index of pass-through studies organized by tax type, sector, and geography, or (b) a validated RAG pipeline that can retrieve and cite specific empirical estimates with provenance. Without this infrastructure, the LLM will anchor on training-data priors rather than current, context-appropriate literature.
+### 5.3 research_discovery
+- Split the current generic research step into a richer output contract.
+- Required outputs:
+  - `rag_chunks`
+  - `web_sources`
+  - `evidence_envelopes`
+  - `candidate_modes`
+  - `parameter_candidates`
+  - `retrieval_coverage`
+  - `coverage_gaps`
+- `retrieval_coverage` must explicitly record whether the run searched for:
+  - official fiscal notes
+  - committee analyses
+  - regulatory burden clues
+  - population counts
+  - wage benchmarks
+  - take-up benchmarks
+  - pass-through literature
 
-### C. Adoption / Take-up Mode (Wave 2)
-**Methodology**: Based on the program participation/take-up literature, including Currie (2006, in Auerbach, Card & Quigley eds., *Public Policy and the Income Distribution*), Moffitt (1983, "An Economic Model of Welfare Stigma," *American Economic Review*), and Herd & Moynihan (2019, *Administrative Burden*).
+### 5.4 mode_selection
+- New deterministic step.
+- Purpose:
+  - choose a primary mode for each candidate impact
+  - reject unsupported or ambiguous modes
+- Required outputs:
+  - `candidate_modes`
+  - `selected_mode`
+  - `rejected_modes`
+  - `selection_rationale`
+  - `ambiguity_status`
+  - `composition_candidate`
+- Mode selection must run after research discovery but before quantification eligibility is decided.
+- If ambiguity remains high, fail closed to `qualitative_only`.
 
-**Why not Bass Diffusion**: The Bass Diffusion Model was designed for consumer durable adoption (TVs, phones) where: (a) all potential adopters eventually purchase, (b) market potential is fixed, and (c) imitation/word-of-mouth drives the S-curve. Government program take-up violates all three assumptions: take-up reaches a steady-state ceiling well below 100% (SNAP plateaus ~82-84%, EITC ~78-80%), eligible populations shift with economic conditions and policy changes, and enrollment is driven primarily by administrative design and outreach rather than peer imitation. The program participation literature uses cost-benefit participation models, administrative burden frameworks, and microsimulation — not diffusion models.
+### 5.5 parameter_resolution
+- New deterministic step.
+- Purpose:
+  - normalize every required parameter for the selected mode into a canonical schema
+  - validate source hierarchy at the parameter level
+- Required outputs:
+  - `required_parameters`
+  - `resolved_parameters`
+  - `missing_parameters`
+  - `source_hierarchy_status`
+  - `literature_confidence`
+  - `excerpt_validation_status`
+  - `dominant_uncertainty_parameters`
+- If any required parameter is missing, the selected mode cannot proceed to quantification.
 
-**Core Empirical Formula**: `Fiscal_Impact = eligible_population × take_up_rate × benefit_per_capita`
-This is a reasonable first-order approximation used by CBO and state fiscal offices. Known limitations: (a) take_up_rate is endogenous to benefit generosity and administrative design, not a fixed parameter; (b) benefit_per_capita is heterogeneous across the enrolled population; (c) the formula omits administrative costs (typically 5-15% of benefit outlays), crowd-out of existing coverage, and cross-program interaction effects. These limitations are acceptable for Wave 1 back-of-envelope estimation with transparent parameters.
+### 5.6 sufficiency_gate
+- `assess_sufficiency()` must evolve from fiscal-note gating into mode-aware gating.
+- This is a major deterministic rewrite, not a minor patch.
+- Required outputs:
+  - `selected_mode`
+  - `quantification_eligible`
+  - `sufficiency_state`
+  - `gate_failures`
+  - `parameter_validation_summary`
+  - `retrieval_prerequisite_status`
+- The gate must validate:
+  - source text presence
+  - evidence presence
+  - mode legitimacy
+  - parameter completeness
+  - source hierarchy compliance
+  - excerpt-as-gate compliance
+  - literature confidence constraints
+  - anti-double-counting eligibility
+  - uncertainty construction validity
 
-**Required Parameters**:
-- `eligible_population`: Total number of people qualifying for the policy.
-- `take_up_rate`: The fraction of the eligible population expected to participate. Must be sourced from published take-up data (see sourcing hierarchy below), not LLM-generated estimates.
-- `benefit_per_capita`: The value or cost per participating individual.
+### 5.7 generate
+- Generation may not choose a new mode on its own.
+- It must consume:
+  - selected mode
+  - validated parameter set
+  - scenario-construction rules
+- Required generated fields:
+  - `impact_mode`
+  - `modeled_parameters`
+  - `scenario_bounds`
+  - `mode_selection_rationale`
+  - `composition_note`
+- Generation remains responsible for structured explanation, not for gate logic.
 
-**Take-up rate sourcing hierarchy** (required — fail closed if no source is available):
-1. **Program-specific published take-up data**: USDA FNS participation rates (SNAP — the gold standard, published annually with state-level breakdowns), IRS EITC participation rate estimates (published by state), CMS enrollment data (Medicaid/CHIP).
-2. **CBO baseline projections**: CBO publishes enrollment/caseload projections for selected programs up to 3x/year. Note: CBO publishes enrollment projections, not explicit take-up rates — deriving a rate requires separately estimating the eligible population.
-3. **Analogous program take-up data**: If the bill creates a novel program, use take-up rates from the most structurally similar existing program, with explicit justification for the analogy and a wider uncertainty band.
-4. **Fail closed**: If no published take-up data or defensible analogy exists, the mode fails closed to `qualitative_only`. The LLM MUST NOT generate take-up rate estimates from first principles.
+### 5.8 parameter_validation
+- New deterministic post-generation step.
+- Purpose:
+  - verify generated output is consistent with upstream validated inputs
+  - verify arithmetic and schema invariants
+  - verify scenario bounds vary only dominant parameters
+  - verify prose does not overclaim beyond the validated evidence
+- Required outputs:
+  - `schema_valid`
+  - `arithmetic_valid`
+  - `bound_construction_valid`
+  - `claim_support_valid`
+  - `validation_failures`
+- If this step fails, the impact is downgraded to `qualitative_only` before persistence.
 
-**Key empirical reference points** (for calibrating reasonableness, not for direct application):
-| Program | Take-up Rate | Source |
-|---------|-------------|--------|
-| SNAP | ~82-84% | USDA FNS (FY 2015-2017) |
-| EITC (with children) | ~78-81% | IRS (TY 2022) |
-| EITC (childless) | ~56% | IRS (TY 2022) |
-| Medicaid (children) | ~91% | Census ACS / PMC (2015-2019) |
-| Medicaid (adults) | ~71% | Census ACS / PMC (2015-2019) |
-| Section 8 | ~25% of eligible | NLIHC (supply-constrained, not demand-side) |
+### 5.9 review
+- Review remains valuable, but no longer carries the burden of deterministic enforcement.
+- The reviewer checks:
+  - mode appropriateness
+  - causal coherence
+  - double-counting risk
+  - sign/unit sanity
+  - uncertainty narrative sanity
+- Review must not be the first place where missing parameters are discovered.
 
-**Literature/Sources**: Currie (2006), Moffitt (1983, AER), Herd & Moynihan (2019), Ko & Moffitt (2022, IZA — updated take-up survey), Bhargava & Manoli (2015 — information/simplification effects on EITC take-up), USDA FNS participation rate reports, IRS EITC Central, CBO baseline projections for selected programs, HHS ASPE cross-program participation briefs.
+### 5.10 refine
+- Refine may revise:
+  - narrative explanation
+  - causal chain
+  - impact framing
+- Refine may not invent missing parameters that failed deterministic validation.
 
-**Wave 2 retrieval prerequisite**: This mode MUST NOT be enabled until a curated lookup table of published take-up rates by program type is available in the pipeline. The most practical approach is a maintained table sourced from FNS, IRS, CMS, and ASPE reports, rather than relying on real-time LLM retrieval of these figures.
+### 5.11 persistence
+- Persistence must store both:
+  - backward-compatible summary truth fields
+  - the new mechanism-backed structure
+- Every persisted quantified impact must remain reconstructable from:
+  - selected mode
+  - validated parameters
+  - scenario-construction rule
+  - cited evidence
 
----
+### 5.12 notify_debug
+- During the debug period, a short Slack summary should emit for every pipeline run.
+- Slack is not a second store; it is an operator proof layer with deep links back to canonical truth.
 
-## 5. Uncertainty Model Requirements
+## 6. Mode Definitions and Empirical Inputs
 
-The current `p10..p90` array implies a continuous probability distribution that the LLM cannot actually compute, leading to fake precision.
+### 6.1 direct_fiscal
+- Use when an official government estimate exists.
+- Required parameters:
+  - `fiscal_note_estimate`
+- Scenario construction:
+  - `base` = published value
+  - `low/high` = official range if present
+  - otherwise `low = base = high`
+- This mode is first-wave and backward-compatible with existing behavior.
 
-### 5.1 Replacing p10..p90 with Scenario Bounds
-Affordabot must move to discrete **Scenario Bounds (`low`, `base`, `high`)** at the impact level. A Monte Carlo-ready parameter distribution is overkill for Wave 1 given the quality of input data.
+### 6.2 compliance_cost
+- Methodology: Standard Cost Model.
+- Formula:
+  - `Cost = Population × Frequency × Time × Wage`
+- Required parameters:
+  - `population`
+  - `frequency`
+  - `time_burden`
+  - `wage_rate`
+- Population source hierarchy:
+  1. bill text / fiscal note explicit count
+  2. Census CBP or BLS QCEW establishment counts
+  3. state registry / licensing / administrative count
+  4. fail closed
+- Wage benchmark hierarchy:
+  1. bill-specific official wage basis if present
+  2. BLS OEWS/OES
+  3. fail closed
+- Overhead multiplier:
+  - default US floor convention should be explicit and cited
+- Dominant uncertainty defaults:
+  - `population`
+  - `time_burden`
 
-### 5.2 Definitions
-- **`base`**: The single most defensible point estimate given available evidence. For parameters sourced from published data (BLS wages, FNS take-up rates), this is the published figure. For parameters derived from bill text (population, frequency), this is the literal number stated or the most direct inference.
-- **`low`**: A plausible lower bound representing a scenario where the 1-2 most uncertain parameters take conservative values. This is NOT the 10th percentile of a distribution — it is the estimate under a specific, stated "things go better than expected" assumption. The assumption must be named.
-- **`high`**: A plausible upper bound representing a scenario where the 1-2 most uncertain parameters take adverse values. Same constraint: the assumption must be named.
+### 6.3 pass_through_incidence
+- Wave 2 only.
+- Required parameters:
+  - `total_levied_cost`
+  - `pass_through_rate`
+  - `literature_confidence`
+- Requires curated sector-specific retrieval or lookup before activation.
 
-### 5.3 Dominant-Parameter Variation (Avoiding Corners-of-the-Box)
-**The naive approach of setting all parameters simultaneously to their extreme values is a well-documented antipattern** (Morgan & Henrion 1990, *Uncertainty*; Saltelli et al. 2004; EPA 2009 modeling guidance; NRC 2009). If n independent parameters each sit at their 10th/90th percentile, the probability of the corner scenario is 0.1^n — astronomically improbable for n > 2. The resulting range is uninformatively wide and implicitly assumes perfect positive correlation among all parameters.
+### 6.4 adoption_take_up
+- Wave 2 only.
+- Required parameters:
+  - `eligible_population`
+  - `take_up_rate`
+  - `benefit_per_capita`
+- Take-up hierarchy:
+  1. program-specific published administrative data
+  2. defensible analogous program
+  3. fail closed
+- Bass diffusion is explicitly out of scope and must not appear in implementation.
 
-**Wave 1 design: dominant-parameter variation.** Instead of varying all parameters:
-1. The orchestrator identifies the **1-2 parameters with the greatest uncertainty** for each mode. These are the "dominant uncertainty parameters."
-2. `low` and `high` scenario bounds are computed by varying ONLY the dominant parameters while holding all others at their `base` values.
-3. The `scenario_bounds` object MUST include a `dominant_parameters` array naming which parameters were varied and why.
+## 7. Research and Retrieval Contract
+Mechanism-backed quantification changes research upstream.
 
-**Per-mode dominant parameters (defaults, overridable by evidence)**:
-| Mode | Typical dominant parameter(s) | Rationale |
-|------|------------------------------|-----------|
-| `direct_fiscal` | The fiscal note figure itself (see §5.5) | Single-source estimate; uncertainty is in the source, not in a formula |
-| `compliance_cost` | `population`, `time_burden` | Wage and frequency are typically well-sourced; affected population and time-per-task are the most uncertain SCM inputs (OECD 2014) |
-| `pass_through_incidence` | `pass_through_rate` (ρ) | The empirical pass-through rate dominates uncertainty in most tax incidence analyses |
-| `adoption_take_up` | `take_up_rate`, `eligible_population` | Benefit amount is usually legislatively specified; participation and eligibility are uncertain |
+### 7.1 Research is now two jobs
+1. evidence discovery
+2. parameter discovery
 
-### 5.4 LLM-Generated Parameter Ranges: Epistemological Constraints
-LLM-produced low/base/high estimates are defensible ONLY when used as **literature synthesis** — i.e., the LLM is summarizing published ranges from fiscal notes, CBO reports, and academic sources. They are NOT defensible as calibrated probability estimates or expert elicitation (per Kadavath et al. 2022 on LLM calibration limitations, Halawi et al. 2024 on LLM forecasting).
+### 7.2 Mode-aware retrieval expectations
+- `direct_fiscal`
+  - fiscal note
+  - committee fiscal analysis
+  - official agency estimate
+- `compliance_cost`
+  - affected population count
+  - reporting / filing / training frequency
+  - time burden clues
+  - wage benchmark source
+- `pass_through_incidence`
+  - sector classification
+  - statutory burden amount
+  - sector-specific incidence literature
+- `adoption_take_up`
+  - eligible population
+  - program analog
+  - take-up benchmark
+  - per-capita benefit/cost
 
-**Binding constraints on LLM-generated ranges**:
-1. Every parameter range MUST cite at least one source (the `source_url` and `excerpt` fields — see §7).
-2. Ranges must be labeled as "literature-derived," not "model-estimated."
-3. If the LLM cannot cite a source for a low/high bound, it MUST use the base value only (i.e., no uncertainty band for that parameter). Single-value parameters are honest; invented ranges are not.
-4. `excerpt` is a **gate**, not merely a persistence field: if a literature-backed parameter has no excerpt from the cited source, the parameter fails validation and the mode fails closed. This prevents citation of sources the LLM has not actually read or verified.
+### 7.3 Retrieval prerequisites
+- Wave 1:
+  - `direct_fiscal` requires no new curated retrieval layer
+  - `compliance_cost` can proceed with constrained hierarchies plus official datasets
+- Wave 2:
+  - `pass_through_incidence` blocked without curated literature retrieval
+  - `adoption_take_up` blocked without curated take-up lookup
 
-### 5.5 Direct Fiscal Mode and Scenario Bounds
-A single-number fiscal note maps into scenario_bounds as follows:
-- `base`: The fiscal note figure as stated.
-- `low` and `high`: If the fiscal note source provides a range, use it. If CBO or the issuing agency provides sensitivity analysis, use the stated alternatives. If only a single point estimate exists, set `low = base` and `high = base` (i.e., a zero-width band). **A single-point fiscal note with no stated uncertainty should be represented honestly as a single point, not artificially widened.** The `dominant_parameters` array is empty in this case, and a `note` field should state: "Single-point fiscal note; no uncertainty decomposition available."
+## 8. Uncertainty Contract
+The system must stop pretending to know percentiles it cannot justify.
 
-### 5.6 Relationship to OMB Circular A-4
-This design is consistent with OMB Circular A-4 (2023 revision) guidance for rules with annual effects below $200M (qualitative discussion of uncertainty) and $200M-$1B (sensitivity analysis with alternative scenarios). The dominant-parameter variation approach is a principled sensitivity analysis. Full Monte Carlo (encouraged by A-4 for >$1B rules) remains a non-goal for Wave 1 but is not precluded by this schema design.
+### 8.1 Replace flat percentiles
+- Drop `p10/p25/p50/p75/p90` as the primary mechanism-backed representation.
+- Use `scenario_bounds = { low, base, high }`.
 
-## 6. Fail-Closed Rules to Prevent Fake Precision
-To guarantee truthfulness, the orchestrator's evidence gates must enforce the following:
+### 8.2 Dominant-parameter variation
+- Do not vary all parameters simultaneously.
+- Only 1-2 dominant uncertainty parameters vary in Wave 1.
+- Each bound must state:
+  - which parameters varied
+  - why they were chosen
+  - what `low` and `high` mean
 
-1. **Missing Parameter Gate**: If any mode's required parameters (as defined in §4) cannot be populated with a cited source, the mode fails closed to `qualitative_only`. This applies to ALL modes, not only compliance_cost.
-2. **Excerpt-as-Gate**: For every literature-backed parameter (pass_through_rate, take_up_rate, and any parameter not derived from bill text or a single official source), the `excerpt` field is a **validation gate**, not merely a persistence field. If the LLM cites a source but cannot provide a verbatim excerpt from that source supporting the parameter value, the parameter fails validation and the mode fails closed. This prevents hallucinated citations — a known LLM failure mode.
-3. **Population Sourcing Gate**: The `population` parameter in compliance_cost mode must be sourced from the hierarchy defined in §4A. No other parameter substitutes for a missing population count.
-4. **Missing Literature Gate (Wave 2)**: For `pass_through_incidence`, the evidence payload MUST contain a URL or explicit citation to an empirical study validating the `pass_through_rate` for the relevant sector. Generic "80%" without sector-specific grounding is blocked. For `adoption_take_up`, the `take_up_rate` must be sourced from published participation data per the hierarchy in §4C.
-5. **Literature Confidence Gate (Wave 2)**: If `literature_confidence` is `contested` and the resulting scenario_bounds range is wider than 3x (high/low ratio > 3.0), the mode SHOULD fail closed to `qualitative_only` with an explanation that the empirical basis is too uncertain for a defensible quantified estimate.
-6. **No Bare Percentiles/Bounds**: No numeric bounds may be emitted without a populated `modeled_parameters` dictionary clearly explaining the arithmetic. The `scenario_bounds` must name the `dominant_parameters` that were varied.
-7. **Mode Selection Gate**: The orchestrator must select a mode per the precedence rules in §3.1. If no mode can be selected with high confidence, the bill fails closed to `qualitative_only`. The orchestrator MUST NOT default to a mode simply because it is available.
-8. **Anti-Double-Counting Gate**: If multiple impacts are quantified for the same bill, the orchestrator must verify they are economically independent (§3.1). If independence cannot be established, only the single highest-evidence impact is quantified; others fail closed to `qualitative_only`.
+### 8.3 Base estimate is primary
+- `base` is the primary user-facing estimate when quantification is allowed.
+- `low/high` are sensitivity bounds, not probabilistic percentiles.
 
-## 7. Canonical Persistence Design
-How modeled assumptions and evidence must be represented in the database:
+## 9. Fail-Closed Rules
+The following deterministic rules are mandatory:
 
-**`pipeline_steps` (`generate` step)**:
-The `output_result` JSON must replace flat arrays with:
-- `impact_mode`: string enum (`direct_fiscal`, `compliance_cost`, `pass_through_incidence`, `adoption_take_up`, `qualitative_only`)
-- `scenario_bounds`: `{ "low": float, "base": float, "high": float, "dominant_parameters": [string], "note": string | null }`
-- `modeled_parameters`: dict mapping parameter names to the schema below
-- `mode_selection_rationale`: string (brief explanation of why this mode was chosen per §3.1)
-- `composition_note`: string | null (required when multiple impacts are quantified for the same bill)
+1. missing parameter gate
+2. excerpt-as-gate
+3. population sourcing gate
+4. missing literature gate
+5. literature confidence gate
+6. no bare bounds without modeled parameters
+7. mode selection gate
+8. anti-double-counting gate
+9. retrieval prerequisite gate
+10. parameter-validation gate
 
-**`modeled_parameters` entry schema** (resolving value vs. low/base/high inconsistency):
-Each parameter entry has this structure:
+### 9.1 New failure taxonomy
+Failure reasons should become explicit and machine-readable:
+- `mode_ambiguous`
+- `parameter_missing`
+- `parameter_unverifiable`
+- `literature_contested`
+- `retrieval_prerequisite_missing`
+- `scenario_invalid`
+- `composition_ambiguous`
+- `migration_backcompat_failure`
+
+These should appear in:
+- gate output
+- Slack summary proof lines
+- admin/glassbox traces
+- verification diagnostics
+
+## 10. Canonical Persistence and Backward Compatibility
+
+### 10.1 Per-impact canonical fields
+Each impact must persist:
+- `impact_mode`
+- `modeled_parameters`
+- `scenario_bounds`
+- `mode_selection_rationale`
+- `composition_note`
+
+### 10.2 modeled_parameters schema
+Each parameter entry must include:
 ```json
 {
-  "base": float,           // REQUIRED: the point estimate used in the base scenario
-  "low": float | null,     // OPTIONAL: value used in the low scenario (only for dominant uncertainty parameters)
-  "high": float | null,    // OPTIONAL: value used in the high scenario (only for dominant uncertainty parameters)
-  "is_dominant": boolean,  // whether this parameter is varied in scenario analysis
-  "source_url": string,    // REQUIRED: URL or citation reference
-  "excerpt": string,       // REQUIRED for literature-backed params (gate, not just persistence — see §5.4, §6)
-  "source_type": string,   // one of: "bill_text", "fiscal_note", "government_data", "academic_literature", "administrative_data"
-  "literature_confidence": string | null  // one of: "high", "moderate", "contested" (required for academic_literature source_type)
+  "base": 0.0,
+  "low": null,
+  "high": null,
+  "is_dominant": false,
+  "source_url": "",
+  "excerpt": "",
+  "source_type": "bill_text|fiscal_note|government_data|academic_literature|administrative_data|curated_lookup",
+  "literature_confidence": null
 }
 ```
 
-**Schema invariants**:
-- `base` is always present and always a single float.
-- `low` and `high` are non-null ONLY when `is_dominant` is true.
-- When `is_dominant` is false, the parameter is held at `base` in all scenarios.
-- `excerpt` is required (non-empty string) when `source_type` is `academic_literature` or `government_data`. It may be null for `bill_text` where the parameter is a literal number from the legislation.
-- `literature_confidence` is required when `source_type` is `academic_literature`. It is null otherwise.
-- The `scenario_bounds.low` value equals the formula output when all dominant parameters are at their `low` values and all non-dominant parameters are at `base`. Same for `scenario_bounds.high`.
+### 10.3 Invariants
+- `base` is always required
+- `low/high` only appear for dominant parameters
+- `scenario_bounds.low/high` must be mechanically reconstructable from `modeled_parameters`
+- literature-backed parameters require both `source_url` and `excerpt`
 
-**`pipeline_runs.result` & Downstream Storage (`legislation` / `impacts`)**:
-Update the `LegislationImpact` schema to include:
-- `impact_mode`: string
-- `modeled_parameters`: JSONB (conforming to the schema above)
-- `scenario_bounds`: JSONB (conforming to the schema above)
-- `mode_selection_rationale`: string
+### 10.4 Read/write compatibility contract
+This change is breaking unless handled explicitly.
 
-## 8. Slack Summary Design for Every Run
-Update `backend/services/slack_summary.py` (`_build_generate_proof` and `_build_persistence_proof`) to report the mechanism.
-- *Current*: `Generate: 2 impacts, sufficiency 'sufficient', quantification eligible.`
-- **New Requirement**: `Generate: 2 impacts (Mode: compliance_cost). Bounds: base=$50/yr. Sufficiency: 'sufficient'.`
-- *If degraded*: `Generate: 0 impacts quantified. Failed closed: missing 'wage_rate' parameter for compliance_cost.`
+The implementation must define:
+- what replaces `total_impact_p50`
+- whether `quantification_eligible` remains a top-level truth field
+- how existing persisted runs with percentile fields remain readable
+- whether read adapters or one-time migrations are used
 
-## 9. Admin/Glassbox Design Requirements
-The Glass Box (`routers/admin.py` and frontend admin views) must expose the full modeled provenance to maintain trust.
-- The `pipeline_runs/{id}` endpoint must return the `modeled_parameters` and the chosen `impact_mode`.
-- The UI must render a "Mechanism Trace" table showing: `Parameter Name` → `Assumed Value` → `Evidence Excerpt` → `URL`.
-- This ensures that if a compliance cost looks wrong, an admin can instantly see if the LLM hallucinated the hourly wage or the population size.
+All of these read paths must be updated atomically:
+- [analysis.py](backend/schemas/analysis.py)
+- [verify_pipeline_truth.py](backend/scripts/verification/verify_pipeline_truth.py)
+- [slack_summary.py](backend/services/slack_summary.py)
+- [glass_box.py](backend/services/glass_box.py)
+- [admin.py](backend/routers/admin.py)
 
-## 10. Phased Implementation Sequence
-- **Batch 1 (Next Implementation Wave)**:
-  - Update `LegislationImpact` schema to support `impact_mode`, `scenario_bounds`, and `modeled_parameters`.
-  - Implement orchestrator prompt changes and sufficiency gates for `direct_fiscal` and `compliance_cost` modes.
-  - Update Slack summaries and Glassbox API.
-- **Batch 2 (Future)**:
-  - Add specific retrieval pipelines tuned for economic literature (e.g., NBER, CBO) to unlock `pass_through_incidence` and `adoption_take_up`.
+## 11. Operator Surfaces
 
-## 11. Open Questions / Explicit Non-Goals
+### 11.1 Slack summary contract
+Slack becomes a short debug proof for every run during the debug period.
 
-**Non-Goals (Wave 1)**:
-- Building a local Python Monte Carlo engine. The dominant-parameter variation approach (§5.3) is the v1 uncertainty design.
-- Full general equilibrium / dynamic scoring. Deferred per §3 with explicit implementation gates.
-- Multi-mode composition for a single bill-impact pair (§3.1). Wave 1 is single-mode-per-impact only.
+Minimum summary content:
+- run identity
+- selected mode or `qualitative_only`
+- quantification decision
+- base estimate if quantified
+- dominant uncertainty parameters
+- fail-closed reason if blocked
+- deep links to:
+  - `/admin/audits/trace/{run_id}`
+  - `/admin/bill-truth/{jurisdiction}/{bill_id}`
 
-**Resolved Design Questions**:
-- Mode selection mechanism: defined in §3.1 with precedence rules and fail-closed on ambiguity.
-- Take-up modeling grounding: Bass Diffusion removed; replaced with participation/administrative-burden literature (§4C).
-- Compliance-cost population sourcing: explicit hierarchy in §4A.
-- Uncertainty corners-of-the-box: replaced with dominant-parameter variation (§5.3).
-- Schema consistency: resolved with unified parameter schema (§7).
-- Excerpt-as-gate: defined in §5.4 and §6.
+### 11.2 Admin / Glassbox contract
+Admin/glassbox must become the detailed mechanism trace surface.
 
-**Open Questions (to be resolved before or during implementation)**:
-- **Baseline data indexing**: How to systematically index standard baseline data (BLS wages, CBO baselines, FNS take-up rates) so the LLM does not web-search them per-run. Recommendation: a static curated lookup table for Wave 1 parameters (OES wages by SOC code, ECEC overhead ratios). This is a prerequisite for production reliability but not a spec design question.
-- **Wave 2 retrieval infrastructure**: The curated retrieval pipelines for empirical literature (pass-through studies, take-up data) are explicitly gated as prerequisites in §4B and §4C. The specific retrieval architecture (RAG index, curated table, or hybrid) is an implementation decision.
-- **Heckman-class concerns on regime dependence**: Reduced-form elasticities estimated under one policy regime may not transfer to a different regime (the Lucas/Marschak critique). For Wave 1 modes (direct_fiscal, compliance_cost), this is not material — SCM parameters are micro-level and regime-independent. For Wave 2 modes, this concern is real: pass-through rates estimated from small state-level tax changes may not apply to large federal changes. The spec addresses this partially through literature_confidence and contested-literature fail-closed rules (§6), but implementations should monitor for this class of error.
-- **Over-shifting in pass-through mode**: The current schema allows ρ > 1.0, which is correct. But presenting an over-shifted estimate (consumers bear more than 100% of the tax) to non-economist end users requires careful UX framing. This is a frontend/communication concern, not a spec design issue.
+Required additions:
+- selected mode
+- rejected modes
+- gate failures
+- validation failures
+- modeled parameters
+- source hierarchy details
+- dominant uncertainty parameters
+- scenario derivation summary
 
-## 12. Acceptance Criteria for Future Implementation
-- [ ] `LegislationImpact` schema drops `p10..p90` in favor of `scenario_bounds`, `impact_mode`, and `modeled_parameters`.
-- [ ] Orchestrator explicitly supports `direct_fiscal` and `compliance_cost` modes.
-- [ ] Sufficiency gates deterministically fail closed if a mode's required parameters are not backed by cited evidence.
-- [ ] Slack summaries output the `impact_mode` and failure reasons if parameters are missing.
-- [ ] `/api/admin/pipeline-runs` surfaces the extracted parameters for auditability.
+The detailed trace must make it easy to answer:
+- where did this number come from?
+- which parameter drove the range?
+- which rule blocked quantification?
+
+## 12. Verification and Test Contract
+The definition of a healthy pipeline run changes.
+
+### 12.1 New verifier expectations
+[verify_pipeline_truth.py](backend/scripts/verification/verify_pipeline_truth.py) must eventually check:
+- mode selected or explicitly failed closed
+- parameter resolution executed
+- required parameters resolved or explicitly missing
+- sufficiency gate used mode-aware logic
+- parameter validation executed
+- persisted impacts conform to the new schema
+- admin/glassbox can expose mechanism-backed truth
+
+### 12.2 Required tests
+1. unit tests for mode selection
+2. unit tests for ambiguity fail-closed behavior
+3. unit tests for per-parameter validation
+4. unit tests for dominant-parameter scenario construction
+5. integration tests for direct_fiscal
+6. integration tests for compliance_cost
+7. backward-compatibility tests for old persisted runs
+8. Slack summary tests for mode-aware proofs
+9. admin/glassbox serialization tests for mechanism trace payloads
+
+## 13. Phased Execution Plan
+
+### 13.1 Current spec repair task
+- `bd-hvji.10`
+  - mechanism-backed quantification spec
+- `bd-hvji.10.1`
+  - pipeline propagation spec for mechanism-backed quantification
+
+### 13.2 Next implementation tasks
+- `bd-hvji.11`
+  - mechanism-backed quantification pipeline sequence and schema contract
+  - purpose:
+    - add `mode_selection`, `parameter_resolution`, `parameter_validation`
+    - define backward-compatibility contract
+
+- `bd-hvji.12`
+  - update Slack, admin, glassbox, and verification for mechanism-backed quantification
+  - dependency:
+    - blocks on `bd-hvji.11`
+
+- `bd-hvji.13`
+  - implement Wave 1 `direct_fiscal` and `compliance_cost` pipeline changes
+  - dependency:
+    - blocks on `bd-hvji.11`
+
+- `bd-hvji.14`
+  - run full mechanism-backed quantification pipeline audit
+  - dependency:
+    - blocks on `bd-hvji.12`
+    - blocks on `bd-hvji.13`
+
+- `bd-hvji.15`
+  - build curated retrieval prerequisites for Wave 2 quantification modes
+  - dependencies:
+    - blocks on `bd-hvji.11`
+
+### 13.3 Recommended rollout order
+1. `bd-hvji.11`
+2. `bd-hvji.12` and `bd-hvji.13` in parallel if the write scopes stay clean
+3. `bd-hvji.14`
+4. `bd-hvji.15` when Wave 2 is ready
+
+## 14. Non-Goals and Explicit Deferrals
+- no Monte Carlo engine in Wave 1
+- no full equilibrium/supply-shock quantification in Wave 1
+- no multi-mode quantification for the same impact in Wave 1
+- no enabling of Wave 2 modes without curated retrieval prerequisites
+
+## 15. Implementation Readiness Statement
+After this spec update:
+- the economics design is defined
+- the full pipeline propagation contract is defined
+- the operator-surface and verification impacts are defined
+- the implementation work is split into concrete Beads tasks with dependencies
+
+Implementation should begin only from this fuller pipeline contract, not from the earlier economics-only framing.
