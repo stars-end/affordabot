@@ -117,6 +117,63 @@ RESIDENT_BURDEN_EVIDENCE_TERMS = (
     "service cuts",
 )
 
+NEGATED_RESIDENT_BURDEN_PATTERNS = (
+    "no direct impact on the cost of living",
+    "no direct cost-of-living impact",
+    "no cost-of-living impact",
+    "no provisions for taxation",
+    "no taxes",
+    "no fees",
+    "no appropriations",
+    "no mandates",
+    "does not impose taxes",
+    "does not impose fees",
+    "does not impose mandates",
+    "contains no provisions for taxation",
+    "contains no provisions for fees",
+    "contains no provisions for appropriations",
+    "contains no provisions for regulatory mandates",
+)
+
+FISCAL_MISSING_IMPACT_TERMS = (
+    "cost",
+    "cost-of-living",
+    "fiscal",
+    "price",
+    "prices",
+    "rent",
+    "rents",
+    "tax",
+    "taxes",
+    "taxpayer",
+    "taxpayers",
+    "fee",
+    "fees",
+    "utility",
+    "utilities",
+    "reimbursement",
+    "mandate",
+    "appropriation",
+    "budget",
+    "spending",
+    "expenditure",
+    "expenditures",
+    "funding",
+    "labor",
+    "training",
+    "compliance",
+    "administrative",
+    "salary",
+    "wage",
+    "wages",
+    "insurance",
+    "housing",
+    "transportation",
+    "childcare",
+    "food",
+    "energy",
+)
+
 
 class AnalysisPipeline:
     """
@@ -360,6 +417,9 @@ class AnalysisPipeline:
                 bill_id, analysis, research_result, models["review"]
             )
             review = self._apply_fail_closed_review_gates(review, analysis)
+            review.missing_impacts = self._filter_cost_of_living_missing_impacts(
+                review.missing_impacts
+            )
             if review.passed and (review.missing_impacts or review.factual_errors):
                 review.passed = False
                 if review.critique:
@@ -822,6 +882,19 @@ Evidence Excerpts:
         )
         return review
 
+    def _filter_cost_of_living_missing_impacts(
+        self, missing_impacts: List[str]
+    ) -> List[str]:
+        """Keep only review gaps that are actually relevant to fiscal / cost-of-living scope."""
+        relevant: List[str] = []
+        for item in missing_impacts:
+            lowered = (item or "").lower()
+            if "non-fiscal" in lowered or "non fiscal" in lowered:
+                continue
+            if any(term in lowered for term in FISCAL_MISSING_IMPACT_TERMS):
+                relevant.append(item)
+        return relevant
+
     def _collect_claim_support_issues(
         self, analysis: LegislationAnalysisResponse
     ) -> List[str]:
@@ -841,7 +914,7 @@ Evidence Excerpts:
             requires_resident_burden_support = any(
                 indicator in claim_text
                 for indicator in RESIDENT_BURDEN_CLAIM_INDICATORS
-            )
+            ) and not self._is_negative_resident_burden_claim(claim_text)
 
             if not impact.evidence:
                 issues.append(
@@ -896,6 +969,9 @@ Evidence Excerpts:
                 )
 
         return issues
+
+    def _is_negative_resident_burden_claim(self, claim_text: str) -> bool:
+        return any(pattern in claim_text for pattern in NEGATED_RESIDENT_BURDEN_PATTERNS)
 
     def _claim_tokens(self, impact: LegislationImpact) -> set[str]:
         text = " ".join(
