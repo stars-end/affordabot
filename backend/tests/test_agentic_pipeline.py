@@ -270,6 +270,57 @@ async def test_pipeline_forces_refine_when_review_lists_missing_impacts():
 
 
 @pytest.mark.asyncio
+async def test_pipeline_ignores_non_fiscal_missing_impacts_for_review_pass():
+    mock_llm = MagicMock(spec=LLMClient)
+    mock_search = MagicMock(spec=WebSearchClient)
+    mock_db = MagicMock()
+
+    analysis_obj = _make_legislation_response()
+    review_obj = ReviewCritique(
+        passed=True,
+        critique="Fiscal analysis is conservative and sound.",
+        missing_impacts=[
+            "Potential non-fiscal impacts related to civil liberties",
+            "Potential public safety impacts of the new search requirements",
+        ],
+        factual_errors=[],
+    )
+
+    mock_llm.chat_completion = AsyncMock(
+        side_effect=[
+            MagicMock(content=analysis_obj.model_dump_json()),
+            MagicMock(content=review_obj.model_dump_json()),
+        ]
+    )
+
+    mock_db.get_latest_scrape_for_bill = AsyncMock(return_value=None)
+    mock_db.create_pipeline_run = AsyncMock(return_value="run-1")
+    mock_db.get_or_create_jurisdiction = AsyncMock(return_value=1)
+    mock_db.store_legislation = AsyncMock(return_value=101)
+    mock_db.store_impacts = AsyncMock()
+    mock_db.complete_pipeline_run = AsyncMock()
+    mock_db.fail_pipeline_run = AsyncMock()
+
+    pipeline = AnalysisPipeline(mock_llm, mock_search, mock_db)
+
+    research_result = _make_research_result()
+    with patch.object(
+        pipeline.research_service,
+        "research",
+        new_callable=AsyncMock,
+        return_value=research_result,
+    ):
+        models = {"research": "m1", "generate": "m2", "review": "m3"}
+        result = await pipeline.run("AB-1234", "The bill text...", "San Jose", models)
+
+    assert mock_llm.chat_completion.call_count == 2
+    persisted = mock_db.complete_pipeline_run.call_args.args[1]
+    assert persisted["review"]["passed"] is True
+    assert persisted["review"]["missing_impacts"] == []
+    assert result.impacts[0].impact_description == "Lower rent"
+
+
+@pytest.mark.asyncio
 async def test_pipeline_fail_closed_when_claims_not_supported_by_excerpts():
     mock_llm = MagicMock(spec=LLMClient)
     mock_search = MagicMock(spec=WebSearchClient)
@@ -693,4 +744,43 @@ async def test_pipeline_fail_closed_when_claim_extends_to_resident_burden_withou
     assert any(
         "cost-of-living burdens without supporting evidence" in err.lower()
         for err in persisted["review"]["factual_errors"]
+    )
+
+
+@pytest.mark.asyncio
+async def test_pipeline_allows_negative_zero_impact_resolution_claim():
+    pipeline = AnalysisPipeline(
+        MagicMock(spec=LLMClient),
+        MagicMock(spec=WebSearchClient),
+        MagicMock(),
+    )
+    analysis_obj = _make_legislation_response()
+    analysis_obj.impacts[0].relevant_clause = (
+        "Resolved by the Assembly of the State of California, the Senate thereof "
+        "concurring, That the Legislature proclaims January 23, 2026, as "
+        "Maternal Health Awareness Day."
+    )
+    analysis_obj.impacts[0].legal_interpretation = (
+        "The resolution proclaims a symbolic observance day and creates no binding fiscal or regulatory duty."
+    )
+    analysis_obj.impacts[0].impact_description = (
+        "The resolution proclaims a day of observance and has no direct "
+        "cost-of-living impact."
+    )
+    analysis_obj.impacts[0].chain_of_causality = (
+        "Because a symbolic observance day proclamation does not impose taxes, "
+        "fees, appropriations, or mandates, it does not directly change "
+        "household costs."
+    )
+    analysis_obj.impacts[0].evidence[0].source_name = "Bill Text"
+    analysis_obj.impacts[0].evidence[0].excerpt = (
+        "Resolved by the Assembly of the State of California, the Senate thereof "
+        "concurring, That the Legislature proclaims January 23, 2026, as "
+        "Maternal Health Awareness Day."
+    )
+
+    issues = pipeline._collect_claim_support_issues(analysis_obj)
+    assert not any(
+        "cost-of-living burdens without supporting evidence" in err.lower()
+        for err in issues
     )
