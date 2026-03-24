@@ -234,14 +234,22 @@ async def test_pipeline_forces_refine_when_review_lists_missing_impacts():
         missing_impacts=["State reimbursement timing"],
         factual_errors=[],
     )
+    final_review_obj = _make_review_response()
     refined_obj = _make_legislation_response()
     refined_obj.impacts[0].impact_description = "Refined impact description"
+    refined_obj.impacts[0].legal_interpretation = "Refined impact description"
+    refined_obj.impacts[0].chain_of_causality = "Refined impact description"
+    refined_obj.impacts[0].evidence[0].excerpt = (
+        "Refined impact description is directly supported by the cited ordinance "
+        "text and the tenant-facing cost change it describes."
+    )
 
     mock_llm.chat_completion = AsyncMock(
         side_effect=[
             MagicMock(content=analysis_obj.model_dump_json()),
             MagicMock(content=review_obj.model_dump_json()),
             MagicMock(content=refined_obj.model_dump_json()),
+            MagicMock(content=final_review_obj.model_dump_json()),
         ]
     )
 
@@ -265,7 +273,9 @@ async def test_pipeline_forces_refine_when_review_lists_missing_impacts():
         models = {"research": "m1", "generate": "m2", "review": "m3"}
         result = await pipeline.run("AB-1234", "The bill text...", "San Jose", models)
 
-    assert mock_llm.chat_completion.call_count == 3
+    assert mock_llm.chat_completion.call_count == 4
+    persisted = mock_db.complete_pipeline_run.call_args.args[1]
+    assert persisted["review"]["passed"] is True
     assert result.impacts[0].impact_description == "Refined impact description"
 
 
@@ -343,10 +353,13 @@ async def test_pipeline_fail_closed_when_claims_not_supported_by_excerpts():
         "resolution to the author for appropriate distribution."
     )
     review_obj = _make_review_response()
+    final_review_obj = _make_review_response()
     refined_obj = _make_legislation_response()
     refined_obj.impacts[0].relevant_clause = analysis_obj.impacts[0].relevant_clause
     refined_obj.impacts[0].legal_interpretation = analysis_obj.impacts[0].legal_interpretation
     refined_obj.impacts[0].impact_description = analysis_obj.impacts[0].impact_description
+    refined_obj.impacts[0].chain_of_causality = analysis_obj.impacts[0].chain_of_causality
+    refined_obj.impacts[0].evidence[0].source_name = analysis_obj.impacts[0].evidence[0].source_name
     refined_obj.impacts[0].evidence[0].excerpt = (
         "Resolved, that the secretary transmits copies."
     )
@@ -356,6 +369,7 @@ async def test_pipeline_fail_closed_when_claims_not_supported_by_excerpts():
             MagicMock(content=analysis_obj.model_dump_json()),
             MagicMock(content=review_obj.model_dump_json()),
             MagicMock(content=refined_obj.model_dump_json()),
+            MagicMock(content=final_review_obj.model_dump_json()),
         ]
     )
 
@@ -379,7 +393,7 @@ async def test_pipeline_fail_closed_when_claims_not_supported_by_excerpts():
         models = {"research": "m1", "generate": "m2", "review": "m3"}
         await pipeline.run("AB-1234", "The bill text...", "San Jose", models)
 
-    assert mock_llm.chat_completion.call_count == 3
+    assert mock_llm.chat_completion.call_count == 4
     persisted = mock_db.complete_pipeline_run.call_args.args[1]
     assert persisted["review"]["passed"] is False
     assert any(
@@ -540,13 +554,21 @@ async def test_pipeline_fail_closed_when_quantified_claim_lacks_numeric_support(
         "for covered tenants through stronger caps on adjustments."
     )
     review_obj = _make_review_response()
+    final_review_obj = _make_review_response()
     refined_obj = _make_legislation_response()
+    refined_obj.impacts[0].relevant_clause = analysis_obj.impacts[0].relevant_clause
+    refined_obj.impacts[0].legal_interpretation = analysis_obj.impacts[0].legal_interpretation
+    refined_obj.impacts[0].impact_description = analysis_obj.impacts[0].impact_description
+    refined_obj.impacts[0].chain_of_causality = analysis_obj.impacts[0].chain_of_causality
+    refined_obj.impacts[0].evidence[0].source_name = analysis_obj.impacts[0].evidence[0].source_name
+    refined_obj.impacts[0].evidence[0].excerpt = analysis_obj.impacts[0].evidence[0].excerpt
 
     mock_llm.chat_completion = AsyncMock(
         side_effect=[
             MagicMock(content=analysis_obj.model_dump_json()),
             MagicMock(content=review_obj.model_dump_json()),
             MagicMock(content=refined_obj.model_dump_json()),
+            MagicMock(content=final_review_obj.model_dump_json()),
         ]
     )
 
@@ -682,10 +704,11 @@ async def test_pipeline_allows_quantified_claim_with_numeric_fiscal_support():
 
 @pytest.mark.asyncio
 async def test_pipeline_fail_closed_when_claim_extends_to_resident_burden_without_support():
-    mock_llm = MagicMock(spec=LLMClient)
-    mock_search = MagicMock(spec=WebSearchClient)
-    mock_db = MagicMock()
-
+    pipeline = AnalysisPipeline(
+        MagicMock(spec=LLMClient),
+        MagicMock(spec=WebSearchClient),
+        MagicMock(),
+    )
     analysis_obj = _make_legislation_response()
     analysis_obj.impacts[0].relevant_clause = (
         "If the Commission on State Mandates determines that this act contains "
@@ -709,41 +732,10 @@ async def test_pipeline_fail_closed_when_claim_extends_to_resident_burden_withou
         "costs mandated by the state, reimbursement to local agencies and school "
         "districts for those costs shall be made."
     )
-    review_obj = _make_review_response()
-    refined_obj = _make_legislation_response()
-
-    mock_llm.chat_completion = AsyncMock(
-        side_effect=[
-            MagicMock(content=analysis_obj.model_dump_json()),
-            MagicMock(content=review_obj.model_dump_json()),
-            MagicMock(content=refined_obj.model_dump_json()),
-        ]
-    )
-
-    mock_db.get_latest_scrape_for_bill = AsyncMock(return_value=None)
-    mock_db.create_pipeline_run = AsyncMock(return_value="run-1")
-    mock_db.get_or_create_jurisdiction = AsyncMock(return_value=1)
-    mock_db.store_legislation = AsyncMock(return_value=101)
-    mock_db.store_impacts = AsyncMock()
-    mock_db.complete_pipeline_run = AsyncMock()
-    mock_db.fail_pipeline_run = AsyncMock()
-
-    pipeline = AnalysisPipeline(mock_llm, mock_search, mock_db)
-    research_result = _make_research_result()
-    with patch.object(
-        pipeline.research_service,
-        "research",
-        new_callable=AsyncMock,
-        return_value=research_result,
-    ):
-        models = {"research": "m1", "generate": "m2", "review": "m3"}
-        await pipeline.run("AB-1234", "The bill text...", "San Jose", models)
-
-    persisted = mock_db.complete_pipeline_run.call_args.args[1]
-    assert persisted["review"]["passed"] is False
+    issues = pipeline._collect_claim_support_issues(analysis_obj)
     assert any(
         "cost-of-living burdens without supporting evidence" in err.lower()
-        for err in persisted["review"]["factual_errors"]
+        for err in issues
     )
 
 

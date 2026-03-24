@@ -416,17 +416,7 @@ class AnalysisPipeline:
             review = await self._review_step(
                 bill_id, analysis, research_result, models["review"]
             )
-            review = self._apply_fail_closed_review_gates(review, analysis)
-            review.missing_impacts = self._filter_cost_of_living_missing_impacts(
-                review.missing_impacts
-            )
-            if review.passed and (review.missing_impacts or review.factual_errors):
-                review.passed = False
-                if review.critique:
-                    review.critique += (
-                        " Auto-corrected: review cannot pass while listing "
-                        "missing impacts or factual errors."
-                    )
+            review = self._normalize_review(review, analysis)
             duration = int((datetime.now() - start_ts).total_seconds() * 1000)
 
             await audit.log_step(
@@ -468,7 +458,11 @@ class AnalysisPipeline:
                 analysis.jurisdiction = jurisdiction
                 analysis.model_used = models["generate"]
                 analysis.analysis_timestamp = datetime.now().isoformat()
-                review = self._apply_fail_closed_review_gates(review, analysis)
+
+                review = await self._review_step(
+                    bill_id, analysis, research_result, models["review"]
+                )
+                review = self._normalize_review(review, analysis)
 
                 await audit.log_step(
                     step_number=6,
@@ -880,6 +874,24 @@ Evidence Excerpts:
         review.critique = (
             f"{review.critique} {gate_note}".strip() if review.critique else gate_note
         )
+        return review
+
+    def _normalize_review(
+        self,
+        review: ReviewCritique,
+        analysis: LegislationAnalysisResponse,
+    ) -> ReviewCritique:
+        review = self._apply_fail_closed_review_gates(review, analysis)
+        review.missing_impacts = self._filter_cost_of_living_missing_impacts(
+            review.missing_impacts
+        )
+        if review.passed and (review.missing_impacts or review.factual_errors):
+            review.passed = False
+            if review.critique:
+                review.critique += (
+                    " Auto-corrected: review cannot pass while listing "
+                    "missing impacts or factual errors."
+                )
         return review
 
     def _filter_cost_of_living_missing_impacts(
