@@ -510,7 +510,7 @@ async def get_bill_truth(
 
         legislation_query = """
             SELECT l.id, l.bill_number, l.title, l.analysis_status, l.sufficiency_state,
-                   l.insufficiency_reason, l.quantification_eligible, l.total_impact_p50
+                   l.insufficiency_reason, l.quantification_eligible
             FROM legislation l
             LEFT JOIN jurisdictions j ON l.jurisdiction_id = j.id
             WHERE LOWER(j.name) = LOWER($1)
@@ -529,17 +529,17 @@ async def get_bill_truth(
                 "sufficiency_state": leg_row.get("sufficiency_state"),
                 "insufficiency_reason": leg_row.get("insufficiency_reason"),
                 "quantification_eligible": leg_row.get("quantification_eligible"),
-                "total_impact_p50": leg_row.get("total_impact_p50"),
             }
 
         pipeline_query = """
-            SELECT id, bill_id, status, started_at, completed_at, error, result
+            SELECT id, bill_id, status, started_at, completed_at, error, result, trigger_source
             FROM pipeline_runs
             WHERE LOWER(bill_id) LIKE LOWER($1)
             ORDER BY started_at DESC
             LIMIT 50
         """
         pipe_rows = await db._fetch(pipeline_query, f"%{bill_id}%")
+        glass_box = GlassBoxService(db_client=db)
 
         def _pipe_info(row):
             if not row:
@@ -549,6 +549,9 @@ async def get_bill_truth(
                 if isinstance(row["result"], str)
                 else (row["result"] or {})
             )
+            analysis = result.get("analysis", {})
+            trigger_source = row.get("trigger_source", "manual")
+            is_prefix_run = str(trigger_source).startswith("prefix:")
             return {
                 "run_id": str(row["id"]),
                 "status": row["status"],
@@ -557,10 +560,16 @@ async def get_bill_truth(
                 if row.get("completed_at")
                 else None,
                 "error": row.get("error"),
+                "trigger_source": trigger_source,
+                "is_prefix_run": is_prefix_run,
+                "run_label": str(trigger_source).split("prefix:", 1)[1]
+                if is_prefix_run
+                else None,
                 "sufficiency_breakdown": result.get("sufficiency_breakdown"),
                 "source_text_present": result.get("source_text_present"),
                 "rag_chunks_retrieved": result.get("rag_chunks_retrieved", 0),
                 "quantification_eligible": result.get("quantification_eligible"),
+                "aggregate_scenario_bounds": analysis.get("aggregate_scenario_bounds"),
             }
 
         latest_run = pipe_rows[0] if pipe_rows else None
@@ -571,14 +580,21 @@ async def get_bill_truth(
             (row for row in pipe_rows if row.get("status") == "failed"), None
         )
 
+        latest_run_info = _pipe_info(latest_run)
+        if latest_run_info:
+            run_details = await glass_box.get_pipeline_run(latest_run_info["run_id"])
+            if run_details:
+                latest_run_info["prefix_boundary"] = run_details.get("prefix_boundary")
+                latest_run_info["mechanism_trace"] = run_details.get("mechanism_trace")
+
         return {
             "jurisdiction": jurisdiction,
             "bill_id": bill_id,
             "scrape": scrape_info,
             "legislation": leg_info,
-            "pipeline_run": _pipe_info(latest_run),
+            "pipeline_run": latest_run_info,
             "pipeline_runs": {
-                "latest_run": _pipe_info(latest_run),
+                "latest_run": latest_run_info,
                 "latest_completed_run": _pipe_info(latest_completed_run),
                 "latest_failed_run": _pipe_info(latest_failed_run),
             },

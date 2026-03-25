@@ -20,7 +20,7 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional, Callable, Awaitable
+from typing import List, Dict, Any, Optional, Callable, Awaitable, Tuple
 from urllib.parse import urlparse
 from uuid import uuid4
 
@@ -91,6 +91,8 @@ class LegislationResearchResult:
     evidence_envelopes: List[EvidenceEnvelope] = field(default_factory=list)
     rag_chunks: List[RetrievedChunk] = field(default_factory=list)
     web_sources: List[Dict[str, Any]] = field(default_factory=list)
+    impact_candidates: List[Dict[str, Any]] = field(default_factory=list)
+    parameter_candidates: Dict[str, Dict[str, Any]] = field(default_factory=dict)
     sufficiency_breakdown: Dict[str, Any] = field(default_factory=dict)
     is_sufficient: bool = False
     insufficiency_reason: Optional[str] = None
@@ -220,6 +222,15 @@ class LegislationResearchService:
                 rag_chunks, web_results, bill_id, jurisdiction
             )
             result.evidence_envelopes = evidence_envelopes
+            (
+                result.impact_candidates,
+                result.parameter_candidates,
+            ) = self._derive_wave1_candidates(
+                bill_id=bill_id,
+                bill_text=bill_text,
+                rag_chunks=rag_chunks,
+                web_results=web_results,
+            )
 
             result.sufficiency_breakdown = self._compute_sufficiency(
                 rag_chunks, web_results, bill_text
@@ -617,6 +628,296 @@ class LegislationResearchService:
             return "; ".join(reasons)
 
         return "insufficient evidence for quantification"
+
+    def _derive_wave1_candidates(
+        self,
+        bill_id: str,
+        bill_text: str,
+        rag_chunks: List[RetrievedChunk],
+        web_results: List[Dict[str, Any]],
+    ) -> Tuple[List[Dict[str, Any]], Dict[str, Dict[str, Any]]]:
+        snippets = self._collect_research_snippets(rag_chunks, web_results)
+        impact_candidates: List[Dict[str, Any]] = []
+        parameter_candidates: Dict[str, Dict[str, Any]] = {}
+
+        fiscal_candidate = self._extract_direct_fiscal_candidate(snippets)
+        if fiscal_candidate:
+            impact_id = "impact-direct-fiscal"
+            impact_candidates.append(
+                {
+                    "impact_id": impact_id,
+                    "impact_description": "Official fiscal impact reported for the measure.",
+                    "relevant_clauses": [],
+                    "evidence_refs": [fiscal_candidate["source_url"]],
+                    "candidate_mode_hints": ["direct_fiscal"],
+                    "impact_scope": "bill",
+                }
+            )
+            parameter_candidates[impact_id] = {
+                "fiscal_amount": fiscal_candidate,
+            }
+
+        compliance_signals = self._extract_compliance_cost_candidates(
+            bill_text=bill_text, snippets=snippets
+        )
+        if compliance_signals:
+            impact_id = "impact-compliance-cost"
+            impact_candidates.append(
+                {
+                    "impact_id": impact_id,
+                    "impact_description": "Compliance burden imposed on affected entities.",
+                    "relevant_clauses": [],
+                    "evidence_refs": [
+                        value.get("source_url", "")
+                        for value in compliance_signals.values()
+                        if value.get("source_url")
+                    ],
+                    "candidate_mode_hints": ["compliance_cost"],
+                    "impact_scope": "bill",
+                }
+            )
+            parameter_candidates[impact_id] = compliance_signals
+
+        return impact_candidates, parameter_candidates
+
+    def _collect_research_snippets(
+        self,
+        rag_chunks: List[RetrievedChunk],
+        web_results: List[Dict[str, Any]],
+    ) -> List[Dict[str, str]]:
+        snippets: List[Dict[str, str]] = []
+        for chunk in rag_chunks:
+            snippets.append(
+                {
+                    "text": chunk.content or "",
+                    "source_url": chunk.metadata.get("source_url")
+                    or chunk.metadata.get("url")
+                    or "",
+                    "label": chunk.metadata.get("source_type", "rag"),
+                    "source_hierarchy_status": "bill_or_reg_text",
+                }
+            )
+        for item in web_results:
+            snippets.append(
+                {
+                    "text": " ".join(
+                        filter(
+                            None,
+                            [
+                                item.get("title", ""),
+                                item.get("snippet", ""),
+                                item.get("content", ""),
+                            ],
+                        )
+                    ),
+                    "source_url": item.get("url") or item.get("link") or "",
+                    "label": item.get("title", "web"),
+                    "source_hierarchy_status": "fiscal_or_reg_impact_analysis",
+                }
+            )
+        return snippets
+
+    def _extract_direct_fiscal_candidate(
+        self, snippets: List[Dict[str, str]]
+    ) -> Optional[Dict[str, Any]]:
+        for item in snippets:
+            text = item.get("text", "")
+            lower = text.lower()
+            if "fiscal" not in lower and "appropriation" not in lower and "cost" not in lower:
+                continue
+            amount = self._extract_currency_amount(text)
+            if amount is None:
+                continue
+            return {
+                "name": "fiscal_amount",
+                "value": amount,
+                "unit": "usd_per_year",
+                "source_url": item.get("source_url", ""),
+                "source_excerpt": text[:500],
+                "source_hierarchy_status": item.get("source_hierarchy_status"),
+                "excerpt_validation_status": "pass",
+            }
+        return None
+
+    def _extract_compliance_cost_candidates(
+        self, bill_text: str, snippets: List[Dict[str, str]]
+    ) -> Dict[str, Any]:
+        combined_sources = [{"text": bill_text, "source_url": "", "source_hierarchy_status": "bill_or_reg_text"}] + snippets
+        signals: Dict[str, Any] = {}
+
+        population = self._extract_population(combined_sources)
+        if population:
+            signals["population"] = population
+
+        frequency = self._extract_frequency(combined_sources)
+        if frequency:
+            signals["frequency"] = frequency
+        else:
+            signals["frequency"] = {
+                "name": "frequency",
+                "value": None,
+                "unit": "events_per_year",
+                "source_url": "",
+                "source_excerpt": "",
+                "source_hierarchy_status": "failed_closed",
+                "excerpt_validation_status": "not_applicable",
+            }
+
+        time_burden = self._extract_time_burden(combined_sources)
+        if time_burden:
+            signals["time_burden"] = time_burden
+
+        wage_rate = self._extract_hourly_wage(combined_sources)
+        if wage_rate:
+            signals["wage_rate"] = wage_rate
+
+        affected_units = self._extract_population(combined_sources, parameter_name="affected_units")
+        if affected_units:
+            signals["affected_units"] = affected_units
+
+        unit_cost = self._extract_unit_cost(combined_sources)
+        if unit_cost:
+            signals["unit_cost"] = unit_cost
+
+        compliance_text = " ".join(item.get("text", "") for item in combined_sources).lower()
+        if not any(
+            term in compliance_text
+            for term in ["report", "filing", "recordkeeping", "training", "license", "permit", "compliance"]
+        ):
+            return {}
+        return signals
+
+    def _extract_currency_amount(self, text: str) -> Optional[float]:
+        match = re.search(
+            r"\$\s?([\d,]+(?:\.\d+)?)\s*(million|billion|thousand|m|bn|k)?",
+            text,
+            re.IGNORECASE,
+        )
+        if not match:
+            return None
+        value = float(match.group(1).replace(",", ""))
+        magnitude = (match.group(2) or "").lower()
+        multipliers = {
+            "thousand": 1_000,
+            "k": 1_000,
+            "million": 1_000_000,
+            "m": 1_000_000,
+            "billion": 1_000_000_000,
+            "bn": 1_000_000_000,
+        }
+        return value * multipliers.get(magnitude, 1)
+
+    def _extract_population(
+        self,
+        sources: List[Dict[str, str]],
+        parameter_name: str = "population",
+    ) -> Optional[Dict[str, Any]]:
+        pattern = re.compile(
+            r"(\d[\d,]*)\s+(businesses|employers|entities|providers|landlords|owners|units)",
+            re.IGNORECASE,
+        )
+        for item in sources:
+            match = pattern.search(item.get("text", ""))
+            if not match:
+                continue
+            return {
+                "name": parameter_name,
+                "value": float(match.group(1).replace(",", "")),
+                "unit": match.group(2).lower(),
+                "source_url": item.get("source_url", ""),
+                "source_excerpt": item.get("text", "")[:500],
+                "source_hierarchy_status": item.get("source_hierarchy_status"),
+                "excerpt_validation_status": "pass",
+            }
+        return None
+
+    def _extract_frequency(self, sources: List[Dict[str, str]]) -> Optional[Dict[str, Any]]:
+        patterns = {
+            "annual": 1.0,
+            "annually": 1.0,
+            "yearly": 1.0,
+            "monthly": 12.0,
+            "quarterly": 4.0,
+            "weekly": 52.0,
+            "daily": 365.0,
+            "per occurrence": 1.0,
+        }
+        for item in sources:
+            text = item.get("text", "").lower()
+            for token, value in patterns.items():
+                if token in text:
+                    return {
+                        "name": "frequency",
+                        "value": value,
+                        "unit": "events_per_year",
+                        "source_url": item.get("source_url", ""),
+                        "source_excerpt": item.get("text", "")[:500],
+                        "source_hierarchy_status": item.get("source_hierarchy_status"),
+                        "excerpt_validation_status": "pass",
+                    }
+        return None
+
+    def _extract_time_burden(self, sources: List[Dict[str, str]]) -> Optional[Dict[str, Any]]:
+        pattern = re.compile(r"(\d+(?:\.\d+)?)\s*(hours|hour|minutes|minute)", re.IGNORECASE)
+        for item in sources:
+            match = pattern.search(item.get("text", ""))
+            if not match:
+                continue
+            value = float(match.group(1))
+            unit = match.group(2).lower()
+            hours = value / 60 if "minute" in unit else value
+            return {
+                "name": "time_burden",
+                "value": hours,
+                "unit": "hours_per_event",
+                "source_url": item.get("source_url", ""),
+                "source_excerpt": item.get("text", "")[:500],
+                "source_hierarchy_status": item.get("source_hierarchy_status"),
+                "excerpt_validation_status": "pass",
+            }
+        return None
+
+    def _extract_hourly_wage(self, sources: List[Dict[str, str]]) -> Optional[Dict[str, Any]]:
+        pattern = re.compile(
+            r"\$\s?([\d,]+(?:\.\d+)?)\s*(?:per hour|/hour|hourly)",
+            re.IGNORECASE,
+        )
+        for item in sources:
+            match = pattern.search(item.get("text", ""))
+            if not match:
+                continue
+            return {
+                "name": "wage_rate",
+                "value": float(match.group(1).replace(",", "")),
+                "unit": "usd_per_hour",
+                "source_url": item.get("source_url", ""),
+                "source_excerpt": item.get("text", "")[:500],
+                "source_hierarchy_status": item.get("source_hierarchy_status"),
+                "excerpt_validation_status": "pass",
+            }
+        return None
+
+    def _extract_unit_cost(self, sources: List[Dict[str, str]]) -> Optional[Dict[str, Any]]:
+        for item in sources:
+            text = item.get("text", "")
+            if not any(
+                token in text.lower()
+                for token in ["fee", "license", "permit", "software", "equipment", "training"]
+            ):
+                continue
+            amount = self._extract_currency_amount(text)
+            if amount is None:
+                continue
+            return {
+                "name": "unit_cost",
+                "value": amount,
+                "unit": "usd_per_unit",
+                "source_url": item.get("source_url", ""),
+                "source_excerpt": text[:500],
+                "source_hierarchy_status": item.get("source_hierarchy_status"),
+                "excerpt_validation_status": "pass",
+            }
+        return None
 
     def _extract_supporting_excerpt(self, text: str, bill_id: str) -> str:
         """Select a materially supportive excerpt instead of a blind prefix."""

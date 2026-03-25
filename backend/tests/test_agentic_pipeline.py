@@ -10,6 +10,7 @@ from schemas.analysis import (
 from llm_common.core import LLMClient
 from llm_common.web_search import WebSearchClient
 from llm_common.agents.provenance import Evidence, EvidenceEnvelope
+from services.llm.orchestrator import STEP_INDEX, PrefixFixtureError
 
 
 def _make_legislation_response():
@@ -37,14 +38,19 @@ def _make_legislation_response():
                 ],
                 chain_of_causality="ABC",
                 confidence_score=0.9,
-                p10=10.0,
-                p25=20.0,
-                p50=50.0,
-                p75=100.0,
-                p90=200.0,
+                impact_mode="direct_fiscal",
+                scenario_bounds={
+                    "conservative": 10.0,
+                    "central": 50.0,
+                    "aggressive": 200.0,
+                },
             )
         ],
-        total_impact_p50=50.0,
+        aggregate_scenario_bounds={
+            "conservative": 10.0,
+            "central": 50.0,
+            "aggressive": 200.0,
+        },
         analysis_timestamp="2025-01-01",
         model_used="test-model",
     )
@@ -72,6 +78,45 @@ def _make_research_result():
         },
         is_sufficient=True,
     )
+
+
+def _seed_direct_fiscal_candidate(
+    research_result: LegislationResearchResult,
+    *,
+    amount: float,
+    source_url: str,
+    source_excerpt: str,
+) -> LegislationResearchResult:
+    research_result.rag_chunks = [
+        MagicMock(
+            content=source_excerpt,
+            score=0.91,
+            metadata={"source_url": source_url, "source_type": "fiscal_note"},
+        )
+    ]
+    research_result.impact_candidates = [
+        {
+            "impact_id": "impact-direct-fiscal",
+            "impact_description": "Official fiscal impact reported for the measure.",
+            "relevant_clauses": [],
+            "evidence_refs": [source_url],
+            "candidate_mode_hints": ["direct_fiscal"],
+            "impact_scope": "bill",
+        }
+    ]
+    research_result.parameter_candidates = {
+        "impact-direct-fiscal": {
+            "fiscal_amount": {
+                "value": amount,
+                "unit": "usd_per_month",
+                "source_url": source_url,
+                "source_excerpt": source_excerpt,
+                "source_hierarchy_status": "fiscal_or_reg_impact_analysis",
+                "excerpt_validation_status": "pass",
+            }
+        }
+    }
+    return research_result
 
 
 @pytest.mark.asyncio
@@ -628,7 +673,6 @@ async def test_pipeline_fail_closed_when_quantified_claim_lacks_numeric_support(
     analysis_obj.impacts[0].impact_description = (
         "The ordinance lowers household rent burdens by roughly $50 per month."
     )
-    analysis_obj.impacts[0].numeric_basis = "claimed monthly savings estimate"
     analysis_obj.impacts[0].evidence[0].source_name = "Committee Analysis"
     analysis_obj.impacts[0].evidence[0].excerpt = (
         "The ordinance limits annual rent increases and may reduce future rent growth "
@@ -690,6 +734,15 @@ async def test_pipeline_fail_closed_when_quantified_claim_lacks_numeric_support(
             ],
         )
     ]
+    _seed_direct_fiscal_candidate(
+        research_result,
+        amount=50.0,
+        source_url="https://lao.ca.gov/fiscal-note",
+        source_excerpt=(
+            "Official fiscal note estimates median tenant savings of $50 per month "
+            "under the ordinance."
+        ),
+    )
     with patch.object(
         pipeline.research_service,
         "research",
@@ -717,7 +770,6 @@ async def test_pipeline_allows_quantified_claim_with_numeric_fiscal_support():
     analysis_obj.impacts[0].impact_description = (
         "The ordinance lowers household rent burdens by roughly $50 per month."
     )
-    analysis_obj.impacts[0].numeric_basis = "LAO fiscal note: $50 monthly savings"
     analysis_obj.impacts[0].evidence[0].source_name = "LAO Fiscal Note"
     analysis_obj.impacts[0].evidence[0].excerpt = (
         "The LAO fiscal note estimates median tenant savings of $50 per month "
@@ -770,6 +822,15 @@ async def test_pipeline_allows_quantified_claim_with_numeric_fiscal_support():
             ],
         )
     ]
+    _seed_direct_fiscal_candidate(
+        research_result,
+        amount=50.0,
+        source_url="https://lao.ca.gov/fiscal-note",
+        source_excerpt=(
+            "The LAO fiscal note estimates median tenant savings of $50 per month "
+            "under the rent cap, with annual savings near $600 per household."
+        ),
+    )
     with patch.object(
         pipeline.research_service,
         "research",
@@ -780,7 +841,7 @@ async def test_pipeline_allows_quantified_claim_with_numeric_fiscal_support():
         result = await pipeline.run("AB-1234", "The bill text...", "San Jose", models)
 
     assert mock_llm.chat_completion.call_count == 2
-    assert result.impacts[0].p50 == 50.0
+    assert result.impacts[0].scenario_bounds.central == 50.0
 
 
 @pytest.mark.asyncio
@@ -857,3 +918,59 @@ async def test_pipeline_allows_negative_zero_impact_resolution_claim():
         "cost-of-living burdens without supporting evidence" in err.lower()
         for err in issues
     )
+
+
+@pytest.mark.asyncio
+async def test_prefix_run_halts_with_prefix_halted_status():
+    mock_llm = MagicMock(spec=LLMClient)
+    mock_search = MagicMock(spec=WebSearchClient)
+    mock_db = MagicMock()
+
+    mock_db.get_latest_scrape_for_bill = AsyncMock(return_value=None)
+    mock_db.get_vector_stats = AsyncMock(return_value={"chunk_count": 0})
+    mock_db.create_pipeline_run = AsyncMock(return_value="run-1")
+    mock_db.get_or_create_jurisdiction = AsyncMock(return_value=1)
+    mock_db.store_legislation = AsyncMock(return_value=None)
+    mock_db.store_impacts = AsyncMock()
+    mock_db._execute = AsyncMock()
+    mock_db.complete_pipeline_run = AsyncMock()
+    mock_db.fail_pipeline_run = AsyncMock()
+
+    pipeline = AnalysisPipeline(mock_llm, mock_search, mock_db)
+    result = await pipeline.run(
+        "AB-1234",
+        "The bill text...",
+        "San Jose",
+        {"research": "m1", "generate": "m2", "review": "m3"},
+        stop_after_step=STEP_INDEX["mode_selection"],
+        run_label="ingestion-through-mode",
+    )
+
+    assert result.bill_number == "AB-1234"
+    assert mock_db._execute.await_count >= 1
+    last_update = mock_db._execute.await_args_list[-1]
+    assert "UPDATE pipeline_runs" in last_update.args[0]
+    assert last_update.args[1] == "prefix_halted"
+
+
+@pytest.mark.asyncio
+async def test_prefix_run_requires_seed_when_starting_after_step_one():
+    mock_llm = MagicMock(spec=LLMClient)
+    mock_search = MagicMock(spec=WebSearchClient)
+    mock_db = MagicMock()
+
+    mock_db.get_latest_scrape_for_bill = AsyncMock(return_value=None)
+    mock_db.create_pipeline_run = AsyncMock(return_value="run-1")
+    mock_db._execute = AsyncMock()
+    mock_db.fail_pipeline_run = AsyncMock()
+
+    pipeline = AnalysisPipeline(mock_llm, mock_search, mock_db)
+
+    with pytest.raises(PrefixFixtureError):
+        await pipeline.run(
+            "AB-1234",
+            "The bill text...",
+            "San Jose",
+            {"research": "m1", "generate": "m2", "review": "m3"},
+            start_at_step=STEP_INDEX["parameter_resolution"],
+        )

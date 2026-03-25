@@ -52,6 +52,7 @@ class GlassBoxService:
     def _serialize_run_head(row: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
         if not row:
             return None
+        trigger_source = row.get("trigger_source", "manual")
         return {
             "id": str(row["id"]),
             "bill_id": row.get("bill_id"),
@@ -60,8 +61,71 @@ class GlassBoxService:
             "started_at": str(row["started_at"]) if row.get("started_at") else None,
             "completed_at": str(row["completed_at"]) if row.get("completed_at") else None,
             "error": row.get("error"),
-            "trigger_source": row.get("trigger_source", "manual"),
+            "trigger_source": trigger_source,
+            "is_prefix_run": str(trigger_source).startswith("prefix:"),
+            "run_label": str(trigger_source).split("prefix:", 1)[1]
+            if str(trigger_source).startswith("prefix:")
+            else None,
         }
+
+    @staticmethod
+    def _extract_prefix_boundary(
+        steps: List["PipelineStep"], status: Optional[str]
+    ) -> Optional[str]:
+        for step in steps:
+            if step.step_name == "notify_debug":
+                output = step.output_result or {}
+                boundary = output.get("prefix_boundary")
+                if boundary:
+                    return str(boundary)
+        if status == "prefix_halted" and steps:
+            return f"stopped_after_{steps[-1].step_name}"
+        return None
+
+    @classmethod
+    def _normalize_mechanism_trace(
+        cls, steps: List["PipelineStep"], result: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        trace: Dict[str, Any] = {
+            "discovered_impacts": [],
+            "mode_decisions": [],
+            "parameter_resolution": [],
+            "impact_gate_summaries": [],
+            "parameter_validation": None,
+            "generated_impacts": [],
+            "aggregate_scenario_bounds": None,
+            "prefix_boundary": cls._extract_prefix_boundary(
+                steps, (result or {}).get("status")
+            ),
+        }
+        for step in steps:
+            output = step.output_result or {}
+            if step.step_name == "impact_discovery":
+                trace["discovered_impacts"] = output.get("impacts", [])
+            elif step.step_name == "mode_selection":
+                trace["mode_decisions"].append(output)
+            elif step.step_name == "parameter_resolution":
+                trace["parameter_resolution"].append(output)
+            elif step.step_name == "sufficiency_gate":
+                trace["impact_gate_summaries"] = output.get("impact_gate_summaries", [])
+            elif step.step_name == "parameter_validation":
+                trace["parameter_validation"] = output
+            elif step.step_name in {"generate", "refine"}:
+                trace["generated_impacts"] = output.get("impacts", [])
+                trace["aggregate_scenario_bounds"] = output.get(
+                    "aggregate_scenario_bounds"
+                )
+            elif step.step_name == "notify_debug" and output.get("prefix_boundary"):
+                trace["prefix_boundary"] = output.get("prefix_boundary")
+        if result:
+            analysis = result.get("analysis", {})
+            trace["aggregate_scenario_bounds"] = trace["aggregate_scenario_bounds"] or analysis.get(
+                "aggregate_scenario_bounds"
+            )
+            trace["generated_impacts"] = trace["generated_impacts"] or analysis.get(
+                "impacts", []
+            )
+        return trace
 
     async def get_pipeline_run_heads(self, query_key: str) -> Dict[str, Optional[Dict[str, Any]]]:
         """
@@ -163,63 +227,72 @@ class GlassBoxService:
                     or heads.get("latest_completed_run")
                     or heads.get("latest_run")
                 )
-                run = None
                 if target_run:
+                    pipeline_steps = await self.get_pipeline_steps(target_run["id"])
+                    if pipeline_steps:
+                        for step in pipeline_steps:
+                            ts = 0
+                            if step.created_at is not None and hasattr(
+                                step.created_at, "timestamp"
+                            ):
+                                ts = int(step.created_at.timestamp())
+                            else:
+                                ts = step.step_number
+                            steps.append(
+                                AgentStep(
+                                    tool=step.step_name,
+                                    args=step.input_context or {},
+                                    result=step.output_result or {},
+                                    task_id=step.step_name,
+                                    query_id=query_id,
+                                    timestamp=ts,
+                                )
+                            )
+                        return steps
                     run = await self.db._fetchrow(
                         "SELECT * FROM pipeline_runs WHERE id::text = $1",
                         target_run["id"],
                     )
-
-                if run and run["result"]:
-                    data = self._json_or_value(run["result"])
-                    # Map pipeline steps (research, generate, review) to AgentStep
-
-                    # Note: Using started_at as base timestamp
-                    base_ts = (
-                        int(run["started_at"].timestamp()) if run["started_at"] else 0
-                    )
-
-                    # 1. Research
-                    if "research" in data:
-                        steps.append(
-                            AgentStep(
-                                tool="ResearchAgent",
-                                args={"bill_id": run["bill_id"]},
-                                result=data["research"],
-                                task_id="research",
-                                query_id=query_id,
-                                timestamp=base_ts + 1,
-                            )
+                    if run and run["result"]:
+                        data = self._json_or_value(run["result"])
+                        base_ts = (
+                            int(run["started_at"].timestamp()) if run["started_at"] else 0
                         )
-
-                    # 2. Analysis/Generate
-                    if "analysis" in data:  # mapped from 'generate' step
-                        steps.append(
-                            AgentStep(
-                                tool="LegislationAnalyzer",
-                                args={"model": run["models"]},
-                                result=data["analysis"],
-                                task_id="generate",
-                                query_id=query_id,
-                                timestamp=base_ts + 2,
+                        if "research" in data:
+                            steps.append(
+                                AgentStep(
+                                    tool="ResearchAgent",
+                                    args={"bill_id": run["bill_id"]},
+                                    result=data["research"],
+                                    task_id="research",
+                                    query_id=query_id,
+                                    timestamp=base_ts + 1,
+                                )
                             )
-                        )
-
-                    # 3. Review
-                    if "review" in data:
-                        steps.append(
-                            AgentStep(
-                                tool="PolicyReviewer",
-                                args={},
-                                result=data["review"],
-                                task_id="review",
-                                query_id=query_id,
-                                timestamp=base_ts + 3,
+                        if "analysis" in data:
+                            steps.append(
+                                AgentStep(
+                                    tool="LegislationAnalyzer",
+                                    args={"model": run["models"]},
+                                    result=data["analysis"],
+                                    task_id="generate",
+                                    query_id=query_id,
+                                    timestamp=base_ts + 2,
+                                )
                             )
-                        )
-
-                if steps:
-                    return steps
+                        if "review" in data:
+                            steps.append(
+                                AgentStep(
+                                    tool="PolicyReviewer",
+                                    args={},
+                                    result=data["review"],
+                                    task_id="review",
+                                    query_id=query_id,
+                                    timestamp=base_ts + 3,
+                                )
+                            )
+                        if steps:
+                            return steps
             except Exception as e:
                 logger.error(f"Error reading DB traces for {query_id}: {e}")
 
@@ -318,6 +391,14 @@ class GlassBoxService:
                         else None,
                         "error": r["error"],
                         "trigger_source": r.get("trigger_source", "manual"),
+                        "is_prefix_run": str(
+                            r.get("trigger_source", "manual")
+                        ).startswith("prefix:"),
+                        "run_label": str(r.get("trigger_source", "manual")).split(
+                            "prefix:", 1
+                        )[1]
+                        if str(r.get("trigger_source", "manual")).startswith("prefix:")
+                        else None,
                         "is_latest_run": run_id == heads["latest_run_id"],
                         "is_latest_completed_run": run_id
                         == heads["latest_completed_run_id"],
@@ -351,6 +432,9 @@ class GlassBoxService:
                 else r["result"] or {}
             )
             analysis = result.get("analysis", {})
+            steps = await self.get_pipeline_steps(run_id)
+            trigger_source = r.get("trigger_source", "manual")
+            prefix_boundary = self._extract_prefix_boundary(steps, r.get("status"))
 
             return {
                 "id": str(r["id"]),
@@ -376,7 +460,14 @@ class GlassBoxService:
                 "analysis_quantification_eligible": analysis.get(
                     "quantification_eligible"
                 ),
-                "trigger_source": r.get("trigger_source", "manual"),
+                "aggregate_scenario_bounds": analysis.get("aggregate_scenario_bounds"),
+                "trigger_source": trigger_source,
+                "is_prefix_run": str(trigger_source).startswith("prefix:"),
+                "run_label": str(trigger_source).split("prefix:", 1)[1]
+                if str(trigger_source).startswith("prefix:")
+                else None,
+                "prefix_boundary": prefix_boundary,
+                "mechanism_trace": self._normalize_mechanism_trace(steps, result),
             }
         except Exception as e:
             logger.error(f"Error getting pipeline run {run_id}: {e}")

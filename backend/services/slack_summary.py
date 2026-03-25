@@ -25,11 +25,17 @@ STAGE_PROOF_BUILDERS = {
     "ingestion_source": "_build_ingestion_proof",
     "chunk_index": "_build_chunk_index_proof",
     "research": "_build_research_proof",
+    "research_discovery": "_build_research_proof",
+    "impact_discovery": "_build_impact_discovery_proof",
+    "mode_selection": "_build_mode_selection_proof",
+    "parameter_resolution": "_build_parameter_resolution_proof",
     "sufficiency_gate": "_build_sufficiency_proof",
     "generate": "_build_generate_proof",
+    "parameter_validation": "_build_parameter_validation_proof",
     "review": "_build_review_proof",
     "refine": "_build_refine_proof",
     "persistence": "_build_persistence_proof",
+    "notify_debug": "_build_notify_debug_proof",
     "pipeline_failure": "_build_failure_proof",
 }
 
@@ -86,9 +92,38 @@ def format_slack_summary(
         except (ValueError, TypeError):
             pass
 
-    status_emoji = "✅" if status == "completed" else "🔴"
+    is_prefix_run = str(trigger_source).startswith("prefix:") or status == "prefix_halted"
+    if status == "completed":
+        status_emoji = "✅"
+    elif status == "prefix_halted":
+        status_emoji = "🔬"
+    else:
+        status_emoji = "🔴"
 
-    title = f"{status_emoji} Manual pipeline: {bill_id} ({jurisdiction}){duration_str}"
+    run_label = None
+    if str(trigger_source).startswith("prefix:"):
+        run_label = str(trigger_source).split("prefix:", 1)[1]
+
+    if is_prefix_run:
+        boundary = next(
+            (
+                (step.get("output_result") or {}).get("prefix_boundary")
+                for step in steps
+                if step.get("step_name") == "notify_debug"
+                and (step.get("output_result") or {}).get("prefix_boundary")
+            ),
+            None,
+        )
+        title = (
+            f"{status_emoji} Prefix pipeline: {bill_id} ({jurisdiction})"
+            f"{duration_str}"
+        )
+        if run_label:
+            title += f" [{run_label}]"
+        if boundary:
+            title += f" [{boundary}]"
+    else:
+        title = f"{status_emoji} Manual pipeline: {bill_id} ({jurisdiction}){duration_str}"
 
     proof_text = (
         "\n".join(proof_lines) if proof_lines else "No pipeline steps recorded."
@@ -272,11 +307,45 @@ def _build_research_proof(status: str, output: Dict) -> str:
     return line
 
 
+def _build_impact_discovery_proof(status: str, output: Dict) -> str:
+    impacts = output.get("impacts", [])
+    hints = []
+    for item in impacts[:3]:
+        hints.extend(item.get("candidate_mode_hints", []))
+    hint_text = ", ".join(dict.fromkeys(hints)) if hints else "none"
+    return f"Impact discovery: {len(impacts)} candidates, mode hints `{hint_text}`."
+
+
+def _build_mode_selection_proof(status: str, output: Dict) -> str:
+    selected = output.get("selected_mode", "?")
+    ambiguity = output.get("ambiguity_status", "?")
+    rejected = len(output.get("rejected_modes", []))
+    return (
+        f"Mode selection: selected `{selected}`, ambiguity `{ambiguity}`, "
+        f"{rejected} rejected modes."
+    )
+
+
+def _build_parameter_resolution_proof(status: str, output: Dict) -> str:
+    resolved = len(output.get("resolved_parameters", {}) or {})
+    missing = len(output.get("missing_parameters", []) or [])
+    dominant = output.get("dominant_uncertainty_parameters", []) or []
+    dominant_text = ", ".join(dominant[:3]) if dominant else "none"
+    return (
+        f"Parameter resolution: {resolved} resolved, {missing} missing, "
+        f"dominant uncertainty `{dominant_text}`."
+    )
+
+
 def _build_sufficiency_proof(status: str, output: Dict) -> str:
-    state = output.get("sufficiency_state", "?")
-    rag = output.get("rag_chunks_retrieved", 0)
-    sources = output.get("web_research_sources_found", 0)
-    return f"Sufficiency gate: `{state}` — {rag} chunks, {sources} web sources."
+    state = output.get("overall_sufficiency_state", output.get("sufficiency_state", "?"))
+    eligible = output.get("overall_quantification_eligible", output.get("quantification_eligible", False))
+    impacts = output.get("impact_gate_summaries", []) or []
+    failures = output.get("bill_level_failures", []) or []
+    return (
+        f"Sufficiency gate: `{state}`, eligible={eligible}, "
+        f"impact gates={len(impacts)}, failures={len(failures)}."
+    )
 
 
 def _build_generate_proof(status: str, output: Dict) -> str:
@@ -284,7 +353,25 @@ def _build_generate_proof(status: str, output: Dict) -> str:
     impacts = len(output.get("impacts", []))
     quant = output.get("quantification_eligible", False)
     quant_tag = "eligible" if quant else "blocked"
-    return f"Generate: {impacts} impacts, sufficiency `{suff}`, quantification {quant_tag}."
+    agg = output.get("aggregate_scenario_bounds")
+    agg_tag = "with aggregate bounds" if agg else "without aggregate bounds"
+    return (
+        f"Generate: {impacts} impacts, sufficiency `{suff}`, "
+        f"quantification {quant_tag}, {agg_tag}."
+    )
+
+
+def _build_parameter_validation_proof(status: str, output: Dict) -> str:
+    schema_valid = output.get("schema_valid", False)
+    arithmetic_valid = output.get("arithmetic_valid", False)
+    bounds_valid = output.get("bound_construction_valid", False)
+    claims_valid = output.get("claim_support_valid", False)
+    failures = output.get("validation_failures", []) or []
+    return (
+        "Parameter validation: "
+        f"schema={schema_valid}, arithmetic={arithmetic_valid}, "
+        f"bounds={bounds_valid}, claims={claims_valid}, failures={len(failures)}."
+    )
 
 
 def _build_review_proof(status: str, output: Dict) -> str:
@@ -324,18 +411,28 @@ def _build_persistence_proof(status: str, output: Dict) -> str:
     impacts = output.get("impacts_count", 0)
     suff = output.get("sufficiency_state", "?")
     quant = output.get("quantification_eligible", False)
-    p50 = output.get("total_impact_p50")
+    aggregate_bounds = output.get("aggregate_scenario_bounds")
 
     if not stored:
         return "Persistence: analysis NOT stored."
 
     parts = [f"Persisted to legislation `{leg_id}`: {impacts} impacts"]
     parts.append(f"sufficiency `{suff}`")
-    if quant and p50 is not None:
-        parts.append(f"p50={p50}")
+    if quant and aggregate_bounds is not None:
+        parts.append(f"aggregate_bounds={aggregate_bounds}")
+    elif quant and output.get("total_impact_p50") is not None:
+        parts.append(f"p50={output.get('total_impact_p50')}")
     elif quant:
-        parts.append("quantification eligible (no p50)")
+        parts.append("quantification eligible (no aggregate bounds)")
     else:
         parts.append("quantification blocked")
 
     return "Persistence: " + ", ".join(parts) + "."
+
+
+def _build_notify_debug_proof(status: str, output: Dict) -> str:
+    prefix_boundary = output.get("prefix_boundary")
+    state = output.get("status", status)
+    if prefix_boundary:
+        return f"Notify/debug: {state}, prefix boundary `{prefix_boundary}`."
+    return f"Notify/debug: {state}."

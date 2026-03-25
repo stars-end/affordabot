@@ -12,6 +12,7 @@ Validates:
 import pytest
 from unittest.mock import AsyncMock
 from datetime import datetime
+from pathlib import Path
 
 from services.glass_box import GlassBoxService
 from services.alerting import AlertingService
@@ -27,7 +28,10 @@ class TestOrchestratorTruth:
 
     def test_no_fake_embedding_step_in_run_flow(self):
         """Step 0.5 'embedding' virtual step should NOT appear in a real run."""
-        with open("services/llm/orchestrator.py") as f:
+        orchestrator_path = (
+            Path(__file__).resolve().parents[2] / "services" / "llm" / "orchestrator.py"
+        )
+        with open(orchestrator_path) as f:
             source = f.read()
 
         assert "_fake_embedding_step" not in source, (
@@ -43,16 +47,18 @@ class TestOrchestratorTruth:
             status="",
             sufficiency_state=SufficiencyState.RESEARCH_INCOMPLETE,
             quantification_eligible=False,
-            total_impact_p50=None,
             analysis_timestamp=datetime.now().isoformat(),
             model_used="test",
         )
         assert analysis.title == ""
-        assert analysis.total_impact_p50 is None
+        assert analysis.aggregate_scenario_bounds is None
 
     def test_persistence_audit_step_not_hardcoded_as_stored(self):
         """Persistence step should reflect actual storage outcome, not a hardcoded true."""
-        with open("services/llm/orchestrator.py") as f:
+        orchestrator_path = (
+            Path(__file__).resolve().parents[2] / "services" / "llm" / "orchestrator.py"
+        )
+        with open(orchestrator_path) as f:
             source = f.read()
 
         assert '"analysis_stored": True' not in source
@@ -360,26 +366,21 @@ class TestSufficiencyBreakdownSchema:
 
     def test_default_breakdown_is_incomplete(self):
         breakdown = SufficiencyBreakdown()
-        assert breakdown.sufficiency_state == SufficiencyState.RESEARCH_INCOMPLETE
-        assert breakdown.source_text_present is False
-        assert breakdown.rag_chunks_retrieved == 0
-        assert breakdown.quantification_eligible is False
+        assert breakdown.overall_sufficiency_state == SufficiencyState.RESEARCH_INCOMPLETE
+        assert breakdown.overall_quantification_eligible is False
+        assert breakdown.impact_gate_summaries == []
+        assert breakdown.bill_level_failures == []
 
     def test_breakdown_serialization(self):
         breakdown = SufficiencyBreakdown(
-            source_text_present=True,
-            rag_chunks_retrieved=5,
-            web_research_sources_found=3,
-            tier_a_sources_found=1,
-            fiscal_notes_detected=True,
-            has_verifiable_url=True,
-            quantification_eligible=True,
-            sufficiency_state=SufficiencyState.QUANTIFIED,
+            overall_quantification_eligible=True,
+            overall_sufficiency_state=SufficiencyState.QUANTIFIED,
+            impact_gate_summaries=[],
+            bill_level_failures=[],
         )
         data = breakdown.model_dump()
-        assert data["source_text_present"] is True
-        assert data["rag_chunks_retrieved"] == 5
-        assert data["quantification_eligible"] is True
+        assert data["overall_quantification_eligible"] is True
+        assert data["overall_sufficiency_state"] == SufficiencyState.QUANTIFIED.value
 
 
 class TestManualRunSlackSummary:
