@@ -1,193 +1,217 @@
-# Mechanism-Backed Quantification Specification
+# Mechanism-Backed Quantification Implementation Spec
 
-## 1. Problem Statement
-Affordabot's current quantification path is intentionally conservative, but too narrow. After the recent truth-remediation work, the pipeline can reliably avoid fake numbers by requiring direct fiscal notes or official numeric estimates. That solved the hallucination problem, but it also blocks quantification for bills whose cost-of-living effects are real, causal, and economically analyzable through well-established mechanisms such as regulatory compliance burden, pass-through, or participation effects.
+## Summary
+Affordabot is moving from a fiscal-note-only quantification path to a mechanism-backed framework that can quantify official fiscal estimates and concrete compliance burdens without inventing numbers. This is an end-to-end pipeline change, not a prompt tweak. The pipeline must explicitly discover candidate impacts, resolve mode-specific parameters, deterministically gate quantification, persist parameter-level provenance, and expose compact operator proofs in Slack plus detailed canonical truth in admin/glassbox.
 
-The founder requires a stricter but broader framework:
-- quantify only when a real causal mechanism is identified
-- quantify only when the required parameters are sourced and auditable
-- propagate uncertainty explicitly without fake percentiles
-- preserve end-to-end provenance from raw scrape to persisted output
+This spec is implementation-oriented. It incorporates:
+- the empirical design from PR `#335`
+- the pipeline propagation rewrite from PR `#336`
+- consultant feedback on impact discovery, enforcement placement, and compliance-cost scope
+- the product decision that pre-MVP data is provisional, so no backward-compatibility contract is required
 
-This is not a generate-step enhancement. It is a whole-pipeline contract change affecting research, deterministic gates, generation, review, persistence, Slack, admin/glassbox, and verification.
+## Problem
+The current pipeline is intentionally conservative, but too narrow:
+- quantification is mostly gated on the existence of fiscal-note-like numeric support
+- research is optimized for bill text and fiscal analyses, not mechanism inputs
+- deterministic gates do not understand modes or parameter completeness
+- downstream truth surfaces assume flat percentile outputs instead of structured modeled parameters
 
-## 2. Current-State Assessment
-Grounded in current trunk and the existing PR `#335` baseline:
+That avoids fake precision, but it misses real, auditable cost-of-living effects from bills that impose:
+- administrative reporting or filing burden
+- training or recordkeeping labor burden
+- concrete purchase/install/fee burdens
+
+The founder wants broader quantification with strict fail-closed behavior and explicit uncertainty.
+
+## Goals
+- Quantify only when a real mechanism is identified and its required parameters are sourced.
+- Support first-wave `direct_fiscal` and `compliance_cost`.
+- Treat `compliance_cost` as both:
+  - administrative labor burden
+  - concrete non-labor substantive burden
+- Insert deterministic pipeline steps for impact discovery, mode selection, parameter resolution, and parameter validation.
+- Persist parameter-level provenance in the canonical truth path.
+- Emit short debug Slack summaries for every pipeline run.
+- Keep admin/glassbox as the detailed canonical audit surface.
+
+## Non-Goals
+- No Monte Carlo engine in Wave 1.
+- No supply-shock / structural equilibrium quantification in Wave 1.
+- No enabling `pass_through_incidence` or `adoption_take_up` without curated retrieval prerequisites.
+- No backward-compatibility or legacy-read contract for pre-MVP provisional data.
+- No multi-mode quantification for the same impact in Wave 1.
+
+## Active Contract
+This is an `ALL_IN_NOW` pre-MVP cutover.
+
+Implications:
+- legacy percentile fields and provisional quantified data do not constrain the implementation
+- the new schema is the only required truth contract once the implementation lands
+- there is no dual path, no read adapter requirement, and no staged coexistence period for dev/staging
+
+## Current-State Assessment
+Grounded in current repo structure:
 
 - [orchestrator.py](backend/services/llm/orchestrator.py)
-  - Current step sequence is effectively `ingestion_source -> research -> sufficiency_gate -> generate -> review -> refine? -> persistence`.
-  - There is no explicit `mode_selection`, `parameter_resolution`, or `parameter_validation` step.
+  - current sequence is roughly `ingestion_source -> research -> sufficiency_gate -> generate -> review -> refine? -> persistence`
+  - there is no explicit impact discovery, mode selection, parameter resolution, or post-generation validation step
 
 - [evidence_gates.py](backend/services/llm/evidence_gates.py)
-  - `assess_sufficiency()` is deterministic, but it is fiscal-note-centric.
-  - It decides `quantification_eligible` primarily from Tier A evidence plus detected fiscal-note-style numeric support.
-  - It has no concept of quantification modes, per-parameter validation, source hierarchies, or excerpt-as-gate.
+  - `assess_sufficiency()` is deterministic but fiscal-note-centric
+  - it does not validate per-mode parameter requirements or parameter-level provenance
 
 - [legislation_research.py](backend/services/legislation_research.py)
-  - Research retrieves bill text and bill-specific web results.
-  - Query construction currently emphasizes fiscal impact analysis, committee analysis, and government cost estimates.
-  - It does not yet deliberately retrieve parameter classes needed for mechanism-backed quantification such as BLS wages, CBP/QCEW counts, sector pass-through estimates, or take-up benchmarks.
+  - research is oriented toward bill text, fiscal analyses, and official cost estimates
+  - it does not yet deliberately retrieve population counts, wage baselines, or concrete unit-cost support for compliance modeling
 
 - [analysis.py](backend/schemas/analysis.py)
-  - `LegislationImpact` still uses `p10/p25/p50/p75/p90`.
-  - `LegislationAnalysisResponse` still uses `total_impact_p50`.
-  - There is no canonical representation for `impact_mode`, `modeled_parameters`, or `scenario_bounds`.
+  - `LegislationImpact` still uses `p10/p25/p50/p75/p90`
+  - `LegislationAnalysisResponse` still uses `total_impact_p50`
+  - there is no canonical `impact_mode`, `modeled_parameters`, or `scenario_bounds` structure
 
 - [slack_summary.py](backend/services/slack_summary.py)
-  - Slack proof builders assume the old flat quantified/unquantified model.
-  - Current summaries do not explain mechanism, parameter gaps, or uncertainty drivers.
+  - summaries assume a flat quantified/unquantified model
+  - they do not yet show mode, dominant uncertainty, or fail-closed reason
 
 - [glass_box.py](backend/services/glass_box.py) and [admin.py](backend/routers/admin.py)
-  - Canonical DB-backed truth path exists and is the correct audit surface.
-  - Current responses expose flat run/analysis data, not parameter-level mechanism traces.
+  - the DB-backed audit path already exists and remains canonical
+  - the payloads do not yet expose mechanism-trace detail
 
 - [verify_pipeline_truth.py](backend/scripts/verification/verify_pipeline_truth.py)
-  - Current verifier checks scrape, chunk presence, legislation truth fields, pipeline run presence, and persistence step presence.
-  - It does not check mode selection, parameter sourcing, uncertainty construction, or post-generation validation.
+  - current verification checks structural run truth
+  - it does not yet check impact discovery, mode-aware gating, or parameter provenance
 
-## 3. Design Principles
-1. **Mode-backed, not vibes-backed**
-   - Every quantified impact must name a quantification mode.
+## Quantification Mode Taxonomy
 
-2. **Deterministic gates before and after LLM generation**
-   - LLMs may synthesize and narrate.
-   - Deterministic code must validate mode selection, parameter completeness, and output integrity.
-
-3. **Single-impact, single-mode in Wave 1**
-   - Each quantified impact uses exactly one primary mode.
-   - A bill may contain multiple impacts, but each impact remains single-mode.
-
-4. **Fail closed on ambiguity**
-   - If the mechanism is ambiguous, the parameters are missing, or the evidence is too contested, the system falls back to `qualitative_only`.
-
-5. **Canonical truth store stays the same**
-   - Detailed provenance remains in `pipeline_steps`, `pipeline_runs.result`, and downstream persisted analysis structures.
-   - Slack remains summary-only.
-   - Admin/glassbox remains the detailed operator surface.
-
-## 4. Quantification Mode Taxonomy
-
-### 4.1 First-Wave Modes
+### First-Wave Modes
 1. `direct_fiscal`
-   - Official fiscal note, CBO score, committee fiscal estimate, or agency cost estimate.
+   - official fiscal note, committee fiscal estimate, agency estimate, or equivalent government numeric source
 
 2. `compliance_cost`
-   - Standard Cost Model style administrative/regulatory burden:
-   - `Cost = Population × Frequency × Time × Wage`
+   - concrete burden imposed on regulated parties through:
+     - administrative labor burden
+     - substantive non-labor burden
 
-### 4.2 Second-Wave Modes
+### Second-Wave Modes
 3. `pass_through_incidence`
-   - Consumer price effect from a tax, fee, or business cost shifted through a market.
+   - price effects from taxes, fees, or business-cost pass-through
 
 4. `adoption_take_up`
-   - Program fiscal effect from eligible population, take-up, and benefit/cost per participant.
+   - fiscal effects from eligible population, take-up, and per-participant costs or benefits
 
-### 4.3 Deferred Modes
+### Deferred Modes
 5. `supply_shock`
-   - Broad structural equilibrium or reduced-form elasticity adjustments with major regime-dependence risk.
-   - Deferred until curated parameter infrastructure exists and Wave 1/2 modes are production-credible.
+   - structural equilibrium or elasticity-heavy market-wide effects
+   - deferred until curated parameter infrastructure and later-wave modeling support exist
 
-## 5. Full Pipeline Operating Contract
-The current pipeline sequence is insufficient for mechanism-backed quantification. The required operating contract is:
+## Full Pipeline Contract
+The implementation must use the following pipeline sequence:
 
 1. `ingestion_source`
 2. `chunk_index`
 3. `research_discovery`
-4. `mode_selection`
-5. `parameter_resolution`
-6. `sufficiency_gate`
-7. `generate`
-8. `parameter_validation`
-9. `review`
-10. `refine` (optional)
-11. `persistence`
-12. `notify_debug`
+4. `impact_discovery`
+5. `mode_selection`
+6. `parameter_resolution`
+7. `sufficiency_gate`
+8. `generate`
+9. `parameter_validation`
+10. `review`
+11. `refine` (optional)
+12. `persistence`
+13. `notify_debug`
 
-### 5.1 ingestion_source
-- Unchanged as the raw-source entry point.
-- Must continue to persist:
-  - raw scrape id
+### 1. ingestion_source
+- unchanged as raw-source entry point
+- must continue to persist:
   - source URL
-  - content hash
   - source type
-  - source text presence
-- Mechanism-backed quantification is disallowed if raw-source provenance is incomplete.
+  - content hash
+  - raw text presence
 
-### 5.2 chunk_index
-- Structurally similar to today, but chunk metadata must remain parameter-provenance friendly.
-- Minimum metadata:
+### 2. chunk_index
+- structurally similar to today
+- chunk metadata must remain provenance-friendly:
   - `bill_number`
   - `jurisdiction`
   - `document_id`
   - `source_url`
   - `source_type`
-- If available, chunk metadata should also carry a semantic role hint such as:
-  - `bill_text`
-  - `committee_analysis`
-  - `fiscal_note`
-  - `agency_report`
-  - `academic_literature`
+  - optional role hints such as `bill_text`, `fiscal_note`, `committee_analysis`, `agency_report`, `academic_literature`
 
-### 5.3 research_discovery
-- Split the current generic research step into a richer output contract.
-- Required outputs:
+### 3. research_discovery
+- expands research into both evidence discovery and parameter discovery
+- required outputs:
   - `rag_chunks`
   - `web_sources`
   - `evidence_envelopes`
-  - `candidate_modes`
-  - `parameter_candidates`
   - `retrieval_coverage`
   - `coverage_gaps`
-- `retrieval_coverage` must explicitly record whether the run searched for:
+  - `candidate_mode_hints`
+  - `parameter_candidates`
+- `retrieval_coverage` must say whether the run searched for:
   - official fiscal notes
   - committee analyses
   - regulatory burden clues
   - population counts
   - wage benchmarks
+  - concrete unit-cost support
   - take-up benchmarks
   - pass-through literature
 
-### 5.4 mode_selection
-- New deterministic step.
-- Purpose:
-  - choose a primary mode for each candidate impact
+### 4. impact_discovery
+- new LLM-assisted but non-quantifying step
+- purpose:
+  - identify candidate cost-of-living impacts before deterministic mode logic runs
+  - provide the entities that `mode_selection` and `parameter_resolution` iterate over
+- required outputs per impact:
+  - `impact_id`
+  - `impact_description`
+  - `relevant_clauses`
+  - `evidence_refs`
+  - `candidate_mode_hints`
+  - `impact_scope`
+- this step may identify candidate impacts, but it may not quantify them or invent parameters
+
+### 5. mode_selection
+- new deterministic step
+- purpose:
+  - choose one primary mode for each candidate impact
   - reject unsupported or ambiguous modes
-- Required outputs:
+- required outputs per impact:
   - `candidate_modes`
   - `selected_mode`
   - `rejected_modes`
   - `selection_rationale`
   - `ambiguity_status`
   - `composition_candidate`
-- Mode selection must run after research discovery but before quantification eligibility is decided.
-- If ambiguity remains high, fail closed to `qualitative_only`.
+- if ambiguity remains high, fail closed to `qualitative_only`
 
-### 5.5 parameter_resolution
-- New deterministic step.
-- Purpose:
-  - normalize every required parameter for the selected mode into a canonical schema
+### 6. parameter_resolution
+- new deterministic step
+- purpose:
+  - normalize required parameters for the selected mode
   - validate source hierarchy at the parameter level
-- Required outputs:
+- required outputs per impact:
   - `required_parameters`
   - `resolved_parameters`
   - `missing_parameters`
   - `source_hierarchy_status`
-  - `literature_confidence`
   - `excerpt_validation_status`
+  - `literature_confidence`
   - `dominant_uncertainty_parameters`
-- If any required parameter is missing, the selected mode cannot proceed to quantification.
+- quantification cannot proceed if any required parameter is missing
 
-### 5.6 sufficiency_gate
-- `assess_sufficiency()` must evolve from fiscal-note gating into mode-aware gating.
-- This is a major deterministic rewrite, not a minor patch.
-- Required outputs:
+### 7. sufficiency_gate
+- major deterministic rewrite of the current fiscal-note-centric gate
+- required outputs:
   - `selected_mode`
   - `quantification_eligible`
   - `sufficiency_state`
   - `gate_failures`
   - `parameter_validation_summary`
   - `retrieval_prerequisite_status`
-- The gate must validate:
+- the gate must validate:
   - source text presence
   - evidence presence
   - mode legitimacy
@@ -198,130 +222,145 @@ The current pipeline sequence is insufficient for mechanism-backed quantificatio
   - anti-double-counting eligibility
   - uncertainty construction validity
 
-### 5.7 generate
-- Generation may not choose a new mode on its own.
-- It must consume:
+### 8. generate
+- generation may not choose a new mode
+- it must consume:
+  - discovered impacts
   - selected mode
-  - validated parameter set
+  - validated parameters
   - scenario-construction rules
-- Required generated fields:
+- required generated fields:
   - `impact_mode`
   - `modeled_parameters`
   - `scenario_bounds`
   - `mode_selection_rationale`
+  - `component_breakdown`
   - `composition_note`
-- Generation remains responsible for structured explanation, not for gate logic.
 
-### 5.8 parameter_validation
-- New deterministic post-generation step.
-- Purpose:
-  - verify generated output is consistent with upstream validated inputs
+### 9. parameter_validation
+- new deterministic post-generation step
+- purpose:
+  - verify generated output matches upstream validated inputs
   - verify arithmetic and schema invariants
   - verify scenario bounds vary only dominant parameters
-  - verify prose does not overclaim beyond the validated evidence
-- Required outputs:
+  - verify narrative claims do not exceed evidence
+- required outputs:
   - `schema_valid`
   - `arithmetic_valid`
   - `bound_construction_valid`
   - `claim_support_valid`
   - `validation_failures`
-- If this step fails, the impact is downgraded to `qualitative_only` before persistence.
+- control flow:
+  - repairable arithmetic/schema defects may go through one refine attempt
+  - missing-parameter, missing-source, and failed evidence-gate cases downgrade immediately to `qualitative_only`
 
-### 5.9 review
-- Review remains valuable, but no longer carries the burden of deterministic enforcement.
-- The reviewer checks:
-  - mode appropriateness
+### 10. review
+- review remains useful for:
   - causal coherence
-  - double-counting risk
-  - sign/unit sanity
+  - sign sanity
+  - unit sanity
+  - double-counting suspicion
   - uncertainty narrative sanity
-- Review must not be the first place where missing parameters are discovered.
+- review is not the first enforcement layer
 
-### 5.10 refine
-- Refine may revise:
-  - narrative explanation
-  - causal chain
-  - impact framing
-- Refine may not invent missing parameters that failed deterministic validation.
+### 11. refine
+- refine may revise:
+  - explanation
+  - causal framing
+  - arithmetic presentation
+- refine may not invent missing parameters or bypass deterministic failures
 
-### 5.11 persistence
-- Persistence must store both:
-  - backward-compatible summary truth fields
-  - the new mechanism-backed structure
-- Every persisted quantified impact must remain reconstructable from:
+### 12. persistence
+- persistence writes the new canonical schema only
+- all provisional legacy percentile fields may be removed or replaced as part of the cutover
+- every quantified impact must be reconstructable from:
   - selected mode
   - validated parameters
   - scenario-construction rule
   - cited evidence
 
-### 5.12 notify_debug
-- During the debug period, a short Slack summary should emit for every pipeline run.
-- Slack is not a second store; it is an operator proof layer with deep links back to canonical truth.
+### 13. notify_debug
+- emit a short Slack summary for every pipeline run during the debug period
+- Slack remains summary-only and links back to canonical truth surfaces
 
-## 6. Mode Definitions and Empirical Inputs
+## Mode Definitions and Empirical Inputs
 
-### 6.1 direct_fiscal
-- Use when an official government estimate exists.
-- Required parameters:
+### direct_fiscal
+- use when an official government estimate exists
+- required parameter:
   - `fiscal_note_estimate`
-- Scenario construction:
-  - `base` = published value
-  - `low/high` = official range if present
+- scenario construction:
+  - `base = published value`
+  - `low/high = official range if present`
   - otherwise `low = base = high`
-- This mode is first-wave and backward-compatible with existing behavior.
 
-### 6.2 compliance_cost
-- Methodology: Standard Cost Model.
-- Formula:
-  - `Cost = Population × Frequency × Time × Wage`
-- Required parameters:
+### compliance_cost
+- methodology:
+  - Standard Cost Model style burden accounting, extended to include both labor burden and concrete non-labor burden
+- subcomponents:
+  - `administrative_labor_cost = population × frequency × time_burden × wage_rate`
+  - `substantive_non_labor_cost = affected_units × unit_cost`
+  - `total_compliance_cost = administrative_labor_cost + substantive_non_labor_cost`
+- required administrative parameters when administrative labor burden is quantified:
   - `population`
   - `frequency`
   - `time_burden`
   - `wage_rate`
-- Population source hierarchy:
-  1. bill text / fiscal note explicit count
-  2. Census CBP or BLS QCEW establishment counts
-  3. state registry / licensing / administrative count
-  4. fail closed
-- Wage benchmark hierarchy:
-  1. bill-specific official wage basis if present
-  2. BLS OEWS/OES
-  3. fail closed
-- Overhead multiplier:
-  - default US floor convention should be explicit and cited
-- Dominant uncertainty defaults:
-  - `population`
-  - `time_burden`
+- required substantive parameters when non-labor burden is quantified:
+  - `affected_units`
+  - `unit_cost`
+- source hierarchies:
+  - `population` / `affected_units`
+    1. bill text or fiscal note explicit count
+    2. Census CBP or BLS QCEW establishment counts where applicable
+    3. state registry, licensing, or administrative count
+    4. fail closed
+  - `wage_rate`
+    1. bill-specific official wage basis if present
+    2. BLS OEWS/OES
+    3. fail closed
+  - `unit_cost`
+    1. bill text, fiscal note, or official implementation estimate explicitly naming the fee, purchase, install, or per-unit burden
+    2. official agency schedule or cited government procurement/fee basis clearly tied to the mandate
+    3. fail closed
+- rules:
+  - quantify administrative and substantive subcomponents separately
+  - if only one subcomponent is supported, quantify only that subcomponent
+  - do not infer capex or equipment costs from narrative alone
+  - do not double-count the same burden as both labor and non-labor unless the bill clearly imposes both
+- dominant uncertainty defaults:
+  - administrative branch:
+    - `population`
+    - `time_burden`
+  - substantive branch:
+    - `affected_units`
+    - `unit_cost` only when the source itself provides a bounded range
 
-### 6.3 pass_through_incidence
-- Wave 2 only.
-- Required parameters:
+### pass_through_incidence
+- Wave 2 only
+- required parameters:
   - `total_levied_cost`
   - `pass_through_rate`
   - `literature_confidence`
-- Requires curated sector-specific retrieval or lookup before activation.
+- schema remains open enough to capture supporting literature parameters when available
+- blocked until curated sector-specific retrieval exists
 
-### 6.4 adoption_take_up
-- Wave 2 only.
-- Required parameters:
+### adoption_take_up
+- Wave 2 only
+- required parameters:
   - `eligible_population`
   - `take_up_rate`
   - `benefit_per_capita`
-- Take-up hierarchy:
-  1. program-specific published administrative data
-  2. defensible analogous program
-  3. fail closed
-- Bass diffusion is explicitly out of scope and must not appear in implementation.
+- grounded in participation / administrative-burden literature
+- Bass diffusion is explicitly out of scope
 
-## 7. Research and Retrieval Contract
-Mechanism-backed quantification changes research upstream.
+## Research and Retrieval Contract
 
-### 7.1 Research is now two jobs
+### Research is now two jobs
 1. evidence discovery
 2. parameter discovery
 
-### 7.2 Mode-aware retrieval expectations
+### Mode-aware retrieval expectations
 - `direct_fiscal`
   - fiscal note
   - committee fiscal analysis
@@ -331,6 +370,7 @@ Mechanism-backed quantification changes research upstream.
   - reporting / filing / training frequency
   - time burden clues
   - wage benchmark source
+  - concrete per-unit fee / install / purchase burden
 - `pass_through_incidence`
   - sector classification
   - statutory burden amount
@@ -341,49 +381,51 @@ Mechanism-backed quantification changes research upstream.
   - take-up benchmark
   - per-capita benefit/cost
 
-### 7.3 Retrieval prerequisites
+### Retrieval prerequisites
 - Wave 1:
   - `direct_fiscal` requires no new curated retrieval layer
-  - `compliance_cost` can proceed with constrained hierarchies plus official datasets
+  - `compliance_cost` can proceed with constrained source hierarchies plus official datasets
+  - expectation: Wave 1 `compliance_cost` will often fail closed when bill text or official sources do not expose population, wage, or unit-cost support
 - Wave 2:
   - `pass_through_incidence` blocked without curated literature retrieval
   - `adoption_take_up` blocked without curated take-up lookup
 
-## 8. Uncertainty Contract
-The system must stop pretending to know percentiles it cannot justify.
+## Uncertainty Contract
 
-### 8.1 Replace flat percentiles
-- Drop `p10/p25/p50/p75/p90` as the primary mechanism-backed representation.
-- Use `scenario_bounds = { low, base, high }`.
+### Replace flat percentiles
+- drop `p10/p25/p50/p75/p90` as the new primary representation
+- use `scenario_bounds = { low, base, high }`
 
-### 8.2 Dominant-parameter variation
-- Do not vary all parameters simultaneously.
-- Only 1-2 dominant uncertainty parameters vary in Wave 1.
-- Each bound must state:
+### Dominant-parameter variation
+- do not vary all parameters simultaneously
+- only 1-2 dominant uncertainty parameters vary per quantified branch in Wave 1
+- each bound must state:
   - which parameters varied
   - why they were chosen
   - what `low` and `high` mean
 
-### 8.3 Base estimate is primary
-- `base` is the primary user-facing estimate when quantification is allowed.
-- `low/high` are sensitivity bounds, not probabilistic percentiles.
+### Base estimate is primary
+- `base` is the primary user-facing estimate
+- `low/high` are sensitivity bounds, not probabilistic percentiles
 
-## 9. Fail-Closed Rules
+## Fail-Closed Rules
 The following deterministic rules are mandatory:
 
-1. missing parameter gate
-2. excerpt-as-gate
-3. population sourcing gate
-4. missing literature gate
-5. literature confidence gate
-6. no bare bounds without modeled parameters
-7. mode selection gate
-8. anti-double-counting gate
-9. retrieval prerequisite gate
-10. parameter-validation gate
+1. impact discovery gate
+2. mode selection gate
+3. missing parameter gate
+4. excerpt-as-gate
+5. population/affected-unit sourcing gate
+6. missing literature gate
+7. literature confidence gate
+8. no bare bounds without modeled parameters
+9. anti-double-counting gate
+10. retrieval prerequisite gate
+11. parameter-validation gate
 
-### 9.1 New failure taxonomy
-Failure reasons should become explicit and machine-readable:
+### Failure taxonomy
+Failure reasons must be explicit and machine-readable:
+- `impact_discovery_failed`
 - `mode_ambiguous`
 - `parameter_missing`
 - `parameter_unverifiable`
@@ -391,26 +433,27 @@ Failure reasons should become explicit and machine-readable:
 - `retrieval_prerequisite_missing`
 - `scenario_invalid`
 - `composition_ambiguous`
-- `migration_backcompat_failure`
 
-These should appear in:
+These reasons should appear in:
 - gate output
 - Slack summary proof lines
 - admin/glassbox traces
 - verification diagnostics
 
-## 10. Canonical Persistence and Backward Compatibility
+## Canonical Persistence Contract
 
-### 10.1 Per-impact canonical fields
+### Per-impact canonical fields
 Each impact must persist:
 - `impact_mode`
 - `modeled_parameters`
 - `scenario_bounds`
 - `mode_selection_rationale`
+- `component_breakdown`
 - `composition_note`
 
-### 10.2 modeled_parameters schema
+### modeled_parameters schema
 Each parameter entry must include:
+
 ```json
 {
   "base": 0.0,
@@ -424,34 +467,39 @@ Each parameter entry must include:
 }
 ```
 
-### 10.3 Invariants
+### component_breakdown schema
+`compliance_cost` must support explicit subcomponents:
+
+```json
+{
+  "administrative_labor_cost": {
+    "enabled": true,
+    "base": 0.0,
+    "low": null,
+    "high": null
+  },
+  "substantive_non_labor_cost": {
+    "enabled": false,
+    "base": null,
+    "low": null,
+    "high": null
+  }
+}
+```
+
+### Invariants
 - `base` is always required
 - `low/high` only appear for dominant parameters
-- `scenario_bounds.low/high` must be mechanically reconstructable from `modeled_parameters`
+- `scenario_bounds.low/high` must be mechanically reconstructable from `modeled_parameters` and `component_breakdown`
 - literature-backed parameters require both `source_url` and `excerpt`
+- there is no legacy-read requirement for pre-MVP provisional data
 
-### 10.4 Read/write compatibility contract
-This change is breaking unless handled explicitly.
+## Operator Surfaces
 
-The implementation must define:
-- what replaces `total_impact_p50`
-- whether `quantification_eligible` remains a top-level truth field
-- how existing persisted runs with percentile fields remain readable
-- whether read adapters or one-time migrations are used
+### Slack summary contract
+Slack becomes a short debug proof for every run.
 
-All of these read paths must be updated atomically:
-- [analysis.py](backend/schemas/analysis.py)
-- [verify_pipeline_truth.py](backend/scripts/verification/verify_pipeline_truth.py)
-- [slack_summary.py](backend/services/slack_summary.py)
-- [glass_box.py](backend/services/glass_box.py)
-- [admin.py](backend/routers/admin.py)
-
-## 11. Operator Surfaces
-
-### 11.1 Slack summary contract
-Slack becomes a short debug proof for every run during the debug period.
-
-Minimum summary content:
+Minimum content:
 - run identity
 - selected mode or `qualitative_only`
 - quantification decision
@@ -462,10 +510,9 @@ Minimum summary content:
   - `/admin/audits/trace/{run_id}`
   - `/admin/bill-truth/{jurisdiction}/{bill_id}`
 
-### 11.2 Admin / Glassbox contract
-Admin/glassbox must become the detailed mechanism trace surface.
-
-Required additions:
+### Admin / Glassbox contract
+Admin/glassbox must expose:
+- discovered impacts
 - selected mode
 - rejected modes
 - gate failures
@@ -474,17 +521,18 @@ Required additions:
 - source hierarchy details
 - dominant uncertainty parameters
 - scenario derivation summary
+- compliance subcomponent breakdown where applicable
 
-The detailed trace must make it easy to answer:
+The trace must make it easy to answer:
 - where did this number come from?
 - which parameter drove the range?
-- which rule blocked quantification?
+- which deterministic rule blocked quantification?
 
-## 12. Verification and Test Contract
-The definition of a healthy pipeline run changes.
+## Validation
 
-### 12.1 New verifier expectations
+### Verifier expectations
 [verify_pipeline_truth.py](backend/scripts/verification/verify_pipeline_truth.py) must eventually check:
+- impact discovery executed
 - mode selected or explicitly failed closed
 - parameter resolution executed
 - required parameters resolved or explicitly missing
@@ -493,70 +541,91 @@ The definition of a healthy pipeline run changes.
 - persisted impacts conform to the new schema
 - admin/glassbox can expose mechanism-backed truth
 
-### 12.2 Required tests
-1. unit tests for mode selection
-2. unit tests for ambiguity fail-closed behavior
-3. unit tests for per-parameter validation
-4. unit tests for dominant-parameter scenario construction
-5. integration tests for direct_fiscal
-6. integration tests for compliance_cost
-7. backward-compatibility tests for old persisted runs
-8. Slack summary tests for mode-aware proofs
-9. admin/glassbox serialization tests for mechanism trace payloads
+### Required tests
+1. unit tests for impact discovery output shape
+2. unit tests for mode selection
+3. unit tests for ambiguity fail-closed behavior
+4. unit tests for per-parameter validation
+5. unit tests for compliance subcomponent arithmetic
+6. unit tests for dominant-parameter scenario construction
+7. integration tests for `direct_fiscal`
+8. integration tests for `compliance_cost`
+9. Slack summary tests for mode-aware proofs
+10. admin/glassbox serialization tests for mechanism trace payloads
 
-## 13. Phased Execution Plan
+## Risks
+- Wave 1 `compliance_cost` may fail closed frequently until BLS/CBP-backed retrieval is richer.
+- Impact discovery introduces a new pre-quantification LLM step that must stay tightly scoped.
+- Pre-MVP cutover simplifies implementation, but it means provisional old data can be discarded.
+- Administrative and substantive compliance branches raise double-counting risk unless the gate stays strict.
 
-### 13.1 Current spec repair task
-- `bd-hvji.10`
-  - mechanism-backed quantification spec
-- `bd-hvji.10.1`
-  - pipeline propagation spec for mechanism-backed quantification
+## Beads Structure
 
-### 13.2 Next implementation tasks
-- `bd-hvji.11`
-  - mechanism-backed quantification pipeline sequence and schema contract
+### Epic
+- `bd-hvji`
+  - existing umbrella epic
+
+### Current planning/spec task
+- `bd-hvji.16`
+  - mechanism-backed quantification full pipeline contract spec
   - purpose:
-    - add `mode_selection`, `parameter_resolution`, `parameter_validation`
-    - define backward-compatibility contract
+    - capture the final end-to-end implementation contract before execution
+
+### Implementation tasks
+- `bd-hvji.11`
+  - title target:
+    - `Implement impact discovery, pipeline sequence, and pre-MVP schema cutover`
+  - purpose:
+    - add `impact_discovery`, `mode_selection`, `parameter_resolution`, and `parameter_validation`
+    - cut over schemas from percentile-era structures to the new canonical contract
 
 - `bd-hvji.12`
-  - update Slack, admin, glassbox, and verification for mechanism-backed quantification
+  - title target:
+    - `Update Slack admin glassbox and verifier for mechanism-backed quantification`
+  - purpose:
+    - update Slack proofs, admin/glassbox payloads, and `verify_pipeline_truth.py`
   - dependency:
     - blocks on `bd-hvji.11`
 
 - `bd-hvji.13`
-  - implement Wave 1 `direct_fiscal` and `compliance_cost` pipeline changes
+  - title target:
+    - `Implement Wave 1 direct_fiscal and compliance_cost quantification`
+  - purpose:
+    - implement `direct_fiscal`
+    - implement `compliance_cost` with both administrative labor and substantive non-labor branches
   - dependency:
     - blocks on `bd-hvji.11`
 
 - `bd-hvji.14`
-  - run full mechanism-backed quantification pipeline audit
-  - dependency:
+  - title target:
+    - `Run full mechanism-backed quantification pipeline audit`
+  - purpose:
+    - audit the full pipeline after the implementation lands
+  - dependencies:
     - blocks on `bd-hvji.12`
     - blocks on `bd-hvji.13`
 
 - `bd-hvji.15`
-  - build curated retrieval prerequisites for Wave 2 quantification modes
-  - dependencies:
+  - title target:
+    - `Build curated retrieval prerequisites for Wave 2 quantification modes`
+  - purpose:
+    - add curated parameter and literature retrieval needed before enabling `pass_through_incidence` and `adoption_take_up`
+  - dependency:
     - blocks on `bd-hvji.11`
 
-### 13.3 Recommended rollout order
-1. `bd-hvji.11`
-2. `bd-hvji.12` and `bd-hvji.13` in parallel if the write scopes stay clean
-3. `bd-hvji.14`
-4. `bd-hvji.15` when Wave 2 is ready
+## Recommended First Task
+`bd-hvji.11` should go first.
 
-## 14. Non-Goals and Explicit Deferrals
-- no Monte Carlo engine in Wave 1
-- no full equilibrium/supply-shock quantification in Wave 1
-- no multi-mode quantification for the same impact in Wave 1
-- no enabling of Wave 2 modes without curated retrieval prerequisites
+Why:
+- it creates the missing impact entities and deterministic gate surfaces that every downstream change depends on
+- it resolves the current pipeline chicken-and-egg problem
+- it establishes the canonical schema before Slack/admin/verifier and mode implementations build on top
 
-## 15. Implementation Readiness Statement
-After this spec update:
-- the economics design is defined
-- the full pipeline propagation contract is defined
-- the operator-surface and verification impacts are defined
-- the implementation work is split into concrete Beads tasks with dependencies
-
-Implementation should begin only from this fuller pipeline contract, not from the earlier economics-only framing.
+## Implementation Readiness Statement
+Implementation can start once the Beads task metadata is aligned to this spec. The architecture is now explicit on:
+- where impacts are identified
+- where modes are selected
+- where parameters are resolved
+- where deterministic enforcement occurs
+- how `compliance_cost` includes both administrative labor and substantive non-labor burden
+- how the pre-MVP cutover removes backward-compatibility requirements
