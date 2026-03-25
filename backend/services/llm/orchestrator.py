@@ -1973,6 +1973,20 @@ Bill Text: {bill_text[:5000]}
             "analysis_stored": False,
             "impacts_count": 0,
         }
+        result_data = {
+            "analysis": analysis.model_dump(),
+            "review": review.model_dump(),
+            "sufficiency_breakdown": breakdown.model_dump() if breakdown else None,
+            "source_text_present": bool(bill_text and len(bill_text) > 100),
+            "retriever_invoked": retriever_invoked,
+            "rag_chunks_retrieved": rag_chunks_retrieved,
+            "validated_evidence_count": len(analysis.impacts)
+            if analysis.impacts
+            else 0,
+            "quantification_eligible": analysis.quantification_eligible,
+            "insufficiency_reason": analysis.insufficiency_reason,
+            "model_used": analysis.model_used,
+        }
         try:
             bill_data = {
                 "bill_number": bill_id,
@@ -1999,9 +2013,7 @@ Bill Text: {bill_text[:5000]}
                     logger.error(
                         f"Failed to resolve jurisdiction_id for {jurisdiction}"
                     )
-                    return
-
-                if hasattr(self.db, "store_legislation"):
+                elif hasattr(self.db, "store_legislation"):
                     legislation_id = await self.db.store_legislation(
                         jurisdiction_id, bill_data
                     )
@@ -2023,21 +2035,13 @@ Bill Text: {bill_text[:5000]}
                             bill_id,
                             jurisdiction,
                         )
+        except Exception as e:
+            logger.error(f"Failed to store results: {e}")
+            import traceback
 
-            result_data = {
-                "analysis": analysis.model_dump(),
-                "review": review.model_dump(),
-                "sufficiency_breakdown": breakdown.model_dump() if breakdown else None,
-                "source_text_present": bool(bill_text and len(bill_text) > 100),
-                "retriever_invoked": retriever_invoked,
-                "rag_chunks_retrieved": rag_chunks_retrieved,
-                "validated_evidence_count": len(analysis.impacts)
-                if analysis.impacts
-                else 0,
-                "quantification_eligible": analysis.quantification_eligible,
-                "insufficiency_reason": analysis.insufficiency_reason,
-                "model_used": analysis.model_used,
-            }
+            traceback.print_exc()
+
+        try:
             if run_status == "completed" and hasattr(self.db, "complete_pipeline_run"):
                 await self.db.complete_pipeline_run(run_id, result_data)
             elif hasattr(self.db, "_execute"):
@@ -2051,12 +2055,8 @@ Bill Text: {bill_text[:5000]}
                     json.dumps(result_data),
                     run_id,
                 )
-
         except Exception as e:
-            logger.error(f"Failed to store results: {e}")
-            import traceback
-
-            traceback.print_exc()
+            logger.error(f"Failed to finalize pipeline run status: {e}")
 
         return persistence
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -198,9 +198,41 @@ class LegislationImpact(BaseModel):
     composition_note: Optional[str] = None
     failure_codes: List[FailureCode] = Field(default_factory=list)
 
+    @model_validator(mode="before")
+    @classmethod
+    def upgrade_legacy_quantiles(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        if data.get("scenario_bounds") is not None:
+            return data
+        p50 = data.get("p50")
+        if p50 is None:
+            return data
+        upgraded = dict(data)
+        upgraded["scenario_bounds"] = {
+            "conservative": upgraded.get("p10", p50),
+            "central": p50,
+            "aggressive": upgraded.get("p90", p50),
+        }
+        return upgraded
+
     @property
     def is_quantified(self) -> bool:
         return self.scenario_bounds is not None
+
+    @property
+    def p10(self) -> Optional[float]:
+        return (
+            self.scenario_bounds.conservative if self.scenario_bounds is not None else None
+        )
+
+    @property
+    def p50(self) -> Optional[float]:
+        return self.scenario_bounds.central if self.scenario_bounds is not None else None
+
+    @property
+    def p90(self) -> Optional[float]:
+        return self.scenario_bounds.aggressive if self.scenario_bounds is not None else None
 
 
 class LegislationAnalysisResponse(BaseModel):
@@ -225,6 +257,35 @@ class LegislationAnalysisResponse(BaseModel):
     aggregate_scenario_bounds: Optional[ScenarioBounds] = None
     analysis_timestamp: str
     model_used: str
+
+    @model_validator(mode="before")
+    @classmethod
+    def upgrade_legacy_total_impact(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        if data.get("aggregate_scenario_bounds") is not None:
+            return data
+        total_impact_p50 = data.get("total_impact_p50")
+        if total_impact_p50 is None:
+            return data
+        upgraded = dict(data)
+        upgraded["aggregate_scenario_bounds"] = {
+            "conservative": total_impact_p50,
+            "central": total_impact_p50,
+            "aggressive": total_impact_p50,
+        }
+        return upgraded
+
+    @property
+    def total_impact_p50(self) -> Optional[float]:
+        if self.aggregate_scenario_bounds is not None:
+            return self.aggregate_scenario_bounds.central
+        quantified = [
+            impact.scenario_bounds.central
+            for impact in self.impacts
+            if impact.scenario_bounds is not None
+        ]
+        return sum(quantified) if quantified else None
 
 
 class RetrievalPrerequisiteStatus(BaseModel):

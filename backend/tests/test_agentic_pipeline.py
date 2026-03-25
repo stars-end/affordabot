@@ -80,6 +80,45 @@ def _make_research_result():
     )
 
 
+def _seed_direct_fiscal_candidate(
+    research_result: LegislationResearchResult,
+    *,
+    amount: float,
+    source_url: str,
+    source_excerpt: str,
+) -> LegislationResearchResult:
+    research_result.rag_chunks = [
+        MagicMock(
+            content=source_excerpt,
+            score=0.91,
+            metadata={"source_url": source_url, "source_type": "fiscal_note"},
+        )
+    ]
+    research_result.impact_candidates = [
+        {
+            "impact_id": "impact-direct-fiscal",
+            "impact_description": "Official fiscal impact reported for the measure.",
+            "relevant_clauses": [],
+            "evidence_refs": [source_url],
+            "candidate_mode_hints": ["direct_fiscal"],
+            "impact_scope": "bill",
+        }
+    ]
+    research_result.parameter_candidates = {
+        "impact-direct-fiscal": {
+            "fiscal_amount": {
+                "value": amount,
+                "unit": "usd_per_month",
+                "source_url": source_url,
+                "source_excerpt": source_excerpt,
+                "source_hierarchy_status": "fiscal_or_reg_impact_analysis",
+                "excerpt_validation_status": "pass",
+            }
+        }
+    }
+    return research_result
+
+
 @pytest.mark.asyncio
 async def test_analysis_pipeline_uses_research_service():
     mock_llm = MagicMock(spec=LLMClient)
@@ -695,6 +734,15 @@ async def test_pipeline_fail_closed_when_quantified_claim_lacks_numeric_support(
             ],
         )
     ]
+    _seed_direct_fiscal_candidate(
+        research_result,
+        amount=50.0,
+        source_url="https://lao.ca.gov/fiscal-note",
+        source_excerpt=(
+            "Official fiscal note estimates median tenant savings of $50 per month "
+            "under the ordinance."
+        ),
+    )
     with patch.object(
         pipeline.research_service,
         "research",
@@ -774,6 +822,15 @@ async def test_pipeline_allows_quantified_claim_with_numeric_fiscal_support():
             ],
         )
     ]
+    _seed_direct_fiscal_candidate(
+        research_result,
+        amount=50.0,
+        source_url="https://lao.ca.gov/fiscal-note",
+        source_excerpt=(
+            "The LAO fiscal note estimates median tenant savings of $50 per month "
+            "under the rent cap, with annual savings near $600 per household."
+        ),
+    )
     with patch.object(
         pipeline.research_service,
         "research",
@@ -872,6 +929,9 @@ async def test_prefix_run_halts_with_prefix_halted_status():
     mock_db.get_latest_scrape_for_bill = AsyncMock(return_value=None)
     mock_db.get_vector_stats = AsyncMock(return_value={"chunk_count": 0})
     mock_db.create_pipeline_run = AsyncMock(return_value="run-1")
+    mock_db.get_or_create_jurisdiction = AsyncMock(return_value=1)
+    mock_db.store_legislation = AsyncMock(return_value=None)
+    mock_db.store_impacts = AsyncMock()
     mock_db._execute = AsyncMock()
     mock_db.complete_pipeline_run = AsyncMock()
     mock_db.fail_pipeline_run = AsyncMock()
