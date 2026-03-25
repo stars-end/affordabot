@@ -471,6 +471,9 @@ class AnalysisPipeline:
                 "evidence_details": self._serialize_evidence_envelopes(
                     research_result
                 ),
+                "wave2_prerequisites": (
+                    getattr(research_result, "wave2_prerequisites", {}) or {}
+                ),
                 "sufficiency_breakdown": research_result.sufficiency_breakdown,
                 "is_sufficient": research_result.is_sufficient,
                 "insufficiency_reason": research_result.insufficiency_reason,
@@ -490,7 +493,16 @@ class AnalysisPipeline:
                 )
 
             discovered_impacts = research_result.impact_candidates or []
-            impact_discovery_output = {"impacts": discovered_impacts}
+            wave2_prerequisites = getattr(research_result, "wave2_prerequisites", {}) or {}
+            impact_discovery_output = {
+                "impacts": discovered_impacts,
+                "wave2_prerequisites": {
+                    "impact_candidates": wave2_prerequisites.get("impact_candidates", []),
+                    "parameter_candidates": wave2_prerequisites.get(
+                        "parameter_candidates", {}
+                    ),
+                },
+            }
             halted = await _checkpoint(
                 "impact_discovery",
                 impact_discovery_output,
@@ -557,6 +569,9 @@ class AnalysisPipeline:
             parameter_resolution_output = {
                 **first_resolution,
                 "impact_parameters": parameter_resolutions,
+                "wave2_parameter_candidates": wave2_prerequisites.get(
+                    "parameter_candidates", {}
+                ),
             }
             self._validate_deterministic_step_payload(
                 "parameter_resolution", parameter_resolution_output
@@ -1608,6 +1623,8 @@ Bill Text: {bill_text[:5000]}
                 "unit": candidate.get("unit"),
                 "source_url": candidate.get("source_url", ""),
                 "source_excerpt": candidate.get("source_excerpt", ""),
+                "source_type": candidate.get("source_type"),
+                "literature_confidence": candidate.get("literature_confidence"),
             }
             for name, candidate in parameter_candidates.items()
             if candidate.get("value") is not None
@@ -1625,11 +1642,17 @@ Bill Text: {bill_text[:5000]}
             name: candidate.get("excerpt_validation_status", "not_applicable")
             for name, candidate in parameter_candidates.items()
         }
-        literature_confidence = (
-            {"wage_rate": 0.0}
-            if selected_mode == "compliance_cost" and "wage_rate" in resolved_parameters
-            else {}
-        )
+        literature_confidence = {
+            name: float(candidate.get("literature_confidence"))
+            for name, candidate in parameter_candidates.items()
+            if candidate.get("literature_confidence") is not None
+        }
+        if (
+            selected_mode == "compliance_cost"
+            and "wage_rate" in resolved_parameters
+            and "wage_rate" not in literature_confidence
+        ):
+            literature_confidence["wage_rate"] = 0.0
         dominant_uncertainty_parameters = (
             ["fiscal_amount"]
             if selected_mode == "direct_fiscal"

@@ -425,6 +425,101 @@ class TestWebResearchPrioritization:
         assert web_results[1]["url"] == "https://news.example.com/sb-277"
 
 
+class TestWave2CuratedPrerequisites:
+    @pytest.mark.asyncio
+    async def test_pass_through_curated_prerequisites_are_emitted_without_mode_enablement(self):
+        service = LegislationResearchService(
+            llm_client=_make_mock_llm_client(),
+            search_client=_make_mock_search_client(),
+            retrieval_backend=_make_mock_retrieval_backend(),
+        )
+
+        result = await service.research(
+            bill_id="SB 999",
+            bill_text=(
+                "The bill imposes a $5 million utility surcharge and permits providers "
+                "to recover costs through customer rates."
+            ),
+            jurisdiction="california",
+        )
+
+        wave2 = result.wave2_prerequisites
+        assert len(wave2["impact_candidates"]) == 1
+        assert wave2["impact_candidates"][0]["candidate_mode_hints"] == [
+            "pass_through_incidence"
+        ]
+        params = wave2["parameter_candidates"]["impact-pass-through-incidence"]
+        assert params["total_levied_cost"]["value"] == 5_000_000.0
+        assert params["pass_through_rate"]["value"] > 0.0
+
+        # Wave 1 execution surface remains unchanged in this task.
+        assert all(
+            "pass_through_incidence" not in candidate.get("candidate_mode_hints", [])
+            for candidate in result.impact_candidates
+        )
+        curated_envelopes = [
+            env for env in result.evidence_envelopes if env.source_tool == "curated_lookup"
+        ]
+        assert len(curated_envelopes) == 1
+        assert curated_envelopes[0].evidence[0].metadata.get("source_type") in {
+            "curated_lookup",
+            "academic_literature",
+        }
+
+    @pytest.mark.asyncio
+    async def test_adoption_curated_prerequisites_are_emitted_with_eligible_population(self):
+        service = LegislationResearchService(
+            llm_client=_make_mock_llm_client(),
+            search_client=_make_mock_search_client(),
+            retrieval_backend=_make_mock_retrieval_backend(),
+        )
+
+        result = await service.research(
+            bill_id="AB 123",
+            bill_text=(
+                "An electric appliance rebate program is created. An estimated 12,000 "
+                "households are eligible to apply for benefits."
+            ),
+            jurisdiction="california",
+        )
+
+        wave2 = result.wave2_prerequisites
+        assert len(wave2["impact_candidates"]) == 1
+        assert wave2["impact_candidates"][0]["candidate_mode_hints"] == [
+            "adoption_take_up"
+        ]
+        params = wave2["parameter_candidates"]["impact-adoption-takeup"]
+        assert params["eligible_population"]["value"] == 12000.0
+        assert params["take_up_rate"]["value"] > 0.0
+        assert params["benefit_per_capita"]["value"] > 0.0
+        assert params["program_analog"]["value"] is None
+        assert params["program_analog"]["value_text"] in {
+            "rebate_program",
+            "tax_credit_program",
+        }
+
+    @pytest.mark.asyncio
+    async def test_wave2_curated_prerequisites_fail_closed_when_sector_lookup_missing(self):
+        service = LegislationResearchService(
+            llm_client=_make_mock_llm_client(),
+            search_client=_make_mock_search_client(),
+            retrieval_backend=_make_mock_retrieval_backend(),
+        )
+
+        result = await service.research(
+            bill_id="SB 111",
+            bill_text=(
+                "The bill creates a $3 million levy on port cargo operators and "
+                "harbor-terminal invoices."
+            ),
+            jurisdiction="california",
+        )
+
+        wave2 = result.wave2_prerequisites
+        assert wave2["impact_candidates"] == []
+        assert wave2["parameter_candidates"] == {}
+
+
 class TestErrorHandling:
     @pytest.mark.asyncio
     async def test_research_graceful_on_retrieval_error(self):

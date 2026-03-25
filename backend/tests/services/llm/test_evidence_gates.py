@@ -85,6 +85,32 @@ class TestImpactLevelSufficiency:
         assert summary.quantification_eligible is False
         assert summary.sufficiency_state == SufficiencyState.QUALITATIVE_ONLY
 
+    def test_wave2_mode_hints_remain_blocked_in_wave1_gates(self):
+        summary = assess_impact_sufficiency(
+            impact_id="imp-wave2",
+            selected_mode="pass_through_incidence",
+            parameter_resolution={
+                "required_parameters": ["total_levied_cost", "pass_through_rate"],
+                "resolved_parameters": {},
+                "missing_parameters": [],
+                "source_hierarchy_status": {},
+                "excerpt_validation_status": {},
+                "literature_confidence": {},
+                "dominant_uncertainty_parameters": [],
+            },
+            parameter_validation={
+                "schema_valid": True,
+                "arithmetic_valid": True,
+                "bound_construction_valid": True,
+                "claim_support_valid": True,
+                "validation_failures": [],
+            },
+            retrieval_prerequisite_status=self._base_retrieval_status(),
+        )
+        assert summary.selected_mode == ImpactMode.QUALITATIVE_ONLY
+        assert summary.quantification_eligible is False
+        assert summary.sufficiency_state == SufficiencyState.QUALITATIVE_ONLY
+
     def test_compliance_cost_frequency_source_hierarchy_fail_closed(self):
         summary = assess_impact_sufficiency(
             impact_id="imp-3",
