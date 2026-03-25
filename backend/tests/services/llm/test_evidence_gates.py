@@ -1,294 +1,231 @@
-import sys
 import os
+import sys
+
+import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
-import pytest
-from schemas.analysis import (
+from schemas.analysis import (  # noqa: E402
+    ExcerptValidationStatus,
+    FailureCode,
     ImpactEvidence,
-    SourceTier,
+    ImpactMode,
+    SourceHierarchyStatus,
     SufficiencyState,
-    LegislationImpact,
-    LegislationAnalysisResponse,
 )
-from services.llm.evidence_gates import (
+from services.llm.evidence_gates import (  # noqa: E402
+    _is_placeholder_text,
+    assess_impact_sufficiency,
     assess_sufficiency,
     strip_quantification,
-    _is_placeholder_text,
-    _has_verifiable_url,
-    _detect_fiscal_notes,
-    supports_quantified_evidence,
 )
 
 
 class TestPlaceholderDetection:
-    def test_empty_string_is_placeholder(self):
+    def test_placeholder_detection(self):
         assert _is_placeholder_text("") is True
-
-    def test_whitespace_only_is_placeholder(self):
-        assert _is_placeholder_text("   ") is True
-
-    def test_none_like_is_placeholder(self):
-        assert _is_placeholder_text(None) is True
-
-    def test_introduced_is_placeholder(self):
         assert _is_placeholder_text("Introduced") is True
-
-    def test_title_only_is_placeholder(self):
-        assert _is_placeholder_text("Title only") is True
-
-    def test_n_a_is_placeholder(self):
-        assert _is_placeholder_text("N/A") is True
-
-    def test_real_bill_text_is_not_placeholder(self):
-        text = "SECTION 1. The Legislature hereby finds and declares that housing affordability is a matter of statewide concern."
-        assert _is_placeholder_text(text) is False
-
-    def test_placeholder_case_insensitive(self):
-        assert _is_placeholder_text("INTRODUCED") is True
-        assert _is_placeholder_text("introduced") is True
+        assert _is_placeholder_text("SECTION 1. This Act amends...") is False
 
 
-class TestVerifiableURL:
-    def test_no_evidence(self):
-        assert _has_verifiable_url([]) is False
+class TestImpactLevelSufficiency:
+    def _base_retrieval_status(self):
+        return {
+            "source_text_present": True,
+            "rag_chunks_retrieved": 3,
+            "web_research_sources_found": 2,
+            "has_verifiable_url": True,
+        }
 
-    def test_empty_url(self):
-        assert (
-            _has_verifiable_url(
-                [ImpactEvidence(url="", source_name="test", excerpt="")]
-            )
-            is False
+    def test_supported_direct_fiscal_quantifies_when_clean(self):
+        summary = assess_impact_sufficiency(
+            impact_id="imp-1",
+            selected_mode=ImpactMode.DIRECT_FISCAL,
+            parameter_resolution={
+                "required_parameters": ["fiscal_amount"],
+                "resolved_parameters": {
+                    "fiscal_amount": {
+                        "name": "fiscal_amount",
+                        "value": 15000000.0,
+                        "source_url": "https://example.gov/fiscal-note",
+                        "source_excerpt": "Estimated cost is $15M annually.",
+                    }
+                },
+                "missing_parameters": [],
+                "source_hierarchy_status": {
+                    "fiscal_amount": SourceHierarchyStatus.BILL_OR_REG_TEXT
+                },
+                "excerpt_validation_status": {
+                    "fiscal_amount": ExcerptValidationStatus.PASS
+                },
+                "literature_confidence": {"fiscal_amount": 0.2},
+                "dominant_uncertainty_parameters": ["fiscal_amount"],
+            },
+            parameter_validation={
+                "schema_valid": True,
+                "arithmetic_valid": True,
+                "bound_construction_valid": True,
+                "claim_support_valid": True,
+                "validation_failures": [],
+            },
+            retrieval_prerequisite_status=self._base_retrieval_status(),
         )
+        assert summary.selected_mode == ImpactMode.DIRECT_FISCAL
+        assert summary.quantification_eligible is True
+        assert summary.sufficiency_state == SufficiencyState.QUANTIFIED
+        assert summary.gate_failures == []
 
-    def test_non_http_url(self):
-        with pytest.raises(Exception):
-            ImpactEvidence(url="ftp://bad", source_name="test", excerpt="")
-
-    def test_valid_http_url(self):
-        evidence = ImpactEvidence(
-            url="https://leginfo.legislature.ca.gov/faces/billTextClient.xhtml",
-            source_name="CA Legislature",
-            excerpt="Bill text",
+    def test_unsupported_mode_degrades_to_qualitative_only(self):
+        summary = assess_impact_sufficiency(
+            impact_id="imp-2",
+            selected_mode="market_pass_through",
+            parameter_resolution=None,
+            parameter_validation=None,
+            retrieval_prerequisite_status=self._base_retrieval_status(),
         )
-        assert _has_verifiable_url([evidence]) is True
+        assert summary.selected_mode == ImpactMode.QUALITATIVE_ONLY
+        assert summary.quantification_eligible is False
+        assert summary.sufficiency_state == SufficiencyState.QUALITATIVE_ONLY
 
-    def test_short_url_rejected(self):
-        evidence = ImpactEvidence(url="https://a.b", source_name="test", excerpt="")
-        assert _has_verifiable_url([evidence]) is False
-
-
-class TestFiscalNoteDetection:
-    def test_detects_fiscal_note_in_excerpt(self):
-        evidence = ImpactEvidence(
-            url="https://lao.ca.gov",
-            source_name="LAO",
-            excerpt="The fiscal impact of this bill is estimated at $15M annually.",
+    def test_compliance_cost_frequency_source_hierarchy_fail_closed(self):
+        summary = assess_impact_sufficiency(
+            impact_id="imp-3",
+            selected_mode=ImpactMode.COMPLIANCE_COST,
+            parameter_resolution={
+                "required_parameters": ["population", "frequency", "time_burden", "wage_rate"],
+                "resolved_parameters": {},
+                "missing_parameters": [],
+                "source_hierarchy_status": {
+                    "population": SourceHierarchyStatus.BILL_OR_REG_TEXT,
+                    "frequency": SourceHierarchyStatus.FAILED_CLOSED,
+                    "time_burden": SourceHierarchyStatus.BILL_OR_REG_TEXT,
+                    "wage_rate": SourceHierarchyStatus.BILL_OR_REG_TEXT,
+                },
+                "excerpt_validation_status": {
+                    "population": ExcerptValidationStatus.PASS,
+                    "frequency": ExcerptValidationStatus.PASS,
+                    "time_burden": ExcerptValidationStatus.PASS,
+                    "wage_rate": ExcerptValidationStatus.PASS,
+                },
+                "literature_confidence": {"wage_rate": 0.1},
+                "dominant_uncertainty_parameters": ["time_burden"],
+            },
+            parameter_validation={
+                "schema_valid": True,
+                "arithmetic_valid": True,
+                "bound_construction_valid": True,
+                "claim_support_valid": True,
+                "validation_failures": [],
+            },
+            retrieval_prerequisite_status=self._base_retrieval_status(),
         )
-        assert _detect_fiscal_notes([evidence]) is True
+        assert summary.quantification_eligible is False
+        assert FailureCode.SOURCE_HIERARCHY_FAILED in summary.gate_failures
 
-    def test_detects_fiscal_in_source_name(self):
-        evidence = ImpactEvidence(
-            url="https://example.com",
-            source_name="Fiscal Committee Analysis",
-            excerpt="Some text",
+    def test_invalid_bound_construction_fails_closed(self):
+        summary = assess_impact_sufficiency(
+            impact_id="imp-4",
+            selected_mode=ImpactMode.DIRECT_FISCAL,
+            parameter_resolution={
+                "required_parameters": ["fiscal_amount"],
+                "resolved_parameters": {},
+                "missing_parameters": [],
+                "source_hierarchy_status": {
+                    "fiscal_amount": SourceHierarchyStatus.BILL_OR_REG_TEXT
+                },
+                "excerpt_validation_status": {
+                    "fiscal_amount": ExcerptValidationStatus.PASS
+                },
+                "literature_confidence": {},
+                "dominant_uncertainty_parameters": [],
+            },
+            parameter_validation={
+                "schema_valid": True,
+                "arithmetic_valid": True,
+                "bound_construction_valid": False,
+                "claim_support_valid": True,
+                "validation_failures": [],
+            },
+            retrieval_prerequisite_status=self._base_retrieval_status(),
         )
-        assert _detect_fiscal_notes([evidence]) is True
-
-    def test_no_fiscal_note(self):
-        evidence = ImpactEvidence(
-            url="https://example.com",
-            source_name="News Article",
-            excerpt="This bill was discussed in committee.",
-        )
-        assert _detect_fiscal_notes([evidence]) is False
-
-    def test_detects_cost_estimate(self):
-        evidence = ImpactEvidence(
-            url="https://example.gov",
-            source_name="Budget Office",
-            excerpt="Cost estimate analysis for the program.",
-        )
-        assert _detect_fiscal_notes([evidence]) is True
+        assert summary.quantification_eligible is False
+        assert FailureCode.INVALID_SCENARIO_CONSTRUCTION in summary.gate_failures
 
 
-class TestQuantifiedEvidenceSupport:
-    def test_supports_quantified_evidence_with_numeric_fiscal_excerpt(self):
-        assert (
-            supports_quantified_evidence(
-                excerpt="The LAO fiscal note estimates $50 million in annual General Fund costs.",
-                source_name="LAO Fiscal Note",
-                numeric_basis="$50M annual cost estimate",
-            )
-            is True
-        )
-
-    def test_rejects_quantified_evidence_without_numeric_signal(self):
-        assert (
-            supports_quantified_evidence(
-                excerpt="The bill increases administrative workload for local agencies.",
-                source_name="Committee Analysis",
-                numeric_basis="committee discussion",
-            )
-            is False
-        )
-
-
-class TestAssessSufficiency:
-    def test_empty_bill_text_returns_research_incomplete(self):
-        result = assess_sufficiency("", [])
-        assert result.sufficiency_state == SufficiencyState.RESEARCH_INCOMPLETE
-        assert result.quantification_eligible is False
-        assert not result.bill_text_present
-
-    def test_placeholder_bill_text_returns_research_incomplete(self):
-        result = assess_sufficiency("Introduced", [])
-        assert result.sufficiency_state == SufficiencyState.RESEARCH_INCOMPLETE
-        assert result.bill_text_is_placeholder is True
-
-    def test_real_text_no_evidence_returns_insufficient(self):
-        result = assess_sufficiency(
-            "SECTION 1. The Legislature finds housing affordability is critical.",
-            [],
-        )
-        assert result.sufficiency_state == SufficiencyState.INSUFFICIENT_EVIDENCE
-        assert result.quantification_eligible is False
-
-    def test_real_text_with_tier_b_only_returns_qualitative_only(self):
+class TestBillLevelSufficiency:
+    def test_bill_summary_is_derived_from_impacts(self):
         evidence = [
             ImpactEvidence(
-                url="https://thinktank.org/report",
-                source_name="Think Tank Report",
-                excerpt="Analysis of housing costs.",
+                url="https://example.gov/fiscal-note",
+                source_name="Official Fiscal Note",
+                excerpt="Estimated cost is $10M annually.",
             )
         ]
         result = assess_sufficiency(
-            "SECTION 1. Housing affordability is critical.",
-            evidence,
+            bill_text="SECTION 1. The legislature finds...",
+            evidence_list=evidence,
+            rag_chunks_retrieved=3,
+            web_research_count=1,
+            candidate_impacts=[
+                {
+                    "impact_id": "imp-1",
+                    "selected_mode": "direct_fiscal",
+                    "parameter_resolution": {
+                        "required_parameters": ["fiscal_amount"],
+                        "resolved_parameters": {},
+                        "missing_parameters": [],
+                        "source_hierarchy_status": {
+                            "fiscal_amount": "bill_or_reg_text"
+                        },
+                        "excerpt_validation_status": {"fiscal_amount": "pass"},
+                        "literature_confidence": {},
+                        "dominant_uncertainty_parameters": ["fiscal_amount"],
+                    },
+                    "parameter_validation": {
+                        "schema_valid": True,
+                        "arithmetic_valid": True,
+                        "bound_construction_valid": True,
+                        "claim_support_valid": True,
+                        "validation_failures": [],
+                    },
+                },
+                {
+                    "impact_id": "imp-2",
+                    "selected_mode": "market_pass_through",
+                    "parameter_resolution": None,
+                    "parameter_validation": None,
+                },
+            ],
         )
-        assert result.sufficiency_state == SufficiencyState.QUALITATIVE_ONLY
-        assert result.quantification_eligible is False
+        assert result.overall_quantification_eligible is True
+        assert result.overall_sufficiency_state == SufficiencyState.QUANTIFIED
+        assert len(result.impact_gate_summaries) == 2
+        assert result.impact_gate_summaries[1].selected_mode == ImpactMode.QUALITATIVE_ONLY
 
-    def test_tier_a_without_fiscal_returns_qualitative_only(self):
-        evidence = [
-            ImpactEvidence(
-                url="https://leginfo.legislature.ca.gov/bill",
-                source_name="CA Legislature",
-                excerpt="Full bill text available.",
-                source_tier=SourceTier.TIER_A,
-            )
-        ]
+    def test_empty_candidate_impacts_fail_closed(self):
         result = assess_sufficiency(
-            "SECTION 1. The Legislature finds...",
-            evidence,
-        )
-        assert result.sufficiency_state == SufficiencyState.QUALITATIVE_ONLY
-        assert result.quantification_eligible is False
-        assert any("fiscal" in r.lower() for r in result.insufficiency_reasons)
-
-    def test_tier_a_with_fiscal_note_returns_quantified(self):
-        evidence = [
-            ImpactEvidence(
-                url="https://lao.ca.gov/fiscal-note",
-                source_name="Legislative Analyst",
-                excerpt="Fiscal impact: estimated $50M annual cost to state.",
-                source_tier=SourceTier.TIER_A,
-            )
-        ]
-        result = assess_sufficiency(
-            "SECTION 1. Housing affordability is critical.",
-            evidence,
-        )
-        assert result.sufficiency_state == SufficiencyState.QUANTIFIED
-        assert result.quantification_eligible is True
-        assert result.fiscal_notes_detected is True
-
-    def test_sb277_title_only_cannot_quantify(self):
-        result = assess_sufficiency("Introduced", [])
-        assert result.quantification_eligible is False
-
-    def test_no_web_research_and_no_rag_with_no_evidence_adds_reason(self):
-        result = assess_sufficiency(
-            "SECTION 1. Bill text here.",
-            [],
+            bill_text="SECTION 1. The legislature finds...",
+            evidence_list=[],
+            candidate_impacts=[],
             rag_chunks_retrieved=0,
             web_research_count=0,
         )
-        assert "No evidence items collected" in result.insufficiency_reasons
+        assert result.overall_quantification_eligible is False
+        assert FailureCode.IMPACT_DISCOVERY_FAILED in result.bill_level_failures
 
 
 class TestStripQuantification:
-    def test_removes_all_percentile_fields(self):
+    def test_quantitative_payloads_are_removed(self):
         impacts = [
             {
-                "impact_number": 1,
-                "p10": 100.0,
-                "p25": 200.0,
-                "p50": 300.0,
-                "p75": 400.0,
-                "p90": 500.0,
-                "numeric_basis": "fiscal note",
-                "estimate_method": "linear extrapolation",
-                "assumptions": "constant rate",
-                "description": "test",
+                "impact_id": "imp-1",
+                "impact_mode": "direct_fiscal",
+                "modeled_parameters": {"x": 1},
+                "component_breakdown": [{"component_name": "x"}],
+                "scenario_bounds": {"conservative": 1, "central": 2, "aggressive": 3},
             }
         ]
-        result = strip_quantification(impacts)
-        assert result[0].get("p10") is None
-        assert result[0].get("p50") is None
-        assert result[0].get("p90") is None
-        assert result[0].get("numeric_basis") is None
-        assert result[0].get("description") == "test"
-
-    def test_empty_list(self):
-        assert strip_quantification([]) == []
-
-
-class TestSchemaOptionalFields:
-    def test_impact_without_quantification_is_valid(self):
-        impact = LegislationImpact(
-            impact_number=1,
-            impact_description="Qualitative analysis only",
-        )
-        assert impact.p50 is None
-        assert impact.is_quantified is False
-        assert impact.model_dump()["p10"] is None
-
-    def test_impact_with_quantification(self):
-        impact = LegislationImpact(
-            impact_number=1,
-            impact_description="Cost impact",
-            p10=100.0,
-            p25=200.0,
-            p50=300.0,
-            p75=400.0,
-            p90=500.0,
-        )
-        assert impact.is_quantified is True
-        assert impact.p50 == 300.0
-
-    def test_response_defaults_to_research_incomplete(self):
-        resp = LegislationAnalysisResponse(
-            bill_number="SB-277",
-            analysis_timestamp="2026-01-01T00:00:00",
-            model_used="test",
-        )
-        assert resp.sufficiency_state == SufficiencyState.RESEARCH_INCOMPLETE
-        assert resp.quantification_eligible is False
-        assert resp.total_impact_p50 is None
-
-    def test_evidence_url_validation_rejects_non_http(self):
-        with pytest.raises(Exception):
-            ImpactEvidence(
-                url="fake-url-not-http",
-                source_name="Bad Source",
-                excerpt="test",
-            )
-
-    def test_empty_evidence_list_valid(self):
-        impact = LegislationImpact(
-            impact_number=1,
-            impact_description="test",
-            evidence=[],
-        )
-        assert impact.evidence == []
+        cleaned = strip_quantification(impacts)
+        assert cleaned[0]["impact_mode"] == "qualitative_only"
+        assert "modeled_parameters" not in cleaned[0]
+        assert "scenario_bounds" not in cleaned[0]

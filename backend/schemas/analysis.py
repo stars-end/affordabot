@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import List, Optional
+from typing import Dict, List, Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class SufficiencyState(str, Enum):
@@ -17,6 +17,112 @@ class SourceTier(str, Enum):
     TIER_A = "tier_a"
     TIER_B = "tier_b"
     TIER_C = "tier_c"
+
+
+class ImpactMode(str, Enum):
+    DIRECT_FISCAL = "direct_fiscal"
+    COMPLIANCE_COST = "compliance_cost"
+    QUALITATIVE_ONLY = "qualitative_only"
+
+
+class FailureCode(str, Enum):
+    IMPACT_DISCOVERY_FAILED = "impact_discovery_failed"
+    MODE_SELECTION_FAILED = "mode_selection_failed"
+    PARAMETER_MISSING = "parameter_missing"
+    PARAMETER_UNVERIFIABLE = "parameter_unverifiable"
+    SOURCE_HIERARCHY_FAILED = "source_hierarchy_failed"
+    EXCERPT_VALIDATION_FAILED = "excerpt_validation_failed"
+    INVALID_SCENARIO_CONSTRUCTION = "invalid_scenario_construction"
+    VALIDATION_FAILED = "validation_failed"
+    FIXTURE_INVALID = "fixture_invalid"
+
+
+class SourceHierarchyStatus(str, Enum):
+    BILL_OR_REG_TEXT = "bill_or_reg_text"
+    FISCAL_OR_REG_IMPACT_ANALYSIS = "fiscal_or_reg_impact_analysis"
+    FAILED_CLOSED = "failed_closed"
+
+
+class ExcerptValidationStatus(str, Enum):
+    PASS = "pass"
+    FAIL = "fail"
+    NOT_APPLICABLE = "not_applicable"
+
+
+class AmbiguityStatus(str, Enum):
+    CLEAR = "clear"
+    AMBIGUOUS = "ambiguous"
+    UNSUPPORTED = "unsupported"
+
+
+class ModeSelectionOutput(BaseModel):
+    candidate_modes: List[ImpactMode] = Field(default_factory=list)
+    selected_mode: ImpactMode = ImpactMode.QUALITATIVE_ONLY
+    rejected_modes: List[ImpactMode] = Field(default_factory=list)
+    selection_rationale: str = ""
+    ambiguity_status: AmbiguityStatus = AmbiguityStatus.CLEAR
+    composition_candidate: bool = False
+
+    @model_validator(mode="after")
+    def enforce_wave1_no_composition(self) -> "ModeSelectionOutput":
+        if self.composition_candidate:
+            raise ValueError(
+                "Wave 1 requires composition_candidate=false; composition is deferred."
+            )
+        return self
+
+
+class ModeledParameter(BaseModel):
+    name: str
+    value: float
+    unit: Optional[str] = None
+    source_url: str = ""
+    source_excerpt: str = ""
+
+
+class ParameterResolutionOutput(BaseModel):
+    required_parameters: List[str] = Field(default_factory=list)
+    resolved_parameters: Dict[str, ModeledParameter] = Field(default_factory=dict)
+    missing_parameters: List[str] = Field(default_factory=list)
+    source_hierarchy_status: Dict[str, SourceHierarchyStatus] = Field(
+        default_factory=dict
+    )
+    excerpt_validation_status: Dict[str, ExcerptValidationStatus] = Field(
+        default_factory=dict
+    )
+    literature_confidence: Dict[str, float] = Field(default_factory=dict)
+    dominant_uncertainty_parameters: List[str] = Field(default_factory=list)
+
+
+class ParameterValidationOutput(BaseModel):
+    schema_valid: bool = False
+    arithmetic_valid: bool = False
+    bound_construction_valid: bool = False
+    claim_support_valid: bool = False
+    validation_failures: List[FailureCode] = Field(default_factory=list)
+
+
+class ComponentBreakdown(BaseModel):
+    component_name: str
+    base: float
+    low: float
+    high: float
+    unit: Optional[str] = None
+    formula: Optional[str] = None
+
+
+class ScenarioBounds(BaseModel):
+    conservative: float
+    central: float
+    aggressive: float
+
+    @model_validator(mode="after")
+    def ensure_monotonic(self) -> "ScenarioBounds":
+        if not (self.conservative <= self.central <= self.aggressive):
+            raise ValueError(
+                "Invalid scenario construction: conservative <= central <= aggressive is required."
+            )
+        return self
 
 
 class PersistedEvidence(BaseModel):
@@ -82,34 +188,19 @@ class LegislationImpact(BaseModel):
         le=1.0,
         description="Confidence in this specific impact assessment (0.0-1.0)",
     )
-
-    p10: Optional[float] = Field(
-        default=None, description="10th percentile cost impact"
-    )
-    p25: Optional[float] = Field(
-        default=None, description="25th percentile cost impact"
-    )
-    p50: Optional[float] = Field(
-        default=None, description="50th percentile cost impact (median)"
-    )
-    p75: Optional[float] = Field(
-        default=None, description="75th percentile cost impact"
-    )
-    p90: Optional[float] = Field(
-        default=None, description="90th percentile cost impact"
-    )
-
-    numeric_basis: Optional[str] = Field(
-        default=None, description="Description of numeric basis used"
-    )
-    estimate_method: Optional[str] = Field(
-        default=None, description="Estimation method"
-    )
-    assumptions: Optional[str] = Field(default=None, description="Key assumptions")
+    impact_mode: ImpactMode = Field(default=ImpactMode.QUALITATIVE_ONLY)
+    mode_selection: Optional[ModeSelectionOutput] = None
+    parameter_resolution: Optional[ParameterResolutionOutput] = None
+    parameter_validation: Optional[ParameterValidationOutput] = None
+    modeled_parameters: Dict[str, ModeledParameter] = Field(default_factory=dict)
+    component_breakdown: List[ComponentBreakdown] = Field(default_factory=list)
+    scenario_bounds: Optional[ScenarioBounds] = None
+    composition_note: Optional[str] = None
+    failure_codes: List[FailureCode] = Field(default_factory=list)
 
     @property
     def is_quantified(self) -> bool:
-        return self.p50 is not None
+        return self.scenario_bounds is not None
 
 
 class LegislationAnalysisResponse(BaseModel):
@@ -131,27 +222,39 @@ class LegislationAnalysisResponse(BaseModel):
         description="Whether quantified output is permitted for this analysis",
     )
     impacts: List[LegislationImpact] = Field(default_factory=list)
-    total_impact_p50: Optional[float] = Field(
-        default=None, description="Sum of median impacts (None if not quantified)"
-    )
+    aggregate_scenario_bounds: Optional[ScenarioBounds] = None
     analysis_timestamp: str
     model_used: str
 
 
-class SufficiencyBreakdown(BaseModel):
-    """Deterministic sufficiency assessment for a bill."""
-
-    bill_text_present: bool = False
-    bill_text_is_placeholder: bool = False
+class RetrievalPrerequisiteStatus(BaseModel):
+    source_text_present: bool = False
     rag_chunks_retrieved: int = 0
     web_research_sources_found: int = 0
-    tier_a_sources_found: int = 0
-    fiscal_notes_detected: bool = False
     has_verifiable_url: bool = False
-    source_text_present: bool = False
-    sufficiency_state: SufficiencyState = SufficiencyState.RESEARCH_INCOMPLETE
-    insufficiency_reasons: List[str] = Field(default_factory=list)
+
+
+class ImpactGateSummary(BaseModel):
+    impact_id: str
+    selected_mode: ImpactMode = ImpactMode.QUALITATIVE_ONLY
     quantification_eligible: bool = False
+    sufficiency_state: SufficiencyState = SufficiencyState.QUALITATIVE_ONLY
+    gate_failures: List[FailureCode] = Field(default_factory=list)
+    parameter_validation_summary: ParameterValidationOutput = Field(
+        default_factory=ParameterValidationOutput
+    )
+    retrieval_prerequisite_status: RetrievalPrerequisiteStatus = Field(
+        default_factory=RetrievalPrerequisiteStatus
+    )
+
+
+class SufficiencyBreakdown(BaseModel):
+    """Bill-level deterministic sufficiency derived after per-impact gating."""
+
+    overall_quantification_eligible: bool = False
+    overall_sufficiency_state: SufficiencyState = SufficiencyState.RESEARCH_INCOMPLETE
+    impact_gate_summaries: List[ImpactGateSummary] = Field(default_factory=list)
+    bill_level_failures: List[FailureCode] = Field(default_factory=list)
 
 
 class ReviewCritique(BaseModel):

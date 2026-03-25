@@ -15,6 +15,7 @@ import asyncio
 import json
 import sys
 from pathlib import Path
+from typing import Any, Dict, List
 
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 sys.path.append(str(BACKEND_ROOT))
@@ -130,7 +131,6 @@ async def diagnose_bill(db, jurisdiction: str, bill_id: str) -> dict:
             "sufficiency_state": leg.get("sufficiency_state"),
             "insufficiency_reason": leg.get("insufficiency_reason"),
             "quantification_eligible": leg.get("quantification_eligible"),
-            "total_impact_p50": leg.get("total_impact_p50"),
         }
         if leg.get("sufficiency_state") in (
             "research_incomplete",
@@ -142,6 +142,17 @@ async def diagnose_bill(db, jurisdiction: str, bill_id: str) -> dict:
         result["issues"].append("No legislation record")
 
     # Stage 4: Pipeline run
+    def _json_or_value(value: Any) -> Any:
+        if isinstance(value, str):
+            try:
+                return json.loads(value)
+            except Exception:
+                return value
+        return value
+
+    def _step_has_keys(step_output: Dict[str, Any], required_keys: List[str]) -> bool:
+        return all(key in step_output for key in required_keys)
+
     latest_pipe_query = """
         SELECT id, status, started_at, completed_at, error, result, trigger_source
         FROM pipeline_runs
@@ -175,7 +186,7 @@ async def diagnose_bill(db, jurisdiction: str, bill_id: str) -> dict:
         trigger_source = selected_pipe.get("trigger_source", "manual")
 
         steps_query = """
-            SELECT step_number, step_name, status
+            SELECT step_number, step_name, status, output_result
             FROM pipeline_steps
             WHERE run_id = $1
             ORDER BY step_number ASC
@@ -187,26 +198,122 @@ async def diagnose_bill(db, jurisdiction: str, bill_id: str) -> dict:
                     "step_number": r["step_number"],
                     "step_name": r["step_name"],
                     "status": r["status"],
+                    "output_result": _json_or_value(r.get("output_result")) or {},
                 }
                 for r in step_rows
             ]
             if step_rows
             else []
         )
+        step_names = [s["step_name"] for s in steps_summary]
         has_persistence = any(
             s["step_name"] == "persistence" and s["status"] == "completed"
             for s in steps_summary
         )
+        is_prefix_run = (
+            str(trigger_source).startswith("prefix:")
+            or selected_pipe["status"] == "prefix_halted"
+        )
+        missing_expected_steps: List[str] = []
+        required_steps = [
+            "impact_discovery",
+            "mode_selection",
+            "parameter_resolution",
+            "sufficiency_gate",
+            "parameter_validation",
+        ]
+        if not is_prefix_run:
+            missing_expected_steps = [
+                step_name for step_name in required_steps if step_name not in step_names
+            ]
+
+        step_map = {item["step_name"]: item for item in steps_summary}
+        mechanism_checks = {
+            "impact_discovery": {
+                "present": "impact_discovery" in step_map,
+                "valid_shape": _step_has_keys(
+                    step_map.get("impact_discovery", {}).get("output_result", {}),
+                    ["impacts"],
+                )
+                if "impact_discovery" in step_map
+                else False,
+            },
+            "mode_selection": {
+                "present": "mode_selection" in step_map,
+                "valid_shape": _step_has_keys(
+                    step_map.get("mode_selection", {}).get("output_result", {}),
+                    [
+                        "candidate_modes",
+                        "selected_mode",
+                        "rejected_modes",
+                        "selection_rationale",
+                        "ambiguity_status",
+                        "composition_candidate",
+                    ],
+                )
+                if "mode_selection" in step_map
+                else False,
+            },
+            "parameter_resolution": {
+                "present": "parameter_resolution" in step_map,
+                "valid_shape": _step_has_keys(
+                    step_map.get("parameter_resolution", {}).get("output_result", {}),
+                    [
+                        "required_parameters",
+                        "resolved_parameters",
+                        "missing_parameters",
+                        "source_hierarchy_status",
+                        "excerpt_validation_status",
+                        "literature_confidence",
+                        "dominant_uncertainty_parameters",
+                    ],
+                )
+                if "parameter_resolution" in step_map
+                else False,
+            },
+            "sufficiency_gate": {
+                "present": "sufficiency_gate" in step_map,
+                "valid_shape": _step_has_keys(
+                    step_map.get("sufficiency_gate", {}).get("output_result", {}),
+                    [
+                        "overall_quantification_eligible",
+                        "overall_sufficiency_state",
+                        "impact_gate_summaries",
+                        "bill_level_failures",
+                    ],
+                )
+                if "sufficiency_gate" in step_map
+                else False,
+            },
+            "parameter_validation": {
+                "present": "parameter_validation" in step_map,
+                "valid_shape": _step_has_keys(
+                    step_map.get("parameter_validation", {}).get("output_result", {}),
+                    [
+                        "schema_valid",
+                        "arithmetic_valid",
+                        "bound_construction_valid",
+                        "claim_support_valid",
+                        "validation_failures",
+                    ],
+                )
+                if "parameter_validation" in step_map
+                else False,
+            },
+        }
 
         result["stages"]["pipeline_run"] = {
             "run_id": str(selected_pipe["id"]),
             "status": selected_pipe["status"],
             "trigger_source": trigger_source,
+            "is_prefix_run": is_prefix_run,
             "source_text_present": pipe_result.get("source_text_present"),
             "rag_chunks_retrieved": pipe_result.get("rag_chunks_retrieved", 0),
             "quantification_eligible": pipe_result.get("quantification_eligible"),
             "pipeline_steps": steps_summary,
             "persistence_step_present": has_persistence,
+            "mechanism_checks": mechanism_checks,
+            "missing_expected_steps": missing_expected_steps,
         }
         if latest_pipe:
             result["stages"]["pipeline_run"]["latest_run_id"] = str(latest_pipe["id"])
@@ -214,6 +321,19 @@ async def diagnose_bill(db, jurisdiction: str, bill_id: str) -> dict:
         if not has_persistence and selected_pipe["status"] == "completed":
             result["issues"].append(
                 "Pipeline completed but no persistence step recorded"
+            )
+        if missing_expected_steps:
+            result["issues"].append(
+                f"Missing expected mechanism steps: {', '.join(missing_expected_steps)}"
+            )
+        invalid_checks = [
+            name
+            for name, check in mechanism_checks.items()
+            if check["present"] and not check["valid_shape"]
+        ]
+        if invalid_checks:
+            result["issues"].append(
+                f"Mechanism step payloads invalid: {', '.join(invalid_checks)}"
             )
     else:
         result["stages"]["pipeline_run"] = {"status": "missing"}

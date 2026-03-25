@@ -18,6 +18,7 @@ from llm_common.web_search import WebSearchClient
 from llm_common.core.models import LLMMessage, MessageRole
 from typing import List, Dict, Any, Optional
 import re
+import json
 from pydantic import BaseModel, ValidationError
 from schemas.analysis import (
     LegislationAnalysisResponse,
@@ -25,6 +26,7 @@ from schemas.analysis import (
     LegislationImpact,
     ReviewCritique,
     SufficiencyState,
+    SufficiencyBreakdown,
 )
 from datetime import datetime
 import logging
@@ -41,6 +43,27 @@ from services.llm.evidence_gates import (
 )
 
 logger = logging.getLogger(__name__)
+
+CANONICAL_PIPELINE_STEPS: List[str] = [
+    "ingestion_source",
+    "chunk_index",
+    "research_discovery",
+    "impact_discovery",
+    "mode_selection",
+    "parameter_resolution",
+    "sufficiency_gate",
+    "generate",
+    "parameter_validation",
+    "review",
+    "refine",
+    "persistence",
+    "notify_debug",
+]
+STEP_INDEX = {name: i + 1 for i, name in enumerate(CANONICAL_PIPELINE_STEPS)}
+
+
+class PrefixFixtureError(RuntimeError):
+    """Raised when replay/fixture payloads are missing or invalid."""
 
 EVIDENCE_BOILERPLATE_PATTERNS = (
     r"secretary of (the )?senate shall transmit",
@@ -226,6 +249,11 @@ class AnalysisPipeline:
         jurisdiction: str,
         models: Dict[str, str],
         trigger_source: str = "manual",
+        start_at_step: int = 1,
+        stop_after_step: Optional[int] = None,
+        reuse_prior_step_outputs: Optional[str] = None,
+        fixture_mode: Optional[str] = None,
+        run_label: Optional[str] = None,
     ) -> LegislationAnalysisResponse:
         """
         Run full pipeline.
@@ -242,78 +270,319 @@ class AnalysisPipeline:
         """
         from services.audit.logger import AuditLogger
 
+        if start_at_step < 1 or start_at_step > len(CANONICAL_PIPELINE_STEPS):
+            raise PrefixFixtureError(f"fixture_invalid: start_at_step={start_at_step}")
+        if stop_after_step is not None and (
+            stop_after_step < 1 or stop_after_step > len(CANONICAL_PIPELINE_STEPS)
+        ):
+            raise PrefixFixtureError(
+                f"fixture_invalid: stop_after_step={stop_after_step}"
+            )
+        if stop_after_step is not None and stop_after_step < start_at_step:
+            raise PrefixFixtureError(
+                "fixture_invalid: stop_after_step must be >= start_at_step"
+            )
+        is_prefix_run = any(
+            [
+                start_at_step != 1,
+                stop_after_step is not None,
+                bool(reuse_prior_step_outputs),
+                bool(fixture_mode),
+                bool(run_label),
+            ]
+        )
+
+        trigger_with_label = trigger_source
+        if run_label:
+            trigger_with_label = f"prefix:{run_label}"
+
         run_id = await self._create_pipeline_run(
-            bill_id, jurisdiction, models, trigger_source
+            bill_id, jurisdiction, models, trigger_with_label
         )
         audit = AuditLogger(run_id, self.db)
 
         try:
+            replay_outputs = await self._load_prefix_seed_outputs(
+                reuse_prior_step_outputs=reuse_prior_step_outputs,
+                fixture_mode=fixture_mode,
+                start_at_step=start_at_step,
+            )
+            if start_at_step > 1 and not replay_outputs:
+                raise PrefixFixtureError(
+                    "fixture_invalid: start_at_step > 1 requires reuse_prior_step_outputs or fixture_mode"
+                )
+
+            def _seeded(step_name: str) -> Optional[Dict[str, Any]]:
+                value = replay_outputs.get(step_name)
+                if value is None:
+                    return None
+                if not isinstance(value, dict):
+                    raise PrefixFixtureError(
+                        f"fixture_invalid: payload for {step_name} must be object"
+                    )
+                return value
+
+            async def _checkpoint(step_name: str, output_result: Dict[str, Any], status: str = "completed", input_context: Optional[Dict[str, Any]] = None, model_info: Optional[Dict[str, Any]] = None) -> bool:
+                await audit.log_step(
+                    step_number=STEP_INDEX[step_name],
+                    step_name=step_name,
+                    status=status,
+                    input_context=input_context or {},
+                    output_result=output_result,
+                    model_info=model_info or {},
+                    duration_ms=0,
+                )
+                if stop_after_step is not None and STEP_INDEX[step_name] >= stop_after_step:
+                    await self._complete_pipeline_run(
+                        run_id,
+                        bill_id,
+                        bill_text,
+                        self._empty_analysis(
+                            bill_id=bill_id,
+                            jurisdiction=jurisdiction,
+                            model_used=models.get("generate", "unknown"),
+                        ),
+                        ReviewCritique(
+                            passed=False,
+                            critique=f"Prefix run halted after step {step_name}",
+                            missing_impacts=[],
+                            factual_errors=[],
+                        ),
+                        jurisdiction,
+                        run_status="prefix_halted",
+                    )
+                    await self._emit_slack_summary(
+                        run_id,
+                        bill_id,
+                        jurisdiction,
+                        "prefix_halted",
+                        trigger_with_label,
+                    )
+                    return True
+                return False
+
             source_data = await self.db.get_latest_scrape_for_bill(
                 jurisdiction, bill_id
             )
             source_text_present = bool(bill_text and len(bill_text) > 100)
-            if source_data:
-                await audit.log_step(
-                    step_number=0,
-                    step_name="ingestion_source",
-                    status="completed",
-                    input_context={
-                        "jurisdiction": jurisdiction,
-                        "bill_id": bill_id,
-                        "bill_text_preview": bill_text[:500] + "..."
-                        if bill_text
-                        else "N/A",
-                    },
-                    output_result={
+            ingestion_output = _seeded("ingestion_source")
+            if STEP_INDEX["ingestion_source"] < start_at_step:
+                if ingestion_output is None:
+                    raise PrefixFixtureError("fixture_invalid: missing seeded ingestion_source")
+                halted = await _checkpoint(
+                    "ingestion_source",
+                    ingestion_output,
+                    status="replayed",
+                    input_context={"mode": "replay"},
+                    model_info={"model": "deterministic"},
+                )
+                if halted:
+                    return self._empty_analysis(
+                        bill_id=bill_id,
+                        jurisdiction=jurisdiction,
+                        model_used=models.get("generate", "unknown"),
+                    )
+            else:
+                if source_data:
+                    ingestion_output = {
                         "raw_scrape_id": str(source_data["id"]),
                         "source_url": source_data["url"],
                         "content_hash": source_data["content_hash"],
                         "metadata": source_data["metadata"],
                         "minio_blob_path": source_data.get("storage_uri", "N/A"),
                         "source_text_present": source_text_present,
-                    },
-                    model_info={"model": "scraper", "provider": "firecrawl"},
-                    duration_ms=0,
-                )
-            else:
-                await audit.log_step(
-                    step_number=0,
-                    step_name="ingestion_source",
-                    status="skipped",
-                    input_context={"jurisdiction": jurisdiction, "bill_id": bill_id},
-                    output_result={
+                    }
+                    halted = await _checkpoint(
+                        "ingestion_source",
+                        ingestion_output,
+                        status="completed",
+                        input_context={
+                            "jurisdiction": jurisdiction,
+                            "bill_id": bill_id,
+                            "bill_text_preview": bill_text[:500] + "..."
+                            if bill_text
+                            else "N/A",
+                        },
+                        model_info={"model": "scraper", "provider": "firecrawl"},
+                    )
+                else:
+                    ingestion_output = {
                         "error": "No raw scrape found for this bill.",
                         "source_text_present": source_text_present,
-                    },
-                    model_info={"model": "scraper", "provider": "firecrawl"},
-                    duration_ms=0,
+                    }
+                    halted = await _checkpoint(
+                        "ingestion_source",
+                        ingestion_output,
+                        status="skipped",
+                        input_context={"jurisdiction": jurisdiction, "bill_id": bill_id},
+                        model_info={"model": "scraper", "provider": "firecrawl"},
+                    )
+                if halted:
+                    return self._empty_analysis(
+                        bill_id=bill_id,
+                        jurisdiction=jurisdiction,
+                        model_used=models.get("generate", "unknown"),
+                    )
+
+            chunk_output = _seeded("chunk_index")
+            if STEP_INDEX["chunk_index"] < start_at_step:
+                if chunk_output is None:
+                    raise PrefixFixtureError("fixture_invalid: missing seeded chunk_index")
+                halted = await _checkpoint(
+                    "chunk_index",
+                    chunk_output,
+                    status="replayed",
+                    input_context={"mode": "replay"},
+                    model_info={"model": "deterministic"},
                 )
+                if halted:
+                    return self._empty_analysis(
+                        bill_id=bill_id,
+                        jurisdiction=jurisdiction,
+                        model_used=models.get("generate", "unknown"),
+                    )
+            else:
+                chunk_count = 0
+                if source_data and hasattr(self.db, "get_vector_stats"):
+                    vector_stats = await self.db.get_vector_stats(
+                        source_data.get("document_id")
+                    )
+                    if vector_stats:
+                        chunk_count = int(vector_stats.get("chunk_count", 0))
+                chunk_output = {
+                    "document_id": source_data.get("document_id") if source_data else None,
+                    "chunk_count": chunk_count,
+                    "provenance_compatible": bool(chunk_count >= 0),
+                }
+                halted = await _checkpoint(
+                    "chunk_index",
+                    chunk_output,
+                    status="completed",
+                    input_context={"bill_id": bill_id, "jurisdiction": jurisdiction},
+                    model_info={"model": "deterministic", "provider": "postgres"},
+                )
+                if halted:
+                    return self._empty_analysis(
+                        bill_id=bill_id,
+                        jurisdiction=jurisdiction,
+                        model_used=models.get("generate", "unknown"),
+                    )
 
             start_ts = datetime.now()
             research_result = await self._research_step(
                 bill_id, bill_text, jurisdiction, models["research"]
             )
             duration = int((datetime.now() - start_ts).total_seconds() * 1000)
-
-            await audit.log_step(
-                step_number=2,
-                step_name="research",
+            research_output = {
+                "rag_chunks": len(research_result.rag_chunks),
+                "web_sources": len(research_result.web_sources),
+                "evidence_envelopes": len(research_result.evidence_envelopes),
+                "evidence_details": self._serialize_evidence_envelopes(
+                    research_result
+                ),
+                "sufficiency_breakdown": research_result.sufficiency_breakdown,
+                "is_sufficient": research_result.is_sufficient,
+                "insufficiency_reason": research_result.insufficiency_reason,
+            }
+            halted = await _checkpoint(
+                "research_discovery",
+                research_output,
                 status="completed" if research_result.is_sufficient else "degraded",
                 input_context={"bill_id": bill_id, "jurisdiction": jurisdiction},
-                output_result={
-                    "rag_chunks": len(research_result.rag_chunks),
-                    "web_sources": len(research_result.web_sources),
-                    "evidence_envelopes": len(research_result.evidence_envelopes),
-                    "evidence_details": self._serialize_evidence_envelopes(
-                        research_result
-                    ),
-                    "sufficiency_breakdown": research_result.sufficiency_breakdown,
-                    "is_sufficient": research_result.is_sufficient,
-                    "insufficiency_reason": research_result.insufficiency_reason,
-                },
-                model_info={"model": models["research"]},
-                duration_ms=duration,
+                model_info={"model": models["research"], "duration_ms": duration},
             )
+            if halted:
+                return self._empty_analysis(
+                    bill_id=bill_id,
+                    jurisdiction=jurisdiction,
+                    model_used=models.get("generate", "unknown"),
+                )
+
+            discovered_impacts = research_result.impact_candidates or []
+            impact_discovery_output = {"impacts": discovered_impacts}
+            halted = await _checkpoint(
+                "impact_discovery",
+                impact_discovery_output,
+                status="completed" if discovered_impacts else "failed",
+                input_context={"bill_id": bill_id},
+                model_info={"model": models.get("research", "unknown")},
+            )
+            if halted:
+                return self._empty_analysis(
+                    bill_id=bill_id,
+                    jurisdiction=jurisdiction,
+                    model_used=models.get("generate", "unknown"),
+                )
+
+            mode_decisions = [
+                self._build_mode_selection_output(impact)
+                for impact in discovered_impacts
+            ]
+            first_mode = (
+                mode_decisions[0]
+                if mode_decisions
+                else self._build_mode_selection_output({})
+            )
+            mode_selection_output = {
+                **first_mode,
+                "impact_modes": mode_decisions,
+            }
+            self._validate_deterministic_step_payload("mode_selection", mode_selection_output)
+            halted = await _checkpoint(
+                "mode_selection",
+                mode_selection_output,
+                status="completed",
+                input_context={"impact_count": len(discovered_impacts)},
+                model_info={"model": "deterministic"},
+            )
+            if halted:
+                return self._empty_analysis(
+                    bill_id=bill_id,
+                    jurisdiction=jurisdiction,
+                    model_used=models.get("generate", "unknown"),
+                )
+
+            parameter_resolutions = [
+                self._build_parameter_resolution_output(
+                    impact_id=impact.get("impact_id", f"impact-{idx + 1}"),
+                    selected_mode=decision["selected_mode"],
+                    parameter_candidates=research_result.parameter_candidates.get(
+                        impact.get("impact_id", f"impact-{idx + 1}"), {}
+                    ),
+                )
+                for idx, (impact, decision) in enumerate(
+                    zip(discovered_impacts, mode_decisions)
+                )
+            ]
+            first_resolution = (
+                parameter_resolutions[0]
+                if parameter_resolutions
+                else self._build_parameter_resolution_output(
+                    impact_id="impact-1",
+                    selected_mode="qualitative_only",
+                    parameter_candidates={},
+                )
+            )
+            parameter_resolution_output = {
+                **first_resolution,
+                "impact_parameters": parameter_resolutions,
+            }
+            self._validate_deterministic_step_payload(
+                "parameter_resolution", parameter_resolution_output
+            )
+            halted = await _checkpoint(
+                "parameter_resolution",
+                parameter_resolution_output,
+                status="completed",
+                input_context={"selected_mode": first_mode["selected_mode"]},
+                model_info={"model": "deterministic"},
+            )
+            if halted:
+                return self._empty_analysis(
+                    bill_id=bill_id,
+                    jurisdiction=jurisdiction,
+                    model_used=models.get("generate", "unknown"),
+                )
 
             evidence_items = []
             for envelope in research_result.evidence_envelopes:
@@ -324,34 +593,64 @@ class AnalysisPipeline:
                 )
                 evidence_items.extend(envelope_to_impact_evidence(envelope_data))
 
+            candidate_impacts = [
+                {
+                    "impact_id": impact.get("impact_id", f"impact-{idx + 1}"),
+                    "selected_mode": decision["selected_mode"],
+                    "parameter_resolution": resolution,
+                    "parameter_validation": self._build_parameter_validation_output(
+                        resolution,
+                        eligible_for_quant=True,
+                    ),
+                }
+                for idx, (impact, decision, resolution) in enumerate(
+                    zip(discovered_impacts, mode_decisions, parameter_resolutions)
+                )
+            ]
             breakdown = assess_sufficiency(
                 bill_text=bill_text,
                 evidence_list=evidence_items,
+                candidate_impacts=candidate_impacts,
                 rag_chunks_retrieved=len(research_result.rag_chunks),
                 web_research_count=len(research_result.web_sources),
             )
-
-            await audit.log_step(
-                step_number=3,
-                step_name="sufficiency_gate",
+            impact_gate_summaries = [
+                gate_summary.model_dump(mode="json")
+                for gate_summary in breakdown.impact_gate_summaries
+            ]
+            sufficiency_output = {
+                "overall_quantification_eligible": breakdown.overall_quantification_eligible,
+                "overall_sufficiency_state": breakdown.overall_sufficiency_state.value,
+                "impact_gate_summaries": impact_gate_summaries,
+                "bill_level_failures": [
+                    failure.value for failure in breakdown.bill_level_failures
+                ],
+            }
+            halted = await _checkpoint(
+                "sufficiency_gate",
+                sufficiency_output,
                 status="completed",
                 input_context={"bill_id": bill_id},
-                output_result=breakdown.model_dump(),
                 model_info={"model": "deterministic", "provider": "evidence_gates"},
-                duration_ms=0,
             )
+            if halted:
+                return self._empty_analysis(
+                    bill_id=bill_id,
+                    jurisdiction=jurisdiction,
+                    model_used=models.get("generate", "unknown"),
+                )
 
-            if breakdown.sufficiency_state == SufficiencyState.RESEARCH_INCOMPLETE:
+            if breakdown.overall_sufficiency_state == SufficiencyState.RESEARCH_INCOMPLETE:
                 analysis = LegislationAnalysisResponse(
                     bill_number=bill_id,
                     title="",
                     jurisdiction=jurisdiction,
                     status="",
-                    sufficiency_state=breakdown.sufficiency_state,
-                    insufficiency_reason="; ".join(breakdown.insufficiency_reasons),
+                    sufficiency_state=breakdown.overall_sufficiency_state,
+                    insufficiency_reason=self._breakdown_reason(breakdown),
                     quantification_eligible=False,
                     impacts=[],
-                    total_impact_p50=None,
+                    aggregate_scenario_bounds=None,
                     analysis_timestamp=datetime.now().isoformat(),
                     model_used=models.get("generate", "unknown"),
                 )
@@ -384,37 +683,82 @@ class AnalysisPipeline:
             )
             self._hydrate_analysis_evidence_from_research(analysis, research_result)
             duration = int((datetime.now() - start_ts).total_seconds() * 1000)
+            analysis = self._apply_wave1_quantification(
+                analysis=analysis,
+                impact_candidates=discovered_impacts,
+                mode_decisions=mode_decisions,
+                parameter_resolutions=parameter_resolutions,
+                breakdown=breakdown,
+            )
 
-            if not breakdown.quantification_eligible:
+            if not breakdown.overall_quantification_eligible:
                 analysis.impacts = [
                     LegislationImpact(**strip_quantification([imp.model_dump()])[0])
                     for imp in analysis.impacts
                 ]
-                analysis.sufficiency_state = breakdown.sufficiency_state
-                analysis.insufficiency_reason = "; ".join(
-                    breakdown.insufficiency_reasons
-                )
+                analysis.sufficiency_state = breakdown.overall_sufficiency_state
+                analysis.insufficiency_reason = self._breakdown_reason(breakdown)
                 analysis.quantification_eligible = False
-                analysis.total_impact_p50 = None
+                analysis.aggregate_scenario_bounds = None
+            else:
+                analysis.quantification_eligible = True
 
             analysis.bill_number = bill_id
             analysis.jurisdiction = jurisdiction
             analysis.model_used = models["generate"]
             analysis.analysis_timestamp = datetime.now().isoformat()
 
-            await audit.log_step(
-                step_number=4,
-                step_name="generate",
+            halted = await _checkpoint(
+                "generate",
+                analysis.model_dump(),
                 status="completed",
                 input_context={
                     "evidence_envelope_count": len(research_result.evidence_envelopes),
                     "is_sufficient": research_result.is_sufficient,
-                    "sufficiency_state": breakdown.sufficiency_state.value,
+                    "sufficiency_state": breakdown.overall_sufficiency_state.value,
                 },
-                output_result=analysis.model_dump(),
-                model_info={"model": models["generate"]},
-                duration_ms=duration,
+                model_info={"model": models["generate"], "duration_ms": duration},
             )
+            if halted:
+                return analysis
+
+            impact_validations = [
+                self._build_parameter_validation_output(
+                    resolution,
+                    eligible_for_quant=gate.quantification_eligible,
+                )
+                for resolution, gate in zip(
+                    parameter_resolutions, breakdown.impact_gate_summaries
+                )
+            ]
+            first_validation = (
+                impact_validations[0]
+                if impact_validations
+                else self._build_parameter_validation_output(
+                    self._build_parameter_resolution_output(
+                        impact_id="impact-1",
+                        selected_mode="qualitative_only",
+                        parameter_candidates={},
+                    ),
+                    eligible_for_quant=False,
+                )
+            )
+            parameter_validation_output = {
+                **first_validation,
+                "impact_validations": impact_validations,
+            }
+            self._validate_deterministic_step_payload(
+                "parameter_validation", parameter_validation_output
+            )
+            halted = await _checkpoint(
+                "parameter_validation",
+                parameter_validation_output,
+                status="completed",
+                input_context={"bill_id": bill_id},
+                model_info={"model": "deterministic"},
+            )
+            if halted:
+                return analysis
 
             start_ts = datetime.now()
             review = await self._review_step(
@@ -423,15 +767,15 @@ class AnalysisPipeline:
             review = self._normalize_review(review, analysis)
             duration = int((datetime.now() - start_ts).total_seconds() * 1000)
 
-            await audit.log_step(
-                step_number=5,
-                step_name="review",
+            halted = await _checkpoint(
+                "review",
+                review.model_dump(),
                 status="completed",
                 input_context={"analysis_summary": "See generate step"},
-                output_result=review.model_dump(),
-                model_info={"model": models["review"]},
-                duration_ms=duration,
+                model_info={"model": models["review"], "duration_ms": duration},
             )
+            if halted:
+                return analysis
 
             if not review.passed:
                 start_ts = datetime.now()
@@ -445,18 +789,25 @@ class AnalysisPipeline:
                 )
                 self._hydrate_analysis_evidence_from_research(analysis, research_result)
                 duration = int((datetime.now() - start_ts).total_seconds() * 1000)
+                analysis = self._apply_wave1_quantification(
+                    analysis=analysis,
+                    impact_candidates=discovered_impacts,
+                    mode_decisions=mode_decisions,
+                    parameter_resolutions=parameter_resolutions,
+                    breakdown=breakdown,
+                )
 
-                if not breakdown.quantification_eligible:
+                if not breakdown.overall_quantification_eligible:
                     analysis.impacts = [
                         LegislationImpact(**strip_quantification([imp.model_dump()])[0])
                         for imp in analysis.impacts
                     ]
-                    analysis.sufficiency_state = breakdown.sufficiency_state
-                    analysis.insufficiency_reason = "; ".join(
-                        breakdown.insufficiency_reasons
-                    )
+                    analysis.sufficiency_state = breakdown.overall_sufficiency_state
+                    analysis.insufficiency_reason = self._breakdown_reason(breakdown)
                     analysis.quantification_eligible = False
-                    analysis.total_impact_p50 = None
+                    analysis.aggregate_scenario_bounds = None
+                else:
+                    analysis.quantification_eligible = True
 
                 analysis.bill_number = bill_id
                 analysis.jurisdiction = jurisdiction
@@ -468,15 +819,25 @@ class AnalysisPipeline:
                 )
                 review = self._normalize_review(review, analysis)
 
-                await audit.log_step(
-                    step_number=6,
-                    step_name="refine",
+                halted = await _checkpoint(
+                    "refine",
+                    analysis.model_dump(),
                     status="completed",
                     input_context={"critique": review.model_dump()},
-                    output_result=analysis.model_dump(),
-                    model_info={"model": models["generate"]},
-                    duration_ms=duration,
+                    model_info={"model": models["generate"], "duration_ms": duration},
                 )
+                if halted:
+                    return analysis
+            else:
+                halted = await _checkpoint(
+                    "refine",
+                    {"skipped": True, "reason": "review_passed"},
+                    status="skipped",
+                    input_context={"bill_id": bill_id},
+                    model_info={"model": "deterministic"},
+                )
+                if halted:
+                    return analysis
 
             persistence = await self._complete_pipeline_run(
                 run_id,
@@ -490,12 +851,9 @@ class AnalysisPipeline:
                 retriever_invoked=research_result.retriever_invoked,
             )
 
-            await audit.log_step(
-                step_number=7,
-                step_name="persistence",
-                status="completed" if persistence.get("analysis_stored") else "failed",
-                input_context={"bill_id": bill_id, "jurisdiction": jurisdiction},
-                output_result={
+            halted = await _checkpoint(
+                "persistence",
+                {
                     "legislation_id": persistence.get("legislation_id"),
                     "analysis_stored": persistence.get("analysis_stored", False),
                     "impacts_count": persistence.get("impacts_count", 0),
@@ -503,28 +861,67 @@ class AnalysisPipeline:
                     if analysis.sufficiency_state
                     else None,
                     "quantification_eligible": analysis.quantification_eligible,
-                    "total_impact_p50": analysis.total_impact_p50,
+                    "aggregate_scenario_bounds": analysis.aggregate_scenario_bounds.model_dump()
+                    if analysis.aggregate_scenario_bounds
+                    else None,
                 },
+                status="completed" if persistence.get("analysis_stored") else "failed",
+                input_context={"bill_id": bill_id, "jurisdiction": jurisdiction},
                 model_info={"model": "deterministic", "provider": "postgres"},
-                duration_ms=0,
             )
+            if halted:
+                return analysis
+
+            notify_output = {
+                "status": "emitted" if trigger_source == "manual" else "skipped",
+                "prefix_boundary": f"stopped_after_step_{stop_after_step}"
+                if stop_after_step is not None
+                else None,
+            }
+            halted = await _checkpoint(
+                "notify_debug",
+                notify_output,
+                status="completed",
+                input_context={"trigger_source": trigger_with_label},
+                model_info={"model": "deterministic"},
+            )
+            if halted:
+                return analysis
 
             await self._emit_slack_summary(
                 run_id,
                 bill_id,
                 jurisdiction,
                 "completed",
-                trigger_source,
+                trigger_with_label,
                 analysis,
             )
 
             return analysis
 
-        except Exception as e:
-            await self._fail_pipeline_run(run_id, str(e))
+        except PrefixFixtureError as e:
+            await self._fail_pipeline_run(run_id, str(e), status="fixture_invalid")
             await audit.log_step(
-                step_number=99,
-                step_name="pipeline_failure",
+                step_number=STEP_INDEX["notify_debug"],
+                step_name="notify_debug",
+                status="failed",
+                output_result={"error": str(e), "failure_code": "fixture_invalid"},
+                model_info={"model": "deterministic"},
+            )
+            await self._emit_slack_summary(
+                run_id,
+                bill_id,
+                jurisdiction,
+                "fixture_invalid",
+                trigger_with_label,
+                error=str(e),
+            )
+            raise
+        except Exception as e:
+            await self._fail_pipeline_run(run_id, str(e), status="failed")
+            await audit.log_step(
+                step_number=STEP_INDEX["notify_debug"],
+                step_name="notify_debug",
                 status="failed",
                 output_result={"error": str(e)},
                 model_info={"models_attempted": models},
@@ -534,7 +931,7 @@ class AnalysisPipeline:
                 bill_id,
                 jurisdiction,
                 "failed",
-                trigger_source,
+                trigger_with_label,
                 error=str(e),
             )
             raise
@@ -657,7 +1054,7 @@ class AnalysisPipeline:
                 sufficiency_state=SufficiencyState.INSUFFICIENT_EVIDENCE,
                 quantification_eligible=False,
                 impacts=[],
-                total_impact_p50=None,
+                aggregate_scenario_bounds=None,
                 analysis_timestamp=datetime.now().isoformat(),
                 model_used=model,
             )
@@ -695,11 +1092,11 @@ IMPORTANT: Research insufficiency detected: {research_result.insufficiency_reaso
 Your analysis should acknowledge data gaps. If evidence is insufficient for 
 quantification, provide qualitative analysis only.
 """
-        if breakdown and not breakdown.quantification_eligible:
+        if breakdown and not breakdown.overall_quantification_eligible:
             sufficiency_note += (
                 "\nIMPORTANT: Quantification is NOT permitted for this bill. "
-                "Set all p10/p25/p50/p75/p90 fields to null. "
-                f"Reason: {'; '.join(breakdown.insufficiency_reasons)}\n"
+                "Do not emit scenario bounds or modeled quantitative fields. "
+                f"Reason: {self._breakdown_reason(breakdown)}\n"
             )
 
         system_prompt = f"""
@@ -1047,7 +1444,7 @@ Evidence Excerpts:
                     if impact.is_quantified and supports_quantified_evidence(
                         excerpt=excerpt,
                         source_name=ev.source_name or "",
-                        numeric_basis=impact.numeric_basis,
+                        numeric_basis=None,
                     ):
                         quantified_supported = True
                     if requires_resident_burden_support and any(
@@ -1063,11 +1460,6 @@ Evidence Excerpts:
                     f"Impact {impact.impact_number} evidence excerpts do not materially support the stated legal/impact claims."
                 )
                 continue
-
-            if impact.is_quantified and not impact.numeric_basis:
-                issues.append(
-                    f"Impact {impact.impact_number} is quantified but missing numeric_basis."
-                )
 
             if impact.is_quantified and not quantified_supported:
                 issues.append(
@@ -1122,10 +1514,10 @@ Evidence Excerpts:
     ) -> LegislationAnalysisResponse:
         """Refine analysis based on critique."""
         quantification_note = ""
-        if breakdown and not breakdown.quantification_eligible:
+        if breakdown and not breakdown.overall_quantification_eligible:
             quantification_note = (
                 "\n\nIMPORTANT: Quantification is NOT permitted for this bill. "
-                "Set all p10/p25/p50/p75/p90 fields to null."
+                "Do not emit scenario bounds or modeled quantitative fields."
             )
         system_prompt = (
             "Refine the analysis based on the critique. Ensure all issues are addressed."
@@ -1164,6 +1556,414 @@ Bill Text: {bill_text[:5000]}
                 return run_id
         return "run_id_placeholder"
 
+    def _empty_analysis(
+        self, bill_id: str, jurisdiction: str, model_used: str
+    ) -> LegislationAnalysisResponse:
+        return LegislationAnalysisResponse(
+            bill_number=bill_id,
+            jurisdiction=jurisdiction,
+            sufficiency_state=SufficiencyState.INSUFFICIENT_EVIDENCE,
+            quantification_eligible=False,
+            impacts=[],
+            aggregate_scenario_bounds=None,
+            analysis_timestamp=datetime.now().isoformat(),
+            model_used=model_used,
+        )
+
+    def _breakdown_reason(self, breakdown: SufficiencyBreakdown | Any) -> str:
+        failures = getattr(breakdown, "bill_level_failures", []) or []
+        return "; ".join(
+            failure.value if hasattr(failure, "value") else str(failure)
+            for failure in failures
+        )
+
+    def _build_mode_selection_output(
+        self, impact_candidate: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        hints = impact_candidate.get("candidate_mode_hints", []) or []
+        supported = [hint for hint in hints if hint in {"direct_fiscal", "compliance_cost"}]
+        unsupported = [hint for hint in hints if hint not in {"direct_fiscal", "compliance_cost"}]
+        if "direct_fiscal" in supported:
+            selected = "direct_fiscal"
+        elif "compliance_cost" in supported:
+            selected = "compliance_cost"
+        else:
+            selected = "qualitative_only"
+        ambiguity = "unsupported" if unsupported and not supported else "clear"
+        return {
+            "impact_id": impact_candidate.get("impact_id", "impact-1"),
+            "candidate_modes": hints or ["qualitative_only"],
+            "selected_mode": selected,
+            "rejected_modes": [mode for mode in hints if mode != selected],
+            "selection_rationale": "Wave 1 deterministic mode selection from research hints.",
+            "ambiguity_status": ambiguity,
+            "composition_candidate": False,
+        }
+
+    def _build_parameter_resolution_output(
+        self,
+        impact_id: str,
+        selected_mode: str,
+        parameter_candidates: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        required_parameters = {
+            "direct_fiscal": ["fiscal_amount"],
+            "compliance_cost": ["population", "frequency", "time_burden", "wage_rate"],
+        }.get(selected_mode, [])
+        resolved_parameters = {
+            name: {
+                "name": name,
+                "value": candidate["value"],
+                "unit": candidate.get("unit"),
+                "source_url": candidate.get("source_url", ""),
+                "source_excerpt": candidate.get("source_excerpt", ""),
+            }
+            for name, candidate in parameter_candidates.items()
+            if candidate.get("value") is not None
+        }
+        missing_parameters = [
+            name for name in required_parameters if name not in resolved_parameters
+        ]
+        source_hierarchy_status = {
+            name: candidate.get("source_hierarchy_status", "failed_closed")
+            for name, candidate in parameter_candidates.items()
+        }
+        for name in required_parameters:
+            source_hierarchy_status.setdefault(name, "failed_closed")
+        excerpt_validation_status = {
+            name: candidate.get("excerpt_validation_status", "not_applicable")
+            for name, candidate in parameter_candidates.items()
+        }
+        literature_confidence = (
+            {"wage_rate": 0.0}
+            if selected_mode == "compliance_cost" and "wage_rate" in resolved_parameters
+            else {}
+        )
+        dominant_uncertainty_parameters = (
+            ["fiscal_amount"]
+            if selected_mode == "direct_fiscal"
+            else [name for name in ["time_burden", "population", "unit_cost"] if name in parameter_candidates]
+        )
+        return {
+            "impact_id": impact_id,
+            "required_parameters": required_parameters,
+            "resolved_parameters": resolved_parameters,
+            "missing_parameters": missing_parameters,
+            "source_hierarchy_status": source_hierarchy_status,
+            "excerpt_validation_status": excerpt_validation_status,
+            "literature_confidence": literature_confidence,
+            "dominant_uncertainty_parameters": dominant_uncertainty_parameters,
+        }
+
+    def _build_parameter_validation_output(
+        self, resolution: Dict[str, Any], eligible_for_quant: bool
+    ) -> Dict[str, Any]:
+        missing = resolution.get("missing_parameters", []) or []
+        failed_hierarchy = any(
+            value == "failed_closed"
+            for value in (resolution.get("source_hierarchy_status", {}) or {}).values()
+        )
+        is_valid = eligible_for_quant and not missing and not failed_hierarchy
+        failures = []
+        if missing:
+            failures.append("parameter_missing")
+        if failed_hierarchy:
+            failures.append("source_hierarchy_failed")
+        return {
+            "schema_valid": True,
+            "arithmetic_valid": is_valid,
+            "bound_construction_valid": is_valid,
+            "claim_support_valid": True,
+            "validation_failures": failures,
+        }
+
+    def _apply_wave1_quantification(
+        self,
+        analysis: LegislationAnalysisResponse,
+        impact_candidates: List[Dict[str, Any]],
+        mode_decisions: List[Dict[str, Any]],
+        parameter_resolutions: List[Dict[str, Any]],
+        breakdown: SufficiencyBreakdown,
+    ) -> LegislationAnalysisResponse:
+        while len(analysis.impacts) < len(impact_candidates):
+            candidate = impact_candidates[len(analysis.impacts)]
+            analysis.impacts.append(
+                LegislationImpact(
+                    impact_number=len(analysis.impacts) + 1,
+                    relevant_clause="; ".join(candidate.get("relevant_clauses", []) or []),
+                    legal_interpretation="Deterministic Wave 1 impact synthesis.",
+                    impact_description=candidate.get("impact_description", ""),
+                    evidence=[],
+                    chain_of_causality="Derived from research-backed parameter extraction.",
+                )
+            )
+
+        aggregate_low = 0.0
+        aggregate_central = 0.0
+        aggregate_high = 0.0
+        quantified_count = 0
+
+        for idx, impact in enumerate(analysis.impacts):
+            if idx >= len(mode_decisions):
+                impact.impact_mode = "qualitative_only"
+                continue
+            mode = mode_decisions[idx]["selected_mode"]
+            resolution = parameter_resolutions[idx]
+            impact.impact_mode = mode
+            impact.mode_selection = {
+                key: value
+                for key, value in mode_decisions[idx].items()
+                if key != "impact_id"
+            }
+            impact.parameter_resolution = {
+                key: value
+                for key, value in resolution.items()
+                if key != "impact_id"
+            }
+            gate = (
+                breakdown.impact_gate_summaries[idx]
+                if idx < len(breakdown.impact_gate_summaries)
+                else None
+            )
+            impact.parameter_validation = self._build_parameter_validation_output(
+                resolution, gate.quantification_eligible if gate else False
+            )
+            impact.failure_codes = [
+                failure.value for failure in getattr(gate, "gate_failures", []) or []
+            ]
+
+            if not gate or not gate.quantification_eligible:
+                cleaned = strip_quantification([impact.model_dump(mode="json")])[0]
+                analysis.impacts[idx] = LegislationImpact(**cleaned)
+                analysis.impacts[idx].mode_selection = impact.mode_selection
+                analysis.impacts[idx].parameter_resolution = impact.parameter_resolution
+                analysis.impacts[idx].parameter_validation = impact.parameter_validation
+                analysis.impacts[idx].failure_codes = impact.failure_codes
+                continue
+
+            resolved = resolution.get("resolved_parameters", {}) or {}
+            impact.modeled_parameters = resolved
+            if mode == "direct_fiscal" and "fiscal_amount" in resolved:
+                total = resolved["fiscal_amount"]["value"]
+                impact.component_breakdown = [
+                    {
+                        "component_name": "direct_fiscal",
+                        "base": total,
+                        "low": total,
+                        "high": total,
+                        "unit": "usd_per_year",
+                        "formula": "official fiscal amount",
+                    }
+                ]
+                impact.scenario_bounds = {
+                    "conservative": total,
+                    "central": total,
+                    "aggressive": total,
+                }
+            elif mode == "compliance_cost":
+                admin_total = 0.0
+                substantive_total = 0.0
+                components = []
+                if all(
+                    name in resolved
+                    for name in ["population", "frequency", "time_burden", "wage_rate"]
+                ):
+                    admin_total = (
+                        resolved["population"]["value"]
+                        * resolved["frequency"]["value"]
+                        * resolved["time_burden"]["value"]
+                        * resolved["wage_rate"]["value"]
+                    )
+                    components.append(
+                        {
+                            "component_name": "administrative_labor_cost",
+                            "base": admin_total,
+                            "low": admin_total * 0.8,
+                            "high": admin_total * 1.2,
+                            "unit": "usd_per_year",
+                            "formula": "population * frequency * time_burden * wage_rate",
+                        }
+                    )
+                if "affected_units" in resolved and "unit_cost" in resolved:
+                    substantive_total = (
+                        resolved["affected_units"]["value"]
+                        * resolved["unit_cost"]["value"]
+                    )
+                    components.append(
+                        {
+                            "component_name": "substantive_non_labor_cost",
+                            "base": substantive_total,
+                            "low": substantive_total * 0.8,
+                            "high": substantive_total * 1.2,
+                            "unit": "usd_per_year",
+                            "formula": "affected_units * unit_cost",
+                        }
+                    )
+                total = admin_total + substantive_total
+                impact.component_breakdown = components
+                impact.scenario_bounds = {
+                    "conservative": sum(item["low"] for item in components),
+                    "central": total,
+                    "aggressive": sum(item["high"] for item in components),
+                }
+
+            if impact.scenario_bounds is not None:
+                quantified_count += 1
+                aggregate_low += impact.scenario_bounds.conservative
+                aggregate_central += impact.scenario_bounds.central
+                aggregate_high += impact.scenario_bounds.aggressive
+
+        analysis.sufficiency_state = breakdown.overall_sufficiency_state
+        analysis.insufficiency_reason = self._breakdown_reason(breakdown) or None
+        analysis.quantification_eligible = quantified_count > 0
+        analysis.aggregate_scenario_bounds = (
+            {
+                "conservative": aggregate_low,
+                "central": aggregate_central,
+                "aggressive": aggregate_high,
+            }
+            if quantified_count > 0
+            else None
+        )
+        return analysis
+
+    def _validate_deterministic_step_payload(
+        self, step_name: str, payload: Dict[str, Any]
+    ) -> None:
+        required_keys_by_step = {
+            "mode_selection": {
+                "candidate_modes",
+                "selected_mode",
+                "rejected_modes",
+                "selection_rationale",
+                "ambiguity_status",
+                "composition_candidate",
+            },
+            "parameter_resolution": {
+                "required_parameters",
+                "resolved_parameters",
+                "missing_parameters",
+                "source_hierarchy_status",
+                "excerpt_validation_status",
+                "literature_confidence",
+                "dominant_uncertainty_parameters",
+            },
+            "parameter_validation": {
+                "schema_valid",
+                "arithmetic_valid",
+                "bound_construction_valid",
+                "claim_support_valid",
+                "validation_failures",
+            },
+        }
+        required_keys = required_keys_by_step.get(step_name)
+        if not required_keys:
+            return
+        missing = [key for key in required_keys if key not in payload]
+        if missing:
+            raise PrefixFixtureError(
+                f"fixture_invalid: {step_name} missing required keys {missing}"
+            )
+
+    async def _load_prefix_seed_outputs(
+        self,
+        reuse_prior_step_outputs: Optional[str],
+        fixture_mode: Optional[str],
+        start_at_step: int,
+    ) -> Dict[str, Dict[str, Any]]:
+        seed_outputs: Dict[str, Dict[str, Any]] = {}
+        if reuse_prior_step_outputs:
+            if not hasattr(self.db, "_fetch"):
+                raise PrefixFixtureError(
+                    "fixture_invalid: db client missing _fetch for replay"
+                )
+            rows = await self.db._fetch(
+                """
+                SELECT step_name, step_number, output_result
+                FROM pipeline_steps
+                WHERE run_id::text = $1
+                ORDER BY step_number ASC
+                """,
+                reuse_prior_step_outputs,
+            )
+            if not rows:
+                raise PrefixFixtureError(
+                    "fixture_invalid: prior_run_id has no pipeline_steps"
+                )
+            for row in rows:
+                step_name = row["step_name"]
+                step_number = int(row["step_number"])
+                if step_number >= start_at_step:
+                    continue
+                output = row["output_result"] or {}
+                if isinstance(output, str):
+                    try:
+                        output = json.loads(output)
+                    except Exception as e:
+                        raise PrefixFixtureError(
+                            f"fixture_invalid: invalid JSON output_result for {step_name}"
+                        ) from e
+                if not isinstance(output, dict):
+                    raise PrefixFixtureError(
+                        f"fixture_invalid: output_result for {step_name} must be object"
+                    )
+                self._validate_deterministic_step_payload(step_name, output)
+                seed_outputs[step_name] = output
+
+        if fixture_mode:
+            try:
+                with open(fixture_mode, "r", encoding="utf-8") as handle:
+                    fixture_data = json.load(handle)
+            except Exception as e:
+                raise PrefixFixtureError(
+                    f"fixture_invalid: unable to load fixture {fixture_mode}"
+                ) from e
+
+            fixture_steps = fixture_data
+            if isinstance(fixture_data, dict) and "steps" in fixture_data:
+                fixture_steps = fixture_data["steps"]
+
+            if isinstance(fixture_steps, dict):
+                for step_name, payload in fixture_steps.items():
+                    if step_name not in STEP_INDEX:
+                        raise PrefixFixtureError(
+                            f"fixture_invalid: unknown step {step_name}"
+                        )
+                    if STEP_INDEX[step_name] >= start_at_step:
+                        continue
+                    if not isinstance(payload, dict):
+                        raise PrefixFixtureError(
+                            f"fixture_invalid: payload for {step_name} must be object"
+                        )
+                    self._validate_deterministic_step_payload(step_name, payload)
+                    seed_outputs[step_name] = payload
+            elif isinstance(fixture_steps, list):
+                for item in fixture_steps:
+                    if not isinstance(item, dict):
+                        raise PrefixFixtureError(
+                            "fixture_invalid: fixture step entries must be objects"
+                        )
+                    step_name = item.get("step_name")
+                    payload = item.get("output_result")
+                    if step_name not in STEP_INDEX:
+                        raise PrefixFixtureError(
+                            f"fixture_invalid: unknown step {step_name}"
+                        )
+                    if STEP_INDEX[step_name] >= start_at_step:
+                        continue
+                    if not isinstance(payload, dict):
+                        raise PrefixFixtureError(
+                            f"fixture_invalid: payload for {step_name} must be object"
+                        )
+                    self._validate_deterministic_step_payload(step_name, payload)
+                    seed_outputs[step_name] = payload
+            else:
+                raise PrefixFixtureError(
+                    "fixture_invalid: fixture content must be dict or list"
+                )
+
+        return seed_outputs
+
     async def _complete_pipeline_run(
         self,
         run_id: str,
@@ -1175,6 +1975,7 @@ Bill Text: {bill_text[:5000]}
         breakdown: Any = None,
         rag_chunks_retrieved: int = 0,
         retriever_invoked: bool = False,
+        run_status: str = "completed",
     ) -> Dict[str, Any]:
         """Mark pipeline run as complete and store results with truthful metadata."""
         persistence: Dict[str, Any] = {
@@ -1195,7 +1996,9 @@ Bill Text: {bill_text[:5000]}
                 else None,
                 "insufficiency_reason": analysis.insufficiency_reason,
                 "quantification_eligible": analysis.quantification_eligible,
-                "total_impact_p50": analysis.total_impact_p50,
+                "aggregate_scenario_bounds": analysis.aggregate_scenario_bounds.model_dump()
+                if analysis.aggregate_scenario_bounds
+                else None,
             }
 
             if hasattr(self.db, "get_or_create_jurisdiction"):
@@ -1245,8 +2048,19 @@ Bill Text: {bill_text[:5000]}
                 "insufficiency_reason": analysis.insufficiency_reason,
                 "model_used": analysis.model_used,
             }
-            if hasattr(self.db, "complete_pipeline_run"):
+            if run_status == "completed" and hasattr(self.db, "complete_pipeline_run"):
                 await self.db.complete_pipeline_run(run_id, result_data)
+            elif hasattr(self.db, "_execute"):
+                await self.db._execute(
+                    """
+                    UPDATE pipeline_runs
+                    SET status = $1, result = $2, completed_at = NOW()
+                    WHERE id = $3
+                    """,
+                    run_status,
+                    json.dumps(result_data),
+                    run_id,
+                )
 
         except Exception as e:
             logger.error(f"Failed to store results: {e}")
@@ -1256,11 +2070,23 @@ Bill Text: {bill_text[:5000]}
 
         return persistence
 
-    async def _fail_pipeline_run(self, run_id: str, error: str):
-        """Mark pipeline run as failed."""
+    async def _fail_pipeline_run(self, run_id: str, error: str, status: str = "failed"):
+        """Mark pipeline run as failed or fixture-invalid."""
         print(f"Pipeline Run {run_id} Failed: {error}")
-        if hasattr(self.db, "fail_pipeline_run"):
+        if status == "failed" and hasattr(self.db, "fail_pipeline_run"):
             await self.db.fail_pipeline_run(run_id, error)
+            return
+        if hasattr(self.db, "_execute"):
+            await self.db._execute(
+                """
+                UPDATE pipeline_runs
+                SET status = $1, error = $2, completed_at = NOW()
+                WHERE id = $3
+                """,
+                status,
+                error,
+                run_id,
+            )
 
     async def _emit_slack_summary(
         self,

@@ -1,18 +1,24 @@
 """Deterministic evidence sufficiency gates.
 
-Runs BEFORE generation to decide whether quantified output is permitted.
-All checks are programmatic — no LLM involvement.
-
-Feature-Key: bd-tytc.2
+Runs before generation to decide whether quantified output is permitted.
+All checks are programmatic.
 """
 
 from __future__ import annotations
 
 import re
-from typing import List
+from typing import Any, Dict, List
 
 from schemas.analysis import (
+    ExcerptValidationStatus,
+    FailureCode,
+    ImpactGateSummary,
     ImpactEvidence,
+    ImpactMode,
+    ParameterResolutionOutput,
+    ParameterValidationOutput,
+    RetrievalPrerequisiteStatus,
+    SourceHierarchyStatus,
     SourceTier,
     SufficiencyBreakdown,
     SufficiencyState,
@@ -84,6 +90,11 @@ NUMERIC_SUPPORT_PATTERNS = (
     r"\b\d[\d,]*(?:\.\d+)?\b",
 )
 
+WAVE1_SUPPORTED_MODES = {
+    ImpactMode.DIRECT_FISCAL,
+    ImpactMode.COMPLIANCE_COST,
+}
+
 
 def _is_placeholder_text(text: str) -> bool:
     if not text or not text.strip():
@@ -119,6 +130,153 @@ def _detect_fiscal_notes(evidence_list: List[ImpactEvidence]) -> bool:
         if any(indicator in combined for indicator in FISCAL_NOTE_INDICATORS):
             return True
     return False
+
+
+def _normalize_mode(mode: Any) -> ImpactMode:
+    try:
+        return ImpactMode(mode)
+    except Exception:
+        return ImpactMode.QUALITATIVE_ONLY
+
+
+def _normalize_parameter_resolution(
+    payload: ParameterResolutionOutput | Dict[str, Any] | None,
+) -> ParameterResolutionOutput:
+    if isinstance(payload, ParameterResolutionOutput):
+        return payload
+    if isinstance(payload, dict):
+        return ParameterResolutionOutput(**payload)
+    return ParameterResolutionOutput()
+
+
+def _normalize_parameter_validation(
+    payload: ParameterValidationOutput | Dict[str, Any] | None,
+) -> ParameterValidationOutput:
+    if isinstance(payload, ParameterValidationOutput):
+        return payload
+    if isinstance(payload, dict):
+        return ParameterValidationOutput(**payload)
+    return ParameterValidationOutput()
+
+
+def _resolve_frequency_hierarchy(
+    resolution: ParameterResolutionOutput,
+) -> SourceHierarchyStatus:
+    frequency_status = resolution.source_hierarchy_status.get("frequency")
+    if frequency_status in (
+        SourceHierarchyStatus.BILL_OR_REG_TEXT,
+        SourceHierarchyStatus.FISCAL_OR_REG_IMPACT_ANALYSIS,
+    ):
+        return frequency_status
+    return SourceHierarchyStatus.FAILED_CLOSED
+
+
+def _derive_retrieval_status(
+    bill_text: str,
+    evidence_list: List[ImpactEvidence],
+    rag_chunks_retrieved: int,
+    web_research_count: int,
+) -> RetrievalPrerequisiteStatus:
+    _ = web_research_count  # Explicitly tracked for audit surfaces upstream.
+    return RetrievalPrerequisiteStatus(
+        source_text_present=bool(bill_text and bill_text.strip())
+        and not _is_placeholder_text(bill_text),
+        rag_chunks_retrieved=rag_chunks_retrieved,
+        web_research_sources_found=web_research_count,
+        has_verifiable_url=_has_verifiable_url(evidence_list),
+    )
+
+
+def assess_impact_sufficiency(
+    impact_id: str,
+    selected_mode: ImpactMode | str,
+    parameter_resolution: ParameterResolutionOutput | Dict[str, Any] | None,
+    parameter_validation: ParameterValidationOutput | Dict[str, Any] | None,
+    retrieval_prerequisite_status: RetrievalPrerequisiteStatus | Dict[str, Any] | None,
+) -> ImpactGateSummary:
+    """Evaluate deterministic sufficiency for a single impact."""
+    failures: List[FailureCode] = []
+    mode = _normalize_mode(selected_mode)
+    resolution = _normalize_parameter_resolution(parameter_resolution)
+    validation = _normalize_parameter_validation(parameter_validation)
+
+    retrieval_status = (
+        retrieval_prerequisite_status
+        if isinstance(retrieval_prerequisite_status, RetrievalPrerequisiteStatus)
+        else RetrievalPrerequisiteStatus(**(retrieval_prerequisite_status or {}))
+    )
+    if (
+        not retrieval_status.source_text_present
+        or retrieval_status.rag_chunks_retrieved <= 0
+        or not retrieval_status.has_verifiable_url
+    ):
+        failures.append(FailureCode.IMPACT_DISCOVERY_FAILED)
+
+    if mode not in WAVE1_SUPPORTED_MODES:
+        if mode != ImpactMode.QUALITATIVE_ONLY:
+            failures.append(FailureCode.MODE_SELECTION_FAILED)
+        return ImpactGateSummary(
+            impact_id=impact_id,
+            selected_mode=ImpactMode.QUALITATIVE_ONLY,
+            quantification_eligible=False,
+            sufficiency_state=SufficiencyState.QUALITATIVE_ONLY,
+            gate_failures=failures,
+            parameter_validation_summary=validation,
+            retrieval_prerequisite_status=retrieval_status,
+        )
+
+    if resolution.missing_parameters:
+        failures.append(FailureCode.PARAMETER_MISSING)
+
+    for status in resolution.source_hierarchy_status.values():
+        if status == SourceHierarchyStatus.FAILED_CLOSED:
+            failures.append(FailureCode.SOURCE_HIERARCHY_FAILED)
+            break
+
+    for status in resolution.excerpt_validation_status.values():
+        if status == ExcerptValidationStatus.FAIL:
+            failures.append(FailureCode.EXCERPT_VALIDATION_FAILED)
+            failures.append(FailureCode.PARAMETER_UNVERIFIABLE)
+            break
+
+    # Wave 1 binding note: literature_confidence is informational only.
+    # Do not gate on confidence values in this wave.
+    if mode == ImpactMode.COMPLIANCE_COST:
+        frequency_status = _resolve_frequency_hierarchy(resolution)
+        if frequency_status == SourceHierarchyStatus.FAILED_CLOSED:
+            failures.append(FailureCode.SOURCE_HIERARCHY_FAILED)
+
+    if not validation.schema_valid:
+        failures.append(FailureCode.VALIDATION_FAILED)
+    if not validation.arithmetic_valid:
+        failures.append(FailureCode.VALIDATION_FAILED)
+    if not validation.bound_construction_valid:
+        failures.append(FailureCode.INVALID_SCENARIO_CONSTRUCTION)
+    if not validation.claim_support_valid:
+        failures.append(FailureCode.PARAMETER_UNVERIFIABLE)
+
+    deduped_failures = list(dict.fromkeys(failures))
+    quantification_eligible = len(deduped_failures) == 0
+
+    sufficiency_state = (
+        SufficiencyState.QUANTIFIED
+        if quantification_eligible
+        else (
+            SufficiencyState.RESEARCH_INCOMPLETE
+            if FailureCode.IMPACT_DISCOVERY_FAILED in deduped_failures
+            else SufficiencyState.QUALITATIVE_ONLY
+        )
+    )
+
+    return ImpactGateSummary(
+        impact_id=impact_id,
+        selected_mode=mode,
+        quantification_eligible=quantification_eligible,
+        sufficiency_state=sufficiency_state,
+        gate_failures=deduped_failures,
+        parameter_validation_summary=validation,
+        retrieval_prerequisite_status=retrieval_status,
+    )
 
 
 def supports_quantified_evidence(
@@ -160,86 +318,70 @@ def has_material_fiscal_numeric_support(excerpt: str, source_name: str = "") -> 
 def assess_sufficiency(
     bill_text: str,
     evidence_list: List[ImpactEvidence],
+    candidate_impacts: List[Dict[str, Any]] | None = None,
     rag_chunks_retrieved: int = 0,
     web_research_count: int = 0,
 ) -> SufficiencyBreakdown:
-    """Run deterministic sufficiency gates.
-
-    Returns a SufficiencyBreakdown with the final state and reasons.
-    """
-    reasons: List[str] = []
-    bill_text_present = bool(bill_text and bill_text.strip())
-    bill_text_is_placeholder = (
-        _is_placeholder_text(bill_text) if bill_text_present else True
+    """Derive bill-level sufficiency from per-impact gate evaluations."""
+    candidate_impacts = candidate_impacts or []
+    bill_level_failures: List[FailureCode] = []
+    retrieval_status = _derive_retrieval_status(
+        bill_text=bill_text,
+        evidence_list=evidence_list,
+        rag_chunks_retrieved=rag_chunks_retrieved,
+        web_research_count=web_research_count,
     )
-    has_url = _has_verifiable_url(evidence_list)
-    tier_a_count = _count_tier_a(evidence_list)
-    has_fiscal = _detect_fiscal_notes(evidence_list)
-    source_text_ok = bill_text_present and not bill_text_is_placeholder
 
-    if not source_text_ok:
-        reasons.append("Bill text is absent or placeholder")
-    if not evidence_list:
-        reasons.append("No evidence items collected")
-    if not has_url:
-        reasons.append("No evidence items have verifiable HTTP(S) URLs")
+    if not candidate_impacts:
+        bill_level_failures.append(FailureCode.IMPACT_DISCOVERY_FAILED)
 
-    if source_text_ok and has_url and len(evidence_list) > 0 and len(reasons) == 0:
-        if tier_a_count > 0 and has_fiscal:
-            state = SufficiencyState.QUANTIFIED
-            quantification_eligible = True
-        elif tier_a_count > 0:
-            state = SufficiencyState.QUALITATIVE_ONLY
-            reasons.append(
-                "Tier A sources found but no fiscal note/official cost estimate detected"
-            )
-            quantification_eligible = False
-        elif has_url:
-            state = SufficiencyState.QUALITATIVE_ONLY
-            reasons.append(
-                "Only Tier B/C sources available; Tier A (official fiscal) source required for quantification"
-            )
-            quantification_eligible = False
-        else:
-            state = SufficiencyState.QUALITATIVE_ONLY
-            quantification_eligible = False
-    elif not source_text_ok:
-        state = SufficiencyState.RESEARCH_INCOMPLETE
-        quantification_eligible = False
+    impact_gate_summaries = []
+    for idx, impact in enumerate(candidate_impacts, start=1):
+        summary = assess_impact_sufficiency(
+            impact_id=str(impact.get("impact_id") or f"impact-{idx}"),
+            selected_mode=impact.get("selected_mode", ImpactMode.QUALITATIVE_ONLY),
+            parameter_resolution=impact.get("parameter_resolution"),
+            parameter_validation=impact.get("parameter_validation"),
+            retrieval_prerequisite_status=impact.get(
+                "retrieval_prerequisite_status", retrieval_status.model_dump()
+            ),
+        )
+        impact_gate_summaries.append(summary)
+
+    overall_quantification_eligible = any(
+        item.quantification_eligible for item in impact_gate_summaries
+    )
+    if not retrieval_status.source_text_present:
+        overall_sufficiency_state = SufficiencyState.RESEARCH_INCOMPLETE
+    elif not retrieval_status.has_verifiable_url or retrieval_status.rag_chunks_retrieved <= 0:
+        overall_sufficiency_state = SufficiencyState.INSUFFICIENT_EVIDENCE
+    elif overall_quantification_eligible:
+        overall_sufficiency_state = SufficiencyState.QUANTIFIED
     else:
-        state = SufficiencyState.INSUFFICIENT_EVIDENCE
-        quantification_eligible = False
+        overall_sufficiency_state = SufficiencyState.QUALITATIVE_ONLY
+
+    for summary in impact_gate_summaries:
+        bill_level_failures.extend(summary.gate_failures)
 
     return SufficiencyBreakdown(
-        bill_text_present=bill_text_present,
-        bill_text_is_placeholder=bill_text_is_placeholder,
-        rag_chunks_retrieved=rag_chunks_retrieved,
-        web_research_sources_found=web_research_count,
-        tier_a_sources_found=tier_a_count,
-        fiscal_notes_detected=has_fiscal,
-        has_verifiable_url=has_url,
-        source_text_present=source_text_ok,
-        sufficiency_state=state,
-        insufficiency_reasons=reasons,
-        quantification_eligible=quantification_eligible,
+        overall_quantification_eligible=overall_quantification_eligible,
+        overall_sufficiency_state=overall_sufficiency_state,
+        impact_gate_summaries=impact_gate_summaries,
+        bill_level_failures=list(dict.fromkeys(bill_level_failures)),
     )
 
 
 def strip_quantification(
     impacts: List[dict],
 ) -> List[dict]:
-    """Remove percentile fields from impacts when quantification is not eligible.
-
-    Used as a post-generation safety net to ensure no quantified output
-    leaks through even if the LLM ignores the sufficiency instruction.
-    """
+    """Strip quantitative payloads when an impact must degrade to qualitative_only."""
     cleaned = []
     for imp in impacts:
         imp = dict(imp)
-        for key in ("p10", "p25", "p50", "p75", "p90"):
-            imp.pop(key, None)
-        imp.pop("numeric_basis", None)
-        imp.pop("estimate_method", None)
-        imp.pop("assumptions", None)
+        imp["impact_mode"] = ImpactMode.QUALITATIVE_ONLY.value
+        imp.pop("modeled_parameters", None)
+        imp.pop("component_breakdown", None)
+        imp.pop("scenario_bounds", None)
+        imp.pop("aggregate_scenario_bounds", None)
         cleaned.append(imp)
     return cleaned
