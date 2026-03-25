@@ -1,3 +1,4 @@
+import asyncio
 import pytest
 
 from services.llm.web_search_factory import ZaiStructuredWebSearchClient
@@ -36,4 +37,51 @@ async def test_search_falls_back_to_duckduckgo_when_structured_search_is_empty()
 
     assert len(results) == 1
     assert results[0]["url"] == "https://example.com/fallback"
+    await client.close()
+
+
+@pytest.mark.asyncio
+async def test_search_uses_fallback_when_structured_times_out():
+    client = ZaiStructuredWebSearchClient(
+        api_key="test-key",
+        structured_timeout_s=0.01,
+    )
+
+    async def slow_structured(*args, **kwargs):
+        await asyncio.sleep(0.1)
+        return [{"url": "https://example.com/structured"}]
+
+    async def fake_duckduckgo(*args, **kwargs):
+        return [{"url": "https://example.com/fallback-timeout", "title": "Fallback"}]
+
+    client._search_zai_structured = slow_structured  # type: ignore[method-assign]
+    client._search_duckduckgo_html = fake_duckduckgo  # type: ignore[method-assign]
+
+    results = await client.search("SB 277 fiscal impact", count=3)
+
+    assert len(results) == 1
+    assert results[0]["url"] == "https://example.com/fallback-timeout"
+    await client.close()
+
+
+@pytest.mark.asyncio
+async def test_search_returns_empty_when_fallback_times_out():
+    client = ZaiStructuredWebSearchClient(
+        api_key="test-key",
+        fallback_timeout_s=0.01,
+    )
+
+    async def fake_structured(*args, **kwargs):
+        return []
+
+    async def slow_duckduckgo(*args, **kwargs):
+        await asyncio.sleep(0.1)
+        return [{"url": "https://example.com/never"}]
+
+    client._search_zai_structured = fake_structured  # type: ignore[method-assign]
+    client._search_duckduckgo_html = slow_duckduckgo  # type: ignore[method-assign]
+
+    results = await client.search("SB 277 fiscal impact", count=3)
+
+    assert results == []
     await client.close()
