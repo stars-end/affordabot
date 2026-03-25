@@ -493,11 +493,18 @@ class AnalysisPipeline:
                     model_used=models.get("generate", "unknown"),
                 )
 
-            discovered_impacts = research_result.impact_candidates or []
+            wave2_impact_candidates = wave2_prerequisites.get("impact_candidates", [])
+            discovered_impacts = (research_result.impact_candidates or []) + (
+                wave2_impact_candidates if isinstance(wave2_impact_candidates, list) else []
+            )
+            combined_parameter_candidates = {
+                **(research_result.parameter_candidates or {}),
+                **(wave2_prerequisites.get("parameter_candidates", {}) or {}),
+            }
             impact_discovery_output = {
                 "impacts": discovered_impacts,
                 "wave2_prerequisites": {
-                    "impact_candidates": wave2_prerequisites.get("impact_candidates", []),
+                    "impact_candidates": wave2_impact_candidates,
                     "parameter_candidates": wave2_prerequisites.get(
                         "parameter_candidates", {}
                     ),
@@ -549,7 +556,7 @@ class AnalysisPipeline:
                 self._build_parameter_resolution_output(
                     impact_id=impact.get("impact_id", f"impact-{idx + 1}"),
                     selected_mode=decision["selected_mode"],
-                    parameter_candidates=research_result.parameter_candidates.get(
+                    parameter_candidates=combined_parameter_candidates.get(
                         impact.get("impact_id", f"impact-{idx + 1}"), {}
                     ),
                 )
@@ -1741,12 +1748,22 @@ Bill Text: {bill_text[:5000]}
         self, impact_candidate: Dict[str, Any]
     ) -> Dict[str, Any]:
         hints = impact_candidate.get("candidate_mode_hints", []) or []
-        supported = [hint for hint in hints if hint in {"direct_fiscal", "compliance_cost"}]
-        unsupported = [hint for hint in hints if hint not in {"direct_fiscal", "compliance_cost"}]
+        supported_modes = {
+            "direct_fiscal",
+            "compliance_cost",
+            "pass_through_incidence",
+            "adoption_take_up",
+        }
+        supported = [hint for hint in hints if hint in supported_modes]
+        unsupported = [hint for hint in hints if hint not in supported_modes]
         if "direct_fiscal" in supported:
             selected = "direct_fiscal"
         elif "compliance_cost" in supported:
             selected = "compliance_cost"
+        elif "pass_through_incidence" in supported:
+            selected = "pass_through_incidence"
+        elif "adoption_take_up" in supported:
+            selected = "adoption_take_up"
         else:
             selected = "qualitative_only"
         ambiguity = "unsupported" if unsupported and not supported else "clear"
@@ -1755,7 +1772,7 @@ Bill Text: {bill_text[:5000]}
             "candidate_modes": hints or ["qualitative_only"],
             "selected_mode": selected,
             "rejected_modes": [mode for mode in hints if mode != selected],
-            "selection_rationale": "Wave 1 deterministic mode selection from research hints.",
+            "selection_rationale": "Deterministic mode selection from research hints.",
             "ambiguity_status": ambiguity,
             "composition_candidate": False,
         }
@@ -1769,6 +1786,12 @@ Bill Text: {bill_text[:5000]}
         required_parameters = {
             "direct_fiscal": ["fiscal_amount"],
             "compliance_cost": ["population", "frequency", "time_burden", "wage_rate"],
+            "pass_through_incidence": ["total_levied_cost", "pass_through_rate"],
+            "adoption_take_up": [
+                "eligible_population",
+                "take_up_rate",
+                "benefit_per_capita",
+            ],
         }.get(selected_mode, [])
         resolved_parameters = {
             name: {
@@ -1807,11 +1830,20 @@ Bill Text: {bill_text[:5000]}
             and "wage_rate" not in literature_confidence
         ):
             literature_confidence["wage_rate"] = 0.0
-        dominant_uncertainty_parameters = (
-            ["fiscal_amount"]
-            if selected_mode == "direct_fiscal"
-            else [name for name in ["time_burden", "population", "unit_cost"] if name in parameter_candidates]
-        )
+        if selected_mode == "direct_fiscal":
+            dominant_uncertainty_parameters = ["fiscal_amount"]
+        elif selected_mode == "compliance_cost":
+            dominant_uncertainty_parameters = [
+                name
+                for name in ["time_burden", "population", "unit_cost"]
+                if name in parameter_candidates
+            ]
+        elif selected_mode == "pass_through_incidence":
+            dominant_uncertainty_parameters = ["pass_through_rate"]
+        elif selected_mode == "adoption_take_up":
+            dominant_uncertainty_parameters = ["take_up_rate"]
+        else:
+            dominant_uncertainty_parameters = []
         return {
             "impact_id": impact_id,
             "required_parameters": required_parameters,
@@ -1974,6 +2006,54 @@ Bill Text: {bill_text[:5000]}
                     central=total,
                     aggressive=sum(item["high"] for item in components),
                 )
+            elif mode == "pass_through_incidence":
+                if all(name in resolved for name in ["total_levied_cost", "pass_through_rate"]):
+                    levied_cost = resolved["total_levied_cost"]["value"]
+                    pass_through_rate = resolved["pass_through_rate"]["value"]
+                    central = levied_cost * pass_through_rate
+                    conservative_rate = max(0.0, pass_through_rate - 0.1)
+                    aggressive_rate = min(1.0, pass_through_rate + 0.1)
+                    impact.component_breakdown = [
+                        {
+                            "component_name": "pass_through_incidence_cost",
+                            "base": central,
+                            "low": levied_cost * conservative_rate,
+                            "high": levied_cost * aggressive_rate,
+                            "unit": "usd_per_year",
+                            "formula": "total_levied_cost * pass_through_rate",
+                        }
+                    ]
+                    impact.scenario_bounds = ScenarioBounds(
+                        conservative=levied_cost * conservative_rate,
+                        central=central,
+                        aggressive=levied_cost * aggressive_rate,
+                    )
+            elif mode == "adoption_take_up":
+                if all(
+                    name in resolved
+                    for name in ["eligible_population", "take_up_rate", "benefit_per_capita"]
+                ):
+                    eligible_population = resolved["eligible_population"]["value"]
+                    take_up_rate = resolved["take_up_rate"]["value"]
+                    benefit_per_capita = resolved["benefit_per_capita"]["value"]
+                    central = eligible_population * take_up_rate * benefit_per_capita
+                    conservative_rate = max(0.0, take_up_rate - 0.1)
+                    aggressive_rate = min(1.0, take_up_rate + 0.1)
+                    impact.component_breakdown = [
+                        {
+                            "component_name": "adoption_take_up_cost",
+                            "base": central,
+                            "low": eligible_population * conservative_rate * benefit_per_capita,
+                            "high": eligible_population * aggressive_rate * benefit_per_capita,
+                            "unit": "usd_per_year",
+                            "formula": "eligible_population * take_up_rate * benefit_per_capita",
+                        }
+                    ]
+                    impact.scenario_bounds = ScenarioBounds(
+                        conservative=eligible_population * conservative_rate * benefit_per_capita,
+                        central=central,
+                        aggressive=eligible_population * aggressive_rate * benefit_per_capita,
+                    )
 
             if impact.scenario_bounds is not None:
                 quantified_count += 1

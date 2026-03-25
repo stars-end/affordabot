@@ -22,6 +22,8 @@ class SourceTier(str, Enum):
 class ImpactMode(str, Enum):
     DIRECT_FISCAL = "direct_fiscal"
     COMPLIANCE_COST = "compliance_cost"
+    PASS_THROUGH_INCIDENCE = "pass_through_incidence"
+    ADOPTION_TAKE_UP = "adoption_take_up"
     QUALITATIVE_ONLY = "qualitative_only"
 
 

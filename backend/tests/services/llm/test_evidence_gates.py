@@ -85,18 +85,37 @@ class TestImpactLevelSufficiency:
         assert summary.quantification_eligible is False
         assert summary.sufficiency_state == SufficiencyState.QUALITATIVE_ONLY
 
-    def test_wave2_mode_hints_remain_blocked_in_wave1_gates(self):
+    def test_wave2_mode_quantifies_when_curated_literature_is_sufficient(self):
         summary = assess_impact_sufficiency(
             impact_id="imp-wave2",
             selected_mode="pass_through_incidence",
             parameter_resolution={
                 "required_parameters": ["total_levied_cost", "pass_through_rate"],
-                "resolved_parameters": {},
+                "resolved_parameters": {
+                    "total_levied_cost": {
+                        "name": "total_levied_cost",
+                        "value": 5_000_000.0,
+                        "source_url": "https://example.gov/levy",
+                        "source_excerpt": "The levy is $5M annually.",
+                    },
+                    "pass_through_rate": {
+                        "name": "pass_through_rate",
+                        "value": 0.7,
+                        "source_url": "https://doi.org/example",
+                        "source_excerpt": "Estimated pass-through rate is 70%.",
+                    },
+                },
                 "missing_parameters": [],
-                "source_hierarchy_status": {},
-                "excerpt_validation_status": {},
-                "literature_confidence": {},
-                "dominant_uncertainty_parameters": [],
+                "source_hierarchy_status": {
+                    "total_levied_cost": SourceHierarchyStatus.BILL_OR_REG_TEXT,
+                    "pass_through_rate": SourceHierarchyStatus.FISCAL_OR_REG_IMPACT_ANALYSIS,
+                },
+                "excerpt_validation_status": {
+                    "total_levied_cost": ExcerptValidationStatus.PASS,
+                    "pass_through_rate": ExcerptValidationStatus.PASS,
+                },
+                "literature_confidence": {"pass_through_rate": 0.7},
+                "dominant_uncertainty_parameters": ["pass_through_rate"],
             },
             parameter_validation={
                 "schema_valid": True,
@@ -107,9 +126,67 @@ class TestImpactLevelSufficiency:
             },
             retrieval_prerequisite_status=self._base_retrieval_status(),
         )
-        assert summary.selected_mode == ImpactMode.QUALITATIVE_ONLY
+        assert summary.selected_mode == ImpactMode.PASS_THROUGH_INCIDENCE
+        assert summary.quantification_eligible is True
+        assert summary.sufficiency_state == SufficiencyState.QUANTIFIED
+
+    def test_wave2_mode_fails_closed_on_low_literature_confidence(self):
+        summary = assess_impact_sufficiency(
+            impact_id="imp-wave2-low-conf",
+            selected_mode="adoption_take_up",
+            parameter_resolution={
+                "required_parameters": [
+                    "eligible_population",
+                    "take_up_rate",
+                    "benefit_per_capita",
+                ],
+                "resolved_parameters": {
+                    "eligible_population": {
+                        "name": "eligible_population",
+                        "value": 12000.0,
+                        "source_url": "https://example.gov/program",
+                        "source_excerpt": "12,000 households are eligible.",
+                    },
+                    "take_up_rate": {
+                        "name": "take_up_rate",
+                        "value": 0.42,
+                        "source_url": "https://example.org/lit",
+                        "source_excerpt": "Take-up benchmark is 42%.",
+                    },
+                    "benefit_per_capita": {
+                        "name": "benefit_per_capita",
+                        "value": 750.0,
+                        "source_url": "https://example.org/lit",
+                        "source_excerpt": "Benefit is $750 per participant.",
+                    },
+                },
+                "missing_parameters": [],
+                "source_hierarchy_status": {
+                    "eligible_population": SourceHierarchyStatus.BILL_OR_REG_TEXT,
+                    "take_up_rate": SourceHierarchyStatus.FISCAL_OR_REG_IMPACT_ANALYSIS,
+                    "benefit_per_capita": SourceHierarchyStatus.FISCAL_OR_REG_IMPACT_ANALYSIS,
+                },
+                "excerpt_validation_status": {
+                    "eligible_population": ExcerptValidationStatus.PASS,
+                    "take_up_rate": ExcerptValidationStatus.PASS,
+                    "benefit_per_capita": ExcerptValidationStatus.PASS,
+                },
+                "literature_confidence": {"take_up_rate": 0.3},
+                "dominant_uncertainty_parameters": ["take_up_rate"],
+            },
+            parameter_validation={
+                "schema_valid": True,
+                "arithmetic_valid": True,
+                "bound_construction_valid": True,
+                "claim_support_valid": True,
+                "validation_failures": [],
+            },
+            retrieval_prerequisite_status=self._base_retrieval_status(),
+        )
+        assert summary.selected_mode == ImpactMode.ADOPTION_TAKE_UP
         assert summary.quantification_eligible is False
         assert summary.sufficiency_state == SufficiencyState.QUALITATIVE_ONLY
+        assert FailureCode.PARAMETER_UNVERIFIABLE in summary.gate_failures
 
     def test_compliance_cost_frequency_source_hierarchy_fail_closed(self):
         summary = assess_impact_sufficiency(
