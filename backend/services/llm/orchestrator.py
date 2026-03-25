@@ -25,6 +25,7 @@ from schemas.analysis import (
     ImpactEvidence,
     LegislationImpact,
     ReviewCritique,
+    ScenarioBounds,
     SufficiencyState,
     SufficiencyBreakdown,
 )
@@ -1745,11 +1746,11 @@ Bill Text: {bill_text[:5000]}
                         "formula": "official fiscal amount",
                     }
                 ]
-                impact.scenario_bounds = {
-                    "conservative": total,
-                    "central": total,
-                    "aggressive": total,
-                }
+                impact.scenario_bounds = ScenarioBounds(
+                    conservative=total,
+                    central=total,
+                    aggressive=total,
+                )
             elif mode == "compliance_cost":
                 admin_total = 0.0
                 substantive_total = 0.0
@@ -1791,11 +1792,11 @@ Bill Text: {bill_text[:5000]}
                     )
                 total = admin_total + substantive_total
                 impact.component_breakdown = components
-                impact.scenario_bounds = {
-                    "conservative": sum(item["low"] for item in components),
-                    "central": total,
-                    "aggressive": sum(item["high"] for item in components),
-                }
+                impact.scenario_bounds = ScenarioBounds(
+                    conservative=sum(item["low"] for item in components),
+                    central=total,
+                    aggressive=sum(item["high"] for item in components),
+                )
 
             if impact.scenario_bounds is not None:
                 quantified_count += 1
@@ -1807,11 +1808,11 @@ Bill Text: {bill_text[:5000]}
         analysis.insufficiency_reason = self._breakdown_reason(breakdown) or None
         analysis.quantification_eligible = quantified_count > 0
         analysis.aggregate_scenario_bounds = (
-            {
-                "conservative": aggregate_low,
-                "central": aggregate_central,
-                "aggressive": aggregate_high,
-            }
+            ScenarioBounds(
+                conservative=aggregate_low,
+                central=aggregate_central,
+                aggressive=aggregate_high,
+            )
             if quantified_count > 0
             else None
         )
