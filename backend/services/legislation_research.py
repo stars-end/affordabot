@@ -17,7 +17,9 @@ Used by:
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import os
 import re
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional, Callable, Awaitable, Tuple
@@ -172,6 +174,15 @@ class LegislationResearchService:
         self.retrieval_backend = retrieval_backend
         self.embedding_fn = embedding_fn
         self.db = db_client
+        self.web_query_timeout_s = max(
+            0.1, float(os.getenv("LEG_RESEARCH_QUERY_TIMEOUT_S", "20"))
+        )
+        self.web_max_concurrency = max(
+            1, int(os.getenv("LEG_RESEARCH_WEB_MAX_CONCURRENCY", "3"))
+        )
+        self.web_max_queries = max(
+            1, int(os.getenv("LEG_RESEARCH_WEB_MAX_QUERIES", "8"))
+        )
 
         if not self.retrieval_backend:
             logger.warning(
@@ -322,31 +333,55 @@ class LegislationResearchService:
         bill_context: str,
     ) -> List[Dict[str, Any]]:
         """Perform web research for the bill."""
-        queries = self._build_web_queries(bill_id=bill_id, jurisdiction=jurisdiction)
+        del bill_context  # Currently unused; retained in signature for compatibility.
+        queries = self._build_web_queries(bill_id=bill_id, jurisdiction=jurisdiction)[
+            : self.web_max_queries
+        ]
         ranked_results = []
         seen_urls = set()
+        semaphore = asyncio.Semaphore(self.web_max_concurrency)
 
-        for idx, query in enumerate(queries):
+        async def run_query(
+            idx: int, query: str
+        ) -> Tuple[int, str, List[Dict[str, Any]], Optional[str]]:
             try:
-                raw_results = await self.search.search(query, count=5)
-                for item in self._normalize_web_results(raw_results):
-                    url = item.get("url") or item.get("link")
-                    if url and url not in seen_urls:
-                        ranked_results.append(
-                            (
-                                self._score_web_result(
-                                    item=item,
-                                    bill_id=bill_id,
-                                    jurisdiction=jurisdiction,
-                                    query=query,
-                                    discovery_index=idx,
-                                ),
-                                item,
-                            )
-                        )
-                        seen_urls.add(url)
+                async with semaphore:
+                    async with asyncio.timeout(self.web_query_timeout_s):
+                        raw_results = await self.search.search(query, count=5)
+                normalized = self._normalize_web_results(raw_results)
+                return idx, query, normalized, None
+            except asyncio.TimeoutError:
+                return idx, query, [], (
+                    f"timed out after {self.web_query_timeout_s:.2f}s"
+                )
             except Exception as e:
-                logger.warning(f"Web search failed for '{query}': {e}")
+                return idx, query, [], str(e)
+
+        tasks = [run_query(idx, query) for idx, query in enumerate(queries)]
+        results = await asyncio.gather(*tasks, return_exceptions=False)
+
+        for idx, query, normalized_results, error in sorted(
+            results, key=lambda item: item[0]
+        ):
+            if error:
+                logger.warning("Web search failed for %r: %s", query, error)
+                continue
+            for item in normalized_results:
+                url = item.get("url") or item.get("link")
+                if url and url not in seen_urls:
+                    ranked_results.append(
+                        (
+                            self._score_web_result(
+                                item=item,
+                                bill_id=bill_id,
+                                jurisdiction=jurisdiction,
+                                query=query,
+                                discovery_index=idx,
+                            ),
+                            item,
+                        )
+                    )
+                    seen_urls.add(url)
 
         ranked_results.sort(key=lambda ranked: ranked[0], reverse=True)
         return [item for _, item in ranked_results[:20]]

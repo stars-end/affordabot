@@ -8,6 +8,7 @@ Validates:
 - Jurisdiction/source filtering
 """
 
+import asyncio
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 
@@ -423,6 +424,47 @@ class TestWebResearchPrioritization:
         assert len(web_results) == 2
         assert web_results[0]["url"] == "https://lao.ca.gov/reports/sb277-fiscal"
         assert web_results[1]["url"] == "https://news.example.com/sb-277"
+
+    @pytest.mark.asyncio
+    async def test_web_research_returns_partial_results_when_some_queries_fail_or_timeout(self):
+        official_result = {
+            "title": "SB 277 Fiscal Analysis",
+            "url": "https://lao.ca.gov/reports/sb277-fiscal",
+            "snippet": "Fiscal impact and cost estimate for implementation.",
+        }
+
+        async def search_side_effect(query, count=5):
+            if "site:lao.ca.gov" in query:
+                await asyncio.sleep(0.01)
+                return [official_result]
+            if "site:leganalysis.dof.ca.gov" in query:
+                await asyncio.sleep(0.05)
+                return []
+            if "site:dof.ca.gov" in query:
+                raise RuntimeError("provider error")
+            await asyncio.sleep(0.01)
+            return []
+
+        search_client = MagicMock()
+        search_client.search = AsyncMock(side_effect=search_side_effect)
+
+        service = LegislationResearchService(
+            llm_client=_make_mock_llm_client(),
+            search_client=search_client,
+            retrieval_backend=_make_mock_retrieval_backend(),
+        )
+        service.web_query_timeout_s = 0.02
+        service.web_max_concurrency = 3
+        service.web_max_queries = 8
+
+        web_results = await service._web_research(
+            bill_id="SB 277",
+            jurisdiction="california",
+            bill_context="",
+        )
+
+        assert len(web_results) == 1
+        assert web_results[0]["url"] == "https://lao.ca.gov/reports/sb277-fiscal"
 
 
 class TestErrorHandling:
