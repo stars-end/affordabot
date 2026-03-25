@@ -20,6 +20,44 @@ from typing import Any, Dict, List
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 sys.path.append(str(BACKEND_ROOT))
 
+MECHANISM_REQUIRED_STEPS = [
+    "impact_discovery",
+    "mode_selection",
+    "parameter_resolution",
+    "sufficiency_gate",
+    "parameter_validation",
+]
+
+STEP_NAME_BY_INDEX = {
+    1: "ingestion_source",
+    2: "chunk_index",
+    3: "research_discovery",
+    4: "impact_discovery",
+    5: "mode_selection",
+    6: "parameter_resolution",
+    7: "sufficiency_gate",
+    8: "generate",
+    9: "parameter_validation",
+    10: "review",
+    11: "refine",
+    12: "persistence",
+    13: "notify_debug",
+}
+STEP_INDEX_BY_NAME = {name: idx for idx, name in STEP_NAME_BY_INDEX.items()}
+
+
+def _prefix_boundary(steps_summary: List[Dict[str, Any]], run_status: str) -> str | None:
+    for step in steps_summary:
+        if step["step_name"] != "notify_debug":
+            continue
+        output = step.get("output_result") or {}
+        boundary = output.get("prefix_boundary")
+        if boundary:
+            return str(boundary)
+    if run_status == "prefix_halted" and steps_summary:
+        return f"stopped_after_{steps_summary[-1]['step_name']}"
+    return None
+
 
 async def diagnose_bill(db, jurisdiction: str, bill_id: str) -> dict:
     """Run full truth diagnostic for a single bill."""
@@ -115,7 +153,7 @@ async def diagnose_bill(db, jurisdiction: str, bill_id: str) -> dict:
     # Stage 3: Legislation record
     leg_query = """
         SELECT l.id, l.bill_number, l.title, l.analysis_status,
-               l.sufficiency_state, l.insufficiency_reason, l.quantification_eligible, l.total_impact_p50
+               l.sufficiency_state, l.insufficiency_reason, l.quantification_eligible
         FROM legislation l
         LEFT JOIN jurisdictions j ON l.jurisdiction_id = j.id
         WHERE LOWER(j.name) LIKE '%' || LOWER($1) || '%'
@@ -168,13 +206,24 @@ async def diagnose_bill(db, jurisdiction: str, bill_id: str) -> dict:
         ORDER BY completed_at DESC NULLS LAST, started_at DESC
         LIMIT 1
     """
+    failed_pipe_query = """
+        SELECT id, status, started_at, completed_at, error, result, trigger_source
+        FROM pipeline_runs
+        WHERE LOWER(bill_id) LIKE LOWER($1)
+          AND status = 'failed'
+        ORDER BY completed_at DESC NULLS LAST, started_at DESC
+        LIMIT 1
+    """
     latest_pipe = await db._fetchrow(latest_pipe_query, f"%{bill_id}%")
     completed_pipe = await db._fetchrow(completed_pipe_query, f"%{bill_id}%")
-    pipe = latest_pipe or completed_pipe
+    failed_pipe = await db._fetchrow(failed_pipe_query, f"%{bill_id}%")
+    pipe = latest_pipe or completed_pipe or failed_pipe
     if pipe:
         selected_pipe = pipe
+        selected_head = "latest_run"
         if latest_pipe and latest_pipe.get("status") != "completed" and completed_pipe:
             selected_pipe = completed_pipe
+            selected_head = "latest_completed_run"
             result["issues"].append(
                 "Latest pipeline run not completed; audited latest completed run instead"
             )
@@ -210,21 +259,42 @@ async def diagnose_bill(db, jurisdiction: str, bill_id: str) -> dict:
             s["step_name"] == "persistence" and s["status"] == "completed"
             for s in steps_summary
         )
-        is_prefix_run = (
-            str(trigger_source).startswith("prefix:")
-            or selected_pipe["status"] == "prefix_halted"
-        )
+        is_prefix_run = str(trigger_source).startswith("prefix:") or selected_pipe.get(
+            "status"
+        ) == "prefix_halted"
+        is_fixture_run = str(trigger_source).startswith("fixture:") or selected_pipe.get(
+            "status"
+        ) == "fixture_invalid"
+        prefix_boundary = _prefix_boundary(steps_summary, selected_pipe.get("status"))
+        halted_step = None
+        if prefix_boundary and prefix_boundary.startswith("stopped_after_step_"):
+            try:
+                halted_step = STEP_NAME_BY_INDEX[
+                    int(prefix_boundary.rsplit("_", 1)[1])
+                ]
+            except (ValueError, KeyError):
+                halted_step = None
+        elif prefix_boundary and prefix_boundary.startswith("stopped_after_"):
+            halted_step = prefix_boundary.split("stopped_after_", 1)[1]
+        elif is_prefix_run and steps_summary:
+            halted_step = steps_summary[-1]["step_name"]
+
         missing_expected_steps: List[str] = []
-        required_steps = [
-            "impact_discovery",
-            "mode_selection",
-            "parameter_resolution",
-            "sufficiency_gate",
-            "parameter_validation",
-        ]
         if not is_prefix_run:
             missing_expected_steps = [
-                step_name for step_name in required_steps if step_name not in step_names
+                step_name
+                for step_name in MECHANISM_REQUIRED_STEPS
+                if step_name not in step_names
+            ]
+        expected_prefix_steps: List[str] = []
+        missing_prefix_steps: List[str] = []
+        if is_prefix_run and halted_step and halted_step in STEP_INDEX_BY_NAME:
+            boundary_index = STEP_INDEX_BY_NAME[halted_step]
+            expected_prefix_steps = [
+                STEP_NAME_BY_INDEX[idx] for idx in range(1, boundary_index + 1)
+            ]
+            missing_prefix_steps = [
+                step_name for step_name in expected_prefix_steps if step_name not in step_names
             ]
 
         step_map = {item["step_name"]: item for item in steps_summary}
@@ -301,12 +371,48 @@ async def diagnose_bill(db, jurisdiction: str, bill_id: str) -> dict:
                 else False,
             },
         }
+        generate_output = step_map.get("generate", {}).get("output_result", {}) or {}
+        validate_output = (
+            step_map.get("parameter_validation", {}).get("output_result", {}) or {}
+        )
+        persistence_output = (
+            step_map.get("persistence", {}).get("output_result", {}) or {}
+        )
+        persistence_truth_mismatches = []
+        if persistence_output and validate_output:
+            if validate_output.get("overall_sufficiency_state") and (
+                persistence_output.get("sufficiency_state")
+                != validate_output.get("overall_sufficiency_state")
+            ):
+                persistence_truth_mismatches.append(
+                    "persistence.sufficiency_state != parameter_validation.overall_sufficiency_state"
+                )
+            if "overall_quantification_eligible" in validate_output and (
+                persistence_output.get("quantification_eligible")
+                != validate_output.get("overall_quantification_eligible")
+            ):
+                persistence_truth_mismatches.append(
+                    "persistence.quantification_eligible != parameter_validation.overall_quantification_eligible"
+                )
+        if persistence_output and generate_output:
+            if (
+                persistence_output.get("aggregate_scenario_bounds")
+                != generate_output.get("aggregate_scenario_bounds")
+                and persistence_output.get("aggregate_scenario_bounds") is not None
+                and generate_output.get("aggregate_scenario_bounds") is not None
+            ):
+                persistence_truth_mismatches.append(
+                    "persistence.aggregate_scenario_bounds != generate.aggregate_scenario_bounds"
+                )
 
         result["stages"]["pipeline_run"] = {
             "run_id": str(selected_pipe["id"]),
             "status": selected_pipe["status"],
             "trigger_source": trigger_source,
             "is_prefix_run": is_prefix_run,
+            "is_fixture_run": is_fixture_run,
+            "prefix_boundary": prefix_boundary,
+            "halted_after_step": halted_step,
             "source_text_present": pipe_result.get("source_text_present"),
             "rag_chunks_retrieved": pipe_result.get("rag_chunks_retrieved", 0),
             "quantification_eligible": pipe_result.get("quantification_eligible"),
@@ -314,6 +420,21 @@ async def diagnose_bill(db, jurisdiction: str, bill_id: str) -> dict:
             "persistence_step_present": has_persistence,
             "mechanism_checks": mechanism_checks,
             "missing_expected_steps": missing_expected_steps,
+            "expected_prefix_steps": expected_prefix_steps,
+            "missing_prefix_steps": missing_prefix_steps,
+            "run_heads": {
+                "selected_head": selected_head,
+                "latest_run_id": str(latest_pipe["id"]) if latest_pipe else None,
+                "latest_completed_run_id": str(completed_pipe["id"])
+                if completed_pipe
+                else None,
+                "latest_failed_run_id": str(failed_pipe["id"]) if failed_pipe else None,
+            },
+            "persistence_truth": {
+                "checked": bool(persistence_output),
+                "matches_validated_payload": len(persistence_truth_mismatches) == 0,
+                "mismatches": persistence_truth_mismatches,
+            },
         }
         if latest_pipe:
             result["stages"]["pipeline_run"]["latest_run_id"] = str(latest_pipe["id"])
@@ -326,6 +447,10 @@ async def diagnose_bill(db, jurisdiction: str, bill_id: str) -> dict:
             result["issues"].append(
                 f"Missing expected mechanism steps: {', '.join(missing_expected_steps)}"
             )
+        if missing_prefix_steps:
+            result["issues"].append(
+                f"Prefix run missing expected boundary steps: {', '.join(missing_prefix_steps)}"
+            )
         invalid_checks = [
             name
             for name, check in mechanism_checks.items()
@@ -334,6 +459,10 @@ async def diagnose_bill(db, jurisdiction: str, bill_id: str) -> dict:
         if invalid_checks:
             result["issues"].append(
                 f"Mechanism step payloads invalid: {', '.join(invalid_checks)}"
+            )
+        if persistence_truth_mismatches:
+            result["issues"].append(
+                f"Persistence truth mismatch: {', '.join(persistence_truth_mismatches)}"
             )
     else:
         result["stages"]["pipeline_run"] = {"status": "missing"}

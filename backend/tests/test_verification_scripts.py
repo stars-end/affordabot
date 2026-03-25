@@ -99,7 +99,7 @@ class TestDiagnoseBillSqlGeneration:
         query = self._load_legislation_query()
         assert "sufficiency_state" in query
         assert "quantification_eligible" in query
-        assert "total_impact_p50" in query
+        assert "insufficiency_reason" in query
 
 
 class TestDiagnoseBillChunkLookup:
@@ -156,6 +156,20 @@ class TestDiagnoseBillChunkLookup:
             "Pipeline run should check for persistence step"
         )
         assert "pipeline_steps" in source, "Pipeline run should include pipeline_steps"
+
+    def test_pipeline_run_checks_mechanism_steps(self) -> None:
+        script = (
+            Path(__file__).resolve().parents[1]
+            / "scripts"
+            / "verification"
+            / "verify_pipeline_truth.py"
+        )
+        source = script.read_text()
+        assert "impact_discovery" in source
+        assert "mode_selection" in source
+        assert "parameter_resolution" in source
+        assert "parameter_validation" in source
+        assert "mechanism_checks" in source
 
 
 class TestRerunScriptTriggerSource:
