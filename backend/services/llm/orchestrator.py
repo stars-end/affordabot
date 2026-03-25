@@ -282,16 +282,6 @@ class AnalysisPipeline:
             raise PrefixFixtureError(
                 "fixture_invalid: stop_after_step must be >= start_at_step"
             )
-        is_prefix_run = any(
-            [
-                start_at_step != 1,
-                stop_after_step is not None,
-                bool(reuse_prior_step_outputs),
-                bool(fixture_mode),
-                bool(run_label),
-            ]
-        )
-
         trigger_with_label = trigger_source
         if run_label:
             trigger_with_label = f"prefix:{run_label}"
