@@ -224,6 +224,37 @@ class GlassBoxService:
             logger.error(f"Error fetching pipeline steps for {run_id}: {e}")
             return []
 
+    async def _get_pipeline_steps_for_exact_run(self, run_id: str) -> List[PipelineStep]:
+        """Fetch pipeline_steps for an already-resolved run id."""
+        if not self.db:
+            return []
+        rows = await self.db._fetch(
+            """
+                SELECT *
+                FROM pipeline_steps
+                WHERE run_id = $1
+                ORDER BY step_number ASC
+            """,
+            run_id,
+        )
+        steps: List[PipelineStep] = []
+        for r in rows:
+            steps.append(
+                PipelineStep(
+                    id=str(r["id"]),
+                    run_id=str(r["run_id"]),
+                    step_number=r["step_number"],
+                    step_name=r["step_name"],
+                    status=r["status"],
+                    input_context=self._json_or_value(r["input_context"]),
+                    output_result=self._json_or_value(r["output_result"]),
+                    model_info=self._json_or_value(r["model_config"]),
+                    duration_ms=r["duration_ms"],
+                    created_at=r["created_at"],
+                )
+            )
+        return steps
+
     async def get_traces_for_query(self, query_id: str) -> List[AgentStep]:
         """
         Retrieve all steps for a specific query execution (bill_id or run_id).
@@ -240,7 +271,9 @@ class GlassBoxService:
                     or heads.get("latest_run")
                 )
                 if target_run:
-                    pipeline_steps = await self.get_pipeline_steps(target_run["id"])
+                    pipeline_steps = await self._get_pipeline_steps_for_exact_run(
+                        target_run["id"]
+                    )
                     if pipeline_steps:
                         for step in pipeline_steps:
                             ts = 0
