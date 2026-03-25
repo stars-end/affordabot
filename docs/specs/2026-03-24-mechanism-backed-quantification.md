@@ -354,6 +354,15 @@ The implementation must use the following pipeline sequence:
 - grounded in participation / administrative-burden literature
 - Bass diffusion is explicitly out of scope
 
+### Wave 1 notes on literature confidence and composition
+- In Wave 1, `literature_confidence` is primarily informational.
+- Wave 1 deterministic gates should block on:
+  - `parameter_missing`
+  - `parameter_unverifiable`
+  - source hierarchy failures
+- Threshold-based `literature_confidence` gating becomes operationally important in Wave 2 when contested literature-backed parameters are introduced.
+- In Wave 1, `composition_candidate` is always `false` and `composition_note` is always `null` unless the implementation explicitly opts into a later-wave composition feature.
+
 ## Research and Retrieval Contract
 
 ### Research is now two jobs
@@ -559,6 +568,26 @@ The orchestrator must support a test/debug execution mode with controls equivale
 - `fixture_mode`
 - `run_label`
 
+Control semantics:
+- `start_at_step`
+  - 1-indexed and aligned to the canonical 13-step sequence in this spec
+- `stop_after_step`
+  - 1-indexed and inclusive
+  - if greater than the final defined step, the pipeline runs through the normal final step
+- `reuse_prior_step_outputs`
+  - accepts a `prior_run_id`
+  - loads `pipeline_steps` rows for that run up to `start_at_step - 1`
+  - validates each stored `output_result` JSONB payload against the expected step schema before reuse
+  - feeds the validated stored output forward as the next step's synthetic input context
+  - if any required prior step is missing or its payload fails schema validation, the prefix run fails with `fixture_invalid`
+- `fixture_mode`
+  - test-only mode that loads step outputs from a JSON fixture source instead of replaying a prior run
+  - fixture payloads must validate against the same per-step schemas as `reuse_prior_step_outputs`
+  - if fixture payloads are missing or invalid, the prefix run fails with `fixture_invalid`
+- `run_label`
+  - stored pre-MVP inside `pipeline_runs.trigger_source`
+  - format should be explicit and machine-readable, e.g. `prefix:through_mode_selection` or `fixture:generate_only`
+
 Prefix runs must:
 - persist to the normal `pipeline_runs` table
 - persist per-step data to the normal `pipeline_steps` table
@@ -575,6 +604,7 @@ The implementation must define deterministic expectations for each prefix bounda
 
 2. after `chunk_index`
 - chunk metadata exists and is provenance-compatible
+- at least one chunk is retrievable via vector similarity search for the bill identifier or equivalent query
 
 3. after `research_discovery`
 - retrieval coverage and coverage gaps are explicit
@@ -583,9 +613,12 @@ The implementation must define deterministic expectations for each prefix bounda
 4. after `impact_discovery`
 - candidate impacts exist with clause references and evidence refs
 - no quantified values or invented parameters appear yet
+- if `impact_discovery` returns zero candidates, the run fails closed with `impact_discovery_failed`
+- if it returns an unusually large candidate set, the run logs a warning and remains operator-reviewable in glassbox
 
 5. after `mode_selection`
 - each candidate impact has either one selected mode or an explicit fail-closed reason
+- unsupported modes in Wave 1 must route that impact to `qualitative_only`, not crash the pipeline
 
 6. after `parameter_resolution`
 - required parameters are partitioned into resolved vs. missing
@@ -620,6 +653,10 @@ Every prefix run must be inspectable through all three of:
   - mechanism-trace visibility where applicable
 - Slack:
   - short operator proof with deep links back to canonical truth
+
+Prefix-run Slack summaries must include an explicit boundary signal so operators can distinguish them from full runs, for example:
+- `Prefix run (stopped after mode_selection)`
+- `Fixture run (started at generate)`
 
 #### Step-owned implementation responsibility
 - `bd-hvji.11` must add the prefix-run harness and step stop/start controls
