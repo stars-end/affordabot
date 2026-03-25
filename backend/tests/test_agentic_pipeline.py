@@ -964,6 +964,94 @@ async def test_pipeline_allows_negative_zero_impact_resolution_claim():
 
 
 @pytest.mark.asyncio
+async def test_pipeline_zero_impact_discovery_completes_without_generation():
+    mock_llm = MagicMock(spec=LLMClient)
+    mock_search = MagicMock(spec=WebSearchClient)
+    mock_db = MagicMock()
+
+    mock_db.get_latest_scrape_for_bill = AsyncMock(return_value=None)
+    mock_db.create_pipeline_run = AsyncMock(return_value="run-1")
+    mock_db.get_or_create_jurisdiction = AsyncMock(return_value=1)
+    mock_db.store_legislation = AsyncMock(return_value=101)
+    mock_db.store_impacts = AsyncMock()
+    mock_db.complete_pipeline_run = AsyncMock()
+    mock_db.fail_pipeline_run = AsyncMock()
+    mock_db._execute = AsyncMock()
+
+    pipeline = AnalysisPipeline(mock_llm, mock_search, mock_db)
+
+    research_result = _make_research_result()
+    research_result.rag_chunks = [
+        MagicMock(
+            content="Symbolic resolution text with no direct fiscal mandate.",
+            score=0.88,
+            metadata={"source_url": "https://leginfo.legislature.ca.gov/sb277"},
+        )
+    ]
+    research_result.web_sources = [
+        {
+            "title": "SB 277 text",
+            "url": "https://leginfo.legislature.ca.gov/sb277",
+            "snippet": "Resolution language without direct fiscal mechanism.",
+        }
+    ]
+    research_result.evidence_envelopes = [
+        EvidenceEnvelope(
+            id="env-no-impact",
+            source_tool="retriever",
+            source_query="SB 277",
+            evidence=[
+                Evidence(
+                    id="rag-no-impact",
+                    kind="internal",
+                    label="SB 277 text",
+                    url="https://leginfo.legislature.ca.gov/sb277",
+                    content="",
+                    excerpt="Symbolic resolution text with no direct fiscal mandate.",
+                )
+            ],
+        )
+    ]
+    with patch.object(
+        pipeline.research_service,
+        "research",
+        new_callable=AsyncMock,
+        return_value=research_result,
+    ), patch.object(
+        pipeline,
+        "_generate_step",
+        new_callable=AsyncMock,
+        side_effect=AssertionError("generate step should be skipped for zero impacts"),
+    ), patch.object(
+        pipeline,
+        "_review_step",
+        new_callable=AsyncMock,
+        side_effect=AssertionError("review step should be skipped for zero impacts"),
+    ):
+        result = await pipeline.run(
+            "SB-277",
+            "Bill text with enough content to count as source text." * 8,
+            "California",
+            {"research": "m1", "generate": "m2", "review": "m3"},
+        )
+
+    assert result.bill_number == "SB-277"
+    assert result.impacts == []
+    assert result.quantification_eligible is False
+    mock_db.complete_pipeline_run.assert_called_once()
+
+    skipped_steps = {
+        call.args[3]: call.args[4]
+        for call in mock_db._execute.await_args_list
+        if len(call.args) >= 5
+    }
+    assert skipped_steps.get("generate") == "skipped"
+    assert skipped_steps.get("parameter_validation") == "skipped"
+    assert skipped_steps.get("review") == "skipped"
+    assert skipped_steps.get("refine") == "skipped"
+
+
+@pytest.mark.asyncio
 async def test_prefix_run_halts_with_prefix_halted_status():
     mock_llm = MagicMock(spec=LLMClient)
     mock_search = MagicMock(spec=WebSearchClient)

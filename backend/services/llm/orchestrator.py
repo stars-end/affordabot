@@ -678,6 +678,99 @@ class AnalysisPipeline:
                 )
                 return analysis
 
+            if (
+                not discovered_impacts
+                and breakdown.overall_sufficiency_state == SufficiencyState.QUALITATIVE_ONLY
+            ):
+                analysis = LegislationAnalysisResponse(
+                    bill_number=bill_id,
+                    title="",
+                    jurisdiction=jurisdiction,
+                    status="",
+                    sufficiency_state=breakdown.overall_sufficiency_state,
+                    insufficiency_reason=self._breakdown_reason(breakdown),
+                    quantification_eligible=False,
+                    impacts=[],
+                    aggregate_scenario_bounds=None,
+                    analysis_timestamp=datetime.now().isoformat(),
+                    model_used=models.get("generate", "unknown"),
+                )
+
+                skipped_reason = "no_impacts_discovered_fail_closed"
+                for step_name in ("generate", "parameter_validation", "review", "refine"):
+                    halted = await _checkpoint(
+                        step_name,
+                        {"skipped": True, "reason": skipped_reason},
+                        status="skipped",
+                        input_context={"bill_id": bill_id},
+                        model_info={"model": "deterministic"},
+                    )
+                    if halted:
+                        return analysis
+
+                persistence = await self._complete_pipeline_run(
+                    run_id,
+                    bill_id,
+                    bill_text,
+                    analysis,
+                    ReviewCritique(
+                        passed=False,
+                        critique="Skipped: no impacts discovered",
+                        missing_impacts=[],
+                        factual_errors=[],
+                    ),
+                    jurisdiction,
+                    breakdown=breakdown,
+                    rag_chunks_retrieved=len(research_result.rag_chunks),
+                    retriever_invoked=research_result.retriever_invoked,
+                )
+
+                halted = await _checkpoint(
+                    "persistence",
+                    {
+                        "legislation_id": persistence.get("legislation_id"),
+                        "analysis_stored": persistence.get("analysis_stored", False),
+                        "impacts_count": persistence.get("impacts_count", 0),
+                        "sufficiency_state": analysis.sufficiency_state.value
+                        if analysis.sufficiency_state
+                        else None,
+                        "quantification_eligible": analysis.quantification_eligible,
+                        "aggregate_scenario_bounds": None,
+                    },
+                    status="completed" if persistence.get("analysis_stored") else "failed",
+                    input_context={"bill_id": bill_id, "jurisdiction": jurisdiction},
+                    model_info={"model": "deterministic", "provider": "postgres"},
+                )
+                if halted:
+                    return analysis
+
+                notify_output = {
+                    "status": "emitted" if trigger_source == "manual" else "skipped",
+                    "prefix_boundary": f"stopped_after_step_{stop_after_step}"
+                    if stop_after_step is not None
+                    else None,
+                }
+                halted = await _checkpoint(
+                    "notify_debug",
+                    notify_output,
+                    status="completed",
+                    input_context={"trigger_source": trigger_with_label},
+                    model_info={"model": "deterministic"},
+                )
+                if halted:
+                    return analysis
+
+                await self._emit_slack_summary(
+                    run_id,
+                    bill_id,
+                    jurisdiction,
+                    "completed",
+                    trigger_with_label,
+                    analysis,
+                )
+
+                return analysis
+
             start_ts = datetime.now()
             analysis = await self._generate_step(
                 bill_id,
