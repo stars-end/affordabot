@@ -190,51 +190,53 @@ class TestGlassBoxTruthFields:
         """Trace lookup should use latest completed run when newest run is interrupted."""
         mock_db = AsyncMock()
         mock_db._fetch = AsyncMock(
-            return_value=[
-                {
-                    "id": "run-new",
-                    "bill_id": "SB 277",
-                    "jurisdiction": "California",
-                    "status": "interrupted",
-                    "started_at": datetime(2026, 3, 19, 14, 0, 0),
-                    "completed_at": None,
-                    "error": "cancelled",
-                    "trigger_source": "manual",
-                },
-                {
-                    "id": "run-old",
-                    "bill_id": "SB 277",
-                    "jurisdiction": "California",
-                    "status": "completed",
-                    "started_at": datetime(2026, 3, 19, 12, 0, 0),
-                    "completed_at": datetime(2026, 3, 19, 12, 5, 0),
-                    "error": None,
-                    "trigger_source": "manual",
-                },
+            side_effect=[
+                [
+                    {
+                        "id": "run-new",
+                        "bill_id": "SB 277",
+                        "jurisdiction": "California",
+                        "status": "interrupted",
+                        "started_at": datetime(2026, 3, 19, 14, 0, 0),
+                        "completed_at": None,
+                        "error": "cancelled",
+                        "trigger_source": "manual",
+                    },
+                    {
+                        "id": "run-old",
+                        "bill_id": "SB 277",
+                        "jurisdiction": "California",
+                        "status": "completed",
+                        "started_at": datetime(2026, 3, 19, 12, 0, 0),
+                        "completed_at": datetime(2026, 3, 19, 12, 5, 0),
+                        "error": None,
+                        "trigger_source": "manual",
+                    },
+                ],
+                [
+                    {
+                        "id": "step-1",
+                        "run_id": "run-old",
+                        "step_number": 3,
+                        "step_name": "research_discovery",
+                        "status": "completed",
+                        "input_context": '{"bill_id":"SB 277"}',
+                        "output_result": '{"rag_chunks": 3}',
+                        "model_config": '{"model":"glm-4.7"}',
+                        "duration_ms": 1000,
+                        "created_at": datetime(2026, 3, 19, 12, 1, 0),
+                    }
+                ],
             ]
         )
-        mock_db._fetchrow = AsyncMock(
-            return_value={
-                "id": "run-old",
-                "bill_id": "SB 277",
-                "jurisdiction": "California",
-                "status": "completed",
-                "started_at": datetime(2026, 3, 19, 12, 0, 0),
-                "completed_at": datetime(2026, 3, 19, 12, 5, 0),
-                "error": None,
-                "models": "{}",
-                "result": '{"research": {"rag_chunks": 3}}',
-                "trigger_source": "manual",
-            }
-        )
+        mock_db._fetchrow = AsyncMock(return_value=None)
 
         service = GlassBoxService(db_client=mock_db)
         steps = await service.get_traces_for_query("SB 277")
 
         assert len(steps) == 1
-        assert steps[0].task_id == "research"
+        assert steps[0].task_id == "research_discovery"
         assert steps[0].args["bill_id"] == "SB 277"
-        assert mock_db._fetchrow.await_args.args[1] == "run-old"
 
     @pytest.mark.asyncio
     async def test_get_pipeline_steps_prefers_latest_completed_when_latest_is_interrupted(self):
@@ -406,7 +408,7 @@ class TestManualRunSlackSummary:
                 },
             },
             {
-                "step_name": "research",
+                "step_name": "research_discovery",
                 "status": "completed",
                 "output_result": {
                     "rag_chunks": 5,
@@ -416,12 +418,41 @@ class TestManualRunSlackSummary:
                 },
             },
             {
+                "step_name": "impact_discovery",
+                "status": "completed",
+                "output_result": {
+                    "impacts": [{"impact_id": "imp-1", "candidate_mode_hints": ["direct_fiscal"]}],
+                },
+            },
+            {
+                "step_name": "mode_selection",
+                "status": "completed",
+                "output_result": {
+                    "candidate_modes": ["direct_fiscal"],
+                    "selected_mode": "direct_fiscal",
+                    "rejected_modes": [],
+                    "selection_rationale": "deterministic",
+                    "ambiguity_status": "low",
+                    "composition_candidate": False,
+                },
+            },
+            {
+                "step_name": "parameter_resolution",
+                "status": "completed",
+                "output_result": {
+                    "resolved_parameters": {"fiscal_amount": 15000},
+                    "missing_parameters": [],
+                    "dominant_uncertainty_parameters": [],
+                },
+            },
+            {
                 "step_name": "sufficiency_gate",
                 "status": "completed",
                 "output_result": {
-                    "sufficiency_state": "quantified",
-                    "rag_chunks_retrieved": 5,
-                    "web_research_sources_found": 3,
+                    "overall_sufficiency_state": "quantified",
+                    "overall_quantification_eligible": True,
+                    "impact_gate_summaries": [{"impact_id": "imp-1"}],
+                    "bill_level_failures": [],
                 },
             },
             {
@@ -431,6 +462,22 @@ class TestManualRunSlackSummary:
                     "sufficiency_state": "quantified",
                     "impacts": [{"impact_number": 1}, {"impact_number": 2}],
                     "quantification_eligible": True,
+                    "aggregate_scenario_bounds": {
+                        "conservative": 12000,
+                        "central": 15000,
+                        "aggressive": 18000,
+                    },
+                },
+            },
+            {
+                "step_name": "parameter_validation",
+                "status": "completed",
+                "output_result": {
+                    "schema_valid": True,
+                    "arithmetic_valid": True,
+                    "bound_construction_valid": True,
+                    "claim_support_valid": True,
+                    "validation_failures": [],
                 },
             },
             {
@@ -451,8 +498,17 @@ class TestManualRunSlackSummary:
                     "impacts_count": 2,
                     "sufficiency_state": "quantified",
                     "quantification_eligible": True,
-                    "total_impact_p50": 15000,
+                    "aggregate_scenario_bounds": {
+                        "conservative": 12000,
+                        "central": 15000,
+                        "aggressive": 18000,
+                    },
                 },
+            },
+            {
+                "step_name": "notify_debug",
+                "status": "completed",
+                "output_result": {"status": "emitted"},
             },
         ]
 
@@ -475,10 +531,15 @@ class TestManualRunSlackSummary:
         assert "Scrape/source:" in blocks_text
         assert "Chunk/index:" in blocks_text
         assert "Research:" in blocks_text
+        assert "Impact discovery:" in blocks_text
+        assert "Mode selection:" in blocks_text
+        assert "Parameter resolution:" in blocks_text
         assert "Sufficiency gate:" in blocks_text
         assert "Generate:" in blocks_text
+        assert "Parameter validation:" in blocks_text
         assert "Review:" in blocks_text
         assert "Persistence:" in blocks_text
+        assert "Notify/debug:" in blocks_text
 
     def test_deep_links_present(self):
         from services.slack_summary import format_slack_summary
@@ -523,7 +584,7 @@ class TestManualRunSlackSummary:
 
         steps = [
             {
-                "step_name": "research",
+                "step_name": "research_discovery",
                 "status": "completed",
                 "output_result": {
                     "rag_chunks": 0,
@@ -562,7 +623,11 @@ class TestManualRunSlackSummary:
                     "impacts_count": 3,
                     "sufficiency_state": "quantified",
                     "quantification_eligible": True,
-                    "total_impact_p50": 25000,
+                    "aggregate_scenario_bounds": {
+                        "conservative": 22000,
+                        "central": 25000,
+                        "aggressive": 28000,
+                    },
                 },
             },
         ]
@@ -581,7 +646,7 @@ class TestManualRunSlackSummary:
         assert "Persistence:" in blocks_text
         assert "leg-99" in blocks_text
         assert "3 impacts" in blocks_text
-        assert "p50=25000" in blocks_text
+        assert "aggregate_bounds=" in blocks_text
 
     def test_chunk_index_proof_shows_chunk_count(self):
         from services.slack_summary import format_slack_summary

@@ -551,7 +551,17 @@ async def get_bill_truth(
             )
             analysis = result.get("analysis", {})
             trigger_source = row.get("trigger_source", "manual")
-            is_prefix_run = str(trigger_source).startswith("prefix:")
+            is_prefix_run = str(trigger_source).startswith("prefix:") or row.get(
+                "status"
+            ) == "prefix_halted"
+            is_fixture_run = str(trigger_source).startswith("fixture:") or row.get(
+                "status"
+            ) == "fixture_invalid"
+            run_label = None
+            if str(trigger_source).startswith("prefix:"):
+                run_label = str(trigger_source).split("prefix:", 1)[1]
+            elif str(trigger_source).startswith("fixture:"):
+                run_label = str(trigger_source).split("fixture:", 1)[1]
             return {
                 "run_id": str(row["id"]),
                 "status": row["status"],
@@ -562,9 +572,8 @@ async def get_bill_truth(
                 "error": row.get("error"),
                 "trigger_source": trigger_source,
                 "is_prefix_run": is_prefix_run,
-                "run_label": str(trigger_source).split("prefix:", 1)[1]
-                if is_prefix_run
-                else None,
+                "is_fixture_run": is_fixture_run,
+                "run_label": run_label,
                 "sufficiency_breakdown": result.get("sufficiency_breakdown"),
                 "source_text_present": result.get("source_text_present"),
                 "rag_chunks_retrieved": result.get("rag_chunks_retrieved", 0),
@@ -581,11 +590,19 @@ async def get_bill_truth(
         )
 
         latest_run_info = _pipe_info(latest_run)
-        if latest_run_info:
-            run_details = await glass_box.get_pipeline_run(latest_run_info["run_id"])
+
+        async def _enrich_run(run_info):
+            if not run_info:
+                return None
+            run_details = await glass_box.get_pipeline_run(run_info["run_id"])
             if run_details:
-                latest_run_info["prefix_boundary"] = run_details.get("prefix_boundary")
-                latest_run_info["mechanism_trace"] = run_details.get("mechanism_trace")
+                run_info["prefix_boundary"] = run_details.get("prefix_boundary")
+                run_info["mechanism_trace"] = run_details.get("mechanism_trace")
+            return run_info
+
+        latest_run_info = await _enrich_run(latest_run_info)
+        latest_completed_info = await _enrich_run(_pipe_info(latest_completed_run))
+        latest_failed_info = await _enrich_run(_pipe_info(latest_failed_run))
 
         return {
             "jurisdiction": jurisdiction,
@@ -595,8 +612,8 @@ async def get_bill_truth(
             "pipeline_run": latest_run_info,
             "pipeline_runs": {
                 "latest_run": latest_run_info,
-                "latest_completed_run": _pipe_info(latest_completed_run),
-                "latest_failed_run": _pipe_info(latest_failed_run),
+                "latest_completed_run": latest_completed_info,
+                "latest_failed_run": latest_failed_info,
             },
         }
     except Exception as e:

@@ -244,6 +244,7 @@ def test_bill_truth_includes_latest_run_heads(client, mock_db):
             "completed_at": None,
             "error": "cancelled",
             "result": '{"rag_chunks_retrieved": 0}',
+            "trigger_source": "prefix:ingestion-through-mode",
         },
         {
             "id": "run-failed",
@@ -253,6 +254,7 @@ def test_bill_truth_includes_latest_run_heads(client, mock_db):
             "completed_at": "2026-03-22T13:01:00Z",
             "error": "timeout",
             "result": '{"rag_chunks_retrieved": 0}',
+            "trigger_source": "manual",
         },
         {
             "id": "run-completed",
@@ -262,19 +264,34 @@ def test_bill_truth_includes_latest_run_heads(client, mock_db):
             "completed_at": "2026-03-22T12:05:00Z",
             "error": None,
             "result": '{"rag_chunks_retrieved": 3, "quantification_eligible": false}',
+            "trigger_source": "manual",
         },
     ]
 
     client.set_auth("admin")
-    response = client.get("/api/admin/bill-truth/california/SB-277")
+    with patch.object(
+        GlassBoxService,
+        "get_pipeline_run",
+        new=AsyncMock(
+            return_value={
+                "prefix_boundary": "stopped_after_mode_selection",
+                "mechanism_trace": {"executed_steps": ["ingestion_source", "chunk_index"]},
+            }
+        ),
+    ):
+        response = client.get("/api/admin/bill-truth/california/SB-277")
     assert response.status_code == 200
     body = response.json()
 
     assert body["pipeline_runs"]["latest_run"]["run_id"] == "run-new"
     assert body["pipeline_runs"]["latest_run"]["status"] == "interrupted"
+    assert body["pipeline_runs"]["latest_run"]["is_prefix_run"] is True
+    assert body["pipeline_runs"]["latest_run"]["run_label"] == "ingestion-through-mode"
     assert (
         body["pipeline_runs"]["latest_completed_run"]["run_id"] == "run-completed"
     )
     assert body["pipeline_runs"]["latest_failed_run"]["run_id"] == "run-failed"
     # Backward compatible alias remains the true latest run.
     assert body["pipeline_run"]["run_id"] == "run-new"
+    assert body["pipeline_run"]["prefix_boundary"] == "stopped_after_mode_selection"
+    assert "mechanism_trace" in body["pipeline_run"]

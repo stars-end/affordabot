@@ -40,6 +40,21 @@ STAGE_PROOF_BUILDERS = {
 }
 
 _BUILDERS = {}
+STEP_NAME_BY_INDEX = {
+    1: "ingestion_source",
+    2: "chunk_index",
+    3: "research_discovery",
+    4: "impact_discovery",
+    5: "mode_selection",
+    6: "parameter_resolution",
+    7: "sufficiency_gate",
+    8: "generate",
+    9: "parameter_validation",
+    10: "review",
+    11: "refine",
+    12: "persistence",
+    13: "notify_debug",
+}
 
 
 def build_audit_url(run_id: str) -> str:
@@ -51,6 +66,38 @@ def build_bill_truth_url(jurisdiction: str, bill_id: str) -> str:
     base = ADMIN_BASE_URL.rstrip("/")
     jur_slug = jurisdiction.lower().replace(" ", "-")
     return f"{base}/admin/bill-truth/{jur_slug}/{bill_id}"
+
+
+def _extract_prefix_boundary(status: str, steps: List[Dict[str, Any]]) -> Optional[str]:
+    boundary = next(
+        (
+            (step.get("output_result") or {}).get("prefix_boundary")
+            for step in steps
+            if step.get("step_name") == "notify_debug"
+            and (step.get("output_result") or {}).get("prefix_boundary")
+        ),
+        None,
+    )
+    if boundary:
+        return str(boundary)
+    if status == "prefix_halted" and steps:
+        return f"stopped_after_{steps[-1].get('step_name', 'unknown')}"
+    return None
+
+
+def _human_boundary(boundary: Optional[str]) -> Optional[str]:
+    if not boundary:
+        return None
+    if boundary.startswith("stopped_after_step_"):
+        try:
+            step_idx = int(boundary.rsplit("_", 1)[1])
+        except ValueError:
+            return boundary
+        step_name = STEP_NAME_BY_INDEX.get(step_idx, f"step_{step_idx}")
+        return f"stopped after {step_name}"
+    if boundary.startswith("stopped_after_"):
+        return f"stopped after {boundary.split('stopped_after_', 1)[1]}"
+    return boundary
 
 
 def format_slack_summary(
@@ -93,6 +140,8 @@ def format_slack_summary(
             pass
 
     is_prefix_run = str(trigger_source).startswith("prefix:") or status == "prefix_halted"
+    is_fixture_run = str(trigger_source).startswith("fixture:") or status == "fixture_invalid"
+    is_debug_run = is_prefix_run or is_fixture_run
     if status == "completed":
         status_emoji = "✅"
     elif status == "prefix_halted":
@@ -103,25 +152,18 @@ def format_slack_summary(
     run_label = None
     if str(trigger_source).startswith("prefix:"):
         run_label = str(trigger_source).split("prefix:", 1)[1]
+    elif str(trigger_source).startswith("fixture:"):
+        run_label = str(trigger_source).split("fixture:", 1)[1]
 
-    if is_prefix_run:
-        boundary = next(
-            (
-                (step.get("output_result") or {}).get("prefix_boundary")
-                for step in steps
-                if step.get("step_name") == "notify_debug"
-                and (step.get("output_result") or {}).get("prefix_boundary")
-            ),
-            None,
-        )
-        title = (
-            f"{status_emoji} Prefix pipeline: {bill_id} ({jurisdiction})"
-            f"{duration_str}"
-        )
+    boundary = _extract_prefix_boundary(status, steps)
+    human_boundary = _human_boundary(boundary)
+    if is_debug_run:
+        run_kind = "Prefix run" if is_prefix_run else "Fixture run"
+        title = f"{status_emoji} {run_kind}: {bill_id} ({jurisdiction}){duration_str}"
         if run_label:
             title += f" [{run_label}]"
-        if boundary:
-            title += f" [{boundary}]"
+        if human_boundary:
+            title += f" [{human_boundary}]"
     else:
         title = f"{status_emoji} Manual pipeline: {bill_id} ({jurisdiction}){duration_str}"
 
@@ -137,8 +179,12 @@ def format_slack_summary(
         if suff:
             sufficiency_note = f"\n*Sufficiency*: `{suff}`"
 
+    boundary_note = ""
+    if is_debug_run and human_boundary:
+        boundary_note = f"\n*Boundary*: `{human_boundary}`"
+
     message = (
-        f"{proof_text}{sufficiency_note}\n\n"
+        f"{proof_text}{sufficiency_note}{boundary_note}\n\n"
         f"<{audit_url}|Full Audit Trace> · "
         f"<{bill_url}|Bill Truth>"
     )
@@ -388,6 +434,8 @@ def _build_review_proof(status: str, output: Dict) -> str:
 
 
 def _build_refine_proof(status: str, output: Dict) -> str:
+    if status == "skipped":
+        return "Refine: skipped (review passed)."
     impacts = len(output.get("impacts", []))
     return f"Refine: {impacts} impacts after revision."
 
