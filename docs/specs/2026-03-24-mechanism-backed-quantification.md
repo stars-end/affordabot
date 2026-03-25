@@ -541,6 +541,91 @@ The trace must make it easy to answer:
 - persisted impacts conform to the new schema
 - admin/glassbox can expose mechanism-backed truth
 
+### Sequential prefix-testing methodology
+The implementation must support sequential prefix testing of the pipeline so operators can inspect:
+- step `1`
+- steps `1+2`
+- steps `1+2+3`
+- ...
+- steps `1+2+...+N`
+
+This is a required testing/debugging methodology, not an optional convenience.
+
+#### Prefix-run harness contract
+The orchestrator must support a test/debug execution mode with controls equivalent to:
+- `start_at_step`
+- `stop_after_step`
+- `reuse_prior_step_outputs`
+- `fixture_mode`
+- `run_label`
+
+Prefix runs must:
+- persist to the normal `pipeline_runs` table
+- persist per-step data to the normal `pipeline_steps` table
+- remain visible in admin/glassbox
+- emit a Slack debug summary when `notify_debug` is reached or when the prefix run stops early in debug mode
+
+Prefix runs must not require a second audit store or bespoke sidecar artifact format.
+
+#### Required per-prefix assertions
+The implementation must define deterministic expectations for each prefix boundary:
+
+1. after `ingestion_source`
+- raw source provenance is present or explicitly missing
+
+2. after `chunk_index`
+- chunk metadata exists and is provenance-compatible
+
+3. after `research_discovery`
+- retrieval coverage and coverage gaps are explicit
+- parameter candidates and mode hints are inspectable
+
+4. after `impact_discovery`
+- candidate impacts exist with clause references and evidence refs
+- no quantified values or invented parameters appear yet
+
+5. after `mode_selection`
+- each candidate impact has either one selected mode or an explicit fail-closed reason
+
+6. after `parameter_resolution`
+- required parameters are partitioned into resolved vs. missing
+- source hierarchy status and excerpt validation status are explicit
+
+7. after `sufficiency_gate`
+- gate failures and quantification eligibility are machine-readable
+
+8. after `generate`
+- generated payload matches the new schema shape but is not treated as trusted until parameter validation succeeds
+
+9. after `parameter_validation`
+- arithmetic, schema, bound-construction, and claim-support checks are explicit
+- repairable vs. structural failures are distinguishable
+
+10. after `review` / `refine`
+- review comments are inspectable without replacing deterministic gate truth
+
+11. after `persistence`
+- persisted canonical truth matches the validated payload
+
+12. after `notify_debug`
+- Slack one-line proof matches the step truth exposed in admin/glassbox
+
+#### Required inspection surfaces for every prefix run
+Every prefix run must be inspectable through all three of:
+- DB truth:
+  - `pipeline_runs`
+  - `pipeline_steps`
+- admin/glassbox:
+  - per-step input/output inspection
+  - mechanism-trace visibility where applicable
+- Slack:
+  - short operator proof with deep links back to canonical truth
+
+#### Step-owned implementation responsibility
+- `bd-hvji.11` must add the prefix-run harness and step stop/start controls
+- `bd-hvji.12` must make Slack, admin/glassbox, and `verify_pipeline_truth.py` understand prefix runs and partial-step traces
+- `bd-hvji.14` must use the prefix-run methodology as part of the full post-implementation audit
+
 ### Required tests
 1. unit tests for impact discovery output shape
 2. unit tests for mode selection
@@ -550,8 +635,11 @@ The trace must make it easy to answer:
 6. unit tests for dominant-parameter scenario construction
 7. integration tests for `direct_fiscal`
 8. integration tests for `compliance_cost`
-9. Slack summary tests for mode-aware proofs
-10. admin/glassbox serialization tests for mechanism trace payloads
+9. prefix-run tests for `stop_after_step` at every major pipeline boundary
+10. prefix-run tests for `reuse_prior_step_outputs`
+11. Slack summary tests for mode-aware proofs, including partial prefix runs
+12. admin/glassbox serialization tests for mechanism trace payloads and prefix-run visibility
+13. verifier tests for mechanism-backed step coverage and partial-run diagnostics
 
 ## Risks
 - Wave 1 `compliance_cost` may fail closed frequently until BLS/CBP-backed retrieval is richer.
