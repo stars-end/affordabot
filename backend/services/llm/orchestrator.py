@@ -666,6 +666,7 @@ class AnalysisPipeline:
             if (
                 not discovered_impacts
                 and breakdown.overall_sufficiency_state == SufficiencyState.QUALITATIVE_ONLY
+                and source_text_present
             ):
                 analysis = LegislationAnalysisResponse(
                     bill_number=bill_id,

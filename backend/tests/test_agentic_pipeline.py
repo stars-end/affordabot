@@ -455,11 +455,15 @@ async def test_review_prompt_includes_evidence_excerpts():
 
     analysis_obj = _make_legislation_response()
     review_obj = _make_review_response()
+    refined_obj = _make_legislation_response()
+    final_review_obj = _make_review_response()
 
     mock_llm.chat_completion = AsyncMock(
         side_effect=[
             MagicMock(content=analysis_obj.model_dump_json()),
             MagicMock(content=review_obj.model_dump_json()),
+            MagicMock(content=refined_obj.model_dump_json()),
+            MagicMock(content=final_review_obj.model_dump_json()),
         ]
     )
 
@@ -473,13 +477,9 @@ async def test_review_prompt_includes_evidence_excerpts():
 
     pipeline = AnalysisPipeline(mock_llm, mock_search, mock_db)
     research_result = _make_research_result()
-    research_result.rag_chunks = [
-        MagicMock(
-            content="Bill text excerpt",
-            score=0.8,
-            metadata={"source_url": "https://leginfo.legislature.ca.gov/sb277"},
-        )
-    ]
+    excerpt = (
+        "Section 1 requires officers to advise consent is voluntary and record consent."
+    )
     research_result.evidence_envelopes = [
         EvidenceEnvelope(
             id="env-1",
@@ -492,11 +492,17 @@ async def test_review_prompt_includes_evidence_excerpts():
                     label="SB 277 source",
                     url="https://leginfo.legislature.ca.gov/sb277",
                     content="",
-                    excerpt="Section 1 requires officers to advise consent is voluntary and record consent.",
+                    excerpt=excerpt,
                 )
             ],
         )
     ]
+    _seed_direct_fiscal_candidate(
+        research_result,
+        amount=50.0,
+        source_url="https://leginfo.legislature.ca.gov/sb277",
+        source_excerpt=excerpt,
+    )
 
     with patch.object(
         pipeline.research_service,
