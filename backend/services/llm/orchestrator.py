@@ -464,6 +464,9 @@ class AnalysisPipeline:
                 bill_id, bill_text, jurisdiction, models["research"]
             )
             duration = int((datetime.now() - start_ts).total_seconds() * 1000)
+            wave2_prerequisites = self._serialize_wave2_prerequisites(
+                getattr(research_result, "wave2_prerequisites", {}) or {}
+            )
             research_output = {
                 "rag_chunks": len(research_result.rag_chunks),
                 "web_sources": len(research_result.web_sources),
@@ -471,9 +474,7 @@ class AnalysisPipeline:
                 "evidence_details": self._serialize_evidence_envelopes(
                     research_result
                 ),
-                "wave2_prerequisites": (
-                    getattr(research_result, "wave2_prerequisites", {}) or {}
-                ),
+                "wave2_prerequisites": wave2_prerequisites,
                 "sufficiency_breakdown": research_result.sufficiency_breakdown,
                 "is_sufficient": research_result.is_sufficient,
                 "insufficiency_reason": research_result.insufficiency_reason,
@@ -493,7 +494,6 @@ class AnalysisPipeline:
                 )
 
             discovered_impacts = research_result.impact_candidates or []
-            wave2_prerequisites = getattr(research_result, "wave2_prerequisites", {}) or {}
             impact_discovery_output = {
                 "impacts": discovered_impacts,
                 "wave2_prerequisites": {
@@ -1315,6 +1315,66 @@ Evidence Excerpts:
                 }
             )
         return serialized
+
+    def _serialize_wave2_prerequisites(
+        self, payload: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Ensure wave2 prerequisite payload is JSON-safe for checkpoint persistence."""
+        impact_candidates = payload.get("impact_candidates", [])
+        if not isinstance(impact_candidates, list):
+            impact_candidates = []
+        parameter_candidates = payload.get("parameter_candidates", {})
+        if not isinstance(parameter_candidates, dict):
+            parameter_candidates = {}
+
+        curated_evidence = []
+        raw_envelopes = payload.get("curated_evidence_envelopes", [])
+        if isinstance(raw_envelopes, list):
+            for envelope in raw_envelopes:
+                if hasattr(envelope, "model_dump"):
+                    envelope_dict = envelope.model_dump(mode="json")
+                elif isinstance(envelope, dict):
+                    envelope_dict = dict(envelope)
+                else:
+                    continue
+                items = []
+                for evidence in envelope_dict.get("evidence", []) or []:
+                    if hasattr(evidence, "model_dump"):
+                        evidence_dict = evidence.model_dump(mode="json")
+                    elif isinstance(evidence, dict):
+                        evidence_dict = dict(evidence)
+                    else:
+                        continue
+                    items.append(
+                        {
+                            "id": evidence_dict.get("id", ""),
+                            "kind": evidence_dict.get("kind", ""),
+                            "label": evidence_dict.get("label", ""),
+                            "url": evidence_dict.get("url", ""),
+                            "excerpt": evidence_dict.get("excerpt", ""),
+                            "confidence": evidence_dict.get("confidence"),
+                            "source_type": (
+                                (evidence_dict.get("metadata") or {}).get("source_type")
+                                if isinstance(evidence_dict.get("metadata"), dict)
+                                else None
+                            ),
+                        }
+                    )
+                curated_evidence.append(
+                    {
+                        "id": envelope_dict.get("id", ""),
+                        "source_tool": envelope_dict.get("source_tool", ""),
+                        "source_query": envelope_dict.get("source_query", ""),
+                        "evidence_count": len(items),
+                        "evidence": items,
+                    }
+                )
+
+        return {
+            "impact_candidates": impact_candidates,
+            "parameter_candidates": parameter_candidates,
+            "curated_evidence": curated_evidence,
+        }
 
     def _match_research_evidence_candidate(
         self,

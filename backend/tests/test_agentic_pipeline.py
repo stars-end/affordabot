@@ -1,4 +1,5 @@
 import pytest
+import json
 from unittest.mock import AsyncMock, MagicMock, patch
 from services.llm.orchestrator import AnalysisPipeline
 from services.legislation_research import LegislationResearchResult
@@ -171,6 +172,48 @@ async def test_analysis_pipeline_uses_research_service():
 
     assert result.bill_number == "AB-1234"
     assert len(result.impacts) == 1
+
+
+def test_wave2_prerequisites_serializer_is_json_safe():
+    mock_llm = MagicMock(spec=LLMClient)
+    mock_search = MagicMock(spec=WebSearchClient)
+    mock_db = MagicMock()
+    pipeline = AnalysisPipeline(mock_llm, mock_search, mock_db)
+
+    payload = {
+        "impact_candidates": [
+            {"impact_id": "impact-pass-through-incidence", "candidate_mode_hints": ["pass_through_incidence"]}
+        ],
+        "parameter_candidates": {
+            "impact-pass-through-incidence": {
+                "pass_through_rate": {"value": 0.7, "source_url": "https://example.org"}
+            }
+        },
+        "curated_evidence_envelopes": [
+            EvidenceEnvelope(
+                id="curated-1",
+                source_tool="curated_lookup",
+                source_query="AB-1 wave2",
+                evidence=[
+                    Evidence(
+                        id="ev-1",
+                        kind="external",
+                        label="Curated study",
+                        url="https://example.org/study",
+                        content="",
+                        excerpt="Example excerpt",
+                        metadata={"source_type": "academic_literature"},
+                    )
+                ],
+            )
+        ],
+    }
+
+    serialized = pipeline._serialize_wave2_prerequisites(payload)
+    json.dumps(serialized)
+    assert "curated_evidence_envelopes" not in serialized
+    assert serialized["curated_evidence"][0]["source_tool"] == "curated_lookup"
+    assert serialized["curated_evidence"][0]["evidence"][0]["source_type"] == "academic_literature"
 
 
 @pytest.mark.asyncio
