@@ -53,6 +53,17 @@ class GlassBoxService:
         if not row:
             return None
         trigger_source = row.get("trigger_source", "manual")
+        is_prefix_run = str(trigger_source).startswith("prefix:") or row.get(
+            "status"
+        ) == "prefix_halted"
+        is_fixture_run = str(trigger_source).startswith("fixture:") or row.get(
+            "status"
+        ) == "fixture_invalid"
+        run_label = None
+        if str(trigger_source).startswith("prefix:"):
+            run_label = str(trigger_source).split("prefix:", 1)[1]
+        elif str(trigger_source).startswith("fixture:"):
+            run_label = str(trigger_source).split("fixture:", 1)[1]
         return {
             "id": str(row["id"]),
             "bill_id": row.get("bill_id"),
@@ -62,10 +73,9 @@ class GlassBoxService:
             "completed_at": str(row["completed_at"]) if row.get("completed_at") else None,
             "error": row.get("error"),
             "trigger_source": trigger_source,
-            "is_prefix_run": str(trigger_source).startswith("prefix:"),
-            "run_label": str(trigger_source).split("prefix:", 1)[1]
-            if str(trigger_source).startswith("prefix:")
-            else None,
+            "is_prefix_run": is_prefix_run,
+            "is_fixture_run": is_fixture_run,
+            "run_label": run_label,
         }
 
     @staticmethod
@@ -84,7 +94,10 @@ class GlassBoxService:
 
     @classmethod
     def _normalize_mechanism_trace(
-        cls, steps: List["PipelineStep"], result: Optional[Dict[str, Any]] = None
+        cls,
+        steps: List["PipelineStep"],
+        result: Optional[Dict[str, Any]] = None,
+        run_status: Optional[str] = None,
     ) -> Dict[str, Any]:
         trace: Dict[str, Any] = {
             "discovered_impacts": [],
@@ -94,9 +107,8 @@ class GlassBoxService:
             "parameter_validation": None,
             "generated_impacts": [],
             "aggregate_scenario_bounds": None,
-            "prefix_boundary": cls._extract_prefix_boundary(
-                steps, (result or {}).get("status")
-            ),
+            "executed_steps": [step.step_name for step in steps],
+            "prefix_boundary": cls._extract_prefix_boundary(steps, run_status),
         }
         for step in steps:
             output = step.output_result or {}
@@ -212,6 +224,37 @@ class GlassBoxService:
             logger.error(f"Error fetching pipeline steps for {run_id}: {e}")
             return []
 
+    async def _get_pipeline_steps_for_exact_run(self, run_id: str) -> List[PipelineStep]:
+        """Fetch pipeline_steps for an already-resolved run id."""
+        if not self.db:
+            return []
+        rows = await self.db._fetch(
+            """
+                SELECT *
+                FROM pipeline_steps
+                WHERE run_id = $1
+                ORDER BY step_number ASC
+            """,
+            run_id,
+        )
+        steps: List[PipelineStep] = []
+        for r in rows:
+            steps.append(
+                PipelineStep(
+                    id=str(r["id"]),
+                    run_id=str(r["run_id"]),
+                    step_number=r["step_number"],
+                    step_name=r["step_name"],
+                    status=r["status"],
+                    input_context=self._json_or_value(r["input_context"]),
+                    output_result=self._json_or_value(r["output_result"]),
+                    model_info=self._json_or_value(r["model_config"]),
+                    duration_ms=r["duration_ms"],
+                    created_at=r["created_at"],
+                )
+            )
+        return steps
+
     async def get_traces_for_query(self, query_id: str) -> List[AgentStep]:
         """
         Retrieve all steps for a specific query execution (bill_id or run_id).
@@ -228,7 +271,9 @@ class GlassBoxService:
                     or heads.get("latest_run")
                 )
                 if target_run:
-                    pipeline_steps = await self.get_pipeline_steps(target_run["id"])
+                    pipeline_steps = await self._get_pipeline_steps_for_exact_run(
+                        target_run["id"]
+                    )
                     if pipeline_steps:
                         for step in pipeline_steps:
                             ts = 0
@@ -379,6 +424,18 @@ class GlassBoxService:
                 run_id = str(r["id"])
                 key = (r.get("bill_id"), r.get("jurisdiction"))
                 heads = heads_by_key[key]
+                trigger_source = r.get("trigger_source", "manual")
+                is_prefix_run = str(trigger_source).startswith("prefix:") or r.get(
+                    "status"
+                ) == "prefix_halted"
+                is_fixture_run = str(trigger_source).startswith("fixture:") or r.get(
+                    "status"
+                ) == "fixture_invalid"
+                run_label = None
+                if str(trigger_source).startswith("prefix:"):
+                    run_label = str(trigger_source).split("prefix:", 1)[1]
+                elif str(trigger_source).startswith("fixture:"):
+                    run_label = str(trigger_source).split("fixture:", 1)[1]
                 runs.append(
                     {
                         "id": run_id,
@@ -390,15 +447,10 @@ class GlassBoxService:
                         if r["completed_at"]
                         else None,
                         "error": r["error"],
-                        "trigger_source": r.get("trigger_source", "manual"),
-                        "is_prefix_run": str(
-                            r.get("trigger_source", "manual")
-                        ).startswith("prefix:"),
-                        "run_label": str(r.get("trigger_source", "manual")).split(
-                            "prefix:", 1
-                        )[1]
-                        if str(r.get("trigger_source", "manual")).startswith("prefix:")
-                        else None,
+                        "trigger_source": trigger_source,
+                        "is_prefix_run": is_prefix_run,
+                        "is_fixture_run": is_fixture_run,
+                        "run_label": run_label,
                         "is_latest_run": run_id == heads["latest_run_id"],
                         "is_latest_completed_run": run_id
                         == heads["latest_completed_run_id"],
@@ -435,6 +487,17 @@ class GlassBoxService:
             steps = await self.get_pipeline_steps(run_id)
             trigger_source = r.get("trigger_source", "manual")
             prefix_boundary = self._extract_prefix_boundary(steps, r.get("status"))
+            is_prefix_run = str(trigger_source).startswith("prefix:") or r.get(
+                "status"
+            ) == "prefix_halted"
+            is_fixture_run = str(trigger_source).startswith("fixture:") or r.get(
+                "status"
+            ) == "fixture_invalid"
+            run_label = None
+            if str(trigger_source).startswith("prefix:"):
+                run_label = str(trigger_source).split("prefix:", 1)[1]
+            elif str(trigger_source).startswith("fixture:"):
+                run_label = str(trigger_source).split("fixture:", 1)[1]
 
             return {
                 "id": str(r["id"]),
@@ -462,12 +525,13 @@ class GlassBoxService:
                 ),
                 "aggregate_scenario_bounds": analysis.get("aggregate_scenario_bounds"),
                 "trigger_source": trigger_source,
-                "is_prefix_run": str(trigger_source).startswith("prefix:"),
-                "run_label": str(trigger_source).split("prefix:", 1)[1]
-                if str(trigger_source).startswith("prefix:")
-                else None,
+                "is_prefix_run": is_prefix_run,
+                "is_fixture_run": is_fixture_run,
+                "run_label": run_label,
                 "prefix_boundary": prefix_boundary,
-                "mechanism_trace": self._normalize_mechanism_trace(steps, result),
+                "mechanism_trace": self._normalize_mechanism_trace(
+                    steps, result, r.get("status")
+                ),
             }
         except Exception as e:
             logger.error(f"Error getting pipeline run {run_id}: {e}")

@@ -464,6 +464,9 @@ class AnalysisPipeline:
                 bill_id, bill_text, jurisdiction, models["research"]
             )
             duration = int((datetime.now() - start_ts).total_seconds() * 1000)
+            wave2_prerequisites = self._serialize_wave2_prerequisites(
+                getattr(research_result, "wave2_prerequisites", {}) or {}
+            )
             research_output = {
                 "rag_chunks": len(research_result.rag_chunks),
                 "web_sources": len(research_result.web_sources),
@@ -471,6 +474,7 @@ class AnalysisPipeline:
                 "evidence_details": self._serialize_evidence_envelopes(
                     research_result
                 ),
+                "wave2_prerequisites": wave2_prerequisites,
                 "sufficiency_breakdown": research_result.sufficiency_breakdown,
                 "is_sufficient": research_result.is_sufficient,
                 "insufficiency_reason": research_result.insufficiency_reason,
@@ -490,7 +494,15 @@ class AnalysisPipeline:
                 )
 
             discovered_impacts = research_result.impact_candidates or []
-            impact_discovery_output = {"impacts": discovered_impacts}
+            impact_discovery_output = {
+                "impacts": discovered_impacts,
+                "wave2_prerequisites": {
+                    "impact_candidates": wave2_prerequisites.get("impact_candidates", []),
+                    "parameter_candidates": wave2_prerequisites.get(
+                        "parameter_candidates", {}
+                    ),
+                },
+            }
             halted = await _checkpoint(
                 "impact_discovery",
                 impact_discovery_output,
@@ -557,6 +569,9 @@ class AnalysisPipeline:
             parameter_resolution_output = {
                 **first_resolution,
                 "impact_parameters": parameter_resolutions,
+                "wave2_parameter_candidates": wave2_prerequisites.get(
+                    "parameter_candidates", {}
+                ),
             }
             self._validate_deterministic_step_payload(
                 "parameter_resolution", parameter_resolution_output
@@ -661,6 +676,100 @@ class AnalysisPipeline:
                     rag_chunks_retrieved=len(research_result.rag_chunks),
                     retriever_invoked=research_result.retriever_invoked,
                 )
+                return analysis
+
+            if (
+                not discovered_impacts
+                and breakdown.overall_sufficiency_state == SufficiencyState.QUALITATIVE_ONLY
+                and source_text_present
+            ):
+                analysis = LegislationAnalysisResponse(
+                    bill_number=bill_id,
+                    title="",
+                    jurisdiction=jurisdiction,
+                    status="",
+                    sufficiency_state=breakdown.overall_sufficiency_state,
+                    insufficiency_reason=self._breakdown_reason(breakdown),
+                    quantification_eligible=False,
+                    impacts=[],
+                    aggregate_scenario_bounds=None,
+                    analysis_timestamp=datetime.now().isoformat(),
+                    model_used=models.get("generate", "unknown"),
+                )
+
+                skipped_reason = "no_impacts_discovered_fail_closed"
+                for step_name in ("generate", "parameter_validation", "review", "refine"):
+                    halted = await _checkpoint(
+                        step_name,
+                        {"skipped": True, "reason": skipped_reason},
+                        status="skipped",
+                        input_context={"bill_id": bill_id},
+                        model_info={"model": "deterministic"},
+                    )
+                    if halted:
+                        return analysis
+
+                persistence = await self._complete_pipeline_run(
+                    run_id,
+                    bill_id,
+                    bill_text,
+                    analysis,
+                    ReviewCritique(
+                        passed=False,
+                        critique="Skipped: no impacts discovered",
+                        missing_impacts=[],
+                        factual_errors=[],
+                    ),
+                    jurisdiction,
+                    breakdown=breakdown,
+                    rag_chunks_retrieved=len(research_result.rag_chunks),
+                    retriever_invoked=research_result.retriever_invoked,
+                )
+
+                halted = await _checkpoint(
+                    "persistence",
+                    {
+                        "legislation_id": persistence.get("legislation_id"),
+                        "analysis_stored": persistence.get("analysis_stored", False),
+                        "impacts_count": persistence.get("impacts_count", 0),
+                        "sufficiency_state": analysis.sufficiency_state.value
+                        if analysis.sufficiency_state
+                        else None,
+                        "quantification_eligible": analysis.quantification_eligible,
+                        "aggregate_scenario_bounds": None,
+                    },
+                    status="completed" if persistence.get("analysis_stored") else "failed",
+                    input_context={"bill_id": bill_id, "jurisdiction": jurisdiction},
+                    model_info={"model": "deterministic", "provider": "postgres"},
+                )
+                if halted:
+                    return analysis
+
+                notify_output = {
+                    "status": "emitted" if trigger_source == "manual" else "skipped",
+                    "prefix_boundary": f"stopped_after_step_{stop_after_step}"
+                    if stop_after_step is not None
+                    else None,
+                }
+                halted = await _checkpoint(
+                    "notify_debug",
+                    notify_output,
+                    status="completed",
+                    input_context={"trigger_source": trigger_with_label},
+                    model_info={"model": "deterministic"},
+                )
+                if halted:
+                    return analysis
+
+                await self._emit_slack_summary(
+                    run_id,
+                    bill_id,
+                    jurisdiction,
+                    "completed",
+                    trigger_with_label,
+                    analysis,
+                )
+
                 return analysis
 
             start_ts = datetime.now()
@@ -1301,6 +1410,66 @@ Evidence Excerpts:
             )
         return serialized
 
+    def _serialize_wave2_prerequisites(
+        self, payload: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Ensure wave2 prerequisite payload is JSON-safe for checkpoint persistence."""
+        impact_candidates = payload.get("impact_candidates", [])
+        if not isinstance(impact_candidates, list):
+            impact_candidates = []
+        parameter_candidates = payload.get("parameter_candidates", {})
+        if not isinstance(parameter_candidates, dict):
+            parameter_candidates = {}
+
+        curated_evidence = []
+        raw_envelopes = payload.get("curated_evidence_envelopes", [])
+        if isinstance(raw_envelopes, list):
+            for envelope in raw_envelopes:
+                if hasattr(envelope, "model_dump"):
+                    envelope_dict = envelope.model_dump(mode="json")
+                elif isinstance(envelope, dict):
+                    envelope_dict = dict(envelope)
+                else:
+                    continue
+                items = []
+                for evidence in envelope_dict.get("evidence", []) or []:
+                    if hasattr(evidence, "model_dump"):
+                        evidence_dict = evidence.model_dump(mode="json")
+                    elif isinstance(evidence, dict):
+                        evidence_dict = dict(evidence)
+                    else:
+                        continue
+                    items.append(
+                        {
+                            "id": evidence_dict.get("id", ""),
+                            "kind": evidence_dict.get("kind", ""),
+                            "label": evidence_dict.get("label", ""),
+                            "url": evidence_dict.get("url", ""),
+                            "excerpt": evidence_dict.get("excerpt", ""),
+                            "confidence": evidence_dict.get("confidence"),
+                            "source_type": (
+                                (evidence_dict.get("metadata") or {}).get("source_type")
+                                if isinstance(evidence_dict.get("metadata"), dict)
+                                else None
+                            ),
+                        }
+                    )
+                curated_evidence.append(
+                    {
+                        "id": envelope_dict.get("id", ""),
+                        "source_tool": envelope_dict.get("source_tool", ""),
+                        "source_query": envelope_dict.get("source_query", ""),
+                        "evidence_count": len(items),
+                        "evidence": items,
+                    }
+                )
+
+        return {
+            "impact_candidates": impact_candidates,
+            "parameter_candidates": parameter_candidates,
+            "curated_evidence": curated_evidence,
+        }
+
     def _match_research_evidence_candidate(
         self,
         impact: LegislationImpact,
@@ -1608,6 +1777,8 @@ Bill Text: {bill_text[:5000]}
                 "unit": candidate.get("unit"),
                 "source_url": candidate.get("source_url", ""),
                 "source_excerpt": candidate.get("source_excerpt", ""),
+                "source_type": candidate.get("source_type"),
+                "literature_confidence": candidate.get("literature_confidence"),
             }
             for name, candidate in parameter_candidates.items()
             if candidate.get("value") is not None
@@ -1625,11 +1796,17 @@ Bill Text: {bill_text[:5000]}
             name: candidate.get("excerpt_validation_status", "not_applicable")
             for name, candidate in parameter_candidates.items()
         }
-        literature_confidence = (
-            {"wage_rate": 0.0}
-            if selected_mode == "compliance_cost" and "wage_rate" in resolved_parameters
-            else {}
-        )
+        literature_confidence = {
+            name: float(candidate.get("literature_confidence"))
+            for name, candidate in parameter_candidates.items()
+            if candidate.get("literature_confidence") is not None
+        }
+        if (
+            selected_mode == "compliance_cost"
+            and "wage_rate" in resolved_parameters
+            and "wage_rate" not in literature_confidence
+        ):
+            literature_confidence["wage_rate"] = 0.0
         dominant_uncertainty_parameters = (
             ["fiscal_amount"]
             if selected_mode == "direct_fiscal"

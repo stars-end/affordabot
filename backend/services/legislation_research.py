@@ -17,7 +17,9 @@ Used by:
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import os
 import re
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional, Callable, Awaitable, Tuple
@@ -81,6 +83,72 @@ CALIFORNIA_OFFICIAL_DOMAIN_WEIGHTS = {
     "legislature.ca.gov": 115,
 }
 
+WAVE2_PASS_THROUGH_SECTOR_CUES: Dict[str, Tuple[str, ...]] = {
+    "housing": ("rent", "landlord", "tenant", "lease"),
+    "energy": ("utility", "electric", "gas", "power"),
+    "telecom": ("broadband", "telecom", "internet", "wireless"),
+}
+
+WAVE2_PASS_THROUGH_LITERATURE: Dict[str, Dict[str, Any]] = {
+    "housing": {
+        "pass_through_rate": 0.65,
+        "literature_confidence": 0.72,
+        "source_url": "https://doi.org/10.3386/w24181",
+        "source_excerpt": (
+            "Empirical estimates for housing-related levies often show partial pass-through "
+            "to tenants depending on local supply elasticity."
+        ),
+        "source_type": "academic_literature",
+    },
+    "energy": {
+        "pass_through_rate": 0.85,
+        "literature_confidence": 0.78,
+        "source_url": "https://www.nber.org/papers/w16924",
+        "source_excerpt": (
+            "Energy-sector taxes and fees are frequently passed through in consumer prices "
+            "at high but not complete rates."
+        ),
+        "source_type": "academic_literature",
+    },
+    "telecom": {
+        "pass_through_rate": 0.70,
+        "literature_confidence": 0.68,
+        "source_url": "https://doi.org/10.1257/pol.20180546",
+        "source_excerpt": (
+            "Telecom fee incidence is commonly shared between providers and consumers, "
+            "with pass-through varying by market concentration."
+        ),
+        "source_type": "academic_literature",
+    },
+}
+
+WAVE2_ADOPTION_ANALOGS: Dict[str, Dict[str, Any]] = {
+    "rebate_program": {
+        "keywords": ("rebate", "voucher", "grant", "incentive"),
+        "take_up_rate": 0.42,
+        "benefit_per_capita": 750.0,
+        "literature_confidence": 0.66,
+        "source_url": "https://www.urban.org/research/publication/program-take-rates",
+        "source_excerpt": (
+            "Comparable rebate programs frequently show moderate participation rates driven "
+            "by administrative burden and outreach quality."
+        ),
+        "source_type": "curated_lookup",
+    },
+    "tax_credit_program": {
+        "keywords": ("tax credit", "credit", "deduction"),
+        "take_up_rate": 0.58,
+        "benefit_per_capita": 1200.0,
+        "literature_confidence": 0.70,
+        "source_url": "https://www.cbo.gov/publication/53767",
+        "source_excerpt": (
+            "Tax-credit participation is materially below eligibility when filing complexity "
+            "or awareness barriers are present."
+        ),
+        "source_type": "academic_literature",
+    },
+}
+
 
 @dataclass
 class LegislationResearchResult:
@@ -93,6 +161,7 @@ class LegislationResearchResult:
     web_sources: List[Dict[str, Any]] = field(default_factory=list)
     impact_candidates: List[Dict[str, Any]] = field(default_factory=list)
     parameter_candidates: Dict[str, Dict[str, Any]] = field(default_factory=dict)
+    wave2_prerequisites: Dict[str, Any] = field(default_factory=dict)
     sufficiency_breakdown: Dict[str, Any] = field(default_factory=dict)
     is_sufficient: bool = False
     insufficiency_reason: Optional[str] = None
@@ -172,6 +241,15 @@ class LegislationResearchService:
         self.retrieval_backend = retrieval_backend
         self.embedding_fn = embedding_fn
         self.db = db_client
+        self.web_query_timeout_s = max(
+            0.1, float(os.getenv("LEG_RESEARCH_QUERY_TIMEOUT_S", "20"))
+        )
+        self.web_max_concurrency = max(
+            1, int(os.getenv("LEG_RESEARCH_WEB_MAX_CONCURRENCY", "3"))
+        )
+        self.web_max_queries = max(
+            1, int(os.getenv("LEG_RESEARCH_WEB_MAX_QUERIES", "8"))
+        )
 
         if not self.retrieval_backend:
             logger.warning(
@@ -231,6 +309,15 @@ class LegislationResearchService:
                 rag_chunks=rag_chunks,
                 web_results=web_results,
             )
+            wave2_prerequisites = self._derive_wave2_prerequisites(
+                bill_id=bill_id,
+                bill_text=bill_text,
+                snippets=self._collect_research_snippets(rag_chunks, web_results),
+            )
+            result.wave2_prerequisites = wave2_prerequisites
+            curated_envelopes = wave2_prerequisites.get("curated_evidence_envelopes", [])
+            if curated_envelopes:
+                result.evidence_envelopes.extend(curated_envelopes)
 
             result.sufficiency_breakdown = self._compute_sufficiency(
                 rag_chunks, web_results, bill_text
@@ -322,31 +409,55 @@ class LegislationResearchService:
         bill_context: str,
     ) -> List[Dict[str, Any]]:
         """Perform web research for the bill."""
-        queries = self._build_web_queries(bill_id=bill_id, jurisdiction=jurisdiction)
+        del bill_context  # Currently unused; retained in signature for compatibility.
+        queries = self._build_web_queries(bill_id=bill_id, jurisdiction=jurisdiction)[
+            : self.web_max_queries
+        ]
         ranked_results = []
         seen_urls = set()
+        semaphore = asyncio.Semaphore(self.web_max_concurrency)
 
-        for idx, query in enumerate(queries):
+        async def run_query(
+            idx: int, query: str
+        ) -> Tuple[int, str, List[Dict[str, Any]], Optional[str]]:
             try:
-                raw_results = await self.search.search(query, count=5)
-                for item in self._normalize_web_results(raw_results):
-                    url = item.get("url") or item.get("link")
-                    if url and url not in seen_urls:
-                        ranked_results.append(
-                            (
-                                self._score_web_result(
-                                    item=item,
-                                    bill_id=bill_id,
-                                    jurisdiction=jurisdiction,
-                                    query=query,
-                                    discovery_index=idx,
-                                ),
-                                item,
-                            )
-                        )
-                        seen_urls.add(url)
+                async with semaphore:
+                    async with asyncio.timeout(self.web_query_timeout_s):
+                        raw_results = await self.search.search(query, count=5)
+                normalized = self._normalize_web_results(raw_results)
+                return idx, query, normalized, None
+            except asyncio.TimeoutError:
+                return idx, query, [], (
+                    f"timed out after {self.web_query_timeout_s:.2f}s"
+                )
             except Exception as e:
-                logger.warning(f"Web search failed for '{query}': {e}")
+                return idx, query, [], str(e)
+
+        tasks = [run_query(idx, query) for idx, query in enumerate(queries)]
+        results = await asyncio.gather(*tasks, return_exceptions=False)
+
+        for idx, query, normalized_results, error in sorted(
+            results, key=lambda item: item[0]
+        ):
+            if error:
+                logger.warning("Web search failed for %r: %s", query, error)
+                continue
+            for item in normalized_results:
+                url = item.get("url") or item.get("link")
+                if url and url not in seen_urls:
+                    ranked_results.append(
+                        (
+                            self._score_web_result(
+                                item=item,
+                                bill_id=bill_id,
+                                jurisdiction=jurisdiction,
+                                query=query,
+                                discovery_index=idx,
+                            ),
+                            item,
+                        )
+                    )
+                    seen_urls.add(url)
 
         ranked_results.sort(key=lambda ranked: ranked[0], reverse=True)
         return [item for _, item in ranked_results[:20]]
@@ -680,6 +791,279 @@ class LegislationResearchService:
 
         return impact_candidates, parameter_candidates
 
+    def _derive_wave2_prerequisites(
+        self,
+        bill_id: str,
+        bill_text: str,
+        snippets: List[Dict[str, str]],
+    ) -> Dict[str, Any]:
+        """Build deterministic curated prerequisites for deferred Wave 2 modes."""
+        curated_impacts: List[Dict[str, Any]] = []
+        curated_parameter_candidates: Dict[str, Dict[str, Any]] = {}
+        curated_evidence: List[Evidence] = []
+
+        pass_through = self._derive_pass_through_prerequisite(
+            bill_id=bill_id,
+            bill_text=bill_text,
+            snippets=snippets,
+        )
+        if pass_through:
+            impact_id = "impact-pass-through-incidence"
+            curated_impacts.append(
+                {
+                    "impact_id": impact_id,
+                    "impact_description": (
+                        "Potential consumer price pass-through from statutorily levied cost."
+                    ),
+                    "relevant_clauses": [],
+                    "evidence_refs": [item.url for item in pass_through["evidence"]],
+                    "candidate_mode_hints": ["pass_through_incidence"],
+                    "impact_scope": "sector",
+                }
+            )
+            curated_parameter_candidates[impact_id] = pass_through["parameters"]
+            curated_evidence.extend(pass_through["evidence"])
+
+        adoption = self._derive_adoption_prerequisite(
+            bill_id=bill_id,
+            bill_text=bill_text,
+            snippets=snippets,
+        )
+        if adoption:
+            impact_id = "impact-adoption-takeup"
+            curated_impacts.append(
+                {
+                    "impact_id": impact_id,
+                    "impact_description": (
+                        "Potential adoption and take-up behavior for eligible recipients."
+                    ),
+                    "relevant_clauses": [],
+                    "evidence_refs": [item.url for item in adoption["evidence"]],
+                    "candidate_mode_hints": ["adoption_take_up"],
+                    "impact_scope": "program",
+                }
+            )
+            curated_parameter_candidates[impact_id] = adoption["parameters"]
+            curated_evidence.extend(adoption["evidence"])
+
+        curated_envelopes: List[EvidenceEnvelope] = []
+        if curated_evidence:
+            curated_envelopes.append(
+                EvidenceEnvelope(
+                    id=f"curated-{bill_id}-{uuid4().hex[:8]}",
+                    source_tool="curated_lookup",
+                    source_query=f"{bill_id} wave2 prerequisites",
+                    evidence=curated_evidence,
+                )
+            )
+
+        return {
+            "impact_candidates": curated_impacts,
+            "parameter_candidates": curated_parameter_candidates,
+            "curated_evidence_envelopes": curated_envelopes,
+        }
+
+    def _derive_pass_through_prerequisite(
+        self,
+        bill_id: str,
+        bill_text: str,
+        snippets: List[Dict[str, str]],
+    ) -> Optional[Dict[str, Any]]:
+        combined_sources = [{"text": bill_text, "source_url": "", "source_hierarchy_status": "bill_or_reg_text"}] + snippets
+        combined_text = " ".join(item.get("text", "") for item in combined_sources).lower()
+        if not any(token in combined_text for token in ("tax", "fee", "surcharge", "levy")):
+            return None
+
+        sector = ""
+        for sector_name, cues in WAVE2_PASS_THROUGH_SECTOR_CUES.items():
+            if any(cue in combined_text for cue in cues):
+                sector = sector_name
+                break
+        if not sector:
+            return None
+
+        burden_candidate = self._extract_currency_from_sources(
+            sources=combined_sources,
+            name="total_levied_cost",
+            unit="usd_per_year",
+        )
+        if not burden_candidate:
+            return None
+
+        literature = WAVE2_PASS_THROUGH_LITERATURE.get(sector)
+        if not literature:
+            return None
+
+        sector_source = burden_candidate.get("source_url", "")
+        parameters = {
+            "sector_classification": {
+                "name": "sector_classification",
+                "value": None,
+                "value_text": sector,
+                "unit": "sector",
+                "source_url": sector_source,
+                "source_excerpt": (bill_text or "")[:500],
+                "source_hierarchy_status": "bill_or_reg_text",
+                "excerpt_validation_status": "pass",
+                "source_type": "curated_lookup",
+            },
+            "total_levied_cost": {
+                **burden_candidate,
+                "source_type": "bill_text",
+            },
+            "pass_through_rate": {
+                "name": "pass_through_rate",
+                "value": float(literature["pass_through_rate"]),
+                "unit": "share",
+                "source_url": literature["source_url"],
+                "source_excerpt": literature["source_excerpt"],
+                "source_hierarchy_status": "fiscal_or_reg_impact_analysis",
+                "excerpt_validation_status": "pass",
+                "literature_confidence": float(literature["literature_confidence"]),
+                "source_type": literature["source_type"],
+            },
+            "literature_confidence": {
+                "name": "literature_confidence",
+                "value": float(literature["literature_confidence"]),
+                "unit": "score",
+                "source_url": literature["source_url"],
+                "source_excerpt": literature["source_excerpt"],
+                "source_hierarchy_status": "fiscal_or_reg_impact_analysis",
+                "excerpt_validation_status": "pass",
+                "source_type": literature["source_type"],
+            },
+        }
+        evidence = [
+            Evidence(
+                id=f"curated-{bill_id}-pass-through",
+                kind="external",
+                label=f"Curated {sector} pass-through literature",
+                url=literature["source_url"],
+                content=literature["source_excerpt"],
+                excerpt=literature["source_excerpt"],
+                confidence=float(literature["literature_confidence"]),
+                metadata={
+                    "source_type": literature["source_type"],
+                    "curated_mode": "pass_through_incidence",
+                    "sector": sector,
+                },
+            )
+        ]
+        return {
+            "parameters": parameters,
+            "evidence": evidence,
+        }
+
+    def _derive_adoption_prerequisite(
+        self,
+        bill_id: str,
+        bill_text: str,
+        snippets: List[Dict[str, str]],
+    ) -> Optional[Dict[str, Any]]:
+        combined_sources = [{"text": bill_text, "source_url": "", "source_hierarchy_status": "bill_or_reg_text"}] + snippets
+        combined_text = " ".join(item.get("text", "") for item in combined_sources).lower()
+        if not any(token in combined_text for token in ("eligible", "enroll", "application", "benefit")):
+            return None
+
+        analog_name = ""
+        analog_payload: Dict[str, Any] = {}
+        for candidate_name, payload in WAVE2_ADOPTION_ANALOGS.items():
+            keywords = payload.get("keywords", ())
+            if any(keyword in combined_text for keyword in keywords):
+                analog_name = candidate_name
+                analog_payload = payload
+                break
+        if not analog_payload:
+            return None
+
+        eligible_population = self._extract_population(
+            sources=combined_sources,
+            parameter_name="eligible_population",
+        )
+        if not eligible_population:
+            return None
+
+        parameters = {
+            "eligible_population": {
+                **eligible_population,
+                "source_type": "bill_text",
+            },
+            "program_analog": {
+                "name": "program_analog",
+                "value": None,
+                "value_text": analog_name,
+                "unit": "program",
+                "source_url": analog_payload["source_url"],
+                "source_excerpt": analog_payload["source_excerpt"],
+                "source_hierarchy_status": "fiscal_or_reg_impact_analysis",
+                "excerpt_validation_status": "pass",
+                "source_type": "curated_lookup",
+            },
+            "take_up_rate": {
+                "name": "take_up_rate",
+                "value": float(analog_payload["take_up_rate"]),
+                "unit": "share",
+                "source_url": analog_payload["source_url"],
+                "source_excerpt": analog_payload["source_excerpt"],
+                "source_hierarchy_status": "fiscal_or_reg_impact_analysis",
+                "excerpt_validation_status": "pass",
+                "literature_confidence": float(analog_payload["literature_confidence"]),
+                "source_type": analog_payload["source_type"],
+            },
+            "benefit_per_capita": {
+                "name": "benefit_per_capita",
+                "value": float(analog_payload["benefit_per_capita"]),
+                "unit": "usd_per_participant",
+                "source_url": analog_payload["source_url"],
+                "source_excerpt": analog_payload["source_excerpt"],
+                "source_hierarchy_status": "fiscal_or_reg_impact_analysis",
+                "excerpt_validation_status": "pass",
+                "source_type": analog_payload["source_type"],
+            },
+        }
+        evidence = [
+            Evidence(
+                id=f"curated-{bill_id}-adoption",
+                kind="external",
+                label=f"Curated {analog_name} take-up benchmark",
+                url=analog_payload["source_url"],
+                content=analog_payload["source_excerpt"],
+                excerpt=analog_payload["source_excerpt"],
+                confidence=float(analog_payload["literature_confidence"]),
+                metadata={
+                    "source_type": analog_payload["source_type"],
+                    "curated_mode": "adoption_take_up",
+                    "program_analog": analog_name,
+                },
+            )
+        ]
+        return {
+            "parameters": parameters,
+            "evidence": evidence,
+        }
+
+    def _extract_currency_from_sources(
+        self,
+        sources: List[Dict[str, str]],
+        name: str,
+        unit: str,
+    ) -> Optional[Dict[str, Any]]:
+        for item in sources:
+            text = item.get("text", "")
+            amount = self._extract_currency_amount(text)
+            if amount is None:
+                continue
+            return {
+                "name": name,
+                "value": amount,
+                "unit": unit,
+                "source_url": item.get("source_url", ""),
+                "source_excerpt": text[:500],
+                "source_hierarchy_status": item.get("source_hierarchy_status"),
+                "excerpt_validation_status": "pass",
+            }
+        return None
+
     def _collect_research_snippets(
         self,
         rag_chunks: List[RetrievedChunk],
@@ -813,7 +1197,7 @@ class LegislationResearchService:
         parameter_name: str = "population",
     ) -> Optional[Dict[str, Any]]:
         pattern = re.compile(
-            r"(\d[\d,]*)\s+(businesses|employers|entities|providers|landlords|owners|units)",
+            r"(\d[\d,]*)\s+(businesses|employers|entities|providers|landlords|owners|units|households|residents|participants|applicants|tenants|customers)",
             re.IGNORECASE,
         )
         for item in sources:

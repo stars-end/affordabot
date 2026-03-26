@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import html
 import logging
 import os
@@ -27,10 +28,14 @@ class ZaiStructuredWebSearchClient:
         api_key: str,
         endpoint: str = DEFAULT_ZAI_CHAT_COMPLETIONS_URL,
         model: str = DEFAULT_ZAI_SEARCH_MODEL,
+        structured_timeout_s: float = 15.0,
+        fallback_timeout_s: float = 10.0,
     ) -> None:
         self.api_key = api_key
         self.endpoint = endpoint
         self.model = model
+        self.structured_timeout_s = max(0.1, structured_timeout_s)
+        self.fallback_timeout_s = max(0.1, fallback_timeout_s)
         self.client = httpx.AsyncClient(timeout=60.0)
 
     async def search(
@@ -41,13 +46,25 @@ class ZaiStructuredWebSearchClient:
         recency: str | None = None,
         **kwargs: Any,
     ) -> list[dict[str, Any]]:
-        structured_results = await self._search_zai_structured(
-            query=query,
-            count=count,
-            domains=domains,
-            recency=recency,
-            **kwargs,
-        )
+        try:
+            async with asyncio.timeout(self.structured_timeout_s):
+                structured_results = await self._search_zai_structured(
+                    query=query,
+                    count=count,
+                    domains=domains,
+                    recency=recency,
+                    **kwargs,
+                )
+        except asyncio.TimeoutError:
+            logger.warning(
+                "Structured Z.ai search timed out for %r after %.2fs",
+                query,
+                self.structured_timeout_s,
+            )
+            structured_results = []
+        except Exception as e:
+            logger.warning("Structured Z.ai search failed for %r: %s", query, e)
+            structured_results = []
         if structured_results:
             return structured_results
 
@@ -55,7 +72,19 @@ class ZaiStructuredWebSearchClient:
             "Structured Z.ai search returned zero results for %r; falling back to DuckDuckGo HTML search",
             query,
         )
-        return await self._search_duckduckgo_html(query=query, count=count)
+        try:
+            async with asyncio.timeout(self.fallback_timeout_s):
+                return await self._search_duckduckgo_html(query=query, count=count)
+        except asyncio.TimeoutError:
+            logger.warning(
+                "DuckDuckGo fallback timed out for %r after %.2fs",
+                query,
+                self.fallback_timeout_s,
+            )
+            return []
+        except Exception as e:
+            logger.warning("DuckDuckGo fallback failed for %r: %s", query, e)
+            return []
 
     async def _search_zai_structured(
         self,
@@ -205,10 +234,14 @@ def create_web_search_client(api_key: str | None) -> ZaiStructuredWebSearchClien
         endpoint = DEFAULT_ZAI_CHAT_COMPLETIONS_URL
 
     model = os.getenv("LLM_MODEL_RESEARCH", DEFAULT_ZAI_SEARCH_MODEL)
+    structured_timeout_s = float(os.getenv("WEB_SEARCH_STRUCTURED_TIMEOUT_S", "15"))
+    fallback_timeout_s = float(os.getenv("WEB_SEARCH_FALLBACK_TIMEOUT_S", "10"))
     logger.info("Using structured web search endpoint: %s", endpoint)
 
     return ZaiStructuredWebSearchClient(
         api_key=api_key or "",
         endpoint=endpoint,
         model=model,
+        structured_timeout_s=structured_timeout_s,
+        fallback_timeout_s=fallback_timeout_s,
     )

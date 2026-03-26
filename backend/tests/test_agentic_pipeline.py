@@ -1,4 +1,5 @@
 import pytest
+import json
 from unittest.mock import AsyncMock, MagicMock, patch
 from services.llm.orchestrator import AnalysisPipeline
 from services.legislation_research import LegislationResearchResult
@@ -171,6 +172,48 @@ async def test_analysis_pipeline_uses_research_service():
 
     assert result.bill_number == "AB-1234"
     assert len(result.impacts) == 1
+
+
+def test_wave2_prerequisites_serializer_is_json_safe():
+    mock_llm = MagicMock(spec=LLMClient)
+    mock_search = MagicMock(spec=WebSearchClient)
+    mock_db = MagicMock()
+    pipeline = AnalysisPipeline(mock_llm, mock_search, mock_db)
+
+    payload = {
+        "impact_candidates": [
+            {"impact_id": "impact-pass-through-incidence", "candidate_mode_hints": ["pass_through_incidence"]}
+        ],
+        "parameter_candidates": {
+            "impact-pass-through-incidence": {
+                "pass_through_rate": {"value": 0.7, "source_url": "https://example.org"}
+            }
+        },
+        "curated_evidence_envelopes": [
+            EvidenceEnvelope(
+                id="curated-1",
+                source_tool="curated_lookup",
+                source_query="AB-1 wave2",
+                evidence=[
+                    Evidence(
+                        id="ev-1",
+                        kind="external",
+                        label="Curated study",
+                        url="https://example.org/study",
+                        content="",
+                        excerpt="Example excerpt",
+                        metadata={"source_type": "academic_literature"},
+                    )
+                ],
+            )
+        ],
+    }
+
+    serialized = pipeline._serialize_wave2_prerequisites(payload)
+    json.dumps(serialized)
+    assert "curated_evidence_envelopes" not in serialized
+    assert serialized["curated_evidence"][0]["source_tool"] == "curated_lookup"
+    assert serialized["curated_evidence"][0]["evidence"][0]["source_type"] == "academic_literature"
 
 
 @pytest.mark.asyncio
@@ -455,11 +498,15 @@ async def test_review_prompt_includes_evidence_excerpts():
 
     analysis_obj = _make_legislation_response()
     review_obj = _make_review_response()
+    refined_obj = _make_legislation_response()
+    final_review_obj = _make_review_response()
 
     mock_llm.chat_completion = AsyncMock(
         side_effect=[
             MagicMock(content=analysis_obj.model_dump_json()),
             MagicMock(content=review_obj.model_dump_json()),
+            MagicMock(content=refined_obj.model_dump_json()),
+            MagicMock(content=final_review_obj.model_dump_json()),
         ]
     )
 
@@ -473,13 +520,9 @@ async def test_review_prompt_includes_evidence_excerpts():
 
     pipeline = AnalysisPipeline(mock_llm, mock_search, mock_db)
     research_result = _make_research_result()
-    research_result.rag_chunks = [
-        MagicMock(
-            content="Bill text excerpt",
-            score=0.8,
-            metadata={"source_url": "https://leginfo.legislature.ca.gov/sb277"},
-        )
-    ]
+    excerpt = (
+        "Section 1 requires officers to advise consent is voluntary and record consent."
+    )
     research_result.evidence_envelopes = [
         EvidenceEnvelope(
             id="env-1",
@@ -492,11 +535,17 @@ async def test_review_prompt_includes_evidence_excerpts():
                     label="SB 277 source",
                     url="https://leginfo.legislature.ca.gov/sb277",
                     content="",
-                    excerpt="Section 1 requires officers to advise consent is voluntary and record consent.",
+                    excerpt=excerpt,
                 )
             ],
         )
     ]
+    _seed_direct_fiscal_candidate(
+        research_result,
+        amount=50.0,
+        source_url="https://leginfo.legislature.ca.gov/sb277",
+        source_excerpt=excerpt,
+    )
 
     with patch.object(
         pipeline.research_service,
@@ -918,6 +967,94 @@ async def test_pipeline_allows_negative_zero_impact_resolution_claim():
         "cost-of-living burdens without supporting evidence" in err.lower()
         for err in issues
     )
+
+
+@pytest.mark.asyncio
+async def test_pipeline_zero_impact_discovery_completes_without_generation():
+    mock_llm = MagicMock(spec=LLMClient)
+    mock_search = MagicMock(spec=WebSearchClient)
+    mock_db = MagicMock()
+
+    mock_db.get_latest_scrape_for_bill = AsyncMock(return_value=None)
+    mock_db.create_pipeline_run = AsyncMock(return_value="run-1")
+    mock_db.get_or_create_jurisdiction = AsyncMock(return_value=1)
+    mock_db.store_legislation = AsyncMock(return_value=101)
+    mock_db.store_impacts = AsyncMock()
+    mock_db.complete_pipeline_run = AsyncMock()
+    mock_db.fail_pipeline_run = AsyncMock()
+    mock_db._execute = AsyncMock()
+
+    pipeline = AnalysisPipeline(mock_llm, mock_search, mock_db)
+
+    research_result = _make_research_result()
+    research_result.rag_chunks = [
+        MagicMock(
+            content="Symbolic resolution text with no direct fiscal mandate.",
+            score=0.88,
+            metadata={"source_url": "https://leginfo.legislature.ca.gov/sb277"},
+        )
+    ]
+    research_result.web_sources = [
+        {
+            "title": "SB 277 text",
+            "url": "https://leginfo.legislature.ca.gov/sb277",
+            "snippet": "Resolution language without direct fiscal mechanism.",
+        }
+    ]
+    research_result.evidence_envelopes = [
+        EvidenceEnvelope(
+            id="env-no-impact",
+            source_tool="retriever",
+            source_query="SB 277",
+            evidence=[
+                Evidence(
+                    id="rag-no-impact",
+                    kind="internal",
+                    label="SB 277 text",
+                    url="https://leginfo.legislature.ca.gov/sb277",
+                    content="",
+                    excerpt="Symbolic resolution text with no direct fiscal mandate.",
+                )
+            ],
+        )
+    ]
+    with patch.object(
+        pipeline.research_service,
+        "research",
+        new_callable=AsyncMock,
+        return_value=research_result,
+    ), patch.object(
+        pipeline,
+        "_generate_step",
+        new_callable=AsyncMock,
+        side_effect=AssertionError("generate step should be skipped for zero impacts"),
+    ), patch.object(
+        pipeline,
+        "_review_step",
+        new_callable=AsyncMock,
+        side_effect=AssertionError("review step should be skipped for zero impacts"),
+    ):
+        result = await pipeline.run(
+            "SB-277",
+            "Bill text with enough content to count as source text." * 8,
+            "California",
+            {"research": "m1", "generate": "m2", "review": "m3"},
+        )
+
+    assert result.bill_number == "SB-277"
+    assert result.impacts == []
+    assert result.quantification_eligible is False
+    mock_db.complete_pipeline_run.assert_called_once()
+
+    skipped_steps = {
+        call.args[3]: call.args[4]
+        for call in mock_db._execute.await_args_list
+        if len(call.args) >= 5
+    }
+    assert skipped_steps.get("generate") == "skipped"
+    assert skipped_steps.get("parameter_validation") == "skipped"
+    assert skipped_steps.get("review") == "skipped"
+    assert skipped_steps.get("refine") == "skipped"
 
 
 @pytest.mark.asyncio
