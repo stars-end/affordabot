@@ -172,6 +172,7 @@ async def process_jurisdiction(jurisdiction: str, scraper_class, jur_type: str):
     # Initialize Agentic Pipeline
     try:
         from services.llm.orchestrator import AnalysisPipeline
+        from services.llm.orchestrator import DEFAULT_OPENROUTER_FALLBACK_MODEL
         from llm_common.core import LLMConfig
         from llm_common.providers import ZaiClient, OpenRouterClient
 
@@ -188,7 +189,10 @@ async def process_jurisdiction(jurisdiction: str, scraper_class, jur_type: str):
             or_config = LLMConfig(
                 api_key=os.getenv("OPENROUTER_API_KEY"),
                 provider="openrouter",
-                default_model="google/gemini-2.0-flash-exp",
+                default_model=(
+                    os.getenv("LLM_MODEL_FALLBACK_OPENROUTER")
+                    or DEFAULT_OPENROUTER_FALLBACK_MODEL
+                ),
             )
             fallback_client = OpenRouterClient(or_config)
 

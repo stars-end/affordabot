@@ -230,6 +230,158 @@ class TestRerunScriptSourceResolution:
         )
 
 
+class TestDiagnoseBillMechanismChecks:
+    @pytest.mark.asyncio
+    async def test_skipped_parameter_validation_is_valid_for_no_impact_fail_closed(self) -> None:
+        from scripts.verification.verify_pipeline_truth import diagnose_bill
+
+        db = AsyncMock()
+        db._fetchrow = AsyncMock(
+            side_effect=[
+                {
+                    "id": "scrape-1",
+                    "url": "https://example.test/acr-117",
+                    "created_at": None,
+                    "content_hash": "hash-1",
+                    "metadata": {
+                        "bill_number": "ACR 117",
+                        "source_type": "leginfo",
+                        "source_url": "https://example.test/acr-117",
+                        "extraction_status": "success",
+                    },
+                    "data": {"content": "WHEREAS " * 200},
+                },
+                {"cnt": 8},
+                {
+                    "id": "leg-1",
+                    "bill_number": "ACR 117",
+                    "title": "Relative to Maternal Health Awareness Day.",
+                    "analysis_status": "completed",
+                    "sufficiency_state": "qualitative_only",
+                    "insufficiency_reason": "impact_discovery_failed",
+                    "quantification_eligible": False,
+                },
+                {
+                    "id": "run-1",
+                    "status": "completed",
+                    "started_at": None,
+                    "completed_at": None,
+                    "error": None,
+                    "result": {
+                        "source_text_present": True,
+                        "rag_chunks_retrieved": 8,
+                        "quantification_eligible": False,
+                    },
+                    "trigger_source": "manual",
+                },
+                {
+                    "id": "run-1",
+                    "status": "completed",
+                    "started_at": None,
+                    "completed_at": None,
+                    "error": None,
+                    "result": {
+                        "source_text_present": True,
+                        "rag_chunks_retrieved": 8,
+                        "quantification_eligible": False,
+                    },
+                    "trigger_source": "manual",
+                },
+                None,
+            ]
+        )
+        db._fetch = AsyncMock(
+            return_value=[
+                {
+                    "step_number": 1,
+                    "step_name": "ingestion_source",
+                    "status": "completed",
+                    "output_result": {"source_text_present": True},
+                },
+                {
+                    "step_number": 2,
+                    "step_name": "chunk_index",
+                    "status": "completed",
+                    "output_result": {"chunk_count": 8},
+                },
+                {
+                    "step_number": 3,
+                    "step_name": "research_discovery",
+                    "status": "completed",
+                    "output_result": {"rag_chunks": 8},
+                },
+                {
+                    "step_number": 4,
+                    "step_name": "impact_discovery",
+                    "status": "failed",
+                    "output_result": {"impacts": []},
+                },
+                {
+                    "step_number": 5,
+                    "step_name": "mode_selection",
+                    "status": "completed",
+                    "output_result": {
+                        "candidate_modes": ["qualitative_only"],
+                        "selected_mode": "qualitative_only",
+                        "rejected_modes": [],
+                        "selection_rationale": "Deterministic mode selection from research hints.",
+                        "ambiguity_status": "clear",
+                        "composition_candidate": False,
+                    },
+                },
+                {
+                    "step_number": 6,
+                    "step_name": "parameter_resolution",
+                    "status": "completed",
+                    "output_result": {
+                        "required_parameters": [],
+                        "resolved_parameters": {},
+                        "missing_parameters": [],
+                        "source_hierarchy_status": {},
+                        "excerpt_validation_status": {},
+                        "literature_confidence": {},
+                        "dominant_uncertainty_parameters": [],
+                    },
+                },
+                {
+                    "step_number": 7,
+                    "step_name": "sufficiency_gate",
+                    "status": "completed",
+                    "output_result": {
+                        "overall_quantification_eligible": False,
+                        "overall_sufficiency_state": "qualitative_only",
+                        "impact_gate_summaries": [],
+                        "bill_level_failures": ["impact_discovery_failed"],
+                    },
+                },
+                {
+                    "step_number": 9,
+                    "step_name": "parameter_validation",
+                    "status": "skipped",
+                    "output_result": {
+                        "skipped": True,
+                        "reason": "no_impacts_discovered_fail_closed",
+                    },
+                },
+                {
+                    "step_number": 12,
+                    "step_name": "persistence",
+                    "status": "completed",
+                    "output_result": {
+                        "analysis_stored": True,
+                        "sufficiency_state": "qualitative_only",
+                        "quantification_eligible": False,
+                    },
+                },
+            ]
+        )
+
+        result = await diagnose_bill(db, "california", "ACR 117")
+
+        assert "Mechanism step payloads invalid: parameter_validation" not in result["issues"]
+        assert result["verdict"] == "healthy"
+
+
 class TestQuarantineSqlGeneration:
     """Test that quarantine script SQL references valid columns."""
 

@@ -4,9 +4,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from services.llm.orchestrator import AnalysisPipeline
 from services.legislation_research import LegislationResearchResult
 from schemas.analysis import (
+    ImpactGateSummary,
     LegislationAnalysisResponse,
     ReviewCritique,
     LegislationImpact,
+    SufficiencyBreakdown,
+    SufficiencyState,
 )
 from llm_common.core import LLMClient
 from llm_common.web_search import WebSearchClient
@@ -120,6 +123,22 @@ def _seed_direct_fiscal_candidate(
     return research_result
 
 
+def _wave1_quantified_breakdown(impact_ids: list[str]) -> SufficiencyBreakdown:
+    return SufficiencyBreakdown(
+        overall_quantification_eligible=True,
+        overall_sufficiency_state=SufficiencyState.QUANTIFIED,
+        impact_gate_summaries=[
+            ImpactGateSummary(
+                impact_id=impact_id,
+                selected_mode="direct_fiscal",
+                quantification_eligible=True,
+                sufficiency_state=SufficiencyState.QUANTIFIED,
+            )
+            for impact_id in impact_ids
+        ],
+    )
+
+
 @pytest.mark.asyncio
 async def test_analysis_pipeline_uses_research_service():
     mock_llm = MagicMock(spec=LLMClient)
@@ -214,6 +233,178 @@ def test_wave2_prerequisites_serializer_is_json_safe():
     assert "curated_evidence_envelopes" not in serialized
     assert serialized["curated_evidence"][0]["source_tool"] == "curated_lookup"
     assert serialized["curated_evidence"][0]["evidence"][0]["source_type"] == "academic_literature"
+
+
+def test_wave2_mode_selection_supports_curated_modes():
+    pipeline = AnalysisPipeline(
+        MagicMock(spec=LLMClient),
+        MagicMock(spec=WebSearchClient),
+        MagicMock(),
+    )
+
+    pass_through = pipeline._build_mode_selection_output(
+        {"candidate_mode_hints": ["pass_through_incidence"]}
+    )
+    adoption = pipeline._build_mode_selection_output(
+        {"candidate_mode_hints": ["adoption_take_up"]}
+    )
+
+    assert pass_through["selected_mode"] == "pass_through_incidence"
+    assert adoption["selected_mode"] == "adoption_take_up"
+
+
+def test_wave2_parameter_resolution_requires_curated_prerequisites():
+    pipeline = AnalysisPipeline(
+        MagicMock(spec=LLMClient),
+        MagicMock(spec=WebSearchClient),
+        MagicMock(),
+    )
+
+    pass_through = pipeline._build_parameter_resolution_output(
+        impact_id="impact-pass-through-incidence",
+        selected_mode="pass_through_incidence",
+        parameter_candidates={
+            "total_levied_cost": {
+                "value": 4_000_000.0,
+                "source_url": "https://example.gov/levy",
+                "source_excerpt": "Annual levy is $4M.",
+                "source_hierarchy_status": "bill_or_reg_text",
+                "excerpt_validation_status": "pass",
+            },
+            "pass_through_rate": {
+                "value": 0.65,
+                "source_url": "https://doi.org/example",
+                "source_excerpt": "Estimated pass-through is 65%.",
+                "source_hierarchy_status": "fiscal_or_reg_impact_analysis",
+                "excerpt_validation_status": "pass",
+                "literature_confidence": 0.72,
+            },
+        },
+    )
+    adoption = pipeline._build_parameter_resolution_output(
+        impact_id="impact-adoption-takeup",
+        selected_mode="adoption_take_up",
+        parameter_candidates={
+            "eligible_population": {
+                "value": 12_000.0,
+                "source_url": "https://example.gov/program",
+                "source_excerpt": "12,000 households are eligible.",
+                "source_hierarchy_status": "bill_or_reg_text",
+                "excerpt_validation_status": "pass",
+            },
+            "take_up_rate": {
+                "value": 0.4,
+                "source_url": "https://doi.org/example2",
+                "source_excerpt": "Expected take-up is 40%.",
+                "source_hierarchy_status": "fiscal_or_reg_impact_analysis",
+                "excerpt_validation_status": "pass",
+                "literature_confidence": 0.68,
+            },
+            "benefit_per_capita": {
+                "value": 750.0,
+                "source_url": "https://example.gov/program",
+                "source_excerpt": "Benefit value is $750.",
+                "source_hierarchy_status": "bill_or_reg_text",
+                "excerpt_validation_status": "pass",
+            },
+        },
+    )
+
+    assert pass_through["required_parameters"] == [
+        "total_levied_cost",
+        "pass_through_rate",
+    ]
+    assert pass_through["missing_parameters"] == []
+    assert pass_through["dominant_uncertainty_parameters"] == ["pass_through_rate"]
+    assert adoption["required_parameters"] == [
+        "eligible_population",
+        "take_up_rate",
+        "benefit_per_capita",
+    ]
+    assert adoption["missing_parameters"] == []
+    assert adoption["dominant_uncertainty_parameters"] == ["take_up_rate"]
+
+
+def test_wave2_quantification_generates_monotonic_scenarios():
+    pipeline = AnalysisPipeline(
+        MagicMock(spec=LLMClient),
+        MagicMock(spec=WebSearchClient),
+        MagicMock(),
+    )
+    analysis = LegislationAnalysisResponse(
+        bill_number="AB-2",
+        title="Wave2",
+        jurisdiction="CA",
+        status="introduced",
+        analysis_timestamp="2026-01-01T00:00:00Z",
+        model_used="test",
+        impacts=[],
+    )
+    impact_candidates = [
+        {
+            "impact_id": "impact-pass-through-incidence",
+            "impact_description": "Household incidence from pass-through.",
+        },
+        {
+            "impact_id": "impact-adoption-takeup",
+            "impact_description": "Program take-up costs.",
+        },
+    ]
+    mode_decisions = [
+        {
+            "impact_id": "impact-pass-through-incidence",
+            "selected_mode": "pass_through_incidence",
+        },
+        {
+            "impact_id": "impact-adoption-takeup",
+            "selected_mode": "adoption_take_up",
+        },
+    ]
+    parameter_resolutions = [
+        {
+            "impact_id": "impact-pass-through-incidence",
+            "resolved_parameters": {
+                "total_levied_cost": {"name": "total_levied_cost", "value": 5_000_000.0},
+                "pass_through_rate": {"name": "pass_through_rate", "value": 0.7},
+            },
+            "missing_parameters": [],
+            "source_hierarchy_status": {},
+        },
+        {
+            "impact_id": "impact-adoption-takeup",
+            "resolved_parameters": {
+                "eligible_population": {"name": "eligible_population", "value": 12_000.0},
+                "take_up_rate": {"name": "take_up_rate", "value": 0.4},
+                "benefit_per_capita": {"name": "benefit_per_capita", "value": 750.0},
+            },
+            "missing_parameters": [],
+            "source_hierarchy_status": {},
+        },
+    ]
+    breakdown = _wave1_quantified_breakdown(
+        ["impact-pass-through-incidence", "impact-adoption-takeup"]
+    )
+
+    result = pipeline._apply_wave1_quantification(
+        analysis,
+        impact_candidates,
+        mode_decisions,
+        parameter_resolutions,
+        breakdown,
+    )
+
+    pass_through = result.impacts[0].scenario_bounds
+    adoption = result.impacts[1].scenario_bounds
+    assert pass_through is not None
+    assert pass_through.conservative == 3_000_000.0
+    assert pass_through.central == 3_500_000.0
+    assert pass_through.aggressive == pytest.approx(4_000_000.0)
+    assert adoption is not None
+    assert adoption.conservative == pytest.approx(2_700_000.0)
+    assert adoption.central == pytest.approx(3_600_000.0)
+    assert adoption.aggressive == pytest.approx(4_500_000.0)
+    assert result.aggregate_scenario_bounds is not None
+    assert result.aggregate_scenario_bounds.central == 7_100_000.0
 
 
 @pytest.mark.asyncio
@@ -1055,6 +1246,128 @@ async def test_pipeline_zero_impact_discovery_completes_without_generation():
     assert skipped_steps.get("parameter_validation") == "skipped"
     assert skipped_steps.get("review") == "skipped"
     assert skipped_steps.get("refine") == "skipped"
+
+
+@pytest.mark.asyncio
+async def test_pipeline_qualitative_discovered_impacts_complete_without_generation():
+    mock_llm = MagicMock(spec=LLMClient)
+    mock_search = MagicMock(spec=WebSearchClient)
+    mock_db = MagicMock()
+
+    mock_db.get_latest_scrape_for_bill = AsyncMock(return_value=None)
+    mock_db.create_pipeline_run = AsyncMock(return_value="run-1")
+    mock_db.get_or_create_jurisdiction = AsyncMock(return_value=1)
+    mock_db.store_legislation = AsyncMock(return_value=101)
+    mock_db.store_impacts = AsyncMock()
+    mock_db.complete_pipeline_run = AsyncMock()
+    mock_db.fail_pipeline_run = AsyncMock()
+    mock_db._execute = AsyncMock()
+
+    pipeline = AnalysisPipeline(mock_llm, mock_search, mock_db)
+
+    research_result = _make_research_result()
+    research_result.impact_candidates = [
+        {
+            "impact_id": "impact-qual-1",
+            "impact_description": "Ceremonial resolution may require limited compliance coordination.",
+            "relevant_clauses": ["Section 1"],
+            "evidence_refs": ["https://leginfo.legislature.ca.gov/sb277"],
+            "candidate_mode_hints": ["compliance_cost"],
+            "impact_scope": "bill",
+        }
+    ]
+    research_result.parameter_candidates = {"impact-qual-1": {}}
+    research_result.rag_chunks = [
+        MagicMock(
+            content="The resolution expresses intent and does not appropriate funds.",
+            score=0.89,
+            metadata={"source_url": "https://leginfo.legislature.ca.gov/sb277"},
+        )
+    ]
+    research_result.web_sources = [
+        {
+            "title": "SB 277 text",
+            "url": "https://leginfo.legislature.ca.gov/sb277",
+            "snippet": "Resolution language and implementation references.",
+        }
+    ]
+    research_result.evidence_envelopes = [
+        EvidenceEnvelope(
+            id="env-qual-impact",
+            source_tool="retriever",
+            source_query="SB 277",
+            evidence=[
+                Evidence(
+                    id="rag-qual-impact",
+                    kind="internal",
+                    label="SB 277 text",
+                    url="https://leginfo.legislature.ca.gov/sb277",
+                    content="",
+                    excerpt="The resolution expresses intent and does not appropriate funds.",
+                )
+            ],
+        )
+    ]
+    qualitative_breakdown = SufficiencyBreakdown(
+        overall_quantification_eligible=False,
+        overall_sufficiency_state=SufficiencyState.QUALITATIVE_ONLY,
+        impact_gate_summaries=[
+            ImpactGateSummary(
+                impact_id="impact-qual-1",
+                selected_mode="compliance_cost",
+                quantification_eligible=False,
+                sufficiency_state=SufficiencyState.QUALITATIVE_ONLY,
+            )
+        ],
+    )
+
+    with patch.object(
+        pipeline.research_service,
+        "research",
+        new_callable=AsyncMock,
+        return_value=research_result,
+    ), patch(
+        "services.llm.orchestrator.assess_sufficiency",
+        return_value=qualitative_breakdown,
+    ), patch.object(
+        pipeline,
+        "_generate_step",
+        new_callable=AsyncMock,
+        side_effect=AssertionError(
+            "generate step should be skipped for qualitative-only discovered impacts"
+        ),
+    ), patch.object(
+        pipeline,
+        "_review_step",
+        new_callable=AsyncMock,
+        side_effect=AssertionError(
+            "review step should be skipped for qualitative-only discovered impacts"
+        ),
+    ):
+        result = await pipeline.run(
+            "SB-277",
+            "Bill text with enough content to count as source text." * 8,
+            "California",
+            {"research": "m1", "generate": "m2", "review": "m3"},
+        )
+
+    assert result.bill_number == "SB-277"
+    assert result.quantification_eligible is False
+    assert result.sufficiency_state == SufficiencyState.QUALITATIVE_ONLY
+    assert len(result.impacts) == 1
+    assert result.impacts[0].impact_mode == "qualitative_only"
+    assert result.impacts[0].impact_description
+    mock_db.complete_pipeline_run.assert_called_once()
+
+    step_statuses = {
+        call.args[3]: call.args[4]
+        for call in mock_db._execute.await_args_list
+        if len(call.args) >= 5
+    }
+    assert step_statuses.get("generate") == "skipped"
+    assert "parameter_validation" in step_statuses
+    assert step_statuses.get("review") == "skipped"
+    assert step_statuses.get("refine") == "skipped"
 
 
 @pytest.mark.asyncio

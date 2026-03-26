@@ -254,7 +254,7 @@ async def list_scrapes(db: PostgresDB = Depends(get_db), limit: int = 50):
             SELECT rs.id, rs.url, rs.created_at, rs.metadata, s.jurisdiction_id, j.name as jurisdiction_name
             FROM raw_scrapes rs
             LEFT JOIN sources s ON rs.source_id = s.id
-            LEFT JOIN jurisdictions j ON s.jurisdiction_id = j.id
+            LEFT JOIN jurisdictions j ON s.jurisdiction_id::text = j.id::text
             ORDER BY rs.created_at DESC
             LIMIT $1
         """
@@ -415,7 +415,7 @@ async def get_document_health(db: PostgresDB = Depends(get_db)):
                 dc.document_id
             FROM raw_scrapes rs
             LEFT JOIN sources s ON rs.source_id = s.id
-            LEFT JOIN jurisdictions j ON s.jurisdiction_id = j.id
+            LEFT JOIN jurisdictions j ON s.jurisdiction_id::text = j.id::text
             LEFT JOIN (
                 SELECT document_id, COUNT(*) as chunk_count
                 FROM document_chunks
@@ -472,7 +472,7 @@ async def get_bill_truth(
             SELECT rs.id, rs.url, rs.created_at, rs.content_hash, rs.metadata, rs.data
             FROM raw_scrapes rs
             LEFT JOIN sources s ON rs.source_id = s.id
-            LEFT JOIN jurisdictions j ON s.jurisdiction_id = j.id
+            LEFT JOIN jurisdictions j ON s.jurisdiction_id::text = j.id::text
             WHERE LOWER(j.name) = LOWER($1)
               AND rs.metadata::json->>'bill_number' ILIKE $2
             ORDER BY rs.created_at DESC
@@ -651,6 +651,12 @@ async def update_review(review_id: str, request: Request):
 async def list_models(request: Request):
     """List available LLM models. Stub endpoint."""
     import os
+    from services.llm.orchestrator import DEFAULT_OPENROUTER_FALLBACK_MODEL
+
+    openrouter_model = (
+        os.getenv("LLM_MODEL_FALLBACK_OPENROUTER")
+        or DEFAULT_OPENROUTER_FALLBACK_MODEL
+    )
 
     # Return configured models from environment
     return {
@@ -662,8 +668,8 @@ async def list_models(request: Request):
                 "status": "active" if os.getenv("ZAI_API_KEY") else "unconfigured",
             },
             {
-                "id": "gemini-2.0-flash-exp",
-                "name": "Gemini 2.0 Flash",
+                "id": openrouter_model,
+                "name": "OpenRouter Fallback",
                 "provider": "openrouter",
                 "status": "active"
                 if os.getenv("OPENROUTER_API_KEY")

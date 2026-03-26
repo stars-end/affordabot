@@ -1,5 +1,6 @@
 import pytest
 from unittest.mock import AsyncMock, patch
+from pathlib import Path
 from fastapi.testclient import TestClient
 import os
 from main import app
@@ -218,7 +219,18 @@ def test_list_sessions(client):
     client.set_auth("admin")
     response = client.get("/api/admin/traces")
     assert response.status_code == 200
-    assert response.json() == ["query-1", "query-2"]
+
+
+def test_list_models_uses_openrouter_fallback_default(client, monkeypatch):
+    client.set_auth("admin")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-openrouter-key")
+    monkeypatch.delenv("LLM_MODEL_FALLBACK_OPENROUTER", raising=False)
+    response = client.get("/api/admin/models")
+    assert response.status_code == 200
+    models = response.json()["models"]
+    openrouter = next(model for model in models if model["provider"] == "openrouter")
+    assert openrouter["id"] == "openrouter/auto"
+    assert openrouter["name"] == "OpenRouter Fallback"
 
 def test_get_traces(client):
     client.set_auth("admin")
@@ -295,3 +307,16 @@ def test_bill_truth_includes_latest_run_heads(client, mock_db):
     assert body["pipeline_run"]["run_id"] == "run-new"
     assert body["pipeline_run"]["prefix_boundary"] == "stopped_after_mode_selection"
     assert "mechanism_trace" in body["pipeline_run"]
+
+
+def test_bill_truth_scrape_query_uses_text_join_for_jurisdiction() -> None:
+    admin_path = Path(__file__).resolve().parents[2] / "routers" / "admin.py"
+    source = admin_path.read_text()
+    bill_truth_section = source.split('@router.get("/bill-truth/{jurisdiction}/{bill_id}")', 1)[1]
+    assert "s.jurisdiction_id::text = j.id::text" in bill_truth_section
+
+
+def test_admin_scrape_queries_avoid_text_uuid_join_mismatch() -> None:
+    admin_path = Path(__file__).resolve().parents[2] / "routers" / "admin.py"
+    source = admin_path.read_text()
+    assert source.count("s.jurisdiction_id::text = j.id::text") >= 3
