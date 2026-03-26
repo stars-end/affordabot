@@ -562,6 +562,59 @@ class TestWave2CuratedPrerequisites:
         assert wave2["parameter_candidates"] == {}
 
 
+class TestComplianceDiscoveryHeuristics:
+    def test_obligation_text_emits_compliance_candidate(self):
+        service = LegislationResearchService(
+            llm_client=_make_mock_llm_client(),
+            search_client=_make_mock_search_client(),
+            retrieval_backend=_make_mock_retrieval_backend(),
+        )
+
+        impacts, parameters = service._derive_wave1_candidates(
+            bill_id="SB 555",
+            bill_text=(
+                "Covered employers shall file quarterly compliance reports and "
+                "maintain payroll records for annual audits."
+            ),
+            rag_chunks=[],
+            web_results=[],
+        )
+
+        assert any(
+            "compliance_cost" in impact.get("candidate_mode_hints", [])
+            for impact in impacts
+        )
+        assert "impact-compliance-cost" in parameters
+
+    def test_resolution_style_text_does_not_emit_compliance_candidate(self):
+        service = LegislationResearchService(
+            llm_client=_make_mock_llm_client(),
+            search_client=_make_mock_search_client(),
+            retrieval_backend=_make_mock_retrieval_backend(),
+        )
+
+        impacts, parameters = service._derive_wave1_candidates(
+            bill_id="ACR 117",
+            bill_text=(
+                "Relative to Maternal Health Awareness Day. "
+                "Resolved by the Assembly of the State of California, the Senate "
+                "thereof concurring, That the Legislature proclaims January 23, "
+                "2026, as Maternal Health Awareness Day. CA-PAMR reported lower "
+                "mortality ratios, and the Chief Clerk of the Assembly shall "
+                "transmit copies of this resolution to the author for appropriate "
+                "distribution."
+            ),
+            rag_chunks=[],
+            web_results=[],
+        )
+
+        assert all(
+            "compliance_cost" not in impact.get("candidate_mode_hints", [])
+            for impact in impacts
+        )
+        assert "impact-compliance-cost" not in parameters
+
+
 class TestErrorHandling:
     @pytest.mark.asyncio
     async def test_research_graceful_on_retrieval_error(self):

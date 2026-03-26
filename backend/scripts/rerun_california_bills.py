@@ -191,6 +191,7 @@ async def run_pipeline(db, bill_number: str, bill_text: str, jurisdiction: str):
     from llm_common.core import LLMConfig
     from llm_common.providers import ZaiClient, OpenRouterClient
     from services.llm.orchestrator import AnalysisPipeline
+    from services.llm.orchestrator import DEFAULT_OPENROUTER_FALLBACK_MODEL
     from services.llm.web_search_factory import create_web_search_client
     from services.retrieval.local_pgvector import LocalPgVectorBackend
     from llm_common.embeddings.openai import OpenAIEmbeddingService
@@ -208,7 +209,10 @@ async def run_pipeline(db, bill_number: str, bill_text: str, jurisdiction: str):
         or_config = LLMConfig(
             api_key=os.getenv("OPENROUTER_API_KEY"),
             provider="openrouter",
-            default_model="google/gemini-2.0-flash-exp",
+            default_model=(
+                os.getenv("LLM_MODEL_FALLBACK_OPENROUTER")
+                or DEFAULT_OPENROUTER_FALLBACK_MODEL
+            ),
         )
         fallback_client = OpenRouterClient(or_config)
 

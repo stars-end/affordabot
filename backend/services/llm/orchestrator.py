@@ -19,6 +19,7 @@ from llm_common.core.models import LLMMessage, MessageRole
 from typing import List, Dict, Any, Optional
 import re
 import json
+import os
 from pydantic import BaseModel, ValidationError
 from schemas.analysis import (
     LegislationAnalysisResponse,
@@ -61,6 +62,7 @@ CANONICAL_PIPELINE_STEPS: List[str] = [
     "notify_debug",
 ]
 STEP_INDEX = {name: i + 1 for i, name in enumerate(CANONICAL_PIPELINE_STEPS)}
+DEFAULT_OPENROUTER_FALLBACK_MODEL = "openrouter/auto"
 
 
 class PrefixFixtureError(RuntimeError):
@@ -241,6 +243,14 @@ class AnalysisPipeline:
             retrieval_backend=retrieval_backend,
             embedding_fn=embedding_fn,
             db_client=db_client,
+        )
+
+    def _resolve_openrouter_fallback_model(self) -> str:
+        configured = getattr(getattr(self.fallback_llm, "config", None), "default_model", None)
+        return (
+            configured
+            or os.getenv("LLM_MODEL_FALLBACK_OPENROUTER")
+            or DEFAULT_OPENROUTER_FALLBACK_MODEL
         )
 
     async def run(
@@ -686,8 +696,7 @@ class AnalysisPipeline:
                 return analysis
 
             if (
-                not discovered_impacts
-                and breakdown.overall_sufficiency_state == SufficiencyState.QUALITATIVE_ONLY
+                breakdown.overall_sufficiency_state == SufficiencyState.QUALITATIVE_ONLY
                 and source_text_present
             ):
                 analysis = LegislationAnalysisResponse(
@@ -703,9 +712,67 @@ class AnalysisPipeline:
                     analysis_timestamp=datetime.now().isoformat(),
                     model_used=models.get("generate", "unknown"),
                 )
+                analysis = self._apply_wave1_quantification(
+                    analysis=analysis,
+                    impact_candidates=discovered_impacts,
+                    mode_decisions=mode_decisions,
+                    parameter_resolutions=parameter_resolutions,
+                    breakdown=breakdown,
+                )
+                analysis.sufficiency_state = breakdown.overall_sufficiency_state
+                analysis.insufficiency_reason = self._breakdown_reason(breakdown)
+                analysis.quantification_eligible = False
+                analysis.aggregate_scenario_bounds = None
 
-                skipped_reason = "no_impacts_discovered_fail_closed"
-                for step_name in ("generate", "parameter_validation", "review", "refine"):
+                skipped_reason = (
+                    "qualitative_only_fail_closed"
+                    if discovered_impacts
+                    else "no_impacts_discovered_fail_closed"
+                )
+                halted = await _checkpoint(
+                    "generate",
+                    {"skipped": True, "reason": skipped_reason},
+                    status="skipped",
+                    input_context={"bill_id": bill_id},
+                    model_info={"model": "deterministic"},
+                )
+                if halted:
+                    return analysis
+
+                if discovered_impacts:
+                    impact_validations = [
+                        self._build_parameter_validation_output(
+                            resolution,
+                            eligible_for_quant=gate.quantification_eligible,
+                        )
+                        for resolution, gate in zip(
+                            parameter_resolutions, breakdown.impact_gate_summaries
+                        )
+                    ]
+                    first_validation = impact_validations[0]
+                    parameter_validation_output = {
+                        **first_validation,
+                        "impact_validations": impact_validations,
+                    }
+                    halted = await _checkpoint(
+                        "parameter_validation",
+                        parameter_validation_output,
+                        status="completed",
+                        input_context={"bill_id": bill_id},
+                        model_info={"model": "deterministic"},
+                    )
+                else:
+                    halted = await _checkpoint(
+                        "parameter_validation",
+                        {"skipped": True, "reason": skipped_reason},
+                        status="skipped",
+                        input_context={"bill_id": bill_id},
+                        model_info={"model": "deterministic"},
+                    )
+                if halted:
+                    return analysis
+
+                for step_name in ("review", "refine"):
                     halted = await _checkpoint(
                         step_name,
                         {"skipped": True, "reason": skipped_reason},
@@ -723,7 +790,11 @@ class AnalysisPipeline:
                     analysis,
                     ReviewCritique(
                         passed=False,
-                        critique="Skipped: no impacts discovered",
+                        critique=(
+                            "Skipped: qualitative-only deterministic completion"
+                            if discovered_impacts
+                            else "Skipped: no impacts discovered"
+                        ),
                         missing_impacts=[],
                         factual_errors=[],
                     ),
@@ -1113,10 +1184,7 @@ class AnalysisPipeline:
                 if not self.fallback_llm:
                     raise
                 print(f"Primary LLM failed: {e}. Retrying with Fallback LLM...")
-                fallback_model = (
-                    self.fallback_llm.config.default_model
-                    or "google/gemini-2.0-flash-exp"
-                )
+                fallback_model = self._resolve_openrouter_fallback_model()
                 response = await self.fallback_llm.chat_completion(
                     messages=call_messages,
                     model=fallback_model,

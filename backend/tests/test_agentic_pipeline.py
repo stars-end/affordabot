@@ -1249,6 +1249,128 @@ async def test_pipeline_zero_impact_discovery_completes_without_generation():
 
 
 @pytest.mark.asyncio
+async def test_pipeline_qualitative_discovered_impacts_complete_without_generation():
+    mock_llm = MagicMock(spec=LLMClient)
+    mock_search = MagicMock(spec=WebSearchClient)
+    mock_db = MagicMock()
+
+    mock_db.get_latest_scrape_for_bill = AsyncMock(return_value=None)
+    mock_db.create_pipeline_run = AsyncMock(return_value="run-1")
+    mock_db.get_or_create_jurisdiction = AsyncMock(return_value=1)
+    mock_db.store_legislation = AsyncMock(return_value=101)
+    mock_db.store_impacts = AsyncMock()
+    mock_db.complete_pipeline_run = AsyncMock()
+    mock_db.fail_pipeline_run = AsyncMock()
+    mock_db._execute = AsyncMock()
+
+    pipeline = AnalysisPipeline(mock_llm, mock_search, mock_db)
+
+    research_result = _make_research_result()
+    research_result.impact_candidates = [
+        {
+            "impact_id": "impact-qual-1",
+            "impact_description": "Ceremonial resolution may require limited compliance coordination.",
+            "relevant_clauses": ["Section 1"],
+            "evidence_refs": ["https://leginfo.legislature.ca.gov/sb277"],
+            "candidate_mode_hints": ["compliance_cost"],
+            "impact_scope": "bill",
+        }
+    ]
+    research_result.parameter_candidates = {"impact-qual-1": {}}
+    research_result.rag_chunks = [
+        MagicMock(
+            content="The resolution expresses intent and does not appropriate funds.",
+            score=0.89,
+            metadata={"source_url": "https://leginfo.legislature.ca.gov/sb277"},
+        )
+    ]
+    research_result.web_sources = [
+        {
+            "title": "SB 277 text",
+            "url": "https://leginfo.legislature.ca.gov/sb277",
+            "snippet": "Resolution language and implementation references.",
+        }
+    ]
+    research_result.evidence_envelopes = [
+        EvidenceEnvelope(
+            id="env-qual-impact",
+            source_tool="retriever",
+            source_query="SB 277",
+            evidence=[
+                Evidence(
+                    id="rag-qual-impact",
+                    kind="internal",
+                    label="SB 277 text",
+                    url="https://leginfo.legislature.ca.gov/sb277",
+                    content="",
+                    excerpt="The resolution expresses intent and does not appropriate funds.",
+                )
+            ],
+        )
+    ]
+    qualitative_breakdown = SufficiencyBreakdown(
+        overall_quantification_eligible=False,
+        overall_sufficiency_state=SufficiencyState.QUALITATIVE_ONLY,
+        impact_gate_summaries=[
+            ImpactGateSummary(
+                impact_id="impact-qual-1",
+                selected_mode="compliance_cost",
+                quantification_eligible=False,
+                sufficiency_state=SufficiencyState.QUALITATIVE_ONLY,
+            )
+        ],
+    )
+
+    with patch.object(
+        pipeline.research_service,
+        "research",
+        new_callable=AsyncMock,
+        return_value=research_result,
+    ), patch(
+        "services.llm.orchestrator.assess_sufficiency",
+        return_value=qualitative_breakdown,
+    ), patch.object(
+        pipeline,
+        "_generate_step",
+        new_callable=AsyncMock,
+        side_effect=AssertionError(
+            "generate step should be skipped for qualitative-only discovered impacts"
+        ),
+    ), patch.object(
+        pipeline,
+        "_review_step",
+        new_callable=AsyncMock,
+        side_effect=AssertionError(
+            "review step should be skipped for qualitative-only discovered impacts"
+        ),
+    ):
+        result = await pipeline.run(
+            "SB-277",
+            "Bill text with enough content to count as source text." * 8,
+            "California",
+            {"research": "m1", "generate": "m2", "review": "m3"},
+        )
+
+    assert result.bill_number == "SB-277"
+    assert result.quantification_eligible is False
+    assert result.sufficiency_state == SufficiencyState.QUALITATIVE_ONLY
+    assert len(result.impacts) == 1
+    assert result.impacts[0].impact_mode == "qualitative_only"
+    assert result.impacts[0].impact_description
+    mock_db.complete_pipeline_run.assert_called_once()
+
+    step_statuses = {
+        call.args[3]: call.args[4]
+        for call in mock_db._execute.await_args_list
+        if len(call.args) >= 5
+    }
+    assert step_statuses.get("generate") == "skipped"
+    assert "parameter_validation" in step_statuses
+    assert step_statuses.get("review") == "skipped"
+    assert step_statuses.get("refine") == "skipped"
+
+
+@pytest.mark.asyncio
 async def test_prefix_run_halts_with_prefix_halted_status():
     mock_llm = MagicMock(spec=LLMClient)
     mock_search = MagicMock(spec=WebSearchClient)

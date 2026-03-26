@@ -191,6 +191,25 @@ async def diagnose_bill(db, jurisdiction: str, bill_id: str) -> dict:
     def _step_has_keys(step_output: Dict[str, Any], required_keys: List[str]) -> bool:
         return all(key in step_output for key in required_keys)
 
+    def _parameter_validation_shape_valid(step: Dict[str, Any]) -> bool:
+        output = step.get("output_result", {}) or {}
+        if _step_has_keys(
+            output,
+            [
+                "schema_valid",
+                "arithmetic_valid",
+                "bound_construction_valid",
+                "claim_support_valid",
+                "validation_failures",
+            ],
+        ):
+            return True
+        return (
+            step.get("status") == "skipped"
+            and output.get("skipped") is True
+            and isinstance(output.get("reason"), str)
+        )
+
     latest_pipe_query = """
         SELECT id, status, started_at, completed_at, error, result, trigger_source
         FROM pipeline_runs
@@ -357,15 +376,8 @@ async def diagnose_bill(db, jurisdiction: str, bill_id: str) -> dict:
             },
             "parameter_validation": {
                 "present": "parameter_validation" in step_map,
-                "valid_shape": _step_has_keys(
-                    step_map.get("parameter_validation", {}).get("output_result", {}),
-                    [
-                        "schema_valid",
-                        "arithmetic_valid",
-                        "bound_construction_valid",
-                        "claim_support_valid",
-                        "validation_failures",
-                    ],
+                "valid_shape": _parameter_validation_shape_valid(
+                    step_map.get("parameter_validation", {})
                 )
                 if "parameter_validation" in step_map
                 else False,
