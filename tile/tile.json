@@ -1,0 +1,7 @@
+{
+  "name": "prime-radiant-ai/affordabot-monorepo",
+  "version": "0.1.0",
+  "docs": "docs/index.md",
+  "summary": "Automated affordability analysis tool for California legislation that continuously monitors new bills and regulations, analyzes their cost-of-living impact on typical families using LLMs, and presents results through an interactive dashboard.",
+  "private": true
+}
