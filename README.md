@@ -54,15 +54,21 @@ AffordaBot is a "Dependabot for government" - continuously monitoring new bills 
    ```
 
 3. **Run Services**
-   ```bash
-   # Terminal 1 - Backend
-   cd backend
-   railway run uvicorn main:app --reload
-   
-   # Terminal 2 - Frontend
-   cd frontend
-   railway run npm run dev
-   ```
+    ```bash
+    # Terminal 1 - Backend
+    cd backend
+    ../scripts/dx-railway-run.sh -- poetry run uvicorn main:app --reload
+    
+    # Terminal 2 - Frontend
+    cd frontend
+    ../scripts/dx-railway-run.sh --service frontend -- pnpm dev
+    ```
+
+    Or use the Makefile wrapper:
+    ```bash
+    make dev-backend
+    make dev-frontend
+    ```
 
 4. **Visit Dashboard**
    Open http://localhost:3000

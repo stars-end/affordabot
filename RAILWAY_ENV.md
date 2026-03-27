@@ -75,30 +75,46 @@ None required - all variables are service-specific.
 ### 1. Backend Service
 ```bash
 railway service create backend
-railway service link backend
+railway link --project <project-id> --environment <env> --service backend
 railway variables set OPENROUTER_API_KEY=sk-or-v1-...
-railway variables set SUPABASE_URL=https://xxxxx.supabase.co
-railway variables set SUPABASE_SERVICE_ROLE_KEY=eyJhbGc...
 railway variables set OPENSTATES_API_KEY=your-key
 ```
 
 ### 2. Frontend Service
 ```bash
 railway service create frontend
-railway service link frontend
+railway link --project <project-id> --environment <env> --service frontend
 railway variables set NEXT_PUBLIC_API_URL=https://affordabot-backend.railway.app
 ```
 
-### 3. Local Development (Railway Shell)
-```bash
-# Backend
-cd backend
-railway run uvicorn main:app --reload
+### 3. Local Development (Worktree-Safe)
 
-# Frontend
+Affordabot uses a thin repo-local wrapper over the shared agent-skills Railway contract for worktree-safe, non-interactive execution.
+
+```bash
+# Verify Railway auth is configured (non-interactive)
+make auth-check
+
+# Run backend with Railway context
+cd backend
+../scripts/dx-railway-run.sh -- poetry run uvicorn main:app --reload
+
+# Run frontend with Railway context
 cd frontend
-railway run npm run dev
+../scripts/dx-railway-run.sh --service frontend -- pnpm dev
 ```
+
+Or use the Makefile:
+```bash
+make auth-check
+make dev-backend
+make dev-frontend
+```
+
+The wrapper resolves Railway context from:
+1. Worktree context files (`/tmp/agents/.dx-context/<beads-id>/<repo>/railway-context.env`)
+2. Local `.dx/railway-context.env`
+3. Explicit environment variables (`AFFORDABOT_PROJECT_ID`, `AFFORDABOT_ENV`, `AFFORDABOT_SERVICE`)
 
 ---
 

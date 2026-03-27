@@ -1,19 +1,33 @@
-.PHONY: help install dev build test test-legacy lint clean ci e2e ci-lite
+.PHONY: help install dev build test test-legacy lint clean ci e2e ci-lite \
+        auth auth-check \
+        dev-frontend dev-backend dev-railway \
+        check-verify-env check-railway-shell \
+        verify-pipeline verify-discovery verify-analysis verify-e2e verify-glassbox \
+        verify-agents verify-auth verify-storage verify-env \
+        verify-local verify-visual-pr verify-visual verify-admin-pipeline \
+        verify-stories verify-nightly verify-gate verify-triage \
+        verify-stories-failures verify-stories-overnight \
+        verify-dev verify-all verify-full-pipeline \
+        verify-pr verify-pr-lite
+
+# ============================================================
+# Railway Execution Contract
+# ============================================================
+# Affordabot uses a thin repo-local wrapper over the shared
+# agent-skills Railway contract. See scripts/dx-railway-run.sh.
+#
+# Canonical execution path (worktree-safe, non-interactive):
+#   ./scripts/dx-railway-run.sh -- <command> [args...]
+#
+# Canonical auth path (worktree-safe, non-interactive):
+#   ./scripts/dx-load-auth.sh -- <command> [args...]
+#   ./scripts/dx-load-auth.sh --check
+
+DX_RAILWAY_RUN := ./scripts/dx-railway-run.sh
 
 # ============================================================
 # CI/Verification Helpers
 # ============================================================
-
-# Conditionally determine the command wrapper for verification tasks.
-# - If inside a Railway shell (RAILWAY_PROJECT_NAME is set), commands run directly.
-# - If a RAILWAY_TOKEN is present, use 'railway run' to inject env.
-# - Otherwise, no wrapper is used, and env must be configured manually.
-RUN_CMD :=
-ifeq ($(shell test -n "$$RAILWAY_PROJECT_NAME" && echo 1), 1)
-	RUN_CMD :=
-else ifeq ($(shell test -n "$$RAILWAY_TOKEN" && echo 1), 1)
-	RUN_CMD := railway run
-endif
 
 # List of essential env vars for running verification without Railway.
 REQUIRED_VERIFY_VARS := \
@@ -25,8 +39,12 @@ REQUIRED_VERIFY_VARS := \
 	TEST_USER_PASSWORD
 
 check-verify-env:
-	@if [ -z "$(RUN_CMD)" ]; then \
-		echo "  'railway run' not used. Checking for required env vars..."; \
+	@if [ -n "$${RAILWAY_ENVIRONMENT:-}" ]; then \
+		echo "  Inside Railway context (RAILWAY_ENVIRONMENT is set)."; \
+	elif [ -f ".dx/railway-context.env" ] || [ -n "$${DX_RAILWAY_CONTEXT_FILE:-}" ]; then \
+		echo "  Railway context file found, using dx-railway-run wrapper."; \
+	else \
+		echo "  No Railway context file found. Checking for required env vars..."; \
 		MISSING_VARS=0; \
 		for var in $(REQUIRED_VERIFY_VARS); do \
 			if [ -z "$$(eval echo \"\$$$${var}\")" ]; then \
@@ -37,26 +55,26 @@ check-verify-env:
 		if [ "$$MISSING_VARS" -eq 1 ]; then \
 			echo ""; \
 			echo "  Fix this by running:"; \
-			echo "   1. make auth"; \
-			echo "   2. railway run make <target>"; \
+			echo "   1. make auth-check     # verify auth is configured"; \
+			echo "   2. ./scripts/dx-railway-run.sh -- make <target>"; \
 			echo ""; \
 			exit 1; \
 		fi; \
 		echo "  All required environment variables are set."; \
-	else \
-		echo "  Using '$(RUN_CMD)' to inject environment variables."; \
 	fi
 
-# Authenticate with Railway (Login + Link)
+# Non-interactive Railway auth via agent-skills shared contract
+auth-check:
+	@echo "  Checking Railway auth (non-interactive)..."
+	@./scripts/dx-load-auth.sh --check
+
 auth:
-	@echo "  Authenticating with Railway..."
+	@echo "  Authenticating with Railway (non-interactive)..."
 	@if ! command -v railway >/dev/null; then \
 		echo "  Railway CLI not found. Installing..."; \
 		npm install -g @railway/cli; \
 	fi
-	railway login
-	@echo "  Linking project..."
-	railway link
+	@./scripts/dx-load-auth.sh -- railway whoami
 
 # Default target
 help:
@@ -74,6 +92,13 @@ help:
 	@echo "  ci-lite      - Fast local validation (<30s)"
 	@echo "  clean        - Clean build artifacts"
 	@echo "  ci           - Run full CI suite locally"
+	@echo ""
+	@echo "  auth-check   - Verify Railway auth (non-interactive)"
+	@echo "  auth         - Authenticate with Railway (non-interactive)"
+	@echo ""
+	@echo "Railway execution (worktree-safe):"
+	@echo "  ./scripts/dx-railway-run.sh -- <command> [args...]"
+	@echo "  ./scripts/dx-load-auth.sh -- <command> [args...]"
 
 # Install dependencies
 install:
@@ -99,8 +124,8 @@ dev-frontend:
 	cd frontend && pnpm dev
 
 dev-backend:
-	@echo "Starting backend server (via Railway run)..."
-	cd backend && railway run poetry run uvicorn main:app --reload --host 0.0.0.0 --port 8000
+	@echo "Starting backend server (via dx-railway-run)..."
+	cd backend && $(DX_RAILWAY_RUN) -- poetry run uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 # Build for production
 build:
@@ -158,9 +183,9 @@ ci:
 
 # Check for Railway Shell environment
 check-railway-shell:
-	@if [ -z "$$RAILWAY_PROJECT_NAME" ]; then \
-		echo "  Error: Must run inside 'railway shell'."; \
-		echo "   Run 'railway shell' first, then run this command."; \
+	@if [ -z "$${RAILWAY_ENVIRONMENT:-}" ]; then \
+		echo "  Error: Not inside a Railway environment."; \
+		echo "   Use ./scripts/dx-railway-run.sh -- <command> for worktree-safe execution."; \
 		exit 1; \
 	fi
 
@@ -170,26 +195,26 @@ check-railway-shell:
 
 verify-pipeline: check-verify-env
 	@echo "  Running RAG Pipeline Verification (E2E)..."
-	cd backend && $(RUN_CMD) poetry run python scripts/verification/verify_sanjose_pipeline.py
+	cd backend && $(DX_RAILWAY_RUN) -- poetry run python scripts/verification/verify_sanjose_pipeline.py
 
 verify-discovery: check-verify-env
 	@echo "  Phase 0: Verifying Discovery Configuration (LLM Queries)..."
 	@mkdir -p artifacts/verification/discovery
-	cd backend && $(RUN_CMD) poetry run python scripts/verification/verify_discovery.py --artifacts-dir ../artifacts/verification/discovery
+	cd backend && $(DX_RAILWAY_RUN) -- poetry run python scripts/verification/verify_discovery.py --artifacts-dir ../artifacts/verification/discovery
 	@echo "  Discovery artifacts saved to artifacts/verification/discovery/"
 
 verify-analysis: check-verify-env
 	@echo "  Running Analysis Loop Verification..."
-	cd backend && $(RUN_CMD) poetry run python scripts/verification/verify_analysis_loop.py
+	cd backend && $(DX_RAILWAY_RUN) -- poetry run python scripts/verification/verify_analysis_loop.py
 
 verify-e2e: check-verify-env
 	@echo "  Running E2E Glass Box Audit..."
-	cd backend && $(RUN_CMD) poetry run python scripts/verification/verify_e2e_glassbox.py
+	cd backend && $(DX_RAILWAY_RUN) -- poetry run python scripts/verification/verify_e2e_glassbox.py
 
 verify-glassbox: check-verify-env
 	@echo "  Running Affordabot Glass Box Verification (10 Phases)..."
 	@mkdir -p artifacts/verification
-	cd backend && $(RUN_CMD) poetry run python scripts/verification/verify_sanjose_pipeline.py --screenshots --artifacts-dir ../artifacts/verification
+	cd backend && $(DX_RAILWAY_RUN) -- poetry run python scripts/verification/verify_sanjose_pipeline.py --screenshots --artifacts-dir ../artifacts/verification
 	@echo "  Screenshots saved to artifacts/verification/"
 
 verify-agents:
@@ -198,16 +223,16 @@ verify-agents:
 
 verify-auth: check-verify-env
 	@echo "  Running Auth Configuration Verification..."
-	cd backend && $(RUN_CMD) poetry run python scripts/verification/verify_auth_config.py
+	cd backend && $(DX_RAILWAY_RUN) -- poetry run python scripts/verification/verify_auth_config.py
 
 verify-storage: check-verify-env
 	@echo "  Running S3/MinIO Storage Verification..."
-	cd backend && $(RUN_CMD) poetry run python scripts/verification/verify_s3_connection.py
+	cd backend && $(DX_RAILWAY_RUN) -- poetry run python scripts/verification/verify_s3_connection.py
 
 verify-env: check-verify-env
 	@echo "  Checking Environment & Admin Setup..."
-	$(RUN_CMD) sh -c "cd backend && poetry run python scripts/check_env.py"
-	$(RUN_CMD) sh -c "cd backend && poetry run python scripts/verification/verify_admin_import.py"
+	$(DX_RAILWAY_RUN) -- sh -c "cd backend && poetry run python scripts/check_env.py"
+	$(DX_RAILWAY_RUN) -- sh -c "cd backend && poetry run python scripts/verification/verify_admin_import.py"
 
 verify-local:
 	@echo "  Running Local Visual E2E (localhost)..."
@@ -237,7 +262,7 @@ verify-admin-pipeline: check-verify-env
 	@mkdir -p artifacts/verification/admin_pipeline
 	@TARGET_URL="$(or $(FRONTEND_URL),$(RAILWAY_DEV_FRONTEND_URL))"; \
 	echo "Using FRONTEND_URL=$${TARGET_URL}"; \
-	cd backend && $(RUN_CMD) poetry run python scripts/verification/admin_pipeline_agent.py \
+	cd backend && $(DX_RAILWAY_RUN) -- poetry run python scripts/verification/admin_pipeline_agent.py \
 		--url "$${TARGET_URL}" \
 		--output ../artifacts/verification/admin_pipeline
 
@@ -245,7 +270,7 @@ verify-stories:
 	@echo "  Running QA UISmoke Verification..."
 	@mkdir -p artifacts/verification/uismoke
 	@TARGET_URL="$(or $(FRONTEND_URL),$(RAILWAY_DEV_FRONTEND_URL))"; \
-	cd backend && $(RUN_CMD) poetry run uismoke run \
+	cd backend && $(DX_RAILWAY_RUN) -- poetry run uismoke run \
 		--stories ../docs/TESTING/STORIES \
 		--base-url "$${TARGET_URL}" \
 		--output ../artifacts/verification/uismoke \
@@ -262,7 +287,7 @@ verify-nightly:
 	@echo "  Running Nightly UISmoke Verification (Repro=3)..."
 	@mkdir -p artifacts/verification/nightly
 	@TARGET_URL="$(or $(FRONTEND_URL),$(RAILWAY_DEV_FRONTEND_URL))"; \
-	cd backend && $(RUN_CMD) poetry run uismoke run \
+	cd backend && $(DX_RAILWAY_RUN) -- poetry run uismoke run \
 		--stories ../docs/TESTING/STORIES \
 		--base-url "$${TARGET_URL}" \
 		--output ../artifacts/verification/nightly \
@@ -281,7 +306,7 @@ verify-gate:
 	@echo "  Running UISmoke Quality Gate..."
 	@mkdir -p artifacts/verification/gate
 	@TARGET_URL="$(or $(FRONTEND_URL),$(RAILWAY_DEV_FRONTEND_URL))"; \
-	cd backend && $(RUN_CMD) poetry run uismoke run \
+	cd backend && $(DX_RAILWAY_RUN) -- poetry run uismoke run \
 		--stories ../docs/TESTING/STORIES \
 		--base-url "$${TARGET_URL}" \
 		--output ../artifacts/verification/gate \
