@@ -1,0 +1,42 @@
+{
+  "fixture_version": "1.0",
+  "feature_key": "bd-bkco.2",
+  "bill_id": "us-hr-5376-2022",
+  "captured_at": "2026-03-28T00:00:00Z",
+  "capture_mode": "synthetic",
+  "scraped_bill_text": {
+    "bill_number": "H.R. 5376",
+    "title": "Inflation Reduction Act of 2022",
+    "text": "AN ACT To provide for reconciliation pursuant to title II of H. Con. Res. 14 and title II of H. Con. Res. 96. Be it enacted by the Senate and House of Representatives of the United States of America in Congress assembled, SECTION 1. SHORT TITLE. This Act may be cited as the Inflation Reduction Act of 2022. SEC. 13301. CORPORATE ALTERNATIVE MINIMUM TAX. (a) In General.--Part I of subchapter Y of chapter 1 is amended by adding at the end the following new section: SEC. 55. CORPORATE ALTERNATIVE MINIMUM TAX. (a) In General.--In the case of any corporation (other than an applicable corporation) for any taxable year, there is hereby imposed a tax equal to 15 percent of the adjusted financial statement income of such corporation for such taxable year.",
+    "introduced_date": "2022-07-27",
+    "status": "Enacted",
+    "source_url": "https://www.congress.gov/bill/117th-congress/house-bill/5376/text"
+  },
+  "rag_chunks": [
+    {
+      "chunk_id": "rag-us-hr-5376-001",
+      "content": "Inflation Reduction Act of 2022. Imposes 15% corporate alternative minimum tax on adjusted financial statement income. Provides tax credits for clean energy investments and electric vehicles.",
+      "score": 0.92,
+      "metadata": {
+        "source_url": "https://www.congress.gov/bill/117th-congress/house-bill/5376/text",
+        "jurisdiction": "federal-us",
+        "content_type": "bill_text"
+      }
+    }
+  ],
+  "web_sources": [
+    {
+      "url": "https://www.cbo.gov/publication/58444",
+      "title": "CBO Estimate - Inflation Reduction Act",
+      "snippet": "CBO estimates the Inflation Reduction Act will reduce the deficit by $238 billion over 10 years. Tax credits for clean energy total approximately $260 billion.",
+      "content": null
+    }
+  ],
+  "sufficiency_breakdown": {
+    "source_text_present": true,
+    "rag_chunks_retrieved": 1,
+    "web_research_sources_found": 1,
+    "fiscal_notes_detected": true,
+    "bill_text_chunks": 1
+  }
+}

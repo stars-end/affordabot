@@ -1,0 +1,42 @@
+{
+  "fixture_version": "1.0",
+  "feature_key": "bd-bkco.2",
+  "bill_id": "us-hr-3684-2021",
+  "captured_at": "2026-03-28T00:00:00Z",
+  "capture_mode": "synthetic",
+  "scraped_bill_text": {
+    "bill_number": "H.R. 3684",
+    "title": "Infrastructure Investment and Jobs Act",
+    "text": "AN ACT To authorize funds for Federal-aid highways, highway safety programs, and transit programs, and for other purposes. Be it enacted by the Senate and House of Representatives of the United States of America in Congress assembled, SECTION 1. SHORT TITLE. This Act may be cited as the Infrastructure Investment and Jobs Act. DIVISION A--SURFACE TRANSPORTATION. SEC. 11101. DEFINITIONS. In this division: (1) Administrator.--The term Administrator means the Administrator of the Federal Highway Administration. (2) Apportionment.--The term apportionment means an apportionment made by the Secretary under section 104. (3) Department.--The term Department means the Department of Transportation.",
+    "introduced_date": "2021-06-04",
+    "status": "Enacted",
+    "source_url": "https://www.congress.gov/bill/117th-congress/house-bill/3684/text"
+  },
+  "rag_chunks": [
+    {
+      "chunk_id": "rag-us-hr-3684-001",
+      "content": "Infrastructure Investment and Jobs Act. Authorizes $1.2 trillion for infrastructure including roads, bridges, transit, water, and broadband infrastructure over 5 years.",
+      "score": 0.91,
+      "metadata": {
+        "source_url": "https://www.congress.gov/bill/117th-congress/house-bill/3684/text",
+        "jurisdiction": "federal-us",
+        "content_type": "bill_text"
+      }
+    }
+  ],
+  "web_sources": [
+    {
+      "url": "https://www.cbo.gov/publication/57432",
+      "title": "CBO Cost Estimate - H.R. 3684",
+      "snippet": "CBO estimates the Infrastructure Investment and Jobs Act would add $256 billion to the deficit over 10 years. Total spending: $1.2 trillion.",
+      "content": null
+    }
+  ],
+  "sufficiency_breakdown": {
+    "source_text_present": true,
+    "rag_chunks_retrieved": 1,
+    "web_research_sources_found": 1,
+    "fiscal_notes_detected": true,
+    "bill_text_chunks": 1
+  }
+}

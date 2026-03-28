@@ -1,0 +1,58 @@
+{
+  "fixture_version": "1.0",
+  "feature_key": "bd-bkco.2",
+  "bill_id": "ca-sb-253-2023",
+  "captured_at": "2026-03-28T00:00:00Z",
+  "capture_mode": "synthetic",
+  "scraped_bill_text": {
+    "bill_number": "SB 253",
+    "title": "Climate Corporate Data Accountability Act",
+    "text": "An act to add Division 20.6 (commencing with Section 102835) to the Health and Safety Code, relating to greenhouse gases. LEGISLATIVE COUNSEL'S DIGEST: Existing law requires the State Air Resources Board to maintain a greenhouse gas emissions registry. This bill would require, commencing in 2026, the California State Air Resources Board to develop and adopt regulations requiring certain companies with revenues exceeding $1,000,000,000 that do business in California to publicly disclose their Scope 1, Scope 2, and Scope 3 greenhouse gas emissions. SECTION 1. Division 20.6 is added to the Health and Safety Code, to read: Division 20.6. Climate Corporate Data Accountability Act. 102835. This division shall be known, and may be cited, as the Climate Corporate Data Accountability Act. 102836. For purposes of this division, the following definitions apply: (a) Company means a corporation, partnership, limited liability company, or other business entity formed under the laws of this state, any other state of the United States, the District of Columbia, or under the laws of any foreign country, with total annual revenues in excess of one billion dollars ($1,000,000,000). (b) Scope 1 emissions means direct greenhouse gas emissions from sources that are owned or controlled by the company. (c) Scope 2 emissions means indirect greenhouse gas emissions from the generation of electricity, heat, or steam that is purchased by the company. (d) Scope 3 emissions means indirect upstream and downstream greenhouse gas emissions other than Scope 2 emissions, in the company's value chain. 102837. (a) No later than January 1, 2026, the state board shall develop and adopt regulations requiring a company to do both of the following: (1) On an annual basis, publicly disclose its Scope 1 and Scope 2 emissions in conformance with the greenhouse gas protocol corporate standard. (2) On an annual basis, publicly disclose its Scope 3 emissions in conformance with the greenhouse gas protocol corporate value chain accounting and reporting standard. (b) The disclosures required pursuant to subdivision (a) shall be independently verified by a third-party auditor with expertise in greenhouse gas emissions.",
+    "introduced_date": "2023-01-10",
+    "status": "Chaptered",
+    "source_url": "https://leginfo.legislature.ca.gov/faces/billTextClient.xhtml?bill_id=202320240SB253"
+  },
+  "rag_chunks": [
+    {
+      "chunk_id": "rag-ca-sb-253-001",
+      "content": "This bill would require, commencing in 2026, the California State Air Resources Board to develop and adopt regulations requiring certain companies with revenues exceeding $1,000,000,000 that do business in California to publicly disclose their Scope 1, Scope 2, and Scope 3 greenhouse gas emissions.",
+      "score": 0.91,
+      "metadata": {
+        "source_url": "https://leginfo.legislature.ca.gov/faces/billTextClient.xhtml?bill_id=202320240SB253",
+        "jurisdiction": "california",
+        "content_type": "bill_text"
+      }
+    },
+    {
+      "chunk_id": "rag-ca-sb-253-002",
+      "content": "The disclosures required pursuant to subdivision (a) shall be independently verified by a third-party auditor with expertise in greenhouse gas emissions. This creates ongoing compliance obligations for affected companies.",
+      "score": 0.86,
+      "metadata": {
+        "source_url": "https://leginfo.legislature.ca.gov/faces/billTextClient.xhtml?bill_id=202320240SB253",
+        "jurisdiction": "california",
+        "content_type": "bill_text"
+      }
+    }
+  ],
+  "web_sources": [
+    {
+      "url": "https://leginfo.legislature.ca.gov/faces/billAnalysisClient.xhtml?bill_id=202320240SB253",
+      "title": "SB 253 Bill Analysis",
+      "snippet": "Senate Floor Analysis: SB 253 would require CARB to adopt regulations requiring covered companies to disclose Scope 1, 2, and 3 greenhouse gas emissions annually.",
+      "content": null
+    },
+    {
+      "url": "https://www.dof.ca.gov/budget/historical_budget_charts/",
+      "title": "Department of Finance Fiscal Analysis",
+      "snippet": "Fiscal Impact: One-time and ongoing costs to CARB to develop regulations and oversee compliance. Estimated costs of $2-3 million annually for enforcement.",
+      "content": null
+    }
+  ],
+  "sufficiency_breakdown": {
+    "source_text_present": true,
+    "rag_chunks_retrieved": 2,
+    "web_research_sources_found": 2,
+    "fiscal_notes_detected": true,
+    "bill_text_chunks": 2
+  }
+}

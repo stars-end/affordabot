@@ -1,0 +1,35 @@
+{
+  "fixture_version": "1.0",
+  "feature_key": "bd-bkco.2",
+  "bill_id": "us-hr-5-2023",
+  "captured_at": "2026-03-28T00:00:00Z",
+  "capture_mode": "synthetic",
+  "scraped_bill_text": {
+    "bill_number": "H.R. 5",
+    "title": "Parents Bill of Rights Act",
+    "text": "AN ACT To ensure the rights of parents in the education of their children. Be it enacted by the Senate and House of Representatives of the United States of America in Congress assembled, SECTION 1. SHORT TITLE. This Act may be cited as the Parents Bill of Rights Act. SEC. 2. RIGHTS OF PARENTS. (a) In General.--No recipient of Federal financial assistance may violate any of the following rights of parents: (1) The right to know what is being taught. (2) The right to be heard. (3) The right to see the school budget and spending. (4) The right to protect their child's privacy. (5) The right to be updated on any violent activity at school.",
+    "introduced_date": "2023-01-09",
+    "status": "Passed House",
+    "source_url": "https://www.congress.gov/bill/118th-congress/house-bill/5/text"
+  },
+  "rag_chunks": [
+    {
+      "chunk_id": "rag-us-hr-5-001",
+      "content": "H.R. 5 (Parents Bill of Rights Act) establishes five fundamental rights for parents in education. No direct fiscal appropriations or funding mechanisms.",
+      "score": 0.75,
+      "metadata": {
+        "source_url": "https://www.congress.gov/bill/118th-congress/house-bill/5/text",
+        "jurisdiction": "federal-us",
+        "content_type": "bill_text"
+      }
+    }
+  ],
+  "web_sources": [],
+  "sufficiency_breakdown": {
+    "source_text_present": true,
+    "rag_chunks_retrieved": 1,
+    "web_research_sources_found": 0,
+    "fiscal_notes_detected": false,
+    "bill_text_chunks": 1
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "fixture_version": "1.0",
+  "feature_key": "bd-bkco.2",
+  "bill_id": "ca-ab-5-2019",
+  "captured_at": "2026-03-28T00:00:00Z",
+  "capture_mode": "synthetic",
+  "scraped_bill_text": {
+    "bill_number": "AB 5",
+    "title": "Worker Status: Employees and Independent Contractors",
+    "text": "An act to amend Sections 2750.3, 2750.4, and 2753 of, and to add Sections 2750.2 and 2754 to, the Labor Code, relating to employment, and making an appropriation therefor. SEC. 2. Section 2750.3 is added to the Labor Code, to read: 2750.3. (a) For purposes of the provisions of this code and the Unemployment Insurance Code, and for the wage orders of the Industrial Welfare Commission, a person providing labor or services for remuneration shall be considered an employee rather than an independent contractor unless the hiring entity satisfies all of the following conditions: (1) The person is free from the control and direction of the hiring entity in connection with the performance of the work. (2) The person performs work that is outside the usual course of the hiring entity's business. (3) The person is customarily engaged in an independently established trade, occupation, or business.",
+    "introduced_date": "2018-12-03",
+    "status": "Chaptered",
+    "source_url": "https://leginfo.legislature.ca.gov/faces/billTextClient.xhtml?bill_id=201920200AB5"
+  },
+  "rag_chunks": [
+    {
+      "chunk_id": "rag-ca-ab-5-001",
+      "content": "AB 5 codifies the ABC test for determining worker classification. Workers are presumed to be employees unless all three prongs of the ABC test are satisfied.",
+      "score": 0.88,
+      "metadata": {
+        "source_url": "https://leginfo.legislature.ca.gov/faces/billTextClient.xhtml?bill_id=201920200AB5",
+        "jurisdiction": "california",
+        "content_type": "bill_text"
+      }
+    }
+  ],
+  "web_sources": [
+    {
+      "url": "https://www.dir.ca.gov/dlse/AB5/",
+      "title": "DIR - AB 5 Information",
+      "snippet": "AB 5 expands employee classification for gig workers and independent contractors. Estimated impact on 2 million California workers.",
+      "content": null
+    }
+  ],
+  "sufficiency_breakdown": {
+    "source_text_present": true,
+    "rag_chunks_retrieved": 1,
+    "web_research_sources_found": 1,
+    "fiscal_notes_detected": false,
+    "bill_text_chunks": 1
+  }
+}

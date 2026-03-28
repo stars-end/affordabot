@@ -1,0 +1,42 @@
+{
+  "fixture_version": "1.0",
+  "feature_key": "bd-bkco.2",
+  "bill_id": "ca-ab-1228-2023",
+  "captured_at": "2026-03-28T00:00:00Z",
+  "capture_mode": "synthetic",
+  "scraped_bill_text": {
+    "bill_number": "AB 1228",
+    "title": "Fast Food Restaurant Franchisor Responsibility Act",
+    "text": "An act to amend Sections 200.1 and 260 of, and to add Section 260.1 to, the Labor Code, relating to employment, and making an appropriation therefor. SEC. 2. Section 200.1 of the Labor Code is amended to read: 200.1. (a) The department, the commission, or the division, or any of them, may investigate and ascertain the wages paid to the employees of any employer, and may enter the place of business or employment of any employer for the purpose of examining and inspecting any and all payroll, payroll records, and other records. (b) For purposes of this section, fast food restaurant means any establishment that is a limited service restaurant and that is part of a set of at least 60 establishments nationally that share a common brand.",
+    "introduced_date": "2023-02-16",
+    "status": "Chaptered",
+    "source_url": "https://leginfo.legislature.ca.gov/faces/billTextClient.xhtml?bill_id=202320240AB1228"
+  },
+  "rag_chunks": [
+    {
+      "chunk_id": "rag-ca-ab-1228-001",
+      "content": "AB 1228 establishes joint employer liability for fast food franchisors and franchisees. Affects fast food restaurants that are part of a set of at least 60 establishments nationally.",
+      "score": 0.88,
+      "metadata": {
+        "source_url": "https://leginfo.legislature.ca.gov/faces/billTextClient.xhtml?bill_id=202320240AB1228",
+        "jurisdiction": "california",
+        "content_type": "bill_text"
+      }
+    }
+  ],
+  "web_sources": [
+    {
+      "url": "https://www.dir.ca.gov/dlse/Fast-Food-Council/",
+      "title": "California Fast Food Council",
+      "snippet": "AB 1228 establishes the Fast Food Council with authority to set minimum standards for fast food workers, including wages up to $22/hour.",
+      "content": null
+    }
+  ],
+  "sufficiency_breakdown": {
+    "source_text_present": true,
+    "rag_chunks_retrieved": 1,
+    "web_research_sources_found": 1,
+    "fiscal_notes_detected": false,
+    "bill_text_chunks": 1
+  }
+}
