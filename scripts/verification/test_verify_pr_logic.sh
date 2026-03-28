@@ -1,40 +1,35 @@
 #!/bin/bash
 #
-# Test case for affordabot-f46z
-# Verifies that 'make verify-*' targets can run without a railway login
-# when required environment variables are provided.
+# Test for bd-9dzi: Verifies that 'make verify-*' targets can run
+# without interactive Railway login or ambient link state when required
+# environment variables are provided.
 
-set -e # Exit immediately if a command exits with a non-zero status.
+set -e
 
-# Ensure we are in the project root
 if [ ! -f "Makefile" ]; then
-    echo "❌ This script must be run from the repository root."
+    echo "FAIL: This script must be run from the repository root."
     exit 1
 fi
 
-echo "🧪 Starting test for Makefile verification logic..."
+echo "Test: Makefile verification logic (worktree-safe)..."
 
-# --- Test Case 1: Failure without env vars and without Railway ---
 echo ""
-echo "--- Test Case 1: Expect failure when env vars are missing ---"
-# Unset all potentially conflicting variables to simulate a clean CI environment
+echo "--- Test 1: Expect failure when env vars are missing ---"
 unset RAILWAY_TOKEN
 unset RAILWAY_PROJECT_NAME
+unset RAILWAY_ENVIRONMENT
+unset DX_RAILWAY_CONTEXT_FILE
 unset BACKEND_URL FRONTEND_URL DATABASE_URL ZAI_API_KEY TEST_USER_EMAIL TEST_USER_PASSWORD
 
-echo "  Running 'make check-verify-env' (should fail)..."
-# We expect this command to fail, so we invert the exit code with !
 if ! make check-verify-env >/dev/null 2>&1; then
-  echo "✅ Test Case 1 PASSED: 'make check-verify-env' failed as expected."
+  echo "PASS: 'make check-verify-env' failed as expected without env vars."
 else
-  echo "❌ Test Case 1 FAILED: 'make check-verify-env' succeeded unexpectedly."
+  echo "FAIL: 'make check-verify-env' succeeded unexpectedly."
   exit 1
 fi
 
-# --- Test Case 2: Success with all required env vars ---
 echo ""
-echo "--- Test Case 2: Expect success when all env vars are provided ---"
-# Export dummy values for all required variables
+echo "--- Test 2: Expect success when all required env vars are provided ---"
 export BACKEND_URL="http://localhost:8000"
 export FRONTEND_URL="http://localhost:3000"
 export DATABASE_URL="postgresql://user:pass@host/db"
@@ -42,21 +37,59 @@ export ZAI_API_KEY="dummy-key"
 export TEST_USER_EMAIL="test@example.com"
 export TEST_USER_PASSWORD="password"
 
-echo "  Exported required environment variables."
-echo "  Running 'make check-verify-env' (should succeed)..."
-
 if make check-verify-env; then
-    echo "✅ Test Case 2 PASSED: 'make check-verify-env' succeeded as expected."
+    echo "PASS: 'make check-verify-env' succeeded with all env vars."
 else
-    echo "❌ Test Case 2 FAILED: 'make check-verify-env' failed unexpectedly."
-    # Clean up before exiting
+    echo "FAIL: 'make check-verify-env' failed unexpectedly with env vars."
     unset BACKEND_URL FRONTEND_URL DATABASE_URL ZAI_API_KEY TEST_USER_EMAIL TEST_USER_PASSWORD
     exit 1
 fi
 
-# Clean up
+echo ""
+echo "--- Test 3: Wrapper script exists and is executable ---"
+if [ -x "scripts/dx-railway-run.sh" ]; then
+    echo "PASS: scripts/dx-railway-run.sh exists and is executable."
+else
+    echo "FAIL: scripts/dx-railway-run.sh missing or not executable."
+    unset BACKEND_URL FRONTEND_URL DATABASE_URL ZAI_API_KEY TEST_USER_EMAIL TEST_USER_PASSWORD
+    exit 1
+fi
+
+if [ -x "scripts/dx-load-auth.sh" ]; then
+    echo "PASS: scripts/dx-load-auth.sh exists and is executable."
+else
+    echo "FAIL: scripts/dx-load-auth.sh missing or not executable."
+    unset BACKEND_URL FRONTEND_URL DATABASE_URL ZAI_API_KEY TEST_USER_EMAIL TEST_USER_PASSWORD
+    exit 1
+fi
+
+echo ""
+echo "--- Test 4: Makefile no longer references bare 'railway run' ---"
+if grep -n 'RUN_CMD.*railway run' Makefile >/dev/null 2>&1; then
+    echo "FAIL: Makefile still contains ambient 'RUN_CMD.*railway run' pattern."
+    unset BACKEND_URL FRONTEND_URL DATABASE_URL ZAI_API_KEY TEST_USER_EMAIL TEST_USER_PASSWORD
+    exit 1
+else
+    echo "PASS: Makefile does not reference ambient 'railway run' via RUN_CMD."
+fi
+
+if grep -n 'railway login' Makefile >/dev/null 2>&1; then
+    echo "FAIL: Makefile still contains 'railway login'."
+    unset BACKEND_URL FRONTEND_URL DATABASE_URL ZAI_API_KEY TEST_USER_EMAIL TEST_USER_PASSWORD
+    exit 1
+else
+    echo "PASS: Makefile does not contain interactive 'railway login'."
+fi
+
+if grep -nE '^\s*railway link$' Makefile >/dev/null 2>&1; then
+    echo "FAIL: Makefile still contains bare 'railway link'."
+    unset BACKEND_URL FRONTEND_URL DATABASE_URL ZAI_API_KEY TEST_USER_EMAIL TEST_USER_PASSWORD
+    exit 1
+else
+    echo "PASS: Makefile does not contain bare interactive 'railway link'."
+fi
+
 unset BACKEND_URL FRONTEND_URL DATABASE_URL ZAI_API_KEY TEST_USER_EMAIL TEST_USER_PASSWORD
 
 echo ""
-echo "✅ All test cases for Makefile logic passed."
-
+echo "PASS: All test cases passed."
