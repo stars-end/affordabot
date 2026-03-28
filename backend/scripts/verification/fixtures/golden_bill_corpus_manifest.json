@@ -1,0 +1,229 @@
+{
+  "manifest_version": "1.0",
+  "feature_key": "bd-bkco.1",
+  "description": "Golden bill corpus manifest for mechanism-backed quantification and control-path evaluation.",
+  "generated_on": "2026-03-28",
+  "bills": [
+    {
+      "bill_id": "us-hr-1319-2021",
+      "title": "American Rescue Plan Act of 2021",
+      "jurisdiction": "federal-us",
+      "year": 2021,
+      "mode_bucket": "direct_fiscal",
+      "expected_quantifiable": true,
+      "control_type": "none",
+      "inclusion_rationale": "Contains explicit federal appropriation and transfer amounts suitable for direct fiscal extraction.",
+      "minimum_required_sources": [
+        "official bill text",
+        "official cost estimate or budgetary scoring"
+      ],
+      "exclusion_risks": [
+        "downstream implementation effects may be mixed with direct transfers"
+      ],
+      "confidence": 0.92
+    },
+    {
+      "bill_id": "us-hr-2617-2022",
+      "title": "Consolidated Appropriations Act, 2023",
+      "jurisdiction": "federal-us",
+      "year": 2022,
+      "mode_bucket": "direct_fiscal",
+      "expected_quantifiable": true,
+      "control_type": "none",
+      "inclusion_rationale": "Appropriations sections provide explicit top-line fiscal quantities for direct-fiscal mode.",
+      "minimum_required_sources": [
+        "official bill text",
+        "conference report or enacted summary tables"
+      ],
+      "exclusion_risks": [
+        "omnibus structure can fragment numeric clauses across divisions"
+      ],
+      "confidence": 0.87
+    },
+    {
+      "bill_id": "ca-sb-253-2023",
+      "title": "Climate Corporate Data Accountability Act",
+      "jurisdiction": "california",
+      "year": 2023,
+      "mode_bucket": "compliance_cost",
+      "expected_quantifiable": true,
+      "control_type": "none",
+      "inclusion_rationale": "Imposes recurring reporting duties that map to labor-hour and vendor-cost compliance burden estimation.",
+      "minimum_required_sources": [
+        "official bill text",
+        "agency implementation guidance",
+        "comparable compliance wage/source tables"
+      ],
+      "exclusion_risks": [
+        "rulemaking updates can alter compliance frequency assumptions"
+      ],
+      "confidence": 0.84
+    },
+    {
+      "bill_id": "ca-sb-1383-2016",
+      "title": "Short-Lived Climate Pollutants: Methane Emissions: Dairy and Livestock: Organic Waste: Landfills",
+      "jurisdiction": "california",
+      "year": 2016,
+      "mode_bucket": "compliance_cost",
+      "expected_quantifiable": true,
+      "control_type": "none",
+      "inclusion_rationale": "Creates measurable compliance activities for local programs and regulated entities with recurring operational burdens.",
+      "minimum_required_sources": [
+        "official bill text",
+        "regulatory implementation documents",
+        "public fee or cost schedules"
+      ],
+      "exclusion_risks": [
+        "local program heterogeneity can increase uncertainty ranges"
+      ],
+      "confidence": 0.8
+    },
+    {
+      "bill_id": "ca-ab-1228-2023",
+      "title": "Fast Food Restaurant Franchisor Responsibility Act",
+      "jurisdiction": "california",
+      "year": 2023,
+      "mode_bucket": "pass_through_incidence",
+      "expected_quantifiable": true,
+      "control_type": "none",
+      "inclusion_rationale": "Labor cost changes and franchise cost shocks are suitable for pass-through incidence assumptions.",
+      "minimum_required_sources": [
+        "official bill text",
+        "sector wage/cost baseline data",
+        "public elasticity benchmarks"
+      ],
+      "exclusion_risks": [
+        "simultaneous local policy changes can confound pass-through attribution"
+      ],
+      "confidence": 0.78
+    },
+    {
+      "bill_id": "ca-sb-3-2016",
+      "title": "Fair Wage Act of 2016",
+      "jurisdiction": "california",
+      "year": 2016,
+      "mode_bucket": "pass_through_incidence",
+      "expected_quantifiable": true,
+      "control_type": "none",
+      "inclusion_rationale": "Minimum-wage increases provide a canonical pass-through setup for business-to-consumer incidence analysis.",
+      "minimum_required_sources": [
+        "official bill text",
+        "labor market baseline data",
+        "price pass-through literature"
+      ],
+      "exclusion_risks": [
+        "regional heterogeneity can widen confidence intervals"
+      ],
+      "confidence": 0.82
+    },
+    {
+      "bill_id": "us-hr-5376-2022",
+      "title": "Inflation Reduction Act of 2022",
+      "jurisdiction": "federal-us",
+      "year": 2022,
+      "mode_bucket": "adoption_take_up",
+      "expected_quantifiable": true,
+      "control_type": "none",
+      "inclusion_rationale": "Consumer-facing credits and incentives support explicit take-up assumptions under bounded adoption scenarios.",
+      "minimum_required_sources": [
+        "official bill text",
+        "IRS or agency guidance",
+        "program participation baselines"
+      ],
+      "exclusion_risks": [
+        "program awareness and administrative friction can shift realized take-up"
+      ],
+      "confidence": 0.86
+    },
+    {
+      "bill_id": "us-hr-3684-2021",
+      "title": "Infrastructure Investment and Jobs Act",
+      "jurisdiction": "federal-us",
+      "year": 2021,
+      "mode_bucket": "adoption_take_up",
+      "expected_quantifiable": true,
+      "control_type": "none",
+      "inclusion_rationale": "Program funding pathways with eligibility constraints enable take-up modeling across infrastructure subsidy channels.",
+      "minimum_required_sources": [
+        "official bill text",
+        "agency program allocation guidance",
+        "program enrollment/uptake baselines"
+      ],
+      "exclusion_risks": [
+        "multi-program structure can blur single-channel adoption attribution"
+      ],
+      "confidence": 0.74
+    },
+    {
+      "bill_id": "ca-acr-117-2024",
+      "title": "Ceremonial California Assembly Concurrent Resolution (Control)",
+      "jurisdiction": "california",
+      "year": 2024,
+      "mode_bucket": "fail_closed_control",
+      "expected_quantifiable": false,
+      "control_type": "ceremonial_resolution",
+      "inclusion_rationale": "Resolution-format content should fail closed because no stable cost mechanism exists.",
+      "minimum_required_sources": [
+        "official resolution text"
+      ],
+      "exclusion_risks": [
+        "title keywords can trigger false fiscal matches in weak retrievers"
+      ],
+      "confidence": 0.83
+    },
+    {
+      "bill_id": "us-hres-57-2023",
+      "title": "House Resolution with Non-Fiscal Recognition Language (Control)",
+      "jurisdiction": "federal-us",
+      "year": 2023,
+      "mode_bucket": "fail_closed_control",
+      "expected_quantifiable": false,
+      "control_type": "non_binding_resolution",
+      "inclusion_rationale": "Non-binding recognition text should deterministically route to non-quantified fail-closed output.",
+      "minimum_required_sources": [
+        "official resolution text"
+      ],
+      "exclusion_risks": [
+        "symbolic references to funding can be misread as appropriations"
+      ],
+      "confidence": 0.79
+    },
+    {
+      "bill_id": "ca-ab-5-2019",
+      "title": "Worker Status: Employees and Independent Contractors (AB 5)",
+      "jurisdiction": "california",
+      "year": 2019,
+      "mode_bucket": "adversarial_control",
+      "expected_quantifiable": false,
+      "control_type": "cross_jurisdiction_id_collision_anchor",
+      "inclusion_rationale": "Used as one side of a numeric ID collision pair to test resolver discipline and false mode carry-over.",
+      "minimum_required_sources": [
+        "official bill text",
+        "session metadata"
+      ],
+      "exclusion_risks": [
+        "policy salience can bias retrieval toward commentary over statute text"
+      ],
+      "confidence": 0.76
+    },
+    {
+      "bill_id": "us-hr-5-2023",
+      "title": "Parents Bill of Rights Act (H.R. 5)",
+      "jurisdiction": "federal-us",
+      "year": 2023,
+      "mode_bucket": "adversarial_control",
+      "expected_quantifiable": false,
+      "control_type": "cross_jurisdiction_id_collision_pair",
+      "inclusion_rationale": "Pairs with California AB 5 to ensure the corpus detects and isolates same-number different-jurisdiction collisions.",
+      "minimum_required_sources": [
+        "official bill text",
+        "chamber/session metadata"
+      ],
+      "exclusion_risks": [
+        "search tools may collapse AB/H.R. identifiers when query is underspecified"
+      ],
+      "confidence": 0.75
+    }
+  ],
+  "gap_notes": []
+}
