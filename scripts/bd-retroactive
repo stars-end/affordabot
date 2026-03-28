@@ -18,7 +18,7 @@
 #   scripts/bd-retroactive --amend      # Also amend commit message
 #
 # WORKFLOW:
-#   1. Scans recent commits for missing bd-xxx Feature-Keys
+#   1. Scans recent commits for missing bd-xxx(.n...) Feature-Keys
 #   2. Interactive selection of commit to track
 #   3. Creates Beads issue (auto-detects type from commit prefix)
 #   4. Closes issue immediately (retroactive tracking)
@@ -88,8 +88,8 @@ COMMITS=$(git log -n "$COUNT" --format="%H|%s|%b" | awk -F'|' '
   subject = $2
   body = $3
 
-  # Check if Feature-Key exists and matches bd-xxx
-  if (body !~ /Feature-Key: bd-[a-z0-9]+/) {
+  # Check if Feature-Key exists and matches bd-xxx(.n...)
+  if (body !~ /Feature-Key: bd-[a-z0-9]+(\.[a-z0-9]+)*/) {
     print hash "|" subject
   }
 }
@@ -153,7 +153,7 @@ read -r priority
 priority=${priority:-2}
 
 # Create issue
-ISSUE_ID=$(bd create "$SELECTED_SUBJECT" --type "$TYPE" --priority "$priority" --assignee claude-code | grep -o 'bd-[a-z0-9]\+' | head -1)
+ISSUE_ID=$(bd create "$SELECTED_SUBJECT" --type "$TYPE" --priority "$priority" --assignee claude-code | grep -oE 'bd-[a-z0-9]+(\.[a-z0-9]+)*' | head -1)
 
 if [ -z "$ISSUE_ID" ]; then
   echo "Error: Failed to create Beads issue"
