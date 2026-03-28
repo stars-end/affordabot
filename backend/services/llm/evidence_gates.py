@@ -90,10 +90,14 @@ NUMERIC_SUPPORT_PATTERNS = (
     r"\b\d[\d,]*(?:\.\d+)?\b",
 )
 
-WAVE1_SUPPORTED_MODES = {
+SUPPORTED_MODES = {
     ImpactMode.DIRECT_FISCAL,
     ImpactMode.COMPLIANCE_COST,
+    ImpactMode.PASS_THROUGH_INCIDENCE,
+    ImpactMode.ADOPTION_TAKE_UP,
 }
+
+WAVE2_LITERATURE_CONFIDENCE_MIN = 0.6
 
 
 def _is_placeholder_text(text: str) -> bool:
@@ -171,6 +175,23 @@ def _resolve_frequency_hierarchy(
     return SourceHierarchyStatus.FAILED_CLOSED
 
 
+def _wave2_literature_confidence_valid(
+    mode: ImpactMode, resolution: ParameterResolutionOutput
+) -> bool:
+    if mode == ImpactMode.PASS_THROUGH_INCIDENCE:
+        value = resolution.literature_confidence.get("pass_through_rate")
+    elif mode == ImpactMode.ADOPTION_TAKE_UP:
+        value = resolution.literature_confidence.get("take_up_rate")
+    else:
+        return True
+    if value is None:
+        return False
+    try:
+        return float(value) >= WAVE2_LITERATURE_CONFIDENCE_MIN
+    except (TypeError, ValueError):
+        return False
+
+
 def _derive_retrieval_status(
     bill_text: str,
     evidence_list: List[ImpactEvidence],
@@ -212,7 +233,7 @@ def assess_impact_sufficiency(
     ):
         failures.append(FailureCode.IMPACT_DISCOVERY_FAILED)
 
-    if mode not in WAVE1_SUPPORTED_MODES:
+    if mode not in SUPPORTED_MODES:
         if mode != ImpactMode.QUALITATIVE_ONLY:
             failures.append(FailureCode.MODE_SELECTION_FAILED)
         return ImpactGateSummary(
@@ -245,6 +266,12 @@ def assess_impact_sufficiency(
         frequency_status = _resolve_frequency_hierarchy(resolution)
         if frequency_status == SourceHierarchyStatus.FAILED_CLOSED:
             failures.append(FailureCode.SOURCE_HIERARCHY_FAILED)
+    elif mode in (
+        ImpactMode.PASS_THROUGH_INCIDENCE,
+        ImpactMode.ADOPTION_TAKE_UP,
+    ):
+        if not _wave2_literature_confidence_valid(mode, resolution):
+            failures.append(FailureCode.PARAMETER_UNVERIFIABLE)
 
     if not validation.schema_valid:
         failures.append(FailureCode.VALIDATION_FAILED)

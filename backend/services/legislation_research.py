@@ -1123,10 +1123,30 @@ class LegislationResearchService:
             }
         return None
 
+    def _has_compliance_obligation_signal(
+        self, sources: List[Dict[str, str]]
+    ) -> bool:
+        action_pattern = re.compile(
+            r"\b(report(?:ing)?|fil(?:e|ing|ed)|record(?:keeping)?|training|license|permit|compliance)\b"
+        )
+        obligation_pattern = re.compile(
+            r"\b(shall|must|required to|requires|subject to)\b"
+        )
+
+        for item in sources:
+            text = (item.get("text") or "").lower()
+            for sentence in re.split(r"(?<=[.!?;])\s+", text):
+                if action_pattern.search(sentence) and obligation_pattern.search(sentence):
+                    return True
+        return False
+
     def _extract_compliance_cost_candidates(
         self, bill_text: str, snippets: List[Dict[str, str]]
     ) -> Dict[str, Any]:
         combined_sources = [{"text": bill_text, "source_url": "", "source_hierarchy_status": "bill_or_reg_text"}] + snippets
+        if not self._has_compliance_obligation_signal(combined_sources):
+            return {}
+
         signals: Dict[str, Any] = {}
 
         population = self._extract_population(combined_sources)
@@ -1162,13 +1182,6 @@ class LegislationResearchService:
         unit_cost = self._extract_unit_cost(combined_sources)
         if unit_cost:
             signals["unit_cost"] = unit_cost
-
-        compliance_text = " ".join(item.get("text", "") for item in combined_sources).lower()
-        if not any(
-            term in compliance_text
-            for term in ["report", "filing", "recordkeeping", "training", "license", "permit", "compliance"]
-        ):
-            return {}
         return signals
 
     def _extract_currency_amount(self, text: str) -> Optional[float]:
