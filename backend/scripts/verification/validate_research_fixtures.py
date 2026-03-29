@@ -15,6 +15,7 @@ REQUIRED_FIELDS: Set[str] = {
     "bill_id",
     "captured_at",
     "capture_mode",
+    "fixture_provenance",
     "scraped_bill_text",
     "rag_chunks",
     "web_sources",
@@ -34,6 +35,22 @@ SUFFICIENCY_REQUIRED_FIELDS: Set[str] = {
 }
 
 VALID_CAPTURE_MODES: Set[str] = {"live", "synthetic"}
+VALID_PROVENANCE_TYPES: Set[str] = {"live_capture", "synthetic_control"}
+VALID_SYNTHETIC_MODE_BUCKETS: Set[str] = {
+    "fail_closed_control",
+    "adversarial_control",
+}
+VALID_SYNTHETIC_USE_CASES: Set[str] = {
+    "control_path_replay",
+    "adversarial_path_replay",
+    "schema_contract_validation",
+    "deterministic_fixture_loading",
+}
+REQUIRED_SYNTHETIC_LIMITATIONS: Set[str] = {
+    "not_live_capture",
+    "not_search_volatility_proof",
+    "not_quantitative_ground_truth",
+}
 
 FIXTURE_VERSION = "1.0"
 FEATURE_KEY = "bd-bkco.2"
@@ -44,7 +61,9 @@ def fail(message: str) -> None:
     sys.exit(1)
 
 
-def validate_fixture(fixture_path: Path, manifest_bill_ids: Set[str]) -> List[str]:
+def validate_fixture(
+    fixture_path: Path, manifest_bills: Dict[str, Dict[str, Any]]
+) -> List[str]:
     errors: List[str] = []
 
     try:
@@ -71,8 +90,9 @@ def validate_fixture(fixture_path: Path, manifest_bill_ids: Set[str]) -> List[st
             )
 
     bill_id = data.get("bill_id", "")
+    manifest_record = manifest_bills.get(bill_id)
     if bill_id:
-        if bill_id not in manifest_bill_ids:
+        if manifest_record is None:
             errors.append(f"bill_id '{bill_id}' not in manifest corpus")
     else:
         errors.append("missing bill_id")
@@ -83,6 +103,88 @@ def validate_fixture(fixture_path: Path, manifest_bill_ids: Set[str]) -> List[st
             f"invalid capture_mode: {capture_mode} "
             f"(expected one of {sorted(VALID_CAPTURE_MODES)})"
         )
+
+    provenance = data.get("fixture_provenance")
+    if provenance is None:
+        errors.append("fixture_provenance is required")
+    elif not isinstance(provenance, dict):
+        errors.append("fixture_provenance must be an object")
+    else:
+        provenance_type = provenance.get("provenance_type", "")
+        if provenance_type not in VALID_PROVENANCE_TYPES:
+            errors.append(
+                f"invalid provenance_type: {provenance_type} "
+                f"(expected one of {sorted(VALID_PROVENANCE_TYPES)})"
+            )
+
+        search_volatility_separated = provenance.get("search_volatility_separated")
+        if not isinstance(search_volatility_separated, bool):
+            errors.append(
+                "fixture_provenance.search_volatility_separated must be a boolean"
+            )
+
+        valid_for = provenance.get("valid_for")
+        if not isinstance(valid_for, list) or not valid_for:
+            errors.append("fixture_provenance.valid_for must be a non-empty array")
+        elif provenance_type == "synthetic_control":
+            invalid_valid_for = [
+                item
+                for item in valid_for
+                if not isinstance(item, str) or item not in VALID_SYNTHETIC_USE_CASES
+            ]
+            if invalid_valid_for:
+                errors.append(
+                    "fixture_provenance.valid_for contains unsupported values: "
+                    f"{invalid_valid_for}"
+                )
+
+        limitations = provenance.get("limitations")
+        if not isinstance(limitations, list) or not limitations:
+            errors.append("fixture_provenance.limitations must be a non-empty array")
+        else:
+            invalid_limitations = [
+                item for item in limitations if not isinstance(item, str)
+            ]
+            if invalid_limitations:
+                errors.append(
+                    "fixture_provenance.limitations contains non-string values: "
+                    f"{invalid_limitations}"
+                )
+
+        if capture_mode == "synthetic":
+            if provenance_type != "synthetic_control":
+                errors.append(
+                    "synthetic fixtures must declare provenance_type="
+                    "'synthetic_control'"
+                )
+            if search_volatility_separated is True:
+                errors.append(
+                    "synthetic fixtures cannot claim search volatility separation"
+                )
+            if manifest_record is not None:
+                if (
+                    manifest_record.get("mode_bucket") not in VALID_SYNTHETIC_MODE_BUCKETS
+                    or manifest_record.get("expected_quantifiable") is not False
+                ):
+                    errors.append(
+                        "synthetic fixtures are only allowed for explicit "
+                        "fail-closed/adversarial control bills"
+                    )
+            if isinstance(limitations, list):
+                missing_limitations = REQUIRED_SYNTHETIC_LIMITATIONS - set(limitations)
+                if missing_limitations:
+                    errors.append(
+                        "synthetic fixtures missing required limitations: "
+                        f"{sorted(missing_limitations)}"
+                    )
+
+        if search_volatility_separated is True and (
+            capture_mode != "live" or provenance_type != "live_capture"
+        ):
+            errors.append(
+                "search volatility separation may only be claimed by live_capture "
+                "fixtures"
+            )
 
     scraped = data.get("scraped_bill_text")
     if scraped is not None:
@@ -138,7 +240,7 @@ def validate_fixture(fixture_path: Path, manifest_bill_ids: Set[str]) -> List[st
     return errors
 
 
-def load_manifest_bill_ids(repo_root: Path) -> Set[str]:
+def load_manifest_bills(repo_root: Path) -> Dict[str, Dict[str, Any]]:
     manifest_path = (
         repo_root
         / "backend"
@@ -153,7 +255,9 @@ def load_manifest_bill_ids(repo_root: Path) -> Set[str]:
 
     data = json.loads(manifest_path.read_text(encoding="utf-8"))
     bills = data.get("bills", [])
-    return {b["bill_id"] for b in bills if isinstance(b, dict) and "bill_id" in b}
+    return {
+        b["bill_id"]: b for b in bills if isinstance(b, dict) and "bill_id" in b
+    }
 
 
 def main() -> None:
@@ -167,7 +271,8 @@ def main() -> None:
         / "research_fixtures"
     )
 
-    manifest_bill_ids = load_manifest_bill_ids(repo_root)
+    manifest_bills = load_manifest_bills(repo_root)
+    manifest_bill_ids = set(manifest_bills.keys())
 
     if not fixtures_dir.exists():
         fail(f"fixtures directory not found: {fixtures_dir}")
@@ -182,7 +287,7 @@ def main() -> None:
     fixture_bill_ids: Set[str] = set()
 
     for fixture_path in sorted(fixture_files):
-        errors = validate_fixture(fixture_path, manifest_bill_ids)
+        errors = validate_fixture(fixture_path, manifest_bills)
         bill_id = fixture_path.stem
 
         if errors:

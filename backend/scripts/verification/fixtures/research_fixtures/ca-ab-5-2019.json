@@ -4,6 +4,20 @@
   "bill_id": "ca-ab-5-2019",
   "captured_at": "2026-03-28T00:00:00Z",
   "capture_mode": "synthetic",
+  "fixture_provenance": {
+    "provenance_type": "synthetic_control",
+    "search_volatility_separated": false,
+    "valid_for": [
+      "adversarial_path_replay",
+      "schema_contract_validation",
+      "deterministic_fixture_loading"
+    ],
+    "limitations": [
+      "not_live_capture",
+      "not_search_volatility_proof",
+      "not_quantitative_ground_truth"
+    ]
+  },
   "scraped_bill_text": {
     "bill_number": "AB 5",
     "title": "Worker Status: Employees and Independent Contractors",

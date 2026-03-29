@@ -3,6 +3,7 @@
 from .replay_fixtures import (
     ReplayableResearchFixture,
     FixtureStore,
+    FixtureProvenance,
     ScrapedBillFixture,
     RagChunkFixture,
     WebSourceFixture,
@@ -15,6 +16,7 @@ from .replay_fixtures import (
 __all__ = [
     "ReplayableResearchFixture",
     "FixtureStore",
+    "FixtureProvenance",
     "ScrapedBillFixture",
     "RagChunkFixture",
     "WebSourceFixture",

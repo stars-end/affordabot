@@ -2,7 +2,9 @@
 Replayable Research Fixtures for Golden Bill Corpus (bd-bkco.2).
 
 Provides fixture storage, replay, and validation for research pipeline testing.
-Separates pipeline logic regressions from search volatility.
+Checked-in synthetic fixtures are limited to explicit control/adversarial cases and
+must not be treated as proof that the pipeline is insulated from live search
+volatility. Only live-captured fixtures may make that claim.
 
 Usage:
     from backend.scripts.verification.fixtures.research_fixtures import (
@@ -10,7 +12,7 @@ Usage:
         FixtureStore,
     )
 
-    fixture = ReplayableResearchFixture.load("us-hr-1319-2021")
+    fixture = ReplayableResearchFixture.load("ca-acr-117-2024")
     bill_text = fixture.get_bill_text()
     chunks = fixture.get_rag_chunks()
     web_sources = fixture.get_web_sources()
@@ -29,6 +31,33 @@ logger = logging.getLogger(__name__)
 
 FIXTURE_VERSION = "1.0"
 FEATURE_KEY = "bd-bkco.2"
+
+
+@dataclass
+class FixtureProvenance:
+    provenance_type: str
+    search_volatility_separated: bool
+    valid_for: List[str] = field(default_factory=list)
+    limitations: List[str] = field(default_factory=list)
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "FixtureProvenance":
+        return cls(
+            provenance_type=data.get("provenance_type", "synthetic_control"),
+            search_volatility_separated=data.get(
+                "search_volatility_separated", False
+            ),
+            valid_for=list(data.get("valid_for", [])),
+            limitations=list(data.get("limitations", [])),
+        )
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "provenance_type": self.provenance_type,
+            "search_volatility_separated": self.search_volatility_separated,
+            "valid_for": self.valid_for,
+            "limitations": self.limitations,
+        }
 
 
 @dataclass
@@ -159,6 +188,7 @@ class ReplayableResearchFixture:
     bill_id: str
     captured_at: str
     capture_mode: str
+    fixture_provenance: FixtureProvenance
     scraped_bill_text: ScrapedBillFixture
     rag_chunks: List[RagChunkFixture]
     web_sources: List[WebSourceFixture]
@@ -180,6 +210,9 @@ class ReplayableResearchFixture:
             bill_id=data["bill_id"],
             captured_at=data.get("captured_at", ""),
             capture_mode=data.get("capture_mode", "synthetic"),
+            fixture_provenance=FixtureProvenance.from_dict(
+                data.get("fixture_provenance", {})
+            ),
             scraped_bill_text=scraped,
             rag_chunks=[
                 RagChunkFixture.from_dict(c) for c in data.get("rag_chunks", [])
@@ -199,6 +232,7 @@ class ReplayableResearchFixture:
             "bill_id": self.bill_id,
             "captured_at": self.captured_at,
             "capture_mode": self.capture_mode,
+            "fixture_provenance": self.fixture_provenance.to_dict(),
             "scraped_bill_text": self.scraped_bill_text.to_dict(),
             "rag_chunks": [c.to_dict() for c in self.rag_chunks],
             "web_sources": [w.to_dict() for w in self.web_sources],
@@ -335,12 +369,33 @@ def create_synthetic_fixture(
     web_sources: Optional[List[Dict[str, Any]]] = None,
     sufficiency_breakdown: Optional[Dict[str, Any]] = None,
 ) -> ReplayableResearchFixture:
+    """Create a synthetic control/adversarial fixture.
+
+    Synthetic fixtures are reserved for deterministic control-path evaluation and
+    harness bootstrapping. They are not evidence of live search or retrieval
+    stability for positive quantitative bills.
+    """
     now = datetime.utcnow().isoformat() + "Z"
 
     return ReplayableResearchFixture(
         bill_id=bill_id,
         captured_at=now,
         capture_mode="synthetic",
+        fixture_provenance=FixtureProvenance(
+            provenance_type="synthetic_control",
+            search_volatility_separated=False,
+            valid_for=[
+                "control_path_replay",
+                "adversarial_path_replay",
+                "schema_contract_validation",
+                "deterministic_fixture_loading",
+            ],
+            limitations=[
+                "not_live_capture",
+                "not_search_volatility_proof",
+                "not_quantitative_ground_truth",
+            ],
+        ),
         scraped_bill_text=ScrapedBillFixture(
             bill_number=bill_number or bill_id,
             title=title,

@@ -5,7 +5,7 @@ This directory contains the `bd-bkco.1` curated corpus manifest and `bd-bkco.2` 
 ## Files
 
 - `golden_bill_corpus_manifest.json`: canonical machine-readable bill corpus
-- `research_fixtures/`: replayable research fixtures for each golden bill
+- `research_fixtures/`: replayable research fixtures for selected golden bills
 
 ## Validation
 
@@ -35,7 +35,12 @@ The validator enforces:
 - fixture schema compliance
 - fixture-to-manifest coverage
 - required fields for scraped text, RAG chunks, web sources
+- explicit provenance rules and synthetic-fixture guardrails
 
 ## Research Fixtures
 
-See `research_fixtures/README.md` for the fixture storage contract and replay mechanism.
+The checked-in fixture subset is intentionally narrower than the full manifest:
+- synthetic fixtures are reserved for explicit fail-closed/adversarial controls
+- positive quantitative bills stay manifest-only until live captures are available
+
+See `research_fixtures/README.md` for the fixture storage contract, provenance rules, and replay limitations.
