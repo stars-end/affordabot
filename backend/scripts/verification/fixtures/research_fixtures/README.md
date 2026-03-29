@@ -1,6 +1,6 @@
 # Research Fixtures Contract
 
-This directory contains replayable research fixtures for the golden bill corpus (bd-bkco.2).
+This directory contains the checked-in replayable research fixture subset for the golden bill corpus (bd-bkco.2).
 
 ## Purpose
 
@@ -15,6 +15,7 @@ Current checked-in fixtures are intentionally narrow:
 - they do **not** prove that the pipeline is insulated from live search volatility
 
 Only fixtures captured from live pipeline outputs may claim search-volatility separation.
+The collection-level scope for this directory is fixed in `../research_fixture_set_metadata.json`.
 
 ## Fixture Schema
 
@@ -156,6 +157,8 @@ At the moment, the checked-in fixture set is a control-only bootstrap:
 - adversarial controls
 
 Positive quantitative bills remain in the corpus manifest, but they are intentionally **not** represented as checked-in synthetic research fixtures. They must be added later as live captures if we want truthful search-volatility or live-retrieval regression claims.
+
+This means `bd-bkco.2` currently bootstraps the fixture contract and deterministic control-path replay. It does **not** claim that the repo already contains a frozen research fixture corpus for every golden bill.
 
 ## Prefix vs Full-Run Evaluation
 

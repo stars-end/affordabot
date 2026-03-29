@@ -1,4 +1,4 @@
-"""Research fixtures for golden bill corpus (bd-bkco.2)."""
+"""Bootstrap research fixtures for the checked-in control subset (bd-bkco.2)."""
 
 from .replay_fixtures import (
     ReplayableResearchFixture,

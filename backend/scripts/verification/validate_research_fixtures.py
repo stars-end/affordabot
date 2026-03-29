@@ -54,11 +54,84 @@ REQUIRED_SYNTHETIC_LIMITATIONS: Set[str] = {
 
 FIXTURE_VERSION = "1.0"
 FEATURE_KEY = "bd-bkco.2"
+FIXTURE_SET_VERSION = "1.0"
 
 
 def fail(message: str) -> None:
     print(f"FAIL: {message}")
     sys.exit(1)
+
+
+def load_fixture_set_metadata(repo_root: Path) -> Dict[str, Any]:
+    metadata_path = (
+        repo_root
+        / "backend"
+        / "scripts"
+        / "verification"
+        / "fixtures"
+        / "research_fixture_set_metadata.json"
+    )
+
+    if not metadata_path.exists():
+        fail(f"fixture set metadata not found: {metadata_path}")
+
+    data = json.loads(metadata_path.read_text(encoding="utf-8"))
+
+    required_fields = {
+        "fixture_set_version",
+        "feature_key",
+        "scope",
+        "corpus_freeze",
+        "search_volatility_separated",
+        "live_capture_required_for_quantitative_modes",
+        "expected_fixture_bill_ids",
+    }
+    missing_fields = required_fields - set(data.keys())
+    if missing_fields:
+        fail(f"fixture set metadata missing fields: {sorted(missing_fields)}")
+
+    if data["fixture_set_version"] != FIXTURE_SET_VERSION:
+        fail(
+            "unsupported fixture_set_version: "
+            f"{data['fixture_set_version']} (expected {FIXTURE_SET_VERSION})"
+        )
+
+    if data["feature_key"] != FEATURE_KEY:
+        fail(
+            f"invalid fixture set feature_key: {data['feature_key']} "
+            f"(expected {FEATURE_KEY})"
+        )
+
+    if data["scope"] != "bootstrap_control_subset":
+        fail(
+            "fixture set scope must remain 'bootstrap_control_subset' until "
+            "live quantitative fixtures exist"
+        )
+
+    if data["corpus_freeze"] is not False:
+        fail("fixture set metadata must declare corpus_freeze=false")
+
+    if data["search_volatility_separated"] is not False:
+        fail(
+            "fixture set metadata must declare "
+            "search_volatility_separated=false"
+        )
+
+    if data["live_capture_required_for_quantitative_modes"] is not True:
+        fail(
+            "fixture set metadata must declare "
+            "live_capture_required_for_quantitative_modes=true"
+        )
+
+    expected_fixture_bill_ids = data["expected_fixture_bill_ids"]
+    if (
+        not isinstance(expected_fixture_bill_ids, list)
+        or not expected_fixture_bill_ids
+        or not all(isinstance(item, str) for item in expected_fixture_bill_ids)
+    ):
+        fail("expected_fixture_bill_ids must be a non-empty array of strings")
+
+    return data
 
 
 def validate_fixture(
@@ -271,6 +344,7 @@ def main() -> None:
         / "research_fixtures"
     )
 
+    fixture_set_metadata = load_fixture_set_metadata(repo_root)
     manifest_bills = load_manifest_bills(repo_root)
     manifest_bill_ids = set(manifest_bills.keys())
 
@@ -300,6 +374,23 @@ def main() -> None:
             fixture_bill_ids.add(bill_id)
 
     missing_fixtures = manifest_bill_ids - fixture_bill_ids
+    expected_fixture_bill_ids = set(fixture_set_metadata["expected_fixture_bill_ids"])
+
+    missing_expected_fixtures = expected_fixture_bill_ids - fixture_bill_ids
+    extra_expected_mismatches = fixture_bill_ids - expected_fixture_bill_ids
+
+    if missing_expected_fixtures:
+        fail(
+            "fixture files missing from expected bootstrap subset: "
+            f"{sorted(missing_expected_fixtures)}"
+        )
+
+    if extra_expected_mismatches:
+        fail(
+            "fixture files exceed declared bootstrap subset: "
+            f"{sorted(extra_expected_mismatches)}"
+        )
+
     if missing_fixtures:
         print(f"WARN: {len(missing_fixtures)} bills from manifest have no fixture:")
         for bill_id in sorted(missing_fixtures)[:5]:
@@ -313,6 +404,10 @@ def main() -> None:
     print(f"PASS: all {len(fixture_files)} fixture(s) validated")
     print(
         f"PASS: fixture-to-manifest coverage: {len(fixture_bill_ids)}/{len(manifest_bill_ids)}"
+    )
+    print(
+        "PASS: fixture set scope is "
+        f"{fixture_set_metadata['scope']} ({len(expected_fixture_bill_ids)} bill(s))"
     )
 
 
