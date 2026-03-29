@@ -1,0 +1,14 @@
+{
+  "fixture_set_version": "1.0",
+  "feature_key": "bd-bkco.2",
+  "scope": "bootstrap_control_subset",
+  "corpus_freeze": false,
+  "search_volatility_separated": false,
+  "live_capture_required_for_quantitative_modes": true,
+  "expected_fixture_bill_ids": [
+    "ca-ab-5-2019",
+    "ca-acr-117-2024",
+    "us-hr-5-2023",
+    "us-hres-57-2023"
+  ]
+}

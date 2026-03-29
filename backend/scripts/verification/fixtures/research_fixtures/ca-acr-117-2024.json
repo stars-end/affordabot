@@ -1,0 +1,49 @@
+{
+  "fixture_version": "1.0",
+  "feature_key": "bd-bkco.2",
+  "bill_id": "ca-acr-117-2024",
+  "captured_at": "2026-03-28T00:00:00Z",
+  "capture_mode": "synthetic",
+  "fixture_provenance": {
+    "provenance_type": "synthetic_control",
+    "search_volatility_separated": false,
+    "valid_for": [
+      "control_path_replay",
+      "schema_contract_validation",
+      "deterministic_fixture_loading"
+    ],
+    "limitations": [
+      "not_live_capture",
+      "not_search_volatility_proof",
+      "not_quantitative_ground_truth"
+    ]
+  },
+  "scraped_bill_text": {
+    "bill_number": "ACR 117",
+    "title": "Ceremonial California Assembly Concurrent Resolution",
+    "text": "Assembly Concurrent Resolution No. 117—Relative to National Volunteer Month. WHEREAS, Volunteering is a vital part of the fabric of American society; and WHEREAS, Volunteers make immeasurable contributions to communities across California; and WHEREAS, The month of April has been designated as National Volunteer Month to recognize and celebrate the efforts of volunteers; now, therefore, be it Resolved by the Assembly of the State of California, the Senate thereof concurring, That the Legislature recognizes and celebrates the important contributions of volunteers during National Volunteer Month; and be it further Resolved, That the Chief Clerk of the Assembly transmit copies of this resolution to the author for appropriate distribution.",
+    "introduced_date": "2024-03-15",
+    "status": "Adopted",
+    "source_url": "https://leginfo.legislature.ca.gov/faces/billTextClient.xhtml?bill_id=202320240ACR117"
+  },
+  "rag_chunks": [
+    {
+      "chunk_id": "rag-ca-acr-117-001",
+      "content": "Assembly Concurrent Resolution No. 117—Relative to National Volunteer Month. This resolution recognizes and celebrates volunteers during National Volunteer Month.",
+      "score": 0.75,
+      "metadata": {
+        "source_url": "https://leginfo.legislature.ca.gov/faces/billTextClient.xhtml?bill_id=202320240ACR117",
+        "jurisdiction": "california",
+        "content_type": "bill_text"
+      }
+    }
+  ],
+  "web_sources": [],
+  "sufficiency_breakdown": {
+    "source_text_present": true,
+    "rag_chunks_retrieved": 1,
+    "web_research_sources_found": 0,
+    "fiscal_notes_detected": false,
+    "bill_text_chunks": 1
+  }
+}

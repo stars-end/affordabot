@@ -1,0 +1,49 @@
+{
+  "fixture_version": "1.0",
+  "feature_key": "bd-bkco.2",
+  "bill_id": "us-hres-57-2023",
+  "captured_at": "2026-03-28T00:00:00Z",
+  "capture_mode": "synthetic",
+  "fixture_provenance": {
+    "provenance_type": "synthetic_control",
+    "search_volatility_separated": false,
+    "valid_for": [
+      "control_path_replay",
+      "schema_contract_validation",
+      "deterministic_fixture_loading"
+    ],
+    "limitations": [
+      "not_live_capture",
+      "not_search_volatility_proof",
+      "not_quantitative_ground_truth"
+    ]
+  },
+  "scraped_bill_text": {
+    "bill_number": "H. Res. 57",
+    "title": "House Resolution with Non-Fiscal Recognition Language",
+    "text": "IN THE HOUSE OF REPRESENTATIVES, January 27, 2023. Mr. Smith (for himself, Ms. Jones, and Mr. Brown) submitted the following resolution; which was referred to the Committee on Education and the Workforce: RESOLUTION: Expressing support for National Mentoring Month. Whereas mentoring relationships play a critical role in the development of young people; Whereas quality mentoring programs help connect young people with opportunities for education, career, and personal growth; Now, therefore, be it Resolved, That the House of Representatives-- (1) recognizes the month of January 2023 as National Mentoring Month; and (2) encourages all Americans to recognize the value of mentoring.",
+    "introduced_date": "2023-01-27",
+    "status": "Referred",
+    "source_url": "https://www.congress.gov/bill/118th-congress/house-resolution/57/text"
+  },
+  "rag_chunks": [
+    {
+      "chunk_id": "rag-us-hres-57-001",
+      "content": "H. Res. 57 expresses support for National Mentoring Month. This is a non-binding resolution with no fiscal impact or appropriation authority.",
+      "score": 0.72,
+      "metadata": {
+        "source_url": "https://www.congress.gov/bill/118th-congress/house-resolution/57/text",
+        "jurisdiction": "federal-us",
+        "content_type": "bill_text"
+      }
+    }
+  ],
+  "web_sources": [],
+  "sufficiency_breakdown": {
+    "source_text_present": true,
+    "rag_chunks_retrieved": 1,
+    "web_research_sources_found": 0,
+    "fiscal_notes_detected": false,
+    "bill_text_chunks": 1
+  }
+}
