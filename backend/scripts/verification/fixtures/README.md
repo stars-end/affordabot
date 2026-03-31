@@ -1,11 +1,12 @@
 # Golden Bill Corpus Fixture Contract
 
-This directory contains the `bd-bkco.1` curated corpus manifest and `bd-bkco.2` replayable research fixtures used by downstream golden-suite tasks.
+This directory contains the `bd-bkco.1` curated corpus manifest, `bd-bkco.2` replayable research fixtures, and `bd-bkco.3` analyst-labeled step expectations used by downstream golden-suite tasks.
 
 ## Files
 
 - `golden_bill_corpus_manifest.json`: canonical machine-readable bill corpus
 - `research_fixture_set_metadata.json`: machine-readable scope contract for the checked-in fixture subset
+- `golden_bill_step_expectations.json`: analyst-labeled expected step outputs for each manifest bill
 - `research_fixtures/`: replayable research fixtures for selected golden bills
 
 ## Validation
@@ -38,6 +39,22 @@ The validator enforces:
 - fixture-set scope stays a bootstrap control subset rather than a frozen corpus
 - required fields for scraped text, RAG chunks, web sources
 - explicit provenance rules and synthetic-fixture guardrails
+
+### Step Expectations Validation
+
+Run:
+
+```bash
+python backend/scripts/verification/validate_golden_bill_step_expectations.py
+```
+
+The validator enforces:
+- one expectation record per manifest bill
+- required machine-readable step expectations (`impact_discovery`, `mode_selection`, `parameter_resolution`, `sufficiency_gate`)
+- mode-to-parameter contract alignment
+- control bill fail-closed expectations
+- fixture-scope-aware expectation labeling (`strong` vs `provisional_bootstrap`)
+- provisional bootstrap placeholder semantics for manifest-only bills (no checked-in fixture): `expected_impact_count.exact=0`, `selected_mode=qualitative_only`, empty parameter expectations, and `sufficiency_gate` fail-closed (`research_incomplete` + `impact_discovery_failed`)
 
 ## Research Fixtures
 
