@@ -3,6 +3,8 @@ from pathlib import Path
 import pytest
 
 from scripts.verification.compare_web_research_modes import (
+    PIPELINE_RUNTIME_AVAILABLE,
+    _coerce_fixture_rag_chunks,
     generate_comparison_report,
     overall_verdict_from_dimensions,
     verdict_from_final_conclusion,
@@ -57,6 +59,25 @@ def test_overall_verdict_prioritizes_harms() -> None:
     assert overall_verdict_from_dimensions(verdicts) == "harms"
 
 
+def test_fixture_chunks_are_coerced_to_pipeline_shape() -> None:
+    chunks = _coerce_fixture_rag_chunks(
+        [
+            {
+                "chunk_id": "chunk-1",
+                "content": "fixture content",
+                "score": 0.7,
+                "metadata": {"source_url": "https://example.test"},
+            }
+        ]
+    )
+    assert len(chunks) == 1
+    chunk = chunks[0]
+    assert hasattr(chunk, "metadata")
+    assert isinstance(chunk.metadata, dict)
+    assert chunk.metadata["source_url"] == "https://example.test"
+    assert chunk.content == "fixture content"
+
+
 @pytest.mark.asyncio
 async def test_generate_comparison_report_smoke() -> None:
     repo_root = Path(__file__).resolve().parents[2]
@@ -76,3 +97,10 @@ async def test_generate_comparison_report_smoke() -> None:
         "parameter_resolution",
         "gate_behavior",
     }
+    if PIPELINE_RUNTIME_AVAILABLE:
+        assert report["runtime_engine"] == "analysis_pipeline"
+        assert comparison["variants"]["with_web"]["run_id"].startswith(
+            "fixture-only:"
+        ) is False
+    else:
+        assert report["runtime_engine"] == "fixture_only_fallback"

@@ -58,6 +58,16 @@ class VariantRunResult:
     research_counts: Dict[str, Any]
 
 
+@dataclass
+class FixtureRetrievedChunk:
+    """Minimal retrieved-chunk shape required by pipeline/runtime helpers."""
+
+    content: str
+    score: float
+    metadata: Dict[str, Any]
+    chunk_id: str = ""
+
+
 class InMemoryPipelineDB:
     """Lightweight async DB shim for deterministic comparison runs."""
 
@@ -176,7 +186,7 @@ def _build_research_result(
     fixture: ReplayableResearchFixture,
     include_web: bool,
 ) -> "LegislationResearchResult":
-    rag_chunks = fixture.get_rag_chunks()
+    rag_chunks = _coerce_fixture_rag_chunks(fixture.get_rag_chunks())
     web_sources = fixture.get_web_sources() if include_web else []
     source_text_present = bool(fixture.get_bill_text().strip())
     rag_count = len(rag_chunks)
@@ -218,6 +228,24 @@ def _build_research_result(
         insufficiency_reason=insufficiency_reason,
         retriever_invoked=True,
     )
+
+
+def _coerce_fixture_rag_chunks(raw_chunks: List[Dict[str, Any]]) -> List[FixtureRetrievedChunk]:
+    """Convert fixture chunk dictionaries to runtime-compatible chunk objects."""
+    converted: List[FixtureRetrievedChunk] = []
+    for item in raw_chunks:
+        metadata = item.get("metadata", {})
+        if not isinstance(metadata, dict):
+            metadata = {}
+        converted.append(
+            FixtureRetrievedChunk(
+                chunk_id=str(item.get("chunk_id", "")),
+                content=str(item.get("content", "")),
+                score=float(item.get("score", 0.0)),
+                metadata=metadata,
+            )
+        )
+    return converted
 
 
 def _conclusion_payload(analysis: LegislationAnalysisResponse) -> Dict[str, Any]:
