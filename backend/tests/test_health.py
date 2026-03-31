@@ -1,7 +1,3 @@
-from unittest.mock import patch, AsyncMock, MagicMock
-import pytest
-
-
 def test_health_build_reports_build_identity():
     from main import build_health_check
     import os
