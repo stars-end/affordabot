@@ -162,6 +162,14 @@ curl https://affordabot-backend.railway.app/
 # Expected: {"message":"Welcome to AffordaBot API","jurisdictions":["saratoga","san-jose","santa-clara-county","california"]}
 ```
 
+### Deployment Freshness (Runtime Truth, Preferred)
+```bash
+cd backend
+poetry run python ../scripts/verification/verify_remote_deployment.py --check-freshness-only
+```
+
+This compares live runtime commit identity from `/health/build` against `origin/master`.
+
 ### Scrape & Analyze
 ```bash
 curl -X POST https://affordabot-backend.railway.app/scrape/san-jose
