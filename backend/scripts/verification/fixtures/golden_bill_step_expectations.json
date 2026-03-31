@@ -1,0 +1,452 @@
+{
+  "expectation_set_version": "1.0",
+  "feature_key": "bd-bkco.3",
+  "description": "Analyst-labeled deterministic step expectations for each bill in the golden corpus.",
+  "generated_on": "2026-03-31",
+  "source_contracts": {
+    "manifest_path": "backend/scripts/verification/fixtures/golden_bill_corpus_manifest.json",
+    "fixture_set_metadata_path": "backend/scripts/verification/fixtures/research_fixture_set_metadata.json"
+  },
+  "bills": [
+    {
+      "bill_id": "us-hr-1319-2021",
+      "mode_bucket": "direct_fiscal",
+      "fixture_status": "manifest_only_no_checked_in_fixture",
+      "expectation_strength": "provisional_bootstrap",
+      "expected_steps": {
+        "impact_discovery": {
+          "expected_impact_count": {
+            "minimum": 1
+          }
+        },
+        "mode_selection": {
+          "expected_selected_mode": "direct_fiscal"
+        },
+        "parameter_resolution": {
+          "required_parameters": [
+            "fiscal_amount"
+          ],
+          "expected_resolved_parameters": [],
+          "expected_missing_parameters": [
+            "fiscal_amount"
+          ]
+        },
+        "sufficiency_gate": {
+          "overall_quantification_eligible": false,
+          "overall_sufficiency_state": "research_incomplete",
+          "bill_level_failures": [
+            "impact_discovery_failed"
+          ]
+        }
+      },
+      "analyst_conclusion": {
+        "label": "fixture_gap_needs_live_capture",
+        "conclusion": "Direct-fiscal path is expected but no checked-in live fixture exists yet; treat this as bootstrap fail-closed until live capture is added."
+      }
+    },
+    {
+      "bill_id": "us-hr-2617-2022",
+      "mode_bucket": "direct_fiscal",
+      "fixture_status": "manifest_only_no_checked_in_fixture",
+      "expectation_strength": "provisional_bootstrap",
+      "expected_steps": {
+        "impact_discovery": {
+          "expected_impact_count": {
+            "minimum": 1
+          }
+        },
+        "mode_selection": {
+          "expected_selected_mode": "direct_fiscal"
+        },
+        "parameter_resolution": {
+          "required_parameters": [
+            "fiscal_amount"
+          ],
+          "expected_resolved_parameters": [],
+          "expected_missing_parameters": [
+            "fiscal_amount"
+          ]
+        },
+        "sufficiency_gate": {
+          "overall_quantification_eligible": false,
+          "overall_sufficiency_state": "research_incomplete",
+          "bill_level_failures": [
+            "impact_discovery_failed"
+          ]
+        }
+      },
+      "analyst_conclusion": {
+        "label": "fixture_gap_needs_live_capture",
+        "conclusion": "Omnibus appropriations should map to direct fiscal extraction, but current checked-in corpus has no live replay fixture for this bill."
+      }
+    },
+    {
+      "bill_id": "ca-sb-253-2023",
+      "mode_bucket": "compliance_cost",
+      "fixture_status": "manifest_only_no_checked_in_fixture",
+      "expectation_strength": "provisional_bootstrap",
+      "expected_steps": {
+        "impact_discovery": {
+          "expected_impact_count": {
+            "minimum": 1
+          }
+        },
+        "mode_selection": {
+          "expected_selected_mode": "compliance_cost"
+        },
+        "parameter_resolution": {
+          "required_parameters": [
+            "population",
+            "frequency",
+            "time_burden",
+            "wage_rate"
+          ],
+          "expected_resolved_parameters": [],
+          "expected_missing_parameters": [
+            "population",
+            "frequency",
+            "time_burden",
+            "wage_rate"
+          ]
+        },
+        "sufficiency_gate": {
+          "overall_quantification_eligible": false,
+          "overall_sufficiency_state": "research_incomplete",
+          "bill_level_failures": [
+            "impact_discovery_failed"
+          ]
+        }
+      },
+      "analyst_conclusion": {
+        "label": "fixture_gap_needs_live_capture",
+        "conclusion": "Compliance-cost mechanism is expected, but parameter evidence should remain unresolved in bootstrap fixtures until live capture exists."
+      }
+    },
+    {
+      "bill_id": "ca-sb-1383-2016",
+      "mode_bucket": "compliance_cost",
+      "fixture_status": "manifest_only_no_checked_in_fixture",
+      "expectation_strength": "provisional_bootstrap",
+      "expected_steps": {
+        "impact_discovery": {
+          "expected_impact_count": {
+            "minimum": 1
+          }
+        },
+        "mode_selection": {
+          "expected_selected_mode": "compliance_cost"
+        },
+        "parameter_resolution": {
+          "required_parameters": [
+            "population",
+            "frequency",
+            "time_burden",
+            "wage_rate"
+          ],
+          "expected_resolved_parameters": [],
+          "expected_missing_parameters": [
+            "population",
+            "frequency",
+            "time_burden",
+            "wage_rate"
+          ]
+        },
+        "sufficiency_gate": {
+          "overall_quantification_eligible": false,
+          "overall_sufficiency_state": "research_incomplete",
+          "bill_level_failures": [
+            "impact_discovery_failed"
+          ]
+        }
+      },
+      "analyst_conclusion": {
+        "label": "fixture_gap_needs_live_capture",
+        "conclusion": "Compliance pathway remains provisional in repository fixtures; downstream checks should treat this bill as needing live evidence capture."
+      }
+    },
+    {
+      "bill_id": "ca-ab-1228-2023",
+      "mode_bucket": "pass_through_incidence",
+      "fixture_status": "manifest_only_no_checked_in_fixture",
+      "expectation_strength": "provisional_bootstrap",
+      "expected_steps": {
+        "impact_discovery": {
+          "expected_impact_count": {
+            "minimum": 1
+          }
+        },
+        "mode_selection": {
+          "expected_selected_mode": "pass_through_incidence"
+        },
+        "parameter_resolution": {
+          "required_parameters": [
+            "total_levied_cost",
+            "pass_through_rate"
+          ],
+          "expected_resolved_parameters": [],
+          "expected_missing_parameters": [
+            "total_levied_cost",
+            "pass_through_rate"
+          ]
+        },
+        "sufficiency_gate": {
+          "overall_quantification_eligible": false,
+          "overall_sufficiency_state": "research_incomplete",
+          "bill_level_failures": [
+            "impact_discovery_failed"
+          ]
+        }
+      },
+      "analyst_conclusion": {
+        "label": "fixture_gap_needs_live_capture",
+        "conclusion": "Pass-through incidence mode is expected, but bootstrap fixture scope cannot yet verify parameter resolution or quantified sufficiency."
+      }
+    },
+    {
+      "bill_id": "ca-sb-3-2016",
+      "mode_bucket": "pass_through_incidence",
+      "fixture_status": "manifest_only_no_checked_in_fixture",
+      "expectation_strength": "provisional_bootstrap",
+      "expected_steps": {
+        "impact_discovery": {
+          "expected_impact_count": {
+            "minimum": 1
+          }
+        },
+        "mode_selection": {
+          "expected_selected_mode": "pass_through_incidence"
+        },
+        "parameter_resolution": {
+          "required_parameters": [
+            "total_levied_cost",
+            "pass_through_rate"
+          ],
+          "expected_resolved_parameters": [],
+          "expected_missing_parameters": [
+            "total_levied_cost",
+            "pass_through_rate"
+          ]
+        },
+        "sufficiency_gate": {
+          "overall_quantification_eligible": false,
+          "overall_sufficiency_state": "research_incomplete",
+          "bill_level_failures": [
+            "impact_discovery_failed"
+          ]
+        }
+      },
+      "analyst_conclusion": {
+        "label": "fixture_gap_needs_live_capture",
+        "conclusion": "Expected pass-through mechanism is recorded, but bootstrap artifact truthfully encodes unresolved parameters without live captures."
+      }
+    },
+    {
+      "bill_id": "us-hr-5376-2022",
+      "mode_bucket": "adoption_take_up",
+      "fixture_status": "manifest_only_no_checked_in_fixture",
+      "expectation_strength": "provisional_bootstrap",
+      "expected_steps": {
+        "impact_discovery": {
+          "expected_impact_count": {
+            "minimum": 1
+          }
+        },
+        "mode_selection": {
+          "expected_selected_mode": "adoption_take_up"
+        },
+        "parameter_resolution": {
+          "required_parameters": [
+            "eligible_population",
+            "take_up_rate",
+            "benefit_per_capita"
+          ],
+          "expected_resolved_parameters": [],
+          "expected_missing_parameters": [
+            "eligible_population",
+            "take_up_rate",
+            "benefit_per_capita"
+          ]
+        },
+        "sufficiency_gate": {
+          "overall_quantification_eligible": false,
+          "overall_sufficiency_state": "research_incomplete",
+          "bill_level_failures": [
+            "impact_discovery_failed"
+          ]
+        }
+      },
+      "analyst_conclusion": {
+        "label": "fixture_gap_needs_live_capture",
+        "conclusion": "Adoption/take-up mode expectation is fixed, but downstream quantified checks are intentionally blocked pending live fixture ingestion."
+      }
+    },
+    {
+      "bill_id": "us-hr-3684-2021",
+      "mode_bucket": "adoption_take_up",
+      "fixture_status": "manifest_only_no_checked_in_fixture",
+      "expectation_strength": "provisional_bootstrap",
+      "expected_steps": {
+        "impact_discovery": {
+          "expected_impact_count": {
+            "minimum": 1
+          }
+        },
+        "mode_selection": {
+          "expected_selected_mode": "adoption_take_up"
+        },
+        "parameter_resolution": {
+          "required_parameters": [
+            "eligible_population",
+            "take_up_rate",
+            "benefit_per_capita"
+          ],
+          "expected_resolved_parameters": [],
+          "expected_missing_parameters": [
+            "eligible_population",
+            "take_up_rate",
+            "benefit_per_capita"
+          ]
+        },
+        "sufficiency_gate": {
+          "overall_quantification_eligible": false,
+          "overall_sufficiency_state": "research_incomplete",
+          "bill_level_failures": [
+            "impact_discovery_failed"
+          ]
+        }
+      },
+      "analyst_conclusion": {
+        "label": "fixture_gap_needs_live_capture",
+        "conclusion": "This bill is modeled as adoption/take-up, yet the checked-in fixture set cannot support strong quantified assertions at this stage."
+      }
+    },
+    {
+      "bill_id": "ca-acr-117-2024",
+      "mode_bucket": "fail_closed_control",
+      "fixture_status": "checked_in_synthetic_control_fixture",
+      "expectation_strength": "strong",
+      "expected_steps": {
+        "impact_discovery": {
+          "expected_impact_count": {
+            "exact": 0
+          }
+        },
+        "mode_selection": {
+          "expected_selected_mode": "qualitative_only"
+        },
+        "parameter_resolution": {
+          "required_parameters": [],
+          "expected_resolved_parameters": [],
+          "expected_missing_parameters": []
+        },
+        "sufficiency_gate": {
+          "overall_quantification_eligible": false,
+          "overall_sufficiency_state": "qualitative_only",
+          "bill_level_failures": [
+            "impact_discovery_failed"
+          ]
+        }
+      },
+      "analyst_conclusion": {
+        "label": "expected_fail_closed_control",
+        "conclusion": "Ceremonial resolution should deterministically fail closed with no discovered fiscal impacts and qualitative-only sufficiency."
+      }
+    },
+    {
+      "bill_id": "us-hres-57-2023",
+      "mode_bucket": "fail_closed_control",
+      "fixture_status": "checked_in_synthetic_control_fixture",
+      "expectation_strength": "strong",
+      "expected_steps": {
+        "impact_discovery": {
+          "expected_impact_count": {
+            "exact": 0
+          }
+        },
+        "mode_selection": {
+          "expected_selected_mode": "qualitative_only"
+        },
+        "parameter_resolution": {
+          "required_parameters": [],
+          "expected_resolved_parameters": [],
+          "expected_missing_parameters": []
+        },
+        "sufficiency_gate": {
+          "overall_quantification_eligible": false,
+          "overall_sufficiency_state": "qualitative_only",
+          "bill_level_failures": [
+            "impact_discovery_failed"
+          ]
+        }
+      },
+      "analyst_conclusion": {
+        "label": "expected_fail_closed_control",
+        "conclusion": "Non-binding resolution language is expected to remain qualitative-only with deterministic fail-closed behavior."
+      }
+    },
+    {
+      "bill_id": "ca-ab-5-2019",
+      "mode_bucket": "adversarial_control",
+      "fixture_status": "checked_in_synthetic_control_fixture",
+      "expectation_strength": "strong",
+      "expected_steps": {
+        "impact_discovery": {
+          "expected_impact_count": {
+            "exact": 0
+          }
+        },
+        "mode_selection": {
+          "expected_selected_mode": "qualitative_only"
+        },
+        "parameter_resolution": {
+          "required_parameters": [],
+          "expected_resolved_parameters": [],
+          "expected_missing_parameters": []
+        },
+        "sufficiency_gate": {
+          "overall_quantification_eligible": false,
+          "overall_sufficiency_state": "qualitative_only",
+          "bill_level_failures": [
+            "impact_discovery_failed"
+          ]
+        }
+      },
+      "analyst_conclusion": {
+        "label": "expected_adversarial_fail_closed",
+        "conclusion": "AB/H.R. number-collision anchor must stay fail-closed and qualitative-only to guard against cross-jurisdiction mode carry-over."
+      }
+    },
+    {
+      "bill_id": "us-hr-5-2023",
+      "mode_bucket": "adversarial_control",
+      "fixture_status": "checked_in_synthetic_control_fixture",
+      "expectation_strength": "strong",
+      "expected_steps": {
+        "impact_discovery": {
+          "expected_impact_count": {
+            "exact": 0
+          }
+        },
+        "mode_selection": {
+          "expected_selected_mode": "qualitative_only"
+        },
+        "parameter_resolution": {
+          "required_parameters": [],
+          "expected_resolved_parameters": [],
+          "expected_missing_parameters": []
+        },
+        "sufficiency_gate": {
+          "overall_quantification_eligible": false,
+          "overall_sufficiency_state": "qualitative_only",
+          "bill_level_failures": [
+            "impact_discovery_failed"
+          ]
+        }
+      },
+      "analyst_conclusion": {
+        "label": "expected_adversarial_fail_closed",
+        "conclusion": "Cross-jurisdiction collision pair should remain qualitative-only and non-quantified in deterministic replay."
+      }
+    }
+  ]
+}
