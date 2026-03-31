@@ -15,11 +15,11 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List, Sequence, Tuple
 
-BACKEND_ROOT = Path(__file__).resolve().parents[2]
-if str(BACKEND_ROOT) not in sys.path:
-    sys.path.insert(0, str(BACKEND_ROOT))
-
-from scripts.verification.fixtures.research_fixtures import FixtureStore
+try:
+    from scripts.verification.fixtures.research_fixtures import FixtureStore
+except ModuleNotFoundError:
+    # Support invocation from repo root (`python3 backend/scripts/...`).
+    from backend.scripts.verification.fixtures.research_fixtures import FixtureStore
 
 
 ConclusionLabel = str
