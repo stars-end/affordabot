@@ -54,6 +54,7 @@ The validator enforces:
 - mode-to-parameter contract alignment
 - control bill fail-closed expectations
 - fixture-scope-aware expectation labeling (`strong` vs `provisional_bootstrap`)
+- provisional bootstrap placeholder semantics for manifest-only bills (no checked-in fixture): `expected_impact_count.exact=0`, `selected_mode=qualitative_only`, empty parameter expectations, and `sufficiency_gate` fail-closed (`research_incomplete` + `impact_discovery_failed`)
 
 ## Research Fixtures
 

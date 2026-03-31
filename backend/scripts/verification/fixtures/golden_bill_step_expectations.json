@@ -16,20 +16,16 @@
       "expected_steps": {
         "impact_discovery": {
           "expected_impact_count": {
-            "minimum": 1
+            "exact": 0
           }
         },
         "mode_selection": {
-          "expected_selected_mode": "direct_fiscal"
+          "expected_selected_mode": "qualitative_only"
         },
         "parameter_resolution": {
-          "required_parameters": [
-            "fiscal_amount"
-          ],
+          "required_parameters": [],
           "expected_resolved_parameters": [],
-          "expected_missing_parameters": [
-            "fiscal_amount"
-          ]
+          "expected_missing_parameters": []
         },
         "sufficiency_gate": {
           "overall_quantification_eligible": false,
@@ -40,8 +36,8 @@
         }
       },
       "analyst_conclusion": {
-        "label": "fixture_gap_needs_live_capture",
-        "conclusion": "Direct-fiscal path is expected but no checked-in live fixture exists yet; treat this as bootstrap fail-closed until live capture is added."
+        "label": "pre_live_capture_placeholder",
+        "conclusion": "No checked-in fixture exists yet; this bill is a deterministic pre-live-capture placeholder and must fail closed until live capture is added."
       }
     },
     {
@@ -52,20 +48,16 @@
       "expected_steps": {
         "impact_discovery": {
           "expected_impact_count": {
-            "minimum": 1
+            "exact": 0
           }
         },
         "mode_selection": {
-          "expected_selected_mode": "direct_fiscal"
+          "expected_selected_mode": "qualitative_only"
         },
         "parameter_resolution": {
-          "required_parameters": [
-            "fiscal_amount"
-          ],
+          "required_parameters": [],
           "expected_resolved_parameters": [],
-          "expected_missing_parameters": [
-            "fiscal_amount"
-          ]
+          "expected_missing_parameters": []
         },
         "sufficiency_gate": {
           "overall_quantification_eligible": false,
@@ -76,8 +68,8 @@
         }
       },
       "analyst_conclusion": {
-        "label": "fixture_gap_needs_live_capture",
-        "conclusion": "Omnibus appropriations should map to direct fiscal extraction, but current checked-in corpus has no live replay fixture for this bill."
+        "label": "pre_live_capture_placeholder",
+        "conclusion": "Until live fixture capture exists, this bill remains a deterministic placeholder with no asserted impact discovery or quantitative mode selection."
       }
     },
     {
@@ -88,26 +80,16 @@
       "expected_steps": {
         "impact_discovery": {
           "expected_impact_count": {
-            "minimum": 1
+            "exact": 0
           }
         },
         "mode_selection": {
-          "expected_selected_mode": "compliance_cost"
+          "expected_selected_mode": "qualitative_only"
         },
         "parameter_resolution": {
-          "required_parameters": [
-            "population",
-            "frequency",
-            "time_burden",
-            "wage_rate"
-          ],
+          "required_parameters": [],
           "expected_resolved_parameters": [],
-          "expected_missing_parameters": [
-            "population",
-            "frequency",
-            "time_burden",
-            "wage_rate"
-          ]
+          "expected_missing_parameters": []
         },
         "sufficiency_gate": {
           "overall_quantification_eligible": false,
@@ -118,8 +100,8 @@
         }
       },
       "analyst_conclusion": {
-        "label": "fixture_gap_needs_live_capture",
-        "conclusion": "Compliance-cost mechanism is expected, but parameter evidence should remain unresolved in bootstrap fixtures until live capture exists."
+        "label": "pre_live_capture_placeholder",
+        "conclusion": "This manifest-only bill is intentionally encoded as pre-live-capture fail-closed placeholder semantics for deterministic replay."
       }
     },
     {
@@ -130,26 +112,16 @@
       "expected_steps": {
         "impact_discovery": {
           "expected_impact_count": {
-            "minimum": 1
+            "exact": 0
           }
         },
         "mode_selection": {
-          "expected_selected_mode": "compliance_cost"
+          "expected_selected_mode": "qualitative_only"
         },
         "parameter_resolution": {
-          "required_parameters": [
-            "population",
-            "frequency",
-            "time_burden",
-            "wage_rate"
-          ],
+          "required_parameters": [],
           "expected_resolved_parameters": [],
-          "expected_missing_parameters": [
-            "population",
-            "frequency",
-            "time_burden",
-            "wage_rate"
-          ]
+          "expected_missing_parameters": []
         },
         "sufficiency_gate": {
           "overall_quantification_eligible": false,
@@ -160,8 +132,8 @@
         }
       },
       "analyst_conclusion": {
-        "label": "fixture_gap_needs_live_capture",
-        "conclusion": "Compliance pathway remains provisional in repository fixtures; downstream checks should treat this bill as needing live evidence capture."
+        "label": "pre_live_capture_placeholder",
+        "conclusion": "No live fixture is checked in; deterministic replay should treat this bill as fail-closed placeholder rather than quantitative path."
       }
     },
     {
@@ -172,22 +144,16 @@
       "expected_steps": {
         "impact_discovery": {
           "expected_impact_count": {
-            "minimum": 1
+            "exact": 0
           }
         },
         "mode_selection": {
-          "expected_selected_mode": "pass_through_incidence"
+          "expected_selected_mode": "qualitative_only"
         },
         "parameter_resolution": {
-          "required_parameters": [
-            "total_levied_cost",
-            "pass_through_rate"
-          ],
+          "required_parameters": [],
           "expected_resolved_parameters": [],
-          "expected_missing_parameters": [
-            "total_levied_cost",
-            "pass_through_rate"
-          ]
+          "expected_missing_parameters": []
         },
         "sufficiency_gate": {
           "overall_quantification_eligible": false,
@@ -198,8 +164,8 @@
         }
       },
       "analyst_conclusion": {
-        "label": "fixture_gap_needs_live_capture",
-        "conclusion": "Pass-through incidence mode is expected, but bootstrap fixture scope cannot yet verify parameter resolution or quantified sufficiency."
+        "label": "pre_live_capture_placeholder",
+        "conclusion": "This record is intentionally non-quantitative placeholder data until live fixture capture enables deterministic pass-through assertions."
       }
     },
     {
@@ -210,22 +176,16 @@
       "expected_steps": {
         "impact_discovery": {
           "expected_impact_count": {
-            "minimum": 1
+            "exact": 0
           }
         },
         "mode_selection": {
-          "expected_selected_mode": "pass_through_incidence"
+          "expected_selected_mode": "qualitative_only"
         },
         "parameter_resolution": {
-          "required_parameters": [
-            "total_levied_cost",
-            "pass_through_rate"
-          ],
+          "required_parameters": [],
           "expected_resolved_parameters": [],
-          "expected_missing_parameters": [
-            "total_levied_cost",
-            "pass_through_rate"
-          ]
+          "expected_missing_parameters": []
         },
         "sufficiency_gate": {
           "overall_quantification_eligible": false,
@@ -236,8 +196,8 @@
         }
       },
       "analyst_conclusion": {
-        "label": "fixture_gap_needs_live_capture",
-        "conclusion": "Expected pass-through mechanism is recorded, but bootstrap artifact truthfully encodes unresolved parameters without live captures."
+        "label": "pre_live_capture_placeholder",
+        "conclusion": "Manifest-only status means this remains a deterministic fail-closed placeholder until live fixtures support quantitative checks."
       }
     },
     {
@@ -248,24 +208,16 @@
       "expected_steps": {
         "impact_discovery": {
           "expected_impact_count": {
-            "minimum": 1
+            "exact": 0
           }
         },
         "mode_selection": {
-          "expected_selected_mode": "adoption_take_up"
+          "expected_selected_mode": "qualitative_only"
         },
         "parameter_resolution": {
-          "required_parameters": [
-            "eligible_population",
-            "take_up_rate",
-            "benefit_per_capita"
-          ],
+          "required_parameters": [],
           "expected_resolved_parameters": [],
-          "expected_missing_parameters": [
-            "eligible_population",
-            "take_up_rate",
-            "benefit_per_capita"
-          ]
+          "expected_missing_parameters": []
         },
         "sufficiency_gate": {
           "overall_quantification_eligible": false,
@@ -276,8 +228,8 @@
         }
       },
       "analyst_conclusion": {
-        "label": "fixture_gap_needs_live_capture",
-        "conclusion": "Adoption/take-up mode expectation is fixed, but downstream quantified checks are intentionally blocked pending live fixture ingestion."
+        "label": "pre_live_capture_placeholder",
+        "conclusion": "This bill is explicitly a pre-live-capture placeholder with no deterministic impact discovery claims in checked-in fixtures."
       }
     },
     {
@@ -288,24 +240,16 @@
       "expected_steps": {
         "impact_discovery": {
           "expected_impact_count": {
-            "minimum": 1
+            "exact": 0
           }
         },
         "mode_selection": {
-          "expected_selected_mode": "adoption_take_up"
+          "expected_selected_mode": "qualitative_only"
         },
         "parameter_resolution": {
-          "required_parameters": [
-            "eligible_population",
-            "take_up_rate",
-            "benefit_per_capita"
-          ],
+          "required_parameters": [],
           "expected_resolved_parameters": [],
-          "expected_missing_parameters": [
-            "eligible_population",
-            "take_up_rate",
-            "benefit_per_capita"
-          ]
+          "expected_missing_parameters": []
         },
         "sufficiency_gate": {
           "overall_quantification_eligible": false,
@@ -316,8 +260,8 @@
         }
       },
       "analyst_conclusion": {
-        "label": "fixture_gap_needs_live_capture",
-        "conclusion": "This bill is modeled as adoption/take-up, yet the checked-in fixture set cannot support strong quantified assertions at this stage."
+        "label": "pre_live_capture_placeholder",
+        "conclusion": "Without checked-in live fixture evidence, this bill must remain deterministic placeholder data for fail-closed replay behavior."
       }
     },
     {

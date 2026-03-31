@@ -257,6 +257,47 @@ def validate_bill(
                 "overall_quantification_eligible=false"
             )
 
+    # Provisional bootstrap contract:
+    # manifest-only bills with no checked-in fixture must stay deterministic placeholders
+    # and must not assert successful quantitative discovery/mode/parameter outcomes.
+    if expectation_strength == "provisional_bootstrap":
+        if fixture_status != "manifest_only_no_checked_in_fixture":
+            fail(
+                f"{bill_id}: provisional_bootstrap requires "
+                "fixture_status=manifest_only_no_checked_in_fixture"
+            )
+        impact_count = impact_discovery.get("expected_impact_count", {})
+        if impact_count.get("exact") != 0 or "minimum" in impact_count:
+            fail(
+                f"{bill_id}: provisional_bootstrap requires expected_impact_count.exact=0 "
+                "with no minimum field"
+            )
+        if selected_mode != "qualitative_only":
+            fail(
+                f"{bill_id}: provisional_bootstrap must use "
+                "mode_selection.expected_selected_mode=qualitative_only"
+            )
+        if required_parameters or resolved_parameters or missing_parameters:
+            fail(
+                f"{bill_id}: provisional_bootstrap requires empty "
+                "required/resolved/missing parameter expectations"
+            )
+        if quant_eligible:
+            fail(
+                f"{bill_id}: provisional_bootstrap must set "
+                "overall_quantification_eligible=false"
+            )
+        if sufficiency_state != "research_incomplete":
+            fail(
+                f"{bill_id}: provisional_bootstrap must set "
+                "overall_sufficiency_state=research_incomplete"
+            )
+        if bill_level_failures != ["impact_discovery_failed"]:
+            fail(
+                f"{bill_id}: provisional_bootstrap must set bill_level_failures "
+                "to exactly ['impact_discovery_failed']"
+            )
+
 
 def main() -> None:
     repo_root = Path(__file__).resolve().parents[3]
