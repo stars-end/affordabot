@@ -14,6 +14,7 @@ from services.scraper.registry import SCRAPERS
 from middleware.auth import TestAuthBypassMiddleware
 from services.llm.web_search_factory import create_web_search_client
 from pathlib import Path
+from datetime import datetime, timezone
 
 # Initialize Sentry
 if os.getenv("SENTRY_DSN"):
@@ -113,6 +114,37 @@ async def health_check():
         "status": "healthy",
         "database": "connected" if db.is_connected() else "disconnected",
         "zai_research": "connected" if zai_health else "disconnected",
+    }
+
+
+@app.get("/health/build")
+async def build_health_check():
+    """Return immutable build identity for deployment freshness checks.
+
+    Compatible with the shared agent-skills railway contract.
+    Agents use this to answer: "Is origin/master actually live on Railway?"
+    """
+    git_commit = (
+        os.getenv("GIT_COMMIT")
+        or os.getenv("RAILWAY_GIT_COMMIT_SHA")
+        or os.getenv("COMMIT_SHA")
+        or "unknown"
+    )
+    build_timestamp = (
+        os.getenv("BUILD_TIMESTAMP")
+        or os.getenv("RAILWAY_DEPLOYMENT_CREATED_AT")
+        or os.getenv("SOURCE_DATE_EPOCH")
+        or "unknown"
+    )
+    build_id = os.getenv("BUILD_ID") or f"{git_commit}:{build_timestamp}"
+
+    return {
+        "git_commit": git_commit,
+        "build_timestamp": build_timestamp,
+        "build_id": build_id,
+        "environment": os.getenv("ENVIRONMENT", "unknown"),
+        "service": "backend",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
