@@ -7,6 +7,7 @@
 | Local | `make verify-local` | Before commit |
 | E2E | `make verify-pipeline` | Before PR |
 | Analysis | `make verify-analysis` | Logic changes |
+| Live Freshness | `cd backend && poetry run python ../scripts/verification/verify_remote_deployment.py --check-freshness-only` | Rollout verification (runtime truth via `/health/build`) |
 
 ## Quick Start
 
