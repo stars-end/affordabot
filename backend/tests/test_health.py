@@ -1,14 +1,13 @@
 def test_health_build_reports_build_identity():
     from main import build_health_check
+    import asyncio
     import os
 
     os.environ["GIT_COMMIT"] = "abc123def"
     os.environ["BUILD_TIMESTAMP"] = "2026-03-31T12:00:00Z"
     os.environ["ENVIRONMENT"] = "dev"
 
-    import asyncio
-
-    result = asyncio.get_event_loop().run_until_complete(build_health_check())
+    result = asyncio.run(build_health_check())
     assert result["git_commit"] == "abc123def"
     assert result["build_timestamp"] == "2026-03-31T12:00:00Z"
     assert result["build_id"] == "abc123def:2026-03-31T12:00:00Z"
@@ -22,6 +21,7 @@ def test_health_build_reports_build_identity():
 
 
 def test_health_build_uses_railway_sha_fallback():
+    import asyncio
     import os
 
     os.environ.pop("GIT_COMMIT", None)
@@ -29,9 +29,7 @@ def test_health_build_uses_railway_sha_fallback():
     os.environ["RAILWAY_DEPLOYMENT_CREATED_AT"] = "2026-03-31T00:00:00Z"
 
     from main import build_health_check
-    import asyncio
-
-    result = asyncio.get_event_loop().run_until_complete(build_health_check())
+    result = asyncio.run(build_health_check())
     assert result["git_commit"] == "railsha123"
     assert result["build_timestamp"] == "2026-03-31T00:00:00Z"
 
@@ -40,6 +38,7 @@ def test_health_build_uses_railway_sha_fallback():
 
 
 def test_health_build_no_env_vars_returns_unknown():
+    import asyncio
     import os
 
     for key in [
@@ -55,9 +54,7 @@ def test_health_build_no_env_vars_returns_unknown():
         os.environ.pop(key, None)
 
     from main import build_health_check
-    import asyncio
-
-    result = asyncio.get_event_loop().run_until_complete(build_health_check())
+    result = asyncio.run(build_health_check())
     assert result["git_commit"] == "unknown"
     assert result["build_timestamp"] == "unknown"
     assert result["service"] == "backend"
