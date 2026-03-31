@@ -33,6 +33,7 @@ try:
     from llm_common.core import LLMClient
     from llm_common.web_search import WebSearchClient
     from schemas.analysis import LegislationAnalysisResponse
+    from schemas.analysis import ReviewCritique
     from services.legislation_research import LegislationResearchResult
     from services.llm.orchestrator import AnalysisPipeline
 except ModuleNotFoundError as exc:
@@ -56,6 +57,13 @@ class VariantRunResult:
     parameter_resolution: Dict[str, Any]
     sufficiency_gate: Dict[str, Any]
     research_counts: Dict[str, Any]
+
+
+@dataclass
+class LLMTextResponse:
+    """Simple chat_completion response shim with plain text content."""
+
+    content: str
 
 
 @dataclass
@@ -361,14 +369,44 @@ async def _run_variant(
     include_web = variant == "with_web"
     db.current_bill_id = fixture.bill_id
     db.current_chunk_count = len(fixture.rag_chunks)
+    bill_text = fixture.get_bill_text()
+    jurisdiction = fixture.bill_id.split("-", 1)[0]
+
+    analysis_payload = LegislationAnalysisResponse(
+        bill_number=fixture.bill_id,
+        title=fixture.get_bill_title() or fixture.bill_id,
+        jurisdiction=jurisdiction,
+        status="fixture_replay",
+        sufficiency_state="qualitative_only",
+        quantification_eligible=False,
+        insufficiency_reason="impact_discovery_failed",
+        impacts=[],
+        aggregate_scenario_bounds=None,
+        analysis_timestamp=datetime.now(timezone.utc).isoformat(),
+        model_used=models.get("generate", "fixture-generate"),
+    ).model_dump_json()
+    review_payload = ReviewCritique(
+        passed=True,
+        critique="Fixture replay review pass",
+        missing_impacts=[],
+        factual_errors=[],
+    ).model_dump_json()
+    llm_client = MagicMock(spec=LLMClient)
+    llm_client.chat_completion = AsyncMock(
+        return_value=LLMTextResponse(content=analysis_payload)
+    )
+    # First call (generate) -> analysis JSON, second call (review) -> review JSON.
+    llm_client.chat_completion.side_effect = [
+        LLMTextResponse(content=analysis_payload),
+        LLMTextResponse(content=review_payload),
+    ]
+
     pipeline = AnalysisPipeline(
-        MagicMock(spec=LLMClient),
+        llm_client,
         MagicMock(spec=WebSearchClient),
         db,
     )
     research_result = _build_research_result(fixture, include_web=include_web)
-    bill_text = fixture.get_bill_text()
-    jurisdiction = fixture.bill_id.split("-", 1)[0]
 
     with patch.object(
         pipeline.research_service,
