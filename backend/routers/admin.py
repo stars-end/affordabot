@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, Request, HTTPException
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from pydantic import BaseModel
 import json
 from services.glass_box import GlassBoxService, AgentStep, PipelineStep
@@ -86,6 +86,46 @@ async def get_count(db: PostgresDB, query: str, *args):
         return result["count"] if result else 0
     except Exception:
         return 0
+
+
+def _parse_json_object(value: Any) -> Dict[str, Any]:
+    """Parse a JSON-ish value into an object without raising."""
+    if isinstance(value, dict):
+        return value
+    if isinstance(value, str) and value.strip():
+        try:
+            parsed = json.loads(value)
+        except json.JSONDecodeError:
+            return {}
+        return parsed if isinstance(parsed, dict) else {}
+    return {}
+
+
+def _collect_recent_errors(*values: Any) -> List[str]:
+    """Return unique, compact error strings in first-seen order."""
+    seen = set()
+    errors: List[str] = []
+    for raw in values:
+        text = str(raw or "").strip()
+        if not text or text in seen:
+            continue
+        seen.add(text)
+        errors.append(text)
+    return errors[:5]
+
+
+def _is_failure_stage(stage: Optional[str]) -> bool:
+    normalized = (stage or "").strip().lower()
+    if not normalized:
+        return False
+    if normalized.endswith("_failed") or normalized.endswith("_exception"):
+        return True
+    return normalized in {
+        "parse_failed_no_text",
+        "validation_failed",
+        "chunk_failed_empty",
+        "vector_upserted_not_retrievable",
+    }
 
 
 # ============================================================================
@@ -454,6 +494,197 @@ async def get_document_health(db: PostgresDB = Depends(get_db)):
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to fetch document health: {str(e)}"
+        )
+
+
+@router.get("/substrate-health")
+async def get_substrate_health(
+    db: PostgresDB = Depends(get_db),
+    limit: int = 100,
+    promotion_state: Optional[str] = None,
+    trust_tier: Optional[str] = None,
+    ingestion_stage: Optional[str] = None,
+    include_legacy: bool = True,
+):
+    """Operator QA surface: promotion truth + ingestion truth in one place."""
+    try:
+        safe_limit = max(1, min(limit, 500))
+        rows = await db._fetch(
+            """
+            SELECT
+                rs.id,
+                rs.created_at,
+                rs.url AS scrape_url,
+                rs.content_hash,
+                rs.error_message,
+                rs.processed,
+                rs.document_id::text AS scrape_document_id,
+                rs.metadata AS scrape_metadata,
+                s.name AS source_name,
+                s.url AS source_url,
+                s.metadata AS source_metadata,
+                s.jurisdiction_id,
+                j.name AS jurisdiction_name,
+                COALESCE(dc.chunk_count, 0) AS chunk_count
+            FROM raw_scrapes rs
+            LEFT JOIN sources s ON rs.source_id = s.id
+            LEFT JOIN jurisdictions j ON s.jurisdiction_id::text = j.id::text
+            LEFT JOIN (
+                SELECT document_id::text AS document_id, COUNT(*) AS chunk_count
+                FROM document_chunks
+                GROUP BY document_id::text
+            ) dc ON dc.document_id = COALESCE(
+                rs.document_id::text,
+                rs.metadata::jsonb #>> '{ingestion_truth,document_id}',
+                rs.metadata::jsonb->>'document_id'
+            )
+            ORDER BY rs.created_at DESC
+            LIMIT $1
+            """,
+            safe_limit,
+        )
+
+        records = []
+        promoted_count = 0
+        preserved_count = 0
+        candidate_count = 0
+        failed_count = 0
+        legacy_unknown_count = 0
+        retrievable_count = 0
+
+        state_filter = (promotion_state or "").strip().lower()
+        tier_filter = (trust_tier or "").strip().lower()
+        stage_filter = (ingestion_stage or "").strip().lower()
+
+        for row in rows:
+            scrape_metadata = _parse_json_object(row.get("scrape_metadata"))
+            source_metadata = _parse_json_object(row.get("source_metadata"))
+            ingestion_truth = _parse_json_object(scrape_metadata.get("ingestion_truth"))
+
+            record_promotion_state = scrape_metadata.get("promotion_state")
+            record_promotion_method = scrape_metadata.get("promotion_method")
+            record_promotion_reason = scrape_metadata.get("promotion_reason_category")
+            record_trust_tier = (
+                scrape_metadata.get("trust_tier")
+                or source_metadata.get("trust_tier")
+                or "unknown"
+            )
+            record_ingestion_stage = (
+                ingestion_truth.get("stage")
+                or scrape_metadata.get("extraction_status")
+                or "unknown"
+            )
+            retrievable_value = ingestion_truth.get("retrievable")
+            chunk_count = int(row.get("chunk_count") or 0)
+            retrievable = (
+                bool(retrievable_value)
+                if isinstance(retrievable_value, (bool, int))
+                else chunk_count > 0
+            )
+            recent_errors = _collect_recent_errors(
+                row.get("error_message"),
+                scrape_metadata.get("promotion_error"),
+                scrape_metadata.get("extraction_error"),
+                ingestion_truth.get("last_error"),
+                ingestion_truth.get("ingest_skipped_reason"),
+            )
+            last_error = recent_errors[0] if recent_errors else None
+            legacy_unknown = bool(
+                record_promotion_reason == "legacy_unknown"
+                or (
+                    not ingestion_truth
+                    and record_promotion_state is None
+                    and record_ingestion_stage == "unknown"
+                )
+            )
+
+            if state_filter and (record_promotion_state or "").strip().lower() != state_filter:
+                continue
+            if tier_filter and (record_trust_tier or "").strip().lower() != tier_filter:
+                continue
+            if stage_filter and (record_ingestion_stage or "").strip().lower() != stage_filter:
+                continue
+            if not include_legacy and legacy_unknown:
+                continue
+
+            if record_promotion_state == "promoted_substrate":
+                promoted_count += 1
+            elif record_promotion_state == "durable_raw":
+                preserved_count += 1
+            elif record_promotion_state == "captured_candidate":
+                candidate_count += 1
+
+            if legacy_unknown:
+                legacy_unknown_count += 1
+            if retrievable:
+                retrievable_count += 1
+            if _is_failure_stage(record_ingestion_stage) or bool(last_error):
+                failed_count += 1
+
+            document_id = (
+                row.get("scrape_document_id")
+                or ingestion_truth.get("document_id")
+                or scrape_metadata.get("document_id")
+            )
+
+            records.append(
+                {
+                    "id": str(row["id"]),
+                    "scraped_at": str(row["created_at"]) if row.get("created_at") else None,
+                    "jurisdiction": row.get("jurisdiction_name"),
+                    "jurisdiction_id": str(row["jurisdiction_id"])
+                    if row.get("jurisdiction_id")
+                    else None,
+                    "source_name": row.get("source_name") or scrape_metadata.get("source_name"),
+                    "source_url": row.get("source_url"),
+                    "canonical_url": scrape_metadata.get("canonical_url")
+                    or scrape_metadata.get("source_url")
+                    or row.get("scrape_url")
+                    or row.get("source_url"),
+                    "document_id": str(document_id) if document_id else None,
+                    "document_type": scrape_metadata.get("document_type") or "unknown",
+                    "content_class": scrape_metadata.get("content_class") or "unknown",
+                    "trust_host_classification": scrape_metadata.get("trust_host_classification")
+                    or "unknown",
+                    "trust_tier": record_trust_tier,
+                    "promotion_state": record_promotion_state,
+                    "promotion_method": record_promotion_method,
+                    "promotion_reason_category": record_promotion_reason,
+                    "ingestion_stage": record_ingestion_stage,
+                    "retrievable": retrievable,
+                    "processed": row.get("processed"),
+                    "chunk_count": chunk_count,
+                    "content_hash": row.get("content_hash"),
+                    "last_error": last_error,
+                    "recent_errors": recent_errors,
+                    "legacy_unknown": legacy_unknown,
+                }
+            )
+
+        total_records = len(records)
+        return {
+            "summary": {
+                "total_records": total_records,
+                "captured_candidate_count": candidate_count,
+                "durable_raw_count": preserved_count,
+                "promoted_substrate_count": promoted_count,
+                "failed_count": failed_count,
+                "legacy_unknown_count": legacy_unknown_count,
+                "retrievable_count": retrievable_count,
+                "non_retrievable_count": total_records - retrievable_count,
+            },
+            "filters": {
+                "limit": safe_limit,
+                "promotion_state": promotion_state,
+                "trust_tier": trust_tier,
+                "ingestion_stage": ingestion_stage,
+                "include_legacy": include_legacy,
+            },
+            "records": records,
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to fetch substrate health: {str(e)}"
         )
 
 
