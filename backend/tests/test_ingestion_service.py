@@ -14,6 +14,8 @@ def mock_postgres():
     pg.create_raw_scrape = AsyncMock(return_value="test-scrape-id")
     # Define side effect for _fetchrow to handle different queries
     async def fetchrow_side_effect(query, *args):
+        if "COUNT(*) AS cnt FROM document_chunks" in query:
+             return {"cnt": 1}
         if "FROM sources" in query:
              return None # Default: source not found
         if "FROM raw_scrapes" in query:
@@ -186,4 +188,3 @@ async def test_ingest_from_search_result_existing_source(mock_postgres, mock_vec
     mock_postgres.create_raw_scrape.assert_called()
     args = mock_postgres.create_raw_scrape.call_args[0][0]
     assert args['source_id'] == "existing-source-id"
-
