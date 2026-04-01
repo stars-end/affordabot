@@ -1,0 +1,383 @@
+#!/usr/bin/env python3
+"""Manual substrate capture with binary-safe persistence and content classes.
+
+This script captures official municipal documents into `raw_scrapes` while
+making content handling explicit:
+- text-like responses are stored as UTF-8 text in `data.content`
+- binary responses are stored as base64 in `data.content_base64`
+
+The goal is durable raw capture first; ingestion/chunking is optional and is
+only attempted for text-like content classes.
+"""
+
+from __future__ import annotations
+
+import argparse
+import asyncio
+import base64
+import hashlib
+import html
+import json
+import os
+import re
+from dataclasses import asdict, dataclass
+from datetime import datetime, timezone
+from typing import Any
+from urllib.parse import urlsplit, urlunsplit
+
+import httpx
+
+from db.postgres_client import PostgresDB
+from services.ingestion_service import IngestionService
+from services.storage.s3_storage import S3Storage
+from services.vector_backend_factory import create_vector_backend
+
+
+DEFAULT_SUBSTRATE_VERSION = "poc-v1"
+DEFAULT_PROMOTION_STATE = "captured_candidate"
+
+
+@dataclass(frozen=True)
+class SubstrateDefaults:
+    document_type: str
+    trust_tier: str
+    capture_method: str
+    canonical_url: str
+    content_class: str
+    promotion_state: str = DEFAULT_PROMOTION_STATE
+    substrate_version: str = DEFAULT_SUBSTRATE_VERSION
+
+
+TEXT_CONTENT_CLASSES = {"html_text", "plain_text", "json_text"}
+
+
+def normalize_canonical_url(url: str) -> str:
+    parts = urlsplit(url.strip())
+    cleaned = parts._replace(fragment="")
+    return urlunsplit(cleaned)
+
+
+def parse_metadata_blob(value: Any) -> dict[str, Any]:
+    if isinstance(value, dict):
+        return value
+    if isinstance(value, str) and value.strip():
+        try:
+            parsed = json.loads(value)
+        except json.JSONDecodeError:
+            return {}
+        return parsed if isinstance(parsed, dict) else {}
+    return {}
+
+
+def detect_content_class(content_type: str) -> str:
+    ctype = (content_type or "").split(";")[0].strip().lower()
+    if ctype in {"text/html", "application/xhtml+xml"}:
+        return "html_text"
+    if ctype in {"text/plain"}:
+        return "plain_text"
+    if ctype in {"application/json", "application/ld+json"}:
+        return "json_text"
+    if ctype == "application/pdf":
+        return "pdf_binary"
+    return "binary_blob"
+
+
+def extract_title_from_html(raw_html: str, fallback_url: str) -> str:
+    match = re.search(r"<title[^>]*>(.*?)</title>", raw_html, re.IGNORECASE | re.DOTALL)
+    if match:
+        title = re.sub(r"\s+", " ", html.unescape(match.group(1))).strip()
+        if title:
+            return title
+    return fallback_url
+
+
+def extract_preview_text(raw_html: str, limit: int = 500) -> str:
+    text = re.sub(r"<script.*?</script>", " ", raw_html, flags=re.IGNORECASE | re.DOTALL)
+    text = re.sub(r"<style.*?</style>", " ", text, flags=re.IGNORECASE | re.DOTALL)
+    text = re.sub(r"<[^>]+>", " ", text)
+    text = re.sub(r"\s+", " ", html.unescape(text)).strip()
+    return text[:limit]
+
+
+def build_source_metadata(
+    *,
+    defaults: SubstrateDefaults,
+    source_name: str,
+    source_type: str,
+) -> dict[str, Any]:
+    return {
+        "substrate_version": defaults.substrate_version,
+        "canonical_url": defaults.canonical_url,
+        "document_type": defaults.document_type,
+        "source_type": source_type,
+        "content_class": defaults.content_class,
+        "trust_tier": defaults.trust_tier,
+        "capture_method": defaults.capture_method,
+        "promotion_state": defaults.promotion_state,
+        "active": True,
+        "poc": True,
+        "poc_source_name": source_name,
+    }
+
+
+def build_raw_metadata(
+    *,
+    defaults: SubstrateDefaults,
+    source_name: str,
+    source_type: str,
+    title: str,
+    response_content_type: str,
+) -> dict[str, Any]:
+    return {
+        "substrate_version": defaults.substrate_version,
+        "canonical_url": defaults.canonical_url,
+        "document_type": defaults.document_type,
+        "source_type": source_type,
+        "content_class": defaults.content_class,
+        "trust_tier": defaults.trust_tier,
+        "capture_method": defaults.capture_method,
+        "promotion_state": defaults.promotion_state,
+        "captured_at": datetime.now(timezone.utc).isoformat(),
+        "raw_capture_mode": "manual_poc",
+        "source_name": source_name,
+        "title": title,
+        "response_content_type": response_content_type,
+    }
+
+
+def build_data_payload(
+    *,
+    content_class: str,
+    content_bytes: bytes,
+    title: str,
+    canonical_url: str,
+) -> tuple[dict[str, Any], str]:
+    if content_class in TEXT_CONTENT_CLASSES:
+        text_content = content_bytes.decode("utf-8", errors="replace")
+        preview = extract_preview_text(text_content)
+        payload = {
+            "content": text_content,
+            "title": title,
+            "canonical_url": canonical_url,
+            "preview_text": preview,
+        }
+        return payload, preview
+
+    preview = f"[binary:{content_class}] {title}"
+    payload = {
+        "content_base64": base64.b64encode(content_bytes).decode("ascii"),
+        "content_encoding": "base64",
+        "byte_length": len(content_bytes),
+        "title": title,
+        "canonical_url": canonical_url,
+        "preview_text": preview,
+    }
+    return payload, preview
+
+
+async def build_embedding_service() -> Any:
+    if os.environ.get("OPENAI_API_KEY") or os.environ.get("OPENROUTER_API_KEY"):
+        from llm_common.embeddings.openai import OpenAIEmbeddingService
+
+        return OpenAIEmbeddingService(
+            base_url="https://openrouter.ai/api/v1",
+            api_key=os.environ.get("OPENROUTER_API_KEY"),
+            model="qwen/qwen3-embedding-8b",
+            dimensions=1536,
+        )
+
+    class MockEmbeddingService:
+        async def embed_query(self, text: str) -> list[float]:
+            return [0.1] * 1536
+
+        async def embed_documents(self, texts: list[str]) -> list[list[float]]:
+            return [[0.1] * 1536 for _ in texts]
+
+    return MockEmbeddingService()
+
+
+async def ensure_source(
+    db: PostgresDB,
+    *,
+    jurisdiction_name: str,
+    jurisdiction_type: str,
+    source_name: str,
+    source_type: str,
+    canonical_url: str,
+    source_metadata: dict[str, Any],
+) -> tuple[str, str]:
+    jurisdiction_id = await db.get_or_create_jurisdiction(jurisdiction_name, jurisdiction_type)
+    if not jurisdiction_id:
+        raise RuntimeError("Failed to resolve jurisdiction")
+
+    source_id = await db.get_or_create_source(
+        jurisdiction_id,
+        source_name,
+        source_type,
+        url=canonical_url,
+    )
+    if not source_id:
+        raise RuntimeError("Failed to resolve source")
+
+    existing = await db.get_source(source_id) or {}
+    merged = {**parse_metadata_blob(existing.get("metadata")), **source_metadata}
+    await db.update_source(
+        source_id,
+        {
+            "metadata": json.dumps(merged),
+            "source_method": "manual",
+            "handler": "substrate_manual_capture",
+            "scrape_url": canonical_url,
+            "status": "active",
+        },
+    )
+    return jurisdiction_id, source_id
+
+
+async def capture_document(args: argparse.Namespace) -> dict[str, Any]:
+    canonical_url = normalize_canonical_url(args.url)
+
+    async with httpx.AsyncClient(follow_redirects=True, timeout=30.0) as client:
+        response = await client.get(canonical_url)
+        response.raise_for_status()
+        content_bytes = response.content
+        content_type = response.headers.get("content-type", "application/octet-stream").split(";")[
+            0
+        ].strip()
+
+    content_class = detect_content_class(content_type)
+    defaults = SubstrateDefaults(
+        document_type=args.document_type,
+        trust_tier=args.trust_tier,
+        capture_method=args.capture_method,
+        canonical_url=canonical_url,
+        content_class=content_class,
+    )
+
+    title = args.title
+    if not title:
+        if content_class == "html_text":
+            html_text = content_bytes.decode("utf-8", errors="replace")
+            title = extract_title_from_html(html_text, canonical_url)
+        else:
+            title = canonical_url
+
+    data_payload, preview = build_data_payload(
+        content_class=content_class,
+        content_bytes=content_bytes,
+        title=title,
+        canonical_url=canonical_url,
+    )
+
+    db = PostgresDB()
+    source_metadata = build_source_metadata(
+        defaults=defaults,
+        source_name=args.source_name,
+        source_type=args.source_type,
+    )
+    jurisdiction_id, source_id = await ensure_source(
+        db,
+        jurisdiction_name=args.jurisdiction_name,
+        jurisdiction_type=args.jurisdiction_type,
+        source_name=args.source_name,
+        source_type=args.source_type,
+        canonical_url=canonical_url,
+        source_metadata=source_metadata,
+    )
+
+    raw_metadata = build_raw_metadata(
+        defaults=defaults,
+        source_name=args.source_name,
+        source_type=args.source_type,
+        title=title,
+        response_content_type=content_type,
+    )
+    scrape_record = {
+        "source_id": source_id,
+        "url": canonical_url,
+        "content_hash": hashlib.sha256(content_bytes).hexdigest(),
+        "content_type": content_type,
+        "data": data_payload,
+        "metadata": raw_metadata,
+    }
+    scrape_id = await db.create_raw_scrape(scrape_record)
+    if not scrape_id:
+        raise RuntimeError("Failed to create raw scrape")
+
+    chunk_count = 0
+    ingest_attempted = False
+    ingest_skipped_reason = None
+    scrape_row = await db._fetchrow("SELECT * FROM raw_scrapes WHERE id = $1", scrape_id)
+    document_id = None
+    storage_uri = None
+    error_message = None
+
+    if args.ingest:
+        if content_class in TEXT_CONTENT_CLASSES:
+            ingest_attempted = True
+            embedding_service = await build_embedding_service()
+
+            async def embed_fn(text: str) -> list[float]:
+                return await embedding_service.embed_query(text)
+
+            vector_backend = create_vector_backend(
+                postgres_client=db,
+                embedding_fn=embed_fn,
+            )
+            ingestion_service = IngestionService(
+                postgres_client=db,
+                vector_backend=vector_backend,
+                embedding_service=embedding_service,
+                storage_backend=S3Storage(),
+            )
+            chunk_count = await ingestion_service.process_raw_scrape(scrape_id)
+            scrape_row = await db._fetchrow("SELECT * FROM raw_scrapes WHERE id = $1", scrape_id)
+        else:
+            ingest_skipped_reason = f"content_class={content_class} is not text-like"
+
+    if scrape_row:
+        document_id = str(scrape_row.get("document_id")) if scrape_row.get("document_id") else None
+        storage_uri = scrape_row.get("storage_uri")
+        error_message = scrape_row.get("error_message")
+
+    return {
+        "jurisdiction_id": jurisdiction_id,
+        "source_id": source_id,
+        "scrape_id": scrape_id,
+        "document_id": document_id,
+        "storage_uri": storage_uri,
+        "chunk_count": chunk_count,
+        "error_message": error_message,
+        "content_type": content_type,
+        "content_class": content_class,
+        "ingest_attempted": ingest_attempted,
+        "ingest_skipped_reason": ingest_skipped_reason,
+        "defaults": asdict(defaults),
+        "title": title,
+        "preview_text": preview,
+    }
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--url", required=True)
+    parser.add_argument("--jurisdiction-name", required=True)
+    parser.add_argument("--jurisdiction-type", required=True, choices=("city", "county", "state"))
+    parser.add_argument("--source-name", required=True)
+    parser.add_argument("--source-type", required=True)
+    parser.add_argument("--document-type", required=True)
+    parser.add_argument("--trust-tier", required=True)
+    parser.add_argument("--capture-method", default="manual_http")
+    parser.add_argument("--title")
+    parser.add_argument("--ingest", action="store_true")
+    return parser.parse_args()
+
+
+def main() -> None:
+    args = parse_args()
+    result = asyncio.run(capture_document(args))
+    print(json.dumps(result, indent=2))
+
+
+if __name__ == "__main__":
+    main()
