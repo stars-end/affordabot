@@ -320,3 +320,187 @@ def test_admin_scrape_queries_avoid_text_uuid_join_mismatch() -> None:
     admin_path = Path(__file__).resolve().parents[2] / "routers" / "admin.py"
     source = admin_path.read_text()
     assert source.count("s.jurisdiction_id::text = j.id::text") >= 3
+
+
+def test_substrate_health_reports_truth_fields_and_summary(client, mock_db):
+    mock_db._fetch.return_value = [
+        {
+            "id": "raw-1",
+            "created_at": "2026-04-01T12:00:00Z",
+            "scrape_url": "https://www.sanjoseca.gov/agendas/2026-04-01.pdf",
+            "content_hash": "hash-1",
+            "error_message": None,
+            "processed": True,
+            "scrape_document_id": "doc-1",
+            "scrape_metadata": {
+                "canonical_url": "https://www.sanjoseca.gov/agendas/2026-04-01.pdf",
+                "document_type": "agenda",
+                "content_class": "pdf_binary",
+                "trust_host_classification": "official_government",
+                "trust_tier": "primary_government",
+                "promotion_state": "promoted_substrate",
+                "promotion_method": "rules",
+                "promotion_reason_category": "substantive_official_document",
+                "ingestion_truth": {
+                    "stage": "retrievable",
+                    "retrievable": True,
+                    "document_id": "doc-1",
+                },
+            },
+            "source_name": "San Jose Agendas",
+            "source_url": "https://www.sanjoseca.gov/",
+            "source_metadata": {},
+            "jurisdiction_id": "j-1",
+            "jurisdiction_name": "City of San Jose",
+            "chunk_count": 4,
+        },
+        {
+            "id": "raw-2",
+            "created_at": "2026-04-01T11:00:00Z",
+            "scrape_url": "https://www.sanjoseca.gov/meetings/detail",
+            "content_hash": "hash-2",
+            "error_message": "Vector upsert failed: timeout",
+            "processed": False,
+            "scrape_document_id": None,
+            "scrape_metadata": {
+                "canonical_url": "https://www.sanjoseca.gov/meetings/detail",
+                "document_type": "meeting_detail",
+                "content_class": "html_text",
+                "trust_host_classification": "official_government",
+                "trust_tier": "primary_government",
+                "promotion_state": "durable_raw",
+                "promotion_method": "rules",
+                "promotion_reason_category": "captured_preserved_official",
+                "ingestion_truth": {
+                    "stage": "vector_upsert_failed",
+                    "retrievable": False,
+                },
+            },
+            "source_name": "San Jose Meetings",
+            "source_url": "https://www.sanjoseca.gov/",
+            "source_metadata": {},
+            "jurisdiction_id": "j-1",
+            "jurisdiction_name": "City of San Jose",
+            "chunk_count": 0,
+        },
+        {
+            "id": "raw-3",
+            "created_at": "2026-04-01T10:00:00Z",
+            "scrape_url": "https://www.sanjoseca.gov/city-code",
+            "content_hash": "hash-3",
+            "error_message": None,
+            "processed": None,
+            "scrape_document_id": None,
+            "scrape_metadata": {
+                "canonical_url": "https://www.sanjoseca.gov/city-code",
+                "document_type": "municipal_code",
+                "content_class": "html_text",
+                "trust_host_classification": "official_government",
+                "trust_tier": "primary_government",
+            },
+            "source_name": "San Jose Code",
+            "source_url": "https://www.sanjoseca.gov/",
+            "source_metadata": {},
+            "jurisdiction_id": "j-1",
+            "jurisdiction_name": "City of San Jose",
+            "chunk_count": 0,
+        },
+    ]
+
+    client.set_auth("admin")
+    response = client.get("/api/admin/substrate-health?limit=20")
+    assert response.status_code == 200
+    body = response.json()
+    summary = body["summary"]
+
+    assert summary["total_records"] == 3
+    assert summary["promoted_substrate_count"] == 1
+    assert summary["durable_raw_count"] == 1
+    assert summary["legacy_unknown_count"] == 1
+    assert summary["failed_count"] == 1
+
+    record = body["records"][0]
+    required = {
+        "source_name",
+        "source_url",
+        "canonical_url",
+        "document_type",
+        "content_class",
+        "trust_host_classification",
+        "trust_tier",
+        "promotion_state",
+        "promotion_method",
+        "promotion_reason_category",
+        "ingestion_stage",
+        "retrievable",
+        "processed",
+        "last_error",
+        "legacy_unknown",
+    }
+    assert required.issubset(record.keys())
+    legacy = next(r for r in body["records"] if r["id"] == "raw-3")
+    assert legacy["legacy_unknown"] is True
+    assert legacy["promotion_state"] is None
+
+
+def test_substrate_health_filters_state_stage_and_legacy(client, mock_db):
+    mock_db._fetch.return_value = [
+        {
+            "id": "raw-a",
+            "created_at": "2026-04-01T12:00:00Z",
+            "scrape_url": "https://example.gov/a",
+            "content_hash": "hash-a",
+            "error_message": None,
+            "processed": True,
+            "scrape_document_id": "doc-a",
+            "scrape_metadata": {
+                "canonical_url": "https://example.gov/a",
+                "document_type": "agenda",
+                "content_class": "html_text",
+                "trust_host_classification": "official_government",
+                "trust_tier": "primary_government",
+                "promotion_state": "durable_raw",
+                "promotion_method": "rules",
+                "promotion_reason_category": "captured_preserved_official",
+                "ingestion_truth": {"stage": "retrievable", "retrievable": True},
+            },
+            "source_name": "Example A",
+            "source_url": "https://example.gov/",
+            "source_metadata": {},
+            "jurisdiction_id": "j-1",
+            "jurisdiction_name": "City",
+            "chunk_count": 3,
+        },
+        {
+            "id": "raw-b",
+            "created_at": "2026-04-01T11:00:00Z",
+            "scrape_url": "https://example.gov/b",
+            "content_hash": "hash-b",
+            "error_message": None,
+            "processed": None,
+            "scrape_document_id": None,
+            "scrape_metadata": {
+                "canonical_url": "https://example.gov/b",
+                "document_type": "meeting_calendar",
+                "content_class": "html_text",
+                "trust_host_classification": "official_government",
+                "trust_tier": "primary_government",
+            },
+            "source_name": "Example B",
+            "source_url": "https://example.gov/",
+            "source_metadata": {},
+            "jurisdiction_id": "j-1",
+            "jurisdiction_name": "City",
+            "chunk_count": 0,
+        },
+    ]
+
+    client.set_auth("admin")
+    filtered = client.get(
+        "/api/admin/substrate-health?promotion_state=durable_raw"
+        "&ingestion_stage=retrievable&include_legacy=false"
+    )
+    assert filtered.status_code == 200
+    payload = filtered.json()
+    assert payload["summary"]["total_records"] == 1
+    assert payload["records"][0]["id"] == "raw-a"

@@ -8,13 +8,15 @@ import asyncio
 import json
 import os
 from collections import Counter
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from db.postgres_client import PostgresDB
 from services.substrate_promotion import GLM46VPromotionBoundary
 from services.substrate_promotion import apply_promotion_decision
 from services.substrate_promotion import evaluate_with_fallback
 from services.substrate_promotion import parse_json_blob
+
+if TYPE_CHECKING:
+    from db.postgres_client import PostgresDB
 
 
 def parse_args() -> argparse.Namespace:
@@ -25,7 +27,7 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-async def fetch_candidates(db: PostgresDB, limit: int) -> list[dict[str, Any]]:
+async def fetch_candidates(db: "PostgresDB", limit: int) -> list[dict[str, Any]]:
     rows = await db._fetch(
         """
         SELECT
@@ -64,6 +66,8 @@ def merge_eval_metadata(row: dict[str, Any]) -> tuple[dict[str, Any], dict[str, 
 
 
 async def evaluate_candidates(args: argparse.Namespace) -> dict[str, Any]:
+    from db.postgres_client import PostgresDB
+
     db = PostgresDB()
     rows = await fetch_candidates(db, args.limit)
 
