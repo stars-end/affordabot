@@ -1,5 +1,4 @@
 from scripts.substrate.manual_capture import (
-    DEFAULT_PROMOTION_STATE,
     DEFAULT_SUBSTRATE_VERSION,
     SubstrateDefaults,
     build_data_payload,
@@ -30,7 +29,7 @@ def test_build_source_metadata_uses_contract_defaults():
         document_type="municipal_code",
         trust_tier="primary_government",
         capture_method="manual_http",
-        canonical_url="https://example.com/code",
+        canonical_url="https://www.sanjoseca.gov/code",
         content_class="html_text",
     )
 
@@ -40,11 +39,13 @@ def test_build_source_metadata_uses_contract_defaults():
         source_type="code",
     )
 
-    assert metadata["promotion_state"] == DEFAULT_PROMOTION_STATE
+    assert metadata["promotion_state"] == "durable_raw"
     assert metadata["substrate_version"] == DEFAULT_SUBSTRATE_VERSION
     assert metadata["document_type"] == "municipal_code"
     assert metadata["source_type"] == "code"
     assert metadata["content_class"] == "html_text"
+    assert metadata["promotion_method"] == "rules"
+    assert metadata["trust_host_classification"] == "official_government"
 
 
 def test_build_raw_metadata_keeps_content_class():
@@ -52,7 +53,7 @@ def test_build_raw_metadata_keeps_content_class():
         document_type="agenda",
         trust_tier="primary_government",
         capture_method="manual_http",
-        canonical_url="https://example.com/agenda.pdf",
+        canonical_url="https://sanjose.legistar.com/View.ashx?M=A",
         content_class="pdf_binary",
     )
 
@@ -69,6 +70,9 @@ def test_build_raw_metadata_keeps_content_class():
     assert metadata["source_type"] == "meetings"
     assert metadata["response_content_type"] == "application/pdf"
     assert metadata["content_class"] == "pdf_binary"
+    assert metadata["promotion_state"] in {"durable_raw", "promoted_substrate"}
+    assert metadata["promotion_method"] == "rules"
+    assert metadata["promotion_reason_category"]
 
 
 def test_build_raw_metadata_contains_initial_ingestion_truth():
@@ -76,7 +80,7 @@ def test_build_raw_metadata_contains_initial_ingestion_truth():
         document_type="agenda",
         trust_tier="primary_government",
         capture_method="manual_http",
-        canonical_url="https://example.com/agenda.pdf",
+        canonical_url="https://sanjose.legistar.com/View.ashx?M=A",
         content_class="pdf_binary",
     )
 
