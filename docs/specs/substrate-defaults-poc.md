@@ -37,10 +37,12 @@ and `raw_scrapes.metadata`) with:
 
 ## Binary Safety Rule
 
-For non-text content classes, raw payload is stored as:
+For non-text content classes, full artifact bytes are stored in durable blob
+storage and `raw_scrapes.storage_uri` is set. Inline `data` keeps only a small
+footprint:
 
-- `data.content_base64`
-- `data.content_encoding = "base64"`
+- `data.content_storage = "external_blob"`
+- `data.content_storage_uri`
 - `data.byte_length`
 
 Text payloads continue to use:

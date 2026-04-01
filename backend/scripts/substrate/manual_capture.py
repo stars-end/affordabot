@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import base64
 import hashlib
 import html
 import json
@@ -165,14 +164,40 @@ def build_data_payload(
 
     preview = f"[binary:{content_class}] {title}"
     payload = {
-        "content_base64": base64.b64encode(content_bytes).decode("ascii"),
-        "content_encoding": "base64",
+        "content_storage": "external_blob",
         "byte_length": len(content_bytes),
         "title": title,
         "canonical_url": canonical_url,
         "preview_text": preview,
     }
     return payload, preview
+
+
+def extension_for_content_type(content_type: str) -> str:
+    ctype = (content_type or "").split(";")[0].strip().lower()
+    if ctype == "application/pdf":
+        return "pdf"
+    if ctype in {"text/html", "application/xhtml+xml"}:
+        return "html"
+    if ctype in {"application/json", "application/ld+json"}:
+        return "json"
+    if ctype == "text/plain":
+        return "txt"
+    return "bin"
+
+
+async def upload_binary_artifact(
+    *,
+    source_id: str,
+    content_hash: str,
+    content_type: str,
+    content_bytes: bytes,
+) -> str:
+    now = datetime.now(timezone.utc)
+    ext = extension_for_content_type(content_type)
+    path = f"{source_id}/{now.year}/{now.month}/{content_hash}.{ext}"
+    storage = S3Storage()
+    return await storage.upload(path, content_bytes)
 
 
 async def build_embedding_service() -> Any:
@@ -292,13 +317,25 @@ async def capture_document(args: argparse.Namespace) -> dict[str, Any]:
         title=title,
         response_content_type=content_type,
     )
+    storage_uri = None
+    content_hash = hashlib.sha256(content_bytes).hexdigest()
+    if content_class not in TEXT_CONTENT_CLASSES:
+        storage_uri = await upload_binary_artifact(
+            source_id=source_id,
+            content_hash=content_hash,
+            content_type=content_type,
+            content_bytes=content_bytes,
+        )
+        data_payload["content_storage_uri"] = storage_uri
+
     scrape_record = {
         "source_id": source_id,
         "url": canonical_url,
-        "content_hash": hashlib.sha256(content_bytes).hexdigest(),
+        "content_hash": content_hash,
         "content_type": content_type,
         "data": data_payload,
         "metadata": raw_metadata,
+        "storage_uri": storage_uri,
     }
     scrape_id = await db.create_raw_scrape(scrape_record)
     if not scrape_id:

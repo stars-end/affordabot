@@ -1,5 +1,3 @@
-import base64
-
 from scripts.substrate.manual_capture import (
     DEFAULT_PROMOTION_STATE,
     DEFAULT_SUBSTRATE_VERSION,
@@ -80,7 +78,7 @@ def test_parse_metadata_blob_accepts_json_string():
     assert parsed["poc"] is True
 
 
-def test_build_data_payload_binary_is_base64():
+def test_build_data_payload_binary_uses_external_storage_contract():
     payload, preview = build_data_payload(
         content_class="pdf_binary",
         content_bytes=b"\x00\x01PDF",
@@ -89,9 +87,9 @@ def test_build_data_payload_binary_is_base64():
     )
 
     assert "content" not in payload
-    assert payload["content_encoding"] == "base64"
+    assert payload["content_storage"] == "external_blob"
     assert payload["byte_length"] == 5
-    assert base64.b64decode(payload["content_base64"]) == b"\x00\x01PDF"
+    assert "content_base64" not in payload
     assert preview.startswith("[binary:pdf_binary]")
 
 
