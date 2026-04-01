@@ -198,7 +198,7 @@ def has_substance(
     ingestion_truth: dict[str, Any],
 ) -> bool:
     if content_class == "pdf_binary":
-        return True
+        return ingestion_truth.get("retrievable") is True
     if ingestion_truth.get("retrievable") is True:
         return True
     return len((preview_text or "").strip()) >= 120

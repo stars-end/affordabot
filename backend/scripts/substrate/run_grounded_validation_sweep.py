@@ -91,9 +91,9 @@ def default_cases() -> list[SweepCase]:
             source_type="meetings",
             document_type="agenda",
             trust_tier="primary_government",
-            expected_promotion_states=(PROMOTED_SUBSTRATE, DURABLE_RAW),
+            expected_promotion_states=(DURABLE_RAW,),
             expected_official_path=True,
-            expected_analysis_useful=True,
+            expected_analysis_useful=False,
             expected_moat_useful=True,
         ),
         SweepCase(
