@@ -327,141 +327,146 @@ async def capture_document(args: argparse.Namespace) -> dict[str, Any]:
     )
 
     db = PostgresDB()
-    source_metadata = build_source_metadata(
-        defaults=defaults,
-        source_name=args.source_name,
-        source_type=args.source_type,
-    )
-    jurisdiction_id, source_id = await ensure_source(
-        db,
-        jurisdiction_name=args.jurisdiction_name,
-        jurisdiction_type=args.jurisdiction_type,
-        source_name=args.source_name,
-        source_type=args.source_type,
-        canonical_url=canonical_url,
-        source_metadata=source_metadata,
-    )
-
-    raw_metadata = build_raw_metadata(
-        defaults=defaults,
-        source_name=args.source_name,
-        source_type=args.source_type,
-        title=title,
-        response_content_type=content_type,
-    )
-    storage_uri = None
-    content_hash = hashlib.sha256(content_bytes).hexdigest()
-    if content_class not in TEXT_CONTENT_CLASSES:
-        storage_uri = await upload_binary_artifact(
-            source_id=source_id,
-            content_hash=content_hash,
-            content_type=content_type,
-            content_bytes=content_bytes,
+    try:
+        source_metadata = build_source_metadata(
+            defaults=defaults,
+            source_name=args.source_name,
+            source_type=args.source_type,
         )
-        data_payload["content_storage_uri"] = storage_uri
-        if isinstance(raw_metadata.get("ingestion_truth"), dict):
-            raw_metadata["ingestion_truth"]["blob_stored"] = True
-            raw_metadata["ingestion_truth"]["storage_uri_present"] = True
-            raw_metadata["ingestion_truth"]["last_updated_at"] = datetime.now(
-                timezone.utc
-            ).isoformat()
-
-    scrape_record = {
-        "source_id": source_id,
-        "url": canonical_url,
-        "content_hash": content_hash,
-        "content_type": content_type,
-        "data": data_payload,
-        "metadata": raw_metadata,
-        "storage_uri": storage_uri,
-    }
-    scrape_id = await db.create_raw_scrape(scrape_record)
-    if not scrape_id:
-        raise RuntimeError("Failed to create raw scrape")
-
-    chunk_count = 0
-    ingest_attempted = False
-    ingest_skipped_reason = None
-    scrape_row = await db._fetchrow("SELECT * FROM raw_scrapes WHERE id = $1", scrape_id)
-    document_id = None
-    storage_uri = None
-    error_message = None
-
-    if args.ingest:
-        if content_class in TEXT_CONTENT_CLASSES:
-            ingest_attempted = True
-            existing_meta = parse_metadata_blob(scrape_row.get("metadata")) if scrape_row else {}
-            truth = parse_metadata_blob(existing_meta.get("ingestion_truth"))
-            truth.update(
-                {
-                    "stage": "ingest_started",
-                    "ingest_attempted": True,
-                    "last_updated_at": datetime.now(timezone.utc).isoformat(),
-                }
-            )
-            existing_meta["ingestion_truth"] = truth
-            await db._execute(
-                "UPDATE raw_scrapes SET metadata = $1 WHERE id = $2",
-                json.dumps(existing_meta),
-                scrape_id,
-            )
-            embedding_service = await build_embedding_service()
-
-            async def embed_fn(text: str) -> list[float]:
-                return await embedding_service.embed_query(text)
-
-            vector_backend = create_vector_backend(
-                postgres_client=db,
-                embedding_fn=embed_fn,
-            )
-            ingestion_service = IngestionService(
-                postgres_client=db,
-                vector_backend=vector_backend,
-                embedding_service=embedding_service,
-                storage_backend=S3Storage(),
-            )
-            chunk_count = await ingestion_service.process_raw_scrape(scrape_id)
-            scrape_row = await db._fetchrow("SELECT * FROM raw_scrapes WHERE id = $1", scrape_id)
-        else:
-            ingest_skipped_reason = f"content_class={content_class} is not text-like"
-            existing_meta = parse_metadata_blob(scrape_row.get("metadata")) if scrape_row else {}
-            truth = parse_metadata_blob(existing_meta.get("ingestion_truth"))
-            truth.update(
-                {
-                    "stage": "ingest_skipped_non_text",
-                    "ingest_attempted": False,
-                    "ingest_skipped_reason": ingest_skipped_reason,
-                    "last_updated_at": datetime.now(timezone.utc).isoformat(),
-                }
-            )
-            existing_meta["ingestion_truth"] = truth
-            await db._execute(
-                "UPDATE raw_scrapes SET metadata = $1 WHERE id = $2",
-                json.dumps(existing_meta),
-                scrape_id,
-            )
-            scrape_row = await db._fetchrow("SELECT * FROM raw_scrapes WHERE id = $1", scrape_id)
-
-    # Re-evaluate rules after ingest state updates so promotion fields remain
-    # machine-checkable on the final stored row.
-    if scrape_row:
-        existing_meta = parse_metadata_blob(scrape_row.get("metadata"))
-        promoted = apply_promotion_decision(
-            metadata=existing_meta,
-            decision=evaluate_rules(existing_meta),
+        jurisdiction_id, source_id = await ensure_source(
+            db,
+            jurisdiction_name=args.jurisdiction_name,
+            jurisdiction_type=args.jurisdiction_type,
+            source_name=args.source_name,
+            source_type=args.source_type,
             canonical_url=canonical_url,
+            source_metadata=source_metadata,
         )
-        await db._execute(
-            "UPDATE raw_scrapes SET metadata = $1 WHERE id = $2",
-            json.dumps(promoted),
-            scrape_id,
-        )
-        scrape_row = await db._fetchrow("SELECT * FROM raw_scrapes WHERE id = $1", scrape_id)
 
-    if scrape_row:
-        document_id = str(scrape_row.get("document_id")) if scrape_row.get("document_id") else None
-        storage_uri = scrape_row.get("storage_uri")
-        error_message = scrape_row.get("error_message")
+        raw_metadata = build_raw_metadata(
+            defaults=defaults,
+            source_name=args.source_name,
+            source_type=args.source_type,
+            title=title,
+            response_content_type=content_type,
+        )
+        storage_uri = None
+        content_hash = hashlib.sha256(content_bytes).hexdigest()
+        if content_class not in TEXT_CONTENT_CLASSES:
+            storage_uri = await upload_binary_artifact(
+                source_id=source_id,
+                content_hash=content_hash,
+                content_type=content_type,
+                content_bytes=content_bytes,
+            )
+            data_payload["content_storage_uri"] = storage_uri
+            if isinstance(raw_metadata.get("ingestion_truth"), dict):
+                raw_metadata["ingestion_truth"]["blob_stored"] = True
+                raw_metadata["ingestion_truth"]["storage_uri_present"] = True
+                raw_metadata["ingestion_truth"]["last_updated_at"] = datetime.now(
+                    timezone.utc
+                ).isoformat()
+
+        scrape_record = {
+            "source_id": source_id,
+            "url": canonical_url,
+            "content_hash": content_hash,
+            "content_type": content_type,
+            "data": data_payload,
+            "metadata": raw_metadata,
+            "storage_uri": storage_uri,
+        }
+        scrape_id = await db.create_raw_scrape(scrape_record)
+        if not scrape_id:
+            raise RuntimeError("Failed to create raw scrape")
+
+        chunk_count = 0
+        ingest_attempted = False
+        ingest_skipped_reason = None
+        scrape_row = await db._fetchrow("SELECT * FROM raw_scrapes WHERE id = $1", scrape_id)
+        document_id = None
+        storage_uri = None
+        error_message = None
+
+        if args.ingest:
+            if content_class in TEXT_CONTENT_CLASSES:
+                ingest_attempted = True
+                existing_meta = parse_metadata_blob(scrape_row.get("metadata")) if scrape_row else {}
+                truth = parse_metadata_blob(existing_meta.get("ingestion_truth"))
+                truth.update(
+                    {
+                        "stage": "ingest_started",
+                        "ingest_attempted": True,
+                        "last_updated_at": datetime.now(timezone.utc).isoformat(),
+                    }
+                )
+                existing_meta["ingestion_truth"] = truth
+                await db._execute(
+                    "UPDATE raw_scrapes SET metadata = $1 WHERE id = $2",
+                    json.dumps(existing_meta),
+                    scrape_id,
+                )
+                embedding_service = await build_embedding_service()
+
+                async def embed_fn(text: str) -> list[float]:
+                    return await embedding_service.embed_query(text)
+
+                vector_backend = create_vector_backend(
+                    postgres_client=db,
+                    embedding_fn=embed_fn,
+                )
+                ingestion_service = IngestionService(
+                    postgres_client=db,
+                    vector_backend=vector_backend,
+                    embedding_service=embedding_service,
+                    storage_backend=S3Storage(),
+                )
+                chunk_count = await ingestion_service.process_raw_scrape(scrape_id)
+                scrape_row = await db._fetchrow("SELECT * FROM raw_scrapes WHERE id = $1", scrape_id)
+            else:
+                ingest_skipped_reason = f"content_class={content_class} is not text-like"
+                existing_meta = parse_metadata_blob(scrape_row.get("metadata")) if scrape_row else {}
+                truth = parse_metadata_blob(existing_meta.get("ingestion_truth"))
+                truth.update(
+                    {
+                        "stage": "ingest_skipped_non_text",
+                        "ingest_attempted": False,
+                        "ingest_skipped_reason": ingest_skipped_reason,
+                        "last_updated_at": datetime.now(timezone.utc).isoformat(),
+                    }
+                )
+                existing_meta["ingestion_truth"] = truth
+                await db._execute(
+                    "UPDATE raw_scrapes SET metadata = $1 WHERE id = $2",
+                    json.dumps(existing_meta),
+                    scrape_id,
+                )
+                scrape_row = await db._fetchrow("SELECT * FROM raw_scrapes WHERE id = $1", scrape_id)
+
+        # Re-evaluate rules after ingest state updates so promotion fields remain
+        # machine-checkable on the final stored row.
+        if scrape_row:
+            existing_meta = parse_metadata_blob(scrape_row.get("metadata"))
+            promoted = apply_promotion_decision(
+                metadata=existing_meta,
+                decision=evaluate_rules(existing_meta),
+                canonical_url=canonical_url,
+            )
+            await db._execute(
+                "UPDATE raw_scrapes SET metadata = $1 WHERE id = $2",
+                json.dumps(promoted),
+                scrape_id,
+            )
+            scrape_row = await db._fetchrow("SELECT * FROM raw_scrapes WHERE id = $1", scrape_id)
+
+        if scrape_row:
+            document_id = str(scrape_row.get("document_id")) if scrape_row.get("document_id") else None
+            storage_uri = scrape_row.get("storage_uri")
+            error_message = scrape_row.get("error_message")
+        final_metadata = parse_metadata_blob(scrape_row.get("metadata")) if scrape_row else {}
+        processed = bool(scrape_row.get("processed")) if scrape_row and scrape_row.get("processed") is not None else scrape_row.get("processed") if scrape_row else None
+    finally:
+        await db.close()
 
     return {
         "jurisdiction_id": jurisdiction_id,
@@ -478,6 +483,9 @@ async def capture_document(args: argparse.Namespace) -> dict[str, Any]:
         "defaults": asdict(defaults),
         "title": title,
         "preview_text": preview,
+        "processed": processed,
+        "raw_metadata": final_metadata,
+        "source_metadata": source_metadata,
     }
 
 

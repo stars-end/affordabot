@@ -24,7 +24,7 @@ def test_seed_capture_metadata_official_host_defaults_to_durable_raw():
     assert metadata["trust_host_classification"] == "official_government"
 
 
-def test_evaluate_rules_promotes_substantive_official_pdf():
+def test_evaluate_rules_keeps_non_retrievable_official_pdf_durable_raw():
     decision = evaluate_rules(
         {
             "canonical_url": "https://sanjose.legistar.com/View.ashx?M=A",
@@ -36,6 +36,25 @@ def test_evaluate_rules_promotes_substantive_official_pdf():
             "title": "Planning Commission Agenda",
             "preview_text": "",
             "ingestion_truth": {"retrievable": False},
+        }
+    )
+
+    assert decision.promotion_state == DURABLE_RAW
+    assert decision.reason_category == "unclear"
+
+
+def test_evaluate_rules_promotes_retrievable_official_pdf():
+    decision = evaluate_rules(
+        {
+            "canonical_url": "https://sanjose.legistar.com/View.ashx?M=A",
+            "trust_tier": "primary_government",
+            "trust_host_classification": "official_civic_partner",
+            "promotion_state": DURABLE_RAW,
+            "document_type": "agenda",
+            "content_class": "pdf_binary",
+            "title": "Planning Commission Agenda",
+            "preview_text": "",
+            "ingestion_truth": {"retrievable": True},
         }
     )
 
