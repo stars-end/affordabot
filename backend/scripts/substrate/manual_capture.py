@@ -30,6 +30,9 @@ import httpx
 from db.postgres_client import PostgresDB
 from services.ingestion_service import IngestionService
 from services.storage.s3_storage import S3Storage
+from services.substrate_promotion import apply_promotion_decision
+from services.substrate_promotion import evaluate_rules
+from services.substrate_promotion import seed_capture_promotion_metadata
 from services.vector_backend_factory import create_vector_backend
 
 
@@ -105,7 +108,7 @@ def build_source_metadata(
     source_name: str,
     source_type: str,
 ) -> dict[str, Any]:
-    return {
+    seeded = {
         "substrate_version": defaults.substrate_version,
         "canonical_url": defaults.canonical_url,
         "document_type": defaults.document_type,
@@ -118,6 +121,11 @@ def build_source_metadata(
         "poc": True,
         "poc_source_name": source_name,
     }
+    return seed_capture_promotion_metadata(
+        metadata=seeded,
+        canonical_url=defaults.canonical_url,
+        trust_tier=defaults.trust_tier,
+    )
 
 
 def build_raw_metadata(
@@ -128,7 +136,7 @@ def build_raw_metadata(
     title: str,
     response_content_type: str,
 ) -> dict[str, Any]:
-    return {
+    seeded = {
         "substrate_version": defaults.substrate_version,
         "canonical_url": defaults.canonical_url,
         "document_type": defaults.document_type,
@@ -156,6 +164,16 @@ def build_raw_metadata(
             "last_updated_at": datetime.now(timezone.utc).isoformat(),
         },
     }
+    seeded = seed_capture_promotion_metadata(
+        metadata=seeded,
+        canonical_url=defaults.canonical_url,
+        trust_tier=defaults.trust_tier,
+    )
+    return apply_promotion_decision(
+        metadata=seeded,
+        decision=evaluate_rules(seeded),
+        canonical_url=defaults.canonical_url,
+    )
 
 
 def build_data_payload(
@@ -423,6 +441,22 @@ async def capture_document(args: argparse.Namespace) -> dict[str, Any]:
                 scrape_id,
             )
             scrape_row = await db._fetchrow("SELECT * FROM raw_scrapes WHERE id = $1", scrape_id)
+
+    # Re-evaluate rules after ingest state updates so promotion fields remain
+    # machine-checkable on the final stored row.
+    if scrape_row:
+        existing_meta = parse_metadata_blob(scrape_row.get("metadata"))
+        promoted = apply_promotion_decision(
+            metadata=existing_meta,
+            decision=evaluate_rules(existing_meta),
+            canonical_url=canonical_url,
+        )
+        await db._execute(
+            "UPDATE raw_scrapes SET metadata = $1 WHERE id = $2",
+            json.dumps(promoted),
+            scrape_id,
+        )
+        scrape_row = await db._fetchrow("SELECT * FROM raw_scrapes WHERE id = $1", scrape_id)
 
     if scrape_row:
         document_id = str(scrape_row.get("document_id")) if scrape_row.get("document_id") else None

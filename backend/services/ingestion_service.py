@@ -15,6 +15,9 @@ from llm_common import WebSearchResult
 # Use absolute import pattern relative to backend root (which is in path)
 from contracts.storage import BlobStorage
 from contracts.ingestion import RawScrape
+from services.substrate_promotion import apply_promotion_decision
+from services.substrate_promotion import evaluate_rules
+from services.substrate_promotion import seed_capture_promotion_metadata
 from typing import Optional
 
 class IngestionService:
@@ -450,7 +453,36 @@ class IngestionService:
             "title": result.title,
             "domain": result.domain,
             "original_snippet": result.snippet,
+            "canonical_url": result.url,
+            "document_type": "web_reference",
+            "source_type": "general",
+            "content_class": "html_text",
+            "capture_method": "web_search_ingest",
+            "substrate_version": "poc-v1",
+            "ingestion_truth": {
+                "stage": "raw_captured",
+                "raw_captured": True,
+                "blob_stored": False,
+                "storage_uri_present": False,
+                "parsed": False,
+                "chunked": False,
+                "embedded": False,
+                "vector_upserted": False,
+                "retrievable": False,
+                "ingest_attempted": False,
+                "last_updated_at": self._utc_iso(),
+            },
         }
+        metadata = seed_capture_promotion_metadata(
+            metadata=metadata,
+            canonical_url=result.url,
+            trust_tier=metadata.get("trust_tier"),
+        )
+        metadata = apply_promotion_decision(
+            metadata=metadata,
+            decision=evaluate_rules(metadata),
+            canonical_url=result.url,
+        )
 
         # This assumes self.pg has a method `create_raw_scrape` that takes a dictionary
         # and inserts it into the `raw_scrapes` table, returning the new ID.
