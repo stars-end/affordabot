@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 import re
+import json
 from typing import List, Dict, Any
 from uuid import uuid4, UUID
 from pydantic import ValidationError
+from datetime import datetime, timezone
 
 # LLM Common v0.4.0+ interfaces
 from llm_common.retrieval import RetrievalBackend, RetrievedChunk
@@ -42,6 +44,55 @@ class IngestionService:
         self.storage_backend = storage_backend
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
+
+    def _utc_iso(self) -> str:
+        return datetime.now(timezone.utc).isoformat()
+
+    def _parse_json_object(self, value: Any) -> Dict[str, Any]:
+        if isinstance(value, dict):
+            return value
+        if isinstance(value, str):
+            try:
+                parsed = json.loads(value)
+            except json.JSONDecodeError:
+                return {}
+            return parsed if isinstance(parsed, dict) else {}
+        return {}
+
+    async def _persist_ingestion_truth(
+        self,
+        *,
+        scrape_id: str,
+        metadata: Dict[str, Any],
+        truth_updates: Dict[str, Any],
+        processed: Optional[bool] = None,
+        document_id: Optional[str] = None,
+        error_message: Optional[str] = None,
+        clear_error: bool = False,
+    ) -> None:
+        truth = self._parse_json_object(metadata.get("ingestion_truth"))
+        truth.update(truth_updates)
+        truth["last_updated_at"] = self._utc_iso()
+        metadata["ingestion_truth"] = truth
+
+        set_parts = ["metadata = $1"]
+        args: List[Any] = [json.dumps(metadata)]
+
+        if processed is not None:
+            set_parts.append(f"processed = ${len(args) + 1}")
+            args.append(processed)
+        if document_id is not None:
+            set_parts.append(f"document_id = ${len(args) + 1}")
+            args.append(document_id)
+        if error_message is not None:
+            set_parts.append(f"error_message = ${len(args) + 1}")
+            args.append(error_message)
+        elif clear_error:
+            set_parts.append("error_message = NULL")
+
+        args.append(scrape_id)
+        query = f"UPDATE raw_scrapes SET {', '.join(set_parts)} WHERE id = ${len(args)}"
+        await self.pg._execute(query, *args)
     
     async def process_raw_scrape(self, scrape_id: str) -> int:
         """
@@ -58,6 +109,20 @@ class IngestionService:
         if not row:
             print(f"⚠️ Raw scrape {scrape_id} not found.")
             return 0
+
+        row_dict = dict(row)
+        row_metadata = self._parse_json_object(row_dict.get("metadata"))
+        await self._persist_ingestion_truth(
+            scrape_id=scrape_id,
+            metadata=row_metadata,
+            truth_updates={
+                "stage": "raw_captured",
+                "raw_captured": True,
+                "blob_stored": bool(row_dict.get("storage_uri")),
+                "storage_uri_present": bool(row_dict.get("storage_uri")),
+                "retrievable": False,
+            },
+        )
         
         # Idempotency Check (if hash already processed in verified legislation?)
         # For now, we trust 'processed' flag on the job. 
@@ -66,23 +131,51 @@ class IngestionService:
         
         try:
             # The row from the DB is a dict-like object, but Pydantic V2 model_validate needs an explicit dict
-            scrape = RawScrape.model_validate(dict(row))
+            scrape = RawScrape.model_validate(row_dict)
         except ValidationError as e:
             print(f"❌ Pydantic validation failed for scrape {scrape_id}: {e}")
-            await self.pg._execute(
-                "UPDATE raw_scrapes SET processed = false, error_message = $1 WHERE id = $2",
-                str(e), scrape_id
+            await self._persist_ingestion_truth(
+                scrape_id=scrape_id,
+                metadata=row_metadata,
+                truth_updates={
+                    "stage": "validation_failed",
+                    "parsed": False,
+                    "chunked": False,
+                    "embedded": False,
+                    "vector_upserted": False,
+                    "retrievable": False,
+                },
+                processed=False,
+                error_message=str(e),
             )
             return 0
 
         # 2. Extract text from data
         text = self._extract_text(scrape.data)
-        
+        scrape_meta = self._parse_json_object(scrape.metadata)
+        if not scrape_meta:
+            scrape_meta = row_metadata
+
         if not text:
             print(f"⚠️ No text extracted for scrape {scrape_id}")
+            await self._persist_ingestion_truth(
+                scrape_id=scrape_id,
+                metadata=scrape_meta,
+                truth_updates={
+                    "stage": "parse_failed_no_text",
+                    "parsed": False,
+                    "chunked": False,
+                    "embedded": False,
+                    "vector_upserted": False,
+                    "retrievable": False,
+                },
+                processed=False,
+                error_message="No text extracted from scrape payload",
+            )
             return 0
 
         # 2.5 Upload to Blob Storage (New)
+        blob_stored = bool(scrape.storage_uri)
         if self.storage_backend and scrape.data:
              try:
                  # Construct path: jurisdiction/YYYY/MM/scrape_id.html
@@ -105,33 +198,89 @@ class IngestionService:
                  
                  # Update raw_scrape with storage URI
                  await self.pg._execute("UPDATE raw_scrapes SET storage_uri = $1 WHERE id = $2", uri, scrape_id)
-                 
+                 blob_stored = True
+
              except Exception as e:
                  print(f"⚠️ Storage upload failed for scrape {scrape.id}: {e}")
                  # Non-blocking, continue ingestion
+                 blob_stored = bool(scrape.storage_uri)
+
+        await self._persist_ingestion_truth(
+            scrape_id=scrape_id,
+            metadata=scrape_meta,
+            truth_updates={
+                "stage": "parsed",
+                "parsed": True,
+                "blob_stored": blob_stored,
+                "storage_uri_present": blob_stored,
+            },
+        )
 
         # 3. Chunk text
         chunks = self._chunk_text(text)
         if not chunks:
              print(f"⚠️ Chunks empty for scrape {scrape_id}. Text len: {len(text)}")
+             await self._persist_ingestion_truth(
+                 scrape_id=scrape_id,
+                 metadata=scrape_meta,
+                 truth_updates={
+                     "stage": "chunk_failed_empty",
+                     "chunked": False,
+                     "chunk_count": 0,
+                     "embedded": False,
+                     "vector_upserted": False,
+                     "retrievable": False,
+                 },
+                 processed=False,
+                 error_message="Chunking produced zero chunks",
+             )
              return 0
-        
+
         print(f"✅ Chunked scrape {scrape_id} into {len(chunks)} chunks.")
-        
+        await self._persist_ingestion_truth(
+            scrape_id=scrape_id,
+            metadata=scrape_meta,
+            truth_updates={
+                "stage": "chunked",
+                "chunked": True,
+                "chunk_count": len(chunks),
+            },
+        )
+
         # 4. Generate embeddings
         try:
             embeddings = await self.embedding_service.embed_documents(chunks)
         except Exception as e:
             print(f"❌ Embedding failed: {e}")
+            await self._persist_ingestion_truth(
+                scrape_id=scrape_id,
+                metadata=scrape_meta,
+                truth_updates={
+                    "stage": "embedding_failed",
+                    "embedded": False,
+                    "embedding_count": 0,
+                    "vector_upserted": False,
+                    "retrievable": False,
+                },
+                processed=False,
+                error_message=f"Embedding failed: {e}",
+            )
             return 0
+
+        await self._persist_ingestion_truth(
+            scrape_id=scrape_id,
+            metadata=scrape_meta,
+            truth_updates={
+                "stage": "embedded",
+                "embedded": True,
+                "embedding_count": len(embeddings),
+            },
+        )
         
         # 5. Create RetrievedChunk objects
         document_id = str(uuid4())
         doc_chunks = []
 
-        # Scrape metadata is already validated by Pydantic, default_factory ensures it's a dict
-        scrape_meta = scrape.metadata
-        
         for i, (chunk_text, embedding) in enumerate(zip(chunks, embeddings)):
             # Construct metadata
             metadata = {
@@ -163,21 +312,63 @@ class IngestionService:
         
         # 6. Store in vector backend
         try:
-            await self.vector_backend.upsert(doc_chunks)
-            
-            # 7. Mark scrape as processed
-            await self.pg._execute(
-                "UPDATE raw_scrapes SET processed = $1, document_id = $2, error_message = NULL WHERE id = $3",
-                True, document_id, scrape_id
+            upsert_ok = await self.vector_backend.upsert(doc_chunks)
+            if not upsert_ok:
+                await self._persist_ingestion_truth(
+                    scrape_id=scrape_id,
+                    metadata=scrape_meta,
+                    truth_updates={
+                        "stage": "vector_upsert_failed",
+                        "vector_upserted": False,
+                        "retrievable": False,
+                    },
+                    processed=False,
+                    error_message="Vector Upsert Failed: backend returned false",
+                )
+                return 0
+
+            count_row = await self.pg._fetchrow(
+                "SELECT COUNT(*) AS cnt FROM document_chunks WHERE document_id = $1",
+                document_id,
+            )
+            retrievable_count = int(count_row["cnt"]) if count_row and count_row["cnt"] is not None else 0
+            retrievable = retrievable_count > 0
+            stage = "retrievable" if retrievable else "vector_upserted_not_retrievable"
+
+            await self._persist_ingestion_truth(
+                scrape_id=scrape_id,
+                metadata=scrape_meta,
+                truth_updates={
+                    "stage": stage,
+                    "vector_upserted": True,
+                    "retrievable": retrievable,
+                    "retrievable_chunk_count": retrievable_count,
+                    "document_id": document_id,
+                },
+                processed=retrievable,
+                document_id=document_id,
+                error_message=(
+                    None
+                    if retrievable
+                    else "Vector upsert completed but no retrievable chunks were found"
+                ),
+                clear_error=retrievable,
             )
         except Exception as e:
-            await self.pg._execute(
-                "UPDATE raw_scrapes SET processed = false, error_message = $1 WHERE id = $2",
-                f"Vector Upsert Failed: {e}", scrape_id
+            await self._persist_ingestion_truth(
+                scrape_id=scrape_id,
+                metadata=scrape_meta,
+                truth_updates={
+                    "stage": "vector_upsert_exception",
+                    "vector_upserted": False,
+                    "retrievable": False,
+                },
+                processed=False,
+                error_message=f"Vector Upsert Failed: {e}",
             )
             raise e
-        
-        return len(doc_chunks)
+
+        return retrievable_count if retrievable_count > 0 else 0
     
     def _extract_text(self, data: Dict[str, Any]) -> str:
         """Extract text from scraped data."""

@@ -42,8 +42,16 @@ async def test_admin_source_flow(mock_postgres):
         "url": "http://example.com/minutes" # Required
     }
     
-    # Mock Postgres fetchrow for process_raw_scrape
-    mock_postgres._fetchrow.return_value = scrape_data
+    # Mock Postgres fetchrow for process_raw_scrape and retrievability check.
+    # New .2 ingestion flow performs a COUNT(*) query after vector upsert.
+    async def fetchrow_side_effect(query, *args):
+        if "COUNT(*) AS cnt FROM document_chunks" in query:
+            return {"cnt": 1}
+        if "FROM raw_scrapes" in query:
+            return scrape_data
+        return None
+
+    mock_postgres._fetchrow.side_effect = fetchrow_side_effect
     
     # 4. Setup Ingestion Service
     mock_vector = AsyncMock()
@@ -66,7 +74,8 @@ async def test_admin_source_flow(mock_postgres):
     # Check Postgres update called (processed=True)
     mock_postgres._execute.assert_called()
     call_args = mock_postgres._execute.call_args[0]
-    assert "UPDATE raw_scrapes SET processed" in call_args[0]
+    assert "UPDATE raw_scrapes SET metadata = $1" in call_args[0]
+    assert "processed = $2" in call_args[0]
     
     # Check vector backend was called (stored in vector db)
     mock_vector.upsert.assert_called_once()
@@ -101,6 +110,7 @@ async def test_ingestion_error_handling(mock_postgres):
     # Check error logging
     mock_postgres._execute.assert_called()
     args = mock_postgres._execute.call_args[0]
-    assert "UPDATE raw_scrapes SET processed = false" in args[0]
-    assert "validation failed" in args[1] or "Field required" in str(args[1])
-
+    assert "UPDATE raw_scrapes SET metadata = $1, processed = $2, error_message = $3" in args[0]
+    assert "validation_failed" in str(args[1])
+    assert args[2] is False
+    assert "Field required" in str(args[3])

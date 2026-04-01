@@ -4,7 +4,8 @@
 This script captures official municipal documents into `raw_scrapes` while
 making content handling explicit:
 - text-like responses are stored as UTF-8 text in `data.content`
-- binary responses are stored as base64 in `data.content_base64`
+- binary responses are uploaded to durable blob storage and referenced from
+  `raw_scrapes.storage_uri` and `data.content_storage_uri`
 
 The goal is durable raw capture first; ingestion/chunking is optional and is
 only attempted for text-like content classes.
@@ -141,6 +142,19 @@ def build_raw_metadata(
         "source_name": source_name,
         "title": title,
         "response_content_type": response_content_type,
+        "ingestion_truth": {
+            "stage": "raw_captured",
+            "raw_captured": True,
+            "blob_stored": False,
+            "storage_uri_present": False,
+            "parsed": False,
+            "chunked": False,
+            "embedded": False,
+            "vector_upserted": False,
+            "retrievable": False,
+            "ingest_attempted": False,
+            "last_updated_at": datetime.now(timezone.utc).isoformat(),
+        },
     }
 
 
@@ -327,6 +341,12 @@ async def capture_document(args: argparse.Namespace) -> dict[str, Any]:
             content_bytes=content_bytes,
         )
         data_payload["content_storage_uri"] = storage_uri
+        if isinstance(raw_metadata.get("ingestion_truth"), dict):
+            raw_metadata["ingestion_truth"]["blob_stored"] = True
+            raw_metadata["ingestion_truth"]["storage_uri_present"] = True
+            raw_metadata["ingestion_truth"]["last_updated_at"] = datetime.now(
+                timezone.utc
+            ).isoformat()
 
     scrape_record = {
         "source_id": source_id,
@@ -352,6 +372,21 @@ async def capture_document(args: argparse.Namespace) -> dict[str, Any]:
     if args.ingest:
         if content_class in TEXT_CONTENT_CLASSES:
             ingest_attempted = True
+            existing_meta = parse_metadata_blob(scrape_row.get("metadata")) if scrape_row else {}
+            truth = parse_metadata_blob(existing_meta.get("ingestion_truth"))
+            truth.update(
+                {
+                    "stage": "ingest_started",
+                    "ingest_attempted": True,
+                    "last_updated_at": datetime.now(timezone.utc).isoformat(),
+                }
+            )
+            existing_meta["ingestion_truth"] = truth
+            await db._execute(
+                "UPDATE raw_scrapes SET metadata = $1 WHERE id = $2",
+                json.dumps(existing_meta),
+                scrape_id,
+            )
             embedding_service = await build_embedding_service()
 
             async def embed_fn(text: str) -> list[float]:
@@ -371,6 +406,23 @@ async def capture_document(args: argparse.Namespace) -> dict[str, Any]:
             scrape_row = await db._fetchrow("SELECT * FROM raw_scrapes WHERE id = $1", scrape_id)
         else:
             ingest_skipped_reason = f"content_class={content_class} is not text-like"
+            existing_meta = parse_metadata_blob(scrape_row.get("metadata")) if scrape_row else {}
+            truth = parse_metadata_blob(existing_meta.get("ingestion_truth"))
+            truth.update(
+                {
+                    "stage": "ingest_skipped_non_text",
+                    "ingest_attempted": False,
+                    "ingest_skipped_reason": ingest_skipped_reason,
+                    "last_updated_at": datetime.now(timezone.utc).isoformat(),
+                }
+            )
+            existing_meta["ingestion_truth"] = truth
+            await db._execute(
+                "UPDATE raw_scrapes SET metadata = $1 WHERE id = $2",
+                json.dumps(existing_meta),
+                scrape_id,
+            )
+            scrape_row = await db._fetchrow("SELECT * FROM raw_scrapes WHERE id = $1", scrape_id)
 
     if scrape_row:
         document_id = str(scrape_row.get("document_id")) if scrape_row.get("document_id") else None

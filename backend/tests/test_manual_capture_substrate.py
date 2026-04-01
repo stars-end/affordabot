@@ -71,6 +71,30 @@ def test_build_raw_metadata_keeps_content_class():
     assert metadata["content_class"] == "pdf_binary"
 
 
+def test_build_raw_metadata_contains_initial_ingestion_truth():
+    defaults = SubstrateDefaults(
+        document_type="agenda",
+        trust_tier="primary_government",
+        capture_method="manual_http",
+        canonical_url="https://example.com/agenda.pdf",
+        content_class="pdf_binary",
+    )
+
+    metadata = build_raw_metadata(
+        defaults=defaults,
+        source_name="Meetings",
+        source_type="meetings",
+        title="Example Agenda",
+        response_content_type="application/pdf",
+    )
+
+    truth = metadata.get("ingestion_truth", {})
+    assert truth.get("stage") == "raw_captured"
+    assert truth.get("raw_captured") is True
+    assert truth.get("blob_stored") is False
+    assert truth.get("retrievable") is False
+
+
 def test_parse_metadata_blob_accepts_json_string():
     parsed = parse_metadata_blob('{"trust_tier":"primary_government","poc":true}')
 
