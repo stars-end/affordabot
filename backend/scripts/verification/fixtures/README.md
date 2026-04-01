@@ -56,6 +56,16 @@ The validator enforces:
 - fixture-scope-aware expectation labeling (`strong` vs `provisional_bootstrap`)
 - provisional bootstrap placeholder semantics for manifest-only bills (no checked-in fixture): `expected_impact_count.exact=0`, `selected_mode=qualitative_only`, empty parameter expectations, and `sufficiency_gate` fail-closed (`research_incomplete` + `impact_discovery_failed`)
 
+### Golden Suite Harness
+
+Run:
+
+```bash
+python backend/scripts/verification/run_golden_suite.py
+```
+
+The harness orchestrates the manifest, fixture, step-expectation, retrieval-quality, and web/no-web comparison surfaces and emits one machine-readable suite report under `backend/scripts/verification/artifacts/`.
+
 ## Research Fixtures
 
 The checked-in fixture subset is intentionally narrower than the full manifest:
