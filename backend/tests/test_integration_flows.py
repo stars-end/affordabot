@@ -42,8 +42,13 @@ async def test_admin_source_flow(mock_postgres):
         "url": "http://example.com/minutes" # Required
     }
     
-    # Mock Postgres fetchrow for process_raw_scrape
-    mock_postgres._fetchrow.return_value = scrape_data
+    # Mock Postgres fetchrow for process_raw_scrape and retrievable-count check.
+    async def fetchrow_side_effect(query, *args):
+        if "COUNT(*) AS cnt FROM document_chunks" in query:
+            return {"cnt": 1}
+        return scrape_data
+
+    mock_postgres._fetchrow.side_effect = fetchrow_side_effect
     
     # 4. Setup Ingestion Service
     mock_vector = AsyncMock()
@@ -63,10 +68,12 @@ async def test_admin_source_flow(mock_postgres):
     # 6. Verify
     assert count == 1 # 1 chunk created
     
-    # Check Postgres update called (processed=True)
+    # Check Postgres update called with processed/retrievable state persisted.
     mock_postgres._execute.assert_called()
-    call_args = mock_postgres._execute.call_args[0]
-    assert "UPDATE raw_scrapes SET processed" in call_args[0]
+    assert any(
+        "UPDATE raw_scrapes SET" in call[0][0] and "processed =" in call[0][0]
+        for call in mock_postgres._execute.call_args_list
+    )
     
     # Check vector backend was called (stored in vector db)
     mock_vector.upsert.assert_called_once()
@@ -98,9 +105,15 @@ async def test_ingestion_error_handling(mock_postgres):
     # Verify
     assert count == 0
     
-    # Check error logging
+    # Check error logging persisted a failed processed state and validation message.
     mock_postgres._execute.assert_called()
-    args = mock_postgres._execute.call_args[0]
-    assert "UPDATE raw_scrapes SET processed = false" in args[0]
-    assert "validation failed" in args[1] or "Field required" in str(args[1])
-
+    matching_calls = [
+        call[0]
+        for call in mock_postgres._execute.call_args_list
+        if "UPDATE raw_scrapes SET" in call[0][0]
+        and "processed =" in call[0][0]
+        and "error_message =" in call[0][0]
+    ]
+    assert matching_calls, "Expected failed-ingestion update with error persistence"
+    assert False in matching_calls[-1][1:]
+    assert any("Field required" in str(arg) for arg in matching_calls[-1][1:])
