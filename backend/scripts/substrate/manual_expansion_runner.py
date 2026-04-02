@@ -284,7 +284,17 @@ async def _execute_legislation_capture(
 
     scraper_class, jurisdiction_type = scraper_entry
     scraper = scraper_class()
-    bills = await scraper.scrape()
+    try:
+        bills = await scraper.scrape()
+    except Exception as exc:  # pragma: no cover - runtime safety path
+        return 0, [
+            {
+                "jurisdiction": slug,
+                "asset_class": "legislation",
+                "reason": "scrape_failed",
+                "detail": str(exc),
+            }
+        ]
     selected_bills = bills[:max_documents_per_source]
 
     jurisdiction_id = await db.get_or_create_jurisdiction(
