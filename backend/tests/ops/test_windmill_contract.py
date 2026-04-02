@@ -40,7 +40,7 @@ class DummyResponse:
     ],
 )
 def test_shared_instance_windmill_assets_reference_trigger_contract(job_name, endpoint, schedule):
-    flow_text = (WINDMILL_DIR / f"{job_name}.flow" / "flow.yaml").read_text()
+    flow_text = (WINDMILL_DIR / f"{job_name}__flow" / "flow.yaml").read_text()
     schedule_text = (WINDMILL_DIR / f"{job_name}.schedule.yaml").read_text()
 
     assert "path: f/affordabot/trigger_cron_job" in flow_text
@@ -69,13 +69,13 @@ def test_trigger_script_schema_keeps_slack_webhook_input():
 
 
 def test_manual_substrate_expansion_flow_references_trigger_contract():
-    flow_text = (WINDMILL_DIR / "manual_substrate_expansion.flow" / "flow.yaml").read_text()
+    flow_text = (WINDMILL_DIR / "manual_substrate_expansion__flow" / "flow.yaml").read_text()
 
     assert "path: f/affordabot/trigger_cron_job" in flow_text
-    assert "endpoint: manual-substrate-expansion" in flow_text
-    assert "backend_url: $var:f/affordabot/BACKEND_PUBLIC_URL" in flow_text
-    assert "cron_secret: $var:f/affordabot/CRON_SECRET" in flow_text
-    assert "slack_webhook_url: $var:f/affordabot/SLACK_WEBHOOK_URL" in flow_text
+    assert "value: manual-substrate-expansion" in flow_text
+    assert "value: $var:f/affordabot/BACKEND_PUBLIC_URL" in flow_text
+    assert "value: $var:f/affordabot/CRON_SECRET" in flow_text
+    assert "value: $var:f/affordabot/SLACK_WEBHOOK_URL" in flow_text
     assert "payload:" in flow_text
     assert "run_label: ${flow.run_label}" in flow_text
     assert "jurisdictions: ${flow.jurisdictions}" in flow_text

@@ -29,7 +29,7 @@ Committed Windmill assets:
 
 - `ops/windmill/wmill.yaml`
 - `ops/windmill/f/affordabot/trigger_cron_job.py`
-- `ops/windmill/f/affordabot/*.flow/flow.yaml`
+- `ops/windmill/f/affordabot/*__flow/flow.yaml`
 - `ops/windmill/f/affordabot/*.schedule.yaml`
 
 Required workspace variables:
