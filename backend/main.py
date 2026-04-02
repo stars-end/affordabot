@@ -37,6 +37,7 @@ else:
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
+EMBEDDING_DIMENSIONS = 4096
 
 app = FastAPI(title="Affordabot API")
 db = PostgresDB()
@@ -240,7 +241,7 @@ async def process_jurisdiction(jurisdiction: str, scraper_class, jur_type: str):
                 base_url="https://openrouter.ai/api/v1",
                 api_key=os.getenv("OPENROUTER_API_KEY"),
                 model="qwen/qwen3-embedding-8b",
-                dimensions=4096,
+                dimensions=EMBEDDING_DIMENSIONS,
             )
             retrieval_backend = LocalPgVectorBackend(
                 table_name="document_chunks",
