@@ -264,7 +264,7 @@ async def upload_binary_artifact(
 
 
 async def build_embedding_service() -> Any:
-    if os.environ.get("OPENAI_API_KEY") or os.environ.get("OPENROUTER_API_KEY"):
+    if os.environ.get("OPENROUTER_API_KEY"):
         from llm_common.embeddings.openai import OpenAIEmbeddingService
 
         return OpenAIEmbeddingService(

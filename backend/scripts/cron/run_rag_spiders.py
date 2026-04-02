@@ -125,7 +125,7 @@ class RAGSpiderRunner:
                     return [[0.1] * EMBEDDING_DIMENSIONS for _ in texts]
 
             # Setup Services
-            if os.environ.get("OPENAI_API_KEY") or os.environ.get("OPENROUTER_API_KEY"):
+            if os.environ.get("OPENROUTER_API_KEY"):
                 embedding_service = OpenAIEmbeddingService(
                     base_url="https://openrouter.ai/api/v1",
                     api_key=os.environ.get("OPENROUTER_API_KEY"),

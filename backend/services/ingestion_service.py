@@ -179,7 +179,7 @@ class IngestionService:
 
         # 2.5 Upload to Blob Storage (New)
         blob_stored = bool(scrape.storage_uri)
-        if self.storage_backend and scrape.data:
+        if self.storage_backend and scrape.data and not scrape.storage_uri:
              try:
                  # Construct path: jurisdiction/YYYY/MM/scrape_id.html
                  from datetime import datetime

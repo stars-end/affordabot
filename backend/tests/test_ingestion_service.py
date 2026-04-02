@@ -116,6 +116,43 @@ async def test_process_raw_scrape_with_blob_storage(mock_postgres, mock_vector_b
             assert call[0][1] == "s3://bucket/test.html"
     assert found_uri_update, "Postgres UPDATE not called for storage_uri"
 
+@pytest.mark.asyncio
+async def test_process_raw_scrape_preserves_existing_storage_uri_for_pdf(
+    mock_postgres, mock_vector_backend, mock_embedding_service, mock_blob_storage
+):
+    async def fetchrow_side_effect(query, *args):
+        if "COUNT(*) AS cnt FROM document_chunks" in query:
+            return {"cnt": 1}
+        if "FROM raw_scrapes" in query:
+            return {
+                "id": "test-scrape-123",
+                "data": {"parsed_markdown": "# Agenda\n\nItem 1"},
+                "source_id": "12345678-1234-5678-1234-567812345678",
+                "url": "https://example.com/agenda.pdf",
+                "content_type": "application/pdf",
+                "metadata": "{}",
+                "storage_uri": "s3://bucket/original.pdf",
+            }
+        return None
+
+    mock_postgres._fetchrow.side_effect = fetchrow_side_effect
+
+    service = IngestionService(
+        postgres_client=mock_postgres,
+        vector_backend=mock_vector_backend,
+        embedding_service=mock_embedding_service,
+        storage_backend=mock_blob_storage,
+    )
+
+    count = await service.process_raw_scrape("test-scrape-123")
+
+    assert count == 1
+    mock_blob_storage.upload.assert_not_called()
+    assert not any(
+        "UPDATE raw_scrapes" in call[0][0] and "storage_uri" in call[0][0]
+        for call in mock_postgres._execute.call_args_list
+    )
+
 def test_extract_text_cleaning():
     """Test HTML cleaning logic."""
     service = IngestionService(MagicMock(), MagicMock(), MagicMock())

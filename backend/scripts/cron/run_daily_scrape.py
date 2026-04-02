@@ -53,7 +53,7 @@ class ScrapeJob:
 
         s3_storage = S3Storage()
 
-        if os.environ.get("OPENAI_API_KEY") or os.environ.get("OPENROUTER_API_KEY"):
+        if os.environ.get("OPENROUTER_API_KEY"):
             embedding_service = OpenAIEmbeddingService(
                 base_url="https://openrouter.ai/api/v1",
                 api_key=os.environ.get("OPENROUTER_API_KEY"),

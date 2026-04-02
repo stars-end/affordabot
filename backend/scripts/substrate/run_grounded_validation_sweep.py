@@ -236,7 +236,7 @@ async def fetch_capture_rows(
 async def run_case(case: SweepCase) -> dict[str, Any]:
     args = argparse.Namespace(
         url=case.url,
-        jurisdiction_name="San Jose",
+        jurisdiction_name="City of San Jose",
         jurisdiction_type="city",
         source_name=case.source_name,
         source_type=case.source_type,
