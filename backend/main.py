@@ -471,8 +471,8 @@ async def cron_manual_substrate_expansion(
 ):
     """
     Authenticated manual trigger for broad substrate expansion runs.
-    This endpoint currently returns a truthful planning/skeleton payload and does
-    not execute the full capture pipeline inline.
+    Executes the bounded manual substrate expansion runner and returns structured
+    run + inspection summary payloads.
     """
     if not _verify_cron_auth(request):
         raise HTTPException(status_code=401, detail="Invalid cron credentials")
