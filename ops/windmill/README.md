@@ -136,6 +136,8 @@ Operator note:
 - Do not pass `-s` for this flow path. On older `wmill` CLI builds (for example `1.654.0`), `flow run ... -s` can return a completed-job-not-found style response even when the flow run exists.
 - If you hit that symptom, rerun without `-s` and check the run in Windmill UI.
 - Prefer `wmill upgrade` before manual flow execution.
+- Validate operator output from `trigger_cron_job`: flow-level completion is `status: succeeded`, and backend run identity is in `response.run_id`.
+- If `response.status` is `failed`, the flow wiring still executed correctly; fix the manifest inputs (for example jurisdiction/asset coverage) and rerun.
 
 ## Rollback
 

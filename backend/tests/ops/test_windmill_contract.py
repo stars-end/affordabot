@@ -78,9 +78,10 @@ def test_manual_substrate_expansion_flow_references_trigger_contract():
     assert "value: $var:f/affordabot/CRON_SECRET" in flow_text
     assert "value: $var:f/affordabot/SLACK_WEBHOOK_URL" in flow_text
     assert "payload:" in flow_text
-    assert "run_label: ${flow.run_label}" in flow_text
-    assert "jurisdictions: ${flow.jurisdictions}" in flow_text
-    assert "asset_classes: ${flow.asset_classes}" in flow_text
+    assert "type: javascript" in flow_text
+    assert "run_label: flow_input.run_label" in flow_text
+    assert "jurisdictions: flow_input.jurisdictions" in flow_text
+    assert "asset_classes: flow_input.asset_classes" in flow_text
 
 
 def test_manual_substrate_expansion_readme_documents_cli_safe_operator_path():
