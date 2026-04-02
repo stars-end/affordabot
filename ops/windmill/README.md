@@ -122,6 +122,21 @@ curl -X POST \
   https://backend-dev-3d99.up.railway.app/cron/discovery
 ```
 
+## Manual Operator Run (CLI-Safe)
+
+Use the manual flow from the Windmill UI run surface, or via CLI without `-s`.
+
+```bash
+cd ops/windmill
+wmill flow run f/affordabot/manual_substrate_expansion \
+  -d @/absolute/path/manual-substrate-manifest.json
+```
+
+Operator note:
+- Do not pass `-s` for this flow path. On older `wmill` CLI builds (for example `1.654.0`), `flow run ... -s` can return a completed-job-not-found style response even when the flow run exists.
+- If you hit that symptom, rerun without `-s` and check the run in Windmill UI.
+- Prefer `wmill upgrade` before manual flow execution.
+
 ## Rollback
 
 If Windmill parity fails, Railway cron entries remain in git history and can be restored.

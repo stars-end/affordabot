@@ -8,6 +8,7 @@ import requests
 ROOT = Path(__file__).resolve().parents[3]
 WINDMILL_DIR = ROOT / "ops" / "windmill" / "f" / "affordabot"
 TRIGGER_SCRIPT_PATH = WINDMILL_DIR / "trigger_cron_job.py"
+WINDMILL_README_PATH = ROOT / "ops" / "windmill" / "README.md"
 
 
 spec = spec_from_file_location("windmill_trigger_cron_job", TRIGGER_SCRIPT_PATH)
@@ -80,6 +81,14 @@ def test_manual_substrate_expansion_flow_references_trigger_contract():
     assert "run_label: ${flow.run_label}" in flow_text
     assert "jurisdictions: ${flow.jurisdictions}" in flow_text
     assert "asset_classes: ${flow.asset_classes}" in flow_text
+
+
+def test_manual_substrate_expansion_readme_documents_cli_safe_operator_path():
+    readme_text = WINDMILL_README_PATH.read_text()
+
+    assert "wmill flow run f/affordabot/manual_substrate_expansion" in readme_text
+    assert "Do not pass `-s` for this flow path." in readme_text
+    assert "completed-job-not-found style response" in readme_text
 
 
 def test_send_slack_alert_posts_webhook_payload(monkeypatch):
