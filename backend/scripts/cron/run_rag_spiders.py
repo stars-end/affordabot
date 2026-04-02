@@ -23,6 +23,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../affordabot_scr
 # Logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("rag_cron")
+EMBEDDING_DIMENSIONS = 4096
 
 class RAGSpiderRunner:
     def __init__(self):
@@ -119,9 +120,9 @@ class RAGSpiderRunner:
             # Inline Mock Embedding Service (llm-common export missing/mismatched)
             class MockEmbeddingService:
                 async def embed_query(self, text: str) -> list[float]:
-                    return [0.1] * 1536
+                    return [0.1] * EMBEDDING_DIMENSIONS
                 async def embed_documents(self, texts: list[str]) -> list[list[float]]:
-                    return [[0.1] * 1536 for _ in texts]
+                    return [[0.1] * EMBEDDING_DIMENSIONS for _ in texts]
 
             # Setup Services
             if os.environ.get("OPENAI_API_KEY") or os.environ.get("OPENROUTER_API_KEY"):
@@ -129,14 +130,13 @@ class RAGSpiderRunner:
                     base_url="https://openrouter.ai/api/v1",
                     api_key=os.environ.get("OPENROUTER_API_KEY"),
                     model="qwen/qwen3-embedding-8b",
-                    dimensions=4096 # Keep qwen as 4096 if that's the intent, but mock must be 1536 if DB is 1536. 
-                    # WARNING: If DB is 1536, conditional logic here is risky if Qwen is 4096. 
-                    # Assuming Qwen usage expects 4096 DB columns. 
-                    # But Verify Pipeline failing on 1536 implies DB is 1536.
-                    # Local env probably using default PGVector (1536).
+                    dimensions=EMBEDDING_DIMENSIONS,
                 )
             else:
-                logger.warning("Using Mock Embedding Service (1536 dims)")
+                logger.warning(
+                    "Using Mock Embedding Service (%s dims)",
+                    EMBEDDING_DIMENSIONS,
+                )
                 embedding_service = MockEmbeddingService()
             
             # Create embedding function for vector backend

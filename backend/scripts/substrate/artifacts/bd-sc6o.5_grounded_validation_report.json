@@ -1,7 +1,7 @@
 {
   "sweep_version": "2026-04-01.v1",
   "run_mode": "live_capture",
-  "run_at": "2026-04-01T23:36:28.164701+00:00",
+  "run_at": "2026-04-02T01:18:26.216697+00:00",
   "cases": [
     {
       "case": {
@@ -22,15 +22,15 @@
         "expected_moat_useful": true,
         "ingest": true
       },
-      "status": "fail",
+      "status": "pass",
       "capture_result": {
         "jurisdiction_id": "a23f2953-8ade-4c43-a287-eb03f06b25b6",
         "source_id": "d20f4c9a-3789-4042-ad4f-d11ef9ca2ea4",
-        "scrape_id": "bed72dc3-7837-4ed8-b6d5-aa84b4930569",
-        "document_id": null,
-        "storage_uri": "d20f4c9a-3789-4042-ad4f-d11ef9ca2ea4/2026/4/bed72dc3-7837-4ed8-b6d5-aa84b4930569.html",
-        "chunk_count": 0,
-        "error_message": "Vector Upsert Failed: backend returned false",
+        "scrape_id": "d41089e2-7e80-4345-8193-8599516ccb23",
+        "document_id": "e4cb4dd2-184c-4808-a7a8-7e7cc9766423",
+        "storage_uri": "d20f4c9a-3789-4042-ad4f-d11ef9ca2ea4/2026/4/d41089e2-7e80-4345-8193-8599516ccb23.html",
+        "chunk_count": 26,
+        "error_message": null,
         "content_type": "text/html",
         "content_class": "html_text",
         "ingest_attempted": true,
@@ -46,11 +46,11 @@
         },
         "title": "City of San Jos\u00e9 - Meeting of City Council on 4/7/2026 at 1:30 PM",
         "preview_text": "City of San Jos\u00e9 - Meeting of City Council on 4/7/2026 at 1:30 PM Skip to main content Sign In Home Legislation Calendar San Jose Retirement Services Meeting Bodies People {1} ##LOC[OK]## {1} ##LOC[OK]## ##LOC[Cancel]## {1} ##LOC[OK]## ##LOC[Cancel]## Details Meeting Name: City Council Agenda status: Final Meeting date/time: 4/7/2026 1:30 PM Minutes status: Draft Meeting location: Council Chambers Closed Session at 9:30 a.m. Published agenda: Agenda Accessible Agenda Published minutes: Not avail",
-        "processed": false,
+        "processed": true,
         "raw_metadata": {
           "title": "City of San Jos\u00e9 - Meeting of City Council on 4/7/2026 at 1:30 PM",
           "trust_tier": "primary_government",
-          "captured_at": "2026-04-01T23:36:16.448775+00:00",
+          "captured_at": "2026-04-02T01:18:02.399140+00:00",
           "source_name": "Grounded Sweep: SJ Meeting Detail",
           "source_type": "meetings",
           "canonical_url": "https://sanjose.legistar.com/MeetingDetail.aspx?LEGID=7616&GID=317&G=920296E4-80BE-4CA2-A78F-32C5EFCF78AF",
@@ -58,31 +58,33 @@
           "document_type": "meeting_detail",
           "capture_method": "manual_http_grounded_sweep_v2",
           "ingestion_truth": {
-            "stage": "vector_upsert_failed",
+            "stage": "retrievable",
             "parsed": true,
             "chunked": true,
             "embedded": true,
             "blob_stored": true,
             "chunk_count": 26,
-            "retrievable": false,
+            "document_id": "e4cb4dd2-184c-4808-a7a8-7e7cc9766423",
+            "retrievable": true,
             "raw_captured": true,
             "embedding_count": 26,
-            "last_updated_at": "2026-04-01T23:36:19.159822+00:00",
-            "vector_upserted": false,
+            "last_updated_at": "2026-04-02T01:18:07.529538+00:00",
+            "vector_upserted": true,
             "ingest_attempted": true,
-            "storage_uri_present": true
+            "storage_uri_present": true,
+            "retrievable_chunk_count": 26
           },
           "promotion_error": null,
-          "promotion_state": "durable_raw",
+          "promotion_state": "promoted_substrate",
           "promotion_method": "rules",
           "raw_capture_mode": "manual_poc",
           "substrate_version": "poc-v1",
-          "promotion_confidence": "low",
+          "promotion_confidence": "high",
           "response_content_type": "text/html",
           "promotion_policy_version": "2026-04-01.v1",
-          "promotion_reason_category": "unclear",
+          "promotion_reason_category": "substantive_official_document",
           "trust_host_classification": "official_civic_partner",
-          "promotion_last_evaluated_at": "2026-04-01T23:36:19.262950+00:00"
+          "promotion_last_evaluated_at": "2026-04-02T01:18:07.642339+00:00"
         },
         "source_metadata": {
           "substrate_version": "poc-v1",
@@ -99,19 +101,19 @@
           "trust_host_classification": "official_civic_partner",
           "promotion_policy_version": "2026-04-01.v1",
           "promotion_error": null,
-          "promotion_last_evaluated_at": "2026-04-01T23:36:15.756538+00:00",
+          "promotion_last_evaluated_at": "2026-04-02T01:18:01.715333+00:00",
           "promotion_method": "rules",
           "promotion_reason_category": "captured_preserved_official",
           "promotion_confidence": "high"
         }
       },
       "scrape_row": {
-        "id": "bed72dc3-7837-4ed8-b6d5-aa84b4930569",
+        "id": "d41089e2-7e80-4345-8193-8599516ccb23",
         "source_id": "d20f4c9a-3789-4042-ad4f-d11ef9ca2ea4",
-        "document_id": null,
+        "document_id": "e4cb4dd2-184c-4808-a7a8-7e7cc9766423",
         "url": "https://sanjose.legistar.com/MeetingDetail.aspx?LEGID=7616&GID=317&G=920296E4-80BE-4CA2-A78F-32C5EFCF78AF",
         "content_type": "text/html",
-        "storage_uri": "d20f4c9a-3789-4042-ad4f-d11ef9ca2ea4/2026/4/bed72dc3-7837-4ed8-b6d5-aa84b4930569.html"
+        "storage_uri": "d20f4c9a-3789-4042-ad4f-d11ef9ca2ea4/2026/4/d41089e2-7e80-4345-8193-8599516ccb23.html"
       },
       "source_row": {
         "id": "d20f4c9a-3789-4042-ad4f-d11ef9ca2ea4",
@@ -136,42 +138,42 @@
           "promotion_policy_version": "2026-04-01.v1",
           "promotion_reason_category": "captured_preserved_official",
           "trust_host_classification": "official_civic_partner",
-          "promotion_last_evaluated_at": "2026-04-01T23:36:15.756538+00:00"
+          "promotion_last_evaluated_at": "2026-04-02T01:18:01.715333+00:00"
         }
       },
       "observed": {
-        "promotion_state": "durable_raw",
-        "promotion_reason_category": "unclear",
-        "promotion_confidence": "low",
+        "promotion_state": "promoted_substrate",
+        "promotion_reason_category": "substantive_official_document",
+        "promotion_confidence": "high",
         "promotion_method": "rules",
         "trust_tier": "primary_government",
         "trust_host_classification": "official_civic_partner",
         "content_class": "html_text",
         "document_type": "meeting_detail",
-        "ingestion_stage": "vector_upsert_failed",
-        "retrievable": false,
+        "ingestion_stage": "retrievable",
+        "retrievable": true,
         "blob_stored": true,
         "storage_uri_present": true,
-        "storage_uri": "d20f4c9a-3789-4042-ad4f-d11ef9ca2ea4/2026/4/bed72dc3-7837-4ed8-b6d5-aa84b4930569.html",
-        "scrape_error_message": "Vector Upsert Failed: backend returned false",
+        "storage_uri": "d20f4c9a-3789-4042-ad4f-d11ef9ca2ea4/2026/4/d41089e2-7e80-4345-8193-8599516ccb23.html",
+        "scrape_error_message": null,
         "rules_recheck": {
-          "promotion_state": "durable_raw",
-          "reason_category": "unclear",
-          "confidence": "low",
+          "promotion_state": "promoted_substrate",
+          "reason_category": "substantive_official_document",
+          "confidence": "high",
           "method": "rules"
         }
       },
       "usefulness": {
-        "analysis_useful": false,
+        "analysis_useful": true,
         "moat_useful": true,
         "overall_useful": true
       },
       "checks": {
         "promotion_state_expected": true,
         "official_path_expected": true,
-        "analysis_useful_expected": false,
+        "analysis_useful_expected": true,
         "moat_useful_expected": true,
-        "all_expected": false
+        "all_expected": true
       }
     },
     {
@@ -185,10 +187,11 @@
         "document_type": "agenda",
         "trust_tier": "primary_government",
         "expected_promotion_states": [
+          "promoted_substrate",
           "durable_raw"
         ],
         "expected_official_path": true,
-        "expected_analysis_useful": false,
+        "expected_analysis_useful": true,
         "expected_moat_useful": true,
         "ingest": true
       },
@@ -196,15 +199,15 @@
       "capture_result": {
         "jurisdiction_id": "a23f2953-8ade-4c43-a287-eb03f06b25b6",
         "source_id": "48acf87f-4f3d-4347-8ca5-b472f945c613",
-        "scrape_id": "9f481b4b-db98-47db-9d6a-9851fb5660b5",
-        "document_id": null,
-        "storage_uri": "48acf87f-4f3d-4347-8ca5-b472f945c613/2026/4/7995f5b0d61b6fe8ee4ddceec49a7aad5d745ca5e8b5de847797144537486a7c.pdf",
-        "chunk_count": 0,
+        "scrape_id": "5006ad72-4375-415b-ac75-52913fee54a7",
+        "document_id": "f1bf20dd-60b8-49eb-b73e-6ad94d01102d",
+        "storage_uri": "48acf87f-4f3d-4347-8ca5-b472f945c613/2026/4/5006ad72-4375-415b-ac75-52913fee54a7.pdf",
+        "chunk_count": 46,
         "error_message": null,
         "content_type": "application/pdf",
         "content_class": "pdf_binary",
-        "ingest_attempted": false,
-        "ingest_skipped_reason": "content_class=pdf_binary is not text-like",
+        "ingest_attempted": true,
+        "ingest_skipped_reason": null,
         "defaults": {
           "document_type": "agenda",
           "trust_tier": "primary_government",
@@ -216,11 +219,11 @@
         },
         "title": "https://legistar.granicus.com/sanjose/meetings/2026/4/7616_A_City_Council_26-04-07_Agenda.pdf",
         "preview_text": "[binary:pdf_binary] https://legistar.granicus.com/sanjose/meetings/2026/4/7616_A_City_Council_26-04-07_Agenda.pdf",
-        "processed": null,
+        "processed": true,
         "raw_metadata": {
           "title": "https://legistar.granicus.com/sanjose/meetings/2026/4/7616_A_City_Council_26-04-07_Agenda.pdf",
           "trust_tier": "primary_government",
-          "captured_at": "2026-04-01T23:36:21.108259+00:00",
+          "captured_at": "2026-04-02T01:18:09.739273+00:00",
           "source_name": "Grounded Sweep: SJ Agenda PDF",
           "source_type": "meetings",
           "canonical_url": "https://legistar.granicus.com/sanjose/meetings/2026/4/7616_A_City_Council_26-04-07_Agenda.pdf",
@@ -228,30 +231,35 @@
           "document_type": "agenda",
           "capture_method": "manual_http_grounded_sweep_v2",
           "ingestion_truth": {
-            "stage": "ingest_skipped_non_text",
-            "parsed": false,
-            "chunked": false,
-            "embedded": false,
+            "stage": "retrievable",
+            "parsed": true,
+            "chunked": true,
+            "embedded": true,
             "blob_stored": true,
-            "retrievable": false,
+            "chunk_count": 46,
+            "document_id": "f1bf20dd-60b8-49eb-b73e-6ad94d01102d",
+            "parse_error": null,
+            "retrievable": true,
+            "parse_method": "markitdown",
             "raw_captured": true,
-            "last_updated_at": "2026-04-01T23:36:21.519038+00:00",
-            "vector_upserted": false,
-            "ingest_attempted": false,
+            "embedding_count": 46,
+            "last_updated_at": "2026-04-02T01:18:18.317521+00:00",
+            "vector_upserted": true,
+            "ingest_attempted": true,
             "storage_uri_present": true,
-            "ingest_skipped_reason": "content_class=pdf_binary is not text-like"
+            "retrievable_chunk_count": 46
           },
           "promotion_error": null,
-          "promotion_state": "durable_raw",
+          "promotion_state": "promoted_substrate",
           "promotion_method": "rules",
           "raw_capture_mode": "manual_poc",
           "substrate_version": "poc-v1",
-          "promotion_confidence": "low",
+          "promotion_confidence": "high",
           "response_content_type": "application/pdf",
           "promotion_policy_version": "2026-04-01.v1",
-          "promotion_reason_category": "unclear",
+          "promotion_reason_category": "substantive_official_document",
           "trust_host_classification": "official_civic_partner",
-          "promotion_last_evaluated_at": "2026-04-01T23:36:21.608868+00:00"
+          "promotion_last_evaluated_at": "2026-04-02T01:18:18.417008+00:00"
         },
         "source_metadata": {
           "substrate_version": "poc-v1",
@@ -268,19 +276,19 @@
           "trust_host_classification": "official_civic_partner",
           "promotion_policy_version": "2026-04-01.v1",
           "promotion_error": null,
-          "promotion_last_evaluated_at": "2026-04-01T23:36:20.475442+00:00",
+          "promotion_last_evaluated_at": "2026-04-02T01:18:08.931845+00:00",
           "promotion_method": "rules",
           "promotion_reason_category": "captured_preserved_official",
           "promotion_confidence": "high"
         }
       },
       "scrape_row": {
-        "id": "9f481b4b-db98-47db-9d6a-9851fb5660b5",
+        "id": "5006ad72-4375-415b-ac75-52913fee54a7",
         "source_id": "48acf87f-4f3d-4347-8ca5-b472f945c613",
-        "document_id": null,
+        "document_id": "f1bf20dd-60b8-49eb-b73e-6ad94d01102d",
         "url": "https://legistar.granicus.com/sanjose/meetings/2026/4/7616_A_City_Council_26-04-07_Agenda.pdf",
         "content_type": "application/pdf",
-        "storage_uri": "48acf87f-4f3d-4347-8ca5-b472f945c613/2026/4/7995f5b0d61b6fe8ee4ddceec49a7aad5d745ca5e8b5de847797144537486a7c.pdf"
+        "storage_uri": "48acf87f-4f3d-4347-8ca5-b472f945c613/2026/4/5006ad72-4375-415b-ac75-52913fee54a7.pdf"
       },
       "source_row": {
         "id": "48acf87f-4f3d-4347-8ca5-b472f945c613",
@@ -305,33 +313,33 @@
           "promotion_policy_version": "2026-04-01.v1",
           "promotion_reason_category": "captured_preserved_official",
           "trust_host_classification": "official_civic_partner",
-          "promotion_last_evaluated_at": "2026-04-01T23:36:20.475442+00:00"
+          "promotion_last_evaluated_at": "2026-04-02T01:18:08.931845+00:00"
         }
       },
       "observed": {
-        "promotion_state": "durable_raw",
-        "promotion_reason_category": "unclear",
-        "promotion_confidence": "low",
+        "promotion_state": "promoted_substrate",
+        "promotion_reason_category": "substantive_official_document",
+        "promotion_confidence": "high",
         "promotion_method": "rules",
         "trust_tier": "primary_government",
         "trust_host_classification": "official_civic_partner",
         "content_class": "pdf_binary",
         "document_type": "agenda",
-        "ingestion_stage": "ingest_skipped_non_text",
-        "retrievable": false,
+        "ingestion_stage": "retrievable",
+        "retrievable": true,
         "blob_stored": true,
         "storage_uri_present": true,
-        "storage_uri": "48acf87f-4f3d-4347-8ca5-b472f945c613/2026/4/7995f5b0d61b6fe8ee4ddceec49a7aad5d745ca5e8b5de847797144537486a7c.pdf",
+        "storage_uri": "48acf87f-4f3d-4347-8ca5-b472f945c613/2026/4/5006ad72-4375-415b-ac75-52913fee54a7.pdf",
         "scrape_error_message": null,
         "rules_recheck": {
-          "promotion_state": "durable_raw",
-          "reason_category": "unclear",
-          "confidence": "low",
+          "promotion_state": "promoted_substrate",
+          "reason_category": "substantive_official_document",
+          "confidence": "high",
           "method": "rules"
         }
       },
       "usefulness": {
-        "analysis_useful": false,
+        "analysis_useful": true,
         "moat_useful": true,
         "overall_useful": true
       },
@@ -365,11 +373,11 @@
       "capture_result": {
         "jurisdiction_id": "a23f2953-8ade-4c43-a287-eb03f06b25b6",
         "source_id": "7bc01e53-c9a1-4f73-9064-633703c21c57",
-        "scrape_id": "72933d72-4cb2-4552-9e48-a027b0b0156a",
-        "document_id": null,
-        "storage_uri": "7bc01e53-c9a1-4f73-9064-633703c21c57/2026/4/72933d72-4cb2-4552-9e48-a027b0b0156a.html",
-        "chunk_count": 0,
-        "error_message": "Vector Upsert Failed: backend returned false",
+        "scrape_id": "5e416d0e-f902-4fb9-bc77-f98bf1af0f17",
+        "document_id": "6fec28c4-becc-4614-8f44-e586386caf57",
+        "storage_uri": "7bc01e53-c9a1-4f73-9064-633703c21c57/2026/4/5e416d0e-f902-4fb9-bc77-f98bf1af0f17.html",
+        "chunk_count": 3,
+        "error_message": null,
         "content_type": "text/html",
         "content_class": "html_text",
         "ingest_attempted": true,
@@ -385,11 +393,11 @@
         },
         "title": "Municode Library",
         "preview_text": "Municode Library We're sorry. Internet Explorer 9 and below are no longer supported. Please use a different browser. Google Chrome Mozilla Firefox Microsoft Internet Explorer",
-        "processed": false,
+        "processed": true,
         "raw_metadata": {
           "title": "Municode Library",
           "trust_tier": "official_partner",
-          "captured_at": "2026-04-01T23:36:23.196779+00:00",
+          "captured_at": "2026-04-02T01:18:20.250691+00:00",
           "source_name": "Grounded Sweep: SJ Municipal Code",
           "source_type": "code",
           "canonical_url": "https://library.municode.com/ca/san_jose/codes/code_of_ordinances",
@@ -397,19 +405,21 @@
           "document_type": "municipal_code",
           "capture_method": "manual_http_grounded_sweep_v2",
           "ingestion_truth": {
-            "stage": "vector_upsert_failed",
+            "stage": "retrievable",
             "parsed": true,
             "chunked": true,
             "embedded": true,
             "blob_stored": true,
             "chunk_count": 3,
-            "retrievable": false,
+            "document_id": "6fec28c4-becc-4614-8f44-e586386caf57",
+            "retrievable": true,
             "raw_captured": true,
             "embedding_count": 3,
-            "last_updated_at": "2026-04-01T23:36:24.651794+00:00",
-            "vector_upserted": false,
+            "last_updated_at": "2026-04-02T01:18:22.018607+00:00",
+            "vector_upserted": true,
             "ingest_attempted": true,
-            "storage_uri_present": true
+            "storage_uri_present": true,
+            "retrievable_chunk_count": 3
           },
           "promotion_error": null,
           "promotion_state": "durable_raw",
@@ -421,7 +431,7 @@
           "promotion_policy_version": "2026-04-01.v1",
           "promotion_reason_category": "index_or_shell_page",
           "trust_host_classification": "official_civic_partner",
-          "promotion_last_evaluated_at": "2026-04-01T23:36:24.748208+00:00"
+          "promotion_last_evaluated_at": "2026-04-02T01:18:22.115091+00:00"
         },
         "source_metadata": {
           "substrate_version": "poc-v1",
@@ -438,19 +448,19 @@
           "trust_host_classification": "official_civic_partner",
           "promotion_policy_version": "2026-04-01.v1",
           "promotion_error": null,
-          "promotion_last_evaluated_at": "2026-04-01T23:36:22.552008+00:00",
+          "promotion_last_evaluated_at": "2026-04-02T01:18:19.520586+00:00",
           "promotion_method": "rules",
           "promotion_reason_category": "captured_preserved_official",
           "promotion_confidence": "high"
         }
       },
       "scrape_row": {
-        "id": "72933d72-4cb2-4552-9e48-a027b0b0156a",
+        "id": "5e416d0e-f902-4fb9-bc77-f98bf1af0f17",
         "source_id": "7bc01e53-c9a1-4f73-9064-633703c21c57",
-        "document_id": null,
+        "document_id": "6fec28c4-becc-4614-8f44-e586386caf57",
         "url": "https://library.municode.com/ca/san_jose/codes/code_of_ordinances",
         "content_type": "text/html",
-        "storage_uri": "7bc01e53-c9a1-4f73-9064-633703c21c57/2026/4/72933d72-4cb2-4552-9e48-a027b0b0156a.html"
+        "storage_uri": "7bc01e53-c9a1-4f73-9064-633703c21c57/2026/4/5e416d0e-f902-4fb9-bc77-f98bf1af0f17.html"
       },
       "source_row": {
         "id": "7bc01e53-c9a1-4f73-9064-633703c21c57",
@@ -475,7 +485,7 @@
           "promotion_policy_version": "2026-04-01.v1",
           "promotion_reason_category": "captured_preserved_official",
           "trust_host_classification": "official_civic_partner",
-          "promotion_last_evaluated_at": "2026-04-01T23:36:22.552008+00:00"
+          "promotion_last_evaluated_at": "2026-04-02T01:18:19.520586+00:00"
         }
       },
       "observed": {
@@ -487,12 +497,12 @@
         "trust_host_classification": "official_civic_partner",
         "content_class": "html_text",
         "document_type": "municipal_code",
-        "ingestion_stage": "vector_upsert_failed",
-        "retrievable": false,
+        "ingestion_stage": "retrievable",
+        "retrievable": true,
         "blob_stored": true,
         "storage_uri_present": true,
-        "storage_uri": "7bc01e53-c9a1-4f73-9064-633703c21c57/2026/4/72933d72-4cb2-4552-9e48-a027b0b0156a.html",
-        "scrape_error_message": "Vector Upsert Failed: backend returned false",
+        "storage_uri": "7bc01e53-c9a1-4f73-9064-633703c21c57/2026/4/5e416d0e-f902-4fb9-bc77-f98bf1af0f17.html",
+        "scrape_error_message": null,
         "rules_recheck": {
           "promotion_state": "durable_raw",
           "reason_category": "index_or_shell_page",
@@ -536,11 +546,11 @@
       "capture_result": {
         "jurisdiction_id": "a23f2953-8ade-4c43-a287-eb03f06b25b6",
         "source_id": "c15754af-837b-4f2e-a9db-64c6c9c942ce",
-        "scrape_id": "5afa914b-ef4a-4bd3-83cd-d114f82452e3",
-        "document_id": null,
-        "storage_uri": "c15754af-837b-4f2e-a9db-64c6c9c942ce/2026/4/5afa914b-ef4a-4bd3-83cd-d114f82452e3.html",
-        "chunk_count": 0,
-        "error_message": "Vector Upsert Failed: backend returned false",
+        "scrape_id": "cec1f37c-24f8-4a61-a0a2-f47fabe3d15e",
+        "document_id": "e1bfb417-54b1-4840-83a9-0a0fa9358bff",
+        "storage_uri": "c15754af-837b-4f2e-a9db-64c6c9c942ce/2026/4/cec1f37c-24f8-4a61-a0a2-f47fabe3d15e.html",
+        "chunk_count": 1,
+        "error_message": null,
         "content_type": "text/html",
         "content_class": "html_text",
         "ingest_attempted": true,
@@ -556,11 +566,11 @@
         },
         "title": "Not Found",
         "preview_text": "Not Found 404 It's not you, it's us. Sorry about that. Return Home",
-        "processed": false,
+        "processed": true,
         "raw_metadata": {
           "title": "Not Found",
           "trust_tier": "non_official",
-          "captured_at": "2026-04-01T23:36:26.197439+00:00",
+          "captured_at": "2026-04-02T01:18:23.652850+00:00",
           "source_name": "Grounded Sweep: Third-Party ADU Info",
           "source_type": "general",
           "canonical_url": "https://www.dwellito.com/blog/san-jose-adu-rules",
@@ -568,19 +578,21 @@
           "document_type": "general_info",
           "capture_method": "manual_http_grounded_sweep_v2",
           "ingestion_truth": {
-            "stage": "vector_upsert_failed",
+            "stage": "retrievable",
             "parsed": true,
             "chunked": true,
             "embedded": true,
             "blob_stored": true,
             "chunk_count": 1,
-            "retrievable": false,
+            "document_id": "e1bfb417-54b1-4840-83a9-0a0fa9358bff",
+            "retrievable": true,
             "raw_captured": true,
             "embedding_count": 1,
-            "last_updated_at": "2026-04-01T23:36:27.455393+00:00",
-            "vector_upserted": false,
+            "last_updated_at": "2026-04-02T01:18:25.505130+00:00",
+            "vector_upserted": true,
             "ingest_attempted": true,
-            "storage_uri_present": true
+            "storage_uri_present": true,
+            "retrievable_chunk_count": 1
           },
           "promotion_error": null,
           "promotion_state": "captured_candidate",
@@ -592,7 +604,7 @@
           "promotion_policy_version": "2026-04-01.v1",
           "promotion_reason_category": "untrusted_source",
           "trust_host_classification": "non_official",
-          "promotion_last_evaluated_at": "2026-04-01T23:36:27.566902+00:00"
+          "promotion_last_evaluated_at": "2026-04-02T01:18:25.610912+00:00"
         },
         "source_metadata": {
           "substrate_version": "poc-v1",
@@ -609,19 +621,19 @@
           "trust_host_classification": "non_official",
           "promotion_policy_version": "2026-04-01.v1",
           "promotion_error": null,
-          "promotion_last_evaluated_at": "2026-04-01T23:36:25.466111+00:00",
+          "promotion_last_evaluated_at": "2026-04-02T01:18:22.904038+00:00",
           "promotion_method": "rules",
           "promotion_reason_category": "captured_untrusted_needs_review",
           "promotion_confidence": "low"
         }
       },
       "scrape_row": {
-        "id": "5afa914b-ef4a-4bd3-83cd-d114f82452e3",
+        "id": "cec1f37c-24f8-4a61-a0a2-f47fabe3d15e",
         "source_id": "c15754af-837b-4f2e-a9db-64c6c9c942ce",
-        "document_id": null,
+        "document_id": "e1bfb417-54b1-4840-83a9-0a0fa9358bff",
         "url": "https://www.dwellito.com/blog/san-jose-adu-rules",
         "content_type": "text/html",
-        "storage_uri": "c15754af-837b-4f2e-a9db-64c6c9c942ce/2026/4/5afa914b-ef4a-4bd3-83cd-d114f82452e3.html"
+        "storage_uri": "c15754af-837b-4f2e-a9db-64c6c9c942ce/2026/4/cec1f37c-24f8-4a61-a0a2-f47fabe3d15e.html"
       },
       "source_row": {
         "id": "c15754af-837b-4f2e-a9db-64c6c9c942ce",
@@ -646,7 +658,7 @@
           "promotion_policy_version": "2026-04-01.v1",
           "promotion_reason_category": "captured_untrusted_needs_review",
           "trust_host_classification": "non_official",
-          "promotion_last_evaluated_at": "2026-04-01T23:36:25.466111+00:00"
+          "promotion_last_evaluated_at": "2026-04-02T01:18:22.904038+00:00"
         }
       },
       "observed": {
@@ -658,12 +670,12 @@
         "trust_host_classification": "non_official",
         "content_class": "html_text",
         "document_type": "general_info",
-        "ingestion_stage": "vector_upsert_failed",
-        "retrievable": false,
+        "ingestion_stage": "retrievable",
+        "retrievable": true,
         "blob_stored": true,
         "storage_uri_present": true,
-        "storage_uri": "c15754af-837b-4f2e-a9db-64c6c9c942ce/2026/4/5afa914b-ef4a-4bd3-83cd-d114f82452e3.html",
-        "scrape_error_message": "Vector Upsert Failed: backend returned false",
+        "storage_uri": "c15754af-837b-4f2e-a9db-64c6c9c942ce/2026/4/cec1f37c-24f8-4a61-a0a2-f47fabe3d15e.html",
+        "scrape_error_message": null,
         "rules_recheck": {
           "promotion_state": "captured_candidate",
           "reason_category": "untrusted_source",
@@ -688,44 +700,37 @@
   "summary": {
     "case_count": 4,
     "status_counts": {
-      "fail": 1,
-      "pass": 3
+      "pass": 4
     },
     "promotion_state_counts": {
-      "durable_raw": 3,
+      "promoted_substrate": 2,
+      "durable_raw": 1,
       "captured_candidate": 1
     },
     "promotion_reason_counts": {
-      "unclear": 2,
+      "substantive_official_document": 2,
       "index_or_shell_page": 1,
       "untrusted_source": 1
     },
     "usefulness_counts": {
-      "analysis_useful_true": 0,
-      "analysis_useful_false": 4,
+      "analysis_useful_true": 2,
+      "analysis_useful_false": 2,
       "moat_useful_true": 3,
       "moat_useful_false": 1,
       "overall_useful_true": 3,
       "overall_useful_false": 1
     },
-    "failures": [
-      {
-        "case_id": "official_html_meeting_detail",
-        "failed_checks": [
-          "analysis_useful_expected"
-        ]
-      }
-    ],
-    "framework_worked": false
+    "failures": [],
+    "framework_worked": true
   },
   "framework_assessment": {
-    "worked": false,
+    "worked": true,
     "strengths": [
       "Sweep records ingestion truth, trust classification, and promotion state together.",
       "Report is machine-readable and reproducible from fixed case definitions."
     ],
     "remaining_weaknesses": [
-      "One or more required validation cases failed expectations."
+      "No contract violations observed in this run."
     ]
   }
 }

@@ -382,7 +382,7 @@ class IngestionService:
         
         if isinstance(data, dict):
             # Prioritize common text fields
-            for field in ['text', 'content', 'body', 'raw_html_snippet', 'description']:
+            for field in ['parsed_markdown', 'text', 'content', 'body', 'raw_html_snippet', 'description']:
                 if field in data and data.get(field) and isinstance(data[field], str):
                     cleaned_text = self._clean_html(data[field])
                     if cleaned_text:

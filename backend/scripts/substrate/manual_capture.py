@@ -20,6 +20,7 @@ import html
 import json
 import os
 import re
+import tempfile
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from typing import Any
@@ -29,6 +30,8 @@ import httpx
 
 from db.postgres_client import PostgresDB
 from services.ingestion_service import IngestionService
+from services.pdf_markdown import PDFMarkdownError
+from services.pdf_markdown import extract_pdf_markdown
 from services.storage.s3_storage import S3Storage
 from services.substrate_promotion import apply_promotion_decision
 from services.substrate_promotion import evaluate_rules
@@ -38,6 +41,7 @@ from services.vector_backend_factory import create_vector_backend
 
 DEFAULT_SUBSTRATE_VERSION = "poc-v1"
 DEFAULT_PROMOTION_STATE = "captured_candidate"
+EMBEDDING_DIMENSIONS = 4096
 
 
 @dataclass(frozen=True)
@@ -218,6 +222,33 @@ def extension_for_content_type(content_type: str) -> str:
     return "bin"
 
 
+def _build_ingestion_truth_update(
+    *,
+    stage: str,
+    ingest_attempted: bool,
+    extra: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    payload = {
+        "stage": stage,
+        "ingest_attempted": ingest_attempted,
+        "last_updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    if extra:
+        payload.update(extra)
+    return payload
+
+
+def extract_pdf_markdown_payload(content_bytes: bytes) -> tuple[str | None, str | None, str | None]:
+    with tempfile.NamedTemporaryFile(suffix=".pdf") as tmp_file:
+        tmp_file.write(content_bytes)
+        tmp_file.flush()
+        try:
+            result = extract_pdf_markdown(tmp_file.name)
+        except PDFMarkdownError as exc:
+            return None, None, str(exc)
+    return result.markdown, result.extractor, None
+
+
 async def upload_binary_artifact(
     *,
     source_id: str,
@@ -240,15 +271,15 @@ async def build_embedding_service() -> Any:
             base_url="https://openrouter.ai/api/v1",
             api_key=os.environ.get("OPENROUTER_API_KEY"),
             model="qwen/qwen3-embedding-8b",
-            dimensions=1536,
+            dimensions=EMBEDDING_DIMENSIONS,
         )
 
     class MockEmbeddingService:
         async def embed_query(self, text: str) -> list[float]:
-            return [0.1] * 1536
+            return [0.1] * EMBEDDING_DIMENSIONS
 
         async def embed_documents(self, texts: list[str]) -> list[list[float]]:
-            return [[0.1] * 1536 for _ in texts]
+            return [[0.1] * EMBEDDING_DIMENSIONS for _ in texts]
 
     return MockEmbeddingService()
 
@@ -389,17 +420,58 @@ async def capture_document(args: argparse.Namespace) -> dict[str, Any]:
         error_message = None
 
         if args.ingest:
-            if content_class in TEXT_CONTENT_CLASSES:
+            prepared_text_like = content_class in TEXT_CONTENT_CLASSES
+            if content_class == "pdf_binary":
+                extracted_markdown, extractor_name, extractor_error = extract_pdf_markdown_payload(
+                    content_bytes
+                )
+                existing_meta = parse_metadata_blob(scrape_row.get("metadata")) if scrape_row else {}
+                truth = parse_metadata_blob(existing_meta.get("ingestion_truth"))
+                if extracted_markdown:
+                    data_payload["parsed_markdown"] = extracted_markdown
+                    data_payload["pdf_markdown_extractor"] = extractor_name
+                    truth.update(
+                        {
+                            "parsed": True,
+                            "parse_method": extractor_name,
+                            "parse_error": None,
+                            "stage": "parsed_pdf_markdown",
+                            "last_updated_at": datetime.now(timezone.utc).isoformat(),
+                        }
+                    )
+                    existing_meta["ingestion_truth"] = truth
+                    await db._execute(
+                        "UPDATE raw_scrapes SET data = $1, metadata = $2 WHERE id = $3",
+                        json.dumps(data_payload),
+                        json.dumps(existing_meta),
+                        scrape_id,
+                    )
+                    scrape_row = await db._fetchrow("SELECT * FROM raw_scrapes WHERE id = $1", scrape_id)
+                    prepared_text_like = True
+                else:
+                    truth.update(
+                        {
+                            "parsed": False,
+                            "parse_method": "pdf_markdown",
+                            "parse_error": extractor_error,
+                            "stage": "parse_failed_pdf",
+                            "last_updated_at": datetime.now(timezone.utc).isoformat(),
+                        }
+                    )
+                    existing_meta["ingestion_truth"] = truth
+                    await db._execute(
+                        "UPDATE raw_scrapes SET metadata = $1, error_message = $2 WHERE id = $3",
+                        json.dumps(existing_meta),
+                        extractor_error,
+                        scrape_id,
+                    )
+                    scrape_row = await db._fetchrow("SELECT * FROM raw_scrapes WHERE id = $1", scrape_id)
+
+            if prepared_text_like:
                 ingest_attempted = True
                 existing_meta = parse_metadata_blob(scrape_row.get("metadata")) if scrape_row else {}
                 truth = parse_metadata_blob(existing_meta.get("ingestion_truth"))
-                truth.update(
-                    {
-                        "stage": "ingest_started",
-                        "ingest_attempted": True,
-                        "last_updated_at": datetime.now(timezone.utc).isoformat(),
-                    }
-                )
+                truth.update(_build_ingestion_truth_update(stage="ingest_started", ingest_attempted=True))
                 existing_meta["ingestion_truth"] = truth
                 await db._execute(
                     "UPDATE raw_scrapes SET metadata = $1 WHERE id = $2",
@@ -428,12 +500,11 @@ async def capture_document(args: argparse.Namespace) -> dict[str, Any]:
                 existing_meta = parse_metadata_blob(scrape_row.get("metadata")) if scrape_row else {}
                 truth = parse_metadata_blob(existing_meta.get("ingestion_truth"))
                 truth.update(
-                    {
-                        "stage": "ingest_skipped_non_text",
-                        "ingest_attempted": False,
-                        "ingest_skipped_reason": ingest_skipped_reason,
-                        "last_updated_at": datetime.now(timezone.utc).isoformat(),
-                    }
+                    _build_ingestion_truth_update(
+                        stage="ingest_skipped_non_text",
+                        ingest_attempted=False,
+                        extra={"ingest_skipped_reason": ingest_skipped_reason},
+                    )
                 )
                 existing_meta["ingestion_truth"] = truth
                 await db._execute(

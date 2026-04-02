@@ -1,7 +1,37 @@
+import pytest
+import sys
+import types
+
+if "asyncpg" not in sys.modules:
+    sys.modules["asyncpg"] = types.SimpleNamespace(Pool=object, Record=dict)
+if "llm_common" not in sys.modules:
+    llm_common = types.ModuleType("llm_common")
+    retrieval = types.ModuleType("llm_common.retrieval")
+    embeddings = types.ModuleType("llm_common.embeddings")
+    setattr(retrieval, "RetrievalBackend", object)
+    setattr(retrieval, "RetrievedChunk", object)
+    setattr(embeddings, "EmbeddingService", object)
+    setattr(llm_common, "retrieval", retrieval)
+    setattr(llm_common, "embeddings", embeddings)
+    setattr(llm_common, "WebSearchResult", object)
+    sys.modules["llm_common"] = llm_common
+    sys.modules["llm_common.retrieval"] = retrieval
+    sys.modules["llm_common.embeddings"] = embeddings
+if "minio" not in sys.modules:
+    minio_module = types.ModuleType("minio")
+    setattr(minio_module, "Minio", object)
+    sys.modules["minio"] = minio_module
+if "minio.error" not in sys.modules:
+    minio_error_module = types.ModuleType("minio.error")
+    setattr(minio_error_module, "S3Error", Exception)
+    sys.modules["minio.error"] = minio_error_module
+
 from scripts.substrate.manual_capture import (
     DEFAULT_SUBSTRATE_VERSION,
+    EMBEDDING_DIMENSIONS,
     SubstrateDefaults,
     build_data_payload,
+    build_embedding_service,
     build_raw_metadata,
     build_source_metadata,
     detect_content_class,
@@ -133,3 +163,16 @@ def test_build_data_payload_html_is_text():
     assert "content" in payload
     assert "Hello" in payload["content"]
     assert preview
+
+
+@pytest.mark.asyncio
+async def test_build_embedding_service_mock_uses_4096_contract(monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+
+    service = await build_embedding_service()
+    query_embedding = await service.embed_query("agenda")
+    doc_embeddings = await service.embed_documents(["one", "two"])
+
+    assert len(query_embedding) == EMBEDDING_DIMENSIONS
+    assert all(len(item) == EMBEDDING_DIMENSIONS for item in doc_embeddings)

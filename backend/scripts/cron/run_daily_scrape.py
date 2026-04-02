@@ -33,6 +33,7 @@ logger = logging.getLogger("daily_scrape")
 SEM = asyncio.Semaphore(3)
 
 PILOT_JURISDICTIONS = ["san-jose", "california"]
+EMBEDDING_DIMENSIONS = 4096
 
 
 class ScrapeJob:
@@ -57,16 +58,16 @@ class ScrapeJob:
                 base_url="https://openrouter.ai/api/v1",
                 api_key=os.environ.get("OPENROUTER_API_KEY"),
                 model="qwen/qwen3-embedding-8b",
-                dimensions=1536,
+                dimensions=EMBEDDING_DIMENSIONS,
             )
         else:
 
             class MockEmbeddingService:
                 async def embed_query(self, text: str) -> list[float]:
-                    return [0.1] * 1536
+                    return [0.1] * EMBEDDING_DIMENSIONS
 
                 async def embed_documents(self, texts: list[str]) -> list[list[float]]:
-                    return [[0.1] * 1536 for _ in texts]
+                    return [[0.1] * EMBEDDING_DIMENSIONS for _ in texts]
 
             embedding_service = MockEmbeddingService()
 
