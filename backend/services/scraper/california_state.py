@@ -125,7 +125,7 @@ class CaliforniaStateScraper(BaseScraper):
                 "session": "20252026",
                 "per_page": 20,
                 "sort": "updated_desc",
-                "include": ["sponsor", "actions", "versions"],
+                "include": ["sponsorships", "actions", "versions"],
             },
             headers={"X-API-KEY": api_key},
         )

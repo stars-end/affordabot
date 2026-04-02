@@ -4,6 +4,16 @@ import hashlib
 import psycopg2
 from datetime import datetime
 
+from scripts.substrate.metadata_contract import build_substrate_raw_metadata
+
+
+def infer_source_type(spider_name: str) -> str:
+    name = (spider_name or "").lower()
+    if "municode" in name or "code" in name:
+        return "code"
+    return "meetings"
+
+
 class RawScrapePipeline:
     def open_spider(self, spider):
         db_url = os.environ.get("DATABASE_URL")
@@ -34,27 +44,53 @@ class RawScrapePipeline:
             spider.logger.warning("No source_id provided. Skipping DB save.")
             return item
 
-        # Serialize item to JSON
-        data_json = json.dumps(item, sort_keys=True)
+        item_dict = dict(item)
+        # Serialize item to JSON for deterministic hash generation
+        data_json = json.dumps(item_dict, sort_keys=True)
         
         # Calculate hash
         content_hash = hashlib.sha256(data_json.encode("utf-8")).hexdigest()
         
         try:
             with self.conn.cursor() as cur:
-                # Insert raw_scrape
-                # raw_scrapes schema: source_id, content_hash, content_type, data, url(optional), metadata(optional)
-                # Ensure data is JSON compatible for JSONB column
-                
-                # We need to check if 'url' is in item?
-                url = item.get('url') # Scrapy items usually have url
+                url = item_dict.get("url")
+                if not url:
+                    start_urls = getattr(spider, "start_urls", None) or []
+                    url = start_urls[0] if start_urls else ""
+                content_type = item_dict.get("content_type")
+                if not content_type:
+                    content_type = (
+                        "text/plain"
+                        if ("content" in item_dict or "text" in item_dict)
+                        else "application/json"
+                    )
+                source_type = infer_source_type(getattr(spider, "name", ""))
+                metadata = build_substrate_raw_metadata(
+                    canonical_url=url,
+                    source_type=source_type,
+                    response_content_type=content_type,
+                    capture_method="cron_rag_spiders",
+                    title=item_dict.get("title"),
+                    extra_metadata={
+                        "spider_name": getattr(spider, "name", ""),
+                        "source_name": getattr(spider, "name", ""),
+                        "scraped_at": item_dict.get("scraped_at"),
+                    },
+                )
                 
                 cur.execute(
                     """
-                    INSERT INTO raw_scrapes (source_id, content_hash, content_type, data, url)
-                    VALUES (%s, %s, %s, %s, %s)
+                    INSERT INTO raw_scrapes (source_id, content_hash, content_type, data, url, metadata)
+                    VALUES (%s, %s, %s, %s, %s, %s)
                     """,
-                    (source_id, content_hash, "application/json", data_json, url)
+                    (
+                        source_id,
+                        content_hash,
+                        content_type,
+                        data_json,
+                        url,
+                        json.dumps(metadata),
+                    ),
                 )
                 
                 # Update source last_scraped_at

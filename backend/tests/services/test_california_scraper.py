@@ -447,3 +447,41 @@ class TestExtractLeginfoUrl:
         url = scraper._extract_leginfo_url(versions, sources)
 
         assert url == ""
+
+
+class TestOpenStatesDiscoveryContract:
+    @pytest.mark.asyncio
+    async def test_discover_bills_uses_current_openstates_include_values(self):
+        class DummyResponse:
+            def raise_for_status(self):
+                return None
+
+            def json(self):
+                return {"results": []}
+
+        class DummyClient:
+            def __init__(self):
+                self.calls = []
+
+            async def get(self, url, params=None, headers=None):
+                self.calls.append(
+                    {
+                        "url": url,
+                        "params": params,
+                        "headers": headers,
+                    }
+                )
+                return DummyResponse()
+
+        scraper = CaliforniaStateScraper()
+        scraper.api_key = "test-key"
+        client = DummyClient()
+
+        bills = await scraper._discover_bills(client)
+
+        assert bills == []
+        assert client.calls[0]["params"]["include"] == [
+            "sponsorships",
+            "actions",
+            "versions",
+        ]

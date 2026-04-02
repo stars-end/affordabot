@@ -17,6 +17,7 @@ As of `bd-s8id.3`, scheduling moved from root `railway.toml` Railway Cron to Win
 | `daily_scrape` | `daily_scrape.py` at 0600 UTC | `0 6 * * *` | `python backend/scripts/cron/run_daily_scrape.py` |
 | `rag_spiders` | `run_rag_spiders.py` at 0700 UTC | `0 7 * * *` | `python backend/scripts/cron/run_rag_spiders.py` |
 | `universal_harvester` | `run_universal_harvester.py` at 0800 UTC | `0 8 * * *` | `python backend/scripts/cron/run_universal_harvester.py` |
+| `manual_substrate_expansion` | On-demand only (no schedule) | Manual trigger | `POST /cron/manual-substrate-expansion` |
 
 ### Execution Model
 
@@ -28,7 +29,7 @@ Committed Windmill assets:
 
 - `ops/windmill/wmill.yaml`
 - `ops/windmill/f/affordabot/trigger_cron_job.py`
-- `ops/windmill/f/affordabot/*.flow/flow.yaml`
+- `ops/windmill/f/affordabot/*__flow/flow.yaml`
 - `ops/windmill/f/affordabot/*.schedule.yaml`
 
 Required workspace variables:
@@ -81,6 +82,28 @@ All cron trigger endpoints remain live and auth-gated:
 | `/cron/daily-scrape` | POST | `daily_scrape` |
 | `/cron/rag-spiders` | POST | `rag_spiders` |
 | `/cron/universal-harvester` | POST | `universal_harvester` |
+| `/cron/manual-substrate-expansion` | POST | `manual_substrate_expansion` (manual flow only) |
+
+### Manual Substrate Expansion Contract
+
+The `manual_substrate_expansion` flow accepts a manifest and forwards it to
+`POST /cron/manual-substrate-expansion` using the shared trigger script.
+
+Manifest fields:
+
+- `run_label: string`
+- `jurisdictions: string[]`
+- `asset_classes: string[]`
+- `max_documents_per_source: int (1..100)`
+- `run_mode: capture_only|capture_and_ingest`
+- `ocr_mode: off|hard_doc_only`
+- `sample_size_per_bucket: int (1..10)`
+- `notes?: string`
+
+Current backend behavior is a truthful skeleton response plus an immediate
+inspection artifact: it returns `run_id`, manifest echo, target estimates,
+zero-count capture/ingestion/promotion summaries, `failures`, and an
+`inspection_report` block with artifact path for manual review.
 
 ## Local Testing
 
