@@ -24,7 +24,7 @@ def test_seed_capture_metadata_official_host_defaults_to_durable_raw():
     assert metadata["trust_host_classification"] == "official_government"
 
 
-def test_evaluate_rules_keeps_non_retrievable_official_pdf_durable_raw():
+def test_evaluate_rules_promotes_non_retrievable_official_pdf():
     decision = evaluate_rules(
         {
             "canonical_url": "https://sanjose.legistar.com/View.ashx?M=A",
@@ -39,8 +39,9 @@ def test_evaluate_rules_keeps_non_retrievable_official_pdf_durable_raw():
         }
     )
 
-    assert decision.promotion_state == DURABLE_RAW
-    assert decision.reason_category == "unclear"
+    assert decision.promotion_state == PROMOTED_SUBSTRATE
+    assert decision.reason_category == "substantive_official_document"
+    assert decision.confidence == "medium"
 
 
 def test_evaluate_rules_promotes_retrievable_official_pdf():

@@ -13,7 +13,7 @@ This wave adds:
 - API reference: [POST /api/paas/v4/layout_parsing](https://docs.z.ai/api-reference/tools/layout-parsing)
 
 ## Working Assumptions
-1. `file` accepts URL or raw base64 string.
+1. `file` accepts URL or `data:` URI payloads in our tested backend path.
 2. `md_results` is the substrate-relevant output field.
 3. We are evaluating `glm_ocr` as an optional hard-doc path, not changing the default extractor yet.
 
@@ -49,8 +49,10 @@ Interpretation:
 1. `glm_ocr` is now proven usable in the backend substrate lane.
 2. The stable implementation path is local artifact -> `data:` URI, not raw
    base64 and not reliance on remote PDF URL fetches.
-3. `glm_ocr` improves layout fidelity on tougher packet front matter, but it is
-   materially slower than `markitdown`.
+3. `glm_ocr` produced useful structured snippets on selected tough packet front
+   matter pages, but this evidence is not yet sufficient to claim broad output
+   quality superiority over `markitdown`.
+4. `glm_ocr` is materially slower than `markitdown`.
 
 ## Current Recommendation
 - Keep `glm_ocr` as an optional, non-default hard-doc extractor.

@@ -137,9 +137,11 @@ Observed:
 
 Interpretation:
 - `markitdown` remains the right default
-- `glm_ocr` is viable for harder docs and can produce cleaner structured output
-  on packet/table-heavy front matter
+- `glm_ocr` is viable for harder docs and yielded useful structured snippets on
+  selected packet/table-heavy front-matter pages in this bakeoff
 - the latency/cost tradeoff makes it a fallback, not a universal parser
+- current evidence does not yet establish broad output-quality superiority over
+  `markitdown`
 
 ## Acceptance Gates
 

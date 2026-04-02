@@ -2,7 +2,7 @@
 
 This module keeps library usage optional and swappable:
 - default extractor: ``markitdown`` (permissive MIT license, lighter rollout risk)
-- fallback extractor: ``pymupdf4llm`` (stronger structural markdown, AGPL caveat)
+- optional legacy extractor: ``pymupdf4llm`` (AGPL caveat, non-default)
 - optional hard-doc extractor: ``glm_ocr`` via Z.ai layout parsing
 """
 
@@ -17,9 +17,10 @@ from clients.zai_layout_parsing_client import ZaiLayoutParsingClient
 
 
 DEFAULT_EXTRACTOR = "markitdown"
-FALLBACK_EXTRACTOR = "pymupdf4llm"
+PYMUPDF_EXTRACTOR = "pymupdf4llm"
 GLM_OCR_EXTRACTOR = "glm_ocr"
-SUPPORTED_EXTRACTORS = (DEFAULT_EXTRACTOR, FALLBACK_EXTRACTOR, GLM_OCR_EXTRACTOR)
+FALLBACK_EXTRACTOR: str | None = None
+SUPPORTED_EXTRACTORS = (DEFAULT_EXTRACTOR, PYMUPDF_EXTRACTOR, GLM_OCR_EXTRACTOR)
 
 
 class PDFMarkdownError(RuntimeError):
@@ -54,7 +55,7 @@ def _extract_with_glm_ocr(pdf_path: str | Path) -> str:
 
 EXTRACTOR_IMPLS: dict[str, Callable[[str | Path], str]] = {
     DEFAULT_EXTRACTOR: _extract_with_markitdown,
-    FALLBACK_EXTRACTOR: _extract_with_pymupdf4llm,
+    PYMUPDF_EXTRACTOR: _extract_with_pymupdf4llm,
     GLM_OCR_EXTRACTOR: _extract_with_glm_ocr,
 }
 
