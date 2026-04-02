@@ -87,3 +87,23 @@ def test_extract_pdf_markdown_rejects_unknown_extractor():
             "agenda.pdf",
             preferred="unknown-extractor",
         )
+
+
+def test_extract_pdf_markdown_supports_glm_ocr_extractor(monkeypatch):
+    def fake_glm_ocr(_: str | Path) -> str:
+        return "# OCR output"
+
+    monkeypatch.setitem(
+        pdf_markdown.EXTRACTOR_IMPLS,
+        pdf_markdown.GLM_OCR_EXTRACTOR,
+        fake_glm_ocr,
+    )
+
+    result = pdf_markdown.extract_pdf_markdown(
+        "agenda.pdf",
+        preferred=pdf_markdown.GLM_OCR_EXTRACTOR,
+        fallback=None,
+    )
+
+    assert result.extractor == "glm_ocr"
+    assert result.markdown == "# OCR output"

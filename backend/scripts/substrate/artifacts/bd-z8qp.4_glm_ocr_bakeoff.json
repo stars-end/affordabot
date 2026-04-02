@@ -1,0 +1,67 @@
+{
+  "extractors": [
+    "markitdown",
+    "glm_ocr",
+    "pymupdf4llm"
+  ],
+  "documents": [
+    {
+      "doc_id": "sj_city_council_agenda",
+      "url": "https://legistar.granicus.com/sanjose/meetings/2026/4/7616_A_City_Council_26-04-07_Agenda.pdf",
+      "description": "Agenda PDF with mixed layout and structured sections.",
+      "status": "downloaded",
+      "byte_length": 192779,
+      "evaluations": {
+        "markitdown": {
+          "status": "success",
+          "extractor": "markitdown",
+          "duration_seconds": 0.841,
+          "markdown_chars": 37181,
+          "markdown_lines": 1144,
+          "preview": "City Council Meeting\nAgenda\n\nTuesday, April 7, 2026\n1:30 PM\nCouncil Chambers\n\nClosed Session at 9:30 a.m.\n\nMATT MAHAN, MAYOR\nROSEMARY KAMEI, DISTRICT 1\nPAMELA CAMPOS, DISTRICT 2\nANTHONY TORDILLOS, DISTRICT 3\nDAVID COHEN, DISTRICT 4\nPETER ORTIZ, DISTRICT 5\nMICHAEL MULCAHY, DISTRICT 6\nBIEN DOAN, DISTR"
+        },
+        "glm_ocr": {
+          "status": "error",
+          "extractor": "glm_ocr",
+          "duration_seconds": 1.217,
+          "error": "All PDF extractors failed for /var/folders/nd/k_rj19k11ln7glnb6jbg4w9c0000gn/T/tmp2pgwvmzj.pdf: glm_ocr=ZaiLayoutParsingError: GLM-OCR request failed: 429 {\"error\":{\"code\":\"1113\",\"message\":\"Insufficient balance or no resource package. Please recharge.\"}}"
+        },
+        "pymupdf4llm": {
+          "status": "error",
+          "extractor": "pymupdf4llm",
+          "duration_seconds": 0.0,
+          "error": "All PDF extractors failed for /var/folders/nd/k_rj19k11ln7glnb6jbg4w9c0000gn/T/tmp2pgwvmzj.pdf: pymupdf4llm=dependency_missing: pymupdf4llm"
+        }
+      }
+    },
+    {
+      "doc_id": "city_council_agenda_packet",
+      "url": "https://swagit-attachments.granicus.com/uploads/video/agenda_file/191514/12192022Plus.pdf",
+      "description": "Large municipal agenda packet PDF with appended attachments.",
+      "status": "downloaded",
+      "byte_length": 1917992,
+      "evaluations": {
+        "markitdown": {
+          "status": "success",
+          "extractor": "markitdown",
+          "duration_seconds": 5.393,
+          "markdown_chars": 219711,
+          "markdown_lines": 6413,
+          "preview": "Agenda And Agenda PacketCITY COUNCIL AGENDA PACKET 2022-12-19 18-30_.PDFCITY COUNCIL AGENDA 2022-12-19 18-30_.PDF1.Documents:\fCity Council Agenda Packet, Monday, December 19, 2022\n\nTable of Contents\n\nAgenda\nAgenda Items\n\n6a.  City Council Minutes\n6b.  Register of Audited Demands\n6c.  Old Town La Ver"
+        },
+        "glm_ocr": {
+          "status": "error",
+          "extractor": "glm_ocr",
+          "duration_seconds": 1.486,
+          "error": "All PDF extractors failed for /var/folders/nd/k_rj19k11ln7glnb6jbg4w9c0000gn/T/tmpk69cb03y.pdf: glm_ocr=ZaiLayoutParsingError: GLM-OCR request failed: 429 {\"error\":{\"code\":\"1113\",\"message\":\"Insufficient balance or no resource package. Please recharge.\"}}"
+        },
+        "pymupdf4llm": {
+          "status": "error",
+          "extractor": "pymupdf4llm",
+          "duration_seconds": 0.0,
+          "error": "All PDF extractors failed for /var/folders/nd/k_rj19k11ln7glnb6jbg4w9c0000gn/T/tmpk69cb03y.pdf: pymupdf4llm=dependency_missing: pymupdf4llm"
+        }
+      }
+    }
+  ]
+}
