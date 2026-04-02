@@ -9,6 +9,7 @@ import pytest
 from scripts.substrate.substrate_inspection_report import (
     build_substrate_inspection_report,
     fetch_raw_scrapes_for_run,
+    generate_storage_integrity_checks,
     generate_substrate_inspection_report,
     write_report_artifact,
 )
@@ -22,6 +23,9 @@ def _row(
     stage: str,
     reason: str = "",
     error_message: str = "",
+    storage_uri: str = "",
+    data: dict | None = None,
+    document_id: str | None = None,
 ) -> dict:
     return {
         "id": row_id,
@@ -32,6 +36,9 @@ def _row(
         "source_type": "meetings",
         "jurisdiction_name": "City of Test",
         "error_message": error_message,
+        "storage_uri": storage_uri,
+        "data": data or {},
+        "document_id": document_id,
         "metadata": {
             "document_type": "agenda",
             "content_class": "html_text",
@@ -169,6 +176,125 @@ async def test_generate_substrate_inspection_report_uses_fetch_and_build():
     assert report["run_id"] == "run-generate"
     assert report["raw_scrapes_total"] == 1
     assert report["promotion_state_counts"]["promoted_substrate"] == 1
+
+
+@pytest.mark.asyncio
+async def test_generate_storage_integrity_checks_passes_when_storage_and_vectors_match(
+    monkeypatch,
+):
+    rows = [
+        _row(
+            row_id="pdf-1",
+            promotion_state="durable_raw",
+            trust_tier="primary_government",
+            stage="retrievable",
+            storage_uri="objects/pdfs/pdf-1.pdf",
+            document_id="doc-1",
+        )
+    ]
+    rows[0]["metadata"]["content_class"] = "pdf_binary"
+    rows[0]["metadata"]["ingestion_truth"]["retrievable"] = True
+
+    db = AsyncMock()
+
+    async def _fetch_side_effect(query, *args):
+        if "FROM raw_scrapes rs" in query:
+            return rows
+        raise AssertionError(f"unexpected fetch query: {query}")
+
+    async def _fetchrow_side_effect(query, *args):
+        if "COUNT(*) AS cnt FROM document_chunks" in query:
+            return {"cnt": 2}
+        raise AssertionError(f"unexpected fetchrow query: {query}")
+
+    db._fetch.side_effect = _fetch_side_effect
+    db._fetchrow.side_effect = _fetchrow_side_effect
+
+    class FakeStorage:
+        def __init__(self):
+            self.client = object()
+
+        async def download(self, path):
+            assert path == "objects/pdfs/pdf-1.pdf"
+            return b"%PDF"
+
+    monkeypatch.setattr(
+        "scripts.substrate.substrate_inspection_report.S3Storage",
+        FakeStorage,
+    )
+
+    report = await generate_storage_integrity_checks(
+        db=db,
+        run_id="run-storage-pass",
+        resolved_targets_count=1,
+        attempted_targets_count=1,
+        attempted_raw_capture_operations=1,
+    )
+
+    assert report["overall_status"] == "pass"
+    assert report["object_storage_check"]["status"] == "pass"
+    assert report["vector_integrity_check"]["status"] == "pass"
+    assert report["run_coverage_check"]["status"] == "pass"
+
+
+@pytest.mark.asyncio
+async def test_generate_storage_integrity_checks_flags_failures_and_gaps(monkeypatch):
+    rows = [
+        _row(
+            row_id="pdf-2",
+            promotion_state="durable_raw",
+            trust_tier="primary_government",
+            stage="retrievable",
+            storage_uri="",
+            document_id="doc-2",
+        )
+    ]
+    rows[0]["metadata"]["content_class"] = "pdf_binary"
+    rows[0]["metadata"]["ingestion_truth"]["retrievable"] = True
+
+    db = AsyncMock()
+
+    async def _fetch_side_effect(query, *args):
+        if "FROM raw_scrapes rs" in query:
+            return rows
+        raise AssertionError(f"unexpected fetch query: {query}")
+
+    async def _fetchrow_side_effect(query, *args):
+        if "COUNT(*) AS cnt FROM document_chunks" in query:
+            return {"cnt": 0}
+        raise AssertionError(f"unexpected fetchrow query: {query}")
+
+    db._fetch.side_effect = _fetch_side_effect
+    db._fetchrow.side_effect = _fetchrow_side_effect
+
+    class FakeStorage:
+        def __init__(self):
+            self.client = object()
+
+        async def download(self, path):
+            return b""
+
+    monkeypatch.setattr(
+        "scripts.substrate.substrate_inspection_report.S3Storage",
+        FakeStorage,
+    )
+
+    report = await generate_storage_integrity_checks(
+        db=db,
+        run_id="run-storage-fail",
+        resolved_targets_count=2,
+        attempted_targets_count=1,
+        attempted_raw_capture_operations=3,
+    )
+
+    assert report["overall_status"] == "fail"
+    assert report["object_storage_check"]["status"] == "fail"
+    assert report["object_storage_check"]["missing_reference_count"] == 1
+    assert report["vector_integrity_check"]["status"] == "fail"
+    assert report["vector_integrity_check"]["rows_with_zero_chunks_count"] == 1
+    assert report["run_coverage_check"]["status"] == "warn"
+    assert report["run_coverage_check"]["target_attempt_gap"] == 1
+    assert report["run_coverage_check"]["missing_stamped_rows_from_attempted_capture_ops"] == 2
 
 
 def test_write_report_artifact_writes_json(tmp_path: Path):
