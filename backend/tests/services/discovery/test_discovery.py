@@ -1,5 +1,6 @@
 import pytest
 from unittest.mock import AsyncMock, patch
+from services.discovery.service import ZAI_CODING_BASE_URL
 from services.discovery import AutoDiscoveryService, DiscoveryResponse
 
 @pytest.mark.asyncio
@@ -17,6 +18,27 @@ async def test_auto_discovery_initialization():
     with patch.dict("os.environ", {}, clear=True):
         service = AutoDiscoveryService()
         assert service.client is None
+
+
+def test_auto_discovery_uses_coding_endpoint_for_zai(monkeypatch):
+    captured = {}
+
+    class FakeAsyncOpenAI:
+        def __init__(self, *, api_key, base_url):
+            captured["api_key"] = api_key
+            captured["base_url"] = base_url
+
+    def fake_from_openai(client):
+        return client
+
+    monkeypatch.setattr("services.discovery.service.AsyncOpenAI", FakeAsyncOpenAI)
+    monkeypatch.setattr("services.discovery.service.instructor.from_openai", fake_from_openai)
+
+    with patch.dict("os.environ", {"ZAI_API_KEY": "fake_key"}, clear=True):
+        service = AutoDiscoveryService()
+
+    assert service.client is not None
+    assert captured["base_url"] == ZAI_CODING_BASE_URL
 
 @pytest.mark.asyncio
 async def test_discover_url_success():

@@ -375,7 +375,7 @@ response = await client.chat_completion(
 
 ### Via Direct z.ai API
 
-**Base URL**: `https://api.z.ai/api/paas/v4/`
+**Base URL**: `https://api.z.ai/api/coding/paas/v4/`
 
 **Authentication**: Bearer token
 
@@ -389,7 +389,7 @@ response = await client.chat_completion(
 **Example**:
 ```python
 client = OpenAI(
-    base_url="https://api.z.ai/api/paas/v4/",
+    base_url="https://api.z.ai/api/coding/paas/v4/",
     api_key=os.getenv("ZAI_API_KEY")
 )
 ```

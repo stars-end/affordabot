@@ -32,6 +32,8 @@ class BakeoffDoc:
     doc_id: str
     url: str
     description: str
+    start_page_id: int | None = None
+    end_page_id: int | None = None
 
 
 DEFAULT_DOCS = [
@@ -39,11 +41,15 @@ DEFAULT_DOCS = [
         doc_id="sj_city_council_agenda",
         url="https://legistar.granicus.com/sanjose/meetings/2026/4/7616_A_City_Council_26-04-07_Agenda.pdf",
         description="Agenda PDF with mixed layout and structured sections.",
+        start_page_id=1,
+        end_page_id=1,
     ),
     BakeoffDoc(
         doc_id="city_council_agenda_packet",
         url="https://swagit-attachments.granicus.com/uploads/video/agenda_file/191514/12192022Plus.pdf",
-        description="Large municipal agenda packet PDF with appended attachments.",
+        description="Large municipal agenda packet PDF with appended attachments and table-heavy front matter.",
+        start_page_id=1,
+        end_page_id=2,
     ),
 ]
 
@@ -79,9 +85,38 @@ def _doc_download(url: str) -> bytes:
     return response.content
 
 
-def _evaluate_one(pdf_path: str, extractor: str) -> dict[str, Any]:
+def _evaluate_one(
+    pdf_path: str,
+    extractor: str,
+    *,
+    start_page_id: int | None = None,
+    end_page_id: int | None = None,
+) -> dict[str, Any]:
     started = time.perf_counter()
     try:
+        if extractor == "glm_ocr":
+            from clients.zai_layout_parsing_client import ZaiLayoutParsingClient
+
+            client = ZaiLayoutParsingClient()
+            ocr_result = client.parse_path(
+                pdf_path,
+                start_page_id=start_page_id,
+                end_page_id=end_page_id,
+            )
+            duration = time.perf_counter() - started
+            markdown = ocr_result.markdown
+            return {
+                "status": "success",
+                "extractor": extractor,
+                "duration_seconds": round(duration, 3),
+                "markdown_chars": len(markdown),
+                "markdown_lines": len(markdown.splitlines()),
+                "preview": markdown[:300],
+                "request_id": ocr_result.request_id,
+                "data_info": ocr_result.data_info,
+                "usage": ocr_result.usage,
+            }
+
         result = extract_pdf_markdown(pdf_path, preferred=extractor, fallback=None)
         duration = time.perf_counter() - started
         markdown = result.markdown
@@ -128,7 +163,13 @@ def main() -> int:
             tmp_file.write(doc_bytes)
             tmp_file.flush()
             evaluations = {
-                extractor: _evaluate_one(tmp_file.name, extractor) for extractor in extractors
+                extractor: _evaluate_one(
+                    tmp_file.name,
+                    extractor,
+                    start_page_id=doc.start_page_id,
+                    end_page_id=doc.end_page_id,
+                )
+                for extractor in extractors
             }
             report["documents"].append(
                 {

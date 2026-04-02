@@ -6,6 +6,7 @@ from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
+ZAI_CODING_BASE_URL = "https://api.z.ai/api/coding/paas/v4"
 
 class DiscoveryResponse(BaseModel):
     is_scrapable: bool = Field(..., description="Whether the URL looks like a valid source for scraping")
@@ -24,7 +25,7 @@ class AutoDiscoveryService:
             self.client = instructor.from_openai(
                 AsyncOpenAI(
                     api_key=os.getenv("ZAI_API_KEY"),
-                    base_url="https://api.z.ai/api/paas/v4",
+                    base_url=ZAI_CODING_BASE_URL,
                 )
             )
             self.model = "glm-4.7"

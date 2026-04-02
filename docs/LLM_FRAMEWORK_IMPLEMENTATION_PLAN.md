@@ -516,7 +516,7 @@ class SearchResult:
 ```python
 class ZaiConfig:
     api_key: str  # From ZAI_API_KEY env var
-    base_url: str = "https://api.z.ai/api/paas/v4/"
+    base_url: str = "https://api.z.ai/api/coding/paas/v4/"
     default_model: str = "glm-4.7"
     use_thinking_mode: bool = False  # Enable for complex reasoning
     timeout: int = 30  # Request timeout

@@ -1,8 +1,14 @@
-"""Client for Z.ai GLM-OCR layout parsing."""
+"""Client for Z.ai GLM-OCR layout parsing.
+
+This client is intentionally scoped to the non-coding Tool API endpoint used by
+``glm-ocr``. Other Z.ai model families in Affordabot should use the coding/chat
+surfaces instead of reusing this endpoint.
+"""
 
 from __future__ import annotations
 
 import base64
+import mimetypes
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -11,7 +17,7 @@ from typing import Any
 import httpx
 
 
-DEFAULT_LAYOUT_PARSING_URL = "https://api.z.ai/api/paas/v4/layout_parsing"
+GLM_OCR_LAYOUT_PARSING_URL = "https://api.z.ai/api/paas/v4/layout_parsing"
 
 
 class ZaiLayoutParsingError(RuntimeError):
@@ -33,7 +39,7 @@ class ZaiLayoutParsingClient:
     def __init__(
         self,
         api_key: str | None = None,
-        endpoint: str = DEFAULT_LAYOUT_PARSING_URL,
+        endpoint: str = GLM_OCR_LAYOUT_PARSING_URL,
         timeout: float = 120.0,
     ) -> None:
         self.api_key = api_key or os.environ.get("ZAI_API_KEY")
@@ -49,6 +55,14 @@ class ZaiLayoutParsingClient:
     def _encode_file_base64(file_path: str | Path) -> str:
         content = Path(file_path).read_bytes()
         return base64.b64encode(content).decode("utf-8")
+
+    @staticmethod
+    def _build_data_uri(file_path: str | Path) -> str:
+        encoded = ZaiLayoutParsingClient._encode_file_base64(file_path)
+        mime_type, _ = mimetypes.guess_type(str(file_path))
+        if not mime_type:
+            mime_type = "application/octet-stream"
+        return f"data:{mime_type};base64,{encoded}"
 
     def parse_file(
         self,
@@ -114,7 +128,7 @@ class ZaiLayoutParsingClient:
         start_page_id: int | None = None,
         end_page_id: int | None = None,
     ) -> ZaiLayoutParsingResult:
-        encoded = self._encode_file_base64(file_path)
+        encoded = self._build_data_uri(file_path)
         return self.parse_file(
             encoded,
             model=model,

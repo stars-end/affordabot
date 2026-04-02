@@ -96,4 +96,4 @@ def test_parse_path_base64_encodes_file(tmp_path: Path, monkeypatch):
     client.parse_path(pdf_path)
 
     assert isinstance(captured["file_ref"], str)
-    assert captured["file_ref"]
+    assert captured["file_ref"].startswith("data:application/pdf;base64,")
