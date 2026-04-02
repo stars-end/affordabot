@@ -23,6 +23,7 @@ BACKEND_ROOT = Path(__file__).resolve().parents[2]
 sys.path.append(str(BACKEND_ROOT))
 
 from db.postgres_client import PostgresDB
+from scripts.substrate.metadata_contract import build_substrate_raw_metadata
 from services.scraper.registry import SCRAPERS
 
 
@@ -137,7 +138,7 @@ class ScrapeJob:
                             continue
                     else:
                         scrape_record = self._build_generic_scrape_record(
-                            bill, source_id, slug
+                            bill, source_id, slug, source_url
                         )
 
                     try:
@@ -191,7 +192,14 @@ class ScrapeJob:
     def _build_california_scrape_record(self, bill, source_id: str, scraper) -> dict:
         """Build raw_scrape record for California bills with full provenance."""
         if hasattr(scraper, "to_raw_scrape_record"):
-            return scraper.to_raw_scrape_record(bill, source_id)
+            raw_record = scraper.to_raw_scrape_record(bill, source_id)
+            return self._with_substrate_metadata(
+                scrape_record=raw_record,
+                source_type="legislation_api",
+                capture_method="cron_daily_scrape",
+                trust_tier="primary_government",
+                document_type="legislation",
+            )
 
         bill_text = bill.text or ""
         content_hash = hashlib.sha256(bill_text.encode("utf-8")).hexdigest()
@@ -210,7 +218,7 @@ class ScrapeJob:
             metadata["source_type"] = bill.provenance.source_type
             metadata["extraction_status"] = bill.provenance.extraction_status
 
-        return {
+        raw_record = {
             "source_id": source_id,
             "url": getattr(bill.provenance, "source_url", None)
             if hasattr(bill, "provenance")
@@ -225,24 +233,70 @@ class ScrapeJob:
             },
             "metadata": metadata,
         }
+        return self._with_substrate_metadata(
+            scrape_record=raw_record,
+            source_type="legislation_api",
+            capture_method="cron_daily_scrape",
+            trust_tier="primary_government",
+            document_type="legislation",
+        )
 
-    def _build_generic_scrape_record(self, bill, source_id: str, slug: str) -> dict:
+    def _build_generic_scrape_record(
+        self,
+        bill,
+        source_id: str,
+        slug: str,
+        source_url: str,
+    ) -> dict:
         """Build raw_scrape record for generic jurisdictions."""
         bill_text = f"Title: {bill.title}\nStatus: {bill.status}\n\n{bill.text}"
         content_hash = hashlib.sha256(bill_text.encode("utf-8")).hexdigest()
 
-        return {
+        raw_record = {
             "source_id": source_id,
             "content_hash": content_hash,
             "content_type": "text/plain",
             "data": {"content": bill_text, "bill_number": bill.bill_number},
-            "url": f"api://{slug}/{bill.bill_number}",
+            "url": source_url,
             "metadata": {
                 "harvester": "daily_scrape_api",
                 "bill_number": bill.bill_number,
                 "jurisdiction": slug,
+                "source_url": source_url,
             },
         }
+        return self._with_substrate_metadata(
+            scrape_record=raw_record,
+            source_type="legislation_api",
+            capture_method="cron_daily_scrape",
+            trust_tier="official_partner",
+            document_type="legislation",
+        )
+
+    def _with_substrate_metadata(
+        self,
+        *,
+        scrape_record: dict,
+        source_type: str,
+        capture_method: str,
+        trust_tier: str | None = None,
+        document_type: str | None = None,
+    ) -> dict:
+        metadata = dict(scrape_record.get("metadata") or {})
+        canonical_url = metadata.get("source_url") or scrape_record.get("url") or ""
+        enriched = build_substrate_raw_metadata(
+            canonical_url=canonical_url,
+            source_type=source_type,
+            response_content_type=scrape_record.get("content_type", ""),
+            capture_method=capture_method,
+            title=metadata.get("title"),
+            trust_tier=trust_tier or metadata.get("trust_tier"),
+            document_type=document_type or metadata.get("document_type"),
+            extra_metadata=metadata,
+        )
+        updated = dict(scrape_record)
+        updated["metadata"] = enriched
+        return updated
 
 
 async def main():

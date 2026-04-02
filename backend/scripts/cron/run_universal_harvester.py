@@ -10,12 +10,14 @@ import os
 import logging
 import asyncio
 import httpx
+import json
 from uuid import uuid4
 
 # Add backend to path
 sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
 
 from db.postgres_client import PostgresDB
+from scripts.substrate.metadata_contract import build_substrate_raw_metadata
 
 # Logging
 logging.basicConfig(
@@ -132,16 +134,13 @@ class UniversalHarvester:
         # 2. Save to Raw Scrapes
         import hashlib
 
-        content_hash = hashlib.sha256(markdown_content.encode("utf-8")).hexdigest()
-
-        scrape_record = {
-            "source_id": str(source["id"]),  # Ensure UUID is string
-            "content_hash": content_hash,
-            "content_type": "text/markdown",
-            "data": {"content": markdown_content},
-            "url": url,
-            "metadata": {"harvester": "zai-glm-4.7", "task_id": task_id},
-        }
+        scrape_record = self._build_scrape_record(
+            source=source,
+            url=url,
+            markdown_content=markdown_content,
+            task_id=task_id,
+            content_hash=hashlib.sha256(markdown_content.encode("utf-8")).hexdigest(),
+        )
 
         scrape_id = await self.db.create_raw_scrape(scrape_record)
         if not scrape_id:
@@ -186,6 +185,50 @@ class UniversalHarvester:
 
         chunks = await ingestion_service.process_raw_scrape(scrape_id)
         logger.info(f"✅ Ingested {url} -> {chunks} chunks")
+
+    def _parse_source_metadata(self, value):
+        if isinstance(value, dict):
+            return value
+        if isinstance(value, str) and value.strip():
+            try:
+                parsed = json.loads(value)
+            except json.JSONDecodeError:
+                return {}
+            return parsed if isinstance(parsed, dict) else {}
+        return {}
+
+    def _build_scrape_record(
+        self,
+        *,
+        source: dict,
+        url: str,
+        markdown_content: str,
+        task_id: str,
+        content_hash: str,
+    ) -> dict:
+        source_metadata = self._parse_source_metadata(source.get("metadata"))
+        metadata = build_substrate_raw_metadata(
+            canonical_url=url,
+            source_type=source.get("type") or "web",
+            response_content_type="text/markdown",
+            capture_method="cron_universal_harvester",
+            title=source.get("name"),
+            trust_tier=source_metadata.get("trust_tier"),
+            document_type=source_metadata.get("document_type"),
+            extra_metadata={
+                "harvester": "zai-glm-4.7",
+                "task_id": task_id,
+                "source_name": source.get("name"),
+            },
+        )
+        return {
+            "source_id": str(source["id"]),  # Ensure UUID is string
+            "content_hash": content_hash,
+            "content_type": "text/markdown",
+            "data": {"content": markdown_content},
+            "url": url,
+            "metadata": metadata,
+        }
 
 
 if __name__ == "__main__":
