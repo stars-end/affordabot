@@ -198,7 +198,9 @@ def has_substance(
     ingestion_truth: dict[str, Any],
 ) -> bool:
     if content_class == "pdf_binary":
-        return ingestion_truth.get("retrievable") is True
+        # Policy contract: official binary artifacts may still be substantive
+        # even when parsing/retrieval is deferred.
+        return True
     if ingestion_truth.get("retrievable") is True:
         return True
     return len((preview_text or "").strip()) >= 120

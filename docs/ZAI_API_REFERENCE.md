@@ -1,7 +1,16 @@
 # Z.AI API Reference & Quick Start
 
 Source: https://docs.z.ai/guides/overview/quick-start
-Coding Endpoint: https://api.z.ai/api/coding/paas/v4
+
+## Endpoint Matrix
+
+- `chat/completions` and coding-plan model usage:
+  - `https://api.z.ai/api/coding/paas/v4`
+- `glm-ocr` layout parsing:
+  - `https://api.z.ai/api/paas/v4/layout_parsing`
+
+For Affordabot, the non-coding endpoint is reserved for `glm-ocr` tool usage.
+Reasoning/chat calls should use the coding endpoint.
 
 ## Getting Started
 
@@ -16,7 +25,7 @@ Coding Endpoint: https://api.z.ai/api/coding/paas/v4
 
 ### cURL Example
 ```bash
-curl -X POST "https://api.z.ai/api/paas/v4/chat/completions" \
+curl -X POST "https://api.z.ai/api/coding/paas/v4/chat/completions" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -d '{
@@ -34,7 +43,7 @@ from openai import OpenAI
 
 client = OpenAI(
     api_key="YOUR_API_KEY",
-    base_url="https://api.z.ai/api/paas/v4"  # Or coding endpoint
+    base_url="https://api.z.ai/api/coding/paas/v4"
 )
 
 response = client.chat.completions.create(

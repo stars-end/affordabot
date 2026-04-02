@@ -156,7 +156,7 @@ class LLMClient:
         """Initialize instructor client for structured outputs."""
         base_urls = {
             "openrouter": "https://openrouter.ai/api/v1",
-            "zai": "https://api.z.ai/api/paas/v4",
+            "zai": "https://api.z.ai/api/coding/paas/v4",
             "openai": "https://api.openai.com/v1",
             "anthropic": "https://api.anthropic.com/v1"
         }

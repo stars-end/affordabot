@@ -158,6 +158,15 @@ Scope:
 - add nightly ambiguous-case classifier using `glm-4.6v`
 - add rules-only fallback and LLM failure logging
 
+### Phase 3.5: Hard-Document OCR Lane
+
+Scope:
+- keep `markitdown` as the default PDF extractor
+- add `glm_ocr` as a selective hard-doc fallback
+- use the non-coding `layout_parsing` endpoint only for `glm-ocr`
+- send local files as `data:` URIs, not raw base64
+- keep chat/reasoning models like `glm-4.6v` on the coding endpoint
+
 ### Phase 4: Operator QA Surface
 
 Scope:

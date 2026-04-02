@@ -1,0 +1,96 @@
+{
+  "extractors": [
+    "markitdown",
+    "glm_ocr"
+  ],
+  "documents": [
+    {
+      "doc_id": "sj_city_council_agenda",
+      "url": "https://legistar.granicus.com/sanjose/meetings/2026/4/7616_A_City_Council_26-04-07_Agenda.pdf",
+      "description": "Agenda PDF with mixed layout and structured sections.",
+      "start_page_id": 1,
+      "end_page_id": 1,
+      "status": "downloaded",
+      "byte_length": 196517,
+      "evaluations": {
+        "markitdown": {
+          "status": "success",
+          "extractor": "markitdown",
+          "duration_seconds": 0.943,
+          "markdown_chars": 38945,
+          "markdown_lines": 1218,
+          "preview": "City Council Meeting\nAgenda\n\nTuesday, April 7, 2026\n1:30 PM\nCouncil Chambers\n\nClosed Session at 9:30 a.m.\n\nMATT MAHAN, MAYOR\nROSEMARY KAMEI, DISTRICT 1\nPAMELA CAMPOS, DISTRICT 2\nANTHONY TORDILLOS, DISTRICT 3\nDAVID COHEN, DISTRICT 4\nPETER ORTIZ, DISTRICT 5\nMICHAEL MULCAHY, DISTRICT 6\nBIEN DOAN, DISTR"
+        },
+        "glm_ocr": {
+          "status": "success",
+          "extractor": "glm_ocr",
+          "duration_seconds": 5.581,
+          "markdown_chars": 475,
+          "markdown_lines": 33,
+          "preview": "![](page=0,bbox=[272, 394, 673, 638])\n\n<div align=\"center\">\n\n# City Council Meeting Agenda\n\n</div>\n\nTuesday, April 7, 2026 1:30 PM Council Chambers\n\nClosed Session at 9:30 a.m.\n\nMATT MAHAN, MAYOR\n\nROSEMARY KAMEI, DISTRICT 1\n\nPAMELA CAMPOS, DISTRICT 2\n\nANTHONY TORDILLOS, DISTRICT 3\n\nDAVID COHEN, DIST",
+          "request_id": "20260403004502fdf7faff04b04d85",
+          "data_info": {
+            "num_pages": 1,
+            "pages": [
+              {
+                "height": 2640,
+                "width": 2040
+              }
+            ]
+          },
+          "usage": {
+            "completion_tokens": 200,
+            "prompt_tokens": 940,
+            "total_tokens": 1140
+          }
+        }
+      }
+    },
+    {
+      "doc_id": "city_council_agenda_packet",
+      "url": "https://swagit-attachments.granicus.com/uploads/video/agenda_file/191514/12192022Plus.pdf",
+      "description": "Large municipal agenda packet PDF with appended attachments and table-heavy front matter.",
+      "start_page_id": 1,
+      "end_page_id": 2,
+      "status": "downloaded",
+      "byte_length": 1917992,
+      "evaluations": {
+        "markitdown": {
+          "status": "success",
+          "extractor": "markitdown",
+          "duration_seconds": 5.382,
+          "markdown_chars": 219711,
+          "markdown_lines": 6413,
+          "preview": "Agenda And Agenda PacketCITY COUNCIL AGENDA PACKET 2022-12-19 18-30_.PDFCITY COUNCIL AGENDA 2022-12-19 18-30_.PDF1.Documents:\fCity Council Agenda Packet, Monday, December 19, 2022\n\nTable of Contents\n\nAgenda\nAgenda Items\n\n6a.  City Council Minutes\n6b.  Register of Audited Demands\n6c.  Old Town La Ver"
+        },
+        "glm_ocr": {
+          "status": "success",
+          "extractor": "glm_ocr",
+          "duration_seconds": 40.53,
+          "markdown_chars": 541,
+          "markdown_lines": 31,
+          "preview": "1. Agenda And Agenda Packet\n\nDocuments:\n\nCITY COUNCIL AGENDA PACKET 2022-12-19 18-30_.PDF\n\nCITY COUNCIL AGENDA 2022-12-19 18-30_.PDF\n\n## Table of Contents City Council Agenda Packet, Monday, December 19, 2022\n\nAgenda 2\n\nAgenda Items\n\n6a. City Council Minutes 7\n\n6b. Register of Audited Demands 15\n\n6c",
+          "request_id": "202604030045146df202f954914d16",
+          "data_info": {
+            "num_pages": 2,
+            "pages": [
+              {
+                "height": 2640,
+                "width": 2040
+              },
+              {
+                "height": 2640,
+                "width": 2040
+              }
+            ]
+          },
+          "usage": {
+            "completion_tokens": 254,
+            "prompt_tokens": 1288,
+            "total_tokens": 1542
+          }
+        }
+      }
+    }
+  ]
+}
