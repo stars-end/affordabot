@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
 """
 Universal Harvester Cron
-Uses Z.ai GLM-4.6 to "read" generic web pages (configured in sources)
+Uses Z.ai GLM-4.7 to "read" generic web pages (configured in sources)
 and ingest them into the vector database.
+
+Updated (bd-owqm.1):
+- Migrated onto framework-complete substrate metadata
+- New rows now carry canonical_url, document_type, content_class, trust_tier,
+  promotion_state, and ingestion_truth before downstream processing
 """
 
 import sys
@@ -12,10 +17,21 @@ import asyncio
 import httpx
 from uuid import uuid4
 
-# Add backend to path
 sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
 
 from db.postgres_client import PostgresDB
+from services.substrate_promotion import (
+    apply_promotion_decision,
+    evaluate_rules,
+    seed_capture_promotion_metadata,
+)
+from scripts.cron.substrate_helpers import (
+    build_substrate_metadata,
+    build_raw_scrape_record,
+    DOCUMENT_TYPE_WEB_REFERENCE,
+    CAPTURE_METHOD_LLM_HARVEST,
+    CONTENT_CLASS_PLAIN_TEXT,
+)
 
 # Logging
 logging.basicConfig(
@@ -129,19 +145,27 @@ class UniversalHarvester:
 
         markdown_content = data["choices"][0]["message"]["content"]
 
-        # 2. Save to Raw Scrapes
-        import hashlib
+        # 2. Save to Raw Scrapes with framework-complete substrate metadata
+        base_metadata = build_substrate_metadata(
+            canonical_url=url,
+            document_type=DOCUMENT_TYPE_WEB_REFERENCE,
+            trust_tier="non_official",
+            capture_method=CAPTURE_METHOD_LLM_HARVEST,
+            extra={
+                "harvester": "zai-glm-4.7",
+                "task_id": task_id,
+                "source_name": source.get("name"),
+            },
+        )
 
-        content_hash = hashlib.sha256(markdown_content.encode("utf-8")).hexdigest()
-
-        scrape_record = {
-            "source_id": str(source["id"]),  # Ensure UUID is string
-            "content_hash": content_hash,
-            "content_type": "text/markdown",
-            "data": {"content": markdown_content},
-            "url": url,
-            "metadata": {"harvester": "zai-glm-4.7", "task_id": task_id},
-        }
+        scrape_record = build_raw_scrape_record(
+            source_id=str(source["id"]),
+            canonical_url=url,
+            content=markdown_content,
+            content_type="text/markdown",
+            metadata=base_metadata,
+            extra_data={"content": markdown_content},
+        )
 
         scrape_id = await self.db.create_raw_scrape(scrape_record)
         if not scrape_id:

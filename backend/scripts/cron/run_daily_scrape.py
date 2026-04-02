@@ -24,6 +24,19 @@ sys.path.append(str(BACKEND_ROOT))
 
 from db.postgres_client import PostgresDB
 from services.scraper.registry import SCRAPERS
+from services.substrate_promotion import (
+    apply_promotion_decision,
+    evaluate_rules,
+    seed_capture_promotion_metadata,
+)
+from scripts.cron.substrate_helpers import (
+    build_substrate_metadata,
+    build_raw_scrape_record,
+    TRUST_TIER_OFFICIAL_GOVERNMENT,
+    TRUST_TIER_OFFICIAL_PARTNER,
+    DOCUMENT_TYPE_LEGISLATION,
+    CAPTURE_METHOD_API,
+)
 
 
 logging.basicConfig(
@@ -189,60 +202,78 @@ class ScrapeJob:
                 raise
 
     def _build_california_scrape_record(self, bill, source_id: str, scraper) -> dict:
-        """Build raw_scrape record for California bills with full provenance."""
+        """Build raw_scrape record for California bills with framework-complete substrate metadata."""
         if hasattr(scraper, "to_raw_scrape_record"):
             return scraper.to_raw_scrape_record(bill, source_id)
 
         bill_text = bill.text or ""
-        content_hash = hashlib.sha256(bill_text.encode("utf-8")).hexdigest()
+        canonical_url = (
+            getattr(bill.provenance, "source_url", None)
+            if hasattr(bill, "provenance")
+            else f"california://{bill.bill_number}"
+        )
 
-        metadata = {
-            "bill_number": bill.bill_number,
-            "title": bill.title,
-            "status": bill.status,
-            "jurisdiction": "california",
-            "source_system": "openstates+leginfo",
-            "harvester": "daily_scrape_california",
-        }
+        base_metadata = build_substrate_metadata(
+            canonical_url=canonical_url,
+            document_type=DOCUMENT_TYPE_LEGISLATION,
+            trust_tier=TRUST_TIER_OFFICIAL_GOVERNMENT,
+            capture_method=CAPTURE_METHOD_API,
+            extra={
+                "bill_number": bill.bill_number,
+                "title": bill.title,
+                "status": bill.status,
+                "jurisdiction": "california",
+                "source_system": "openstates+leginfo",
+                "harvester": "daily_scrape_california",
+            },
+        )
 
         if hasattr(bill, "provenance") and bill.provenance:
-            metadata["source_url"] = bill.provenance.source_url
-            metadata["source_type"] = bill.provenance.source_type
-            metadata["extraction_status"] = bill.provenance.extraction_status
+            base_metadata["source_url"] = bill.provenance.source_url
+            base_metadata["source_type"] = bill.provenance.source_type
+            base_metadata["extraction_status"] = bill.provenance.extraction_status
 
-        return {
-            "source_id": source_id,
-            "url": getattr(bill.provenance, "source_url", None)
-            if hasattr(bill, "provenance")
-            else f"california://{bill.bill_number}",
-            "content_hash": content_hash,
-            "content_type": "text/html",
-            "data": {
-                "content": bill_text,
+        return build_raw_scrape_record(
+            source_id=source_id,
+            canonical_url=canonical_url,
+            content=bill_text,
+            content_type="text/html",
+            metadata=base_metadata,
+            extra_data={
                 "bill_number": bill.bill_number,
                 "title": bill.title,
                 "status": bill.status,
             },
-            "metadata": metadata,
-        }
+        )
 
     def _build_generic_scrape_record(self, bill, source_id: str, slug: str) -> dict:
-        """Build raw_scrape record for generic jurisdictions."""
+        """Build raw_scrape record for generic jurisdictions with framework-complete substrate metadata."""
         bill_text = f"Title: {bill.title}\nStatus: {bill.status}\n\n{bill.text}"
-        content_hash = hashlib.sha256(bill_text.encode("utf-8")).hexdigest()
+        canonical_url = f"api://{slug}/{bill.bill_number}"
 
-        return {
-            "source_id": source_id,
-            "content_hash": content_hash,
-            "content_type": "text/plain",
-            "data": {"content": bill_text, "bill_number": bill.bill_number},
-            "url": f"api://{slug}/{bill.bill_number}",
-            "metadata": {
+        base_metadata = build_substrate_metadata(
+            canonical_url=canonical_url,
+            document_type=DOCUMENT_TYPE_LEGISLATION,
+            trust_tier=TRUST_TIER_OFFICIAL_PARTNER,
+            capture_method=CAPTURE_METHOD_API,
+            extra={
                 "harvester": "daily_scrape_api",
                 "bill_number": bill.bill_number,
                 "jurisdiction": slug,
             },
-        }
+        )
+
+        return build_raw_scrape_record(
+            source_id=source_id,
+            canonical_url=canonical_url,
+            content=bill_text,
+            content_type="text/plain",
+            metadata=base_metadata,
+            extra_data={
+                "content": bill_text,
+                "bill_number": bill.bill_number,
+            },
+        )
 
 
 async def main():
