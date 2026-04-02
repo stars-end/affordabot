@@ -45,3 +45,17 @@ Run the full suite using:
 make verify-stories
 ```
 (Implementation pending Golden Seed Data `BILL-TEST-101`).
+
+---
+
+## 4. Plaid Sandbox Stories (Accounts Linking)
+*Sandbox coverage for account-link UX and failure handling.*
+
+| Story ID | Persona | Goal | Success Criteria |
+|----------|---------|------|------------------|
+| **`plaid_sandbox_happy_path`** | Admin Operator | **Happy Path**: Link a sandbox institution account from `/settings/accounts`. | Plaid Link closes successfully and a linked account row/card is visible. |
+| **`plaid_sandbox_login_failure`** | Admin Operator | **Failure Path**: Invalid sandbox credentials fail safely. | Error state appears in Link, flow exits safely, and no linked account is created. |
+
+### Engine Recommendation (Plaid Stories)
+- **Playwright is the default execution engine** for Plaid sandbox stories.
+- **uismoke is orchestration/proof only** and should run these stories only when deterministic end-to-end execution is viable in that environment.

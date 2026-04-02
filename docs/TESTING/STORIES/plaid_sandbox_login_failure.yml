@@ -1,0 +1,51 @@
+id: plaid_sandbox_login_failure
+description: "Verify Plaid sandbox invalid credential handling and no account linkage"
+persona: admin_operator
+priority: P1
+timeout_seconds: 240
+goals:
+  - "Verify Plaid Link surfaces a credential failure path in sandbox"
+  - "Verify Affordabot does not create a linked account on failed Link attempt"
+  - "Verify user can safely return to account settings after failure"
+start_url: "/settings/accounts"
+steps:
+  - action: navigate
+    path: "/settings/accounts"
+    description: "Open account settings"
+
+  - action: click
+    selector: "button:has-text('Add Account')"
+    description: "Launch Plaid Link"
+
+  - action: wait_for_selector
+    selector: "iframe[title*='Plaid']"
+    description: "Verify Plaid Link iframe is mounted"
+
+  - id: failure-step-01
+    description: |
+      In Plaid Link sandbox, select the configured sandbox institution and proceed
+      to credential entry.
+    expected: "Credential form is visible"
+
+  - id: failure-step-02
+    description: |
+      Enter invalid credentials:
+      - username: user_good
+      - password: wrong_password
+      Submit credentials.
+    expected: "Credential error is shown and Link does not advance to account selection"
+
+  - id: failure-step-03
+    description: |
+      Exit the failed Link flow (Close/X) and return to Affordabot.
+      Confirm no new account appears in linked accounts.
+    expected: "No linked-account row is added from this failed attempt"
+
+metadata:
+  tags: ["plaid", "sandbox", "accounts", "failure-path"]
+  estimated_duration_seconds: 150
+  execution_engine_default: "playwright"
+  uismoke_role: "orchestration_or_proof_only_when_e2e_is_deterministic"
+  deterministic_requirements:
+    - "Stable error-state copy/selector in Plaid Link for failed credentials"
+    - "Stable linked-account selector on Affordabot settings page"
