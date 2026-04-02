@@ -3,7 +3,7 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from services.notifications.email import EmailNotificationService
 from db.postgres_client import PostgresDB
-from typing import Dict, Any
+from typing import Dict, Any, List, Literal, Optional
 import os
 import logging
 import sentry_sdk
@@ -13,8 +13,10 @@ from routers import admin, sources, discovery, prompts, bills
 from services.scraper.registry import SCRAPERS
 from middleware.auth import TestAuthBypassMiddleware
 from services.llm.web_search_factory import create_web_search_client
+from scripts.substrate.manual_expansion_runner import run_manual_substrate_expansion
 from pathlib import Path
 from datetime import datetime, timezone
+from pydantic import BaseModel, Field
 
 # Initialize Sentry
 if os.getenv("SENTRY_DSN"):
@@ -377,6 +379,17 @@ def _verify_cron_auth(request: Request) -> bool:
     return False
 
 
+class ManualSubstrateExpansionManifest(BaseModel):
+    run_label: str = Field(min_length=1)
+    jurisdictions: List[str] = Field(min_length=1)
+    asset_classes: List[str] = Field(min_length=1)
+    max_documents_per_source: int = Field(ge=1, le=100)
+    run_mode: Literal["capture_only", "capture_and_ingest"]
+    ocr_mode: Literal["off", "hard_doc_only"]
+    sample_size_per_bucket: int = Field(ge=1, le=10)
+    notes: Optional[str] = None
+
+
 @app.post("/cron/discovery")
 async def cron_discovery(request: Request):
     """
@@ -449,6 +462,29 @@ async def cron_universal_harvester(request: Request):
     if result["status"] != "succeeded":
         raise HTTPException(status_code=500, detail=result)
     return result
+
+
+@app.post("/cron/manual-substrate-expansion")
+async def cron_manual_substrate_expansion(
+    request: Request,
+    manifest: ManualSubstrateExpansionManifest,
+):
+    """
+    Authenticated manual trigger for broad substrate expansion runs.
+    This endpoint currently returns a truthful planning/skeleton payload and does
+    not execute the full capture pipeline inline.
+    """
+    if not _verify_cron_auth(request):
+        raise HTTPException(status_code=401, detail="Invalid cron credentials")
+    requested = manifest.model_dump()
+    response = await run_manual_substrate_expansion(requested)
+    logger.info(
+        "Cron manual substrate expansion completed: run_id=%s run_label=%s status=%s",
+        response["run_id"],
+        requested["run_label"],
+        response["status"],
+    )
+    return response
 
 
 async def _run_script_job(script_path: str, job_name: str):

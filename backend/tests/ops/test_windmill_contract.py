@@ -63,6 +63,23 @@ def test_trigger_script_schema_keeps_slack_webhook_input():
     assert "slack_webhook_url:" in schema_text
     assert "Optional Slack webhook for Prime-style dev alert notifications." in schema_text
     assert "timeout_seconds:" in schema_text
+    assert "backend_url:" in schema_text
+    assert "cron_secret:" in schema_text
+    assert "payload:" in schema_text
+
+
+def test_manual_substrate_expansion_flow_references_trigger_contract():
+    flow_text = (WINDMILL_DIR / "manual_substrate_expansion.flow" / "flow.yaml").read_text()
+
+    assert "path: f/affordabot/trigger_cron_job" in flow_text
+    assert "endpoint: manual-substrate-expansion" in flow_text
+    assert "backend_url: $var:f/affordabot/BACKEND_PUBLIC_URL" in flow_text
+    assert "cron_secret: $var:f/affordabot/CRON_SECRET" in flow_text
+    assert "slack_webhook_url: $var:f/affordabot/SLACK_WEBHOOK_URL" in flow_text
+    assert "payload:" in flow_text
+    assert "run_label: ${flow.run_label}" in flow_text
+    assert "jurisdictions: ${flow.jurisdictions}" in flow_text
+    assert "asset_classes: ${flow.asset_classes}" in flow_text
 
 
 def test_send_slack_alert_posts_webhook_payload(monkeypatch):
@@ -192,3 +209,37 @@ def test_main_request_exception_sends_error_alert(monkeypatch):
             "dev",
         )
     ]
+
+
+def test_main_posts_json_payload_when_present(monkeypatch):
+    captured = {}
+
+    def fake_post(url, headers, timeout, json):
+        captured["url"] = url
+        captured["headers"] = headers
+        captured["timeout"] = timeout
+        captured["json"] = json
+        return DummyResponse(status_code=200, payload={"status": "succeeded", "job": "manual_substrate_expansion"})
+
+    monkeypatch.setattr(windmill_trigger.requests, "post", fake_post)
+    monkeypatch.setattr(windmill_trigger, "send_slack_alert", lambda *args, **kwargs: None)
+
+    payload = {
+        "run_label": "broad-test-2026-04-02",
+        "jurisdictions": ["san-jose"],
+        "asset_classes": ["agendas", "minutes"],
+        "max_documents_per_source": 5,
+        "run_mode": "capture_only",
+        "ocr_mode": "off",
+        "sample_size_per_bucket": 3,
+    }
+    windmill_trigger.main(
+        endpoint="manual-substrate-expansion",
+        backend_url="https://backend.example.com",
+        cron_secret="secret-123",
+        payload=payload,
+    )
+
+    assert captured["url"] == "https://backend.example.com/cron/manual-substrate-expansion"
+    assert captured["headers"]["X-PR-CRON-SOURCE"] == "windmill:f/affordabot/manual_substrate_expansion"
+    assert captured["json"] == payload

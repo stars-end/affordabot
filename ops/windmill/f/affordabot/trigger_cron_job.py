@@ -1,6 +1,6 @@
 import os
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Any, Dict, Optional
 
 import requests
 
@@ -9,6 +9,7 @@ SOURCE_BY_ENDPOINT = {
     "daily-scrape": "windmill:f/affordabot/daily_scrape",
     "rag-spiders": "windmill:f/affordabot/rag_spiders",
     "universal-harvester": "windmill:f/affordabot/universal_harvester",
+    "manual-substrate-expansion": "windmill:f/affordabot/manual_substrate_expansion",
 }
 
 
@@ -55,6 +56,7 @@ def main(
     env: str = "dev",
     timeout_seconds: int = 7200,
     slack_webhook_url: Optional[str] = None,
+    payload: Optional[Dict[str, Any]] = None,
 ) -> dict:
     """
     Trigger an affordabot cron job over HTTP from Windmill.
@@ -74,8 +76,15 @@ def main(
 
     print(f"Triggering {endpoint} against {url}")
 
+    request_kwargs: Dict[str, Any] = {
+        "headers": headers,
+        "timeout": timeout_seconds,
+    }
+    if payload is not None:
+        request_kwargs["json"] = payload
+
     try:
-        response = requests.post(url, headers=headers, timeout=timeout_seconds)
+        response = requests.post(url, **request_kwargs)
     except requests.RequestException as exc:
         error = {
             "endpoint": endpoint,

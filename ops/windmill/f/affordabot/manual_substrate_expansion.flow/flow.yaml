@@ -1,0 +1,84 @@
+summary: Affordabot manual substrate expansion
+description: >
+  Manual broad substrate expansion trigger. Runs on demand with an explicit
+  manifest and posts to /cron/manual-substrate-expansion.
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  required:
+    - run_label
+    - jurisdictions
+    - asset_classes
+    - max_documents_per_source
+    - run_mode
+    - ocr_mode
+    - sample_size_per_bucket
+  properties:
+    run_label:
+      type: string
+      description: Operator-provided label for this manual expansion run.
+    jurisdictions:
+      type: array
+      description: Jurisdiction slugs/names to include in this run.
+      items:
+        type: string
+      minItems: 1
+    asset_classes:
+      type: array
+      description: Asset classes to capture for each selected jurisdiction.
+      items:
+        type: string
+      minItems: 1
+    max_documents_per_source:
+      type: integer
+      minimum: 1
+      maximum: 100
+      description: Hard cap per source for this manual run.
+    run_mode:
+      type: string
+      enum:
+        - capture_only
+        - capture_and_ingest
+    ocr_mode:
+      type: string
+      enum:
+        - off
+        - hard_doc_only
+    sample_size_per_bucket:
+      type: integer
+      minimum: 1
+      maximum: 10
+      description: Number of rows to include in per-bucket manual review samples.
+    notes:
+      type: string
+      description: Optional operator notes for this run.
+concurrency:
+  limit: 1
+  key: affordabot-manual-substrate-expansion
+steps:
+  - id: a
+    name: trigger_manual_substrate_expansion
+    type: script
+    path: f/affordabot/trigger_cron_job
+    args:
+      endpoint: manual-substrate-expansion
+      backend_url: $var:f/affordabot/BACKEND_PUBLIC_URL
+      cron_secret: $var:f/affordabot/CRON_SECRET
+      env: dev
+      timeout_seconds: 7200
+      slack_webhook_url: $var:f/affordabot/SLACK_WEBHOOK_URL
+      payload:
+        run_label: ${flow.run_label}
+        jurisdictions: ${flow.jurisdictions}
+        asset_classes: ${flow.asset_classes}
+        max_documents_per_source: ${flow.max_documents_per_source}
+        run_mode: ${flow.run_mode}
+        ocr_mode: ${flow.ocr_mode}
+        sample_size_per_bucket: ${flow.sample_size_per_bucket}
+        notes: ${flow.notes}
+    retry:
+      attempts: 2
+      backoff:
+        initial_interval: 120
+        max_interval: 900
+        multiplier: 2

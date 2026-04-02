@@ -11,6 +11,16 @@ schema:
       description: Cron endpoint suffix, without the /cron/ prefix.
       default: null
       originalType: string
+    backend_url:
+      type: string
+      description: Public backend URL used to build the /cron/<endpoint> target.
+      default: null
+      originalType: string
+    cron_secret:
+      type: string
+      description: Shared cron secret sent to backend auth headers.
+      default: null
+      originalType: string
     env:
       type: string
       description: Environment label for logs.
@@ -26,5 +36,12 @@ schema:
       description: Optional Slack webhook for Prime-style dev alert notifications.
       default: null
       originalType: string
+    payload:
+      type: object
+      description: Optional JSON payload sent in the request body (used by manual flows).
+      default: null
+      originalType: object
   required:
     - endpoint
+    - backend_url
+    - cron_secret
