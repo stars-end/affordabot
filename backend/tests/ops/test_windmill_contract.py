@@ -118,6 +118,49 @@ def test_send_slack_alert_posts_webhook_payload(monkeypatch):
     assert "env=dev" in captured["json"]["blocks"][2]["elements"][0]["text"]
 
 
+def test_send_slack_alert_normalizes_json_string_wrapped_webhook(monkeypatch):
+    captured = {}
+
+    def fake_post(url, json, timeout):
+        captured["url"] = url
+        captured["json"] = json
+        captured["timeout"] = timeout
+        return DummyResponse(status_code=200, payload={"ok": True})
+
+    monkeypatch.setattr(windmill_trigger.requests, "post", fake_post)
+
+    windmill_trigger.send_slack_alert(
+        '"https://hooks.slack.test/services/quoted"',
+        "INFO",
+        "Quoted URL",
+        "Should still post",
+        "dev",
+    )
+
+    assert captured["url"] == "https://hooks.slack.test/services/quoted"
+    assert captured["timeout"] == 10
+
+
+def test_send_slack_alert_skips_malformed_webhook(monkeypatch):
+    called = {"post": False}
+
+    def fake_post(url, json, timeout):
+        called["post"] = True
+        return DummyResponse(status_code=200, payload={"ok": True})
+
+    monkeypatch.setattr(windmill_trigger.requests, "post", fake_post)
+
+    windmill_trigger.send_slack_alert(
+        '"not-a-valid-url"',
+        "ERROR",
+        "Bad URL",
+        "Should not attempt post",
+        "dev",
+    )
+
+    assert called["post"] is False
+
+
 def test_main_success_posts_expected_headers_and_info_alert(monkeypatch):
     captured = {"alerts": []}
 
@@ -159,6 +202,26 @@ def test_main_success_posts_expected_headers_and_info_alert(monkeypatch):
     assert result["status"] == "succeeded"
     assert result["response"]["job"] == "daily_scrape"
     assert result["slack_configured"] is True
+
+
+def test_main_marks_slack_unconfigured_for_malformed_url(monkeypatch):
+    def fake_post(url, headers, timeout):
+        return DummyResponse(status_code=200, payload={"status": "succeeded", "job": "daily_scrape"})
+
+    monkeypatch.setattr(windmill_trigger.requests, "post", fake_post)
+    monkeypatch.setattr(windmill_trigger, "send_slack_alert", lambda *args, **kwargs: None)
+
+    result = windmill_trigger.main(
+        endpoint="daily-scrape",
+        backend_url="https://backend.example.com/",
+        cron_secret="secret-123",
+        env="dev",
+        timeout_seconds=321,
+        slack_webhook_url='"not-a-url"',
+    )
+
+    assert result["status"] == "succeeded"
+    assert result["slack_configured"] is False
 
 
 def test_main_http_failure_sends_error_alert(monkeypatch):

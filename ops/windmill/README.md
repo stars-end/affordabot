@@ -38,6 +38,10 @@ Required workspace variables:
 - `f/affordabot/CRON_SECRET`
 - `f/affordabot/SLACK_WEBHOOK_URL`
 
+Slack webhook note:
+- `trigger_cron_job` now normalizes accidentally quoted webhook values (for example `"https://hooks.slack..."`) before posting.
+- Keep `SLACK_WEBHOOK_URL` as a plain URL string in Windmill to avoid ambiguity.
+
 Alerting follows the same Windmill-script webhook pattern used by Prime's EODHD flows:
 - success/failure messages originate from `f/affordabot/trigger_cron_job`
 - route them to `#railway-dev-alerts` with the workspace `SLACK_WEBHOOK_URL`
