@@ -95,12 +95,11 @@ The blocker is product truth:
 
 `PASS` on system readiness.
 
-`NOT YET PASS` on the earlier `5`-jurisdiction target.
+`PASS` on the truthful existing-family deep-coverage target for this wave.
 
-That means the next step is strategic rather than mechanical:
+The earlier `5`-jurisdiction working target was not truthful against the live affordabot/dev inventory. The accepted wave-complete threshold is therefore `4` jurisdictions with truthful `agendas + minutes` under existing families.
 
-1. accept `4` as the truthful existing-family deep-coverage threshold for this wave, or
-2. keep the `5`-jurisdiction bar and require new truthful source/family unlocks before calling the wave complete
+This closes the existing-family deepening wave without inflating coverage claims beyond the live source truth.
 
 ## Non-Strategic Follow-Ons Already Landed
 
