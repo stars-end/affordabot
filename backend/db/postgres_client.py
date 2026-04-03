@@ -6,6 +6,8 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime
 from urllib.parse import quote
 
+from services.revision_identity import build_revision_seed
+
 logger = logging.getLogger("postgres_db")
 
 
@@ -500,11 +502,26 @@ class PostgresDB:
     # RAG Support (Raw Scrapes) - needed for RAG Port but defining now for daily_scrape port
     async def create_raw_scrape(self, scrape_record: Dict[str, Any]) -> Optional[str]:
         try:
+            revision_seed = build_revision_seed(scrape_record)
             row = await self._fetchrow(
                 """
                 INSERT INTO raw_scrapes 
-                (source_id, content_hash, content_type, data, url, metadata, storage_uri, document_id)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                (
+                    source_id,
+                    content_hash,
+                    content_type,
+                    data,
+                    url,
+                    metadata,
+                    storage_uri,
+                    document_id,
+                    canonical_document_key,
+                    previous_raw_scrape_id,
+                    revision_number,
+                    last_seen_at,
+                    seen_count
+                )
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
                 RETURNING id
                 """,
                 scrape_record["source_id"],
@@ -515,6 +532,11 @@ class PostgresDB:
                 json.dumps(scrape_record["metadata"]),
                 scrape_record.get("storage_uri"),
                 scrape_record.get("document_id"),
+                revision_seed["canonical_document_key"],
+                revision_seed["previous_raw_scrape_id"],
+                revision_seed["revision_number"],
+                revision_seed["last_seen_at"],
+                revision_seed["seen_count"],
             )
             return str(row["id"]) if row else None
         except Exception as e:
