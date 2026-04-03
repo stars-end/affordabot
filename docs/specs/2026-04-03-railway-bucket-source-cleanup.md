@@ -5,9 +5,9 @@ Scope: Affordabot dev Bucket/MinIO service source-control drift
 
 ## Runtime Truth (Current)
 - `MINIO_URL=http://bucket.railway.internal:9000`
-- `RAILWAY_SERVICE_BUCKET_URL=bucket-dev-6094.up.railway.app`
-- `MINIO_BUCKET=affordabot-artifacts`
-- Generated `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` are present
+- `RAILWAY_SERVICE_BUCKET_URL=<bucket-service-domain>.up.railway.app` (observed example on 2026-04-03: `bucket-dev-2f3a.up.railway.app`)
+- Runtime also exposes Railway S3/AWS-style vars: `S3_ENDPOINT`, `S3_BUCKET_NAME`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`
+- MinIO-style vars remain supported by app/runtime fallback: `MINIO_*`
 - Storage-backed substrate runs are passing integrity checks
 
 ## Decision

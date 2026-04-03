@@ -29,12 +29,17 @@ FROM_EMAIL=notifications@affordabot.ai
 # Object Storage (MinIO/S3)
 MINIO_URL=http://bucket.railway.internal:9000
 # Optional override for public endpoint (if set, takes precedence)
-MINIO_URL_PUBLIC=https://bucket-dev-6094.up.railway.app
+MINIO_URL_PUBLIC=https://<bucket-service-domain>.up.railway.app
 # Railway-managed public URL (auto-populated in backend runtime)
-RAILWAY_SERVICE_BUCKET_URL=bucket-dev-6094.up.railway.app
+RAILWAY_SERVICE_BUCKET_URL=<bucket-service-domain>.up.railway.app
 MINIO_ACCESS_KEY=<generated-by-bucket-service>
 MINIO_SECRET_KEY=<generated-by-bucket-service>
 MINIO_BUCKET=affordabot-artifacts
+# Railway S3/AWS-style equivalents also supported by runtime:
+S3_ENDPOINT=http://bucket.railway.internal:9000
+S3_BUCKET_NAME=affordabot-artifacts
+AWS_ACCESS_KEY_ID=<generated-by-bucket-service>
+AWS_SECRET_ACCESS_KEY=<generated-by-bucket-service>
 # Optional; usually inferred by code from chosen endpoint
 MINIO_SECURE=false
 # Bucket source-link cleanup runbook:

@@ -24,12 +24,17 @@ Required variables (should already be set):
 DATABASE_URL=<your-pgvector-postgres-connection-string>
 MINIO_URL=http://bucket.railway.internal:9000
 # Optional override (explicit public endpoint)
-MINIO_URL_PUBLIC=https://bucket-dev-6094.up.railway.app
+MINIO_URL_PUBLIC=https://<bucket-service-domain>.up.railway.app
 # Railway-provided public URL (auto-set in runtime)
-RAILWAY_SERVICE_BUCKET_URL=bucket-dev-6094.up.railway.app
+RAILWAY_SERVICE_BUCKET_URL=<bucket-service-domain>.up.railway.app
 MINIO_ACCESS_KEY=<generated-by-bucket-service>
 MINIO_SECRET_KEY=<generated-by-bucket-service>
 MINIO_BUCKET=affordabot-artifacts
+# Railway S3/AWS-style aliases (also accepted by runtime code)
+S3_ENDPOINT=http://bucket.railway.internal:9000
+S3_BUCKET_NAME=affordabot-artifacts
+AWS_ACCESS_KEY_ID=<generated-by-bucket-service>
+AWS_SECRET_ACCESS_KEY=<generated-by-bucket-service>
 # Optional; backend auto-infers secure mode from endpoint choice
 MINIO_SECURE=false
 ```
