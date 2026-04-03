@@ -39,6 +39,14 @@ def _extract_first(pattern: str, text: str) -> str | None:
     return match.group(1) if match else None
 
 
+def normalize_jurisdiction_name(value: str) -> str:
+    normalized = re.sub(r"\s+", " ", (value or "").strip().lower())
+    for prefix in ("city of ", "county of "):
+        if normalized.startswith(prefix):
+            normalized = normalized[len(prefix):]
+    return normalized
+
+
 def extract_legistar_document_sources(
     *,
     calendar_html: str,
@@ -103,7 +111,22 @@ async def _resolve_jurisdiction_id(
         jurisdiction_name,
         jurisdiction_type,
     )
-    return str(row["id"]) if row else None
+    if row:
+        return str(row["id"])
+
+    rows = await db._fetch(
+        """
+        SELECT id, name
+        FROM jurisdictions
+        WHERE type = $1
+        """,
+        jurisdiction_type,
+    )
+    target = normalize_jurisdiction_name(jurisdiction_name)
+    for candidate in rows:
+        if normalize_jurisdiction_name(candidate["name"]) == target:
+            return str(candidate["id"])
+    return None
 
 
 async def _upsert_source(

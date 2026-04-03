@@ -1,4 +1,8 @@
+import pytest
+
 from scripts.substrate.expand_legistar_source_inventory import extract_legistar_document_sources
+from scripts.substrate.expand_legistar_source_inventory import normalize_jurisdiction_name
+from scripts.substrate.expand_legistar_source_inventory import _resolve_jurisdiction_id
 
 
 def test_extract_legistar_document_sources_returns_agenda_and_minutes_links() -> None:
@@ -41,3 +45,30 @@ def test_extract_legistar_document_sources_returns_agenda_and_minutes_links() ->
             "meeting_date": "04/07/2026",
         },
     ]
+
+
+def test_normalize_jurisdiction_name_strips_city_and_county_prefixes() -> None:
+    assert normalize_jurisdiction_name("City of San Jose") == "san jose"
+    assert normalize_jurisdiction_name("County of San Mateo") == "san mateo"
+    assert normalize_jurisdiction_name("Mountain View") == "mountain view"
+
+
+@pytest.mark.asyncio
+async def test_resolve_jurisdiction_id_uses_normalized_name_fallback() -> None:
+    class FakeDB:
+        async def _fetchrow(self, query, *args):
+            return None
+
+        async def _fetch(self, query, *args):
+            return [
+                {"id": "abc-123", "name": "City of San Jose"},
+                {"id": "def-456", "name": "City of Sunnyvale"},
+            ]
+
+    jurisdiction_id = await _resolve_jurisdiction_id(
+        FakeDB(),
+        jurisdiction_name="San Jose",
+        jurisdiction_type="city",
+    )
+
+    assert jurisdiction_id == "abc-123"
