@@ -1,7 +1,7 @@
 # Municipal Coverage Readiness
 
 Date: 2026-04-03
-Beads: `bd-pd1s`
+Beads: `bd-pd1s`, `bd-flci.1`
 
 ## Verdict
 
@@ -9,11 +9,22 @@ The municipal/county substrate expansion lane is ready for repeated bounded manu
 
 That verdict is based on:
 
-- the broad Pack A campaign run (`manual-substrate-20260403T041421Z-831ef130`)
+- the pre-fix broad Pack A baseline run (`manual-substrate-20260403T041421Z-831ef130`)
+- the fresh post-fix broad Pack A replacement run (`manual-substrate-20260403T131847Z-5a5c4bc8`)
 - direct inspection of raw outputs and inspection artifacts
 - repair of the two actual substrate defects found in the run path
 
-The only incomplete follow-up in this pass is a fresh post-fix broad rerun, which was attempted but blocked by a transient Railway CLI rate-limit response rather than a product/runtime defect.
+The post-fix rerun follow-up is now complete from PR #367 branch-local code in explicit Railway dev context.
+
+## Evidence Delta (Pre-fix -> Post-fix)
+
+- resolved targets: `11 -> 13`
+- raw scrapes created: `10 -> 13`
+- promotion states:
+  - `durable_raw: 7 -> 9`
+  - `promoted_substrate: 3 -> 4`
+- storage integrity run coverage: `warn -> pass`
+- object storage integrity: `pass -> pass` (stable)
 
 ## Reliable Now
 
@@ -25,6 +36,7 @@ The only incomplete follow-up in this pass is a fresh post-fix broad rerun, whic
   - Sunnyvale Legistar meeting/detail lanes
 - truthful preservation and promotion of official substantive PDFs
 - truthful storage integrity reporting for bounded municipal sweeps
+- repeatable post-fix Pack A broad reruns with grounded artifact output
 
 ## Repaired In `bd-pd1s`
 
