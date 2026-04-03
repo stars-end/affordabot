@@ -5,12 +5,17 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from argparse import Namespace
 from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from html import unescape
 from typing import Any
+from urllib.parse import urljoin
 from uuid import uuid4
+
+import httpx
 
 from db.postgres_client import PostgresDB
 from scripts.cron.run_daily_scrape import EMBEDDING_DIMENSIONS
@@ -36,6 +41,38 @@ ASSET_CLASS_TO_DOCUMENT_TYPES = {
     "staff_reports": {"staff_report"},
     "municipal_code": {"municipal_code"},
 }
+
+HANDLER_SUPPORTED_DOCUMENT_TYPES = {
+    "legistar_calendar": {
+        "meeting_detail",
+        "agenda",
+        "minutes",
+        "agenda_packet",
+        "attachment",
+        "staff_report",
+    },
+    "sunnyvale_agendas": {
+        "meeting_detail",
+        "agenda",
+        "minutes",
+        "agenda_packet",
+        "attachment",
+    },
+    "agenda_center": {
+        "agenda",
+        "minutes",
+        "agenda_packet",
+        "attachment",
+        "staff_report",
+    },
+    "municode": {"municipal_code"},
+}
+
+ANCHOR_PATTERN = re.compile(
+    r'<a[^>]+href=["\'](?P<href>[^"\']+)["\'][^>]*>(?P<label>.*?)</a>',
+    flags=re.IGNORECASE | re.DOTALL,
+)
+TAG_PATTERN = re.compile(r"<[^>]+>")
 
 
 @dataclass(frozen=True)
@@ -319,6 +356,7 @@ async def _fetch_source_rows(db: PostgresDB) -> list[dict[str, Any]]:
           s.name,
           s.type,
           s.url,
+          s.handler,
           s.metadata,
           j.name AS jurisdiction_name,
           j.type AS jurisdiction_type
@@ -328,6 +366,186 @@ async def _fetch_source_rows(db: PostgresDB) -> list[dict[str, Any]]:
         """
     )
     return [dict(row) for row in rows]
+
+
+def _normalize_handler(row: dict[str, Any], metadata: dict[str, Any]) -> str:
+    return ((row.get("handler") or metadata.get("handler") or "").strip().lower())
+
+
+def _source_row_supports_asset(
+    *,
+    row: dict[str, Any],
+    metadata: dict[str, Any],
+    document_types: set[str],
+) -> bool:
+    handler = _normalize_handler(row, metadata)
+    if handler in HANDLER_SUPPORTED_DOCUMENT_TYPES:
+        return bool(
+            HANDLER_SUPPORTED_DOCUMENT_TYPES[handler].intersection(document_types)
+        )
+    document_type = (metadata.get("document_type") or "").strip().lower()
+    return document_type in document_types
+
+
+def _document_type_from_link_label(
+    label: str,
+    *,
+    href: str = "",
+    anchor_html: str = "",
+) -> str | None:
+    lowered = (label or "").strip().lower()
+    href_lower = (href or "").strip().lower()
+    anchor_lower = (anchor_html or "").strip().lower()
+    signal = " ".join(part for part in (lowered, href_lower, anchor_lower) if part)
+    if not signal:
+        return None
+
+    if "meetingdetail.aspx" in href_lower or "meeting detail" in signal:
+        return "meeting_detail"
+    if "view.ashx?m=pa" in href_lower:
+        return "agenda_packet"
+    if "view.ashx?m=m" in href_lower:
+        return "minutes"
+    if "view.ashx?m=a" in href_lower:
+        return "agenda"
+
+    lowered = signal
+    if "meeting detail" in lowered or "details" in lowered:
+        return "meeting_detail"
+    if "staff report" in lowered:
+        return "staff_report"
+    if "agenda packet" in lowered or "packet" in lowered:
+        return "agenda_packet"
+    if "attach" in lowered:
+        return "attachment"
+    if "minute" in lowered:
+        return "minutes"
+    if "agenda" in lowered:
+        return "agenda"
+    return None
+
+
+def _extract_document_links(*, html_text: str, base_url: str) -> list[dict[str, str]]:
+    candidates: list[dict[str, str]] = []
+    for match in ANCHOR_PATTERN.finditer(html_text or ""):
+        href = (match.group("href") or "").strip()
+        if not href or href.startswith("#") or href.lower().startswith("javascript:"):
+            continue
+
+        raw_label = match.group("label") or ""
+        label = unescape(TAG_PATTERN.sub(" ", raw_label))
+        label = " ".join(label.split())
+        document_type = _document_type_from_link_label(
+            label,
+            href=href,
+            anchor_html=match.group(0),
+        )
+        if not document_type:
+            continue
+
+        candidates.append(
+            {
+                "url": urljoin(base_url, href),
+                "title": label or href,
+                "document_type": document_type,
+            }
+        )
+    return candidates
+
+
+def _root_candidate(
+    *,
+    row: dict[str, Any],
+    metadata: dict[str, Any],
+    url: str,
+    document_types: set[str],
+) -> list[dict[str, str]]:
+    row_document_type = (metadata.get("document_type") or "").strip().lower()
+    if row_document_type in document_types:
+        return [
+            {
+                "url": url,
+                "title": metadata.get("title") or row.get("name") or url,
+                "document_type": row_document_type,
+            }
+        ]
+    return []
+
+
+async def _expand_source_row_targets(
+    *,
+    client: httpx.AsyncClient,
+    row: dict[str, Any],
+    metadata: dict[str, Any],
+    document_types: set[str],
+    max_documents_per_source: int,
+) -> list[dict[str, str]]:
+    url = (row.get("url") or "").strip()
+    if not url or url.startswith("unknown://"):
+        return []
+
+    handler = _normalize_handler(row, metadata)
+    if handler not in HANDLER_SUPPORTED_DOCUMENT_TYPES:
+        return _root_candidate(
+            row=row,
+            metadata=metadata,
+            url=url,
+            document_types=document_types,
+        )
+
+    if handler == "municode":
+        return _root_candidate(
+            row=row,
+            metadata=metadata,
+            url=url,
+            document_types=document_types,
+        )
+
+    try:
+        response = await client.get(url, timeout=20.0)
+        if response.status_code >= 400:
+            return _root_candidate(
+                row=row,
+                metadata=metadata,
+                url=url,
+                document_types=document_types,
+            )
+        extracted = _extract_document_links(html_text=response.text, base_url=url)
+    except Exception:
+        return _root_candidate(
+            row=row,
+            metadata=metadata,
+            url=url,
+            document_types=document_types,
+        )
+
+    filtered = [
+        candidate
+        for candidate in extracted
+        if candidate["document_type"] in document_types
+    ]
+
+    # Keep deterministic, bounded, and deduplicated expansion output per source.
+    deduped: list[dict[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    for candidate in filtered:
+        key = (candidate["url"], candidate["document_type"])
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(candidate)
+        if len(deduped) >= max_documents_per_source:
+            break
+
+    if deduped:
+        return deduped
+
+    return _root_candidate(
+        row=row,
+        metadata=metadata,
+        url=url,
+        document_types=document_types,
+    )
 
 
 async def _ensure_pack_a_source_inventory(
@@ -400,7 +618,7 @@ async def _ensure_pack_a_source_inventory(
     }
 
 
-def _resolve_source_targets(
+async def _resolve_source_targets(
     *,
     source_rows: list[dict[str, Any]],
     jurisdictions: list[str],
@@ -410,68 +628,106 @@ def _resolve_source_targets(
     targets: list[SourceTarget] = []
     failures: list[dict[str, Any]] = []
 
-    for jurisdiction in jurisdictions:
-        jurisdiction_slug = _slugify(jurisdiction)
-        for asset_class in asset_classes:
-            if asset_class == "legislation":
-                continue
-
-            document_types = ASSET_CLASS_TO_DOCUMENT_TYPES.get(asset_class)
-            if not document_types:
-                failures.append(
-                    {
-                        "jurisdiction": jurisdiction_slug,
-                        "asset_class": asset_class,
-                        "reason": "unsupported_asset_class",
-                    }
-                )
-                continue
-
-            matching_rows: list[dict[str, Any]] = []
-            for row in source_rows:
-                if not _jurisdiction_matches(row["jurisdiction_name"], jurisdiction_slug):
+    async with httpx.AsyncClient(follow_redirects=True) as client:
+        for jurisdiction in jurisdictions:
+            jurisdiction_slug = _slugify(jurisdiction)
+            for asset_class in asset_classes:
+                if asset_class == "legislation":
                     continue
-                metadata = parse_metadata_blob(row.get("metadata"))
-                document_type = (metadata.get("document_type") or "").strip().lower()
-                url = (row.get("url") or "").strip()
-                if not url or url.startswith("unknown://"):
-                    continue
-                if document_type not in document_types:
-                    continue
-                matching_rows.append(row)
 
-            if not matching_rows:
-                failures.append(
-                    {
-                        "jurisdiction": jurisdiction_slug,
-                        "asset_class": asset_class,
-                        "reason": "no_matching_sources",
-                    }
-                )
-                continue
-
-            for row in matching_rows[:max_documents_per_source]:
-                metadata = parse_metadata_blob(row.get("metadata"))
-                url = (row.get("url") or "").strip()
-                trust_tier, _ = classify_trust(
-                    canonical_url=url,
-                    trust_tier=metadata.get("trust_tier"),
-                )
-                targets.append(
-                    SourceTarget(
-                        jurisdiction_slug=jurisdiction_slug,
-                        jurisdiction_name=row["jurisdiction_name"],
-                        jurisdiction_type=row["jurisdiction_type"],
-                        asset_class=asset_class,
-                        source_id=str(row["id"]),
-                        source_name=row["name"],
-                        source_type=row["type"],
-                        document_type=metadata.get("document_type") or next(iter(document_types)),
-                        url=url,
-                        title=metadata.get("title") or row["name"] or url,
-                        trust_tier=trust_tier,
+                document_types = ASSET_CLASS_TO_DOCUMENT_TYPES.get(asset_class)
+                if not document_types:
+                    failures.append(
+                        {
+                            "jurisdiction": jurisdiction_slug,
+                            "asset_class": asset_class,
+                            "reason": "unsupported_asset_class",
+                        }
                     )
-                )
+                    continue
+
+                matching_rows: list[dict[str, Any]] = []
+                for row in source_rows:
+                    if not _jurisdiction_matches(row["jurisdiction_name"], jurisdiction_slug):
+                        continue
+                    metadata = parse_metadata_blob(row.get("metadata"))
+                    url = (row.get("url") or "").strip()
+                    if not url or url.startswith("unknown://"):
+                        continue
+                    if not _source_row_supports_asset(
+                        row=row,
+                        metadata=metadata,
+                        document_types=document_types,
+                    ):
+                        continue
+                    matching_rows.append(row)
+
+                if not matching_rows:
+                    failures.append(
+                        {
+                            "jurisdiction": jurisdiction_slug,
+                            "asset_class": asset_class,
+                            "reason": "no_matching_sources",
+                        }
+                    )
+                    continue
+
+                asset_targets: list[SourceTarget] = []
+                for row in matching_rows:
+                    metadata = parse_metadata_blob(row.get("metadata"))
+                    expanded_candidates = await _expand_source_row_targets(
+                        client=client,
+                        row=row,
+                        metadata=metadata,
+                        document_types=document_types,
+                        max_documents_per_source=max_documents_per_source,
+                    )
+                    for candidate in expanded_candidates:
+                        candidate_url = (candidate.get("url") or "").strip()
+                        if not candidate_url:
+                            continue
+                        trust_tier, _ = classify_trust(
+                            canonical_url=candidate_url,
+                            trust_tier=metadata.get("trust_tier"),
+                        )
+                        asset_targets.append(
+                            SourceTarget(
+                                jurisdiction_slug=jurisdiction_slug,
+                                jurisdiction_name=row["jurisdiction_name"],
+                                jurisdiction_type=row["jurisdiction_type"],
+                                asset_class=asset_class,
+                                source_id=str(row["id"]),
+                                source_name=row["name"],
+                                source_type=row["type"],
+                                document_type=candidate["document_type"],
+                                url=candidate_url,
+                                title=candidate.get("title") or row["name"] or candidate_url,
+                                trust_tier=trust_tier,
+                            )
+                        )
+
+                deduped_targets: list[SourceTarget] = []
+                seen: set[tuple[str, str]] = set()
+                for target in asset_targets:
+                    key = (target.url, target.document_type)
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    deduped_targets.append(target)
+                    if len(deduped_targets) >= max_documents_per_source:
+                        break
+
+                if not deduped_targets:
+                    failures.append(
+                        {
+                            "jurisdiction": jurisdiction_slug,
+                            "asset_class": asset_class,
+                            "reason": "no_matching_sources",
+                        }
+                    )
+                    continue
+
+                targets.extend(deduped_targets)
 
     return targets, failures
 
@@ -732,7 +988,7 @@ async def run_manual_substrate_expansion(manifest: dict[str, Any]) -> dict[str, 
             asset_classes=manifest["asset_classes"],
         )
         source_rows = await _fetch_source_rows(db)
-        source_targets, failures = _resolve_source_targets(
+        source_targets, failures = await _resolve_source_targets(
             source_rows=source_rows,
             jurisdictions=manifest["jurisdictions"],
             asset_classes=manifest["asset_classes"],
