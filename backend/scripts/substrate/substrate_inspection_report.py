@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from services.storage.s3_storage import S3Storage
 from services.substrate_promotion import parse_json_blob
 
 ARTIFACT_DIR = Path(__file__).resolve().parent / "artifacts"
@@ -40,6 +41,7 @@ DENIED_STYLE_REASONS = {
 }
 
 FAILURE_STAGE_HINTS = ("fail", "error", "exception")
+BINARY_CONTENT_CLASSES = {"pdf_binary", "binary_blob"}
 
 
 @dataclass(frozen=True)
@@ -76,6 +78,14 @@ def _context(raw_row: Any) -> RowContext:
     metadata = parse_json_blob(row.get("metadata"))
     truth = parse_json_blob(metadata.get("ingestion_truth"))
     return RowContext(row=row, metadata=metadata, truth=truth)
+
+
+def _truthy(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes"}
+    return bool(value)
 
 
 def _sample_bucket(ctx: RowContext) -> str | None:
@@ -129,6 +139,229 @@ def _sample_row(ctx: RowContext) -> dict[str, Any]:
         "ingestion_stage": _text(ctx.truth.get("stage")),
         "retrievable": bool(ctx.truth.get("retrievable")),
         "error_message": _text(ctx.row.get("error_message")),
+    }
+
+
+def _storage_key(ctx: RowContext) -> str:
+    storage_uri = _text(ctx.row.get("storage_uri"))
+    if storage_uri:
+        return storage_uri
+    data = parse_json_blob(ctx.row.get("data"))
+    return _text(data.get("content_storage_uri"))
+
+
+def _is_object_verification_relevant(ctx: RowContext) -> bool:
+    content_class = _text(ctx.metadata.get("content_class")).lower()
+    if content_class in BINARY_CONTENT_CLASSES:
+        return True
+    return bool(_storage_key(ctx))
+
+
+async def _build_object_storage_integrity_check(
+    *,
+    rows: list[dict[str, Any]],
+) -> dict[str, Any]:
+    relevant_rows: list[RowContext] = []
+    for row in rows:
+        ctx = _context(row)
+        if _is_object_verification_relevant(ctx):
+            relevant_rows.append(ctx)
+
+    if not relevant_rows:
+        return {
+            "status": "skipped_no_relevant_rows",
+            "relevant_rows": 0,
+            "verified_readable_count": 0,
+            "missing_reference_count": 0,
+            "unreadable_count": 0,
+            "missing_reference_samples": [],
+            "unreadable_samples": [],
+        }
+
+    storage = S3Storage()
+    if not storage.client:
+        return {
+            "status": "skipped_storage_not_configured",
+            "relevant_rows": len(relevant_rows),
+            "verified_readable_count": 0,
+            "missing_reference_count": 0,
+            "unreadable_count": 0,
+            "missing_reference_samples": [],
+            "unreadable_samples": [],
+        }
+
+    verified_readable_count = 0
+    missing_reference_samples: list[dict[str, Any]] = []
+    unreadable_samples: list[dict[str, Any]] = []
+
+    for ctx in relevant_rows:
+        key = _storage_key(ctx)
+        if not key:
+            if len(missing_reference_samples) < 10:
+                missing_reference_samples.append(
+                    {
+                        "raw_scrape_id": _text(ctx.row.get("id")),
+                        "content_class": _text(ctx.metadata.get("content_class")),
+                        "reason": "missing_storage_uri_or_content_storage_uri",
+                    }
+                )
+            continue
+
+        try:
+            await storage.download(key)
+            verified_readable_count += 1
+        except Exception as exc:  # pragma: no cover - network/runtime path
+            if len(unreadable_samples) < 10:
+                unreadable_samples.append(
+                    {
+                        "raw_scrape_id": _text(ctx.row.get("id")),
+                        "storage_key": key,
+                        "error": str(exc),
+                    }
+                )
+
+    missing_reference_count = len(missing_reference_samples)
+    unreadable_count = len(unreadable_samples)
+
+    status = "pass"
+    if missing_reference_count > 0 or unreadable_count > 0:
+        status = "fail"
+
+    return {
+        "status": status,
+        "relevant_rows": len(relevant_rows),
+        "verified_readable_count": verified_readable_count,
+        "missing_reference_count": missing_reference_count,
+        "unreadable_count": unreadable_count,
+        "missing_reference_samples": missing_reference_samples,
+        "unreadable_samples": unreadable_samples,
+    }
+
+
+async def _build_vector_integrity_check(
+    *,
+    db: Any,
+    rows: list[dict[str, Any]],
+) -> dict[str, Any]:
+    retrievable_rows: list[RowContext] = []
+    for row in rows:
+        ctx = _context(row)
+        stage = _text(ctx.truth.get("stage")).lower()
+        retrievable = _truthy(ctx.truth.get("retrievable")) or stage == "retrievable"
+        if retrievable:
+            retrievable_rows.append(ctx)
+
+    if not retrievable_rows:
+        return {
+            "status": "skipped_no_retrievable_rows",
+            "retrievable_rows": 0,
+            "with_document_id_count": 0,
+            "missing_document_id_count": 0,
+            "rows_with_chunks_count": 0,
+            "rows_with_zero_chunks_count": 0,
+            "total_chunk_rows_for_retrievable": 0,
+            "zero_chunk_samples": [],
+        }
+
+    chunk_count_cache: dict[str, int] = {}
+    rows_with_chunks_count = 0
+    rows_with_zero_chunks_count = 0
+    missing_document_id_count = 0
+    total_chunk_rows_for_retrievable = 0
+    zero_chunk_samples: list[dict[str, Any]] = []
+
+    for ctx in retrievable_rows:
+        document_id = _text(ctx.row.get("document_id")) or _text(ctx.truth.get("document_id"))
+        if not document_id:
+            missing_document_id_count += 1
+            continue
+
+        if document_id not in chunk_count_cache:
+            count_row = await db._fetchrow(
+                "SELECT COUNT(*) AS cnt FROM document_chunks WHERE document_id = $1",
+                document_id,
+            )
+            cnt = 0
+            if count_row and count_row.get("cnt") is not None:
+                cnt = int(count_row["cnt"])
+            chunk_count_cache[document_id] = cnt
+
+        chunk_count = chunk_count_cache[document_id]
+        total_chunk_rows_for_retrievable += chunk_count
+        if chunk_count > 0:
+            rows_with_chunks_count += 1
+        else:
+            rows_with_zero_chunks_count += 1
+            if len(zero_chunk_samples) < 10:
+                zero_chunk_samples.append(
+                    {
+                        "raw_scrape_id": _text(ctx.row.get("id")),
+                        "document_id": document_id,
+                    }
+                )
+
+    status = "pass"
+    if missing_document_id_count > 0 or rows_with_zero_chunks_count > 0:
+        status = "fail"
+
+    return {
+        "status": status,
+        "retrievable_rows": len(retrievable_rows),
+        "with_document_id_count": len(retrievable_rows) - missing_document_id_count,
+        "missing_document_id_count": missing_document_id_count,
+        "rows_with_chunks_count": rows_with_chunks_count,
+        "rows_with_zero_chunks_count": rows_with_zero_chunks_count,
+        "total_chunk_rows_for_retrievable": total_chunk_rows_for_retrievable,
+        "zero_chunk_samples": zero_chunk_samples,
+    }
+
+
+def _build_run_coverage_check(
+    *,
+    stamped_raw_scrapes_count: int,
+    resolved_targets_count: int | None,
+    attempted_targets_count: int | None,
+    attempted_raw_capture_operations: int | None,
+) -> dict[str, Any]:
+    if (
+        resolved_targets_count is None
+        or attempted_targets_count is None
+        or attempted_raw_capture_operations is None
+    ):
+        return {
+            "status": "insufficient_context",
+            "stamped_raw_scrapes_count": stamped_raw_scrapes_count,
+            "resolved_targets_count": resolved_targets_count,
+            "attempted_targets_count": attempted_targets_count,
+            "attempted_raw_capture_operations": attempted_raw_capture_operations,
+            "target_attempt_gap": None,
+            "missing_stamped_rows_from_attempted_capture_ops": None,
+            "unexpected_extra_stamped_rows": None,
+        }
+
+    target_attempt_gap = max(0, resolved_targets_count - attempted_targets_count)
+    missing_stamped_rows = max(
+        0, attempted_raw_capture_operations - stamped_raw_scrapes_count
+    )
+    unexpected_extra_stamped_rows = max(
+        0, stamped_raw_scrapes_count - attempted_raw_capture_operations
+    )
+
+    status = "pass"
+    if unexpected_extra_stamped_rows > 0:
+        status = "fail"
+    elif target_attempt_gap > 0 or missing_stamped_rows > 0:
+        status = "warn"
+
+    return {
+        "status": status,
+        "stamped_raw_scrapes_count": stamped_raw_scrapes_count,
+        "resolved_targets_count": resolved_targets_count,
+        "attempted_targets_count": attempted_targets_count,
+        "attempted_raw_capture_operations": attempted_raw_capture_operations,
+        "target_attempt_gap": target_attempt_gap,
+        "missing_stamped_rows_from_attempted_capture_ops": missing_stamped_rows,
+        "unexpected_extra_stamped_rows": unexpected_extra_stamped_rows,
     }
 
 
@@ -206,7 +439,10 @@ async def fetch_raw_scrapes_for_run(
           rs.id,
           rs.created_at,
           rs.url,
+          rs.data,
           rs.error_message,
+          rs.storage_uri,
+          rs.document_id,
           rs.metadata,
           s.url AS source_url,
           s.type AS source_type,
@@ -238,6 +474,50 @@ async def generate_substrate_inspection_report(
         run_id_key=run_id_key,
         sample_size_per_bucket=sample_size_per_bucket,
     )
+
+
+async def generate_storage_integrity_checks(
+    *,
+    db: Any,
+    run_id: str,
+    run_id_key: str = "manual_run_id",
+    resolved_targets_count: int | None = None,
+    attempted_targets_count: int | None = None,
+    attempted_raw_capture_operations: int | None = None,
+) -> dict[str, Any]:
+    rows = await fetch_raw_scrapes_for_run(db=db, run_id=run_id, run_id_key=run_id_key)
+    object_storage_check = await _build_object_storage_integrity_check(rows=rows)
+    vector_integrity_check = await _build_vector_integrity_check(db=db, rows=rows)
+    run_coverage_check = _build_run_coverage_check(
+        stamped_raw_scrapes_count=len(rows),
+        resolved_targets_count=resolved_targets_count,
+        attempted_targets_count=attempted_targets_count,
+        attempted_raw_capture_operations=attempted_raw_capture_operations,
+    )
+
+    statuses = {
+        object_storage_check["status"],
+        vector_integrity_check["status"],
+        run_coverage_check["status"],
+    }
+    overall_status = "pass"
+    if "fail" in statuses:
+        overall_status = "fail"
+    elif statuses.intersection(
+        {"warn", "insufficient_context", "skipped_no_relevant_rows", "skipped_no_retrievable_rows", "skipped_storage_not_configured"}
+    ):
+        overall_status = "warn"
+
+    return {
+        "run_id": run_id,
+        "run_id_key": run_id_key,
+        "generated_at": now_iso(),
+        "raw_scrapes_total": len(rows),
+        "overall_status": overall_status,
+        "object_storage_check": object_storage_check,
+        "vector_integrity_check": vector_integrity_check,
+        "run_coverage_check": run_coverage_check,
+    }
 
 
 def write_report_artifact(

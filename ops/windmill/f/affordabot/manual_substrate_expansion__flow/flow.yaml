@@ -27,16 +27,18 @@ value:
           type: static
           value: $var:f/affordabot/SLACK_WEBHOOK_URL
         payload:
-          type: static
-          value:
-            run_label: ${flow.run_label}
-            jurisdictions: ${flow.jurisdictions}
-            asset_classes: ${flow.asset_classes}
-            max_documents_per_source: ${flow.max_documents_per_source}
-            run_mode: ${flow.run_mode}
-            ocr_mode: ${flow.ocr_mode}
-            sample_size_per_bucket: ${flow.sample_size_per_bucket}
-            notes: ${flow.notes}
+          type: javascript
+          expr: >-
+            ({
+              run_label: flow_input.run_label,
+              jurisdictions: flow_input.jurisdictions,
+              asset_classes: flow_input.asset_classes,
+              max_documents_per_source: flow_input.max_documents_per_source,
+              run_mode: flow_input.run_mode,
+              ocr_mode: flow_input.ocr_mode,
+              sample_size_per_bucket: flow_input.sample_size_per_bucket,
+              notes: flow_input.notes
+            })
       path: f/affordabot/trigger_cron_job
       retry:
         attempts: 2

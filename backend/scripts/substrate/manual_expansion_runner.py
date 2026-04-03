@@ -18,6 +18,7 @@ from scripts.cron.run_daily_scrape import ScrapeJob
 from scripts.substrate.manual_capture import capture_document
 from scripts.substrate.manual_capture import parse_metadata_blob
 from scripts.substrate.substrate_inspection_report import (
+    generate_storage_integrity_checks,
     generate_substrate_inspection_report,
     write_report_artifact,
 )
@@ -270,7 +271,11 @@ async def _execute_legislation_capture(
     max_documents_per_source: int,
     ingest: bool,
     ingestion_service: Any | None,
+    capture_metrics: dict[str, int] | None = None,
 ) -> tuple[int, list[dict[str, Any]]]:
+    if capture_metrics is not None:
+        capture_metrics["attempted_raw_captures"] = 0
+
     failures: list[dict[str, Any]] = []
     scraper_entry = SCRAPERS.get(slug)
     if not scraper_entry:
@@ -333,6 +338,7 @@ async def _execute_legislation_capture(
         ]
 
     created = 0
+    attempted_raw_captures = 0
     for bill in selected_bills:
         if slug == "california":
             if not bill.text or len(bill.text) < 100:
@@ -366,6 +372,7 @@ async def _execute_legislation_capture(
         )
         scrape_record["metadata"] = metadata
 
+        attempted_raw_captures += 1
         scrape_id = await db.create_raw_scrape(scrape_record)
         if not scrape_id:
             failures.append(
@@ -401,6 +408,8 @@ async def _execute_legislation_capture(
                 "reason": "no_bills_returned",
             }
         )
+    if capture_metrics is not None:
+        capture_metrics["attempted_raw_captures"] = attempted_raw_captures
     return created, failures
 
 
@@ -472,8 +481,12 @@ async def run_manual_substrate_expansion(manifest: dict[str, Any]) -> dict[str, 
         ingest = manifest["run_mode"] == "capture_and_ingest"
         ingestion_service = await _build_ingestion_service(db) if ingest else None
         job = ScrapeJob(db)
+        attempted_targets_count = 0
+        attempted_raw_capture_operations = 0
 
         for target in source_targets:
+            attempted_targets_count += 1
+            attempted_raw_capture_operations += 1
             try:
                 await _execute_source_target(
                     db=db,
@@ -494,6 +507,8 @@ async def run_manual_substrate_expansion(manifest: dict[str, Any]) -> dict[str, 
                 )
 
         for slug in legislation_slugs:
+            attempted_targets_count += 1
+            legislation_capture_metrics: dict[str, int] = {}
             _, legislation_failures = await _execute_legislation_capture(
                 db=db,
                 job=job,
@@ -503,6 +518,10 @@ async def run_manual_substrate_expansion(manifest: dict[str, Any]) -> dict[str, 
                 max_documents_per_source=manifest["max_documents_per_source"],
                 ingest=ingest,
                 ingestion_service=ingestion_service,
+                capture_metrics=legislation_capture_metrics,
+            )
+            attempted_raw_capture_operations += int(
+                legislation_capture_metrics.get("attempted_raw_captures", 0)
             )
             failures.extend(legislation_failures)
 
@@ -537,11 +556,20 @@ async def run_manual_substrate_expansion(manifest: dict[str, Any]) -> dict[str, 
                 "promoted_substrate", 0
             ),
         }
+        storage_integrity_checks = await generate_storage_integrity_checks(
+            db=db,
+            run_id=run_id,
+            run_id_key="manual_run_id",
+            resolved_targets_count=resolved_targets["count"],
+            attempted_targets_count=attempted_targets_count,
+            attempted_raw_capture_operations=attempted_raw_capture_operations,
+        )
         report["requested"] = manifest
         report["resolved_targets"] = resolved_targets
         report["capture_summary"] = capture_summary
         report["ingestion_summary"] = ingestion_summary
         report["promotion_summary"] = promotion_summary
+        report["storage_integrity_checks"] = storage_integrity_checks
         report["failures"] = failures
         artifact_path = write_report_artifact(report=report)
 
@@ -561,6 +589,7 @@ async def run_manual_substrate_expansion(manifest: dict[str, Any]) -> dict[str, 
             "capture_summary": capture_summary,
             "ingestion_summary": ingestion_summary,
             "promotion_summary": promotion_summary,
+            "storage_integrity_checks": storage_integrity_checks,
             "failures": failures,
             "inspection_report": {
                 "run_id": run_id,

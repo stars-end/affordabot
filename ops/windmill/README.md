@@ -38,6 +38,10 @@ Required workspace variables:
 - `f/affordabot/CRON_SECRET`
 - `f/affordabot/SLACK_WEBHOOK_URL`
 
+Slack webhook note:
+- `trigger_cron_job` now normalizes accidentally quoted webhook values (for example `"https://hooks.slack..."`) before posting.
+- Keep `SLACK_WEBHOOK_URL` as a plain URL string in Windmill to avoid ambiguity.
+
 Alerting follows the same Windmill-script webhook pattern used by Prime's EODHD flows:
 - success/failure messages originate from `f/affordabot/trigger_cron_job`
 - route them to `#railway-dev-alerts` with the workspace `SLACK_WEBHOOK_URL`
@@ -121,6 +125,23 @@ curl -X POST \
   -H "Authorization: Bearer $CRON_SECRET" \
   https://backend-dev-3d99.up.railway.app/cron/discovery
 ```
+
+## Manual Operator Run (CLI-Safe)
+
+Use the manual flow from the Windmill UI run surface, or via CLI without `-s`.
+
+```bash
+cd ops/windmill
+wmill flow run f/affordabot/manual_substrate_expansion \
+  -d @/absolute/path/manual-substrate-manifest.json
+```
+
+Operator note:
+- Do not pass `-s` for this flow path. On older `wmill` CLI builds (for example `1.654.0`), `flow run ... -s` can return a completed-job-not-found style response even when the flow run exists.
+- If you hit that symptom, rerun without `-s` and check the run in Windmill UI.
+- Prefer `wmill upgrade` before manual flow execution.
+- Validate operator output from `trigger_cron_job`: flow-level completion is `status: succeeded`, and backend run identity is in `response.run_id`.
+- If `response.status` is `failed`, the flow wiring still executed correctly; fix the manifest inputs (for example jurisdiction/asset coverage) and rerun.
 
 ## Rollback
 

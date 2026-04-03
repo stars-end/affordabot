@@ -1,6 +1,8 @@
 import os
+import json
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
+from urllib.parse import urlparse
 
 import requests
 
@@ -13,6 +15,36 @@ SOURCE_BY_ENDPOINT = {
 }
 
 
+def normalize_slack_webhook_url(webhook_url: Optional[str]) -> Optional[str]:
+    """Normalize and validate Slack webhook URL values from Windmill vars."""
+    if webhook_url is None:
+        return None
+
+    candidate = str(webhook_url).strip()
+    if not candidate:
+        return None
+
+    # Handle accidental JSON string wrapping, e.g. "\"https://hooks.slack...\""
+    for _ in range(2):
+        try:
+            parsed = json.loads(candidate)
+        except json.JSONDecodeError:
+            break
+        if isinstance(parsed, str):
+            candidate = parsed.strip()
+            continue
+        break
+
+    # Handle simple quote wrapping, e.g. '"https://hooks.slack..."'
+    if len(candidate) >= 2 and candidate[0] == candidate[-1] and candidate[0] in {"'", '"'}:
+        candidate = candidate[1:-1].strip()
+
+    parsed_url = urlparse(candidate)
+    if parsed_url.scheme not in {"http", "https"} or not parsed_url.netloc:
+        return None
+    return candidate
+
+
 def send_slack_alert(
     webhook_url: Optional[str],
     severity: str,
@@ -21,7 +53,8 @@ def send_slack_alert(
     env: str = "dev",
 ) -> None:
     """Send Windmill cron alerts using the same webhook-driven pattern as Prime."""
-    if not webhook_url:
+    normalized_webhook_url = normalize_slack_webhook_url(webhook_url)
+    if not normalized_webhook_url:
         return
 
     emoji_map = {"INFO": "✅", "WARNING": "⚠️", "ERROR": "🔴", "CRITICAL": "🚨"}
@@ -42,7 +75,7 @@ def send_slack_alert(
     }
 
     try:
-        resp = requests.post(webhook_url, json=payload, timeout=10)
+        resp = requests.post(normalized_webhook_url, json=payload, timeout=10)
         resp.raise_for_status()
         print(f"Slack alert sent: [{severity}] {title}")
     except Exception as exc:
@@ -66,6 +99,7 @@ def main(
     base_url = backend_url.rstrip("/")
     url = f"{base_url}/cron/{endpoint}"
     source = SOURCE_BY_ENDPOINT.get(endpoint, f"windmill:f/affordabot/{endpoint}")
+    normalized_slack_webhook_url = normalize_slack_webhook_url(slack_webhook_url)
 
     headers = {
         "Authorization": f"Bearer {cron_secret}",
@@ -135,11 +169,11 @@ def main(
         "response": payload,
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "env": env,
-        "slack_configured": bool(slack_webhook_url),
+        "slack_configured": bool(normalized_slack_webhook_url),
     }
     if result_status == "succeeded":
         send_slack_alert(
-            slack_webhook_url,
+            normalized_slack_webhook_url,
             "INFO",
             f"Affordabot {endpoint}: SUCCESS",
             f"Endpoint `{endpoint}` completed successfully.\n```{payload}```",
@@ -147,7 +181,7 @@ def main(
         )
     else:
         send_slack_alert(
-            slack_webhook_url,
+            normalized_slack_webhook_url,
             "ERROR",
             f"Affordabot {endpoint}: FAILED",
             f"Endpoint `{endpoint}` returned a non-success payload.\n```{payload}```",
