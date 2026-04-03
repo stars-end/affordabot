@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 from html import unescape
 from typing import Any
 from urllib.parse import urljoin
+from urllib.parse import urlparse
 from uuid import uuid4
 
 import httpx
@@ -453,6 +454,14 @@ def _extract_document_links(*, html_text: str, base_url: str) -> list[dict[str, 
     return candidates
 
 
+def _candidate_allowed_for_handler(*, handler: str, candidate_url: str) -> bool:
+    if handler != "sunnyvale_agendas":
+        return True
+
+    host = (urlparse(candidate_url).hostname or "").lower()
+    return host.endswith("sunnyvaleca.legistar.com")
+
+
 def _root_candidate(
     *,
     row: dict[str, Any],
@@ -523,6 +532,10 @@ async def _expand_source_row_targets(
         candidate
         for candidate in extracted
         if candidate["document_type"] in document_types
+        and _candidate_allowed_for_handler(
+            handler=handler,
+            candidate_url=candidate["url"],
+        )
     ]
 
     # Keep deterministic, bounded, and deduplicated expansion output per source.

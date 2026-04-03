@@ -326,8 +326,12 @@ class PostgresDB:
             return None
 
     async def upsert_source(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Upsert a source by URL first, then by jurisdiction/name."""
+        """Upsert a source without collapsing distinct asset lanes onto one URL."""
         payload = dict(data)
+        metadata_value = payload.get("metadata")
+        metadata_lookup = metadata_value if isinstance(metadata_value, dict) else {}
+        if isinstance(metadata_value, (dict, list)):
+            payload["metadata"] = json.dumps(metadata_value)
         jurisdiction_id = payload.get("jurisdiction_id")
         source_name = payload.get("name")
         source_type = payload.get("type")
@@ -345,13 +349,36 @@ class PostgresDB:
             source_url = f"unknown://{jurisdiction_id}/{source_type}/{safe_name}"
             payload["url"] = source_url
 
-        existing = await self._fetchrow("SELECT id FROM sources WHERE url = $1", source_url)
-        if not existing:
-            existing = await self._fetchrow(
-                "SELECT id FROM sources WHERE jurisdiction_id = $1 AND name = $2",
-                jurisdiction_id,
-                source_name,
-            )
+        existing = await self._fetchrow(
+            "SELECT id FROM sources WHERE jurisdiction_id = $1 AND type = $2 AND name = $3",
+            jurisdiction_id,
+            source_type,
+            source_name,
+        )
+        if not existing and source_url:
+            document_type = (metadata_lookup.get("document_type") or "").strip().lower()
+            if document_type:
+                existing = await self._fetchrow(
+                    """
+                    SELECT id
+                    FROM sources
+                    WHERE jurisdiction_id = $1
+                      AND type = $2
+                      AND url = $3
+                      AND COALESCE(metadata->>'document_type', '') = $4
+                    """,
+                    jurisdiction_id,
+                    source_type,
+                    source_url,
+                    document_type,
+                )
+            else:
+                existing = await self._fetchrow(
+                    "SELECT id FROM sources WHERE jurisdiction_id = $1 AND type = $2 AND url = $3",
+                    jurisdiction_id,
+                    source_type,
+                    source_url,
+                )
 
         if existing:
             source_id = str(existing["id"])

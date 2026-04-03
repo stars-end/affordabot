@@ -87,8 +87,70 @@ async def test_upsert_source_updates_existing_url_row() -> None:
     )
 
     assert source["id"] == "src-1"
+    lookup_sql = db._fetchrow.await_args_list[0].args[0]
     update_sql = db._fetchrow.await_args_list[1].args[0]
+    assert "jurisdiction_id = $1 AND type = $2 AND name = $3" in lookup_sql
     assert update_sql.startswith("UPDATE sources SET")
+
+
+@pytest.mark.asyncio
+async def test_upsert_source_serializes_metadata_dict_for_insert() -> None:
+    db = PostgresDB("postgresql://example.test/db")
+    db._fetchrow = AsyncMock(
+        side_effect=[
+            None,
+            None,
+            {"id": "src-2", "name": "Agenda source"},
+        ]
+    )
+
+    await db.upsert_source(
+        {
+            "jurisdiction_id": "jur-1",
+            "name": "Agenda source",
+            "type": "meetings",
+            "url": "https://example.gov/agenda",
+            "source_method": "scrape",
+            "handler": "legistar_calendar",
+            "metadata": {"document_type": "agenda"},
+        }
+    )
+
+    insert_args = db._fetchrow.await_args_list[2].args
+    assert insert_args[-1] == '{"document_type": "agenda"}'
+
+
+@pytest.mark.asyncio
+async def test_upsert_source_url_lookup_is_document_type_aware() -> None:
+    db = PostgresDB("postgresql://example.test/db")
+    db._fetchrow = AsyncMock(
+        side_effect=[
+            None,
+            None,
+            {"id": "src-3", "name": "Agenda source"},
+        ]
+    )
+
+    await db.upsert_source(
+        {
+            "jurisdiction_id": "jur-1",
+            "name": "Agenda source",
+            "type": "meetings",
+            "url": "https://example.gov/calendar",
+            "source_method": "scrape",
+            "handler": "legistar_calendar",
+            "metadata": {"document_type": "agenda"},
+        }
+    )
+
+    url_lookup_args = db._fetchrow.await_args_list[1].args
+    assert "metadata->>'document_type'" in url_lookup_args[0]
+    assert url_lookup_args[1:] == (
+        "jur-1",
+        "meetings",
+        "https://example.gov/calendar",
+        "agenda",
+    )
 
 
 @pytest.mark.asyncio

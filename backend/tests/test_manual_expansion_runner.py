@@ -273,7 +273,11 @@ async def test_resolve_source_targets_expands_handler_roots_to_document_targets(
             "id": "source-1",
             "name": "Root calendar/index source",
             "type": "meetings",
-            "url": "https://example.gov/root",
+            "url": (
+                "https://sunnyvaleca.legistar.com/Calendar.aspx"
+                if handler == "sunnyvale_agendas"
+                else "https://example.gov/root"
+            ),
             "handler": handler,
             "metadata": {"document_type": "agenda", "trust_tier": "official_partner"},
             "jurisdiction_name": jurisdiction_slug.replace("-", " ").title(),
@@ -292,6 +296,63 @@ async def test_resolve_source_targets_expands_handler_roots_to_document_targets(
     assert len(targets) == 1
     assert expected_fragment in targets[0].url
     assert targets[0].url != source_rows[0]["url"]
+
+
+@pytest.mark.asyncio
+async def test_resolve_source_targets_sunnyvale_filters_non_legistar_agenda_links(
+    monkeypatch,
+):
+    class FakeResponse:
+        def __init__(self, text):
+            self.status_code = 200
+            self.text = text
+
+    class FakeAsyncClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def get(self, url, timeout=None):
+            return FakeResponse(
+                """
+                <html>
+                  <body>
+                    <a href="https://www.sunnyvale.ca.gov/your-government/governance/city-council/pending-council-agendas">Agenda</a>
+                  </body>
+                </html>
+                """
+            )
+
+    monkeypatch.setattr(manual_expansion_runner.httpx, "AsyncClient", FakeAsyncClient)
+
+    source_rows = [
+        {
+            "id": "sunnyvale-agenda",
+            "name": "Sunnyvale Agendas",
+            "type": "meetings",
+            "url": "https://sunnyvaleca.legistar.com/Calendar.aspx",
+            "handler": "sunnyvale_agendas",
+            "metadata": {"document_type": "agenda", "trust_tier": "official_partner"},
+            "jurisdiction_name": "City of Sunnyvale",
+            "jurisdiction_type": "city",
+        }
+    ]
+
+    targets, failures = await _resolve_source_targets(
+        source_rows=source_rows,
+        jurisdictions=["sunnyvale"],
+        asset_classes=["agendas"],
+        max_documents_per_source=5,
+    )
+
+    assert failures == []
+    assert len(targets) == 1
+    assert targets[0].url == "https://sunnyvaleca.legistar.com/Calendar.aspx"
 
 
 @pytest.mark.asyncio
