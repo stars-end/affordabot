@@ -24,6 +24,34 @@ def test_seed_capture_metadata_official_host_defaults_to_durable_raw():
     assert metadata["trust_host_classification"] == "official_government"
 
 
+def test_seed_capture_metadata_treats_ca_us_host_as_official_government():
+    metadata = seed_capture_promotion_metadata(
+        metadata={
+            "canonical_url": "https://www.saratoga.ca.us/AgendaCenter",
+            "document_type": "agenda",
+        },
+        canonical_url="https://www.saratoga.ca.us/AgendaCenter",
+        trust_tier=None,
+    )
+
+    assert metadata["trust_host_classification"] == "official_government"
+    assert metadata["trust_tier"] == "official_partner"
+
+
+def test_seed_capture_metadata_treats_sccgov_org_as_official_government():
+    metadata = seed_capture_promotion_metadata(
+        metadata={
+            "canonical_url": "https://sccgov.org/sites/bos",
+            "document_type": "agenda",
+        },
+        canonical_url="https://sccgov.org/sites/bos",
+        trust_tier=None,
+    )
+
+    assert metadata["trust_host_classification"] == "official_government"
+    assert metadata["promotion_state"] == DURABLE_RAW
+
+
 def test_evaluate_rules_promotes_non_retrievable_official_pdf():
     decision = evaluate_rules(
         {
