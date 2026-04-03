@@ -98,3 +98,40 @@ async def test_create_raw_scrape_seeds_revision_identity_fields() -> None:
     assert args[10] is None
     assert args[11] == 1
     assert args[13] == 1
+
+
+@pytest.mark.asyncio
+async def test_get_latest_raw_scrape_for_canonical_document_queries_revision_order() -> None:
+    db = PostgresDB("postgresql://example.test/db")
+    db._fetchrow = AsyncMock(
+        return_value={
+            "id": "scrape-latest",
+            "canonical_document_key": "v1|source=s1|doctype=agenda|url=https://example.gov/a",
+            "revision_number": 3,
+            "content_hash": "hash-3",
+        }
+    )
+
+    row = await db.get_latest_raw_scrape_for_canonical_document(
+        "v1|source=s1|doctype=agenda|url=https://example.gov/a"
+    )
+
+    assert row is not None
+    assert row["id"] == "scrape-latest"
+    sql = db._fetchrow.await_args.args[0]
+    assert "WHERE canonical_document_key = $1" in sql
+    assert "ORDER BY revision_number DESC, created_at DESC" in sql
+
+
+@pytest.mark.asyncio
+async def test_mark_raw_scrape_seen_updates_seen_count_and_last_seen_at() -> None:
+    db = PostgresDB("postgresql://example.test/db")
+    db._execute = AsyncMock(return_value="UPDATE 1")
+
+    ok = await db.mark_raw_scrape_seen("scrape-1")
+
+    assert ok is True
+    sql = db._execute.await_args.args[0]
+    assert "last_seen_at = $1" in sql
+    assert "seen_count = COALESCE(seen_count, 0) + 1" in sql
+    assert db._execute.await_args.args[2] == "scrape-1"

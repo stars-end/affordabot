@@ -487,6 +487,68 @@ class PostgresDB:
             print(f"❌ Error getting latest scrape: {e}")
             return None
 
+    async def get_latest_raw_scrape_for_canonical_document(
+        self, canonical_document_key: str
+    ) -> Optional[Dict[str, Any]]:
+        """Return latest raw scrape revision for a canonical document key."""
+        try:
+            row = await self._fetchrow(
+                """
+                SELECT
+                    id,
+                    source_id,
+                    content_hash,
+                    content_type,
+                    data,
+                    url,
+                    metadata,
+                    storage_uri,
+                    document_id,
+                    canonical_document_key,
+                    previous_raw_scrape_id,
+                    revision_number,
+                    last_seen_at,
+                    seen_count,
+                    created_at,
+                    processed
+                FROM raw_scrapes
+                WHERE canonical_document_key = $1
+                ORDER BY revision_number DESC, created_at DESC
+                LIMIT 1
+                """,
+                canonical_document_key,
+            )
+            return dict(row) if row else None
+        except Exception as e:
+            logger.error(
+                "Error fetching latest raw scrape for canonical document key %s: %s",
+                canonical_document_key,
+                e,
+            )
+            return None
+
+    async def mark_raw_scrape_seen(
+        self, scrape_id: str, seen_at: Optional[datetime] = None
+    ) -> bool:
+        """Bump seen metadata for an unchanged canonical revision."""
+        try:
+            stamp = seen_at or datetime.now()
+            await self._execute(
+                """
+                UPDATE raw_scrapes
+                SET
+                    last_seen_at = $1,
+                    seen_count = COALESCE(seen_count, 0) + 1
+                WHERE id = $2
+                """,
+                stamp,
+                scrape_id,
+            )
+            return True
+        except Exception as e:
+            logger.error("Error marking raw scrape seen for %s: %s", scrape_id, e)
+            return False
+
     async def get_vector_stats(self, document_id: str) -> Dict[str, Any]:
         """Get stats for a user-facing document (chunk count)."""
         try:
