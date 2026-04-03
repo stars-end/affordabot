@@ -29,3 +29,8 @@ def test_substrate_raw_row_payload_includes_debuggable_fields() -> None:
     assert '"ingestion_truth_stage": truth.get("stage")' in source
     assert '"storage_uri": row.get("storage_uri")' in source
     assert '"document_id": str(row["document_id"]) if row.get("document_id") else None' in source
+    assert '"canonical_document_key": row.get("canonical_document_key")' in source
+    assert '"previous_raw_scrape_id": str(row["previous_raw_scrape_id"]) if row.get("previous_raw_scrape_id") else None' in source
+    assert '"revision_number": int(row["revision_number"]) if row.get("revision_number") is not None else None' in source
+    assert '"last_seen_at": str(row["last_seen_at"]) if row.get("last_seen_at") else None' in source
+    assert '"seen_count": int(row["seen_count"]) if row.get("seen_count") is not None else None' in source
