@@ -1,6 +1,7 @@
 """Service for managing sources."""
 
 from __future__ import annotations
+from urllib.parse import urlparse
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
 from db.postgres_client import PostgresDB
@@ -8,9 +9,12 @@ from db.postgres_client import PostgresDB
 class SourceCreate(BaseModel):
     jurisdiction_id: str
     url: str
-    type: str # 'meeting', 'legislation', etc.
+    type: str  # 'meeting', 'legislation', etc.
+    name: Optional[str] = None
+    status: Optional[str] = None
     source_method: str = "scrape"
     handler: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
 
 class SourceUpdate(BaseModel):
     url: Optional[str] = None
@@ -32,8 +36,14 @@ class SourceService:
         return await self.db.get_source(source_id)
 
     async def create_source(self, source: SourceCreate) -> Dict[str, Any]:
-        """Create a new source."""
+        """Create or upsert a source."""
         data = source.model_dump(exclude_none=True)
+        if not data.get("name"):
+            parsed = urlparse(data["url"])
+            host = parsed.netloc or "source"
+            data["name"] = f"{data['type']} source ({host})"
+        if hasattr(self.db, "upsert_source"):
+            return await self.db.upsert_source(data)
         return await self.db.create_source(data)
 
     async def update_source(self, source_id: str, source: SourceUpdate) -> Dict[str, Any]:

@@ -21,6 +21,16 @@ PROMOTED_SUBSTRATE = "promoted_substrate"
 
 OFFICIAL_TRUST_TIERS = {"primary_government", "official_partner"}
 OFFICIAL_HOST_CLASSES = {"official_government", "official_civic_partner"}
+OFFICIAL_MUNICIPAL_HOSTS = {
+    "saratoga.ca.us",
+    "www.saratoga.ca.us",
+    "sccgov.org",
+    "www.sccgov.org",
+    "cupertino.org",
+    "www.cupertino.org",
+    "cityofpaloalto.org",
+    "www.cityofpaloalto.org",
+}
 
 SUBSTANTIVE_DOCUMENT_TYPES = {
     "agenda",
@@ -145,7 +155,11 @@ def classify_host(url: str) -> str:
     host = hostname_from_url(url)
     if not host:
         return "unknown"
+    if host in OFFICIAL_MUNICIPAL_HOSTS:
+        return "official_government"
     if host.endswith(".gov") or host.endswith(".gov.us"):
+        return "official_government"
+    if host.endswith(".ca.us"):
         return "official_government"
     if host.endswith(".ca.gov"):
         return "official_government"
