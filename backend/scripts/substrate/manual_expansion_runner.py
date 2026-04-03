@@ -105,6 +105,7 @@ class SourceSeed:
     source_method: str
     handler: str
     trust_tier: str
+    provider_family: str = "pack_a_default"
 
 
 PACK_A_SOURCE_DEFAULTS: tuple[SourceSeed, ...] = (
@@ -146,6 +147,48 @@ PACK_A_SOURCE_DEFAULTS: tuple[SourceSeed, ...] = (
         url="https://sanjose.legistar.com/Calendar.aspx",
         document_type="minutes",
         title="San Jose Minutes",
+        source_method="scrape",
+        handler="legistar_calendar",
+        trust_tier="official_partner",
+    ),
+    SourceSeed(
+        jurisdiction_slug="san-jose",
+        jurisdiction_name="City of San Jose",
+        jurisdiction_type="city",
+        asset_class="agenda_packets",
+        source_name="San Jose Agenda Packets",
+        source_type="meetings",
+        url="https://sanjose.legistar.com/Calendar.aspx",
+        document_type="agenda_packet",
+        title="San Jose Agenda Packets",
+        source_method="scrape",
+        handler="legistar_calendar",
+        trust_tier="official_partner",
+    ),
+    SourceSeed(
+        jurisdiction_slug="san-jose",
+        jurisdiction_name="City of San Jose",
+        jurisdiction_type="city",
+        asset_class="attachments",
+        source_name="San Jose Attachments",
+        source_type="meetings",
+        url="https://sanjose.legistar.com/Calendar.aspx",
+        document_type="attachment",
+        title="San Jose Attachments",
+        source_method="scrape",
+        handler="legistar_calendar",
+        trust_tier="official_partner",
+    ),
+    SourceSeed(
+        jurisdiction_slug="san-jose",
+        jurisdiction_name="City of San Jose",
+        jurisdiction_type="city",
+        asset_class="staff_reports",
+        source_name="San Jose Staff Reports",
+        source_type="meetings",
+        url="https://sanjose.legistar.com/Calendar.aspx",
+        document_type="staff_report",
+        title="San Jose Staff Reports",
         source_method="scrape",
         handler="legistar_calendar",
         trust_tier="official_partner",
@@ -207,6 +250,48 @@ PACK_A_SOURCE_DEFAULTS: tuple[SourceSeed, ...] = (
         trust_tier="official_partner",
     ),
     SourceSeed(
+        jurisdiction_slug="santa-clara-county",
+        jurisdiction_name="County of Santa Clara",
+        jurisdiction_type="county",
+        asset_class="agenda_packets",
+        source_name="Santa Clara County Agenda Packets",
+        source_type="meetings",
+        url="https://sccgov.legistar.com/Calendar.aspx",
+        document_type="agenda_packet",
+        title="Santa Clara County Agenda Packets",
+        source_method="scrape",
+        handler="legistar_calendar",
+        trust_tier="official_partner",
+    ),
+    SourceSeed(
+        jurisdiction_slug="santa-clara-county",
+        jurisdiction_name="County of Santa Clara",
+        jurisdiction_type="county",
+        asset_class="attachments",
+        source_name="Santa Clara County Attachments",
+        source_type="meetings",
+        url="https://sccgov.legistar.com/Calendar.aspx",
+        document_type="attachment",
+        title="Santa Clara County Attachments",
+        source_method="scrape",
+        handler="legistar_calendar",
+        trust_tier="official_partner",
+    ),
+    SourceSeed(
+        jurisdiction_slug="santa-clara-county",
+        jurisdiction_name="County of Santa Clara",
+        jurisdiction_type="county",
+        asset_class="staff_reports",
+        source_name="Santa Clara County Staff Reports",
+        source_type="meetings",
+        url="https://sccgov.legistar.com/Calendar.aspx",
+        document_type="staff_report",
+        title="Santa Clara County Staff Reports",
+        source_method="scrape",
+        handler="legistar_calendar",
+        trust_tier="official_partner",
+    ),
+    SourceSeed(
         jurisdiction_slug="saratoga",
         jurisdiction_name="City of Saratoga",
         jurisdiction_type="city",
@@ -230,6 +315,48 @@ PACK_A_SOURCE_DEFAULTS: tuple[SourceSeed, ...] = (
         url="https://www.saratoga.ca.us/AgendaCenter",
         document_type="minutes",
         title="Saratoga Minutes",
+        source_method="scrape",
+        handler="agenda_center",
+        trust_tier="official_partner",
+    ),
+    SourceSeed(
+        jurisdiction_slug="saratoga",
+        jurisdiction_name="City of Saratoga",
+        jurisdiction_type="city",
+        asset_class="agenda_packets",
+        source_name="Saratoga Agenda Packets",
+        source_type="meetings",
+        url="https://www.saratoga.ca.us/AgendaCenter",
+        document_type="agenda_packet",
+        title="Saratoga Agenda Packets",
+        source_method="scrape",
+        handler="agenda_center",
+        trust_tier="official_partner",
+    ),
+    SourceSeed(
+        jurisdiction_slug="saratoga",
+        jurisdiction_name="City of Saratoga",
+        jurisdiction_type="city",
+        asset_class="attachments",
+        source_name="Saratoga Attachments",
+        source_type="meetings",
+        url="https://www.saratoga.ca.us/AgendaCenter",
+        document_type="attachment",
+        title="Saratoga Attachments",
+        source_method="scrape",
+        handler="agenda_center",
+        trust_tier="official_partner",
+    ),
+    SourceSeed(
+        jurisdiction_slug="saratoga",
+        jurisdiction_name="City of Saratoga",
+        jurisdiction_type="city",
+        asset_class="staff_reports",
+        source_name="Saratoga Staff Reports",
+        source_type="meetings",
+        url="https://www.saratoga.ca.us/AgendaCenter",
+        document_type="staff_report",
+        title="Saratoga Staff Reports",
         source_method="scrape",
         handler="agenda_center",
         trust_tier="official_partner",
@@ -276,7 +403,138 @@ PACK_A_SOURCE_DEFAULTS: tuple[SourceSeed, ...] = (
         handler="sunnyvale_agendas",
         trust_tier="official_partner",
     ),
+    SourceSeed(
+        jurisdiction_slug="sunnyvale",
+        jurisdiction_name="City of Sunnyvale",
+        jurisdiction_type="city",
+        asset_class="agenda_packets",
+        source_name="Sunnyvale Agenda Packets",
+        source_type="meetings",
+        url="https://sunnyvaleca.legistar.com/Calendar.aspx",
+        document_type="agenda_packet",
+        title="Sunnyvale Agenda Packets",
+        source_method="scrape",
+        handler="sunnyvale_agendas",
+        trust_tier="official_partner",
+    ),
+    SourceSeed(
+        jurisdiction_slug="sunnyvale",
+        jurisdiction_name="City of Sunnyvale",
+        jurisdiction_type="city",
+        asset_class="attachments",
+        source_name="Sunnyvale Attachments",
+        source_type="meetings",
+        url="https://sunnyvaleca.legistar.com/Calendar.aspx",
+        document_type="attachment",
+        title="Sunnyvale Attachments",
+        source_method="scrape",
+        handler="sunnyvale_agendas",
+        trust_tier="official_partner",
+    ),
 )
+
+
+def _build_pack_b_source_defaults() -> tuple[SourceSeed, ...]:
+    legistar_jurisdictions = (
+        (
+            "cupertino",
+            "City of Cupertino",
+            "city",
+            "https://cupertino.legistar.com/Calendar.aspx",
+            "Cupertino",
+        ),
+        (
+            "mountain-view",
+            "City of Mountain View",
+            "city",
+            "https://mountainview.legistar.com/Calendar.aspx",
+            "Mountain View",
+        ),
+        (
+            "san-mateo-county",
+            "County of San Mateo",
+            "county",
+            "https://sanmateocounty.legistar.com/Calendar.aspx",
+            "San Mateo County",
+        ),
+        (
+            "san-francisco-city-county",
+            "San Francisco City County",
+            "county",
+            "https://sfgov.legistar.com/Calendar.aspx",
+            "San Francisco City County",
+        ),
+    )
+    legistar_assets = (
+        ("meeting_details", "Meetings Calendar", "meeting_detail", "Meeting Detail Calendar"),
+        ("agendas", "Agendas", "agenda", "Agendas"),
+        ("minutes", "Minutes", "minutes", "Minutes"),
+        ("agenda_packets", "Agenda Packets", "agenda_packet", "Agenda Packets"),
+        ("attachments", "Attachments", "attachment", "Attachments"),
+        ("staff_reports", "Staff Reports", "staff_report", "Staff Reports"),
+    )
+    agenda_center_jurisdictions = (
+        (
+            "campbell",
+            "City of Campbell",
+            "city",
+            "https://www.campbellca.gov/AgendaCenter",
+            "Campbell",
+        ),
+    )
+    agenda_center_assets = (
+        ("agendas", "Agendas", "agenda", "Agendas"),
+        ("minutes", "Minutes", "minutes", "Minutes"),
+        ("agenda_packets", "Agenda Packets", "agenda_packet", "Agenda Packets"),
+        ("attachments", "Attachments", "attachment", "Attachments"),
+        ("staff_reports", "Staff Reports", "staff_report", "Staff Reports"),
+    )
+
+    seeds: list[SourceSeed] = []
+    for slug, jurisdiction_name, jurisdiction_type, url, label in legistar_jurisdictions:
+        for asset_class, source_suffix, document_type, title_suffix in legistar_assets:
+            seeds.append(
+                SourceSeed(
+                    jurisdiction_slug=slug,
+                    jurisdiction_name=jurisdiction_name,
+                    jurisdiction_type=jurisdiction_type,
+                    asset_class=asset_class,
+                    source_name=f"{label} {source_suffix}",
+                    source_type="meetings",
+                    url=url,
+                    document_type=document_type,
+                    title=f"{label} {title_suffix}",
+                    source_method="scrape",
+                    handler="legistar_calendar",
+                    trust_tier="official_partner",
+                    provider_family="pack_b_default",
+                )
+            )
+
+    for slug, jurisdiction_name, jurisdiction_type, url, label in agenda_center_jurisdictions:
+        for asset_class, source_suffix, document_type, title_suffix in agenda_center_assets:
+            seeds.append(
+                SourceSeed(
+                    jurisdiction_slug=slug,
+                    jurisdiction_name=jurisdiction_name,
+                    jurisdiction_type=jurisdiction_type,
+                    asset_class=asset_class,
+                    source_name=f"{label} {source_suffix}",
+                    source_type="meetings",
+                    url=url,
+                    document_type=document_type,
+                    title=f"{label} {title_suffix}",
+                    source_method="scrape",
+                    handler="agenda_center",
+                    trust_tier="official_partner",
+                    provider_family="pack_b_default",
+                )
+            )
+
+    return tuple(seeds)
+
+
+PACK_B_SOURCE_DEFAULTS: tuple[SourceSeed, ...] = _build_pack_b_source_defaults()
 
 
 def _slugify(value: str) -> str:
@@ -573,7 +831,7 @@ async def _ensure_pack_a_source_inventory(
     upserted = 0
     failures: list[dict[str, Any]] = []
 
-    for seed in PACK_A_SOURCE_DEFAULTS:
+    for seed in (*PACK_A_SOURCE_DEFAULTS, *PACK_B_SOURCE_DEFAULTS):
         if seed.jurisdiction_slug not in requested_jurisdictions:
             continue
         if seed.asset_class not in requested_assets:
@@ -607,7 +865,7 @@ async def _ensure_pack_a_source_inventory(
                     "document_type": seed.document_type,
                     "title": seed.title,
                     "trust_tier": seed.trust_tier,
-                    "provider_family": "pack_a_default",
+                    "provider_family": seed.provider_family,
                     "seeded_by": "manual_substrate_expansion",
                 },
             }

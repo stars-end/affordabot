@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from scripts.substrate import manual_expansion_runner
 from services.scraper.city_scrapers_adapter import (
     CityScrapersAdapter,
     MEETING_ARTIFACT_ADAPTERS,
@@ -110,3 +111,25 @@ def test_sunnyvale_not_in_legislation_registry():
 def test_meeting_adapter_surface_exposes_sunnyvale():
     adapter_class = MEETING_ARTIFACT_ADAPTERS["sunnyvale"]
     assert adapter_class is SunnyvaleCSAdapter
+
+
+def test_pack_b_defaults_use_existing_provider_handlers():
+    handlers = {
+        seed.handler
+        for seed in manual_expansion_runner.PACK_B_SOURCE_DEFAULTS
+    }
+    assert handlers <= {"legistar_calendar", "agenda_center"}
+
+
+def test_pack_b_defaults_match_add_now_jurisdictions_only():
+    present = {
+        seed.jurisdiction_slug
+        for seed in manual_expansion_runner.PACK_B_SOURCE_DEFAULTS
+    }
+    assert present == {
+        "cupertino",
+        "mountain-view",
+        "san-mateo-county",
+        "san-francisco-city-county",
+        "campbell",
+    }
