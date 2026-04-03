@@ -12,6 +12,7 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 from urllib.parse import urljoin
+import sys
 
 
 ROW_PATTERN = re.compile(
@@ -19,6 +20,10 @@ ROW_PATTERN = re.compile(
     re.IGNORECASE | re.DOTALL,
 )
 TAG_PATTERN = re.compile(r"<[^>]+>")
+
+BACKEND_ROOT = Path(__file__).resolve().parents[2]
+if str(BACKEND_ROOT) not in sys.path:
+    sys.path.append(str(BACKEND_ROOT))
 
 
 def _repo_root() -> Path:
