@@ -5,9 +5,6 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from supabase import Client
-from supabase import create_client
-
 
 REPO_ROOT = Path(__file__).resolve().parent
 BACKEND_ROOT = REPO_ROOT / "backend"
@@ -22,7 +19,7 @@ def _load_manifest() -> list[dict[str, Any]]:
     return json.loads(manifest_path.read_text())
 
 
-def _resolve_jurisdiction_id_supabase(client: Client, jurisdiction_name: str) -> str | None:
+def _resolve_jurisdiction_id_supabase(client: Any, jurisdiction_name: str) -> str | None:
     result = (
         client.table("jurisdictions")
         .select("id")
@@ -91,7 +88,9 @@ async def _sync_with_postgres(manifest: list[dict[str, Any]]) -> None:
 
 
 def _sync_with_supabase(manifest: list[dict[str, Any]], url: str, key: str) -> None:
-    supabase: Client = create_client(url, key)
+    from supabase import create_client
+
+    supabase = create_client(url, key)
 
     for source in manifest:
         try:
