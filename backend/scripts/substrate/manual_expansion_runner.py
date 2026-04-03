@@ -5,12 +5,19 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from argparse import Namespace
 from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
+
+from pathlib import Path
+
+BACKEND_ROOT = Path(__file__).resolve().parents[2]
+if str(BACKEND_ROOT) not in sys.path:
+    sys.path.append(str(BACKEND_ROOT))
 
 from db.postgres_client import PostgresDB
 from scripts.cron.run_daily_scrape import EMBEDDING_DIMENSIONS
