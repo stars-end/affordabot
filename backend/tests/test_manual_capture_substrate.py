@@ -1,6 +1,7 @@
 import pytest
 import sys
 import types
+from types import SimpleNamespace
 
 if "asyncpg" not in sys.modules:
     sys.modules["asyncpg"] = types.SimpleNamespace(Pool=object, Record=dict)
@@ -176,3 +177,207 @@ async def test_build_embedding_service_mock_uses_4096_contract(monkeypatch):
 
     assert len(query_embedding) == EMBEDDING_DIMENSIONS
     assert all(len(item) == EMBEDDING_DIMENSIONS for item in doc_embeddings)
+
+
+def _manual_capture_args(*, ingest: bool) -> SimpleNamespace:
+    return SimpleNamespace(
+        url="https://example.gov/agenda",
+        jurisdiction_name="Sample City",
+        jurisdiction_type="city",
+        source_name="Sample Agenda Feed",
+        source_type="meetings",
+        document_type="agenda",
+        trust_tier="primary_government",
+        capture_method="manual_http",
+        title=None,
+        ingest=ingest,
+    )
+
+
+@pytest.mark.asyncio
+async def test_capture_document_reuses_existing_revision_when_content_hash_unchanged(
+    monkeypatch,
+):
+    from scripts.substrate import manual_capture as mod
+
+    html_body = b"<html><title>Agenda</title><body>Hello agenda</body></html>"
+
+    class FakeResponse:
+        content = html_body
+        headers = {"content-type": "text/html; charset=utf-8"}
+
+        def raise_for_status(self) -> None:
+            return None
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def get(self, url):
+            return FakeResponse()
+
+    content_hash = __import__("hashlib").sha256(html_body).hexdigest()
+    reused_row = {
+        "id": "scrape-existing",
+        "metadata": {"manual_run_id": "run-1"},
+        "document_id": None,
+        "storage_uri": None,
+        "error_message": None,
+        "processed": False,
+        "content_hash": content_hash,
+        "revision_number": 2,
+    }
+
+    class FakeDB:
+        def __init__(self):
+            self.create_called = False
+            self.mark_seen_called = False
+
+        async def get_or_create_jurisdiction(self, *args, **kwargs):
+            return "jur-1"
+
+        async def get_or_create_source(self, *args, **kwargs):
+            return "source-1"
+
+        async def get_source(self, *args, **kwargs):
+            return {"metadata": {}}
+
+        async def update_source(self, *args, **kwargs):
+            return {}
+
+        async def get_latest_raw_scrape_for_canonical_document(self, *args, **kwargs):
+            return dict(reused_row)
+
+        async def mark_raw_scrape_seen(self, scrape_id, *args, **kwargs):
+            assert scrape_id == "scrape-existing"
+            self.mark_seen_called = True
+            return True
+
+        async def create_raw_scrape(self, *args, **kwargs):
+            self.create_called = True
+            raise AssertionError("should not create new row for unchanged content")
+
+        async def _fetchrow(self, query, scrape_id):
+            assert "SELECT * FROM raw_scrapes WHERE id = $1" in query
+            assert scrape_id == "scrape-existing"
+            return dict(reused_row)
+
+        async def _execute(self, *args, **kwargs):
+            return "UPDATE 1"
+
+        async def close(self):
+            return None
+
+    fake_db = FakeDB()
+
+    class ForbiddenIngestionService:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def process_raw_scrape(self, *args, **kwargs):
+            raise AssertionError("ingestion must be skipped for reused unchanged revisions")
+
+    monkeypatch.setattr(mod.httpx, "AsyncClient", FakeClient)
+    monkeypatch.setattr(mod, "PostgresDB", lambda: fake_db)
+    monkeypatch.setattr(mod, "IngestionService", ForbiddenIngestionService)
+
+    result = await mod.capture_document(_manual_capture_args(ingest=True))
+
+    assert result["scrape_id"] == "scrape-existing"
+    assert result["reused_existing_revision"] is True
+    assert result["ingest_attempted"] is False
+    assert result["ingest_skipped_reason"] == "unchanged_content_revision_reused"
+    assert fake_db.mark_seen_called is True
+    assert fake_db.create_called is False
+
+
+@pytest.mark.asyncio
+async def test_capture_document_links_previous_revision_when_content_changed(monkeypatch):
+    from scripts.substrate import manual_capture as mod
+
+    html_body = b"<html><title>Agenda</title><body>Updated agenda text</body></html>"
+
+    class FakeResponse:
+        content = html_body
+        headers = {"content-type": "text/html; charset=utf-8"}
+
+        def raise_for_status(self) -> None:
+            return None
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def get(self, url):
+            return FakeResponse()
+
+    class FakeDB:
+        def __init__(self):
+            self.created_record = None
+
+        async def get_or_create_jurisdiction(self, *args, **kwargs):
+            return "jur-1"
+
+        async def get_or_create_source(self, *args, **kwargs):
+            return "source-1"
+
+        async def get_source(self, *args, **kwargs):
+            return {"metadata": {}}
+
+        async def update_source(self, *args, **kwargs):
+            return {}
+
+        async def get_latest_raw_scrape_for_canonical_document(self, *args, **kwargs):
+            return {
+                "id": "scrape-prev",
+                "content_hash": "different-content-hash",
+                "revision_number": 3,
+            }
+
+        async def mark_raw_scrape_seen(self, *args, **kwargs):
+            raise AssertionError("mark_raw_scrape_seen should not run for changed content")
+
+        async def create_raw_scrape(self, scrape_record):
+            self.created_record = dict(scrape_record)
+            return "scrape-new"
+
+        async def _fetchrow(self, query, scrape_id):
+            assert scrape_id == "scrape-new"
+            return {
+                "id": "scrape-new",
+                "metadata": {},
+                "document_id": None,
+                "storage_uri": None,
+                "error_message": None,
+                "processed": False,
+            }
+
+        async def _execute(self, *args, **kwargs):
+            return "UPDATE 1"
+
+        async def close(self):
+            return None
+
+    fake_db = FakeDB()
+    monkeypatch.setattr(mod.httpx, "AsyncClient", FakeClient)
+    monkeypatch.setattr(mod, "PostgresDB", lambda: fake_db)
+
+    result = await mod.capture_document(_manual_capture_args(ingest=False))
+
+    assert result["scrape_id"] == "scrape-new"
+    assert result["reused_existing_revision"] is False
+    assert fake_db.created_record is not None
+    assert fake_db.created_record["previous_raw_scrape_id"] == "scrape-prev"
+    assert fake_db.created_record["revision_number"] == 4
