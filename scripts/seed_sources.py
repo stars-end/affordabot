@@ -12,21 +12,75 @@ supabase: Client = create_client(url, key)
 
 sources = [
     {
-        "jurisdiction_id": "san_jose_ca",
+        "jurisdiction_id": "san-jose",
         "url": "https://sanjose.legistar.com/Calendar.aspx",
-        "type": "meeting",
+        "type": "meetings",
+        "name": "San Jose Agendas",
         "status": "active",
         "source_method": "scrape",
-        "handler": "sanjose_meetings"
+        "handler": "legistar_calendar",
+        "metadata": {
+            "document_type": "agenda",
+            "title": "San Jose Agendas",
+            "trust_tier": "official_partner",
+        },
     },
     {
-        "jurisdiction_id": "san_jose_ca",
+        "jurisdiction_id": "san-jose",
         "url": "https://library.municode.com/ca/san_jose/codes/code_of_ordinances",
         "type": "code",
+        "name": "San Jose Municipal Code",
         "status": "active",
         "source_method": "scrape",
-        "handler": "sanjose_municode"
-    }
+        "handler": "municode",
+        "metadata": {
+            "document_type": "municipal_code",
+            "title": "San Jose Municipal Code",
+            "trust_tier": "official_partner",
+        },
+    },
+    {
+        "jurisdiction_id": "santa-clara-county",
+        "url": "https://sccgov.legistar.com/Calendar.aspx",
+        "type": "meetings",
+        "name": "Santa Clara County Agendas",
+        "status": "active",
+        "source_method": "scrape",
+        "handler": "legistar_calendar",
+        "metadata": {
+            "document_type": "agenda",
+            "title": "Santa Clara County Agendas",
+            "trust_tier": "official_partner",
+        },
+    },
+    {
+        "jurisdiction_id": "saratoga",
+        "url": "https://www.saratoga.ca.us/AgendaCenter",
+        "type": "meetings",
+        "name": "Saratoga Agenda Center",
+        "status": "active",
+        "source_method": "scrape",
+        "handler": "agenda_center",
+        "metadata": {
+            "document_type": "agenda",
+            "title": "Saratoga Agenda Center",
+            "trust_tier": "official_partner",
+        },
+    },
+    {
+        "jurisdiction_id": "sunnyvale",
+        "url": "https://sunnyvaleca.legistar.com/Calendar.aspx",
+        "type": "meetings",
+        "name": "Sunnyvale Agendas",
+        "status": "active",
+        "source_method": "scrape",
+        "handler": "sunnyvale_agendas",
+        "metadata": {
+            "document_type": "agenda",
+            "title": "Sunnyvale Agendas",
+            "trust_tier": "official_partner",
+        },
+    },
 ]
 
 for source in sources:
