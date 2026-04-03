@@ -549,6 +549,80 @@ class PostgresDB:
             logger.error("Error marking raw scrape seen for %s: %s", scrape_id, e)
             return False
 
+    async def find_retrievable_raw_scrape_by_content_identity(
+        self,
+        canonical_document_key: str,
+        content_hash: str,
+        *,
+        exclude_scrape_id: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Find an already retrievable revision for the same logical document content."""
+        try:
+            row = await self._fetchrow(
+                """
+                SELECT
+                    id,
+                    document_id,
+                    revision_number,
+                    canonical_document_key,
+                    content_hash,
+                    processed,
+                    metadata
+                FROM raw_scrapes
+                WHERE canonical_document_key = $1
+                  AND content_hash = $2
+                  AND document_id IS NOT NULL
+                  AND COALESCE(processed, false) = true
+                  AND ($3::text IS NULL OR id::text <> $3)
+                ORDER BY revision_number DESC, created_at DESC
+                LIMIT 1
+                """,
+                canonical_document_key,
+                content_hash,
+                exclude_scrape_id,
+            )
+            return dict(row) if row else None
+        except Exception as e:
+            logger.error(
+                "Error finding retrievable raw scrape for canonical document key %s: %s",
+                canonical_document_key,
+                e,
+            )
+            return None
+
+    async def get_latest_retrievable_raw_scrape_for_canonical_document(
+        self, canonical_document_key: str
+    ) -> Optional[Dict[str, Any]]:
+        """Return the latest retrievable revision for a canonical document chain."""
+        try:
+            row = await self._fetchrow(
+                """
+                SELECT
+                    id,
+                    document_id,
+                    revision_number,
+                    canonical_document_key,
+                    content_hash,
+                    processed,
+                    metadata
+                FROM raw_scrapes
+                WHERE canonical_document_key = $1
+                  AND document_id IS NOT NULL
+                  AND COALESCE(processed, false) = true
+                ORDER BY revision_number DESC, created_at DESC
+                LIMIT 1
+                """,
+                canonical_document_key,
+            )
+            return dict(row) if row else None
+        except Exception as e:
+            logger.error(
+                "Error finding latest retrievable raw scrape for canonical document key %s: %s",
+                canonical_document_key,
+                e,
+            )
+            return None
+
     async def get_vector_stats(self, document_id: str) -> Dict[str, Any]:
         """Get stats for a user-facing document (chunk count)."""
         try:
