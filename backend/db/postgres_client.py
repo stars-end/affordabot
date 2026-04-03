@@ -312,37 +312,65 @@ class PostgresDB:
     ) -> Optional[str]:
         """Get source ID, creating if it doesn't exist."""
         try:
-            # Railway schema requires sources.url NOT NULL. When upstream doesn't provide one,
-            # synthesize a stable placeholder so ingestion can proceed.
-            if not url:
-                safe_name = quote(name or "unknown", safe="")
-                url = f"unknown://{jurisdiction_id}/{type}/{safe_name}"
-
-            # Check by URL if provided (stronger match), otherwise Name
-            if url:
-                row = await self._fetchrow("SELECT id FROM sources WHERE url = $1", url)
-                if row:
-                    return str(row["id"])
-
-            row = await self._fetchrow(
-                "SELECT id FROM sources WHERE jurisdiction_id = $1 AND name = $2",
-                jurisdiction_id,
-                name,
+            source = await self.upsert_source(
+                {
+                    "jurisdiction_id": jurisdiction_id,
+                    "name": name,
+                    "type": type,
+                    "url": url,
+                }
             )
-            if row:
-                return str(row["id"])
-
-            row = await self._fetchrow(
-                "INSERT INTO sources (jurisdiction_id, name, type, url) VALUES ($1, $2, $3, $4) RETURNING id",
-                jurisdiction_id,
-                name,
-                type,
-                url,
-            )
-            return str(row["id"]) if row else None
+            return str(source["id"]) if source and source.get("id") else None
         except Exception as e:
             logger.error(f"Error in get_or_create_source: {e}")
             return None
+
+    async def upsert_source(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Upsert a source by URL first, then by jurisdiction/name."""
+        payload = dict(data)
+        jurisdiction_id = payload.get("jurisdiction_id")
+        source_name = payload.get("name")
+        source_type = payload.get("type")
+        source_url = payload.get("url")
+
+        if not jurisdiction_id or not source_type:
+            raise ValueError("jurisdiction_id and type are required")
+
+        if not source_name:
+            source_name = f"{source_type} source"
+            payload["name"] = source_name
+
+        if not source_url:
+            safe_name = quote(source_name or "unknown", safe="")
+            source_url = f"unknown://{jurisdiction_id}/{source_type}/{safe_name}"
+            payload["url"] = source_url
+
+        existing = await self._fetchrow("SELECT id FROM sources WHERE url = $1", source_url)
+        if not existing:
+            existing = await self._fetchrow(
+                "SELECT id FROM sources WHERE jurisdiction_id = $1 AND name = $2",
+                jurisdiction_id,
+                source_name,
+            )
+
+        if existing:
+            source_id = str(existing["id"])
+            updates = {k: v for k, v in payload.items() if k not in {"jurisdiction_id"}}
+            set_clause = ", ".join([f"{k} = ${i + 2}" for i, k in enumerate(updates.keys())])
+            row = await self._fetchrow(
+                f"UPDATE sources SET {set_clause} WHERE id = $1 RETURNING *",
+                source_id,
+                *updates.values(),
+            )
+            return dict(row) if row else {}
+
+        columns = ", ".join(payload.keys())
+        placeholders = ", ".join([f"${i + 1}" for i in range(len(payload))])
+        row = await self._fetchrow(
+            f"INSERT INTO sources ({columns}) VALUES ({placeholders}) RETURNING *",
+            *payload.values(),
+        )
+        return dict(row) if row else {}
 
     async def get_sources(
         self, jurisdiction_id: Optional[str] = None
