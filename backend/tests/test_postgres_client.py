@@ -62,3 +62,46 @@ async def test_store_legislation_insert_falls_back_to_bill_number_for_title() ->
     )
 
     assert legislation_id == "leg-2"
+
+
+@pytest.mark.asyncio
+async def test_upsert_source_updates_existing_url_row() -> None:
+    db = PostgresDB("postgresql://example.test/db")
+    db._fetchrow = AsyncMock(
+        side_effect=[
+            {"id": "src-1"},
+            {"id": "src-1", "url": "https://example.gov/agenda", "name": "Agenda source"},
+        ]
+    )
+
+    source = await db.upsert_source(
+        {
+            "jurisdiction_id": "jur-1",
+            "name": "Agenda source",
+            "type": "meetings",
+            "url": "https://example.gov/agenda",
+            "source_method": "scrape",
+            "handler": "legistar_calendar",
+            "metadata": {"document_type": "agenda"},
+        }
+    )
+
+    assert source["id"] == "src-1"
+    update_sql = db._fetchrow.await_args_list[1].args[0]
+    assert update_sql.startswith("UPDATE sources SET")
+
+
+@pytest.mark.asyncio
+async def test_get_or_create_source_uses_upsert_source() -> None:
+    db = PostgresDB("postgresql://example.test/db")
+    db.upsert_source = AsyncMock(return_value={"id": "src-2"})
+
+    source_id = await db.get_or_create_source(
+        "jur-2",
+        "County agendas",
+        "meetings",
+        url="https://sccgov.legistar.com/Calendar.aspx",
+    )
+
+    assert source_id == "src-2"
+    db.upsert_source.assert_awaited_once()
