@@ -67,6 +67,7 @@ export function SubstrateExplorer() {
     const [selectedRawId, setSelectedRawId] = useState<string | null>(null);
     const [rawDetail, setRawDetail] = useState<SubstrateRawScrapeDetail | null>(null);
     const [rawDetailLoading, setRawDetailLoading] = useState(false);
+    const [copiedRunId, setCopiedRunId] = useState(false);
 
     const loadRuns = async () => {
         setRunsLoading(true);
@@ -189,6 +190,26 @@ export function SubstrateExplorer() {
 
     const summary = runDetail?.summary || {};
     const promotionCounts = (summary.promotion_state_counts as Record<string, unknown> | undefined) || {};
+    const stageCounts = (summary.ingestion_truth_stage_counts as Record<string, unknown> | undefined) || {};
+    const failureCount = failureBuckets.reduce((total, bucket) => total + toNumber(bucket.count), 0);
+    const topStages = Object.entries(stageCounts)
+        .sort((left, right) => toNumber(right[1]) - toNumber(left[1]))
+        .slice(0, 3);
+    const topJurisdictions = runDetail?.jurisdiction_names.slice(0, 4) || [];
+
+    const jumpToSection = (sectionId: string) => {
+        const node = document.getElementById(sectionId);
+        if (node) {
+            node.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    };
+
+    const copyRunId = async () => {
+        if (!selectedRunId || typeof navigator === 'undefined' || !navigator.clipboard) return;
+        await navigator.clipboard.writeText(selectedRunId);
+        setCopiedRunId(true);
+        window.setTimeout(() => setCopiedRunId(false), 1500);
+    };
 
     return (
         <div className="space-y-6">
@@ -260,10 +281,25 @@ export function SubstrateExplorer() {
                 <div className="space-y-6 xl:col-span-2">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Run Summary</CardTitle>
-                            <CardDescription>
-                                {selectedRunId ? `Run: ${selectedRunId}` : 'Select a run to view summary'}
-                            </CardDescription>
+                            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                                <div>
+                                    <CardTitle>Run Summary</CardTitle>
+                                    <CardDescription>
+                                        {selectedRunId ? `Run: ${selectedRunId}` : 'Select a run to view summary'}
+                                    </CardDescription>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                    <Button variant="outline" size="sm" onClick={copyRunId} disabled={!selectedRunId}>
+                                        {copiedRunId ? 'Copied Run ID' : 'Copy Run ID'}
+                                    </Button>
+                                    <Button variant="outline" size="sm" onClick={() => jumpToSection('substrate-failure-buckets')} disabled={!runDetail}>
+                                        Jump To Failures
+                                    </Button>
+                                    <Button variant="outline" size="sm" onClick={() => jumpToSection('substrate-raw-rows')} disabled={!runDetail}>
+                                        Jump To Raw Rows
+                                    </Button>
+                                </div>
+                            </div>
                         </CardHeader>
                         <CardContent>
                             {detailLoading ? (
@@ -273,14 +309,66 @@ export function SubstrateExplorer() {
                                 </div>
                             ) : runDetail ? (
                                 <div className="space-y-4">
-                                    <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                                    <div className="rounded border bg-slate-50 p-3">
+                                        <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Operator Snapshot</p>
+                                        <div className="mt-2 grid gap-2 text-sm text-slate-700 md:grid-cols-3">
+                                            <div>
+                                                <span className="font-medium text-slate-900">Latest capture:</span>{' '}
+                                                {formatTime(runDetail.latest_created_at)}
+                                            </div>
+                                            <div>
+                                                <span className="font-medium text-slate-900">Failure rows:</span>{' '}
+                                                {failureCount}
+                                            </div>
+                                            <div>
+                                                <span className="font-medium text-slate-900">Jurisdictions:</span>{' '}
+                                                {runDetail.jurisdiction_names.length}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
                                         <Metric label="Raw Rows" value={toNumber(runDetail.raw_scrapes_total)} />
                                         <Metric label="Promoted" value={toNumber(promotionCounts.promoted_substrate)} />
                                         <Metric label="Durable Raw" value={toNumber(promotionCounts.durable_raw)} />
                                         <Metric label="Captured Candidate" value={toNumber(promotionCounts.captured_candidate)} />
+                                        <Metric label="Failure Buckets" value={failureBuckets.length} />
                                     </div>
-                                    <div className="text-xs text-slate-500">
-                                        Jurisdictions: {runDetail.jurisdiction_names.length ? runDetail.jurisdiction_names.join(', ') : 'n/a'}
+                                    <div className="grid gap-3 md:grid-cols-2">
+                                        <div className="rounded border p-3">
+                                            <p className="text-xs font-semibold text-slate-700">Top Ingestion Stages</p>
+                                            <div className="mt-2 flex flex-wrap gap-2">
+                                                {topStages.length ? (
+                                                    topStages.map(([stage, count]) => (
+                                                        <Badge key={stage} variant="outline">
+                                                            {stage}: {toNumber(count)}
+                                                        </Badge>
+                                                    ))
+                                                ) : (
+                                                    <span className="text-xs text-slate-500">No stage summary available.</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="rounded border p-3">
+                                            <p className="text-xs font-semibold text-slate-700">Jurisdiction Scope</p>
+                                            <div className="mt-2 flex flex-wrap gap-2">
+                                                {topJurisdictions.length ? (
+                                                    <>
+                                                        {topJurisdictions.map((name) => (
+                                                            <Badge key={name} variant="secondary">
+                                                                {name}
+                                                            </Badge>
+                                                        ))}
+                                                        {runDetail.jurisdiction_names.length > topJurisdictions.length && (
+                                                            <Badge variant="outline">
+                                                                +{runDetail.jurisdiction_names.length - topJurisdictions.length} more
+                                                            </Badge>
+                                                        )}
+                                                    </>
+                                                ) : (
+                                                    <span className="text-xs text-slate-500">No jurisdictions recorded.</span>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             ) : (
@@ -289,7 +377,7 @@ export function SubstrateExplorer() {
                         </CardContent>
                     </Card>
 
-                    <Card>
+                    <Card id="substrate-failure-buckets">
                         <CardHeader>
                             <CardTitle>Failure Buckets</CardTitle>
                             <CardDescription>Top grouped failure reasons for this run.</CardDescription>
@@ -301,22 +389,31 @@ export function SubstrateExplorer() {
                                     Loading failure buckets...
                                 </div>
                             ) : failureBuckets.length ? (
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Reason</TableHead>
-                                            <TableHead className="w-24">Count</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
+                                <div className="space-y-3">
+                                    <div className="flex flex-wrap gap-2">
                                         {failureBuckets.map((bucket, index) => (
-                                            <TableRow key={`${bucketReason(bucket)}-${index}`}>
-                                                <TableCell className="text-sm">{bucketReason(bucket)}</TableCell>
-                                                <TableCell>{toNumber(bucket.count)}</TableCell>
-                                            </TableRow>
+                                            <Badge key={`${bucketReason(bucket)}-pill-${index}`} variant="secondary">
+                                                {bucketReason(bucket)} ({toNumber(bucket.count)})
+                                            </Badge>
                                         ))}
-                                    </TableBody>
-                                </Table>
+                                    </div>
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Reason</TableHead>
+                                                <TableHead className="w-24">Count</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {failureBuckets.map((bucket, index) => (
+                                                <TableRow key={`${bucketReason(bucket)}-${index}`}>
+                                                    <TableCell className="text-sm">{bucketReason(bucket)}</TableCell>
+                                                    <TableCell>{toNumber(bucket.count)}</TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </div>
                             ) : (
                                 <p className="text-sm text-slate-500">No failure buckets for this run.</p>
                             )}
@@ -325,10 +422,12 @@ export function SubstrateExplorer() {
                 </div>
             </div>
 
-            <Card>
+            <Card id="substrate-raw-rows">
                 <CardHeader>
                     <CardTitle>Run Raw Rows</CardTitle>
-                    <CardDescription>Filter and inspect row-level substrate captures.</CardDescription>
+                    <CardDescription>
+                        Filter and inspect row-level substrate captures. {rawRows.length ? `${rawRows.length} row(s) loaded.` : 'No rows loaded yet.'}
+                    </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="grid grid-cols-1 gap-3 md:grid-cols-3 xl:grid-cols-5">
