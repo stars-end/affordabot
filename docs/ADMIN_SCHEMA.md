@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Admin Dashboard V2 schema provides comprehensive tracking and management for AffordaBot's administrative operations, following 2025 Supabase best practices.
+The Admin Dashboard V2 schema provides comprehensive tracking and management for AffordaBot's administrative operations, following 2025 Postgres best practices.
 
 ## Tables
 
@@ -41,15 +41,15 @@ SELECT * FROM admin_tasks WHERE status = 'failed' ORDER BY created_at DESC LIMIT
 **Common Queries**:
 ```sql
 -- Get active models for generation (by priority)
-SELECT * FROM model_configs 
-WHERE use_case IN ('generation', 'both') AND enabled = true 
+SELECT * FROM model_configs
+WHERE use_case IN ('generation', 'both') AND enabled = true
 ORDER BY priority;
 
 -- Update model priority
 UPDATE model_configs SET priority = 1 WHERE provider = 'openrouter' AND model_name = 'x-ai/grok-beta';
 
 -- Track model health
-UPDATE model_configs SET 
+UPDATE model_configs SET
     health_status = 'healthy',
     last_health_check_at = NOW(),
     health_details = '{"latency_ms": 234, "success_rate": 0.98}'::jsonb
@@ -82,8 +82,8 @@ COMMIT;
 
 -- View prompt history
 SELECT version, description, activated_at, usage_count, avg_quality_score
-FROM system_prompts 
-WHERE prompt_type = 'generation' 
+FROM system_prompts
+WHERE prompt_type = 'generation'
 ORDER BY version DESC;
 ```
 
@@ -100,12 +100,12 @@ ORDER BY version DESC;
 ```sql
 -- Get analysis history for a bill
 SELECT step, model_name, confidence_score, created_at
-FROM analysis_history 
+FROM analysis_history
 WHERE jurisdiction = 'san_jose' AND bill_id = 'SB-123'
 ORDER BY created_at DESC;
 
 -- Calculate average costs by model
-SELECT model_provider, model_name, 
+SELECT model_provider, model_name,
        AVG(cost_usd) as avg_cost,
        SUM(cost_usd) as total_cost,
        COUNT(*) as executions
@@ -114,7 +114,7 @@ WHERE created_at > NOW() - INTERVAL '30 days'
 GROUP BY model_provider, model_name;
 
 -- Find low-confidence analyses for review
-SELECT * FROM analysis_history 
+SELECT * FROM analysis_history
 WHERE step = 'generate' AND confidence_score < 0.7
 ORDER BY created_at DESC;
 ```
@@ -132,8 +132,8 @@ ORDER BY created_at DESC;
 ```sql
 -- Get recent scrapes by jurisdiction
 SELECT jurisdiction, bills_found, bills_new, status, created_at
-FROM scrape_history 
-ORDER BY created_at DESC 
+FROM scrape_history
+ORDER BY created_at DESC
 LIMIT 20;
 
 -- Calculate scraping success rate
@@ -158,7 +158,7 @@ All tables include optimized indexes for common query patterns:
 
 ## Row Level Security (RLS)
 
-All tables have RLS enabled with placeholder admin policies. **TODO**: Update policies based on your authentication system (Clerk, Supabase Auth, etc.).
+All tables have RLS enabled with placeholder admin policies. **TODO**: Update policies based on your authentication system (Clerk, Postgres Auth, etc.).
 
 Example policy update:
 ```sql
@@ -171,7 +171,7 @@ CREATE POLICY "Admin full access to admin_tasks"
     USING (
         -- Example: Check if user has admin role
         EXISTS (
-            SELECT 1 FROM user_roles 
+            SELECT 1 FROM user_roles
             WHERE user_id = auth.uid() AND role = 'admin'
         )
     );
@@ -183,19 +183,19 @@ All tables with `updated_at` columns have automatic update triggers using the `u
 
 ## Migration Application
 
-### Development (Local Supabase)
+### Development (Local Postgres)
 ```bash
-supabase db reset  # Reset and apply all migrations
-supabase db push   # Push schema changes
+postgres db reset  # Reset and apply all migrations
+postgres db push   # Push schema changes
 ```
 
 ### Production (Railway)
 ```bash
 # Using Railway CLI
-railway run psql $DATABASE_URL -f supabase/migrations/20251130_admin_dashboard_v2_schema.sql
+railway run psql $DATABASE_URL -f backend/migrations/20251130_admin_dashboard_v2_schema.sql
 
 # Or using apply_migration_railway.py
-python apply_migration_railway.py supabase/migrations/20251130_admin_dashboard_v2_schema.sql
+python apply_migration_railway.py backend/migrations/20251130_admin_dashboard_v2_schema.sql
 ```
 
 ## Integration with Backend
@@ -210,7 +210,7 @@ async def get_scrape_history(
     limit: int = 50
 ):
     query = """
-        SELECT id, jurisdiction, created_at as timestamp, 
+        SELECT id, jurisdiction, created_at as timestamp,
                bills_found, status, error_message
         FROM scrape_history
         WHERE ($1::text IS NULL OR jurisdiction = $1)
@@ -230,7 +230,7 @@ async def get_scrape_history(
 4. **Update RLS policies** before deploying to production
 5. **Use JSONB indexes** if querying specific JSON fields frequently:
    ```sql
-   CREATE INDEX idx_admin_tasks_config_model 
+   CREATE INDEX idx_admin_tasks_config_model
    ON admin_tasks((config->>'model_override'));
    ```
 
@@ -239,6 +239,6 @@ async def get_scrape_history(
 When adding new columns or tables:
 1. Create a new migration file with timestamp
 2. Update this documentation
-3. Test locally with `supabase db reset`
+3. Test locally with `postgres db reset`
 4. Apply to production with Railway
 5. Update `golden_schema.sql` after successful deployment

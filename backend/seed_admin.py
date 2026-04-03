@@ -1,75 +1,59 @@
 import os
-import json
-import urllib.request
-import urllib.error
+import sys
+from pathlib import Path
+import asyncio
 
-def seed_data():
-    url = os.getenv("SUPABASE_URL")
-    key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-    
-    if not url or not key:
-        print("Error: Supabase credentials not found.")
-        return
+BACKEND_ROOT = Path(__file__).resolve().parent
+if str(BACKEND_ROOT) not in sys.path:
+    sys.path.append(str(BACKEND_ROOT))
 
-    headers = {
-        "apikey": key,
-        "Authorization": f"Bearer {key}",
-        "Content-Type": "application/json",
-        "Prefer": "resolution=merge-duplicates"
-    }
+from db.postgres_client import PostgresDB
 
-    # Seed Models
-    models = [
-        {'provider': 'zai', 'model_name': 'glm-4', 'priority': 1, 'enabled': True, 'use_case': 'generation'},
-        {'provider': 'openrouter', 'model_name': 'anthropic/claude-3-opus', 'priority': 2, 'enabled': True, 'use_case': 'generation'},
-        {'provider': 'openrouter', 'model_name': 'openai/gpt-4o', 'priority': 3, 'enabled': True, 'use_case': 'review'}
-    ]
 
-    print("Seeding models...")
-    req = urllib.request.Request(
-        f"{url}/rest/v1/model_configs",
-        data=json.dumps(models).encode('utf-8'),
-        headers=headers,
-        method='POST'
-    )
+async def seed_data() -> None:
+    if not (os.getenv("DATABASE_URL_PUBLIC") or os.getenv("DATABASE_URL")):
+        print("Error: DATABASE_URL or DATABASE_URL_PUBLIC not found.")
+        raise SystemExit(1)
+
+    db = PostgresDB()
+    await db.connect()
     try:
-        with urllib.request.urlopen(req) as response:
-            print(f"Models seeded: {response.status}")
-    except urllib.error.HTTPError as e:
-        print(f"Error seeding models: {e.code} {e.read().decode()}")
+        models = [
+            {"provider": "zai", "model_name": "glm-4", "priority": 1, "enabled": True, "use_case": "generation"},
+            {"provider": "openrouter", "model_name": "anthropic/claude-3-opus", "priority": 2, "enabled": True, "use_case": "generation"},
+            {"provider": "openrouter", "model_name": "openai/gpt-4o", "priority": 3, "enabled": True, "use_case": "review"},
+        ]
 
-    # Seed Prompts
-    prompts = [
-        {
-            'prompt_type': 'generation',
-            'system_prompt': 'You are an expert legislative analyst. Analyze the following bill text and identify potential impacts on the cost of living for families in the specified jurisdiction. Focus on housing, utilities, transportation, and taxes. Provide a confidence score for each impact.',
-            'version': 1,
-            'description': 'Default generation prompt',
-            'is_active': True,
-            'created_by': 'system'
-        },
-        {
-            'prompt_type': 'review',
-            'system_prompt': 'You are a senior policy reviewer. Review the following impact analysis for accuracy, bias, and evidence. Flag any speculative claims that lack citation. Adjust confidence scores based on the strength of the evidence provided.',
-            'version': 1,
-            'description': 'Default review prompt',
-            'is_active': True,
-            'created_by': 'system'
-        }
-    ]
+        print("Seeding models...")
+        for model in models:
+            await db.update_model_config(**model)
+            print(f"Seeded model config: {model['provider']} / {model['model_name']} / {model['use_case']}")
 
-    print("Seeding prompts...")
-    req = urllib.request.Request(
-        f"{url}/rest/v1/system_prompts",
-        data=json.dumps(prompts).encode('utf-8'),
-        headers=headers,
-        method='POST'
-    )
-    try:
-        with urllib.request.urlopen(req) as response:
-            print(f"Prompts seeded: {response.status}")
-    except urllib.error.HTTPError as e:
-        print(f"Error seeding prompts: {e.code} {e.read().decode()}")
+        prompts = [
+            {
+                "prompt_type": "generation",
+                "system_prompt": "You are an expert legislative analyst. Analyze the following bill text and identify potential impacts on the cost of living for families in the specified jurisdiction. Focus on housing, utilities, transportation, and taxes. Provide a confidence score for each impact.",
+                "description": "Default generation prompt",
+            },
+            {
+                "prompt_type": "review",
+                "system_prompt": "You are a senior policy reviewer. Review the following impact analysis for accuracy, bias, and evidence. Flag any speculative claims that lack citation. Adjust confidence scores based on the strength of the evidence provided.",
+                "description": "Default review prompt",
+            },
+        ]
+
+        print("Seeding prompts...")
+        for prompt in prompts:
+            version = await db.update_system_prompt(
+                prompt_type=prompt["prompt_type"],
+                system_prompt=prompt["system_prompt"],
+                description=prompt["description"],
+                user_id="system",
+            )
+            print(f"Seeded prompt: {prompt['prompt_type']} v{version}")
+    finally:
+        await db.close()
+
 
 if __name__ == "__main__":
-    seed_data()
+    asyncio.run(seed_data())

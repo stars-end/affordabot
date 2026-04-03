@@ -167,7 +167,7 @@ generate_listing() {
       category="Backend"
     elif [[ "$dir" =~ ^frontend ]]; then
       category="Frontend"
-    elif [[ "$dir" =~ ^supabase ]]; then
+    elif [[ "$dir" =~ ^(backend/migrations|db|database) ]]; then
       category="Database"
     elif [[ "$dir" =~ ^tests ]]; then
       category="Tests"

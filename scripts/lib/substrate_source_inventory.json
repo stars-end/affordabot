@@ -1,0 +1,102 @@
+[
+  {
+    "jurisdiction_slug": "san-jose",
+    "jurisdiction_name": "San Jose",
+    "jurisdiction_type": "city",
+    "source_name": "San Jose Legistar Calendar",
+    "url": "https://sanjose.legistar.com/Calendar.aspx",
+    "type": "meeting_calendar",
+    "status": "active",
+    "source_method": "manual",
+    "handler": "substrate_legistar_calendar",
+    "scrape_url": "https://sanjose.legistar.com/Calendar.aspx",
+    "metadata": {
+      "provider_family": "legistar_calendar",
+      "document_type": "meeting_calendar",
+      "supported_asset_classes": ["agendas", "minutes"],
+      "trust_tier": "official",
+      "seed_wave": "bd-knlg",
+      "inventory_scope": "existing_family_deepening"
+    }
+  },
+  {
+    "jurisdiction_slug": "sunnyvale",
+    "jurisdiction_name": "Sunnyvale",
+    "jurisdiction_type": "city",
+    "source_name": "Sunnyvale Legistar Calendar",
+    "url": "https://sunnyvaleca.legistar.com/Calendar.aspx",
+    "type": "meeting_calendar",
+    "status": "active",
+    "source_method": "manual",
+    "handler": "substrate_legistar_calendar",
+    "scrape_url": "https://sunnyvaleca.legistar.com/Calendar.aspx",
+    "metadata": {
+      "provider_family": "legistar_calendar",
+      "document_type": "meeting_calendar",
+      "supported_asset_classes": ["agendas", "minutes"],
+      "trust_tier": "official",
+      "seed_wave": "bd-knlg",
+      "inventory_scope": "existing_family_deepening"
+    }
+  },
+  {
+    "jurisdiction_slug": "cupertino",
+    "jurisdiction_name": "Cupertino",
+    "jurisdiction_type": "city",
+    "source_name": "Cupertino Legistar Calendar",
+    "url": "https://cupertino.legistar.com/Calendar.aspx",
+    "type": "meeting_calendar",
+    "status": "active",
+    "source_method": "manual",
+    "handler": "substrate_legistar_calendar",
+    "scrape_url": "https://cupertino.legistar.com/Calendar.aspx",
+    "metadata": {
+      "provider_family": "legistar_calendar",
+      "document_type": "meeting_calendar",
+      "supported_asset_classes": ["agendas", "minutes"],
+      "trust_tier": "official",
+      "seed_wave": "bd-knlg",
+      "inventory_scope": "existing_family_deepening"
+    }
+  },
+  {
+    "jurisdiction_slug": "mountain-view",
+    "jurisdiction_name": "Mountain View",
+    "jurisdiction_type": "city",
+    "source_name": "Mountain View Legistar Calendar",
+    "url": "https://mountainview.legistar.com/Calendar.aspx",
+    "type": "meeting_calendar",
+    "status": "active",
+    "source_method": "manual",
+    "handler": "substrate_legistar_calendar",
+    "scrape_url": "https://mountainview.legistar.com/Calendar.aspx",
+    "metadata": {
+      "provider_family": "legistar_calendar",
+      "document_type": "meeting_calendar",
+      "supported_asset_classes": ["agendas", "minutes"],
+      "trust_tier": "official",
+      "seed_wave": "bd-knlg",
+      "inventory_scope": "existing_family_deepening"
+    }
+  },
+  {
+    "jurisdiction_slug": "san-mateo-county",
+    "jurisdiction_name": "San Mateo County",
+    "jurisdiction_type": "county",
+    "source_name": "San Mateo County Legistar Calendar",
+    "url": "https://sanmateocounty.legistar.com/Calendar.aspx",
+    "type": "meeting_calendar",
+    "status": "active",
+    "source_method": "manual",
+    "handler": "substrate_legistar_calendar",
+    "scrape_url": "https://sanmateocounty.legistar.com/Calendar.aspx",
+    "metadata": {
+      "provider_family": "legistar_calendar",
+      "document_type": "meeting_calendar",
+      "supported_asset_classes": ["agendas", "minutes"],
+      "trust_tier": "official",
+      "seed_wave": "bd-knlg",
+      "inventory_scope": "existing_family_deepening"
+    }
+  }
+]

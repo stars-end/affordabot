@@ -67,8 +67,8 @@ async def test_harvester_flow():
                 assert "postgres_client" in call_kwargs.kwargs or (
                     len(call_kwargs.args) >= 1
                 ), "IngestionService must receive postgres_client"
-                assert "supabase_client" not in call_kwargs.kwargs, (
-                    "IngestionService must NOT receive deprecated supabase_client kwarg"
+                assert "legacy_storage_client" not in call_kwargs.kwargs, (
+                    "IngestionService must not receive deprecated storage kwargs"
                 )
 
 

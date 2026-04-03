@@ -33,20 +33,20 @@ We need a "Lake" (Raw) and a "Warehouse" (RAG).
 
 ### RAG Storage (`documents` - via `llm-common`)
 - **Purpose**: Semantic search.
-- **Schema** (Managed by `SupabasePgVectorBackend`):
+- **Schema** (Managed by `Postgres pgvector backend`):
     - `id`: UUID
     - `content`: Text (Chunk)
     - `embedding`: Vector
     - `metadata`: JSONB. **Critical**: Must contain `raw_scrape_id`, `jurisdiction_id`, `doc_type` (meeting, regulation), `timestamp`.
 
 ## 4. Embeddings in `llm-common`
-- **Workflow**: `llm-common` (PR #3) provides the *storage* backend (`SupabasePgVectorBackend`). It *delegates* the embedding generation.
+- **Workflow**: `llm-common` (PR #3) provides the *storage* backend (`Postgres pgvector backend`). It *delegates* the embedding generation.
 - **Integration**:
     1.  **Ingestion Service** (in `affordabot-rdx`):
         -   Reads `raw_scrapes`.
         -   Cleans & Chunks text.
         -   Calls Embedding API (e.g., OpenAI `text-embedding-3-small` via `litellm`).
-        -   Passes (Text, Vector, Metadata) to `SupabasePgVectorBackend.add_documents()`.
+        -   Passes (Text, Vector, Metadata) to `Postgres pgvector backend.add_documents()`.
 
 ## 5. Summary of Changes
 1.  **No Marvin**: Use Prefect for flow control, `llm-common` for brains.

@@ -21,7 +21,7 @@ Analysis of Railway templates and their role in Affordabot's future architecture
 ## Rejected / Redundant
 
 *   **FastAPI Template:** Redundant (We already have a mature FastAPI backend).
-*   **pgvector Template:** Redundant (Supabase provides managed pgvector).
+*   **pgvector Template:** Redundant (Postgres provides managed pgvector).
 *   **ChromaDB:** Redundant (See `docs/TOOL_EVALUATION.md`).
-*   **MinIO:** Redundant (Supabase Storage covers this).
+*   **MinIO:** Redundant (object storage covers this).
 *   **AnythingLLM:** Redundant (We built a custom, specialized RAG pipeline).

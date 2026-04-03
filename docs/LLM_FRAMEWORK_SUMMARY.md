@@ -1,8 +1,8 @@
 # LLM Framework - Implementation Summary
 
-**Version:** 1.0  
-**Date:** 2025-12-01  
-**Status:** Ready for Implementation  
+**Version:** 1.0
+**Date:** 2025-12-01
+**Status:** Ready for Implementation
 
 ---
 
@@ -40,7 +40,7 @@ This implementation consists of four comprehensive documents:
 
 A **shared LLM framework** (`llm-common`) that both `affordabot` and `prime-radiant-ai` will use for:
 - **Multi-provider LLM calls** (OpenRouter, z.ai, OpenAI, Anthropic)
-- **Web search with caching** (z.ai API + Supabase)
+- **Web search with caching** (z.ai API + Postgres)
 - **Cost tracking and budgets**
 - **Structured outputs** (Pydantic models)
 
@@ -198,7 +198,7 @@ llm-common/
 ---
 
 ### 4. 2-Tier Caching Strategy
-**Decision:** In-memory (L1) + Supabase (L2)
+**Decision:** In-memory (L1) + Postgres (L2)
 
 **Rationale:**
 - ✅ 80% cache hit rate
@@ -207,7 +207,7 @@ llm-common/
 
 **Cache TTLs:**
 - L1 (memory): 1 hour
-- L2 (Supabase): 24 hours
+- L2 (Postgres): 24 hours
 
 ---
 
@@ -236,8 +236,8 @@ from services.llm.orchestrator import AnalysisPipeline
 
 # Initialize
 llm = LLMClient(provider="openrouter")
-search = WebSearchClient(api_key="...", supabase_client=supabase)
-pipeline = AnalysisPipeline(llm, search, cost_tracker, supabase)
+search = WebSearchClient(api_key="...", postgres_client=postgres)
+pipeline = AnalysisPipeline(llm, search, cost_tracker, postgres)
 
 # Run pipeline
 result = await pipeline.run(
@@ -265,7 +265,7 @@ from services.memory import ConversationMemory
 
 # Initialize
 llm = LLMClient(provider="openrouter")
-memory = ConversationMemory(db_client=supabase, user_id="user_123")
+memory = ConversationMemory(db_client=postgres, user_id="user_123")
 
 # Get context (history + page-specific)
 messages = await memory.get_context(page="portfolio")
@@ -457,7 +457,7 @@ By the end of this implementation, you will understand:
 ### Common Issues
 - **"Import error for llm_common"** → Install submodule: `pip install -e packages/llm-common`
 - **"API key not found"** → Set environment variables (see Migration Plan)
-- **"Cache not working"** → Check Supabase connection, verify schema
+- **"Cache not working"** → Check Postgres connection, verify schema
 - **"Tests failing"** → Check mock setup, verify API keys for integration tests
 
 ---

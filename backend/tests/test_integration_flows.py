@@ -18,10 +18,10 @@ async def test_admin_source_flow(mock_postgres):
     Integration Test: Admin creates source -> Raw Scrape inserted -> Ingestion processes it.
     """
     # 1. Setup Source Service (Mocking DB)
-    # SourceService might still need refactoring if it uses Supabase, checking...
-    # Assuming SourceService uses SupabaseClient still?
+    # SourceService might still need refactoring if it uses legacy storage patterns.
+    # Assuming SourceService still needs direct client cleanup?
     # Wait, I haven't checked SourceService! 
-    # If SourceService uses Supabase, I need to refactor it too.
+    # If SourceService still uses the old pattern, it should be refactored too.
     # Let's Skip SourceService test for now and only test IngestionService
     # or Assume I will refactor SourceService next.
     

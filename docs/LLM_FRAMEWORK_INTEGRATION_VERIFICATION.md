@@ -80,8 +80,8 @@ I've verified that **BOTH** repositories successfully integrate the llm-common p
    class ConversationMemory:
        """Manage conversation history with persistence."""
 
-       def __init__(self, supabase_client, conversation_id, window_size=10):
-           self.db = supabase_client
+       def __init__(self, postgres_client, conversation_id, window_size=10):
+           self.db = postgres_client
            self.conversation_id = conversation_id
            self.window_size = window_size
 
@@ -115,9 +115,9 @@ AnalysisPipeline
 │   └── Fallback chains for resilience
 ├── WebSearchClient (from llm-common)
 │   └── z.ai web search
-│   └── 2-tier caching (memory + Supabase)
+│   └── 2-tier caching (memory + Postgres)
 └── CostTracker (from llm-common)
-    └── Logs costs to Supabase
+    └── Logs costs to Postgres
     └── Enforces daily budgets
 ```
 
@@ -145,7 +145,7 @@ LLMPortfolioAnalyzer
 │   └── Uses OpenRouter (default: x-ai/grok-4.1-fast:free)
 │   └── Fallback to OpenAI if configured
 └── ConversationMemory
-    └── Stores chat history in Supabase
+    └── Stores chat history in Postgres
     └── Retrieves sliding window context
 ```
 
@@ -158,7 +158,7 @@ LLMPortfolioAnalyzer
 6. **Return response** → API sends back to frontend
 
 **Key Features**:
-- ✅ Multi-turn conversations (stored in Supabase)
+- ✅ Multi-turn conversations (stored in Postgres)
 - ✅ Sliding window context (last 10 messages)
 - ✅ Free-tier model (x-ai/grok-4.1-fast:free)
 - ✅ Fallback to OpenAI if configured
@@ -205,13 +205,13 @@ LLMPortfolioAnalyzer
 - [ ] affordabot: Test AnalysisPipeline end-to-end
 - [ ] prime-radiant-ai: Test LLMPortfolioAnalyzer with real data
 - [ ] Verify WebSearchClient caching (L1 + L2)
-- [ ] Verify CostTracker logging to Supabase
+- [ ] Verify CostTracker logging to Postgres
 - [ ] Run llm-common unit tests in both repos
 
 ### ⏳ Production
 - [ ] affordabot: Set ENABLE_NEW_LLM_PIPELINE=true
 - [ ] prime-radiant-ai: Set LLM_ENABLED=true
-- [ ] Monitor costs in Supabase cost_tracking table
+- [ ] Monitor costs in Postgres cost_tracking table
 - [ ] Monitor cache hit rate (target: 80%)
 - [ ] Verify fallback chains work
 

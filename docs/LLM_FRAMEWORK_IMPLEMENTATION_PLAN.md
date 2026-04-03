@@ -225,7 +225,7 @@ This document specifies the complete architecture and implementation plan for a 
         ┌────────────────┼────────────────┐
         │                │                │
    ┌────▼─────┐    ┌────▼─────┐    ┌────▼─────┐
-   │ z.ai API │    │OpenRouter│    │ Supabase │
+   │ z.ai API │    │OpenRouter│    │ Postgres │
    │          │    │   API    │    │  Cache   │
    │ - GLM    │    │          │    │          │
    │ - Search │    │ - z.ai   │    │          │
@@ -244,7 +244,7 @@ This document specifies the complete architecture and implementation plan for a 
 2. Analysis Pipeline (affordabot)
    ├─ Step 1: Research
    │  ├─ Generate research queries (10-30 queries)
-   │  ├─ Check cache (Supabase)
+   │  ├─ Check cache (Postgres)
    │  ├─ Call z.ai Web Search API (uncached queries)
    │  ├─ Cache results (24hr TTL)
    │  └─ Structure results for LLM consumption
@@ -286,7 +286,7 @@ This document specifies the complete architecture and implementation plan for a 
 
 ### Component Interaction Matrix
 
-| Component | affordabot | prime-radiant-ai | llm-common | z.ai Direct | OpenRouter | Supabase |
+| Component | affordabot | prime-radiant-ai | llm-common | z.ai Direct | OpenRouter | Postgres |
 |-----------|------------|------------------|------------|-------------|------------|----------|
 | **Analysis Pipeline** | Owner | - | Uses | Uses | Uses | Uses |
 | **AI Advisor** | - | Owner | Uses | - | Uses | Uses |
@@ -679,7 +679,7 @@ response = await client.chat_completion(
 **Capabilities**:
 - z.ai Web Search API integration
 - Intelligent query generation
-- Result caching (Supabase or Redis)
+- Result caching (Postgres or Redis)
 - Result formatting for LLM consumption
 - Domain and time filtering
 
@@ -687,7 +687,7 @@ response = await client.chat_completion(
 ```python
 class WebSearchConfig:
     api_key: str  # z.ai API key
-    cache_backend: Literal["supabase", "redis", "memory"] = "supabase"
+    cache_backend: Literal["postgres", "redis", "memory"] = "postgres"
     cache_ttl: int = 86400  # 24 hours
     default_result_count: int = 10
     max_concurrent_searches: int = 5
@@ -730,7 +730,7 @@ class CacheStrategy:
 ```python
 searcher = WebSearchClient(
     api_key="...",
-    cache_backend="supabase"
+    cache_backend="postgres"
 )
 
 # Single search with caching
@@ -755,9 +755,9 @@ context = searcher.format_results_for_llm(
 
 #### Search Result Cache
 
-**Implementation**: Supabase table or Redis
+**Implementation**: Postgres table or Redis
 
-**Schema** (Supabase):
+**Schema** (Postgres):
 ```sql
 CREATE TABLE search_results_cache (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -847,7 +847,7 @@ RETRY_POLICIES = {
 - Budget alerts
 - Cost breakdown by model/provider
 
-**Storage**: Supabase table
+**Storage**: Postgres table
 
 **Schema**:
 ```sql
@@ -893,7 +893,7 @@ MODEL_PRICING = {
 
 **Usage**:
 ```python
-tracker = CostTracker(db_client=supabase)
+tracker = CostTracker(db_client=postgres)
 
 # Track single request
 await tracker.track_request(
@@ -1210,7 +1210,7 @@ LLM_ENABLE_FALLBACK=true
 LLM_MAX_RETRIES=3
 
 # Web Search Settings
-WEB_SEARCH_CACHE_BACKEND=supabase
+WEB_SEARCH_CACHE_BACKEND=postgres
 WEB_SEARCH_CACHE_TTL=86400
 WEB_SEARCH_MAX_RESULTS=10
 
@@ -1529,7 +1529,7 @@ workspace/
 6. **Implement Web Search** (Day 10-12)
    - `WebSearchClient` class
    - z.ai Web Search API integration
-   - Cache implementation (Supabase)
+   - Cache implementation (Postgres)
    - Result formatting
    - Unit tests
 
@@ -1942,7 +1942,7 @@ ENABLE_MODEL_COMPARISON=true
 **Configuration**:
 - Use production-like API keys (separate billing)
 - Enable all features
-- Use Supabase staging database
+- Use Postgres staging database
 - Monitor costs
 
 **Purpose**:
@@ -1971,10 +1971,10 @@ ZAI_API_KEY=${ZAI_PRODUCTION_KEY}
 OPENROUTER_API_KEY=${OPENROUTER_PRODUCTION_KEY}
 
 # Database
-DATABASE_URL=${SUPABASE_CONNECTION_STRING}
+DATABASE_URL=${DATABASE_URL}
 
 # Caching
-WEB_SEARCH_CACHE_BACKEND=supabase
+WEB_SEARCH_CACHE_BACKEND=postgres
 WEB_SEARCH_CACHE_TTL=86400
 
 # Cost control
@@ -1997,7 +1997,7 @@ SENTRY_DSN=${SENTRY_DSN}
         "openrouter": "connected"
     },
     "cache": {
-        "backend": "supabase",
+        "backend": "postgres",
         "hit_rate": 0.82
     }
 }
@@ -2024,22 +2024,22 @@ SENTRY_DSN=${SENTRY_DSN}
 
 ### Database Migrations
 
-**Tool**: Supabase migrations or Alembic
+**Tool**: Postgres migrations or Alembic
 
 **Process**:
 ```bash
 # Generate migration
-cd affordabot/supabase
-supabase db diff --file 20251201_add_llm_features
+cd affordabot/postgres
+postgres db diff --file 20251201_add_llm_features
 
 # Review migration SQL
 cat migrations/20251201_add_llm_features.sql
 
 # Test migration in staging
-supabase db push --staging
+postgres db push --staging
 
 # Apply to production
-supabase db push --production
+postgres db push --production
 ```
 
 **Rollback**:

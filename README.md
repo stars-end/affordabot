@@ -8,7 +8,7 @@ AffordaBot is a "Dependabot for government" - continuously monitoring new bills 
 
 - **Backend**: FastAPI (Python) + Instructor (LLM orchestration)
 - **Frontend**: Next.js 16 + Tremor (analytics UI)
-- **Database**: Supabase (PostgreSQL)
+- **Database**: Postgres (PostgreSQL)
 - **Infrastructure**: Railway
 - **LLMs**: OpenRouter (Grok-beta) / OpenAI / Anthropic
 
@@ -18,7 +18,7 @@ AffordaBot is a "Dependabot for government" - continuously monitoring new bills 
 - Python 3.9+
 - Node.js 18+
 - Railway CLI (`npm i -g @railway/cli`)
-- Supabase account
+- Postgres account
 - OpenRouter or OpenAI API key
 
 ### Local Development
@@ -28,13 +28,13 @@ AffordaBot is a "Dependabot for government" - continuously monitoring new bills 
    git clone https://github.com/YOUR_USERNAME/affordabot.git
    cd affordabot
    ./scripts/bootstrap.sh
-   
+
    # Backend
    cd backend
    python3 -m venv venv
    source venv/bin/activate
    pip install -r requirements.txt
-   
+
    # Frontend
    cd ../frontend
    npm install
@@ -42,13 +42,13 @@ AffordaBot is a "Dependabot for government" - continuously monitoring new bills 
 
 2. **Set Environment Variables**
    See [`RAILWAY_ENV.md`](./RAILWAY_ENV.md) for full list.
-   
+
    ```bash
    # Backend (.env)
    OPENROUTER_API_KEY=sk-or-v1-...
-   SUPABASE_URL=https://xxxxx.supabase.co
-   SUPABASE_SERVICE_ROLE_KEY=eyJhbGc...
-   
+   DATABASE_URL=https://xxxxx.postgres.co
+   DATABASE_URL=eyJhbGc...
+
    # Frontend (.env.local)
    NEXT_PUBLIC_API_URL=http://localhost:8000
    ```
@@ -58,7 +58,7 @@ AffordaBot is a "Dependabot for government" - continuously monitoring new bills 
     # Terminal 1 - Backend
     cd backend
     ../scripts/dx-railway-run.sh -- poetry run uvicorn main:app --reload
-    
+
     # Terminal 2 - Frontend
     cd frontend
     ../scripts/dx-railway-run.sh --service frontend -- pnpm dev
@@ -93,7 +93,7 @@ affordabot/
 │   │   ├── components/        # React components
 │   │   └── lib/               # API client
 │   └── tailwind.config.js
-├── supabase/
+├── postgres/
 │   └── migrations/            # Database schema
 └── railway.toml               # Deployment config
 ```

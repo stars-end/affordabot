@@ -40,8 +40,8 @@
 9. `GET /admin/health/detailed` - Health monitoring
 
 ### ✅ Phase 3: Database Schema (100%)
-- [x] Created comprehensive schema following 2025 Supabase best practices
-- [x] Applied migration to Supabase (project: affordabot)
+- [x] Created comprehensive schema following 2025 Postgres best practices
+- [x] Applied migration to Postgres (project: affordabot)
 - [x] Created documentation (`docs/ADMIN_SCHEMA.md`)
 
 **Tables Created**:
@@ -52,21 +52,21 @@
 5. `scrape_history` - Scraping operation tracking
 
 **Migration Files**:
-- `supabase/migrations/20251129000000_initial_schema.sql` - Core tables
-- `supabase/migrations/20251130_admin_dashboard_v2_schema.sql` - Admin tables
+- `backend/migrations/20251129000000_initial_schema.sql` - Core tables
+- `backend/migrations/20251130_admin_dashboard_v2_schema.sql` - Admin tables
 
 ## Current Work
 
 ### ✅ Phase 4: Database Integration (100%)
 
-**Objective**: Replace TODO placeholders in admin router with actual Supabase queries
+**Objective**: Replace TODO placeholders in admin router with actual Postgres queries
 
 **Files Modified**:
 - `backend/routers/admin.py` - ✅ All database queries implemented
-- `backend/db/supabase_client.py` - ✅ Verified and working
+- `backend/db/postgres_client.py` - ✅ Verified and working
 
 **Integration Checklist**:
-- [x] Set up Supabase client in admin router
+- [x] Set up Postgres client in admin router
 - [x] Implement scrape history queries
 - [x] Implement analysis history queries
 - [x] Implement model config CRUD (including upsert)
@@ -76,10 +76,10 @@
 
 **Database Connection**:
 ```python
-# Using existing SupabaseDB client
-from db.supabase_client import SupabaseDB
+# Using existing PostgresDB client
+from db.postgres_client import PostgresDB
 
-db = SupabaseDB()
+db = PostgresDB()
 ```
 
 **Example Query Pattern**:
@@ -150,23 +150,23 @@ result = await db.client.table('scrape_history') \
 ## Technical Decisions
 
 ### Database Client
-**Decision**: Use existing `SupabaseDB` class  
-**Rationale**: Already configured, handles connection pooling  
-**Location**: `backend/db/supabase_client.py`
+**Decision**: Use existing `PostgresDB` class
+**Rationale**: Already configured, handles connection pooling
+**Location**: `backend/db/postgres_client.py`
 
 ### Background Tasks
-**Decision**: Use FastAPI `BackgroundTasks`  
-**Rationale**: Simple, built-in, sufficient for current scale  
+**Decision**: Use FastAPI `BackgroundTasks`
+**Rationale**: Simple, built-in, sufficient for current scale
 **Future**: Consider Celery for production scale
 
 ### Model Priority
-**Decision**: Integer-based priority (lower = higher)  
-**Rationale**: Simple, flexible, allows easy reordering  
+**Decision**: Integer-based priority (lower = higher)
+**Rationale**: Simple, flexible, allows easy reordering
 **Implementation**: Sorted by `priority ASC` in queries
 
 ### Prompt Versioning
-**Decision**: Incremental version numbers per type  
-**Rationale**: Simple, clear history, easy rollback  
+**Decision**: Incremental version numbers per type
+**Rationale**: Simple, clear history, easy rollback
 **Activation**: Partial unique index ensures one active per type
 
 ## Known Issues
@@ -174,7 +174,7 @@ result = await db.client.table('scrape_history') \
 ### ⚠️ To Address
 1. **RLS Policies**: Currently placeholder (`USING (true)`)
    - **Action**: Update with actual admin auth check
-   - **File**: `supabase/migrations/20251130_admin_dashboard_v2_schema.sql`
+   - **File**: `backend/migrations/20251130_admin_dashboard_v2_schema.sql`
 
 2. **Error Handling**: Basic try-catch in background tasks
    - **Action**: Add structured error logging
@@ -186,16 +186,16 @@ result = await db.client.table('scrape_history') \
 
 ## Environment Setup
 
-### Supabase Connection
+### Postgres Connection
 ```bash
 # Project linked
-supabase link --project-ref jqcnqlgbbcfwfpmvzbqi
+postgres link --project-ref jqcnqlgbbcfwfpmvzbqi
 
 # Apply migrations
-supabase db push
+postgres db push
 
 # Check status
-supabase db diff
+postgres db diff
 ```
 
 ### Backend Testing
@@ -247,7 +247,7 @@ pnpm build  # ✅ Currently passing
 4. Continue with database integration
 
 **Key Context**:
-- Database schema is live on Supabase
+- Database schema is live on Postgres
 - All endpoints have Pydantic models defined
 - Background task infrastructure is ready
 - Just need to wire up database queries

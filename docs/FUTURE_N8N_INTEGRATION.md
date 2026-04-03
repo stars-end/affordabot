@@ -27,11 +27,11 @@ Once the core product is stable, n8n is an excellent candidate for handling "Noi
 *   **Benefit:** Instant observability without configuring PagerDuty.
 
 ### 3. User CRM Sync
-*   **Trigger:** New user signup in Supabase `users`.
+*   **Trigger:** New user signup in Postgres `users`.
 *   **Action:** Add to Mailchimp/HubSpot/Resend audiences.
 *   **Benefit:** Decouples marketing logic from authentication logic.
 
 ## Implementation Plan
 1.  Deploy n8n via Railway Template (e.g., `n8n-with-workers`).
-2.  Connect n8n to Supabase (Postgres).
+2.  Connect n8n to Postgres (Postgres).
 3.  Create workflows triggered by Postgres Database Changes (CDC) or Cron schedules.

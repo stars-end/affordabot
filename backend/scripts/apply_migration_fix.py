@@ -4,13 +4,12 @@ import sys
 import subprocess
 from urllib.parse import urlparse
 
-# MIGRATION_FILE = "supabase/migrations/20251209090000_update_embedding_dims.sql"
-
 def main():
     if len(sys.argv) > 1:
         migration_file = sys.argv[1]
     else:
-        migration_file = "supabase/migrations/20251209090000_update_embedding_dims.sql"
+        print("Error: migration file path argument is required.")
+        sys.exit(1)
 
     if not os.path.exists(migration_file):
         print(f"Error: Migration file not found: {migration_file}")

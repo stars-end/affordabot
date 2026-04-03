@@ -1,6 +1,6 @@
 -- Migration: 002_schema_recovery_v2.sql
 -- Recovered schema for Admin Dashboard, Sources, and Analysis Pipeline
--- Generated from Supabase dump and consolidated.
+-- Generated from a legacy dump and consolidated.
 
 CREATE EXTENSION IF NOT EXISTS vector;
 

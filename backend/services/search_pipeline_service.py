@@ -91,7 +91,7 @@ class SearchPipelineService:
         # Let's search specifically within these documents if possible, or global?
         # Global is better if we have historical data. 
         # But for specific "Search" query, we want the fresh results.
-        # SupabasePgVectorBackend.query doesn't typically support 'filter by doc_ids' in pure semantic search
+        # Some retrieval backends do not support pure semantic filtering by doc_ids
         # unless we implemented metadata filtering.
         # Let's assume global search for now, picking up new chunks because they embed similarly to query.
         

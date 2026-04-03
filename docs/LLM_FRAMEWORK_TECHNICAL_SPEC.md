@@ -1,8 +1,8 @@
 # LLM Framework - Technical Specification
 
-**Version:** 1.0  
-**Date:** 2025-12-01  
-**Status:** Implementation Ready  
+**Version:** 1.0
+**Date:** 2025-12-01
+**Status:** Implementation Ready
 **Related:** [PRD](./LLM_FRAMEWORK_PRD.md), [Migration Plan](./LLM_FRAMEWORK_MIGRATION.md)
 
 ---
@@ -51,7 +51,7 @@
                     └────────────────┬───────────────────┘
                                      │
                           ┌──────────▼──────────┐
-                          │   Supabase          │
+                          │   Postgres          │
                           │  (State + Cache)    │
                           └─────────────────────┘
 ```
@@ -63,8 +63,8 @@
 | LLM Client | LiteLLM | Multi-provider support, battle-tested |
 | Structured Outputs | instructor | Type-safe Pydantic models |
 | Web Search | z.ai API | Intelligent search, legislation-optimized |
-| Caching | Supabase + In-Memory | Cost reduction (80% hit rate) |
-| Database | Supabase (PostgreSQL) | Already in use, supports JSONB |
+| Caching | Postgres + In-Memory | Cost reduction (80% hit rate) |
+| Database | Postgres (PostgreSQL) | Already in use, supports JSONB |
 | Package Management | Git Submodule | Solo dev, no CI/CD overhead |
 
 ---
@@ -111,14 +111,14 @@ from pydantic import BaseModel
 class LLMClient:
     """
     Unified LLM client supporting multiple providers.
-    
+
     Supports:
     - OpenRouter (400+ models)
     - z.ai (GLM-4.5, GLM-4.6)
     - OpenAI (direct)
     - Anthropic (direct)
     """
-    
+
     def __init__(
         self,
         provider: str = "openrouter",
@@ -127,7 +127,7 @@ class LLMClient:
     ):
         """
         Initialize LLM client.
-        
+
         Args:
             provider: "openrouter", "zai", "openai", or "anthropic"
             api_key: API key (or use env var)
@@ -137,10 +137,10 @@ class LLMClient:
         self.api_key = api_key or self._get_api_key(provider)
         self.budget_limit = budget_limit_usd
         self.daily_cost = 0.0
-        
+
         # Initialize instructor client for structured outputs
         self.instructor_client = self._init_instructor()
-    
+
     def _get_api_key(self, provider: str) -> str:
         """Get API key from environment."""
         import os
@@ -151,7 +151,7 @@ class LLMClient:
             "anthropic": os.getenv("ANTHROPIC_API_KEY")
         }
         return keys.get(provider)
-    
+
     def _init_instructor(self):
         """Initialize instructor client for structured outputs."""
         base_urls = {
@@ -160,14 +160,14 @@ class LLMClient:
             "openai": "https://api.openai.com/v1",
             "anthropic": "https://api.anthropic.com/v1"
         }
-        
+
         return instructor.from_openai(
             AsyncOpenAI(
                 api_key=self.api_key,
                 base_url=base_urls.get(self.provider)
             )
         )
-    
+
     async def chat(
         self,
         messages: List[Dict[str, str]],
@@ -179,17 +179,17 @@ class LLMClient:
     ) -> Any:
         """
         Generate chat completion.
-        
+
         Args:
             messages: List of {"role": "user/assistant/system", "content": "..."}
             model: Model name (e.g., "gpt-4o", "z-ai/glm-4.7")
             response_model: Pydantic model for structured output
             temperature: 0.0-1.0
             max_tokens: Max output tokens
-        
+
         Returns:
             Pydantic model instance (if response_model provided) or string
-        
+
         Raises:
             BudgetExceededError: If daily budget exceeded
             RateLimitError: If rate limited by provider
@@ -199,7 +199,7 @@ class LLMClient:
             raise BudgetExceededError(
                 f"Daily budget exceeded: ${self.daily_cost:.2f} >= ${self.budget_limit:.2f}"
             )
-        
+
         # Structured output (via instructor)
         if response_model:
             response = await self.instructor_client.chat.completions.create(
@@ -214,7 +214,7 @@ class LLMClient:
             cost = self._estimate_cost(model, messages, response)
             self.daily_cost += cost
             return response
-        
+
         # Regular completion (via LiteLLM)
         response = await acompletion(
             model=model,
@@ -223,13 +223,13 @@ class LLMClient:
             max_tokens=max_tokens,
             **kwargs
         )
-        
+
         # Track cost
         cost = completion_cost(completion_response=response)
         self.daily_cost += cost
-        
+
         return response.choices[0].message.content
-    
+
     async def chat_with_fallback(
         self,
         messages: List[Dict[str, str]],
@@ -239,20 +239,20 @@ class LLMClient:
     ) -> Any:
         """
         Try models in sequence until one succeeds.
-        
+
         Args:
             messages: Chat messages
             models: List of model names to try (in order)
             response_model: Pydantic model for structured output
-        
+
         Returns:
             Response from first successful model
-        
+
         Raises:
             AllModelsFailed: If all models fail
         """
         last_error = None
-        
+
         for model in models:
             try:
                 return await self.chat(
@@ -265,9 +265,9 @@ class LLMClient:
                 print(f"Model {model} failed: {e}")
                 last_error = e
                 continue
-        
+
         raise AllModelsFailed(f"All {len(models)} models failed. Last error: {last_error}")
-    
+
     def _estimate_cost(self, model: str, messages: List, response: Any) -> float:
         """Estimate cost for instructor responses (no usage data)."""
         # Rough estimate: 1K tokens = $0.001 for cheap models
@@ -309,41 +309,41 @@ class SearchResult(BaseModel):
 class WebSearchClient:
     """
     z.ai web search with intelligent caching.
-    
+
     Caching Strategy:
     - L1: In-memory cache (TTL: 1 hour)
-    - L2: Supabase cache (TTL: 24 hours)
-    
+    - L2: Postgres cache (TTL: 24 hours)
+
     Cost Savings:
     - Target: 80% cache hit rate
     - Estimated: $450/month → $90/month
     """
-    
+
     def __init__(
         self,
         api_key: str,
-        supabase_client: Any,
+        postgres_client: Any,
         memory_cache_ttl: int = 3600,  # 1 hour
         db_cache_ttl: int = 86400       # 24 hours
     ):
         """
         Initialize web search client.
-        
+
         Args:
             api_key: z.ai API key
-            supabase_client: Supabase client for persistent cache
+            postgres_client: Postgres client for persistent cache
             memory_cache_ttl: In-memory cache TTL (seconds)
             db_cache_ttl: Database cache TTL (seconds)
         """
         self.api_key = api_key
-        self.supabase = supabase_client
+        self.postgres = postgres_client
         self.memory_cache: Dict[str, tuple[List[SearchResult], datetime]] = {}
         self.memory_ttl = memory_cache_ttl
         self.db_ttl = db_cache_ttl
-        
+
         self.base_url = "https://api.z.ai/api/paas/v4/web-search"
         self.http_client = httpx.AsyncClient()
-    
+
     def _generate_cache_key(
         self,
         query: str,
@@ -359,7 +359,7 @@ class WebSearchClient:
             "recency": recency
         }
         return hashlib.sha256(json.dumps(params, sort_keys=True).encode()).hexdigest()
-    
+
     async def search(
         self,
         query: str,
@@ -369,34 +369,34 @@ class WebSearchClient:
     ) -> List[SearchResult]:
         """
         Search with caching.
-        
+
         Args:
             query: Search query
             count: Number of results (1-25)
             domains: Filter by domains (e.g., ["*.gov", "*.edu"])
             recency: Time filter ("1d", "1w", "1m", "1y")
-        
+
         Returns:
             List of search results
-        
+
         Raises:
             RateLimitError: If z.ai rate limit exceeded
             SearchError: If search fails
         """
         cache_key = self._generate_cache_key(query, count, domains, recency)
-        
+
         # L1: Check memory cache
         if cache_key in self.memory_cache:
             results, cached_at = self.memory_cache[cache_key]
             if datetime.now() - cached_at < timedelta(seconds=self.memory_ttl):
                 print(f"✅ L1 cache hit: {query}")
                 return results
-        
-        # L2: Check Supabase cache
-        db_result = self.supabase.table('web_search_cache').select('*').eq(
+
+        # L2: Check Postgres cache
+        db_result = self.postgres.table('web_search_cache').select('*').eq(
             'cache_key', cache_key
         ).execute()
-        
+
         if db_result.data:
             row = db_result.data[0]
             cached_at = datetime.fromisoformat(row['cached_at'])
@@ -406,22 +406,22 @@ class WebSearchClient:
                 # Populate L1 cache
                 self.memory_cache[cache_key] = (results, datetime.now())
                 return results
-        
+
         # Cache miss: Call z.ai API
         print(f"🔍 Cache miss, calling z.ai: {query}")
         results = await self._call_zai_api(query, count, domains, recency)
-        
+
         # Store in both caches
         self.memory_cache[cache_key] = (results, datetime.now())
-        self.supabase.table('web_search_cache').upsert({
+        self.postgres.table('web_search_cache').upsert({
             'cache_key': cache_key,
             'query': query,
             'results': [r.model_dump() for r in results],
             'cached_at': datetime.now().isoformat()
         }).execute()
-        
+
         return results
-    
+
     async def _call_zai_api(
         self,
         query: str,
@@ -434,35 +434,35 @@ class WebSearchClient:
             "query": query,
             "count": count
         }
-        
+
         if domains:
             payload["domains"] = domains
         if recency:
             payload["recency"] = recency
-        
+
         response = await self.http_client.post(
             self.base_url,
             json=payload,
             headers={"Authorization": f"Bearer {self.api_key}"}
         )
-        
+
         if response.status_code == 429:
             raise RateLimitError("z.ai rate limit exceeded")
-        
+
         response.raise_for_status()
         data = response.json()
-        
+
         return [SearchResult(**item) for item in data.get("results", [])]
-    
+
     async def get_cache_stats(self) -> Dict[str, Any]:
         """Get cache hit rate statistics."""
-        # Query Supabase for cache stats
-        result = self.supabase.rpc('get_cache_stats').execute()
+        # Query Postgres for cache stats
+        result = self.postgres.rpc('get_cache_stats').execute()
         return result.data
 ```
 
 **Key Features:**
-- ✅ 2-tier caching (memory + Supabase)
+- ✅ 2-tier caching (memory + Postgres)
 - ✅ Cost tracking
 - ✅ Cache hit rate stats
 - ✅ Domain filtering
@@ -492,51 +492,51 @@ class CostMetrics(BaseModel):
 class CostTracker:
     """
     Track LLM and web search costs.
-    
+
     Features:
     - Daily/monthly budget enforcement
     - Cost breakdown by model and step
     - Alert thresholds
     """
-    
+
     def __init__(
         self,
-        supabase_client: Any,
+        postgres_client: Any,
         daily_budget_usd: Optional[float] = None,
         monthly_budget_usd: Optional[float] = None,
         alert_threshold: float = 0.8
     ):
         """
         Initialize cost tracker.
-        
+
         Args:
-            supabase_client: Supabase client for cost storage
+            postgres_client: Postgres client for cost storage
             daily_budget_usd: Daily budget limit
             monthly_budget_usd: Monthly budget limit
             alert_threshold: Alert when cost reaches this % of budget
         """
-        self.supabase = supabase_client
+        self.postgres = postgres_client
         self.daily_budget = daily_budget_usd
         self.monthly_budget = monthly_budget_usd
         self.alert_threshold = alert_threshold
-    
+
     async def log_cost(self, metrics: CostMetrics):
         """Log cost to database."""
-        self.supabase.table('cost_tracking').insert({
+        self.postgres.table('cost_tracking').insert({
             'model': metrics.model,
             'step': metrics.step,
             'cost_usd': metrics.cost_usd,
             'tokens_used': metrics.tokens_used,
             'timestamp': metrics.timestamp.isoformat()
         }).execute()
-        
+
         # Check budget
         await self._check_budget()
-    
+
     async def _check_budget(self):
         """Check if budget limits are exceeded."""
         today = date.today()
-        
+
         # Daily budget check
         if self.daily_budget:
             daily_cost = await self.get_daily_cost(today)
@@ -546,7 +546,7 @@ class CostTracker:
                 )
             elif daily_cost >= self.daily_budget * self.alert_threshold:
                 print(f"⚠️  Daily budget alert: ${daily_cost:.2f} / ${self.daily_budget:.2f}")
-        
+
         # Monthly budget check
         if self.monthly_budget:
             monthly_cost = await self.get_monthly_cost(today.year, today.month)
@@ -554,20 +554,20 @@ class CostTracker:
                 raise BudgetExceededError(
                     f"Monthly budget exceeded: ${monthly_cost:.2f} >= ${self.monthly_budget:.2f}"
                 )
-    
+
     async def get_daily_cost(self, date: date) -> float:
         """Get total cost for a specific date."""
-        result = self.supabase.rpc('get_daily_cost', {'target_date': date.isoformat()}).execute()
+        result = self.postgres.rpc('get_daily_cost', {'target_date': date.isoformat()}).execute()
         return result.data[0]['total_cost'] if result.data else 0.0
-    
+
     async def get_monthly_cost(self, year: int, month: int) -> float:
         """Get total cost for a specific month."""
-        result = self.supabase.rpc('get_monthly_cost', {
+        result = self.postgres.rpc('get_monthly_cost', {
             'target_year': year,
             'target_month': month
         }).execute()
         return result.data[0]['total_cost'] if result.data else 0.0
-    
+
     async def get_cost_breakdown(
         self,
         start_date: date,
@@ -576,21 +576,21 @@ class CostTracker:
     ) -> Dict[str, float]:
         """
         Get cost breakdown by model or step.
-        
+
         Args:
             start_date: Start date (inclusive)
             end_date: End date (inclusive)
             group_by: "model" or "step"
-        
+
         Returns:
             Dict mapping model/step to total cost
         """
-        result = self.supabase.rpc('get_cost_breakdown', {
+        result = self.postgres.rpc('get_cost_breakdown', {
             'start_date': start_date.isoformat(),
             'end_date': end_date.isoformat(),
             'group_by': group_by
         }).execute()
-        
+
         return {row['group_key']: row['total_cost'] for row in result.data}
 ```
 
@@ -625,14 +625,14 @@ class ReviewCritique(BaseModel):
 class AnalysisPipeline:
     """
     Orchestrate multi-step legislation analysis.
-    
+
     Workflow:
     1. Research: z.ai web search (20-30 queries)
     2. Generate: LLM analysis with structured output
     3. Review: LLM critique
     4. Refine: Regenerate if review failed
     """
-    
+
     def __init__(
         self,
         llm_client: LLMClient,
@@ -642,18 +642,18 @@ class AnalysisPipeline:
     ):
         """
         Initialize pipeline.
-        
+
         Args:
             llm_client: LLM client (LiteLLM wrapper)
             search_client: Web search client (z.ai)
             cost_tracker: Cost tracking client
-            db_client: Supabase client for logging
+            db_client: Postgres client for logging
         """
         self.llm = llm_client
         self.search = search_client
         self.cost = cost_tracker
         self.db = db_client
-    
+
     async def run(
         self,
         bill_id: str,
@@ -663,49 +663,49 @@ class AnalysisPipeline:
     ) -> BillAnalysis:
         """
         Run full pipeline.
-        
+
         Args:
             bill_id: Bill identifier (e.g., "AB-1234")
             bill_text: Full bill text
             jurisdiction: Jurisdiction (e.g., "California")
             models: {"research": "gpt-4o-mini", "generate": "claude-3.5-sonnet", "review": "glm-4.7"}
-        
+
         Returns:
             Final analysis (validated BillAnalysis)
         """
         run_id = await self._create_pipeline_run(bill_id, models)
-        
+
         try:
             # Step 1: Research
             research_data = await self._research_step(bill_id, bill_text, models["research"])
             await self._log_step(run_id, "research", models["research"], research_data)
-            
+
             # Step 2: Generate
             analysis = await self._generate_step(
                 bill_id, bill_text, jurisdiction, research_data, models["generate"]
             )
             await self._log_step(run_id, "generate", models["generate"], analysis)
-            
+
             # Step 3: Review
             review = await self._review_step(bill_id, analysis, research_data, models["review"])
             await self._log_step(run_id, "review", models["review"], review)
-            
+
             # Step 4: Refine (if needed)
             if not review.passed:
                 analysis = await self._refine_step(
                     bill_id, analysis, review, bill_text, models["generate"]
                 )
                 await self._log_step(run_id, "refine", models["generate"], analysis)
-            
+
             # Mark run as complete
             await self._complete_pipeline_run(run_id, analysis, review)
-            
+
             return analysis
-        
+
         except Exception as e:
             await self._fail_pipeline_run(run_id, str(e))
             raise
-    
+
     async def _research_step(
         self,
         bill_id: str,
@@ -714,13 +714,13 @@ class AnalysisPipeline:
     ) -> List[Dict[str, Any]]:
         """
         Research step: Generate queries and search.
-        
+
         Returns:
             List of search results
         """
         # Generate research queries using LLM
         queries = await self._generate_research_queries(bill_id, bill_text, model)
-        
+
         # Execute searches (with caching)
         results = []
         for query in queries:
@@ -731,9 +731,9 @@ class AnalysisPipeline:
                 recency="1y"
             )
             results.extend(search_results)
-        
+
         return [r.model_dump() for r in results]
-    
+
     async def _generate_research_queries(
         self,
         bill_id: str,
@@ -743,7 +743,7 @@ class AnalysisPipeline:
         """Generate 20-30 research queries using LLM."""
         class ResearchQueries(BaseModel):
             queries: List[str]
-        
+
         response = await self.llm.chat(
             messages=[
                 {"role": "system", "content": "Generate research queries for legislation analysis."},
@@ -752,9 +752,9 @@ class AnalysisPipeline:
             model=model,
             response_model=ResearchQueries
         )
-        
+
         return response.queries
-    
+
     async def _generate_step(
         self,
         bill_id: str,
@@ -765,7 +765,7 @@ class AnalysisPipeline:
     ) -> BillAnalysis:
         """
         Generate analysis using LLM.
-        
+
         Returns:
             Validated BillAnalysis
         """
@@ -773,17 +773,17 @@ class AnalysisPipeline:
         You are an expert policy analyst. Analyze legislation for cost-of-living impacts.
         Use the provided research data to support your analysis.
         """
-        
+
         user_message = f"""
         Bill: {bill_id} ({jurisdiction})
-        
+
         Research Data:
         {research_data}
-        
+
         Bill Text:
         {bill_text}
         """
-        
+
         return await self.llm.chat(
             messages=[
                 {"role": "system", "content": system_prompt},
@@ -792,7 +792,7 @@ class AnalysisPipeline:
             model=model,
             response_model=BillAnalysis
         )
-    
+
     async def _review_step(
         self,
         bill_id: str,
@@ -802,7 +802,7 @@ class AnalysisPipeline:
     ) -> ReviewCritique:
         """
         Review analysis using LLM.
-        
+
         Returns:
             Validated ReviewCritique
         """
@@ -810,15 +810,15 @@ class AnalysisPipeline:
         You are a strict auditor. Review the analysis for accuracy and completeness.
         Check for hallucinations and missing impacts.
         """
-        
+
         user_message = f"""
         Analysis to Review:
         {analysis.model_dump_json()}
-        
+
         Research Data:
         {research_data}
         """
-        
+
         return await self.llm.chat(
             messages=[
                 {"role": "system", "content": system_prompt},
@@ -827,7 +827,7 @@ class AnalysisPipeline:
             model=model,
             response_model=ReviewCritique
         )
-    
+
     async def _refine_step(
         self,
         bill_id: str,
@@ -838,24 +838,24 @@ class AnalysisPipeline:
     ) -> BillAnalysis:
         """
         Refine analysis based on critique.
-        
+
         Returns:
             Refined BillAnalysis
         """
         system_prompt = """
         You are an expert policy analyst. Update your analysis based on the auditor's critique.
         """
-        
+
         user_message = f"""
         Previous Draft:
         {draft.model_dump_json()}
-        
+
         Critique:
         {critique.model_dump_json()}
-        
+
         Provide the final corrected analysis.
         """
-        
+
         return await self.llm.chat(
             messages=[
                 {"role": "system", "content": system_prompt},
@@ -864,7 +864,7 @@ class AnalysisPipeline:
             model=model,
             response_model=BillAnalysis
         )
-    
+
     async def _create_pipeline_run(self, bill_id: str, models: Dict[str, str]) -> str:
         """Create pipeline run record in database."""
         result = self.db.table('pipeline_runs').insert({
@@ -875,9 +875,9 @@ class AnalysisPipeline:
             'status': 'running',
             'started_at': datetime.now().isoformat()
         }).execute()
-        
+
         return result.data[0]['id']
-    
+
     async def _log_step(
         self,
         run_id: str,
@@ -893,7 +893,7 @@ class AnalysisPipeline:
             'output': output.model_dump() if hasattr(output, 'model_dump') else output,
             'timestamp': datetime.now().isoformat()
         }).execute()
-    
+
     async def _complete_pipeline_run(
         self,
         run_id: str,
@@ -908,7 +908,7 @@ class AnalysisPipeline:
             'review_json': review.model_dump(),
             'review_passed': review.passed
         }).eq('id', run_id).execute()
-    
+
     async def _fail_pipeline_run(self, run_id: str, error: str):
         """Mark pipeline run as failed."""
         self.db.table('pipeline_runs').update({
@@ -938,23 +938,23 @@ from typing import List, Dict, Any
 class LegislationSearchService:
     """
     Domain-specific search service for legislation.
-    
+
     Generates legislation-specific queries and packages results for LLM consumption.
     """
-    
+
     def __init__(self, search_client: WebSearchClient):
         """
         Initialize service.
-        
+
         Args:
             search_client: Shared web search client
         """
         self.search = search_client
-    
+
     def _generate_queries(self, bill_id: str, bill_text: str) -> List[str]:
         """
         Generate legislation-specific queries.
-        
+
         Returns:
             20-30 queries for comprehensive research
         """
@@ -964,21 +964,21 @@ class LegislationSearchService:
             f"{bill_id} legislative intent",
             f"{bill_id} fiscal impact analysis",
             f"{bill_id} stakeholder positions",
-            
+
             # Impact queries
             f"{bill_id} cost of living impact",
             f"{bill_id} housing affordability",
             f"{bill_id} tax implications",
-            
+
             # Comparative queries
             f"similar legislation {bill_id}",
             f"{bill_id} precedent cases",
-            
+
             # TODO: Generate more queries based on bill content
         ]
-        
+
         return queries
-    
+
     async def search_exhaustively(
         self,
         bill_id: str,
@@ -986,16 +986,16 @@ class LegislationSearchService:
     ) -> Dict[str, Any]:
         """
         Perform exhaustive research on a bill.
-        
+
         Args:
             bill_id: Bill identifier
             bill_text: Full bill text
-        
+
         Returns:
             Research package for LLM consumption
         """
         queries = self._generate_queries(bill_id, bill_text)
-        
+
         all_results = []
         for query in queries:
             results = await self.search.search(
@@ -1005,7 +1005,7 @@ class LegislationSearchService:
                 recency="1y"
             )
             all_results.extend(results)
-        
+
         # Package for LLM
         return {
             "bill_id": bill_id,
@@ -1013,7 +1013,7 @@ class LegislationSearchService:
             "sources": [r.model_dump() for r in all_results],
             "summary": self._summarize_sources(all_results)
         }
-    
+
     def _summarize_sources(self, results: List) -> str:
         """Create a summary of sources for LLM context."""
         # TODO: Implement summarization
@@ -1036,14 +1036,14 @@ from datetime import datetime
 class ConversationMemory:
     """
     Manage conversation history for stateful chat.
-    
+
     Features:
-    - Persist conversations to Supabase
+    - Persist conversations to Postgres
     - Retrieve last N messages
     - Context injection based on page navigation
     - Conversation summarization (for long histories)
     """
-    
+
     def __init__(
         self,
         db_client: Any,
@@ -1052,26 +1052,26 @@ class ConversationMemory:
     ):
         """
         Initialize memory.
-        
+
         Args:
-            db_client: Supabase client
+            db_client: Postgres client
             user_id: User identifier
             max_history: Max messages to retrieve
         """
         self.db = db_client
         self.user_id = user_id
         self.max_history = max_history
-    
+
     async def get_context(
         self,
         page: Optional[str] = None
     ) -> List[Dict[str, str]]:
         """
         Get conversation history + page-specific context.
-        
+
         Args:
             page: Current page (e.g., "portfolio", "tax_planning")
-        
+
         Returns:
             List of messages for LLM
         """
@@ -1079,20 +1079,20 @@ class ConversationMemory:
         result = self.db.table('conversations').select('*').eq(
             'user_id', self.user_id
         ).order('timestamp', desc=True).limit(self.max_history).execute()
-        
+
         messages = [
             {"role": row['role'], "content": row['content']}
             for row in reversed(result.data)
         ]
-        
+
         # Add page-specific context
         if page:
             context = await self._get_page_context(page)
             if context:
                 messages.insert(0, {"role": "system", "content": context})
-        
+
         return messages
-    
+
     async def save_message(
         self,
         role: str,
@@ -1100,7 +1100,7 @@ class ConversationMemory:
     ):
         """
         Save message to database.
-        
+
         Args:
             role: "user" or "assistant"
             content: Message content
@@ -1111,51 +1111,51 @@ class ConversationMemory:
             'content': content,
             'timestamp': datetime.now().isoformat()
         }).execute()
-    
+
     async def _get_page_context(self, page: str) -> Optional[str]:
         """
         Get page-specific context.
-        
+
         Args:
             page: Page identifier
-        
+
         Returns:
             Context string for LLM
         """
         if page == "portfolio":
             portfolio = await self._get_user_portfolio()
             return f"User's current portfolio: {portfolio}"
-        
+
         elif page == "tax_planning":
             tax_info = await self._get_user_tax_info()
             return f"User's tax information: {tax_info}"
-        
+
         # Add more page-specific contexts
         return None
-    
+
     async def _get_user_portfolio(self) -> Dict[str, Any]:
         """Fetch user's portfolio data."""
         result = self.db.table('portfolios').select('*').eq(
             'user_id', self.user_id
         ).execute()
-        
+
         return result.data[0] if result.data else {}
-    
+
     async def _get_user_tax_info(self) -> Dict[str, Any]:
         """Fetch user's tax information."""
         result = self.db.table('user_profiles').select('state, income_bracket').eq(
             'user_id', self.user_id
         ).execute()
-        
+
         return result.data[0] if result.data else {}
-    
+
     async def summarize_history(self, llm_client: LLMClient) -> str:
         """
         Summarize long conversation history.
-        
+
         Args:
             llm_client: LLM client for summarization
-        
+
         Returns:
             Summary string
         """
@@ -1163,12 +1163,12 @@ class ConversationMemory:
         result = self.db.table('conversations').select('*').eq(
             'user_id', self.user_id
         ).order('timestamp').execute()
-        
+
         messages = [
             {"role": row['role'], "content": row['content']}
             for row in result.data
         ]
-        
+
         # Summarize using LLM
         summary = await llm_client.chat(
             messages=[
@@ -1177,7 +1177,7 @@ class ConversationMemory:
             ],
             model="gpt-4o-mini"  # Cheap model for summarization
         )
-        
+
         return summary
 ```
 
@@ -1194,31 +1194,31 @@ from typing import List, Dict, Any
 class FinanceSearchService:
     """
     Domain-specific search service for financial information.
-    
+
     Use cases:
     - Tax brackets by state
     - Retirement account rules
     - Fund prospectuses
     - Economic indicators
     """
-    
+
     def __init__(self, search_client: WebSearchClient):
         """
         Initialize service.
-        
+
         Args:
             search_client: Shared web search client
         """
         self.search = search_client
-    
+
     async def search_tax_rules(self, state: str, year: int = 2024) -> Dict[str, Any]:
         """
         Search for state tax rules.
-        
+
         Args:
             state: State name (e.g., "California")
             year: Tax year
-        
+
         Returns:
             Tax rule data
         """
@@ -1228,7 +1228,7 @@ class FinanceSearchService:
             f"{state} tax deductions {year}",
             f"{state} capital gains tax {year}"
         ]
-        
+
         results = []
         for query in queries:
             search_results = await self.search.search(
@@ -1238,20 +1238,20 @@ class FinanceSearchService:
                 recency="1y"
             )
             results.extend(search_results)
-        
+
         return {
             "state": state,
             "year": year,
             "sources": [r.model_dump() for r in results]
         }
-    
+
     async def search_retirement_rules(self, account_type: str) -> Dict[str, Any]:
         """
         Search for retirement account rules.
-        
+
         Args:
             account_type: "401k", "IRA", "Roth IRA", etc.
-        
+
         Returns:
             Retirement rule data
         """
@@ -1261,7 +1261,7 @@ class FinanceSearchService:
             f"{account_type} tax implications",
             f"{account_type} eligibility requirements"
         ]
-        
+
         results = []
         for query in queries:
             search_results = await self.search.search(
@@ -1271,19 +1271,19 @@ class FinanceSearchService:
                 recency="1y"
             )
             results.extend(search_results)
-        
+
         return {
             "account_type": account_type,
             "sources": [r.model_dump() for r in results]
         }
-    
+
     async def search_fund_prospectus(self, ticker: str) -> Dict[str, Any]:
         """
         Search for fund prospectus.
-        
+
         Args:
             ticker: Fund ticker symbol
-        
+
         Returns:
             Prospectus data
         """
@@ -1293,7 +1293,7 @@ class FinanceSearchService:
             f"{ticker} holdings",
             f"{ticker} performance history"
         ]
-        
+
         results = []
         for query in queries:
             search_results = await self.search.search(
@@ -1303,7 +1303,7 @@ class FinanceSearchService:
                 recency="1y"
             )
             results.extend(search_results)
-        
+
         return {
             "ticker": ticker,
             "sources": [r.model_dump() for r in results]
@@ -1314,7 +1314,7 @@ class FinanceSearchService:
 
 ## Database Schema
 
-### Shared Tables (Supabase)
+### Shared Tables (Postgres)
 
 #### 1. `web_search_cache`
 
@@ -1327,7 +1327,7 @@ CREATE TABLE web_search_cache (
     results JSONB NOT NULL,
     cached_at TIMESTAMP NOT NULL DEFAULT NOW(),
     hit_count INTEGER DEFAULT 0,
-    
+
     -- Indexes
     INDEX idx_cached_at (cached_at),
     INDEX idx_query (query)
@@ -1360,10 +1360,10 @@ CREATE TABLE cost_tracking (
     cost_usd DECIMAL(10, 6) NOT NULL,
     tokens_used INTEGER,
     timestamp TIMESTAMP NOT NULL DEFAULT NOW(),
-    
+
     -- Metadata
     project TEXT,  -- "affordabot" or "prime-radiant-ai"
-    
+
     -- Indexes
     INDEX idx_timestamp (timestamp),
     INDEX idx_model (model),
@@ -1431,28 +1431,28 @@ CREATE TABLE pipeline_runs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     bill_id TEXT NOT NULL,
     jurisdiction TEXT,
-    
+
     -- Models used
     research_model TEXT,
     generate_model TEXT NOT NULL,
     review_model TEXT NOT NULL,
-    
+
     -- Status
     status TEXT NOT NULL CHECK (status IN ('running', 'completed', 'failed')),
     started_at TIMESTAMP NOT NULL DEFAULT NOW(),
     completed_at TIMESTAMP,
-    
+
     -- Outputs (JSONB for flexibility)
     analysis_json JSONB,
     review_json JSONB,
-    
+
     -- Quality metrics
     review_passed BOOLEAN,
     quality_score DECIMAL(3, 2),  -- Manual scoring (0.00-1.00)
-    
+
     -- Error tracking
     error_message TEXT,
-    
+
     -- Indexes
     INDEX idx_bill_id (bill_id),
     INDEX idx_status (status),
@@ -1476,7 +1476,7 @@ RETURNS TABLE(
 BEGIN
     IF step = 'generate' THEN
         RETURN QUERY
-        SELECT 
+        SELECT
             generate_model,
             AVG(quality_score)::DECIMAL,
             COUNT(*)::BIGINT,
@@ -1487,7 +1487,7 @@ BEGIN
         GROUP BY generate_model;
     ELSIF step = 'review' THEN
         RETURN QUERY
-        SELECT 
+        SELECT
             review_model,
             AVG(quality_score)::DECIMAL,
             COUNT(*)::BIGINT,
@@ -1515,7 +1515,7 @@ CREATE TABLE pipeline_steps (
     model TEXT NOT NULL,
     output JSONB,
     timestamp TIMESTAMP NOT NULL DEFAULT NOW(),
-    
+
     -- Indexes
     INDEX idx_run_id (run_id),
     INDEX idx_step (step),
@@ -1538,10 +1538,10 @@ CREATE TABLE conversations (
     role TEXT NOT NULL CHECK (role IN ('user', 'assistant', 'system')),
     content TEXT NOT NULL,
     timestamp TIMESTAMP NOT NULL DEFAULT NOW(),
-    
+
     -- Metadata
     page TEXT,  -- Page context (e.g., "portfolio", "tax_planning")
-    
+
     -- Indexes
     INDEX idx_user_id (user_id),
     INDEX idx_timestamp (timestamp)
@@ -1611,7 +1611,7 @@ response = await client.chat_with_fallback(
 # Initialize
 search = WebSearchClient(
     api_key="zai-key",
-    supabase_client=supabase,
+    postgres_client=postgres,
     memory_cache_ttl=3600,  # 1 hour
     db_cache_ttl=86400       # 24 hours
 )
@@ -1636,7 +1636,7 @@ stats = await search.get_cache_stats()
 ```python
 # Initialize
 tracker = CostTracker(
-    supabase_client=supabase,
+    postgres_client=postgres,
     daily_budget_usd=10.0,
     monthly_budget_usd=300.0,
     alert_threshold=0.8
@@ -1684,7 +1684,7 @@ from llm_common import LLMClient
 async def test_chat_with_structured_output(mocker):
     """Test structured output via instructor."""
     client = LLMClient(provider="openrouter")
-    
+
     # Mock instructor response
     mock_response = BillAnalysis(
         summary="Test summary",
@@ -1696,14 +1696,14 @@ async def test_chat_with_structured_output(mocker):
         'create',
         return_value=mock_response
     )
-    
+
     # Call
     result = await client.chat(
         messages=[{"role": "user", "content": "Test"}],
         model="gpt-4o",
         response_model=BillAnalysis
     )
-    
+
     # Assert
     assert isinstance(result, BillAnalysis)
     assert result.confidence == 0.9
@@ -1727,11 +1727,11 @@ async def test_full_pipeline():
     """Test full analysis pipeline."""
     # Setup
     llm = LLMClient(provider="openrouter")
-    search = WebSearchClient(api_key="test-key", supabase_client=supabase)
-    tracker = CostTracker(supabase_client=supabase)
-    
-    pipeline = AnalysisPipeline(llm, search, tracker, supabase)
-    
+    search = WebSearchClient(api_key="test-key", postgres_client=postgres)
+    tracker = CostTracker(postgres_client=postgres)
+
+    pipeline = AnalysisPipeline(llm, search, tracker, postgres)
+
     # Run
     result = await pipeline.run(
         bill_id="AB-1234",
@@ -1743,13 +1743,13 @@ async def test_full_pipeline():
             "review": "claude-3.5-sonnet"
         }
     )
-    
+
     # Assert
     assert isinstance(result, BillAnalysis)
     assert result.confidence > 0.5
-    
+
     # Verify logging
-    runs = supabase.table('pipeline_runs').select('*').eq('bill_id', 'AB-1234').execute()
+    runs = postgres.table('pipeline_runs').select('*').eq('bill_id', 'AB-1234').execute()
     assert len(runs.data) == 1
 ```
 
@@ -1857,8 +1857,8 @@ OPENAI_API_KEY=sk-...  # Optional
 ANTHROPIC_API_KEY=sk-ant-...  # Optional
 
 # Database
-SUPABASE_URL=https://...
-SUPABASE_SERVICE_ROLE_KEY=...
+DATABASE_URL=https://...
+DATABASE_URL=...
 
 # Budgets
 DAILY_BUDGET_USD=10.0

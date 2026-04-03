@@ -18,7 +18,7 @@ This PRD defines the architecture for Affordabot's "Full City Infrastructure" RA
 - **Scraping**: **Scrapy** (City-Scrapers for meetings, Custom Spiders for full sites).
 - **Storage**:
     - **Raw**: `raw_scrapes` (Postgres/Blob) - Managed by `affordabot`.
-    - **RAG**: `documents` (Supabase pgvector) - Managed via `llm-common` backend.
+    - **RAG**: `documents` (Postgres pgvector) - Managed via `llm-common` backend.
 - **Discovery**: **z.ai** (Auto-discovery of new sources).
 
 ### Constraints
@@ -62,7 +62,7 @@ This PRD defines the architecture for Affordabot's "Full City Infrastructure" RA
     1.  Read from `raw_scrapes`.
     2.  Clean & Chunk text.
     3.  Generate Embeddings (via `llm-common` / LiteLLM).
-    4.  Store in `documents` (via `SupabasePgVectorBackend`).
+    4.  Store in `documents` (via `Postgres pgvector backend`).
 - **Schema**: Shared `Document` schema in `llm-common`.
 
 ### FR-4: Admin Source Management (`affordabot-9ko`)
@@ -99,7 +99,7 @@ This PRD defines the architecture for Affordabot's "Full City Infrastructure" RA
 - **Deduplication**: Content hashing.
 
 ### RAG Storage (`documents`)
-- **Backend**: Supabase pgvector (via `llm-common` PR #3).
+- **Backend**: Postgres pgvector (via `llm-common` PR #3).
 - **Metadata**: `jurisdiction_id`, `source_type` (meeting, code), `timestamp`.
 
 ---
@@ -121,7 +121,7 @@ This PRD defines the architecture for Affordabot's "Full City Infrastructure" RA
 **Goal**: Robust storage and RAG ingestion.
 - **Deliverables**:
     -   `IngestionService`: `raw_scrapes` -> Chunk -> Embed -> `documents`.
-    -   Integration with `llm-common` (SupabasePgVectorBackend).
+    -   Integration with `llm-common` (Postgres pgvector backend).
     -   Validation of RAG pipeline (Query -> Vector Search).
 
 ### Phase 2: Admin UI (Visibility)

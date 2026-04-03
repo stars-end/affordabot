@@ -21,7 +21,7 @@
 
 ### 3. Fix Models & Prompts
 - [ ] Check backend `routers/admin.py` for model/prompt endpoints.
-- [ ] Create a seed script or migration to insert default models (Z.ai, OpenRouter) into Supabase.
+- [ ] Create a seed script or migration to insert default models (Z.ai, OpenRouter) into Postgres.
 - [ ] Verify frontend data fetching for models/prompts.
 
 ### 4. Fix Analysis Lab

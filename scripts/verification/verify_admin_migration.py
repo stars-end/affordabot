@@ -35,7 +35,7 @@ async def verify():
     # Check admin router imports
     try:
         from routers import admin
-        print("SUCCESS: Admin router imported successfully (Supabase dependencies removed).")
+        print("SUCCESS: Admin router imported successfully (legacy storage dependencies removed).")
     except ImportError as e:
         print(f"FAILED: Admin router import failed: {e}")
         sys.exit(1)

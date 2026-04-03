@@ -25,7 +25,7 @@ All core features implemented and ready for deployment.
 - ✅ Cost distribution (p10, p25, p50, p75, p90)
 
 #### 3. Database Integration
-- ✅ Supabase client
+- ✅ Postgres client
 - ✅ Store jurisdictions, legislation, impacts
 - ✅ Retrieve with impacts joined
 
@@ -90,7 +90,7 @@ uvicorn
 sqlalchemy
 pydantic
 python-dotenv
-supabase
+postgres
 instructor
 openai
 beautifulsoup4
@@ -117,8 +117,8 @@ tailwindcss
 
 ### Required
 - `OPENROUTER_API_KEY` or `OPENAI_API_KEY`
-- `SUPABASE_URL`
-- `SUPABASE_SERVICE_ROLE_KEY`
+- `DATABASE_URL`
+- `DATABASE_URL`
 - `OPENSTATES_API_KEY`
 
 ### Optional (Recommended)
@@ -216,7 +216,7 @@ startCommand = "npm start"
 
 ### Monthly (MVP Scale)
 - **Railway**: $5-20 (Hobby plan)
-- **Supabase**: Free tier (up to 500MB)
+- **Postgres**: Free tier (up to 500MB)
 - **OpenRouter**: $10-50 (depends on usage)
 - **SendGrid**: Free tier (100 emails/day)
 - **Sentry**: Free tier (5K events/month)
@@ -243,7 +243,7 @@ Built with:
 - Next.js (frontend)
 - Tremor (UI components)
 - Instructor (LLM orchestration)
-- Supabase (database)
+- Postgres (database)
 - Railway (deployment)
 - Sentry (error tracking)
 - SendGrid (email)

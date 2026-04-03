@@ -148,9 +148,7 @@ class RAGSpiderRunner:
                 postgres_client=self.db, # Factory needs update or direct instantiation
                 embedding_fn=embed_fn
             )
-            # WORKAROUND: Factory might still require supabase_client if not updated.
-            # Assuming custom_pgvector_backend for now.
-            # Let's check factory later. For now assume it works or we use direct.
+            # Factory accepts legacy kwargs but uses the Postgres-backed pgvector path.
             
             storage_backend = S3Storage()  # Uses MINIO_* env vars
             

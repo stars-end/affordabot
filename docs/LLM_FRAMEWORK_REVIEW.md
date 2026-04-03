@@ -126,7 +126,7 @@ class LLMClient:
 #### 2. `web_search.py` (~150 lines)
 ```python
 class WebSearchClient:
-    """z.ai web search with 2-tier caching (L1=memory, L2=Supabase)"""
+    """z.ai web search with 2-tier caching (L1=memory, L2=Postgres)"""
 
     async def search(
         self,
@@ -139,8 +139,8 @@ class WebSearchClient:
         if query in self.memory_cache:
             return self.memory_cache[query]
 
-        # Check L2 cache (Supabase)
-        cached = await self._fetch_from_supabase(query)
+        # Check L2 cache (Postgres)
+        cached = await self._fetch_from_postgres(query)
         if cached:
             self.memory_cache[query] = cached  # Warm L1
             return cached
@@ -150,13 +150,13 @@ class WebSearchClient:
 
         # Store in both caches
         self.memory_cache[query] = results
-        await self._store_in_supabase(query, results)
+        await self._store_in_postgres(query, results)
 
         return results
 ```
 
 **Features**:
-- ✅ 2-tier caching (memory + Supabase)
+- ✅ 2-tier caching (memory + Postgres)
 - ✅ Cost tracking ($0.01 per search)
 - ✅ Cache statistics (hit rate, cost savings)
 - ✅ TTL-based expiration (24 hours default)
@@ -165,7 +165,7 @@ class WebSearchClient:
 #### 3. `cost_tracker.py` (~100 lines)
 ```python
 class CostTracker:
-    """Track and log LLM costs to Supabase"""
+    """Track and log LLM costs to Postgres"""
 
     async def log_request(
         self,
@@ -174,7 +174,7 @@ class CostTracker:
         cost: float,
         metadata: Dict[str, Any]
     ):
-        # Store in Supabase cost_tracking table
+        # Store in Postgres cost_tracking table
         await self.db.table("cost_tracking").insert({
             "model": model,
             "tokens_used": tokens,
@@ -194,7 +194,7 @@ class CostTracker:
 ```
 
 **Features**:
-- ✅ Supabase persistence
+- ✅ Postgres persistence
 - ✅ Daily cost aggregation
 - ✅ Budget enforcement integration
 
@@ -224,7 +224,7 @@ async def test_l1_cache_hit():
 
 @pytest.mark.asyncio
 async def test_l2_cache_hit():
-    """Test Supabase cache hit"""
+    """Test Postgres cache hit"""
 ```
 
 **Coverage**:
@@ -331,11 +331,11 @@ else:
 ```python
 class ConversationMemory:
     """
-    Manage chat history with Supabase persistence.
+    Manage chat history with Postgres persistence.
 
     Features:
     - Sliding window (last N messages)
-    - Supabase persistence
+    - Postgres persistence
     - Context retrieval
     """
 
@@ -345,7 +345,7 @@ class ConversationMemory:
         role: str,
         content: str
     ):
-        # Store in Supabase
+        # Store in Postgres
         await self.db.table("conversation_history").insert({
             "conversation_id": conversation_id,
             "role": role,
@@ -523,7 +523,7 @@ class LLMPortfolioAnalyzer:
 3. **Monitoring**
    - Add metrics (latency, error rate, cache hit rate)
    - Add alerts (budget threshold, API failures)
-   - Add dashboards (Grafana/Supabase Analytics)
+   - Add dashboards (Grafana/Postgres Analytics)
 
 4. **Package Distribution**
    - Currently: Manual copy between repos

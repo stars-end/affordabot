@@ -35,8 +35,8 @@ This plan outlines the strategy to expand Affordabot's data ingestion to include
 
 ### RAG & Ingestion (`llm-common` Integration)
 - **Current State**: `llm-common` provides `LLMClient` and `WebSearchClient`.
-- **New Capabilities (PR #3)**: Adds `SupabasePgVectorBackend`.
-    - **Strategy**: Use this backend for storage. `affordabot-rdx` will focus on the *ingestion pipeline* (Scraper -> Text Cleaning -> Chunking -> `SupabasePgVectorBackend`).
+- **New Capabilities (PR #3)**: Adds `Postgres pgvector backend`.
+    - **Strategy**: Use this backend for storage. `affordabot-rdx` will focus on the *ingestion pipeline* (Scraper -> Text Cleaning -> Chunking -> `Postgres pgvector backend`).
     - **Shared Schema**: Define a common schema for "Documents" (source, type, content, embedding) in `llm-common`.
 
 ## Competitive Landscape
@@ -59,6 +59,6 @@ This plan outlines the strategy to expand Affordabot's data ingestion to include
         - General Website (recursive crawl).
 2.  **Ingestion (affordabot-rdx)**:
     - Define `Document` schema in `llm-common`.
-    - Implement embedding pipeline (Supabase).
+    - Implement embedding pipeline (Postgres).
 3.  **Scale**:
     - Roll out to remaining target cities/counties.

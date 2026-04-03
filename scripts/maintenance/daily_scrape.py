@@ -57,11 +57,11 @@ class ScrapeJob:
         
         # Create vector backend (feature flag controlled)
         vector_backend = create_vector_backend(
-            supabase_client=self.db.client,
+            postgres_client=self.db,
             embedding_fn=embed_fn
         )
         ingestion_service = IngestionService(
-            supabase_client=self.db.client,
+            postgres_client=self.db,
             vector_backend=vector_backend,
             embedding_service=embedding_service
         )
@@ -164,7 +164,7 @@ class ScrapeJob:
 async def main():
     logger.info("🚀 Starting Daily Scrape Cron")
     
-    # Load Env (Required for SupabaseDB)
+    # Load env for Postgres-backed runtime access
     from dotenv import load_dotenv
     load_dotenv(os.path.join(os.path.dirname(__file__), '../backend/.env'))
     

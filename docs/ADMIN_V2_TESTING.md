@@ -1,6 +1,6 @@
 # Admin Dashboard V2 - Endpoint Testing Guide
 
-**Last Updated**: 2025-11-30 07:18 PST  
+**Last Updated**: 2025-11-30 07:18 PST
 **Status**: Testing Phase
 
 ## Prerequisites
@@ -8,8 +8,8 @@
 ### Environment Variables
 Ensure these are set in your environment:
 ```bash
-export SUPABASE_URL="https://jqcnqlgbbcfwfpmvzbqi.supabase.co"
-export SUPABASE_SERVICE_ROLE_KEY="<your-service-role-key>"
+export DATABASE_URL="https://jqcnqlgbbcfwfpmvzbqi.postgres.co"
+export DATABASE_URL="<your-service-role-key>"
 ```
 
 ### Start Backend Server
@@ -256,7 +256,7 @@ curl -X GET "http://localhost:8000/admin/health/detailed" \
 
 ### Test Execution Log
 
-**Date**: 2025-11-30  
+**Date**: 2025-11-30
 **Tester**: Automated Testing
 
 | Endpoint | Method | Status | Response Time | Notes |
