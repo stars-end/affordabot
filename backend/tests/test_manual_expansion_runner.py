@@ -1,4 +1,51 @@
 import pytest
+import sys
+import types
+
+if "asyncpg" not in sys.modules:
+    sys.modules["asyncpg"] = types.SimpleNamespace(Pool=object, Record=object)
+if "tenacity" not in sys.modules:
+    sys.modules["tenacity"] = types.SimpleNamespace(
+        retry=lambda *args, **kwargs: (lambda fn: fn),
+        stop_after_attempt=lambda *args, **kwargs: None,
+        wait_exponential=lambda *args, **kwargs: None,
+    )
+if "llm_common" not in sys.modules:
+    llm_common_module = types.ModuleType("llm_common")
+    llm_common_module.WebSearchResult = dict
+    retrieval_module = types.ModuleType("llm_common.retrieval")
+    embeddings_module = types.ModuleType("llm_common.embeddings")
+
+    class RetrievalBackend:  # pragma: no cover - import stub
+        pass
+
+    class RetrievedChunk:  # pragma: no cover - import stub
+        pass
+
+    class EmbeddingService:  # pragma: no cover - import stub
+        pass
+
+    retrieval_module.RetrievalBackend = RetrievalBackend
+    retrieval_module.RetrievedChunk = RetrievedChunk
+    embeddings_module.EmbeddingService = EmbeddingService
+    sys.modules["llm_common"] = llm_common_module
+    sys.modules["llm_common.retrieval"] = retrieval_module
+    sys.modules["llm_common.embeddings"] = embeddings_module
+if "minio" not in sys.modules:
+    minio_module = types.ModuleType("minio")
+
+    class Minio:  # pragma: no cover - import stub
+        pass
+
+    minio_module.Minio = Minio
+    minio_error_module = types.ModuleType("minio.error")
+
+    class S3Error(Exception):  # pragma: no cover - import stub
+        pass
+
+    minio_error_module.S3Error = S3Error
+    sys.modules["minio"] = minio_module
+    sys.modules["minio.error"] = minio_error_module
 
 from scripts.substrate import manual_expansion_runner
 from scripts.substrate.manual_expansion_runner import _execute_legislation_capture
@@ -6,7 +53,8 @@ from scripts.substrate.manual_expansion_runner import _resolve_source_targets
 from scripts.substrate.manual_expansion_runner import _resolved_targets_payload
 
 
-def test_resolve_source_targets_selects_supported_document_types_only():
+@pytest.mark.asyncio
+async def test_resolve_source_targets_selects_supported_document_types_only():
     source_rows = [
         {
             "id": "1",
@@ -37,7 +85,7 @@ def test_resolve_source_targets_selects_supported_document_types_only():
         },
     ]
 
-    targets, failures = _resolve_source_targets(
+    targets, failures = await _resolve_source_targets(
         source_rows=source_rows,
         jurisdictions=["san-jose"],
         asset_classes=["agendas", "meeting_details"],
@@ -56,7 +104,62 @@ def test_resolve_source_targets_selects_supported_document_types_only():
     ]
 
 
-def test_resolved_targets_payload_counts_source_and_legislation_targets():
+@pytest.mark.asyncio
+async def test_resolve_source_targets_matches_county_slug_alias():
+    source_rows = [
+        {
+            "id": "county-1",
+            "name": "Santa Clara County Agendas",
+            "type": "meetings",
+            "url": "https://sccgov.legistar.com/Calendar.aspx",
+            "metadata": {"document_type": "agenda"},
+            "jurisdiction_name": "County of Santa Clara",
+            "jurisdiction_type": "county",
+        }
+    ]
+
+    targets, failures = await _resolve_source_targets(
+        source_rows=source_rows,
+        jurisdictions=["santa-clara-county"],
+        asset_classes=["agendas"],
+        max_documents_per_source=5,
+    )
+
+    assert len(targets) == 1
+    assert targets[0].jurisdiction_slug == "santa-clara-county"
+    assert failures == []
+
+
+@pytest.mark.asyncio
+async def test_ensure_pack_a_source_inventory_upserts_for_requested_assets():
+    class FakeDB:
+        async def get_or_create_jurisdiction(self, name, jur_type):
+            assert name in {
+                "City of Sunnyvale",
+                "County of Santa Clara",
+            }
+            assert jur_type in {"city", "county"}
+            return f"{name}:{jur_type}"
+
+        async def upsert_source(self, data):
+            assert data["source_method"] in {"scrape"}
+            assert data["handler"] in {"sunnyvale_agendas", "legistar_calendar"}
+            assert data["metadata"]["document_type"] in {"agenda", "meeting_detail"}
+            return {"id": f"id-{data['name']}"}
+
+    result = await manual_expansion_runner._ensure_pack_a_source_inventory(
+        db=FakeDB(),
+        jurisdictions=["sunnyvale", "santa-clara-county"],
+        asset_classes=["agendas", "meeting_details"],
+    )
+
+    assert result["attempted"] >= 2
+    assert result["upserted"] >= 2
+    assert result["failures"] == []
+
+
+@pytest.mark.asyncio
+async def test_resolved_targets_payload_counts_source_and_legislation_targets():
     source_rows = [
         {
             "id": "1",
@@ -68,7 +171,7 @@ def test_resolved_targets_payload_counts_source_and_legislation_targets():
             "jurisdiction_type": "city",
         }
     ]
-    targets, _ = _resolve_source_targets(
+    targets, _ = await _resolve_source_targets(
         source_rows=source_rows,
         jurisdictions=["san-jose"],
         asset_classes=["agendas"],
@@ -87,6 +190,154 @@ def test_resolved_targets_payload_counts_source_and_legislation_targets():
     assert payload["by_asset_class"]["agendas"] == 1
     assert payload["by_asset_class"]["legislation"] == 1
     assert payload["potential_target_documents"] == 10
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("handler", "jurisdiction_slug", "asset_class", "expected_fragment", "html_text"),
+    [
+        (
+            "legistar_calendar",
+            "san-jose",
+            "agendas",
+            "View.ashx?M=A&ID=100",
+            """
+            <html>
+              <body>
+                <a href="/MeetingDetail.aspx?ID=100&GUID=abc">Meeting Details</a>
+                <a href="/View.ashx?M=A&ID=100"><img alt="Agenda"></a>
+              </body>
+            </html>
+            """,
+        ),
+        (
+            "agenda_center",
+            "saratoga",
+            "agendas",
+            "/DocumentCenter/View/1234/City-Council-Agenda",
+            """
+            <html>
+              <body>
+                <a href="/DocumentCenter/View/1234/City-Council-Agenda">Download Agenda PDF</a>
+                <a href="/DocumentCenter/View/1235/City-Council-Minutes">Download Minutes PDF</a>
+              </body>
+            </html>
+            """,
+        ),
+        (
+            "sunnyvale_agendas",
+            "sunnyvale",
+            "agendas",
+            "View.ashx?M=A&ID=200",
+            """
+            <html>
+              <body>
+                <a href="/View.ashx?M=A&ID=200">Agenda</a>
+                <a href="/View.ashx?M=M&ID=200">Minutes</a>
+              </body>
+            </html>
+            """,
+        ),
+    ],
+)
+async def test_resolve_source_targets_expands_handler_roots_to_document_targets(
+    monkeypatch,
+    handler,
+    jurisdiction_slug,
+    asset_class,
+    expected_fragment,
+    html_text,
+):
+    class FakeResponse:
+        def __init__(self, text):
+            self.status_code = 200
+            self.text = text
+
+    class FakeAsyncClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def get(self, url, timeout=None):
+            return FakeResponse(html_text)
+
+    monkeypatch.setattr(manual_expansion_runner.httpx, "AsyncClient", FakeAsyncClient)
+
+    source_rows = [
+        {
+            "id": "source-1",
+            "name": "Root calendar/index source",
+            "type": "meetings",
+            "url": "https://example.gov/root",
+            "handler": handler,
+            "metadata": {"document_type": "agenda", "trust_tier": "official_partner"},
+            "jurisdiction_name": jurisdiction_slug.replace("-", " ").title(),
+            "jurisdiction_type": "city",
+        }
+    ]
+
+    targets, failures = await _resolve_source_targets(
+        source_rows=source_rows,
+        jurisdictions=[jurisdiction_slug],
+        asset_classes=[asset_class],
+        max_documents_per_source=5,
+    )
+
+    assert failures == []
+    assert len(targets) == 1
+    assert expected_fragment in targets[0].url
+    assert targets[0].url != source_rows[0]["url"]
+
+
+@pytest.mark.asyncio
+async def test_resolve_source_targets_keeps_municode_root_for_code_lane(monkeypatch):
+    class FakeAsyncClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def get(self, url, timeout=None):  # pragma: no cover - should not be used
+            raise AssertionError("municode should not fetch during root resolution")
+
+    monkeypatch.setattr(manual_expansion_runner.httpx, "AsyncClient", FakeAsyncClient)
+
+    source_rows = [
+        {
+            "id": "municode-1",
+            "name": "San Jose Municipal Code",
+            "type": "code",
+            "url": "https://library.municode.com/ca/san_jose/codes/code_of_ordinances",
+            "handler": "municode",
+            "metadata": {
+                "document_type": "municipal_code",
+                "trust_tier": "official_partner",
+            },
+            "jurisdiction_name": "City of San Jose",
+            "jurisdiction_type": "city",
+        }
+    ]
+
+    targets, failures = await _resolve_source_targets(
+        source_rows=source_rows,
+        jurisdictions=["san-jose"],
+        asset_classes=["municipal_code"],
+        max_documents_per_source=5,
+    )
+
+    assert failures == []
+    assert len(targets) == 1
+    assert targets[0].document_type == "municipal_code"
+    assert targets[0].url == source_rows[0]["url"]
 
 
 @pytest.mark.asyncio

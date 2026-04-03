@@ -1,5 +1,11 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock
+import sys
+import types
+
+if "asyncpg" not in sys.modules:
+    sys.modules["asyncpg"] = types.SimpleNamespace(Pool=object, Record=object)
+
 from services.source_service import SourceService, SourceCreate, SourceUpdate
 
 @pytest.fixture
@@ -8,6 +14,7 @@ def mock_db():
     mock.get_sources = AsyncMock()
     mock.get_source = AsyncMock()
     mock.create_source = AsyncMock()
+    mock.upsert_source = AsyncMock()
     mock.update_source = AsyncMock()
     mock.delete_source = AsyncMock()
     return mock
@@ -38,14 +45,30 @@ async def test_create_source(mock_db):
     service = SourceService(mock_db)
     new_source = SourceCreate(jurisdiction_id="sanjose", url="http://example.com", type="general")
     mock_resp = {"id": "1", **new_source.model_dump()}
-    mock_db.create_source.return_value = mock_resp
+    mock_db.upsert_source.return_value = mock_resp
     
     created = await service.create_source(new_source)
     
     assert created["id"] == "1"
-    mock_db.create_source.assert_called_once()
-    call_args = mock_db.create_source.call_args[0][0]
+    mock_db.upsert_source.assert_called_once()
+    call_args = mock_db.upsert_source.call_args[0][0]
     assert call_args["url"] == "http://example.com"
+
+
+@pytest.mark.asyncio
+async def test_create_source_derives_name_when_missing(mock_db):
+    service = SourceService(mock_db)
+    new_source = SourceCreate(
+        jurisdiction_id="sunnyvale",
+        url="https://sunnyvaleca.legistar.com/Calendar.aspx",
+        type="meetings",
+    )
+    mock_db.upsert_source.return_value = {"id": "source-1"}
+
+    await service.create_source(new_source)
+
+    call_args = mock_db.upsert_source.call_args[0][0]
+    assert call_args["name"] == "meetings source (sunnyvaleca.legistar.com)"
 
 @pytest.mark.asyncio
 async def test_update_source(mock_db):
