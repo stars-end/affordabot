@@ -186,6 +186,13 @@ async def test_process_raw_scrape_reuses_existing_retrievable_revision(
     assert count == 4
     mock_embedding_service.embed_documents.assert_not_called()
     mock_vector_backend.upsert.assert_not_called()
+    reused_truth_payloads = [
+        json.loads(call[0][1]).get("ingestion_truth", {})
+        for call in mock_postgres._execute.call_args_list
+        if "UPDATE raw_scrapes SET metadata = $1" in call[0][0]
+    ]
+    assert any(payload.get("reused_existing_revision") is True for payload in reused_truth_payloads)
+    assert any(payload.get("reused_from_raw_scrape_id") == "prior-scrape-1" for payload in reused_truth_payloads)
     assert any(
         "UPDATE raw_scrapes" in call[0][0] and True in call[0][1:]
         for call in mock_postgres._execute.call_args_list
