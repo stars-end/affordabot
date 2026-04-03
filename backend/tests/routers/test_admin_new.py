@@ -320,3 +320,138 @@ def test_admin_scrape_queries_avoid_text_uuid_join_mismatch() -> None:
     admin_path = Path(__file__).resolve().parents[2] / "routers" / "admin.py"
     source = admin_path.read_text()
     assert source.count("s.jurisdiction_id::text = j.id::text") >= 3
+
+
+def _substrate_row(
+    *,
+    row_id: str,
+    run_id: str = "manual-substrate-test-run",
+    promotion_state: str = "promoted_substrate",
+    trust_tier: str = "official",
+    content_class: str = "html_text",
+    ingestion_stage: str = "retrievable",
+    retrievable: bool = True,
+    error_message: str | None = None,
+):
+    return {
+        "id": row_id,
+        "created_at": "2026-04-03T10:00:00Z",
+        "url": "https://example.gov/doc-1",
+        "data": {"content": "A" * 512},
+        "error_message": error_message,
+        "storage_uri": "substrate/doc-1.pdf",
+        "document_id": "8eac5530-c3c7-4d3a-b49d-f2fb4b9eac15",
+        "metadata": {
+            "manual_run_id": run_id,
+            "promotion_state": promotion_state,
+            "promotion_reason_category": "ok",
+            "trust_tier": trust_tier,
+            "content_class": content_class,
+            "document_type": "minutes",
+            "ingestion_truth": {
+                "stage": ingestion_stage,
+                "retrievable": retrievable,
+            },
+        },
+        "source_url": "https://example.gov/source",
+        "source_type": "legistar_calendar",
+        "source_name": "City Council",
+        "jurisdiction_name": "City of Sample",
+    }
+
+
+def test_list_substrate_runs(client, mock_db):
+    mock_db._fetch.return_value = [
+        {
+            "run_id": "manual-substrate-test-run",
+            "first_created_at": "2026-04-03T09:50:00Z",
+            "last_created_at": "2026-04-03T10:00:00Z",
+            "raw_scrapes_total": 3,
+            "promoted_substrate_count": 2,
+            "durable_raw_count": 1,
+            "captured_candidate_count": 0,
+            "retrievable_count": 2,
+            "raw_capture_error_count": 0,
+        }
+    ]
+
+    client.set_auth("admin")
+    response = client.get("/api/admin/substrate/runs?limit=10&offset=0")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["run_id_key"] == "manual_run_id"
+    assert len(body["runs"]) == 1
+    run = body["runs"][0]
+    assert run["run_id"] == "manual-substrate-test-run"
+    assert run["status"] == "healthy"
+    assert run["raw_scrapes_total"] == 3
+    assert run["promoted_substrate_count"] == 2
+
+
+def test_get_substrate_run_detail(client, mock_db):
+    mock_db._fetch.return_value = [
+        _substrate_row(row_id="row-1"),
+        _substrate_row(
+            row_id="row-2",
+            promotion_state="durable_raw",
+            ingestion_stage="embedded",
+            retrievable=False,
+        ),
+    ]
+    client.set_auth("admin")
+    response = client.get("/api/admin/substrate/runs/manual-substrate-test-run")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["run_id"] == "manual-substrate-test-run"
+    assert body["raw_scrapes_total"] == 2
+    assert body["summary"]["raw_scrapes_total"] == 2
+    assert "promotion_state_counts" in body["summary"]
+
+
+def test_get_substrate_run_failure_buckets(client, mock_db):
+    mock_db._fetch.return_value = [
+        _substrate_row(
+            row_id="row-1",
+            promotion_state="captured_candidate",
+            trust_tier="non_official",
+            ingestion_stage="failed_fetch",
+            retrievable=False,
+        )
+    ]
+    client.set_auth("admin")
+    response = client.get(
+        "/api/admin/substrate/runs/manual-substrate-test-run/failure-buckets"
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["run_id"] == "manual-substrate-test-run"
+    assert body["raw_scrapes_total"] == 1
+    assert len(body["failure_buckets"]) >= 1
+
+
+def test_list_substrate_run_raw_scrapes(client, mock_db):
+    mock_db._fetch.return_value = [_substrate_row(row_id="row-1")]
+    client.set_auth("admin")
+    response = client.get(
+        "/api/admin/substrate/runs/manual-substrate-test-run/raw-scrapes?limit=20&offset=0"
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["run_id"] == "manual-substrate-test-run"
+    assert len(body["raw_scrapes"]) == 1
+    row = body["raw_scrapes"][0]
+    assert row["id"] == "row-1"
+    assert row["promotion_state"] == "promoted_substrate"
+    assert row["ingestion_truth_retrievable"] is True
+    assert row["content_length"] == 512
+
+
+def test_get_substrate_raw_scrape_detail(client, mock_db):
+    mock_db._fetchrow.return_value = _substrate_row(row_id="row-1")
+    client.set_auth("admin")
+    response = client.get("/api/admin/substrate/raw-scrapes/row-1")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["id"] == "row-1"
+    assert body["metadata"]["manual_run_id"] == "manual-substrate-test-run"
+    assert body["ingestion_truth"]["stage"] == "retrievable"
