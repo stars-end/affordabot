@@ -92,27 +92,25 @@ The scraper registry pattern (base scraper → jurisdiction-specific adapters) i
 ## 3. Commodity Areas (Should Reuse, Not Rebuild)
 
 ### 3.1 Admin Dashboard Chrome
-**Verdict: Stop building. Use an internal tool platform.**
+**Verdict: Nuanced — keep in-house, but stop building vanity pages.**
 
 The current admin endpoints (`/admin/jurisdictions`, `/admin/scrapes`, `/admin/prompts`, `/admin/stats`) are building a generic CRUD admin panel. This is not moat-critical. It's a commodity internal tool.
 
-**Current state:** Custom FastAPI endpoints + React frontend pages for jurisdiction management, scrape history, prompt editing, and dashboard stats.
+**Counter-argument from PR #368 (raw data viewer build-vs-buy memo):** The PR #368 memo evaluated NocoDB, Appsmith, and Metabase for the substrate data viewer and found that for a solo founder, all three create permanent infrastructure tax: separate auth planes, new Railway deployments, JSONB query fragility (NocoDB's formula hacks), and the cognitive overhead of maintaining a separate tool. The memo correctly concluded that extending the existing in-house UI is lower total cognitive load than introducing a new platform.
 
-**Problem:** Every endpoint here is a standard CRUD operation. The founder is spending engineering cycles on:
-- Jurisdiction list/detail views
-- Scrape history tables
-- Prompt version management
-- Dashboard stat counters
+**Reconciled verdict:** Do NOT deploy Retool/Appsmith/NocoDB. The infrastructure tax of a separate deployment + auth plane is worse than writing a React table. However, there is a middle ground:
 
-These are exactly the problems that Retool, Appsmith, or ToolJet solve. For a solo founder, the cognitive load of maintaining a custom admin UI is a tax that compounds.
+- **Keep in-house** for the admin UI (single pane of glass, reuses Clerk auth, zero new infrastructure)
+- **But stop building vanity pages** — only build admin pages that serve a concrete operator need (substrate browser, bill truth viewer, GlassBox trace viewer)
+- **Do NOT build** jurisdiction CRUD forms, prompt editors, or dashboard stat counters as custom React pages. These should be accessed via `db_inspect.py` or simple SQL queries until there's a proven operator need.
 
-**Recommendation:** Keep the API endpoints (they're needed for the frontend app anyway), but stop building custom React admin pages. Use an internal tool platform for operator-facing admin operations. The admin UI should be:
+The admin UI should be:
 - GlassBox traces: keep custom (moat-critical)
 - Bill truth diagnostic: keep custom (moat-critical)
-- Jurisdiction CRUD: move to Retool/Appsmith
-- Scrape history: move to Retool/Appsmith
-- Prompt management: move to Retool/Appsmith
-- Dashboard stats: move to Retool/Appsmith
+- Substrate data browser: keep custom (PR #368 verdict — native JSONB queries are the robust path)
+- Jurisdiction CRUD: defer (use `db_inspect.py` or direct SQL)
+- Scrape history: defer (use `db_inspect.py` or direct SQL)
+- Prompt management: defer (use `db_inspect.py` or direct SQL)
 
 ### 3.2 MinIO Self-Hosted Object Storage
 **Verdict: Likely maintenance drag. Consider Railway Postgres large objects or S3 directly.**
@@ -170,7 +168,7 @@ This should continue to be built custom. No OSS tool provides revision-aware mun
 | GlassBox traces | Custom | Datadog/Honeycomb (generic) | **Keep custom** | HIGH |
 | Bill truth diagnostic | Custom | None exists | **Keep custom** | HIGH |
 | Scraper adapters | Custom + City-Scrapers OSS | City-Scrapers, LegiScan | **Keep hybrid** | HIGH |
-| Admin CRUD UI | Custom React | Retool, Appsmith, ToolJet | **Switch to internal tool platform** | LOW |
+| Admin CRUD UI | Custom React | Retool, Appsmith, ToolJet | **Keep in-house, defer vanity pages** | LOW |
 | Object storage | MinIO on Railway | Postgres BYTEA, R2, S3 | **Simplify to Postgres or R2** | NONE |
 | Vector DB | pgvector | Pinecone, Weaviate, Qdrant | **Keep pgvector** | LOW |
 | Prompt management | Custom CRUD | LangSmith, PromptLayer | **Keep simple, consider LangSmith later** | MEDIUM |
@@ -182,7 +180,7 @@ This should continue to be built custom. No OSS tool provides revision-aware mun
 
 Over the next 1-2 waves, affordabot should explicitly NOT build:
 
-1. **Custom admin dashboard pages** — No more React pages for jurisdiction management, scrape history tables, or prompt editors. Use Retool/Appsmith for operator-facing CRUD.
+1. **Vanity admin pages** — No custom React pages for jurisdiction management, scrape history tables, or prompt editors. These are CRUD operations accessible via `db_inspect.py` or direct SQL. The substrate data browser is the exception (PR #368 verdict — native JSONB queries are the robust path).
 2. **MinIO cluster management** — No scaling MinIO, no bucket lifecycle policies, no MinIO monitoring. Replace with Postgres BYTEA or R2.
 3. **Generic notification system** — The current Slack webhook integration is sufficient. Do not build email, SMS, or webhook routing systems.
 4. **Custom vector search optimization** — Do not build HNSW index tuning, vector quantization, or hybrid search. pgvector defaults are fine.
@@ -209,12 +207,12 @@ Over the next 1-2 waves, affordabot should explicitly NOT build:
 |------|---------------------|--------|
 | Substrate pipeline | 3-4 hours | No change |
 | GlassBox debugging | 1-2 hours | No change |
-| Admin CRUD operations | 0.5 hours | **-1.5 to -2.5 hours** (Retool/Appsmith) |
+| Admin CRUD operations | 1-2 hours | **-0.5 to -1.5 hours** (defer vanity pages, keep substrate browser) |
 | Storage operations | 0 hours | **-1 to -2 hours** (Postgres BYTEA or R2) |
 | Scraper adapters | 2-3 hours | No change |
 | Vector/Embedding tuning | 0-1 hours | No change |
 
-**Net savings: 2.5-4.5 hours/week** — roughly 15-25% of total engineering time.
+**Net savings: 1.5-3.5 hours/week** — roughly 10-20% of total engineering time.
 
 ---
 
@@ -224,7 +222,11 @@ Over the next 1-2 waves, affordabot should explicitly NOT build:
 
 The substrate model, GlassBox surface, and scraper registry are genuinely moat-critical and should remain custom. The admin dashboard chrome and MinIO self-hosting are the two areas where the team is drifting into unnecessary custom engineering.
 
-The current direction is defensible for one more wave, but the next wave after that should be a consolidation wave: replace MinIO, move admin CRUD to an internal tool platform, and double down on substrate coverage breadth.
+The current direction is defensible for one more wave, but the next wave after that should be a consolidation wave: replace MinIO, defer vanity admin pages, and double down on substrate coverage breadth.
+
+### Reconciliation with PR #368
+
+PR #368's raw data viewer build-vs-buy memo correctly identified that deploying OSS internal tool platforms (NocoDB, Appsmith, Metabase) creates more cognitive load than it saves for a solo founder. This memo agrees with that verdict and refines it: the admin UI should stay in-house, but the scope should be constrained to operator-critical surfaces only (substrate browser, bill truth, GlassBox). Everything else should be deferred or accessed via CLI/SQL tools.
 
 ---
 
@@ -238,7 +240,7 @@ The current direction is defensible for one more wave, but the next wave after t
 - Revision-aware document history
 
 ### BUY/REUSE (commodity, not moat)
-- **Admin CRUD UI:** Retool (cloud) or Appsmith (self-hosted on Railway free tier)
+- **Admin CRUD UI:** Keep in-house, but defer vanity pages (jurisdiction CRUD, prompt editors, stat dashboards). Use `db_inspect.py` or direct SQL for now.
 - **Object storage:** Postgres BYTEA (immediate) or Cloudflare R2 (if scale requires)
 - **Vector DB:** pgvector (already using, keep it)
 - **Auth:** Clerk (already using, keep it)
