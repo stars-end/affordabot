@@ -10,16 +10,17 @@ import {
     Zap,
     Activity,
     PlayCircle,
-    BarChart,
     Server,
     Clock,
-    AlertTriangle
+    AlertTriangle,
+    Search
 } from 'lucide-react';
 import { ScrapeManager } from '@/components/admin/ScrapeManager';
 import { AnalysisLab } from '@/components/admin/AnalysisLab';
 import { ModelRegistry } from '@/components/admin/ModelRegistry';
 import { JurisdictionMapper } from '@/components/admin/JurisdictionMapper';
 import { AnalyticsDashboard } from '@/components/admin/AnalyticsDashboard';
+import { SubstrateExplorer } from '@/components/admin/SubstrateExplorer';
 
 export default function AdminDashboard() {
     const [activeTab, setActiveTab] = useState('overview');
@@ -127,6 +128,10 @@ export default function AdminDashboard() {
                         <Settings className="w-4 h-4 mr-2" />
                         Models
                     </TabsTrigger>
+                    <TabsTrigger value="substrate" className="data-[state=active]:bg-slate-900 data-[state=active]:text-white rounded text-sm">
+                        <Search className="w-4 h-4 mr-2" />
+                        Substrate
+                    </TabsTrigger>
                 </TabsList>
 
                 {/* Overview Tab */}
@@ -152,6 +157,11 @@ export default function AdminDashboard() {
                 {/* Models Tab */}
                 <TabsContent value="models">
                     <ModelRegistry />
+                </TabsContent>
+
+                {/* Substrate Tab */}
+                <TabsContent value="substrate">
+                    <SubstrateExplorer />
                 </TabsContent>
             </Tabs>
         </div>
