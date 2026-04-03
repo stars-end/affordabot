@@ -22,6 +22,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 
 const RUN_PAGE_SIZE = 30;
 const RAW_ROWS_PAGE_SIZE = 80;
+const CONTENT_PREVIEW_TRUNCATE_AT = 1200;
 
 function formatTime(value?: string | null): string {
     if (!value) return 'n/a';
@@ -45,6 +46,7 @@ export function SubstrateExplorer() {
     const [runs, setRuns] = useState<SubstrateRun[]>([]);
     const [runsLoading, setRunsLoading] = useState(false);
     const [runsError, setRunsError] = useState<string | null>(null);
+    const [runsOffset, setRunsOffset] = useState(0);
 
     const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
     const [runDetail, setRunDetail] = useState<SubstrateRunDetail | null>(null);
@@ -55,6 +57,7 @@ export function SubstrateExplorer() {
 
     const [rawRows, setRawRows] = useState<SubstrateRawScrapeRow[]>([]);
     const [rawRowsLoading, setRawRowsLoading] = useState(false);
+    const [rawRowsOffset, setRawRowsOffset] = useState(0);
 
     const [filters, setFilters] = useState<SubstrateRunRawFilters>({
         jurisdiction_name: '',
@@ -69,13 +72,13 @@ export function SubstrateExplorer() {
     const [rawDetailLoading, setRawDetailLoading] = useState(false);
     const [copiedRunId, setCopiedRunId] = useState(false);
 
-    const loadRuns = async () => {
+    const loadRuns = async (offset = runsOffset) => {
         setRunsLoading(true);
         setRunsError(null);
         try {
-            const data = await adminService.getSubstrateRuns(RUN_PAGE_SIZE, 0);
+            const data = await adminService.getSubstrateRuns(RUN_PAGE_SIZE, offset);
             setRuns(data.runs || []);
-            if (!selectedRunId && data.runs?.length) {
+            if (data.runs?.length && (!selectedRunId || !data.runs.some((run) => run.run_id === selectedRunId))) {
                 setSelectedRunId(data.runs[0].run_id);
             }
         } catch (error) {
@@ -112,12 +115,12 @@ export function SubstrateExplorer() {
         }
     };
 
-    const loadRawRows = async (runId: string, activeFilters: SubstrateRunRawFilters) => {
+    const loadRawRows = async (runId: string, activeFilters: SubstrateRunRawFilters, offset = rawRowsOffset) => {
         setRawRowsLoading(true);
         try {
             const data = await adminService.getSubstrateRunRawScrapes(runId, {
                 limit: RAW_ROWS_PAGE_SIZE,
-                offset: 0,
+                offset,
                 filters: activeFilters,
             });
             setRawRows(data.raw_scrapes || []);
@@ -149,8 +152,8 @@ export function SubstrateExplorer() {
     };
 
     useEffect(() => {
-        loadRuns();
-    }, []);
+        loadRuns(runsOffset);
+    }, [runsOffset]);
 
     useEffect(() => {
         if (!selectedRunId) return;
@@ -158,8 +161,8 @@ export function SubstrateExplorer() {
         setRawDetail(null);
         loadRunDetail(selectedRunId);
         loadFailureBuckets(selectedRunId);
-        loadRawRows(selectedRunId, filters);
-    }, [selectedRunId]);
+        loadRawRows(selectedRunId, filters, rawRowsOffset);
+    }, [selectedRunId, rawRowsOffset]);
 
     useEffect(() => {
         if (!selectedRawId) return;
@@ -168,9 +171,10 @@ export function SubstrateExplorer() {
 
     const applyFilters = () => {
         if (!selectedRunId) return;
+        setRawRowsOffset(0);
         setSelectedRawId(null);
         setRawDetail(null);
-        loadRawRows(selectedRunId, filters);
+        loadRawRows(selectedRunId, filters, 0);
     };
 
     const clearFilters = () => {
@@ -183,9 +187,10 @@ export function SubstrateExplorer() {
         };
         setFilters(cleared);
         if (!selectedRunId) return;
+        setRawRowsOffset(0);
         setSelectedRawId(null);
         setRawDetail(null);
-        loadRawRows(selectedRunId, cleared);
+        loadRawRows(selectedRunId, cleared, 0);
     };
 
     const summary = runDetail?.summary || {};
@@ -211,6 +216,14 @@ export function SubstrateExplorer() {
         window.setTimeout(() => setCopiedRunId(false), 1500);
     };
 
+    const hasNextRunsPage = runs.length === RUN_PAGE_SIZE;
+    const hasNextRawRowsPage = rawRows.length === RAW_ROWS_PAGE_SIZE;
+    const previewText = rawDetail?.content_preview || '';
+    const previewIsTruncated = previewText.length > CONTENT_PREVIEW_TRUNCATE_AT;
+    const visiblePreview = previewIsTruncated
+        ? `${previewText.slice(0, CONTENT_PREVIEW_TRUNCATE_AT).trimEnd()}\n\n... (truncated for operator safety)`
+        : previewText || 'n/a';
+
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -220,7 +233,7 @@ export function SubstrateExplorer() {
                         Run-first debugging for raw substrate captures, failures, and row-level inspection.
                     </p>
                 </div>
-                <Button variant="outline" onClick={loadRuns} disabled={runsLoading}>
+                <Button variant="outline" onClick={() => loadRuns(runsOffset)} disabled={runsLoading}>
                     {runsLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCcw className="mr-2 h-4 w-4" />}
                     Refresh Runs
                 </Button>
@@ -237,8 +250,31 @@ export function SubstrateExplorer() {
             <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
                 <Card className="xl:col-span-1">
                     <CardHeader>
-                        <CardTitle>Recent Runs</CardTitle>
-                        <CardDescription>Choose a run to inspect what worked and what failed.</CardDescription>
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <CardTitle>Recent Runs</CardTitle>
+                                <CardDescription>Choose a run to inspect what worked and what failed.</CardDescription>
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-slate-500">
+                                <span>Offset {runsOffset + 1}</span>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setRunsOffset((prev) => Math.max(prev - RUN_PAGE_SIZE, 0))}
+                                    disabled={runsLoading || runsOffset === 0}
+                                >
+                                    Previous
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setRunsOffset((prev) => prev + RUN_PAGE_SIZE)}
+                                    disabled={runsLoading || !hasNextRunsPage}
+                                >
+                                    Next
+                                </Button>
+                            </div>
+                        </div>
                     </CardHeader>
                     <CardContent>
                         <ScrollArea className="h-[420px] pr-2">
@@ -252,7 +288,10 @@ export function SubstrateExplorer() {
                                             className={`w-full rounded border p-3 text-left transition ${
                                                 selected ? 'border-slate-900 bg-slate-50' : 'border-slate-200 hover:bg-slate-50'
                                             }`}
-                                            onClick={() => setSelectedRunId(run.run_id)}
+                                            onClick={() => {
+                                                setRawRowsOffset(0);
+                                                setSelectedRunId(run.run_id);
+                                            }}
                                         >
                                             <div className="flex items-start justify-between gap-3">
                                                 <div className="min-w-0">
@@ -465,6 +504,27 @@ export function SubstrateExplorer() {
                         <Button variant="outline" onClick={clearFilters} disabled={!selectedRunId || rawRowsLoading}>
                             Clear
                         </Button>
+                        <div className="ml-auto flex items-center gap-2 text-xs text-slate-500">
+                            <span>
+                                Showing {rawRows.length} rows starting at {rawRowsOffset + 1}
+                            </span>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setRawRowsOffset((prev) => Math.max(prev - RAW_ROWS_PAGE_SIZE, 0))}
+                                disabled={!selectedRunId || rawRowsLoading || rawRowsOffset === 0}
+                            >
+                                Previous
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setRawRowsOffset((prev) => prev + RAW_ROWS_PAGE_SIZE)}
+                                disabled={!selectedRunId || rawRowsLoading || !hasNextRawRowsPage}
+                            >
+                                Next
+                            </Button>
+                        </div>
                     </div>
 
                     {rawRowsLoading ? (
@@ -529,9 +589,14 @@ export function SubstrateExplorer() {
                                             <Detail label="Error" value={rawDetail.error_message || 'none'} />
                                             <div>
                                                 <p className="mb-1 text-xs font-semibold text-slate-700">Content Preview</p>
-                                                <p className="rounded border bg-slate-50 p-2 text-xs text-slate-700">
-                                                    {rawDetail.content_preview || 'n/a'}
+                                                <p className="whitespace-pre-wrap rounded border bg-slate-50 p-2 text-xs text-slate-700">
+                                                    {visiblePreview}
                                                 </p>
+                                                {previewIsTruncated && (
+                                                    <p className="mt-1 text-[11px] text-slate-500">
+                                                        Full artifact preview stays deferred until post-MVP.
+                                                    </p>
+                                                )}
                                             </div>
                                             <div>
                                                 <p className="mb-1 text-xs font-semibold text-slate-700">Metadata JSON</p>

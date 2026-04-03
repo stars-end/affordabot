@@ -1,4 +1,5 @@
 const API_URL = '';
+const NO_STORE_FETCH: RequestInit = { cache: 'no-store' };
 
 export interface Source {
     id: string;
@@ -214,21 +215,27 @@ export const adminService = {
             offset: String(offset),
             run_id_key: runIdKey,
         });
-        const res = await fetch(`${API_URL}/api/admin/substrate/runs?${params.toString()}`);
+        const res = await fetch(`${API_URL}/api/admin/substrate/runs?${params.toString()}`, NO_STORE_FETCH);
         if (!res.ok) throw new Error('Failed to fetch substrate runs');
         return res.json();
     },
 
     async getSubstrateRunDetail(runId: string, runIdKey = 'manual_run_id'): Promise<SubstrateRunDetail> {
         const params = new URLSearchParams({ run_id_key: runIdKey });
-        const res = await fetch(`${API_URL}/api/admin/substrate/runs/${encodeURIComponent(runId)}?${params.toString()}`);
+        const res = await fetch(
+            `${API_URL}/api/admin/substrate/runs/${encodeURIComponent(runId)}?${params.toString()}`,
+            NO_STORE_FETCH,
+        );
         if (!res.ok) throw new Error('Failed to fetch substrate run detail');
         return res.json();
     },
 
     async getSubstrateFailureBuckets(runId: string, runIdKey = 'manual_run_id'): Promise<{ failure_buckets: SubstrateFailureBucket[] }> {
         const params = new URLSearchParams({ run_id_key: runIdKey });
-        const res = await fetch(`${API_URL}/api/admin/substrate/runs/${encodeURIComponent(runId)}/failure-buckets?${params.toString()}`);
+        const res = await fetch(
+            `${API_URL}/api/admin/substrate/runs/${encodeURIComponent(runId)}/failure-buckets?${params.toString()}`,
+            NO_STORE_FETCH,
+        );
         if (!res.ok) throw new Error('Failed to fetch substrate failure buckets');
         return res.json();
     },
@@ -253,13 +260,16 @@ export const adminService = {
                 params.set(key, value.trim());
             }
         });
-        const res = await fetch(`${API_URL}/api/admin/substrate/runs/${encodeURIComponent(runId)}/raw-scrapes?${params.toString()}`);
+        const res = await fetch(
+            `${API_URL}/api/admin/substrate/runs/${encodeURIComponent(runId)}/raw-scrapes?${params.toString()}`,
+            NO_STORE_FETCH,
+        );
         if (!res.ok) throw new Error('Failed to fetch substrate raw rows');
         return res.json();
     },
 
     async getSubstrateRawScrapeDetail(rawScrapeId: string): Promise<SubstrateRawScrapeDetail> {
-        const res = await fetch(`${API_URL}/api/admin/substrate/raw-scrapes/${encodeURIComponent(rawScrapeId)}`);
+        const res = await fetch(`${API_URL}/api/admin/substrate/raw-scrapes/${encodeURIComponent(rawScrapeId)}`, NO_STORE_FETCH);
         if (!res.ok) throw new Error('Failed to fetch substrate raw row detail');
         return res.json();
     }
