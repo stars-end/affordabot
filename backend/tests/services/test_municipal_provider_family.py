@@ -3,7 +3,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from services.scraper.city_scrapers_adapter import CityScrapersAdapter, SunnyvaleCSAdapter
+from services.scraper.city_scrapers_adapter import (
+    CityScrapersAdapter,
+    MEETING_ARTIFACT_ADAPTERS,
+    SunnyvaleCSAdapter,
+)
 from services.scraper.registry import SCRAPERS
 from services.scraper.san_jose import SanJoseScraper
 from services.scraper.santa_clara_county import SantaClaraCountyScraper
@@ -99,7 +103,10 @@ def test_city_scrapers_adapter_maps_links_to_text():
     assert "https://example.gov/a.pdf" in (bill.text or "")
 
 
-def test_registry_exposes_sunnyvale_pack_a_lane():
-    scraper_class, jurisdiction_type = SCRAPERS["sunnyvale"]
-    assert jurisdiction_type == "city"
-    assert scraper_class is SunnyvaleCSAdapter
+def test_sunnyvale_not_in_legislation_registry():
+    assert "sunnyvale" not in SCRAPERS
+
+
+def test_meeting_adapter_surface_exposes_sunnyvale():
+    adapter_class = MEETING_ARTIFACT_ADAPTERS["sunnyvale"]
+    assert adapter_class is SunnyvaleCSAdapter

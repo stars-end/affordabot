@@ -123,3 +123,9 @@ class SanJoseCSAdapter(CityScrapersAdapter):
 class SunnyvaleCSAdapter(CityScrapersAdapter):
     def __init__(self):
         super().__init__("City of Sunnyvale", "sunnyvale_agendas")
+
+
+# Non-legislation meeting adapter surface for municipal expansion.
+MEETING_ARTIFACT_ADAPTERS = {
+    "sunnyvale": SunnyvaleCSAdapter,
+}
