@@ -15,6 +15,37 @@ Treat the Railway Bucket service as an infra service, not an app repo deployment
 
 The `railwayapp-templates/minio` source attachment is stale metadata (`GitHub Repo not found`) and should be removed so operators do not interpret it as a required code source.
 
+## Automation Viability Check
+
+### CLI viability: not automatable
+The available Railway CLI command surface for existing services does not expose source disconnect/update:
+
+- `railway service --help` => `link`, `status`, `logs`, `redeploy`, `restart`, `scale`
+- `railway project --help` => `list`, `link`, `delete`
+- `railway add --help` includes `--repo` only for creating a new service
+
+There is no safe, documented CLI command to disconnect an existing service source repo.
+
+### API viability: not safe to automate in this lane
+`railway status --json` exposes read-only source metadata (`source.repo`) and confirms drift, but write-path mutations for source unlink are not available through a documented/stable CLI contract in this repo.
+
+Using undocumented GraphQL mutations to mutate service source metadata is high-risk and may trigger unintended deploy behavior. This lane therefore treats source unlink as manual-only.
+
+### Read-only audit command (automated evidence)
+Run:
+
+```bash
+./scripts/dx-load-auth.sh -- python scripts/maintenance/audit_bucket_source_link.py \
+  --project 1ed20f8a-aeb7-4de6-a02c-8851fff50d4e \
+  --environment dev \
+  --service Bucket
+```
+
+Exit codes:
+- `0`: no stale template source link detected
+- `2`: stale template link detected (`railwayapp-templates/minio`), manual UI disconnect required
+- `1`: command/runtime failure
+
 ## Required Manual Operator Action (Railway UI)
 1. Open Railway project `affordabot` → service `Bucket` → `Settings`.
 2. In the **Source** section where `railwayapp-templates/minio` shows `GitHub Repo not found`, click **Disconnect** (or **Remove Repository**).

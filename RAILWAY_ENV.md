@@ -11,9 +11,6 @@ OPENAI_API_KEY=sk-...
 
 # Database (Railway Postgres)
 DATABASE_URL=postgresql://postgres:password@host:port/railway 
-# (Supabase is DEPRECATED - DO NOT USE)
-# SUPABASE_URL=... (Removed)
-# SUPABASE_SERVICE_ROLE_KEY=... (Removed)
 
 # Open States API (for California State Legislature)
 OPENSTATES_API_KEY=your-key-from-open.pluralpolicy.com
@@ -44,6 +41,9 @@ AWS_SECRET_ACCESS_KEY=<generated-by-bucket-service>
 MINIO_SECURE=false
 # Bucket source-link cleanup runbook:
 # docs/specs/2026-04-03-railway-bucket-source-cleanup.md
+# Read-only source-link drift audit:
+# ./scripts/dx-load-auth.sh -- python scripts/maintenance/audit_bucket_source_link.py \
+#   --project 1ed20f8a-aeb7-4de6-a02c-8851fff50d4e --environment dev --service Bucket
 
 # Optional: LLM Configuration
 LLM_MODEL=x-ai/grok-beta  # Default: grok-beta (free tier)
@@ -138,15 +138,12 @@ The wrapper resolves Railway context from:
 3. Create new API key
 4. **Free tier**: Use model `x-ai/grok-beta`
 
-### Get SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY
-1. Create project at https://supabase.com/
-2. Go to Project Settings → API
-3. Copy:
-   - `URL` → `SUPABASE_URL`
-   - `service_role` key → `SUPABASE_SERVICE_ROLE_KEY`
-4. Run migration:
+### Get DATABASE_URL (Railway Postgres)
+1. Open Railway project → service `pgvector` → Variables.
+2. Copy `DATABASE_URL` (public proxy URL for local tooling) or use backend runtime context for internal URL.
+3. Run migrations against backend migration files:
    ```bash
-   psql $DATABASE_URL -f supabase/migrations/20251129000000_initial_schema.sql
+   psql "$DATABASE_URL" -f backend/migrations/002_schema_recovery_v2.sql
    ```
 
 ### Get OPENSTATES_API_KEY

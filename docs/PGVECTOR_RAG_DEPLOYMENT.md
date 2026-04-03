@@ -73,11 +73,11 @@ poetry run python -c "import asyncpg; import asyncio; asyncio.run(asyncpg.connec
 ```bash
 cd /app/backend
 
-# Run universal harvester (should use SupabasePgVectorBackend)
+# Run universal harvester (should use the configured retrieval backend)
 poetry run python scripts/cron/run_universal_harvester.py
 
 # Check logs for:
-# - "Using SupabasePgVectorBackend" or similar
+# - selected retrieval backend initialization message
 # - Successful document processing
 # - No errors
 ```
@@ -230,7 +230,7 @@ If issues arise:
 # In Railway dashboard:
 # 1. Set USE_PGVECTOR_RAG=false
 # 2. Redeploy
-# System reverts to SupabasePgVectorBackend immediately
+# System reverts to the non-pgvector feature-flag path immediately
 ```
 
 ### Data Cleanup (if needed)
