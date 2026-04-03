@@ -73,8 +73,8 @@ BACKEND_URL=https://your-backend-url.com
 
 Ensure these are set:
 ```bash
-SUPABASE_URL=https://jqcnqlgbbcfwfpmvzbqi.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+DATABASE_URL=https://jqcnqlgbbcfwfpmvzbqi.postgres.co
+DATABASE_URL=your-service-role-key
 ```
 
 ## Running the Application
@@ -192,12 +192,12 @@ echo "BACKEND_URL=http://localhost:8000" > .env.local
 
 ### Issue: "Database not available"
 
-**Solution**: Check Supabase credentials
+**Solution**: Check Postgres credentials
 
 ```bash
 # In backend directory
-echo $SUPABASE_URL
-echo $SUPABASE_SERVICE_ROLE_KEY
+echo $DATABASE_URL
+echo $DATABASE_URL
 ```
 
 ## Next Steps

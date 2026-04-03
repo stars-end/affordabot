@@ -17,7 +17,7 @@ Achieve high confidence in core data pipeline components (`IngestionService`, `D
 
 ## Test Strategy
 - Use `pytest` + `pytest-asyncio`.
-- Use `unittest.mock` (or `pytest-mock`) for external dependencies (Supabase, OpenAI, Playwright).
+- Use `unittest.mock` (or `pytest-mock`) for external dependencies (Postgres, OpenAI, Playwright).
 
 ## Implementation
 ### `backend/tests/test_ingestion_service.py`

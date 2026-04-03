@@ -10,7 +10,7 @@ This replaces the legacy Prefect orchestration to reduce cost and complexity.
 ## Key Features
 1.  **Retries:** Uses `tenacity` for exponential backoff on transient failures.
 2.  **Concurrency:** Uses `asyncio.Semaphore` (default: 3) to prevent DB overload.
-3.  **Logging:** Writes status to `admin_tasks` and `scrape_history` tables in Supabase.
+3.  **Logging:** Writes status to `admin_tasks` and `scrape_history` tables in Postgres.
 4.  **Observability:** View real-time status in the Admin Dashboard (`/admin`).
 
 ## Deployment

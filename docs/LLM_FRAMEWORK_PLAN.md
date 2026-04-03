@@ -120,7 +120,7 @@ Both repos need to support:
 - ✅ **Battle-tested**: instructor has 11k+ stars, 3M+ monthly downloads
 
 **Cons**:
-- ❌ Need to implement own caching (but simple with Redis/Supabase)
+- ❌ Need to implement own caching (but simple with Redis/Postgres)
 - ❌ Need to implement own cost tracking (but OpenRouter provides usage data)
 - ❌ Fallback logic is manual (but easy to implement)
 
@@ -512,7 +512,7 @@ client = OpenAI(
 
 2. **Caching strategy**: Where should we cache?
    - Redis (requires infrastructure)
-   - Supabase (already using)
+   - Postgres (already using)
    - Simple file cache (development)
 
 3. **Cost tracking granularity**:

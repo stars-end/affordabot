@@ -63,11 +63,11 @@ poetry run python -c "import asyncpg; import asyncio; asyncio.run(asyncpg.connec
 ```bash
 cd /app/backend
 
-# Run universal harvester (should use SupabasePgVectorBackend)
+# Run universal harvester (should use Postgres pgvector backend)
 poetry run python scripts/cron/run_universal_harvester.py
 
 # Check logs for:
-# - "Using SupabasePgVectorBackend" or similar
+# - "Using Postgres pgvector backend" or similar
 # - Successful document processing
 # - No errors
 ```
@@ -144,17 +144,17 @@ import os
 
 async def check():
     conn = await asyncpg.connect(os.getenv('DATABASE_URL'))
-    
+
     # Count documents
     count = await conn.fetchval('SELECT COUNT(*) FROM documents')
     print(f'✓ Documents in pgvector: {count}')
-    
+
     # Check embedding dimensions
     if count > 0:
         sample = await conn.fetchrow('SELECT id, array_length(embedding, 1) as dims FROM documents LIMIT 1')
         print(f'  Sample document: {sample[\"id\"]}')
         print(f'  Embedding dimensions: {sample[\"dims\"]} (expected: 4096)')
-    
+
     await conn.close()
 
 asyncio.run(check())
@@ -174,17 +174,17 @@ from services.vector_backend_factory import create_vector_backend
 
 async def test_search():
     backend = create_vector_backend()
-    
+
     # Mock embedding function for testing
     async def mock_embed(text):
         return [0.1] * 4096  # Dummy 4096-dim vector
-    
+
     # Search for documents
     results = await backend.search(
         query_embedding=[0.1] * 4096,
         limit=5
     )
-    
+
     print(f'✓ Search returned {len(results)} results')
     for i, result in enumerate(results[:3], 1):
         print(f'  {i}. Score: {result.get(\"score\", \"N/A\")}')
@@ -224,7 +224,7 @@ If issues arise:
 # In Railway dashboard:
 # 1. Set USE_PGVECTOR_RAG=false
 # 2. Redeploy
-# System reverts to SupabasePgVectorBackend immediately
+# System reverts to Postgres pgvector backend immediately
 ```
 
 ### Data Cleanup (if needed)

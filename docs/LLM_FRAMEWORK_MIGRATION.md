@@ -1,8 +1,8 @@
 # LLM Framework - Migration Plan
 
-**Version:** 1.0  
-**Date:** 2025-12-01  
-**Status:** Implementation Ready  
+**Version:** 1.0
+**Date:** 2025-12-01
+**Status:** Implementation Ready
 **Related:** [PRD](./LLM_FRAMEWORK_PRD.md), [Technical Spec](./LLM_FRAMEWORK_TECHNICAL_SPEC.md)
 
 ---
@@ -152,7 +152,7 @@ pytest tests/ -v --cov=llm_common
 **3.1 Create Migration File**
 
 ```bash
-cd ~/affordabot/supabase/migrations
+cd ~/affordabot/backend/migrations
 touch 20251201_llm_framework_schema.sql
 ```
 
@@ -256,10 +256,10 @@ $$ LANGUAGE plpgsql;
 
 ```bash
 # Local development
-psql $DATABASE_URL -f supabase/migrations/20251201_llm_framework_schema.sql
+psql $DATABASE_URL -f backend/migrations/20251201_llm_framework_schema.sql
 
 # Production (via Railway)
-railway run psql $DATABASE_URL -f supabase/migrations/20251201_llm_framework_schema.sql
+railway run psql $DATABASE_URL -f backend/migrations/20251201_llm_framework_schema.sql
 ```
 
 ---
@@ -305,9 +305,9 @@ USE_NEW_FRAMEWORK = os.getenv("USE_NEW_LLM_FRAMEWORK", "false").lower() == "true
 # Initialize clients
 if USE_NEW_FRAMEWORK:
     llm_client = LLMClient(provider="openrouter")
-    search_client = WebSearchClient(api_key=os.getenv("ZAI_API_KEY"), supabase_client=supabase)
-    cost_tracker = CostTracker(supabase_client=supabase, daily_budget_usd=10.0)
-    analyzer = AnalysisPipeline(llm_client, search_client, cost_tracker, supabase)
+    search_client = WebSearchClient(api_key=os.getenv("ZAI_API_KEY"), postgres_client=postgres)
+    cost_tracker = CostTracker(postgres_client=postgres, daily_budget_usd=10.0)
+    analyzer = AnalysisPipeline(llm_client, search_client, cost_tracker, postgres)
 else:
     analyzer = DualModelAnalyzer()  # Old implementation
 
@@ -358,14 +358,14 @@ from llm_common import LLMClient, WebSearchClient, CostTracker
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_full_pipeline(supabase_client):
+async def test_full_pipeline(postgres_client):
     """Test full pipeline with real models."""
     llm = LLMClient(provider="openrouter")
-    search = WebSearchClient(api_key=os.getenv("ZAI_API_KEY"), supabase_client=supabase_client)
-    tracker = CostTracker(supabase_client=supabase_client)
-    
-    pipeline = AnalysisPipeline(llm, search, tracker, supabase_client)
-    
+    search = WebSearchClient(api_key=os.getenv("ZAI_API_KEY"), postgres_client=postgres_client)
+    tracker = CostTracker(postgres_client=postgres_client)
+
+    pipeline = AnalysisPipeline(llm, search, tracker, postgres_client)
+
     result = await pipeline.run(
         bill_id="AB-1234",
         bill_text="Test bill text...",
@@ -376,11 +376,11 @@ async def test_full_pipeline(supabase_client):
             "review": "claude-3.5-sonnet"
         }
     )
-    
+
     assert result.confidence > 0.5
-    
+
     # Verify logging
-    runs = supabase_client.table('pipeline_runs').select('*').eq('bill_id', 'AB-1234').execute()
+    runs = postgres_client.table('pipeline_runs').select('*').eq('bill_id', 'AB-1234').execute()
     assert len(runs.data) == 1
 ```
 
@@ -428,7 +428,7 @@ USE_NEW_FRAMEWORK = random.random() < 0.1  # 10% traffic
 
 ```sql
 -- Compare old vs new pipeline
-SELECT 
+SELECT
     CASE WHEN research_model IS NULL THEN 'old' ELSE 'new' END as pipeline,
     COUNT(*) as total_runs,
     AVG(quality_score) as avg_quality
@@ -511,7 +511,7 @@ poetry add -e ../packages/llm-common
 **2.1 Database Migration**
 
 ```bash
-cd ~/prime-radiant-ai/supabase/migrations
+cd ~/prime-radiant-ai/backend/migrations
 touch 20251201_conversation_memory.sql
 ```
 
@@ -542,7 +542,7 @@ $$ LANGUAGE plpgsql;
 **2.2 Apply Migration**
 
 ```bash
-psql $DATABASE_URL -f supabase/migrations/20251201_conversation_memory.sql
+psql $DATABASE_URL -f backend/migrations/20251201_conversation_memory.sql
 ```
 
 **2.3 Implement `ConversationMemory`**
@@ -573,25 +573,25 @@ from services.memory import ConversationMemory
 async def chat(request: ChatRequest, user_id: str = Depends(get_current_user)):
     """Chat endpoint with conversation memory."""
     # Initialize memory
-    memory = ConversationMemory(db_client=supabase, user_id=user_id)
-    
+    memory = ConversationMemory(db_client=postgres, user_id=user_id)
+
     # Get context (history + page-specific)
     messages = await memory.get_context(page=request.page)
-    
+
     # Add user message
     messages.append({"role": "user", "content": request.message})
-    
+
     # Call LLM
     llm = LLMClient(provider="openrouter")
     response = await llm.chat(
         messages=messages,
         model="gpt-4o"
     )
-    
+
     # Save messages
     await memory.save_message("user", request.message)
     await memory.save_message("assistant", response)
-    
+
     return {"response": response}
 ```
 
@@ -611,7 +611,7 @@ Similar to affordabot:
 
 ### Affordabot Migrations
 
-**File:** `affordabot/supabase/migrations/20251201_llm_framework_schema.sql`
+**File:** `affordabot/backend/migrations/20251201_llm_framework_schema.sql`
 
 See [Step 3.2](#32-add-schema) above.
 
@@ -619,7 +619,7 @@ See [Step 3.2](#32-add-schema) above.
 
 ### Prime-Radiant-AI Migrations
 
-**File:** `prime-radiant-ai/supabase/migrations/20251201_conversation_memory.sql`
+**File:** `prime-radiant-ai/backend/migrations/20251201_conversation_memory.sql`
 
 See [Step 2.1](#21-database-migration) above.
 
@@ -736,7 +736,7 @@ Rollback if:
 - Conversation continuity (prime-radiant-ai)
 
 **Dashboards:**
-- Supabase: Query `pipeline_runs` for model comparison
+- Postgres: Query `pipeline_runs` for model comparison
 - Railway: Monitor logs for errors
 - Admin UI: Display model performance charts
 
@@ -805,10 +805,10 @@ pytest tests/ -v
 **Apply migrations:**
 ```bash
 # Local
-psql $DATABASE_URL -f supabase/migrations/<file>.sql
+psql $DATABASE_URL -f backend/migrations/<file>.sql
 
 # Production
-railway run psql $DATABASE_URL -f supabase/migrations/<file>.sql
+railway run psql $DATABASE_URL -f backend/migrations/<file>.sql
 ```
 
 **Monitor costs:**

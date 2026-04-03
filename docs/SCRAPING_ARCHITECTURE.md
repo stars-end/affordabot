@@ -23,7 +23,7 @@ This document details the technical implementation for the "Full City Infrastruc
     - `ScrapyPlaywrightDownloadHandler`: For JS rendering.
     - `RetryMiddleware`: Aggressive retries for government servers.
 
-## 3. Database Schema (Postgres/Supabase)
+## 3. Database Schema (Postgres/Postgres)
 
 ### `sources`
 | Column | Type | Description |
@@ -52,7 +52,7 @@ This document details the technical implementation for the "Full City Infrastruc
     1.  **Read**: Fetch unprocessed content from `raw_scrapes`.
     2.  **Process**: Clean and chunk text (Affordabot `IngestionService`).
     3.  **Embed**: Use `llm-common.LLMClient` (via LiteLLM) to generate embeddings (e.g., `text-embedding-3-small`).
-    4.  **Store**: Use `llm-common.retrieval.SupabasePgVectorBackend` interface to save documents to local `documents` table.
+    4.  **Store**: Use `llm-common.retrieval.Postgres pgvector backend` interface to save documents to local `documents` table.
         -   **Schema**: Local `documents` table with `vector(1536)` column.
         -   **Metadata**: Map Affordabot-specific metadata (jurisdiction, source type) into the generic `metadata` JSON field.
 
@@ -96,8 +96,8 @@ Sources are prioritized by reliability and maintenance cost (Tech Lead Guidance)
 
 ### Schema Changes
 ```sql
-ALTER TABLE sources ADD COLUMN source_method VARCHAR(20) 
-  CHECK (source_method IN ('scrape', 'api', 'manual')) 
+ALTER TABLE sources ADD COLUMN source_method VARCHAR(20)
+  CHECK (source_method IN ('scrape', 'api', 'manual'))
   DEFAULT 'scrape';
 
 ALTER TABLE sources ADD COLUMN handler VARCHAR(100);

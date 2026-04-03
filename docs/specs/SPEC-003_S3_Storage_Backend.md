@@ -4,7 +4,7 @@
 **Epic**: `affordabot-hkg`
 
 ## 1. Overview
-Implement S3-compatible storage (MinIO/R2) to replace Supabase Storage.
+Implement S3-compatible storage (MinIO/R2) to replace object storage.
 
 ## 2. Technical Readiness
 - **Code**: `backend.services.storage.s3_storage.S3Storage` implemented.

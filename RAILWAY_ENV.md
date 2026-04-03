@@ -10,10 +10,10 @@ OPENROUTER_API_KEY=sk-or-v1-...
 OPENAI_API_KEY=sk-...
 
 # Database (Railway Postgres)
-DATABASE_URL=postgresql://postgres:password@host:port/railway 
-# (Supabase is DEPRECATED - DO NOT USE)
-# SUPABASE_URL=... (Removed)
-# SUPABASE_SERVICE_ROLE_KEY=... (Removed)
+DATABASE_URL=postgresql://postgres:password@host:port/railway
+# (Postgres is DEPRECATED - DO NOT USE)
+# DATABASE_URL=... (Removed)
+# DATABASE_URL=... (Removed)
 
 # Open States API (for California State Legislature)
 OPENSTATES_API_KEY=your-key-from-open.pluralpolicy.com
@@ -126,15 +126,15 @@ The wrapper resolves Railway context from:
 3. Create new API key
 4. **Free tier**: Use model `x-ai/grok-beta`
 
-### Get SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY
-1. Create project at https://supabase.com/
+### Get DATABASE_URL and DATABASE_URL
+1. Create project at https://postgres.com/
 2. Go to Project Settings → API
 3. Copy:
-   - `URL` → `SUPABASE_URL`
-   - `service_role` key → `SUPABASE_SERVICE_ROLE_KEY`
+   - `URL` → `DATABASE_URL`
+   - `service_role` key → `DATABASE_URL`
 4. Run migration:
    ```bash
-   psql $DATABASE_URL -f supabase/migrations/20251129000000_initial_schema.sql
+   psql $DATABASE_URL -f backend/migrations/20251129000000_initial_schema.sql
    ```
 
 ### Get OPENSTATES_API_KEY

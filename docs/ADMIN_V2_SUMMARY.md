@@ -27,13 +27,13 @@ Successfully implemented Admin Dashboard V2 with comprehensive backend API and f
 **Features**:
 - FastAPI BackgroundTasks for async operations
 - Pydantic models for request/response validation
-- Database integration with Supabase
+- Database integration with Postgres
 - Task tracking in `admin_tasks` table
 - History recording for scrapes and analyses
 
 ### 2. Database Schema (✅ Complete)
 
-**Migration**: `supabase/migrations/20251130_admin_dashboard_v2_schema.sql`
+**Migration**: `backend/migrations/20251130_admin_dashboard_v2_schema.sql`
 
 **Tables** (5 total):
 1. `admin_tasks` - Background task tracking
@@ -50,7 +50,7 @@ Successfully implemented Admin Dashboard V2 with comprehensive backend API and f
 - RLS policies (placeholder)
 - Triggers for updated_at
 
-**Status**: ✅ Applied to Supabase (project: affordabot)
+**Status**: ✅ Applied to Postgres (project: affordabot)
 
 ### 3. Frontend UI (✅ Complete)
 
@@ -118,7 +118,7 @@ Successfully implemented Admin Dashboard V2 with comprehensive backend API and f
 
 All components are built, integrated, and builds passing:
 - ✅ Backend API (11 endpoints with database integration)
-- ✅ Database schema (5 tables on Supabase)
+- ✅ Database schema (5 tables on Postgres)
 - ✅ Frontend UI (4 components with glassmorphism)
 - ✅ API Routes (7 Next.js routes proxying to backend)
 - ✅ Build successful (136 kB admin page)
@@ -146,7 +146,7 @@ These TODOs don't block testing - they're for future integration with actual scr
    - Run an analysis
    - Update model configs
    - Edit a prompt
-   - Check Supabase tables for data
+   - Check Postgres tables for data
 
 3. **Run Automated Tests**
    - Execute `backend/test_admin_endpoints.sh`
@@ -176,7 +176,7 @@ affordabot/
 │   ├── routers/
 │   │   └── admin.py                    # ✅ Admin API endpoints
 │   ├── db/
-│   │   └── supabase_client.py          # ✅ Database client
+│   │   └── postgres_client.py          # ✅ Database client
 │   └── test_admin_endpoints.sh         # ✅ Test script
 ├── frontend/
 │   ├── src/
@@ -191,7 +191,7 @@ affordabot/
 │   │           ├── AnalysisLab.tsx     # ✅ Analysis UI
 │   │           ├── ModelRegistry.tsx   # ✅ Models UI
 │   │           └── PromptEditor.tsx    # ✅ Prompts UI
-├── supabase/
+├── postgres/
 │   └── migrations/
 │       ├── 20251129000000_initial_schema.sql           # ✅ Core tables
 │       └── 20251130_admin_dashboard_v2_schema.sql      # ✅ Admin tables
@@ -215,7 +215,7 @@ affordabot/
 - ⏳ Need API integration
 
 ### Database
-- ✅ Schema applied to Supabase
+- ✅ Schema applied to Postgres
 - ✅ Migrations successful
 - ⏳ Need to test queries
 
@@ -305,7 +305,7 @@ curl http://localhost:3000/api/admin/models
 
 Admin Dashboard V2 is **100% complete**. All components are built, integrated, and ready for testing:
 
-✅ **Backend**: 11 FastAPI endpoints with Supabase integration
+✅ **Backend**: 11 FastAPI endpoints with Postgres integration
 ✅ **Database**: 5 tables with indexes, RLS, and triggers
 ✅ **Frontend**: 4 comprehensive UI components with glassmorphism design
 ✅ **API Layer**: 7 Next.js API routes proxying to backend

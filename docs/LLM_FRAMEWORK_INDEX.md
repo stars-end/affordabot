@@ -1,7 +1,7 @@
 # LLM Framework Documentation - Master Index
 
-**Version:** 1.0  
-**Date:** 2025-12-01  
+**Version:** 1.0
+**Date:** 2025-12-01
 **Status:** Complete - Ready for Implementation
 
 ---
@@ -109,7 +109,7 @@ This directory contains a comprehensive specification for implementing a shared 
 ### Shared Package: `llm-common`
 A lightweight library (~300 lines) providing:
 - **Multi-Provider LLM Client** (LiteLLM wrapper)
-- **Web Search with Caching** (z.ai + Supabase)
+- **Web Search with Caching** (z.ai + Postgres)
 - **Cost Tracking** (budget enforcement)
 - **Structured Outputs** (Pydantic models)
 
@@ -163,8 +163,8 @@ A lightweight library (~300 lines) providing:
 | LLM Client | **LiteLLM** | Multi-provider, battle-tested, 3M+ downloads/month |
 | Structured Outputs | **instructor** | Type-safe Pydantic models, 11k+ stars |
 | Web Search | **z.ai API** | Intelligent search, legislation-optimized |
-| Caching | **Supabase + In-Memory** | 2-tier caching, 80% hit rate |
-| Database | **Supabase (PostgreSQL)** | Already in use, supports JSONB |
+| Caching | **Postgres + In-Memory** | 2-tier caching, 80% hit rate |
+| Database | **Postgres (PostgreSQL)** | Already in use, supports JSONB |
 | Package Management | **Git Submodule** | Solo dev, no CI/CD overhead |
 
 ---
@@ -291,7 +291,7 @@ Follow [Migration Plan](./LLM_FRAMEWORK_MIGRATION.md) step-by-step.
 ### Common Issues
 - **Import errors:** Install submodule (`pip install -e packages/llm-common`)
 - **API key errors:** Set environment variables (see Migration Plan)
-- **Cache not working:** Check Supabase connection, verify schema
+- **Cache not working:** Check Postgres connection, verify schema
 - **Tests failing:** Check mock setup, verify API keys
 
 ---

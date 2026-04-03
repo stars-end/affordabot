@@ -46,11 +46,11 @@ All tasks closed and synced:
 
 2. **WebSearchClient** (~150 lines)
    - z.ai web search integration
-   - 2-tier caching (memory + Supabase)
+   - 2-tier caching (memory + Postgres)
    - 80% cost reduction target
 
 3. **CostTracker** (~100 lines)
-   - Supabase logging
+   - Postgres logging
    - Daily budget limits
    - Cost aggregation
 
@@ -75,7 +75,7 @@ All tasks closed and synced:
 - `packages/llm-common/` (copied from affordabot)
 
 **ConversationMemory**:
-- Persist to Supabase `advisor_messages` table
+- Persist to Postgres `advisor_messages` table
 - Sliding window (last 10 messages)
 - Async API with proper error handling
 - **Input validation** for message roles
@@ -137,7 +137,7 @@ async def chat(..., timeout: float = 60.0):
 
 **Already Handled**:
 - ✅ RLS security policies (from migration)
-- ✅ Connection pooling (AsyncSupabaseDatabase)
+- ✅ Connection pooling (AsyncPostgresDatabase)
 - ✅ SQL injection protection (query builder)
 - ✅ No hardcoded secrets
 
@@ -173,7 +173,7 @@ async def chat(..., timeout: float = 60.0):
 
 ### Free Tier Usage (prime-radiant-ai)
 - **Target**: $0/month (x-ai/grok-4.1-fast:free)
-- **Measure**: Cost tracking in Supabase
+- **Measure**: Cost tracking in Postgres
 - **Timeline**: Validate in staging
 
 ### Reliability

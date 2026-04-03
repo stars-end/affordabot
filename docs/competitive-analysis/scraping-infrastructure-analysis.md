@@ -44,7 +44,7 @@ affordabot_scraper/             # Separate Scrapy project
 - Text extraction and HTML cleaning
 - Intelligent chunking (1000 chars, 200 overlap)
 - Embedding generation (OpenAI text-embedding-3-small)
-- Vector storage (Supabase with pgvector)
+- Vector storage (Postgres with pgvector)
 - Blob storage integration
 - Duplicate detection and content hashing
 
