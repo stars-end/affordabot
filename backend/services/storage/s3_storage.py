@@ -1,6 +1,6 @@
 """
 S3/MinIO Storage Backend for Affordabot.
-Replaces Supabase Storage with S3-compatible MinIO.
+Uses S3-compatible MinIO for blob storage.
 """
 
 import os

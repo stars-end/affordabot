@@ -1,48 +1,75 @@
 """Create a test source for Web Reader verification."""
 
-from supabase import create_client
+import asyncio
 import os
 import sys
 
-def create_test_source():
-    client = create_client(
-        os.environ['SUPABASE_URL'],
-        os.environ['SUPABASE_SERVICE_ROLE_KEY']
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+BACKEND_ROOT = REPO_ROOT / "backend"
+if str(BACKEND_ROOT) not in sys.path:
+    sys.path.append(str(BACKEND_ROOT))
+
+from db.postgres_client import PostgresDB
+
+
+TEST_SOURCE_URL = "https://www.sanjoseca.gov/your-government/departments-offices/planning-building-code-enforcement"
+
+
+async def _get_or_create_jurisdiction(db: PostgresDB) -> str:
+    row = await db._fetchrow(
+        "SELECT id FROM jurisdictions WHERE name = $1 LIMIT 1",
+        "San Jose",
     )
-    
-    # Check if test source already exists
-    existing = client.table('sources').select('*').eq('url', 'https://www.sanjoseca.gov/your-government/departments-offices/planning-building-code-enforcement').execute()
-    
-    if existing.data:
-        print(f"✅ Test source already exists: {existing.data[0]['id']}")
-        return existing.data[0]['id']
-    
-    # Get a jurisdiction_id (assuming San Jose exists)
-    jurisdictions = client.table('jurisdictions').select('id').eq('name', 'San Jose').execute()
-    if not jurisdictions.data:
-        print("❌ San Jose jurisdiction not found. Creating...")
-        jur = client.table('jurisdictions').insert({
-            'name': 'San Jose',
-            'state': 'CA',
-            'type': 'city'
-        }).execute()
-        jurisdiction_id = jur.data[0]['id']
-    else:
-        jurisdiction_id = jurisdictions.data[0]['id']
-    
-    # Create test source
-    source = client.table('sources').insert({
-        'jurisdiction_id': jurisdiction_id,
-        'url': 'https://www.sanjoseca.gov/your-government/departments-offices/planning-building-code-enforcement',
-        'type': 'permits',
-        'source_method': 'web_reader',
-        'status': 'active',
-        'handler': 'web_reader'
-    }).execute()
-    
-    print(f"✅ Created test source: {source.data[0]['id']}")
-    return source.data[0]['id']
+    if row:
+        return str(row["id"])
+
+    created = await db._fetchrow(
+        """
+        INSERT INTO jurisdictions (name, type, scrape_url)
+        VALUES ($1, $2, $3)
+        RETURNING id
+        """,
+        "San Jose",
+        "city",
+        TEST_SOURCE_URL,
+    )
+    return str(created["id"])
+
+
+async def create_test_source() -> str:
+    db = PostgresDB()
+    await db.connect()
+    try:
+        existing = await db._fetchrow(
+            "SELECT id FROM sources WHERE url = $1 LIMIT 1",
+            TEST_SOURCE_URL,
+        )
+        if existing:
+            source_id = str(existing["id"])
+            print(f"Test source already exists: {source_id}")
+            return source_id
+
+        jurisdiction_id = await _get_or_create_jurisdiction(db)
+        source = await db.create_source(
+            {
+                "jurisdiction_id": jurisdiction_id,
+                "url": TEST_SOURCE_URL,
+                "type": "permits",
+                "source_method": "manual",
+                "status": "active",
+                "handler": "web_reader",
+                "name": "San Jose Planning Building Code Enforcement",
+                "scrape_url": TEST_SOURCE_URL,
+            }
+        )
+        source_id = str(source["id"])
+        print(f"Created test source: {source_id}")
+        return source_id
+    finally:
+        await db.close()
+
 
 if __name__ == "__main__":
-    source_id = create_test_source()
-    print(f"\nTest Source ID: {source_id}")
+    print(f"\nTest Source ID: {asyncio.run(create_test_source())}")

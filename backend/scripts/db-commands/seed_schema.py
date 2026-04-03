@@ -19,8 +19,8 @@ def run_migrations():
         conn.autocommit = True
         cur = conn.cursor()
         
-        # Bootstrap Supabase roles if missing (for CI/Generic Postgres)
-        print("🔧 Checking Supabase roles...")
+        # Bootstrap compatibility roles if missing (for CI / generic Postgres)
+        print("🔧 Checking compatibility roles...")
         roles_sql = """
         DO $$
         BEGIN

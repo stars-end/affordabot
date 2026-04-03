@@ -87,7 +87,7 @@ def run_verification():
         count = len(data3) if isinstance(data3, list) else 0
         print(f"   -> Found {count} jurisdictions")
 
-    # 4. Model Configs (checks SupabaseDB logic)
+    # 4. Model Configs (checks Postgres-backed admin config logic)
     pass4, data4 = test_endpoint("Model Configs", "/admin/models")
     if pass4:
         count = len(data4) if isinstance(data4, list) else 0
