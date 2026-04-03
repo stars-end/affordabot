@@ -1,0 +1,284 @@
+{
+  "capture_summary": {
+    "by_content_class": {
+      "html_text": 9,
+      "pdf_binary": 4
+    },
+    "by_trust_tier": {
+      "official_partner": 13
+    },
+    "raw_scrapes_created": 13
+  },
+  "content_class_counts": {
+    "html_text": 9,
+    "pdf_binary": 4
+  },
+  "failures": [
+    {
+      "asset_class": "agenda_packets",
+      "jurisdiction": "san-jose",
+      "reason": "no_matching_sources"
+    },
+    {
+      "asset_class": "attachments",
+      "jurisdiction": "san-jose",
+      "reason": "no_matching_sources"
+    },
+    {
+      "asset_class": "staff_reports",
+      "jurisdiction": "san-jose",
+      "reason": "no_matching_sources"
+    },
+    {
+      "asset_class": "municipal_code",
+      "jurisdiction": "santa-clara-county",
+      "reason": "no_matching_sources"
+    },
+    {
+      "asset_class": "agenda_packets",
+      "jurisdiction": "santa-clara-county",
+      "reason": "no_matching_sources"
+    },
+    {
+      "asset_class": "attachments",
+      "jurisdiction": "santa-clara-county",
+      "reason": "no_matching_sources"
+    },
+    {
+      "asset_class": "staff_reports",
+      "jurisdiction": "santa-clara-county",
+      "reason": "no_matching_sources"
+    },
+    {
+      "asset_class": "meeting_details",
+      "jurisdiction": "saratoga",
+      "reason": "no_matching_sources"
+    },
+    {
+      "asset_class": "municipal_code",
+      "jurisdiction": "saratoga",
+      "reason": "no_matching_sources"
+    },
+    {
+      "asset_class": "attachments",
+      "jurisdiction": "saratoga",
+      "reason": "no_matching_sources"
+    },
+    {
+      "asset_class": "staff_reports",
+      "jurisdiction": "saratoga",
+      "reason": "no_matching_sources"
+    },
+    {
+      "asset_class": "municipal_code",
+      "jurisdiction": "sunnyvale",
+      "reason": "no_matching_sources"
+    },
+    {
+      "asset_class": "agenda_packets",
+      "jurisdiction": "sunnyvale",
+      "reason": "no_matching_sources"
+    },
+    {
+      "asset_class": "attachments",
+      "jurisdiction": "sunnyvale",
+      "reason": "no_matching_sources"
+    },
+    {
+      "asset_class": "staff_reports",
+      "jurisdiction": "sunnyvale",
+      "reason": "no_matching_sources"
+    }
+  ],
+  "generated_at": "2026-04-03T13:20:11.949008+00:00",
+  "ingestion_summary": {
+    "by_stage": {
+      "raw_captured": 13
+    },
+    "ocr_fallback_invocations": 0,
+    "ocr_mode": "off",
+    "run_mode": "capture_only"
+  },
+  "ingestion_truth_stage_counts": {
+    "raw_captured": 13
+  },
+  "promotion_state_counts": {
+    "durable_raw": 9,
+    "promoted_substrate": 4
+  },
+  "promotion_summary": {
+    "captured_candidate": 0,
+    "durable_raw": 9,
+    "promoted_substrate": 4
+  },
+  "raw_scrapes_total": 13,
+  "requested": {
+    "asset_classes": [
+      "meeting_details",
+      "agendas",
+      "minutes",
+      "municipal_code",
+      "agenda_packets",
+      "attachments",
+      "staff_reports"
+    ],
+    "jurisdictions": [
+      "san-jose",
+      "santa-clara-county",
+      "saratoga",
+      "sunnyvale"
+    ],
+    "max_documents_per_source": 1,
+    "notes": "post-fix rerun replacing pre-fix artifact",
+    "ocr_mode": "off",
+    "run_label": "bd-flci-1-postfix-broad-pack-a",
+    "run_mode": "capture_only",
+    "sample_size_per_bucket": 2
+  },
+  "resolved_targets": {
+    "by_asset_class": {
+      "agenda_packets": 1,
+      "agendas": 4,
+      "meeting_details": 3,
+      "minutes": 4,
+      "municipal_code": 1
+    },
+    "by_jurisdiction": {
+      "san-jose": 4,
+      "santa-clara-county": 3,
+      "saratoga": 3,
+      "sunnyvale": 3
+    },
+    "count": 13,
+    "max_documents_per_source": 1,
+    "potential_target_documents": 13
+  },
+  "run_id": "manual-substrate-20260403T131847Z-5a5c4bc8",
+  "run_id_key": "manual_run_id",
+  "samples": {
+    "candidate": [],
+    "denied_style": [],
+    "durable_raw": [
+      {
+        "content_class": "html_text",
+        "created_at": "2026-04-03T13:20:11.063708+00:00",
+        "document_type": "minutes",
+        "error_message": "",
+        "ingestion_stage": "raw_captured",
+        "jurisdiction_name": "City of Sunnyvale",
+        "promotion_reason_category": "unclear",
+        "promotion_state": "durable_raw",
+        "raw_scrape_id": "5099d04c-1dce-417c-8981-8b0e9e39e893",
+        "retrievable": false,
+        "source_name": "Sunnyvale Minutes",
+        "source_type": "meetings",
+        "source_url": "https://sunnyvaleca.legistar.com/Calendar.aspx",
+        "trust_tier": "official_partner",
+        "url": "https://sunnyvaleca.legistar.com/Calendar.aspx"
+      },
+      {
+        "content_class": "html_text",
+        "created_at": "2026-04-03T13:20:06.206600+00:00",
+        "document_type": "meeting_detail",
+        "error_message": "",
+        "ingestion_stage": "raw_captured",
+        "jurisdiction_name": "City of Sunnyvale",
+        "promotion_reason_category": "unclear",
+        "promotion_state": "durable_raw",
+        "raw_scrape_id": "44cadab9-f4bb-4a7d-b383-c6021d0a27f0",
+        "retrievable": false,
+        "source_name": "Sunnyvale Agendas",
+        "source_type": "meetings",
+        "source_url": "https://sunnyvaleca.legistar.com/View.ashx?M=A&amp;ID=1348618&amp;GUID=33794668-0DDD-42E1-8BCC-F606A61E3CF1",
+        "trust_tier": "official_partner",
+        "url": "https://sunnyvaleca.legistar.com/MeetingDetail.aspx?ID=1348618&amp;GUID=33794668-0DDD-42E1-8BCC-F606A61E3CF1&amp;Options=info|&amp;Search="
+      }
+    ],
+    "promoted": [
+      {
+        "content_class": "pdf_binary",
+        "created_at": "2026-04-03T13:20:08.569453+00:00",
+        "document_type": "agenda",
+        "error_message": "",
+        "ingestion_stage": "raw_captured",
+        "jurisdiction_name": "City of Sunnyvale",
+        "promotion_reason_category": "substantive_official_document",
+        "promotion_state": "promoted_substrate",
+        "raw_scrape_id": "31b35289-ca76-4e1d-b210-94af60f7a04f",
+        "retrievable": false,
+        "source_name": "Sunnyvale Agendas",
+        "source_type": "meetings",
+        "source_url": "https://sunnyvaleca.legistar.com/View.ashx?M=A&amp;ID=1348618&amp;GUID=33794668-0DDD-42E1-8BCC-F606A61E3CF1",
+        "trust_tier": "official_partner",
+        "url": "https://sunnyvaleca.legistar.com/View.ashx?M=A&amp;ID=1348618&amp;GUID=33794668-0DDD-42E1-8BCC-F606A61E3CF1"
+      },
+      {
+        "content_class": "pdf_binary",
+        "created_at": "2026-04-03T13:20:02.209321+00:00",
+        "document_type": "minutes",
+        "error_message": "",
+        "ingestion_stage": "raw_captured",
+        "jurisdiction_name": "City of Saratoga",
+        "promotion_reason_category": "substantive_official_document",
+        "promotion_state": "promoted_substrate",
+        "raw_scrape_id": "820068a3-d60a-43da-8ab1-4b0b16fa77d5",
+        "retrievable": false,
+        "source_name": "Saratoga Agenda Center",
+        "source_type": "meetings",
+        "source_url": "http://www.saratoga.ca.us/361/Agenda-Packets-Meeting-Videos",
+        "trust_tier": "official_partner",
+        "url": "https://www.saratoga.ca.us/AgendaCenter/ViewFile/Minutes/_03182026-1422"
+      }
+    ]
+  },
+  "source_inventory": {
+    "attempted": 12,
+    "failures": [],
+    "upserted": 12
+  },
+  "storage_integrity_checks": {
+    "generated_at": "2026-04-03T13:20:12.381197+00:00",
+    "object_storage_check": {
+      "missing_reference_count": 0,
+      "missing_reference_samples": [],
+      "relevant_rows": 4,
+      "status": "pass",
+      "unreadable_count": 0,
+      "unreadable_samples": [],
+      "verified_readable_count": 4
+    },
+    "overall_status": "warn",
+    "raw_scrapes_total": 13,
+    "run_coverage_check": {
+      "attempted_raw_capture_operations": 13,
+      "attempted_targets_count": 13,
+      "missing_stamped_rows_from_attempted_capture_ops": 0,
+      "resolved_targets_count": 13,
+      "stamped_raw_scrapes_count": 13,
+      "status": "pass",
+      "target_attempt_gap": 0,
+      "unexpected_extra_stamped_rows": 0
+    },
+    "run_id": "manual-substrate-20260403T131847Z-5a5c4bc8",
+    "run_id_key": "manual_run_id",
+    "vector_integrity_check": {
+      "missing_document_id_count": 0,
+      "retrievable_rows": 0,
+      "rows_with_chunks_count": 0,
+      "rows_with_zero_chunks_count": 0,
+      "status": "skipped_no_retrievable_rows",
+      "total_chunk_rows_for_retrievable": 0,
+      "with_document_id_count": 0,
+      "zero_chunk_samples": []
+    }
+  },
+  "top_failure_buckets": [
+    {
+      "bucket": "promotion_reason:index_or_shell_page",
+      "count": 1
+    }
+  ],
+  "trust_tier_counts": {
+    "official_partner": 13
+  }
+}
