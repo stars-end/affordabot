@@ -133,6 +133,9 @@ async def test_resolve_source_targets_matches_county_slug_alias():
 @pytest.mark.asyncio
 async def test_ensure_pack_a_source_inventory_upserts_for_requested_assets():
     class FakeDB:
+        def __init__(self):
+            self.upserts = []
+
         async def get_or_create_jurisdiction(self, name, jur_type):
             assert name in {
                 "City of Sunnyvale",
@@ -142,20 +145,54 @@ async def test_ensure_pack_a_source_inventory_upserts_for_requested_assets():
             return f"{name}:{jur_type}"
 
         async def upsert_source(self, data):
+            self.upserts.append(data)
             assert data["source_method"] in {"scrape"}
             assert data["handler"] in {"sunnyvale_agendas", "legistar_calendar"}
-            assert data["metadata"]["document_type"] in {"agenda", "meeting_detail"}
+            assert data["metadata"]["document_type"] in {
+                "agenda",
+                "meeting_detail",
+                "agenda_packet",
+                "attachment",
+                "staff_report",
+            }
             return {"id": f"id-{data['name']}"}
 
+    db = FakeDB()
     result = await manual_expansion_runner._ensure_pack_a_source_inventory(
-        db=FakeDB(),
+        db=db,
         jurisdictions=["sunnyvale", "santa-clara-county"],
-        asset_classes=["agendas", "meeting_details"],
+        asset_classes=[
+            "agendas",
+            "meeting_details",
+            "agenda_packets",
+            "attachments",
+            "staff_reports",
+        ],
     )
 
-    assert result["attempted"] >= 2
-    assert result["upserted"] >= 2
+    assert result["attempted"] == 9
+    assert result["upserted"] == 9
     assert result["failures"] == []
+    document_types_by_jurisdiction = {}
+    for source in db.upserts:
+        jurisdiction_id = source["jurisdiction_id"]
+        document_types_by_jurisdiction.setdefault(jurisdiction_id, set()).add(
+            source["metadata"]["document_type"]
+        )
+
+    assert document_types_by_jurisdiction["City of Sunnyvale:city"] == {
+        "agenda",
+        "meeting_detail",
+        "agenda_packet",
+        "attachment",
+    }
+    assert document_types_by_jurisdiction["County of Santa Clara:county"] == {
+        "agenda",
+        "meeting_detail",
+        "agenda_packet",
+        "attachment",
+        "staff_report",
+    }
 
 
 @pytest.mark.asyncio
@@ -225,6 +262,84 @@ async def test_resolved_targets_payload_counts_source_and_legislation_targets():
             """,
         ),
         (
+            "agenda_center",
+            "saratoga",
+            "agenda_packets",
+            "/DocumentCenter/View/1236/City-Council-Agenda-Packet",
+            """
+            <html>
+              <body>
+                <a href="/DocumentCenter/View/1236/City-Council-Agenda-Packet">Agenda Packet PDF</a>
+              </body>
+            </html>
+            """,
+        ),
+        (
+            "agenda_center",
+            "saratoga",
+            "attachments",
+            "/DocumentCenter/View/1237/Budget-Attachment",
+            """
+            <html>
+              <body>
+                <a href="/DocumentCenter/View/1237/Budget-Attachment">Budget Attachment</a>
+              </body>
+            </html>
+            """,
+        ),
+        (
+            "agenda_center",
+            "saratoga",
+            "staff_reports",
+            "/DocumentCenter/View/1238/Staff-Report",
+            """
+            <html>
+              <body>
+                <a href="/DocumentCenter/View/1238/Staff-Report">Staff Report</a>
+              </body>
+            </html>
+            """,
+        ),
+        (
+            "legistar_calendar",
+            "san-jose",
+            "agenda_packets",
+            "View.ashx?M=PA&ID=100",
+            """
+            <html>
+              <body>
+                <a href="/View.ashx?M=PA&ID=100">Agenda Packet</a>
+              </body>
+            </html>
+            """,
+        ),
+        (
+            "legistar_calendar",
+            "san-jose",
+            "attachments",
+            "Attachment-100.pdf",
+            """
+            <html>
+              <body>
+                <a href="/files/Attachment-100.pdf">Attachment</a>
+              </body>
+            </html>
+            """,
+        ),
+        (
+            "legistar_calendar",
+            "san-jose",
+            "staff_reports",
+            "View.ashx?M=F&ID=100",
+            """
+            <html>
+              <body>
+                <a href="/View.ashx?M=F&ID=100">Staff Report</a>
+              </body>
+            </html>
+            """,
+        ),
+        (
             "sunnyvale_agendas",
             "sunnyvale",
             "agendas",
@@ -234,6 +349,32 @@ async def test_resolved_targets_payload_counts_source_and_legislation_targets():
               <body>
                 <a href="/View.ashx?M=A&ID=200">Agenda</a>
                 <a href="/View.ashx?M=M&ID=200">Minutes</a>
+              </body>
+            </html>
+            """,
+        ),
+        (
+            "sunnyvale_agendas",
+            "sunnyvale",
+            "agenda_packets",
+            "View.ashx?M=PA&ID=200",
+            """
+            <html>
+              <body>
+                <a href="/View.ashx?M=PA&ID=200">Agenda Packet</a>
+              </body>
+            </html>
+            """,
+        ),
+        (
+            "sunnyvale_agendas",
+            "sunnyvale",
+            "attachments",
+            "Attachment-200.pdf",
+            """
+            <html>
+              <body>
+                <a href="/files/Attachment-200.pdf">Attachment</a>
               </body>
             </html>
             """,
@@ -296,6 +437,57 @@ async def test_resolve_source_targets_expands_handler_roots_to_document_targets(
     assert len(targets) == 1
     assert expected_fragment in targets[0].url
     assert targets[0].url != source_rows[0]["url"]
+
+
+@pytest.mark.asyncio
+async def test_resolve_source_targets_sunnyvale_staff_reports_are_unsupported(
+    monkeypatch,
+):
+    class FakeAsyncClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def get(self, url, timeout=None):  # pragma: no cover - should not be used
+            raise AssertionError(
+                "sunnyvale_agendas should not expand unsupported staff report assets"
+            )
+
+    monkeypatch.setattr(manual_expansion_runner.httpx, "AsyncClient", FakeAsyncClient)
+
+    source_rows = [
+        {
+            "id": "sunnyvale-agenda",
+            "name": "Sunnyvale Agendas",
+            "type": "meetings",
+            "url": "https://sunnyvaleca.legistar.com/Calendar.aspx",
+            "handler": "sunnyvale_agendas",
+            "metadata": {"document_type": "agenda", "trust_tier": "official_partner"},
+            "jurisdiction_name": "City of Sunnyvale",
+            "jurisdiction_type": "city",
+        }
+    ]
+
+    targets, failures = await _resolve_source_targets(
+        source_rows=source_rows,
+        jurisdictions=["sunnyvale"],
+        asset_classes=["staff_reports"],
+        max_documents_per_source=5,
+    )
+
+    assert targets == []
+    assert failures == [
+        {
+            "jurisdiction": "sunnyvale",
+            "asset_class": "staff_reports",
+            "reason": "no_matching_sources",
+        }
+    ]
 
 
 @pytest.mark.asyncio
