@@ -5,12 +5,18 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from argparse import Namespace
 from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from html import unescape
 from typing import Any
+from urllib.parse import urljoin
+from urllib.parse import urlparse
 from uuid import uuid4
+
+import httpx
 
 from db.postgres_client import PostgresDB
 from scripts.cron.run_daily_scrape import EMBEDDING_DIMENSIONS
@@ -37,6 +43,38 @@ ASSET_CLASS_TO_DOCUMENT_TYPES = {
     "municipal_code": {"municipal_code"},
 }
 
+HANDLER_SUPPORTED_DOCUMENT_TYPES = {
+    "legistar_calendar": {
+        "meeting_detail",
+        "agenda",
+        "minutes",
+        "agenda_packet",
+        "attachment",
+        "staff_report",
+    },
+    "sunnyvale_agendas": {
+        "meeting_detail",
+        "agenda",
+        "minutes",
+        "agenda_packet",
+        "attachment",
+    },
+    "agenda_center": {
+        "agenda",
+        "minutes",
+        "agenda_packet",
+        "attachment",
+        "staff_report",
+    },
+    "municode": {"municipal_code"},
+}
+
+ANCHOR_PATTERN = re.compile(
+    r'<a[^>]+href=["\'](?P<href>[^"\']+)["\'][^>]*>(?P<label>.*?)</a>',
+    flags=re.IGNORECASE | re.DOTALL,
+)
+TAG_PATTERN = re.compile(r"<[^>]+>")
+
 
 @dataclass(frozen=True)
 class SourceTarget:
@@ -53,8 +91,478 @@ class SourceTarget:
     trust_tier: str
 
 
+@dataclass(frozen=True)
+class SourceSeed:
+    jurisdiction_slug: str
+    jurisdiction_name: str
+    jurisdiction_type: str
+    asset_class: str
+    source_name: str
+    source_type: str
+    url: str
+    document_type: str
+    title: str
+    source_method: str
+    handler: str
+    trust_tier: str
+    provider_family: str = "pack_a_default"
+
+
+PACK_A_SOURCE_DEFAULTS: tuple[SourceSeed, ...] = (
+    SourceSeed(
+        jurisdiction_slug="san-jose",
+        jurisdiction_name="City of San Jose",
+        jurisdiction_type="city",
+        asset_class="meeting_details",
+        source_name="San Jose Meetings Calendar",
+        source_type="meetings",
+        url="https://sanjose.legistar.com/Calendar.aspx",
+        document_type="meeting_detail",
+        title="San Jose Meeting Detail Calendar",
+        source_method="scrape",
+        handler="legistar_calendar",
+        trust_tier="official_partner",
+    ),
+    SourceSeed(
+        jurisdiction_slug="san-jose",
+        jurisdiction_name="City of San Jose",
+        jurisdiction_type="city",
+        asset_class="agendas",
+        source_name="San Jose Agendas",
+        source_type="meetings",
+        url="https://sanjose.legistar.com/Calendar.aspx",
+        document_type="agenda",
+        title="San Jose Agendas",
+        source_method="scrape",
+        handler="legistar_calendar",
+        trust_tier="official_partner",
+    ),
+    SourceSeed(
+        jurisdiction_slug="san-jose",
+        jurisdiction_name="City of San Jose",
+        jurisdiction_type="city",
+        asset_class="minutes",
+        source_name="San Jose Minutes",
+        source_type="meetings",
+        url="https://sanjose.legistar.com/Calendar.aspx",
+        document_type="minutes",
+        title="San Jose Minutes",
+        source_method="scrape",
+        handler="legistar_calendar",
+        trust_tier="official_partner",
+    ),
+    SourceSeed(
+        jurisdiction_slug="san-jose",
+        jurisdiction_name="City of San Jose",
+        jurisdiction_type="city",
+        asset_class="agenda_packets",
+        source_name="San Jose Agenda Packets",
+        source_type="meetings",
+        url="https://sanjose.legistar.com/Calendar.aspx",
+        document_type="agenda_packet",
+        title="San Jose Agenda Packets",
+        source_method="scrape",
+        handler="legistar_calendar",
+        trust_tier="official_partner",
+    ),
+    SourceSeed(
+        jurisdiction_slug="san-jose",
+        jurisdiction_name="City of San Jose",
+        jurisdiction_type="city",
+        asset_class="attachments",
+        source_name="San Jose Attachments",
+        source_type="meetings",
+        url="https://sanjose.legistar.com/Calendar.aspx",
+        document_type="attachment",
+        title="San Jose Attachments",
+        source_method="scrape",
+        handler="legistar_calendar",
+        trust_tier="official_partner",
+    ),
+    SourceSeed(
+        jurisdiction_slug="san-jose",
+        jurisdiction_name="City of San Jose",
+        jurisdiction_type="city",
+        asset_class="staff_reports",
+        source_name="San Jose Staff Reports",
+        source_type="meetings",
+        url="https://sanjose.legistar.com/Calendar.aspx",
+        document_type="staff_report",
+        title="San Jose Staff Reports",
+        source_method="scrape",
+        handler="legistar_calendar",
+        trust_tier="official_partner",
+    ),
+    SourceSeed(
+        jurisdiction_slug="san-jose",
+        jurisdiction_name="City of San Jose",
+        jurisdiction_type="city",
+        asset_class="municipal_code",
+        source_name="San Jose Municipal Code",
+        source_type="code",
+        url="https://library.municode.com/ca/san_jose/codes/code_of_ordinances",
+        document_type="municipal_code",
+        title="San Jose Municipal Code",
+        source_method="scrape",
+        handler="municode",
+        trust_tier="official_partner",
+    ),
+    SourceSeed(
+        jurisdiction_slug="santa-clara-county",
+        jurisdiction_name="County of Santa Clara",
+        jurisdiction_type="county",
+        asset_class="meeting_details",
+        source_name="Santa Clara County Meetings Calendar",
+        source_type="meetings",
+        url="https://sccgov.legistar.com/Calendar.aspx",
+        document_type="meeting_detail",
+        title="Santa Clara County Meeting Detail Calendar",
+        source_method="scrape",
+        handler="legistar_calendar",
+        trust_tier="official_partner",
+    ),
+    SourceSeed(
+        jurisdiction_slug="santa-clara-county",
+        jurisdiction_name="County of Santa Clara",
+        jurisdiction_type="county",
+        asset_class="agendas",
+        source_name="Santa Clara County Agendas",
+        source_type="meetings",
+        url="https://sccgov.legistar.com/Calendar.aspx",
+        document_type="agenda",
+        title="Santa Clara County Agendas",
+        source_method="scrape",
+        handler="legistar_calendar",
+        trust_tier="official_partner",
+    ),
+    SourceSeed(
+        jurisdiction_slug="santa-clara-county",
+        jurisdiction_name="County of Santa Clara",
+        jurisdiction_type="county",
+        asset_class="minutes",
+        source_name="Santa Clara County Minutes",
+        source_type="meetings",
+        url="https://sccgov.legistar.com/Calendar.aspx",
+        document_type="minutes",
+        title="Santa Clara County Minutes",
+        source_method="scrape",
+        handler="legistar_calendar",
+        trust_tier="official_partner",
+    ),
+    SourceSeed(
+        jurisdiction_slug="santa-clara-county",
+        jurisdiction_name="County of Santa Clara",
+        jurisdiction_type="county",
+        asset_class="agenda_packets",
+        source_name="Santa Clara County Agenda Packets",
+        source_type="meetings",
+        url="https://sccgov.legistar.com/Calendar.aspx",
+        document_type="agenda_packet",
+        title="Santa Clara County Agenda Packets",
+        source_method="scrape",
+        handler="legistar_calendar",
+        trust_tier="official_partner",
+    ),
+    SourceSeed(
+        jurisdiction_slug="santa-clara-county",
+        jurisdiction_name="County of Santa Clara",
+        jurisdiction_type="county",
+        asset_class="attachments",
+        source_name="Santa Clara County Attachments",
+        source_type="meetings",
+        url="https://sccgov.legistar.com/Calendar.aspx",
+        document_type="attachment",
+        title="Santa Clara County Attachments",
+        source_method="scrape",
+        handler="legistar_calendar",
+        trust_tier="official_partner",
+    ),
+    SourceSeed(
+        jurisdiction_slug="santa-clara-county",
+        jurisdiction_name="County of Santa Clara",
+        jurisdiction_type="county",
+        asset_class="staff_reports",
+        source_name="Santa Clara County Staff Reports",
+        source_type="meetings",
+        url="https://sccgov.legistar.com/Calendar.aspx",
+        document_type="staff_report",
+        title="Santa Clara County Staff Reports",
+        source_method="scrape",
+        handler="legistar_calendar",
+        trust_tier="official_partner",
+    ),
+    SourceSeed(
+        jurisdiction_slug="saratoga",
+        jurisdiction_name="City of Saratoga",
+        jurisdiction_type="city",
+        asset_class="agendas",
+        source_name="Saratoga Agenda Center",
+        source_type="meetings",
+        url="https://www.saratoga.ca.us/AgendaCenter",
+        document_type="agenda",
+        title="Saratoga Agenda Center",
+        source_method="scrape",
+        handler="agenda_center",
+        trust_tier="official_partner",
+    ),
+    SourceSeed(
+        jurisdiction_slug="saratoga",
+        jurisdiction_name="City of Saratoga",
+        jurisdiction_type="city",
+        asset_class="minutes",
+        source_name="Saratoga Minutes",
+        source_type="meetings",
+        url="https://www.saratoga.ca.us/AgendaCenter",
+        document_type="minutes",
+        title="Saratoga Minutes",
+        source_method="scrape",
+        handler="agenda_center",
+        trust_tier="official_partner",
+    ),
+    SourceSeed(
+        jurisdiction_slug="saratoga",
+        jurisdiction_name="City of Saratoga",
+        jurisdiction_type="city",
+        asset_class="agenda_packets",
+        source_name="Saratoga Agenda Packets",
+        source_type="meetings",
+        url="https://www.saratoga.ca.us/AgendaCenter",
+        document_type="agenda_packet",
+        title="Saratoga Agenda Packets",
+        source_method="scrape",
+        handler="agenda_center",
+        trust_tier="official_partner",
+    ),
+    SourceSeed(
+        jurisdiction_slug="saratoga",
+        jurisdiction_name="City of Saratoga",
+        jurisdiction_type="city",
+        asset_class="attachments",
+        source_name="Saratoga Attachments",
+        source_type="meetings",
+        url="https://www.saratoga.ca.us/AgendaCenter",
+        document_type="attachment",
+        title="Saratoga Attachments",
+        source_method="scrape",
+        handler="agenda_center",
+        trust_tier="official_partner",
+    ),
+    SourceSeed(
+        jurisdiction_slug="saratoga",
+        jurisdiction_name="City of Saratoga",
+        jurisdiction_type="city",
+        asset_class="staff_reports",
+        source_name="Saratoga Staff Reports",
+        source_type="meetings",
+        url="https://www.saratoga.ca.us/AgendaCenter",
+        document_type="staff_report",
+        title="Saratoga Staff Reports",
+        source_method="scrape",
+        handler="agenda_center",
+        trust_tier="official_partner",
+    ),
+    SourceSeed(
+        jurisdiction_slug="sunnyvale",
+        jurisdiction_name="City of Sunnyvale",
+        jurisdiction_type="city",
+        asset_class="meeting_details",
+        source_name="Sunnyvale Meetings Calendar",
+        source_type="meetings",
+        url="https://sunnyvaleca.legistar.com/Calendar.aspx",
+        document_type="meeting_detail",
+        title="Sunnyvale Meeting Detail Calendar",
+        source_method="scrape",
+        handler="sunnyvale_agendas",
+        trust_tier="official_partner",
+    ),
+    SourceSeed(
+        jurisdiction_slug="sunnyvale",
+        jurisdiction_name="City of Sunnyvale",
+        jurisdiction_type="city",
+        asset_class="agendas",
+        source_name="Sunnyvale Agendas",
+        source_type="meetings",
+        url="https://sunnyvaleca.legistar.com/Calendar.aspx",
+        document_type="agenda",
+        title="Sunnyvale Agendas",
+        source_method="scrape",
+        handler="sunnyvale_agendas",
+        trust_tier="official_partner",
+    ),
+    SourceSeed(
+        jurisdiction_slug="sunnyvale",
+        jurisdiction_name="City of Sunnyvale",
+        jurisdiction_type="city",
+        asset_class="minutes",
+        source_name="Sunnyvale Minutes",
+        source_type="meetings",
+        url="https://sunnyvaleca.legistar.com/Calendar.aspx",
+        document_type="minutes",
+        title="Sunnyvale Minutes",
+        source_method="scrape",
+        handler="sunnyvale_agendas",
+        trust_tier="official_partner",
+    ),
+    SourceSeed(
+        jurisdiction_slug="sunnyvale",
+        jurisdiction_name="City of Sunnyvale",
+        jurisdiction_type="city",
+        asset_class="agenda_packets",
+        source_name="Sunnyvale Agenda Packets",
+        source_type="meetings",
+        url="https://sunnyvaleca.legistar.com/Calendar.aspx",
+        document_type="agenda_packet",
+        title="Sunnyvale Agenda Packets",
+        source_method="scrape",
+        handler="sunnyvale_agendas",
+        trust_tier="official_partner",
+    ),
+    SourceSeed(
+        jurisdiction_slug="sunnyvale",
+        jurisdiction_name="City of Sunnyvale",
+        jurisdiction_type="city",
+        asset_class="attachments",
+        source_name="Sunnyvale Attachments",
+        source_type="meetings",
+        url="https://sunnyvaleca.legistar.com/Calendar.aspx",
+        document_type="attachment",
+        title="Sunnyvale Attachments",
+        source_method="scrape",
+        handler="sunnyvale_agendas",
+        trust_tier="official_partner",
+    ),
+)
+
+
+def _build_pack_b_source_defaults() -> tuple[SourceSeed, ...]:
+    legistar_jurisdictions = (
+        (
+            "cupertino",
+            "City of Cupertino",
+            "city",
+            "https://cupertino.legistar.com/Calendar.aspx",
+            "Cupertino",
+        ),
+        (
+            "mountain-view",
+            "City of Mountain View",
+            "city",
+            "https://mountainview.legistar.com/Calendar.aspx",
+            "Mountain View",
+        ),
+        (
+            "san-mateo-county",
+            "County of San Mateo",
+            "county",
+            "https://sanmateocounty.legistar.com/Calendar.aspx",
+            "San Mateo County",
+        ),
+        (
+            "san-francisco-city-county",
+            "San Francisco City County",
+            "county",
+            "https://sfgov.legistar.com/Calendar.aspx",
+            "San Francisco City County",
+        ),
+    )
+    legistar_assets = (
+        ("meeting_details", "Meetings Calendar", "meeting_detail", "Meeting Detail Calendar"),
+        ("agendas", "Agendas", "agenda", "Agendas"),
+        ("minutes", "Minutes", "minutes", "Minutes"),
+        ("agenda_packets", "Agenda Packets", "agenda_packet", "Agenda Packets"),
+        ("attachments", "Attachments", "attachment", "Attachments"),
+        ("staff_reports", "Staff Reports", "staff_report", "Staff Reports"),
+    )
+    agenda_center_jurisdictions = (
+        (
+            "campbell",
+            "City of Campbell",
+            "city",
+            "https://www.campbellca.gov/AgendaCenter",
+            "Campbell",
+        ),
+    )
+    agenda_center_assets = (
+        ("agendas", "Agendas", "agenda", "Agendas"),
+        ("minutes", "Minutes", "minutes", "Minutes"),
+        ("agenda_packets", "Agenda Packets", "agenda_packet", "Agenda Packets"),
+        ("attachments", "Attachments", "attachment", "Attachments"),
+        ("staff_reports", "Staff Reports", "staff_report", "Staff Reports"),
+    )
+
+    seeds: list[SourceSeed] = []
+    for slug, jurisdiction_name, jurisdiction_type, url, label in legistar_jurisdictions:
+        for asset_class, source_suffix, document_type, title_suffix in legistar_assets:
+            seeds.append(
+                SourceSeed(
+                    jurisdiction_slug=slug,
+                    jurisdiction_name=jurisdiction_name,
+                    jurisdiction_type=jurisdiction_type,
+                    asset_class=asset_class,
+                    source_name=f"{label} {source_suffix}",
+                    source_type="meetings",
+                    url=url,
+                    document_type=document_type,
+                    title=f"{label} {title_suffix}",
+                    source_method="scrape",
+                    handler="legistar_calendar",
+                    trust_tier="official_partner",
+                    provider_family="pack_b_default",
+                )
+            )
+
+    for slug, jurisdiction_name, jurisdiction_type, url, label in agenda_center_jurisdictions:
+        for asset_class, source_suffix, document_type, title_suffix in agenda_center_assets:
+            seeds.append(
+                SourceSeed(
+                    jurisdiction_slug=slug,
+                    jurisdiction_name=jurisdiction_name,
+                    jurisdiction_type=jurisdiction_type,
+                    asset_class=asset_class,
+                    source_name=f"{label} {source_suffix}",
+                    source_type="meetings",
+                    url=url,
+                    document_type=document_type,
+                    title=f"{label} {title_suffix}",
+                    source_method="scrape",
+                    handler="agenda_center",
+                    trust_tier="official_partner",
+                    provider_family="pack_b_default",
+                )
+            )
+
+    return tuple(seeds)
+
+
+PACK_B_SOURCE_DEFAULTS: tuple[SourceSeed, ...] = _build_pack_b_source_defaults()
+
+
 def _slugify(value: str) -> str:
     return (value or "").strip().lower().replace("_", "-").replace(" ", "-")
+
+
+def _slug_aliases(value: str) -> set[str]:
+    slug = _slugify(value)
+    aliases = {slug}
+    if slug.startswith("city-of-"):
+        aliases.add(slug[len("city-of-") :])
+    if slug.startswith("county-of-"):
+        core = slug[len("county-of-") :]
+        aliases.add(core)
+        aliases.add(f"{core}-county")
+    if slug.startswith("state-of-"):
+        aliases.add(slug[len("state-of-") :])
+    if slug.endswith("-county"):
+        core = slug[: -len("-county")]
+        aliases.add(core)
+        aliases.add(f"county-of-{core}")
+    return aliases
+
+
+def _jurisdiction_matches(row_jurisdiction_name: str, requested_slug: str) -> bool:
+    requested = _slugify(requested_slug)
+    aliases = _slug_aliases(row_jurisdiction_name)
+    return requested in aliases
 
 
 def _manual_run_id() -> str:
@@ -107,6 +615,7 @@ async def _fetch_source_rows(db: PostgresDB) -> list[dict[str, Any]]:
           s.name,
           s.type,
           s.url,
+          s.handler,
           s.metadata,
           j.name AS jurisdiction_name,
           j.type AS jurisdiction_type
@@ -118,84 +627,378 @@ async def _fetch_source_rows(db: PostgresDB) -> list[dict[str, Any]]:
     return [dict(row) for row in rows]
 
 
-def _resolve_source_targets(
+def _normalize_handler(row: dict[str, Any], metadata: dict[str, Any]) -> str:
+    return ((row.get("handler") or metadata.get("handler") or "").strip().lower())
+
+
+def _source_row_supports_asset(
+    *,
+    row: dict[str, Any],
+    metadata: dict[str, Any],
+    document_types: set[str],
+) -> bool:
+    handler = _normalize_handler(row, metadata)
+    if handler in HANDLER_SUPPORTED_DOCUMENT_TYPES:
+        return bool(
+            HANDLER_SUPPORTED_DOCUMENT_TYPES[handler].intersection(document_types)
+        )
+    document_type = (metadata.get("document_type") or "").strip().lower()
+    return document_type in document_types
+
+
+def _document_type_from_link_label(
+    label: str,
+    *,
+    href: str = "",
+    anchor_html: str = "",
+) -> str | None:
+    lowered = (label or "").strip().lower()
+    href_lower = (href or "").strip().lower()
+    anchor_lower = (anchor_html or "").strip().lower()
+    signal = " ".join(part for part in (lowered, href_lower, anchor_lower) if part)
+    if not signal:
+        return None
+
+    if "meetingdetail.aspx" in href_lower or "meeting detail" in signal:
+        return "meeting_detail"
+    if "view.ashx?m=pa" in href_lower:
+        return "agenda_packet"
+    if "view.ashx?m=m" in href_lower:
+        return "minutes"
+    if "view.ashx?m=a" in href_lower:
+        return "agenda"
+
+    lowered = signal
+    if "meeting detail" in lowered or "details" in lowered:
+        return "meeting_detail"
+    if "staff report" in lowered:
+        return "staff_report"
+    if "agenda packet" in lowered or "packet" in lowered:
+        return "agenda_packet"
+    if "attach" in lowered:
+        return "attachment"
+    if "minute" in lowered:
+        return "minutes"
+    if "agenda" in lowered:
+        return "agenda"
+    return None
+
+
+def _extract_document_links(*, html_text: str, base_url: str) -> list[dict[str, str]]:
+    candidates: list[dict[str, str]] = []
+    for match in ANCHOR_PATTERN.finditer(html_text or ""):
+        href = (match.group("href") or "").strip()
+        if not href or href.startswith("#") or href.lower().startswith("javascript:"):
+            continue
+
+        raw_label = match.group("label") or ""
+        label = unescape(TAG_PATTERN.sub(" ", raw_label))
+        label = " ".join(label.split())
+        document_type = _document_type_from_link_label(
+            label,
+            href=href,
+            anchor_html=match.group(0),
+        )
+        if not document_type:
+            continue
+
+        candidates.append(
+            {
+                "url": urljoin(base_url, href),
+                "title": label or href,
+                "document_type": document_type,
+            }
+        )
+    return candidates
+
+
+def _candidate_allowed_for_handler(*, handler: str, candidate_url: str) -> bool:
+    if handler != "sunnyvale_agendas":
+        return True
+
+    host = (urlparse(candidate_url).hostname or "").lower()
+    return host.endswith("sunnyvaleca.legistar.com")
+
+
+def _root_candidate(
+    *,
+    row: dict[str, Any],
+    metadata: dict[str, Any],
+    url: str,
+    document_types: set[str],
+) -> list[dict[str, str]]:
+    row_document_type = (metadata.get("document_type") or "").strip().lower()
+    if row_document_type in document_types:
+        return [
+            {
+                "url": url,
+                "title": metadata.get("title") or row.get("name") or url,
+                "document_type": row_document_type,
+            }
+        ]
+    return []
+
+
+async def _expand_source_row_targets(
+    *,
+    client: httpx.AsyncClient,
+    row: dict[str, Any],
+    metadata: dict[str, Any],
+    document_types: set[str],
+    max_documents_per_source: int,
+) -> list[dict[str, str]]:
+    url = (row.get("url") or "").strip()
+    if not url or url.startswith("unknown://"):
+        return []
+
+    handler = _normalize_handler(row, metadata)
+    if handler not in HANDLER_SUPPORTED_DOCUMENT_TYPES:
+        return _root_candidate(
+            row=row,
+            metadata=metadata,
+            url=url,
+            document_types=document_types,
+        )
+
+    if handler == "municode":
+        return _root_candidate(
+            row=row,
+            metadata=metadata,
+            url=url,
+            document_types=document_types,
+        )
+
+    try:
+        response = await client.get(url, timeout=20.0)
+        if response.status_code >= 400:
+            return _root_candidate(
+                row=row,
+                metadata=metadata,
+                url=url,
+                document_types=document_types,
+            )
+        extracted = _extract_document_links(html_text=response.text, base_url=url)
+    except Exception:
+        return _root_candidate(
+            row=row,
+            metadata=metadata,
+            url=url,
+            document_types=document_types,
+        )
+
+    filtered = [
+        candidate
+        for candidate in extracted
+        if candidate["document_type"] in document_types
+        and _candidate_allowed_for_handler(
+            handler=handler,
+            candidate_url=candidate["url"],
+        )
+    ]
+
+    # Keep deterministic, bounded, and deduplicated expansion output per source.
+    deduped: list[dict[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    for candidate in filtered:
+        key = (candidate["url"], candidate["document_type"])
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(candidate)
+        if len(deduped) >= max_documents_per_source:
+            break
+
+    if deduped:
+        return deduped
+
+    return _root_candidate(
+        row=row,
+        metadata=metadata,
+        url=url,
+        document_types=document_types,
+    )
+
+
+async def _ensure_pack_a_source_inventory(
+    *,
+    db: PostgresDB,
+    jurisdictions: list[str],
+    asset_classes: list[str],
+) -> dict[str, Any]:
+    requested_jurisdictions = {_slugify(value) for value in jurisdictions}
+    requested_assets = set(asset_classes) - {"legislation"}
+    attempted = 0
+    upserted = 0
+    failures: list[dict[str, Any]] = []
+
+    for seed in (*PACK_A_SOURCE_DEFAULTS, *PACK_B_SOURCE_DEFAULTS):
+        if seed.jurisdiction_slug not in requested_jurisdictions:
+            continue
+        if seed.asset_class not in requested_assets:
+            continue
+
+        attempted += 1
+        jurisdiction_id = await db.get_or_create_jurisdiction(
+            seed.jurisdiction_name,
+            seed.jurisdiction_type,
+        )
+        if not jurisdiction_id:
+            failures.append(
+                {
+                    "jurisdiction": seed.jurisdiction_slug,
+                    "asset_class": seed.asset_class,
+                    "reason": "jurisdiction_resolution_failed",
+                }
+            )
+            continue
+
+        source = await db.upsert_source(
+            {
+                "jurisdiction_id": jurisdiction_id,
+                "name": seed.source_name,
+                "type": seed.source_type,
+                "url": seed.url,
+                "status": "active",
+                "source_method": seed.source_method,
+                "handler": seed.handler,
+                "metadata": {
+                    "document_type": seed.document_type,
+                    "title": seed.title,
+                    "trust_tier": seed.trust_tier,
+                    "provider_family": seed.provider_family,
+                    "seeded_by": "manual_substrate_expansion",
+                },
+            }
+        )
+        if source and source.get("id"):
+            upserted += 1
+        else:
+            failures.append(
+                {
+                    "jurisdiction": seed.jurisdiction_slug,
+                    "asset_class": seed.asset_class,
+                    "reason": "source_upsert_failed",
+                    "url": seed.url,
+                }
+            )
+
+    return {
+        "attempted": attempted,
+        "upserted": upserted,
+        "failures": failures,
+    }
+
+
+async def _resolve_source_targets(
     *,
     source_rows: list[dict[str, Any]],
     jurisdictions: list[str],
     asset_classes: list[str],
     max_documents_per_source: int,
 ) -> tuple[list[SourceTarget], list[dict[str, Any]]]:
-    requested_slugs = {_slugify(item) for item in jurisdictions}
     targets: list[SourceTarget] = []
     failures: list[dict[str, Any]] = []
 
-    grouped: dict[tuple[str, str], list[dict[str, Any]]] = {}
-    for row in source_rows:
-        grouped.setdefault((_slugify(row["jurisdiction_name"]), row["type"]), []).append(row)
-
-    for jurisdiction in jurisdictions:
-        jurisdiction_slug = _slugify(jurisdiction)
-        for asset_class in asset_classes:
-            if asset_class == "legislation":
-                continue
-
-            document_types = ASSET_CLASS_TO_DOCUMENT_TYPES.get(asset_class)
-            if not document_types:
-                failures.append(
-                    {
-                        "jurisdiction": jurisdiction_slug,
-                        "asset_class": asset_class,
-                        "reason": "unsupported_asset_class",
-                    }
-                )
-                continue
-
-            matching_rows: list[dict[str, Any]] = []
-            for row in source_rows:
-                row_slug = _slugify(row["jurisdiction_name"])
-                if row_slug != jurisdiction_slug:
+    async with httpx.AsyncClient(follow_redirects=True) as client:
+        for jurisdiction in jurisdictions:
+            jurisdiction_slug = _slugify(jurisdiction)
+            for asset_class in asset_classes:
+                if asset_class == "legislation":
                     continue
-                metadata = parse_metadata_blob(row.get("metadata"))
-                document_type = (metadata.get("document_type") or "").strip().lower()
-                url = (row.get("url") or "").strip()
-                if not url or url.startswith("unknown://"):
-                    continue
-                if document_type not in document_types:
-                    continue
-                matching_rows.append(row)
 
-            if not matching_rows:
-                failures.append(
-                    {
-                        "jurisdiction": jurisdiction_slug,
-                        "asset_class": asset_class,
-                        "reason": "no_matching_sources",
-                    }
-                )
-                continue
-
-            for row in matching_rows[:max_documents_per_source]:
-                metadata = parse_metadata_blob(row.get("metadata"))
-                url = (row.get("url") or "").strip()
-                trust_tier, _ = classify_trust(
-                    canonical_url=url,
-                    trust_tier=metadata.get("trust_tier"),
-                )
-                targets.append(
-                    SourceTarget(
-                        jurisdiction_slug=jurisdiction_slug,
-                        jurisdiction_name=row["jurisdiction_name"],
-                        jurisdiction_type=row["jurisdiction_type"],
-                        asset_class=asset_class,
-                        source_id=str(row["id"]),
-                        source_name=row["name"],
-                        source_type=row["type"],
-                        document_type=metadata.get("document_type") or next(iter(document_types)),
-                        url=url,
-                        title=metadata.get("title") or row["name"] or url,
-                        trust_tier=trust_tier,
+                document_types = ASSET_CLASS_TO_DOCUMENT_TYPES.get(asset_class)
+                if not document_types:
+                    failures.append(
+                        {
+                            "jurisdiction": jurisdiction_slug,
+                            "asset_class": asset_class,
+                            "reason": "unsupported_asset_class",
+                        }
                     )
-                )
+                    continue
+
+                matching_rows: list[dict[str, Any]] = []
+                for row in source_rows:
+                    if not _jurisdiction_matches(row["jurisdiction_name"], jurisdiction_slug):
+                        continue
+                    metadata = parse_metadata_blob(row.get("metadata"))
+                    url = (row.get("url") or "").strip()
+                    if not url or url.startswith("unknown://"):
+                        continue
+                    if not _source_row_supports_asset(
+                        row=row,
+                        metadata=metadata,
+                        document_types=document_types,
+                    ):
+                        continue
+                    matching_rows.append(row)
+
+                if not matching_rows:
+                    failures.append(
+                        {
+                            "jurisdiction": jurisdiction_slug,
+                            "asset_class": asset_class,
+                            "reason": "no_matching_sources",
+                        }
+                    )
+                    continue
+
+                asset_targets: list[SourceTarget] = []
+                for row in matching_rows:
+                    metadata = parse_metadata_blob(row.get("metadata"))
+                    expanded_candidates = await _expand_source_row_targets(
+                        client=client,
+                        row=row,
+                        metadata=metadata,
+                        document_types=document_types,
+                        max_documents_per_source=max_documents_per_source,
+                    )
+                    for candidate in expanded_candidates:
+                        candidate_url = (candidate.get("url") or "").strip()
+                        if not candidate_url:
+                            continue
+                        trust_tier, _ = classify_trust(
+                            canonical_url=candidate_url,
+                            trust_tier=metadata.get("trust_tier"),
+                        )
+                        asset_targets.append(
+                            SourceTarget(
+                                jurisdiction_slug=jurisdiction_slug,
+                                jurisdiction_name=row["jurisdiction_name"],
+                                jurisdiction_type=row["jurisdiction_type"],
+                                asset_class=asset_class,
+                                source_id=str(row["id"]),
+                                source_name=row["name"],
+                                source_type=row["type"],
+                                document_type=candidate["document_type"],
+                                url=candidate_url,
+                                title=candidate.get("title") or row["name"] or candidate_url,
+                                trust_tier=trust_tier,
+                            )
+                        )
+
+                deduped_targets: list[SourceTarget] = []
+                seen: set[tuple[str, str]] = set()
+                for target in asset_targets:
+                    key = (target.url, target.document_type)
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    deduped_targets.append(target)
+                    if len(deduped_targets) >= max_documents_per_source:
+                        break
+
+                if not deduped_targets:
+                    failures.append(
+                        {
+                            "jurisdiction": jurisdiction_slug,
+                            "asset_class": asset_class,
+                            "reason": "no_matching_sources",
+                        }
+                    )
+                    continue
+
+                targets.extend(deduped_targets)
 
     return targets, failures
 
@@ -450,13 +1253,19 @@ async def run_manual_substrate_expansion(manifest: dict[str, Any]) -> dict[str, 
     triggered_at = datetime.now(timezone.utc).isoformat()
 
     try:
+        source_inventory = await _ensure_pack_a_source_inventory(
+            db=db,
+            jurisdictions=manifest["jurisdictions"],
+            asset_classes=manifest["asset_classes"],
+        )
         source_rows = await _fetch_source_rows(db)
-        source_targets, failures = _resolve_source_targets(
+        source_targets, failures = await _resolve_source_targets(
             source_rows=source_rows,
             jurisdictions=manifest["jurisdictions"],
             asset_classes=manifest["asset_classes"],
             max_documents_per_source=manifest["max_documents_per_source"],
         )
+        failures.extend(source_inventory["failures"])
 
         legislation_slugs = [
             _slugify(item)
@@ -569,6 +1378,7 @@ async def run_manual_substrate_expansion(manifest: dict[str, Any]) -> dict[str, 
         report["capture_summary"] = capture_summary
         report["ingestion_summary"] = ingestion_summary
         report["promotion_summary"] = promotion_summary
+        report["source_inventory"] = source_inventory
         report["storage_integrity_checks"] = storage_integrity_checks
         report["failures"] = failures
         artifact_path = write_report_artifact(report=report)
@@ -589,6 +1399,7 @@ async def run_manual_substrate_expansion(manifest: dict[str, Any]) -> dict[str, 
             "capture_summary": capture_summary,
             "ingestion_summary": ingestion_summary,
             "promotion_summary": promotion_summary,
+            "source_inventory": source_inventory,
             "storage_integrity_checks": storage_integrity_checks,
             "failures": failures,
             "inspection_report": {
