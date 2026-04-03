@@ -43,6 +43,18 @@ def test_init_with_env_vars(mock_minio, s3_env):
                 secure=True  # Should be secure when using public URL
             )
 
+        # Test case 3: Railway-provided public URL fallback when MINIO_URL_PUBLIC is not set
+        s3_env_railway_public = {**s3_env, "RAILWAY_SERVICE_BUCKET_URL": "bucket-dev-6094.up.railway.app"}
+        with patch.dict(os.environ, s3_env_railway_public, clear=True):
+            storage = S3Storage()
+            assert storage.client is not None
+            mock_minio.assert_called_with(
+                "bucket-dev-6094.up.railway.app",
+                access_key="admin",
+                secret_key="password",
+                secure=True  # Railway public domain should be treated as HTTPS
+            )
+
 def test_init_without_vars(mock_minio):
     # Ensure no env vars leak
     with patch.dict(os.environ, {}, clear=True):

@@ -27,11 +27,18 @@ SENDGRID_API_KEY=SG.xxxxx
 FROM_EMAIL=notifications@affordabot.ai
 
 # Object Storage (MinIO/S3)
-MINIO_URL=minio.railway.internal:9000
-MINIO_ACCESS_KEY=minioadmin
-MINIO_SECRET_KEY=minioadmin
+MINIO_URL=http://bucket.railway.internal:9000
+# Optional override for public endpoint (if set, takes precedence)
+MINIO_URL_PUBLIC=https://bucket-dev-6094.up.railway.app
+# Railway-managed public URL (auto-populated in backend runtime)
+RAILWAY_SERVICE_BUCKET_URL=bucket-dev-6094.up.railway.app
+MINIO_ACCESS_KEY=<generated-by-bucket-service>
+MINIO_SECRET_KEY=<generated-by-bucket-service>
 MINIO_BUCKET=affordabot-artifacts
+# Optional; usually inferred by code from chosen endpoint
 MINIO_SECURE=false
+# Bucket source-link cleanup runbook:
+# docs/specs/2026-04-03-railway-bucket-source-cleanup.md
 
 # Optional: LLM Configuration
 LLM_MODEL=x-ai/grok-beta  # Default: grok-beta (free tier)
