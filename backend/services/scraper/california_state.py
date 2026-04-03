@@ -19,6 +19,12 @@ import hashlib
 import re
 
 from .base import BaseScraper, ScrapedBill
+from .openstates_state import (
+    OPENSTATES_BASE_URL,
+    OpenStatesBillDiscoveryClient,
+    OpenStatesDiscoveryConfig,
+    extract_preferred_source_url,
+)
 
 logger = logging.getLogger("california_scraper")
 
@@ -47,8 +53,13 @@ class CaliforniaStateScraper(BaseScraper):
     def __init__(self, db_client=None, jurisdiction_name: str = "State of California"):
         super().__init__(jurisdiction_name)
         self.api_key = os.getenv("OPENSTATES_API_KEY")
-        self.base_url = "https://v3.openstates.org"
+        self.base_url = OPENSTATES_BASE_URL
         self.db = db_client
+        self._openstates_config = OpenStatesDiscoveryConfig(
+            jurisdiction="ca",
+            session="20252026",
+            preferred_source_domains=("leginfo.legislature.ca.gov",),
+        )
 
     async def check_health(self) -> bool:
         if not self.api_key:
@@ -118,60 +129,22 @@ class CaliforniaStateScraper(BaseScraper):
         """
         api_key = self.api_key
         assert api_key is not None
-        response = await client.get(
-            f"{self.base_url}/bills",
-            params={
-                "jurisdiction": "ca",
-                "session": "20252026",
-                "per_page": 20,
-                "sort": "updated_desc",
-                "include": ["sponsorships", "actions", "versions"],
-            },
-            headers={"X-API-KEY": api_key},
+        discovery = OpenStatesBillDiscoveryClient(api_key=api_key, base_url=self.base_url)
+        rows = await discovery.discover_bill_rows(
+            client=client,
+            config=self._openstates_config,
         )
-        response.raise_for_status()
-        data = response.json()
-
         bills = []
-        for bill_meta in data.get("results", []):
-            bill_id = bill_meta.get("id")
-
-            detail_response = await client.get(
-                f"{self.base_url}/bills/{bill_id}",
-                params={"include": ["versions", "actions", "sources"]},
-                headers={"X-API-KEY": api_key},
+        for row in rows:
+            bills.append(
+                self._build_bill_from_openstates_row(
+                    bill_meta=row["bill_meta"],
+                    bill_detail=row["bill_detail"],
+                    versions=row["versions"],
+                    source_url=row["source_url"],
+                    fallback_bill_number="Unknown",
+                )
             )
-            bill_detail = detail_response.json()
-
-            versions = bill_detail.get("versions", [])
-            openstates_sources = bill_detail.get("sources", [])
-
-            source_url = self._extract_leginfo_url(versions, openstates_sources)
-            version_info = versions[0] if versions else {}
-
-            provenance = BillSourceProvenance(
-                source_url=source_url,
-                source_type="leginfo"
-                if "leginfo.legislature.ca.gov" in source_url
-                else "openstates",
-                version_identifier=version_info.get("id", ""),
-                version_note=version_info.get("note", ""),
-                extraction_status="discovered",
-            )
-
-            bill = CaliforniaScrapedBill(
-                bill_number=bill_meta.get("identifier", "Unknown"),
-                title=bill_meta.get("title", "Untitled"),
-                text="",
-                introduced_date=self._parse_date(bill_meta.get("created_at")),
-                status=bill_meta.get("latest_action_description", "Unknown"),
-                raw_html=str(bill_detail),
-                provenance=provenance,
-                jurisdiction="california",
-                source_system="openstates+leginfo",
-            )
-
-            bills.append(bill)
 
         logger.info(f"Discovered {len(bills)} California bills via OpenStates")
         return bills
@@ -181,32 +154,11 @@ class CaliforniaStateScraper(BaseScraper):
         Extract the official California legislature URL from OpenStates version/sources.
         Prefers leginfo.legislature.ca.gov URLs.
         """
-        for version in versions:
-            for link in version.get("links", []):
-                url = link.get("url", "")
-                if "leginfo.legislature.ca.gov" in url:
-                    return url
-            if version.get("url", ""):
-                url = version["url"]
-                if "leginfo.legislature.ca.gov" in url:
-                    return url
-
-        for source in sources:
-            url = source.get("url", "")
-            if "leginfo.legislature.ca.gov" in url:
-                return url
-
-        if versions:
-            for link in versions[0].get("links", []):
-                if link.get("url"):
-                    return link["url"]
-            if versions[0].get("url"):
-                return versions[0]["url"]
-
-        if sources and sources[0].get("url"):
-            return sources[0]["url"]
-
-        return ""
+        return extract_preferred_source_url(
+            versions,
+            sources,
+            self._openstates_config.preferred_source_domains,
+        )
 
     async def _fetch_canonical_text(
         self, client: httpx.AsyncClient, bill: CaliforniaScrapedBill
@@ -487,7 +439,7 @@ class CaliforniaStateScraper(BaseScraper):
             )
 
         api_key = self.api_key
-
+        discovery = OpenStatesBillDiscoveryClient(api_key=api_key, base_url=self.base_url)
         async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
             bills = []
 
@@ -495,59 +447,22 @@ class CaliforniaStateScraper(BaseScraper):
                 normalized = self._normalize_bill_number(bill_number)
 
                 try:
-                    response = await client.get(
-                        f"{self.base_url}/bills",
-                        params={
-                            "jurisdiction": "ca",
-                            "session": "20252026",
-                            "identifier": normalized,
-                            "include": ["versions", "actions", "sources"],
-                        },
-                        headers={"X-API-KEY": api_key},
+                    rows = await discovery.discover_specific_bill_rows(
+                        client=client,
+                        config=self._openstates_config,
+                        identifier=normalized,
                     )
-                    response.raise_for_status()
-                    data = response.json()
-
-                    results = data.get("results", [])
-                    if not results:
+                    if not rows:
                         logger.warning(f"Bill {bill_number} not found in OpenStates")
                         continue
 
-                    bill_meta = results[0]
-                    bill_id = bill_meta.get("id")
-
-                    detail_response = await client.get(
-                        f"{self.base_url}/bills/{bill_id}",
-                        params={"include": ["versions", "actions", "sources"]},
-                        headers={"X-API-KEY": api_key},
-                    )
-                    bill_detail = detail_response.json()
-
-                    versions = bill_detail.get("versions", [])
-                    sources = bill_detail.get("sources", [])
-                    source_url = self._extract_leginfo_url(versions, sources)
-                    version_info = versions[0] if versions else {}
-
-                    provenance = BillSourceProvenance(
-                        source_url=source_url,
-                        source_type="leginfo"
-                        if "leginfo.legislature.ca.gov" in source_url
-                        else "openstates",
-                        version_identifier=version_info.get("id", ""),
-                        version_note=version_info.get("note", ""),
-                        extraction_status="discovered",
-                    )
-
-                    bill = CaliforniaScrapedBill(
-                        bill_number=bill_meta.get("identifier", bill_number),
-                        title=bill_meta.get("title", "Untitled"),
-                        text="",
-                        introduced_date=self._parse_date(bill_meta.get("created_at")),
-                        status=bill_meta.get("latest_action_description", "Unknown"),
-                        raw_html=str(bill_detail),
-                        provenance=provenance,
-                        jurisdiction="california",
-                        source_system="openstates+leginfo",
+                    row = rows[0]
+                    bill = self._build_bill_from_openstates_row(
+                        bill_meta=row["bill_meta"],
+                        bill_detail=row["bill_detail"],
+                        versions=row["versions"],
+                        source_url=row["source_url"],
+                        fallback_bill_number=bill_number,
                     )
 
                     enriched = await self._fetch_canonical_text(client, bill)
@@ -561,6 +476,38 @@ class CaliforniaStateScraper(BaseScraper):
     def _normalize_bill_number(self, bill_number: str) -> str:
         """Normalize bill number for API queries."""
         return bill_number.strip().upper()
+
+    def _build_bill_from_openstates_row(
+        self,
+        *,
+        bill_meta: Dict[str, Any],
+        bill_detail: Dict[str, Any],
+        versions: List[Dict[str, Any]],
+        source_url: str,
+        fallback_bill_number: str,
+    ) -> CaliforniaScrapedBill:
+        version_info = versions[0] if versions else {}
+        provenance = BillSourceProvenance(
+            source_url=source_url,
+            source_type="leginfo"
+            if "leginfo.legislature.ca.gov" in source_url
+            else "openstates",
+            version_identifier=version_info.get("id", ""),
+            version_note=version_info.get("note", ""),
+            extraction_status="discovered",
+        )
+
+        return CaliforniaScrapedBill(
+            bill_number=bill_meta.get("identifier", fallback_bill_number),
+            title=bill_meta.get("title", "Untitled"),
+            text="",
+            introduced_date=self._parse_date(bill_meta.get("created_at")),
+            status=bill_meta.get("latest_action_description", "Unknown"),
+            raw_html=str(bill_detail),
+            provenance=provenance,
+            jurisdiction="california",
+            source_system="openstates+leginfo",
+        )
 
     def to_raw_scrape_record(
         self, bill: CaliforniaScrapedBill, source_id: str
