@@ -132,30 +132,109 @@ async def test_resolve_source_targets_matches_county_slug_alias():
 
 @pytest.mark.asyncio
 async def test_ensure_pack_a_source_inventory_upserts_for_requested_assets():
+    captured = []
+
     class FakeDB:
         async def get_or_create_jurisdiction(self, name, jur_type):
             assert name in {
                 "City of Sunnyvale",
                 "County of Santa Clara",
+                "City of San Jose",
+                "City of Saratoga",
             }
             assert jur_type in {"city", "county"}
             return f"{name}:{jur_type}"
 
         async def upsert_source(self, data):
             assert data["source_method"] in {"scrape"}
-            assert data["handler"] in {"sunnyvale_agendas", "legistar_calendar"}
-            assert data["metadata"]["document_type"] in {"agenda", "meeting_detail"}
+            captured.append(data)
+            assert data["handler"] in {
+                "sunnyvale_agendas",
+                "legistar_calendar",
+                "agenda_center",
+            }
+            assert data["metadata"]["document_type"] in {
+                "agenda_packet",
+                "attachment",
+                "staff_report",
+            }
             return {"id": f"id-{data['name']}"}
 
     result = await manual_expansion_runner._ensure_pack_a_source_inventory(
         db=FakeDB(),
-        jurisdictions=["sunnyvale", "santa-clara-county"],
-        asset_classes=["agendas", "meeting_details"],
+        jurisdictions=["san-jose", "santa-clara-county", "saratoga", "sunnyvale"],
+        asset_classes=["agenda_packets", "attachments", "staff_reports"],
     )
 
-    assert result["attempted"] >= 2
-    assert result["upserted"] >= 2
+    assert result["attempted"] == 11
+    assert result["upserted"] == 11
     assert result["failures"] == []
+
+    sunnyvale_doc_types = {
+        row["metadata"]["document_type"]
+        for row in captured
+        if row["jurisdiction_id"] == "City of Sunnyvale:city"
+    }
+    assert sunnyvale_doc_types == {"agenda_packet", "attachment"}
+
+
+@pytest.mark.asyncio
+async def test_ensure_pack_b_source_inventory_upserts_supported_handlers_only():
+    captured = []
+
+    class FakeDB:
+        async def get_or_create_jurisdiction(self, name, jur_type):
+            assert name in {
+                "City of Cupertino",
+                "City of Mountain View",
+                "County of San Mateo",
+                "San Francisco City County",
+                "City of Campbell",
+            }
+            assert jur_type in {"city", "county"}
+            return f"{name}:{jur_type}"
+
+        async def upsert_source(self, data):
+            captured.append(data)
+            assert data["handler"] in {"legistar_calendar", "agenda_center"}
+            assert data["metadata"]["provider_family"] == "pack_b_default"
+            assert data["metadata"]["document_type"] in {
+                "meeting_detail",
+                "agenda",
+                "minutes",
+                "agenda_packet",
+                "attachment",
+                "staff_report",
+            }
+            return {"id": f"id-{data['name']}"}
+
+    result = await manual_expansion_runner._ensure_pack_a_source_inventory(
+        db=FakeDB(),
+        jurisdictions=[
+            "cupertino",
+            "mountain-view",
+            "san-mateo-county",
+            "san-francisco-city-county",
+            "campbell",
+        ],
+        asset_classes=[
+            "meeting_details",
+            "agendas",
+            "minutes",
+            "agenda_packets",
+            "attachments",
+            "staff_reports",
+        ],
+    )
+
+    assert result["attempted"] == 29
+    assert result["upserted"] == 29
+    assert result["failures"] == []
+    seeded_slugs = {
+        row["metadata"]["title"].split(" ")[0].lower()
+        for row in captured
+    }
+    assert "cupertino" in seeded_slugs
 
 
 @pytest.mark.asyncio
@@ -238,6 +317,84 @@ async def test_resolved_targets_payload_counts_source_and_legislation_targets():
             </html>
             """,
         ),
+        (
+            "legistar_calendar",
+            "san-jose",
+            "agenda_packets",
+            "View.ashx?M=PA&ID=100",
+            """
+            <html>
+              <body>
+                <a href="/View.ashx?M=PA&ID=100">Agenda Packet</a>
+              </body>
+            </html>
+            """,
+        ),
+        (
+            "legistar_calendar",
+            "san-jose",
+            "attachments",
+            "Attachment-100.pdf",
+            """
+            <html>
+              <body>
+                <a href="/attachments/Attachment-100.pdf">Attachment</a>
+              </body>
+            </html>
+            """,
+        ),
+        (
+            "legistar_calendar",
+            "santa-clara-county",
+            "staff_reports",
+            "staff-report-100.pdf",
+            """
+            <html>
+              <body>
+                <a href="/docs/staff-report-100.pdf">Staff Report</a>
+              </body>
+            </html>
+            """,
+        ),
+        (
+            "agenda_center",
+            "saratoga",
+            "agenda_packets",
+            "/DocumentCenter/View/6000/City-Council-Agenda-Packet",
+            """
+            <html>
+              <body>
+                <a href="/DocumentCenter/View/6000/City-Council-Agenda-Packet">Agenda Packet</a>
+              </body>
+            </html>
+            """,
+        ),
+        (
+            "agenda_center",
+            "saratoga",
+            "attachments",
+            "/DocumentCenter/View/6001/City-Council-Attachment",
+            """
+            <html>
+              <body>
+                <a href="/DocumentCenter/View/6001/City-Council-Attachment">Attachment</a>
+              </body>
+            </html>
+            """,
+        ),
+        (
+            "agenda_center",
+            "saratoga",
+            "staff_reports",
+            "/DocumentCenter/View/6002/City-Council-Staff-Report",
+            """
+            <html>
+              <body>
+                <a href="/DocumentCenter/View/6002/City-Council-Staff-Report">Staff Report</a>
+              </body>
+            </html>
+            """,
+        ),
     ],
 )
 async def test_resolve_source_targets_expands_handler_roots_to_document_targets(
@@ -296,6 +453,24 @@ async def test_resolve_source_targets_expands_handler_roots_to_document_targets(
     assert len(targets) == 1
     assert expected_fragment in targets[0].url
     assert targets[0].url != source_rows[0]["url"]
+
+
+def test_pack_a_defaults_do_not_add_fake_sunnyvale_staff_reports_lane():
+    sunnyvale_staff_report_rows = [
+        seed
+        for seed in manual_expansion_runner.PACK_A_SOURCE_DEFAULTS
+        if seed.jurisdiction_slug == "sunnyvale"
+        and seed.asset_class == "staff_reports"
+    ]
+    assert sunnyvale_staff_report_rows == []
+
+
+def test_pack_b_defaults_defer_non_matching_jurisdictions():
+    deferred = {"palo-alto", "milpitas", "alameda-county"}
+    present_pack_b = {
+        seed.jurisdiction_slug for seed in manual_expansion_runner.PACK_B_SOURCE_DEFAULTS
+    }
+    assert deferred.isdisjoint(present_pack_b)
 
 
 @pytest.mark.asyncio
