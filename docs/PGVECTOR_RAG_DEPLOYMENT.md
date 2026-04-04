@@ -22,11 +22,21 @@ Navigate to Railway → Affordabot Project → backend service → Settings:
 Required variables (should already be set):
 ```bash
 DATABASE_URL=<your-pgvector-postgres-connection-string>
-MINIO_URL=<minio-service-url>
-MINIO_ACCESS_KEY=<from-minio-service>
-MINIO_SECRET_KEY=<from-minio-service>
+MINIO_URL=http://bucket.railway.internal:9000
+# Optional override (explicit public endpoint)
+MINIO_URL_PUBLIC=https://<bucket-service-domain>.up.railway.app
+# Railway-provided public URL (auto-set in runtime)
+RAILWAY_SERVICE_BUCKET_URL=<bucket-service-domain>.up.railway.app
+MINIO_ACCESS_KEY=<generated-by-bucket-service>
+MINIO_SECRET_KEY=<generated-by-bucket-service>
 MINIO_BUCKET=affordabot-artifacts
-MINIO_SECURE=true
+# Railway S3/AWS-style aliases (also accepted by runtime code)
+S3_ENDPOINT=http://bucket.railway.internal:9000
+S3_BUCKET_NAME=affordabot-artifacts
+AWS_ACCESS_KEY_ID=<generated-by-bucket-service>
+AWS_SECRET_ACCESS_KEY=<generated-by-bucket-service>
+# Optional; backend auto-infers secure mode from endpoint choice
+MINIO_SECURE=false
 ```
 
 Feature flag (set initially to false):
@@ -63,35 +73,31 @@ poetry run python -c "import asyncpg; import asyncio; asyncio.run(asyncpg.connec
 ```bash
 cd /app/backend
 
-# Run universal harvester (should use SupabasePgVectorBackend)
+# Run universal harvester (should use the configured retrieval backend)
 poetry run python scripts/cron/run_universal_harvester.py
 
 # Check logs for:
-# - "Using SupabasePgVectorBackend" or similar
+# - selected retrieval backend initialization message
 # - Successful document processing
 # - No errors
 ```
 
 ### Verify MinIO Storage
 ```bash
-# List artifacts in MinIO bucket
+# Validate S3Storage can upload/download using current env resolution
 poetry run python -c "
 from services.storage.s3_storage import S3Storage
 import asyncio
-import os
 
 async def check():
-    storage = S3Storage(
-        endpoint=os.getenv('MINIO_URL'),
-        access_key=os.getenv('MINIO_ACCESS_KEY'),
-        secret_key=os.getenv('MINIO_SECRET_KEY'),
-        bucket_name=os.getenv('MINIO_BUCKET'),
-        secure=os.getenv('MINIO_SECURE', 'true').lower() == 'true'
-    )
-    files = await storage.list_files()
-    print(f'✓ Found {len(files)} files in MinIO')
-    for f in files[:5]:
-        print(f'  - {f}')
+    storage = S3Storage()
+    assert storage.client is not None, 'S3Storage client failed to initialize'
+    key = 'healthchecks/pgvector-rag-minio.txt'
+    payload = b'pgvector-rag-minio-check'
+    await storage.upload(key, payload, 'text/plain')
+    downloaded = await storage.download(key)
+    assert downloaded == payload
+    print(f'✓ Upload/download OK via {storage.endpoint} (bucket={storage.bucket})')
 
 asyncio.run(check())
 "
@@ -224,7 +230,7 @@ If issues arise:
 # In Railway dashboard:
 # 1. Set USE_PGVECTOR_RAG=false
 # 2. Redeploy
-# System reverts to SupabasePgVectorBackend immediately
+# System reverts to the non-pgvector feature-flag path immediately
 ```
 
 ### Data Cleanup (if needed)
@@ -300,7 +306,9 @@ echo $DATABASE_URL
 ### Issue: "MinIO access denied"
 **Solution:** Verify MinIO credentials
 ```bash
+echo $MINIO_URL
+echo $RAILWAY_SERVICE_BUCKET_URL
 echo $MINIO_ACCESS_KEY
 echo $MINIO_SECRET_KEY
-# Verify these match MinIO service configuration
+# Verify these match the Bucket service values
 ```

@@ -1,6 +1,6 @@
 """
 S3/MinIO Storage Backend for Affordabot.
-Replaces Supabase Storage with S3-compatible MinIO.
+Uses S3-compatible MinIO for artifact storage.
 """
 
 import os
@@ -34,15 +34,17 @@ class S3Storage:
             bucket: Bucket name
             secure: Use HTTPS (default False for internal Railway network)
         """
-        # v2.2: Prioritize public MinIO URL to fix Railway DNS resolution issues.
-        internal_url = os.getenv("MINIO_URL", "").replace("http://", "").replace("https://", "")
-        # Check both MINIO_URL_PUBLIC and RAILWAY_SERVICE_BUCKET_URL for public endpoint
-        public_url = os.getenv("MINIO_URL_PUBLIC", "").replace("http://", "").replace("https://", "")
+        # v2.3: support both legacy MINIO_* and Railway-style S3_*/AWS_* env shape.
+        internal_url = self._normalize_endpoint(
+            os.getenv("MINIO_URL") or os.getenv("S3_ENDPOINT", "")
+        )
+        # Check both MINIO_URL_PUBLIC and RAILWAY_SERVICE_BUCKET_URL for public endpoint.
+        public_url = self._normalize_endpoint(os.getenv("MINIO_URL_PUBLIC", ""))
         if not public_url:
             # Fallback to RAILWAY_SERVICE_BUCKET_URL (automatically set by Railway)
             railway_bucket_url = os.getenv("RAILWAY_SERVICE_BUCKET_URL", "")
             if railway_bucket_url:
-                public_url = railway_bucket_url.replace("http://", "").replace("https://", "")
+                public_url = self._normalize_endpoint(railway_bucket_url)
 
         # Use public URL if available, otherwise fall back to internal URL.
         # This resolves DNS issues inside Railway's network where the internal hostname
@@ -50,9 +52,18 @@ class S3Storage:
         chosen_endpoint = public_url if public_url else internal_url
         
         self.endpoint = endpoint or chosen_endpoint
-        self.access_key = access_key or os.getenv("MINIO_ACCESS_KEY")
-        self.secret_key = secret_key or os.getenv("MINIO_SECRET_KEY")
-        self.bucket = bucket or os.getenv("MINIO_BUCKET", "affordabot-artifacts")
+        self.access_key = access_key or os.getenv("MINIO_ACCESS_KEY") or os.getenv(
+            "AWS_ACCESS_KEY_ID"
+        )
+        self.secret_key = secret_key or os.getenv("MINIO_SECRET_KEY") or os.getenv(
+            "AWS_SECRET_ACCESS_KEY"
+        )
+        self.bucket = (
+            bucket
+            or os.getenv("MINIO_BUCKET")
+            or os.getenv("S3_BUCKET_NAME")
+            or "affordabot-artifacts"
+        )
         
         # Secure should be true if we are using the public URL.
         is_using_public_url = (self.endpoint == public_url and public_url != "")
@@ -69,6 +80,10 @@ class S3Storage:
                 self._ensure_bucket()
             else:
                 logger.error("Failed to initialize MinIO client even after attempts.")
+
+    @staticmethod
+    def _normalize_endpoint(raw: str) -> str:
+        return raw.replace("http://", "").replace("https://", "").rstrip("/")
 
     def _initialize_client(self, endpoint, secure):
         """Helper to init Minio client without crashing on DNS errors."""

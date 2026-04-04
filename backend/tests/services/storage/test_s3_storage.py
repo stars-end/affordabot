@@ -43,6 +43,39 @@ def test_init_with_env_vars(mock_minio, s3_env):
                 secure=True  # Should be secure when using public URL
             )
 
+        # Test case 3: Railway-provided public URL fallback when MINIO_URL_PUBLIC is not set
+        s3_env_railway_public = {
+            **s3_env,
+            "RAILWAY_SERVICE_BUCKET_URL": "bucket-dev-example.up.railway.app",
+        }
+        with patch.dict(os.environ, s3_env_railway_public, clear=True):
+            storage = S3Storage()
+            assert storage.client is not None
+            mock_minio.assert_called_with(
+                "bucket-dev-example.up.railway.app",
+                access_key="admin",
+                secret_key="password",
+                secure=True  # Railway public domain should be treated as HTTPS
+            )
+
+        # Test case 4: Railway S3/AWS fallback shape with no MINIO_* vars.
+        s3_env_aws_style = {
+            "S3_ENDPOINT": "http://bucket.railway.internal:9000",
+            "S3_BUCKET_NAME": "prime-radiant-assets",
+            "AWS_ACCESS_KEY_ID": "minioadmin",
+            "AWS_SECRET_ACCESS_KEY": "minioadmin",
+        }
+        with patch.dict(os.environ, s3_env_aws_style, clear=True):
+            storage = S3Storage()
+            assert storage.client is not None
+            assert storage.bucket == "prime-radiant-assets"
+            mock_minio.assert_called_with(
+                "bucket.railway.internal:9000",
+                access_key="minioadmin",
+                secret_key="minioadmin",
+                secure=False,
+            )
+
 def test_init_without_vars(mock_minio):
     # Ensure no env vars leak
     with patch.dict(os.environ, {}, clear=True):
