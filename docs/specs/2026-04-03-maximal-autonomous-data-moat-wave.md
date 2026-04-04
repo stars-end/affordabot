@@ -55,7 +55,8 @@ This wave counts as successful only if all of the following are true:
 
 Working threshold for this wave:
 
-- target `5` jurisdictions with truthful `agendas + minutes`
+- accepted truthful threshold: `4` jurisdictions with `agendas + minutes`
+- rationale and evidence live in `2026-04-03-existing-family-deepening-bounded-validation.md`
 
 ## Non-Goals
 
