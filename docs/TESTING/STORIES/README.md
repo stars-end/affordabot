@@ -1,11 +1,28 @@
 # Admin Console User Stories
 
-Test stories for verifying the Affordabot admin console using UISmokeAgent with GLM-4.6V visual analysis.
+Executable repo-local stories for the affordabot admin surface.
+
+The current founder-critical executable pack is the substrate viewer MVP:
+
+- `substrate_run_list`
+- `substrate_failure_buckets`
+- `substrate_raw_row_detail`
+
+These stories are the canonical product-truth checks for the merged substrate explorer because they cover:
+
+- run list
+- failure buckets
+- raw row detail
+
+Legacy broader admin-console stories remain in this directory, but they are no longer the only source of executable truth for founder debugging flows.
 
 ## Stories
 
 | Story | Description | Priority |
 |-------|-------------|----------|
+| [substrate_run_list](substrate_run_list.yml) | Open substrate tab and verify run-first debugging shell | P0 |
+| [substrate_failure_buckets](substrate_failure_buckets.yml) | Verify grouped failure debugging surface | P0 |
+| [substrate_raw_row_detail](substrate_raw_row_detail.yml) | Verify row-level inspection surface | P0 |
 | [admin_dashboard_overview](admin_dashboard_overview.yml) | View dashboard metrics and navigation | P0 |
 | [discovery_search_flow](discovery_search_flow.yml) | Search for legislation sources | P0 |
 | [source_management](source_management.yml) | View and manage data sources | P0 |
@@ -17,11 +34,14 @@ Test stories for verifying the Affordabot admin console using UISmokeAgent with 
 ## Running Stories
 
 ```bash
-# Run all admin stories via verify-dev
-make verify-dev
+# Run all admin UISmoke stories
+make verify-stories
 
-# Run specific story
-make verify-story STORY=admin_dashboard_overview
+# Run the deterministic substrate gate
+make verify-gate
+
+# Run the broader nightly pack
+make verify-nightly
 
 # Run stories for PR verification
 make verify-pr PR=185

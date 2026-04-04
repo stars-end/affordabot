@@ -317,7 +317,7 @@ verify-gate:
 		--email-env TEST_USER_EMAIL --password-env TEST_USER_PASSWORD \
 		--suite-timeout 5400 --story-timeout 900 --nav-timeout-ms 120000 --action-timeout-ms 60000 \
 		--mode gate --repro 1 --deterministic-only \
-		--only-stories admin_dashboard_overview alert_system_verification discovery_search_flow jurisdiction_detail_view \
+		--only-stories substrate_run_list substrate_failure_buckets substrate_raw_row_detail \
 		--fail-on-classifications skip not_run suite_timeout auth_failed timeout flaky_recovered flaky_inconclusive single_timeout reproducible_timeout single_navigation_failed reproducible_navigation_failed single_clerk_failed reproducible_clerk_failed
 
 verify-triage:
