@@ -10,6 +10,9 @@ def mock_postgres():
     pg = MagicMock()
     pg._fetchrow = AsyncMock()
     pg._execute = AsyncMock()
+    pg.find_retrievable_raw_scrape_by_content_identity = AsyncMock(return_value=None)
+    pg.get_latest_retrievable_raw_scrape_for_canonical_document = AsyncMock(return_value=None)
+    pg.get_vector_stats = AsyncMock(return_value={"chunk_count": 1})
     pg.get_or_create_source = AsyncMock(return_value="12345678-1234-5678-1234-567812345678")
     pg.create_raw_scrape = AsyncMock(return_value="test-scrape-id")
     # Define side effect for _fetchrow to handle different queries
@@ -25,7 +28,11 @@ def mock_postgres():
                 "source_id": "12345678-1234-5678-1234-567812345678",
                 "url": "http://example.com",
                 "content_type": "text/html",
-                "metadata": "{}"
+                "metadata": "{}",
+                "content_hash": "hash-123",
+                "canonical_document_key": "v1|source=123|doctype=agenda|url=http://example.com",
+                "document_id": None,
+                "processed": False,
             }
         return None
 
@@ -132,6 +139,10 @@ async def test_process_raw_scrape_preserves_existing_storage_uri_for_pdf(
                 "content_type": "application/pdf",
                 "metadata": "{}",
                 "storage_uri": "s3://bucket/original.pdf",
+                "content_hash": "hash-pdf",
+                "canonical_document_key": "v1|source=123|doctype=agenda|url=https://example.com/agenda.pdf",
+                "document_id": None,
+                "processed": False,
             }
         return None
 
@@ -152,6 +163,76 @@ async def test_process_raw_scrape_preserves_existing_storage_uri_for_pdf(
         "UPDATE raw_scrapes" in call[0][0] and "storage_uri" in call[0][0]
         for call in mock_postgres._execute.call_args_list
     )
+
+@pytest.mark.asyncio
+async def test_process_raw_scrape_reuses_existing_retrievable_revision(
+    mock_postgres, mock_vector_backend, mock_embedding_service
+):
+    mock_postgres.find_retrievable_raw_scrape_by_content_identity.return_value = {
+        "id": "prior-scrape-1",
+        "document_id": "doc-existing",
+        "revision_number": 1,
+    }
+    mock_postgres.get_vector_stats.return_value = {"chunk_count": 4}
+
+    service = IngestionService(
+        postgres_client=mock_postgres,
+        vector_backend=mock_vector_backend,
+        embedding_service=mock_embedding_service,
+    )
+
+    count = await service.process_raw_scrape("test-scrape-123")
+
+    assert count == 4
+    mock_embedding_service.embed_documents.assert_not_called()
+    mock_vector_backend.upsert.assert_not_called()
+    reused_truth_payloads = [
+        json.loads(call[0][1]).get("ingestion_truth", {})
+        for call in mock_postgres._execute.call_args_list
+        if "UPDATE raw_scrapes SET metadata = $1" in call[0][0]
+    ]
+    assert any(payload.get("reused_existing_revision") is True for payload in reused_truth_payloads)
+    assert any(payload.get("reused_from_raw_scrape_id") == "prior-scrape-1" for payload in reused_truth_payloads)
+    assert any(
+        "UPDATE raw_scrapes" in call[0][0] and True in call[0][1:]
+        for call in mock_postgres._execute.call_args_list
+    )
+
+
+@pytest.mark.asyncio
+async def test_process_raw_scrape_short_circuits_processed_retrievable_row(
+    mock_postgres, mock_vector_backend, mock_embedding_service
+):
+    async def fetchrow_side_effect(query, *args):
+        if "FROM raw_scrapes" in query:
+            return {
+                "id": "test-scrape-123",
+                "data": json.dumps({"content": "Title Some text."}),
+                "source_id": "12345678-1234-5678-1234-567812345678",
+                "url": "http://example.com",
+                "content_type": "text/html",
+                "metadata": "{}",
+                "content_hash": "hash-123",
+                "canonical_document_key": "v1|source=123|doctype=agenda|url=http://example.com",
+                "document_id": "doc-existing-row",
+                "processed": True,
+            }
+        return None
+
+    mock_postgres._fetchrow.side_effect = fetchrow_side_effect
+    mock_postgres.get_vector_stats.return_value = {"chunk_count": 3}
+
+    service = IngestionService(
+        postgres_client=mock_postgres,
+        vector_backend=mock_vector_backend,
+        embedding_service=mock_embedding_service,
+    )
+
+    count = await service.process_raw_scrape("test-scrape-123")
+
+    assert count == 3
+    mock_embedding_service.embed_documents.assert_not_called()
+    mock_vector_backend.upsert.assert_not_called()
 
 def test_extract_text_cleaning():
     """Test HTML cleaning logic."""
