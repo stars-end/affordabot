@@ -1,0 +1,41 @@
+id: substrate_raw_row_detail
+description: "Admin verifies raw-row inspection loads under the substrate explorer"
+persona: admin_operator
+priority: P0
+timeout_seconds: 120
+goals:
+  - "Verify raw row section renders under the substrate tab"
+  - "Verify raw row state is inspectable without SQL"
+  - "Verify the detail panel exposes either metadata JSON or an explicit empty state"
+start_url: "/admin"
+steps:
+  - action: wait_for_selector
+    selector: "[data-testid='substrate-tab-trigger']"
+    description: "Verify substrate tab trigger is present"
+
+  - action: click
+    selector: "[data-testid='substrate-tab-trigger']"
+    description: "Open substrate explorer tab"
+
+  - action: wait_for_selector
+    selector: "[data-testid='substrate-raw-rows-section']"
+    description: "Verify raw rows section renders"
+
+  - action: wait_for_selector
+    selector: "[data-testid='substrate-raw-rows-table'], [data-testid='substrate-raw-rows-empty']"
+    description: "Verify raw rows table has either rows or an explicit empty state"
+
+  - action: wait_for_selector
+    selector: "[data-testid='substrate-raw-row-metadata-json'], [data-testid='substrate-raw-row-detail-empty']"
+    description: "Verify raw row detail exposes either metadata JSON or an explicit empty state"
+
+  - action: assert_text
+    selector: "body"
+    text: "Raw Row Detail"
+    description: "Verify raw row detail card remains visible"
+
+metadata:
+  wait_after_login_ms: 2000
+  tags: ["admin", "substrate", "raw-row-detail", "deterministic"]
+  priority: 0
+  estimated_duration_seconds: 30

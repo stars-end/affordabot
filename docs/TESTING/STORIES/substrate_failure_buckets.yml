@@ -1,0 +1,37 @@
+id: substrate_failure_buckets
+description: "Admin verifies the substrate failure-bucket surface is visible and understandable"
+persona: admin_operator
+priority: P0
+timeout_seconds: 90
+goals:
+  - "Verify failure buckets section loads under the substrate tab"
+  - "Verify the page renders either grouped failures or an explicit empty state"
+  - "Keep founder debugging on-page without SQL"
+start_url: "/admin"
+steps:
+  - action: wait_for_selector
+    selector: "[data-testid='substrate-tab-trigger']"
+    description: "Verify substrate tab trigger is present"
+
+  - action: click
+    selector: "[data-testid='substrate-tab-trigger']"
+    description: "Open substrate explorer tab"
+
+  - action: wait_for_selector
+    selector: "[data-testid='substrate-failure-buckets-section']"
+    description: "Verify failure buckets section renders"
+
+  - action: wait_for_selector
+    selector: "[data-testid='substrate-failure-buckets-table'], [data-testid='substrate-failure-buckets-empty']"
+    description: "Verify failure buckets have either a table or an explicit empty state"
+
+  - action: assert_text
+    selector: "body"
+    text: "Failure Buckets"
+    description: "Verify failure bucket heading remains visible"
+
+metadata:
+  wait_after_login_ms: 2000
+  tags: ["admin", "substrate", "failures", "deterministic"]
+  priority: 0
+  estimated_duration_seconds: 25
