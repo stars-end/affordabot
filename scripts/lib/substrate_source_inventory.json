@@ -98,5 +98,59 @@
       "seed_wave": "bd-knlg",
       "inventory_scope": "existing_family_deepening"
     }
+  },
+  {
+    "jurisdiction_slug": "milpitas",
+    "jurisdiction_name": "Milpitas",
+    "jurisdiction_type": "city",
+    "source_name": "Milpitas Archive Center (Agendas and Minutes)",
+    "url": "https://www.milpitas.gov/archive.aspx",
+    "type": "meeting_archive_root",
+    "status": "active",
+    "source_method": "manual",
+    "handler": "substrate_custom_archive_document_center",
+    "scrape_url": "https://www.milpitas.gov/archive.aspx",
+    "metadata": {
+      "provider_family": "custom_archive_document_center",
+      "document_type": "meeting_archive_root",
+      "supported_asset_classes": ["agendas", "minutes"],
+      "supported_document_types": ["agenda", "minutes"],
+      "trust_tier": "official_partner",
+      "seed_wave": "bd-epyeg",
+      "inventory_scope": "new_family_bootstrap",
+      "extraction_mode": "civicplus_archive_options",
+      "required_label_keywords": ["agenda", "minute"],
+      "url_allowlist_prefixes": [
+        "https://www.milpitas.gov/Archive.aspx",
+        "https://www.milpitas.gov/ArchiveCenter/ViewFile/Item/"
+      ]
+    }
+  },
+  {
+    "jurisdiction_slug": "alameda-county",
+    "jurisdiction_name": "Alameda County",
+    "jurisdiction_type": "county",
+    "source_name": "Alameda County BOS Agenda/Minutes App Root",
+    "url": "https://apps.acgov.org/agenda_minutes_app/board/bos_calendar/ag_min.jsp",
+    "type": "meeting_archive_root",
+    "status": "active",
+    "source_method": "manual",
+    "handler": "substrate_custom_archive_document_center",
+    "scrape_url": "https://apps.acgov.org/agenda_minutes_app/board/bos_calendar/ag_min.jsp",
+    "metadata": {
+      "provider_family": "custom_archive_document_center",
+      "document_type": "meeting_archive_root",
+      "supported_asset_classes": ["agendas", "minutes"],
+      "supported_document_types": ["agenda", "minutes"],
+      "trust_tier": "official_partner",
+      "seed_wave": "bd-epyeg",
+      "inventory_scope": "new_family_bootstrap",
+      "extraction_mode": "anchors",
+      "required_url_keywords": ["agenda", "minute", "ag_min"],
+      "url_allowlist_prefixes": [
+        "https://apps.acgov.org/",
+        "https://aspawebq.acgov.org/board/"
+      ]
+    }
   }
 ]

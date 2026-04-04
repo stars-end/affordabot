@@ -56,6 +56,79 @@ def test_resolve_source_targets_selects_supported_document_types_only():
     ]
 
 
+def test_resolve_source_targets_expands_custom_archive_document_center_family(monkeypatch):
+    class FakeHTTPResponse:
+        def __init__(self, payload: str):
+            self._payload = payload
+
+        def read(self):
+            return self._payload.encode("utf-8")
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    html = """
+    <label for="amidDDN10">City Council Agendas</label>
+    <select id="amidDDN10" onchange="ViewArchive(this, 10, 2,'')">
+      <option value="-2">Select an Item</option>
+      <option value="1_1_0_123">April 2026 Agenda (PDF)</option>
+    </select>
+    <label for="amidDDN11">City Council Minutes</label>
+    <select id="amidDDN11" onchange="ViewArchive(this, 11, 2,'')">
+      <option value="-2">Select an Item</option>
+      <option value="1_1_0_456">April 2026 Minutes (PDF)</option>
+    </select>
+    """
+
+    def fake_urlopen(url, timeout):
+        assert url == "https://example.gov/archive.aspx"
+        assert timeout == 20
+        return FakeHTTPResponse(html)
+
+    monkeypatch.setattr(manual_expansion_runner.urllib.request, "urlopen", fake_urlopen)
+
+    source_rows = [
+        {
+            "id": "root-1",
+            "name": "Milpitas Archive Root",
+            "type": "meeting_archive_root",
+            "url": "https://example.gov/archive.aspx",
+            "metadata": {
+                "provider_family": "custom_archive_document_center",
+                "document_type": "meeting_archive_root",
+                "extraction_mode": "civicplus_archive_options",
+                "supported_document_types": ["agenda", "minutes"],
+                "required_label_keywords": ["agenda", "minute"],
+                "url_allowlist_prefixes": ["https://example.gov/Archive.aspx"],
+                "trust_tier": "official_partner",
+            },
+            "jurisdiction_name": "Milpitas",
+            "jurisdiction_type": "city",
+        }
+    ]
+
+    targets, failures = _resolve_source_targets(
+        source_rows=source_rows,
+        jurisdictions=["milpitas"],
+        asset_classes=["agendas", "minutes"],
+        max_documents_per_source=5,
+    )
+
+    assert failures == []
+    assert {(target.asset_class, target.document_type) for target in targets} == {
+        ("agendas", "agenda"),
+        ("minutes", "minutes"),
+    }
+    assert {target.source_type for target in targets} == {"meeting_document"}
+    assert {target.url for target in targets} == {
+        "https://example.gov/Archive.aspx?AMID=10&ADID=123",
+        "https://example.gov/Archive.aspx?AMID=11&ADID=456",
+    }
+
+
 def test_resolved_targets_payload_counts_source_and_legislation_targets():
     source_rows = [
         {
