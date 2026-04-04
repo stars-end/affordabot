@@ -96,6 +96,12 @@ class IngestionService:
         args.append(scrape_id)
         query = f"UPDATE raw_scrapes SET {', '.join(set_parts)} WHERE id = ${len(args)}"
         await self.pg._execute(query, *args)
+
+    async def _chunk_count_for_document(self, document_id: Optional[str]) -> int:
+        if not document_id:
+            return 0
+        stats = await self.pg.get_vector_stats(document_id)
+        return int(stats.get("chunk_count") or 0)
     
     async def process_raw_scrape(self, scrape_id: str) -> int:
         """
@@ -158,6 +164,58 @@ class IngestionService:
         scrape_meta = self._parse_json_object(scrape.metadata)
         if not scrape_meta:
             scrape_meta = row_metadata
+
+        existing_document_id = row_dict.get("document_id")
+        if row_dict.get("processed") and existing_document_id:
+            existing_chunk_count = await self._chunk_count_for_document(str(existing_document_id))
+            if existing_chunk_count > 0:
+                await self._persist_ingestion_truth(
+                    scrape_id=scrape_id,
+                    metadata=scrape_meta,
+                    truth_updates={
+                        "stage": "retrievable_existing_row",
+                        "vector_upserted": True,
+                        "retrievable": True,
+                        "retrievable_chunk_count": existing_chunk_count,
+                        "document_id": str(existing_document_id),
+                    },
+                    processed=True,
+                    document_id=str(existing_document_id),
+                    clear_error=True,
+                )
+                return existing_chunk_count
+
+        canonical_document_key = row_dict.get("canonical_document_key") or scrape_meta.get(
+            "canonical_document_key"
+        )
+        if canonical_document_key and row_dict.get("content_hash"):
+            prior_revision = await self.pg.find_retrievable_raw_scrape_by_content_identity(
+                canonical_document_key,
+                row_dict["content_hash"],
+                exclude_scrape_id=scrape_id,
+            )
+            if prior_revision and prior_revision.get("document_id"):
+                reused_document_id = str(prior_revision["document_id"])
+                reused_chunk_count = await self._chunk_count_for_document(reused_document_id)
+                if reused_chunk_count > 0:
+                    await self._persist_ingestion_truth(
+                        scrape_id=scrape_id,
+                        metadata=scrape_meta,
+                        truth_updates={
+                            "stage": "retrievable_existing_revision_reused",
+                            "vector_upserted": True,
+                            "retrievable": True,
+                            "retrievable_chunk_count": reused_chunk_count,
+                            "document_id": reused_document_id,
+                            "reused_existing_revision": True,
+                            "reused_from_raw_scrape_id": str(prior_revision["id"]),
+                            "reused_from_revision_number": prior_revision.get("revision_number"),
+                        },
+                        processed=True,
+                        document_id=reused_document_id,
+                        clear_error=True,
+                    )
+                    return reused_chunk_count
 
         if not text:
             print(f"⚠️ No text extracted for scrape {scrape_id}")
