@@ -1,10 +1,14 @@
 from fastapi import APIRouter, Depends, Request, HTTPException
-from typing import List, Optional
+from typing import Any, List, Optional
 from pydantic import BaseModel
 import json
 from services.glass_box import GlassBoxService, AgentStep, PipelineStep
 from auth.clerk import require_admin_user
 from db.postgres_client import PostgresDB
+from scripts.substrate.substrate_inspection_report import (
+    build_substrate_inspection_report,
+    fetch_raw_scrapes_for_run,
+)
 
 router = APIRouter(
     prefix="/admin",
@@ -86,6 +90,87 @@ async def get_count(db: PostgresDB, query: str, *args):
         return result["count"] if result else 0
     except Exception:
         return 0
+
+
+def _to_json_dict(value: Any) -> dict[str, Any]:
+    if isinstance(value, dict):
+        return value
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+            if isinstance(parsed, dict):
+                return parsed
+        except Exception:
+            return {}
+    return {}
+
+
+def _to_text(value: Any) -> str:
+    if value is None:
+        return ""
+    return str(value).strip()
+
+
+def _to_bool(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes"}
+    return bool(value)
+
+
+def _safe_preview(value: Any, *, max_chars: int) -> str:
+    text = _to_text(value)
+    if not text:
+        return ""
+    if len(text) <= max_chars:
+        return text
+    return f"{text[:max_chars]}..."
+
+
+def _serialize_substrate_row(
+    row: dict[str, Any],
+    *,
+    preview_chars: int = 320,
+    include_full_metadata: bool = False,
+) -> dict[str, Any]:
+    metadata = _to_json_dict(row.get("metadata"))
+    truth = _to_json_dict(metadata.get("ingestion_truth"))
+    data = _to_json_dict(row.get("data"))
+    content = data.get("content")
+
+    payload = {
+        "id": str(row["id"]),
+        "created_at": str(row["created_at"]) if row.get("created_at") else None,
+        "url": row.get("url"),
+        "source_url": row.get("source_url"),
+        "source_name": row.get("source_name"),
+        "source_type": row.get("source_type"),
+        "jurisdiction_name": row.get("jurisdiction_name"),
+        "storage_uri": row.get("storage_uri"),
+        "document_id": str(row["document_id"]) if row.get("document_id") else None,
+        "canonical_document_key": row.get("canonical_document_key"),
+        "previous_raw_scrape_id": str(row["previous_raw_scrape_id"]) if row.get("previous_raw_scrape_id") else None,
+        "revision_number": int(row["revision_number"]) if row.get("revision_number") is not None else None,
+        "last_seen_at": str(row["last_seen_at"]) if row.get("last_seen_at") else None,
+        "seen_count": int(row["seen_count"]) if row.get("seen_count") is not None else None,
+        "error_message": row.get("error_message"),
+        "document_type": metadata.get("document_type"),
+        "content_class": metadata.get("content_class"),
+        "trust_tier": metadata.get("trust_tier"),
+        "promotion_state": metadata.get("promotion_state"),
+        "promotion_reason_category": metadata.get("promotion_reason_category"),
+        "ingestion_truth_stage": truth.get("stage"),
+        "ingestion_truth_retrievable": _to_bool(truth.get("retrievable")),
+        "content_preview": _safe_preview(content, max_chars=preview_chars),
+        "content_length": len(content) if isinstance(content, str) else 0,
+    }
+
+    if include_full_metadata:
+        payload["metadata"] = metadata
+        payload["ingestion_truth"] = truth
+
+    return payload
 
 
 # ============================================================================
@@ -275,6 +360,313 @@ async def list_scrapes(db: PostgresDB = Depends(get_db), limit: int = 50):
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to fetch scrapes: {str(e)}"
+        )
+
+
+# ============================================================================
+# SUBSTRATE VIEWER ENDPOINTS (bd-afqp)
+# ============================================================================
+
+
+@router.get("/substrate/runs")
+async def list_substrate_runs(
+    db: PostgresDB = Depends(get_db),
+    limit: int = 20,
+    offset: int = 0,
+    run_id_key: str = "manual_run_id",
+):
+    """List substrate runs grouped by metadata.run_id_key."""
+    try:
+        rows = await db._fetch(
+            """
+            WITH stamped AS (
+                SELECT
+                    rs.created_at,
+                    rs.error_message,
+                    rs.metadata,
+                    COALESCE(rs.metadata->>$1, '') AS run_id
+                FROM raw_scrapes rs
+                WHERE COALESCE(rs.metadata->>$1, '') <> ''
+            )
+            SELECT
+                run_id,
+                MIN(created_at) AS first_created_at,
+                MAX(created_at) AS last_created_at,
+                COUNT(*) AS raw_scrapes_total,
+                COUNT(*) FILTER (
+                    WHERE COALESCE(metadata->>'promotion_state', '') = 'promoted_substrate'
+                ) AS promoted_substrate_count,
+                COUNT(*) FILTER (
+                    WHERE COALESCE(metadata->>'promotion_state', '') = 'durable_raw'
+                ) AS durable_raw_count,
+                COUNT(*) FILTER (
+                    WHERE COALESCE(metadata->>'promotion_state', '') = 'captured_candidate'
+                ) AS captured_candidate_count,
+                COUNT(*) FILTER (
+                    WHERE COALESCE(COALESCE(metadata->'ingestion_truth', '{}'::jsonb)->>'stage', '') = 'retrievable'
+                       OR LOWER(
+                            COALESCE(
+                                COALESCE(metadata->'ingestion_truth', '{}'::jsonb)->>'retrievable',
+                                'false'
+                            )
+                        ) IN ('true', '1', 'yes')
+                ) AS retrievable_count,
+                COUNT(*) FILTER (WHERE COALESCE(error_message, '') <> '') AS raw_capture_error_count
+            FROM stamped
+            GROUP BY run_id
+            ORDER BY last_created_at DESC
+            LIMIT $2 OFFSET $3
+            """,
+            run_id_key,
+            limit,
+            offset,
+        )
+
+        runs = []
+        for row in rows:
+            errors = int(row.get("raw_capture_error_count") or 0)
+            retrievable = int(row.get("retrievable_count") or 0)
+            status = "captured_only"
+            if errors > 0:
+                status = "has_errors"
+            elif retrievable > 0:
+                status = "healthy"
+
+            runs.append(
+                {
+                    "run_id": row["run_id"],
+                    "first_created_at": str(row["first_created_at"])
+                    if row.get("first_created_at")
+                    else None,
+                    "last_created_at": str(row["last_created_at"])
+                    if row.get("last_created_at")
+                    else None,
+                    "status": status,
+                    "raw_scrapes_total": int(row.get("raw_scrapes_total") or 0),
+                    "promoted_substrate_count": int(
+                        row.get("promoted_substrate_count") or 0
+                    ),
+                    "durable_raw_count": int(row.get("durable_raw_count") or 0),
+                    "captured_candidate_count": int(
+                        row.get("captured_candidate_count") or 0
+                    ),
+                    "retrievable_count": retrievable,
+                    "raw_capture_error_count": errors,
+                }
+            )
+
+        return {"run_id_key": run_id_key, "limit": limit, "offset": offset, "runs": runs}
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to fetch substrate runs: {str(e)}"
+        )
+
+
+@router.get("/substrate/runs/{run_id}")
+async def get_substrate_run_detail(
+    run_id: str,
+    db: PostgresDB = Depends(get_db),
+    run_id_key: str = "manual_run_id",
+):
+    """Get inspection-style summary for a substrate run."""
+    try:
+        rows = await fetch_raw_scrapes_for_run(db=db, run_id=run_id, run_id_key=run_id_key)
+        if not rows:
+            raise HTTPException(status_code=404, detail=f"Substrate run '{run_id}' not found")
+
+        report = build_substrate_inspection_report(
+            run_id=run_id,
+            rows=rows,
+            run_id_key=run_id_key,
+        )
+        jurisdiction_names = sorted(
+            {
+                _to_text(row.get("jurisdiction_name"))
+                for row in rows
+                if _to_text(row.get("jurisdiction_name"))
+            }
+        )
+
+        return {
+            "run_id": run_id,
+            "run_id_key": run_id_key,
+            "summary": report,
+            "failure_buckets": report.get("top_failure_buckets", []),
+            "jurisdiction_names": jurisdiction_names,
+            "raw_scrapes_total": report.get("raw_scrapes_total", 0),
+            "latest_created_at": str(rows[0]["created_at"]) if rows and rows[0].get("created_at") else None,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to fetch substrate run detail: {str(e)}"
+        )
+
+
+@router.get("/substrate/runs/{run_id}/failure-buckets")
+async def get_substrate_run_failure_buckets(
+    run_id: str,
+    db: PostgresDB = Depends(get_db),
+    run_id_key: str = "manual_run_id",
+):
+    """Get failure buckets for a substrate run."""
+    try:
+        rows = await fetch_raw_scrapes_for_run(db=db, run_id=run_id, run_id_key=run_id_key)
+        if not rows:
+            raise HTTPException(status_code=404, detail=f"Substrate run '{run_id}' not found")
+
+        report = build_substrate_inspection_report(
+            run_id=run_id,
+            rows=rows,
+            run_id_key=run_id_key,
+        )
+        return {
+            "run_id": run_id,
+            "run_id_key": run_id_key,
+            "raw_scrapes_total": report.get("raw_scrapes_total", 0),
+            "failure_buckets": report.get("top_failure_buckets", []),
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to fetch substrate failure buckets: {str(e)}"
+        )
+
+
+@router.get("/substrate/runs/{run_id}/raw-scrapes")
+async def list_substrate_run_raw_scrapes(
+    run_id: str,
+    db: PostgresDB = Depends(get_db),
+    run_id_key: str = "manual_run_id",
+    limit: int = 50,
+    offset: int = 0,
+    jurisdiction_name: str = "",
+    document_type: str = "",
+    promotion_state: str = "",
+    trust_tier: str = "",
+    content_class: str = "",
+):
+    """List substrate raw rows for a run with optional filters."""
+    try:
+        rows = await db._fetch(
+            """
+            SELECT
+                rs.id,
+                rs.created_at,
+                rs.url,
+                rs.data,
+                rs.error_message,
+                rs.storage_uri,
+                rs.document_id,
+                rs.canonical_document_key,
+                rs.previous_raw_scrape_id,
+                rs.revision_number,
+                rs.last_seen_at,
+                rs.seen_count,
+                rs.metadata,
+                s.url AS source_url,
+                s.type AS source_type,
+                s.name AS source_name,
+                j.name AS jurisdiction_name
+            FROM raw_scrapes rs
+            LEFT JOIN sources s ON s.id = rs.source_id
+            LEFT JOIN jurisdictions j ON j.id::text = s.jurisdiction_id
+            WHERE COALESCE(rs.metadata->>$1, '') = $2
+              AND ($3 = '' OR LOWER(COALESCE(j.name, '')) = LOWER($3))
+              AND ($4 = '' OR LOWER(COALESCE(rs.metadata->>'document_type', '')) = LOWER($4))
+              AND ($5 = '' OR LOWER(COALESCE(rs.metadata->>'promotion_state', '')) = LOWER($5))
+              AND ($6 = '' OR LOWER(COALESCE(rs.metadata->>'trust_tier', '')) = LOWER($6))
+              AND ($7 = '' OR LOWER(COALESCE(rs.metadata->>'content_class', '')) = LOWER($7))
+            ORDER BY rs.created_at DESC
+            LIMIT $8 OFFSET $9
+            """,
+            run_id_key,
+            run_id,
+            jurisdiction_name,
+            document_type,
+            promotion_state,
+            trust_tier,
+            content_class,
+            limit,
+            offset,
+        )
+        serialized_rows = [
+            _serialize_substrate_row(dict(row), preview_chars=320) for row in rows
+        ]
+        return {
+            "run_id": run_id,
+            "run_id_key": run_id_key,
+            "limit": limit,
+            "offset": offset,
+            "filters": {
+                "jurisdiction_name": jurisdiction_name or None,
+                "document_type": document_type or None,
+                "promotion_state": promotion_state or None,
+                "trust_tier": trust_tier or None,
+                "content_class": content_class or None,
+            },
+            "raw_scrapes": serialized_rows,
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to fetch substrate raw rows: {str(e)}"
+        )
+
+
+@router.get("/substrate/raw-scrapes/{raw_scrape_id}")
+async def get_substrate_raw_scrape_detail(
+    raw_scrape_id: str,
+    db: PostgresDB = Depends(get_db),
+):
+    """Get detailed substrate row payload for operator debugging."""
+    try:
+        row = await db._fetchrow(
+            """
+            SELECT
+                rs.id,
+                rs.created_at,
+                rs.url,
+                rs.data,
+                rs.error_message,
+                rs.storage_uri,
+                rs.document_id,
+                rs.canonical_document_key,
+                rs.previous_raw_scrape_id,
+                rs.revision_number,
+                rs.last_seen_at,
+                rs.seen_count,
+                rs.metadata,
+                s.url AS source_url,
+                s.type AS source_type,
+                s.name AS source_name,
+                j.name AS jurisdiction_name
+            FROM raw_scrapes rs
+            LEFT JOIN sources s ON s.id = rs.source_id
+            LEFT JOIN jurisdictions j ON j.id::text = s.jurisdiction_id
+            WHERE rs.id::text = $1
+            LIMIT 1
+            """,
+            raw_scrape_id,
+        )
+        if not row:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Substrate raw scrape '{raw_scrape_id}' not found",
+            )
+
+        payload = _serialize_substrate_row(
+            dict(row),
+            preview_chars=4000,
+            include_full_metadata=True,
+        )
+        return payload
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to fetch substrate raw row detail: {str(e)}"
         )
 
 

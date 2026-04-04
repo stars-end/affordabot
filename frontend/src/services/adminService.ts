@@ -1,4 +1,5 @@
 const API_URL = '';
+const NO_STORE_FETCH: RequestInit = { cache: 'no-store' };
 
 export interface Source {
     id: string;
@@ -49,6 +50,92 @@ export interface JurisdictionDashboardStats {
     total_bills: number;
     pipeline_status: 'healthy' | 'degraded' | 'unknown';
     active_alerts: string[];
+}
+
+export interface SubstrateRun {
+    run_id: string;
+    first_created_at: string | null;
+    last_created_at: string | null;
+    status: 'healthy' | 'has_errors' | 'captured_only' | string;
+    raw_scrapes_total: number;
+    promoted_substrate_count: number;
+    durable_raw_count: number;
+    captured_candidate_count: number;
+    retrievable_count: number;
+    raw_capture_error_count: number;
+}
+
+export interface SubstrateRunsResponse {
+    run_id_key: string;
+    limit: number;
+    offset: number;
+    runs: SubstrateRun[];
+}
+
+export interface SubstrateFailureBucket {
+    reason?: string;
+    count?: number;
+    [key: string]: unknown;
+}
+
+export interface SubstrateRunDetail {
+    run_id: string;
+    run_id_key: string;
+    summary: Record<string, unknown>;
+    failure_buckets: SubstrateFailureBucket[];
+    jurisdiction_names: string[];
+    raw_scrapes_total: number;
+    latest_created_at: string | null;
+}
+
+export interface SubstrateRawScrapeRow {
+    id: string;
+    created_at: string | null;
+    url: string | null;
+    source_url: string | null;
+    source_name: string | null;
+    source_type: string | null;
+    jurisdiction_name: string | null;
+    storage_uri: string | null;
+    document_id: string | null;
+    error_message: string | null;
+    document_type: string | null;
+    content_class: string | null;
+    trust_tier: string | null;
+    promotion_state: string | null;
+    promotion_reason_category: string | null;
+    ingestion_truth_stage: string | null;
+    ingestion_truth_retrievable: boolean;
+    content_preview: string;
+    content_length: number;
+}
+
+export interface SubstrateRunRawScrapesResponse {
+    run_id: string;
+    run_id_key: string;
+    limit: number;
+    offset: number;
+    filters: {
+        jurisdiction_name?: string | null;
+        document_type?: string | null;
+        promotion_state?: string | null;
+        trust_tier?: string | null;
+        content_class?: string | null;
+    };
+    raw_scrapes: SubstrateRawScrapeRow[];
+}
+
+export interface SubstrateRawScrapeDetail extends SubstrateRawScrapeRow {
+    metadata?: Record<string, unknown>;
+    ingestion_truth?: Record<string, unknown>;
+}
+
+export interface SubstrateRunRawFilters {
+    jurisdiction_name?: string;
+    document_type?: string;
+    promotion_state?: string;
+    trust_tier?: string;
+    content_class?: string;
 }
 
 export const adminService = {
@@ -118,6 +205,72 @@ export const adminService = {
     async getJurisdictionDashboard(id: string): Promise<JurisdictionDashboardStats> {
         const res = await fetch(`${API_URL}/api/admin/jurisdiction/${id}/dashboard`);
         if (!res.ok) throw new Error('Failed to fetch dashboard stats');
+        return res.json();
+    },
+
+    // Substrate explorer
+    async getSubstrateRuns(limit = 20, offset = 0, runIdKey = 'manual_run_id'): Promise<SubstrateRunsResponse> {
+        const params = new URLSearchParams({
+            limit: String(limit),
+            offset: String(offset),
+            run_id_key: runIdKey,
+        });
+        const res = await fetch(`${API_URL}/api/admin/substrate/runs?${params.toString()}`, NO_STORE_FETCH);
+        if (!res.ok) throw new Error('Failed to fetch substrate runs');
+        return res.json();
+    },
+
+    async getSubstrateRunDetail(runId: string, runIdKey = 'manual_run_id'): Promise<SubstrateRunDetail> {
+        const params = new URLSearchParams({ run_id_key: runIdKey });
+        const res = await fetch(
+            `${API_URL}/api/admin/substrate/runs/${encodeURIComponent(runId)}?${params.toString()}`,
+            NO_STORE_FETCH,
+        );
+        if (!res.ok) throw new Error('Failed to fetch substrate run detail');
+        return res.json();
+    },
+
+    async getSubstrateFailureBuckets(runId: string, runIdKey = 'manual_run_id'): Promise<{ failure_buckets: SubstrateFailureBucket[] }> {
+        const params = new URLSearchParams({ run_id_key: runIdKey });
+        const res = await fetch(
+            `${API_URL}/api/admin/substrate/runs/${encodeURIComponent(runId)}/failure-buckets?${params.toString()}`,
+            NO_STORE_FETCH,
+        );
+        if (!res.ok) throw new Error('Failed to fetch substrate failure buckets');
+        return res.json();
+    },
+
+    async getSubstrateRunRawScrapes(
+        runId: string,
+        options: { limit?: number; offset?: number; runIdKey?: string; filters?: SubstrateRunRawFilters } = {}
+    ): Promise<SubstrateRunRawScrapesResponse> {
+        const {
+            limit = 50,
+            offset = 0,
+            runIdKey = 'manual_run_id',
+            filters = {},
+        } = options;
+        const params = new URLSearchParams({
+            limit: String(limit),
+            offset: String(offset),
+            run_id_key: runIdKey,
+        });
+        Object.entries(filters).forEach(([key, value]) => {
+            if (value && value.trim()) {
+                params.set(key, value.trim());
+            }
+        });
+        const res = await fetch(
+            `${API_URL}/api/admin/substrate/runs/${encodeURIComponent(runId)}/raw-scrapes?${params.toString()}`,
+            NO_STORE_FETCH,
+        );
+        if (!res.ok) throw new Error('Failed to fetch substrate raw rows');
+        return res.json();
+    },
+
+    async getSubstrateRawScrapeDetail(rawScrapeId: string): Promise<SubstrateRawScrapeDetail> {
+        const res = await fetch(`${API_URL}/api/admin/substrate/raw-scrapes/${encodeURIComponent(rawScrapeId)}`, NO_STORE_FETCH);
+        if (!res.ok) throw new Error('Failed to fetch substrate raw row detail');
         return res.json();
     }
 };
