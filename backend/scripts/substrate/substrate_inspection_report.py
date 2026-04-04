@@ -125,6 +125,11 @@ def _failure_bucket(ctx: RowContext) -> str | None:
 def _sample_row(ctx: RowContext) -> dict[str, Any]:
     return {
         "raw_scrape_id": _text(ctx.row.get("id")),
+        "canonical_document_key": _text(ctx.row.get("canonical_document_key")),
+        "previous_raw_scrape_id": _text(ctx.row.get("previous_raw_scrape_id")),
+        "revision_number": ctx.row.get("revision_number"),
+        "last_seen_at": _iso(ctx.row.get("last_seen_at")),
+        "seen_count": ctx.row.get("seen_count"),
         "created_at": _iso(ctx.row.get("created_at")),
         "url": _text(ctx.row.get("url")),
         "source_url": _text(ctx.row.get("source_url")),
@@ -377,6 +382,9 @@ def build_substrate_inspection_report(
     trust_counts: Counter[str] = Counter()
     content_class_counts: Counter[str] = Counter()
     failure_counts: Counter[str] = Counter()
+    unique_canonical_documents: set[str] = set()
+    revisioned_rows_count = 0
+    seen_again_rows_count = 0
 
     samples: dict[str, list[dict[str, Any]]] = {
         "promoted": [],
@@ -400,6 +408,18 @@ def build_substrate_inspection_report(
         content_class = _text(ctx.metadata.get("content_class")) or "missing"
         content_class_counts[content_class] += 1
 
+        canonical_document_key = _text(ctx.row.get("canonical_document_key"))
+        if canonical_document_key:
+            unique_canonical_documents.add(canonical_document_key)
+
+        revision_number = ctx.row.get("revision_number")
+        if isinstance(revision_number, int) and revision_number > 1:
+            revisioned_rows_count += 1
+
+        seen_count = ctx.row.get("seen_count")
+        if isinstance(seen_count, int) and seen_count > 1:
+            seen_again_rows_count += 1
+
         failure_bucket = _failure_bucket(ctx)
         if failure_bucket:
             failure_counts[failure_bucket] += 1
@@ -422,6 +442,9 @@ def build_substrate_inspection_report(
         "ingestion_truth_stage_counts": dict(stage_counts),
         "trust_tier_counts": dict(trust_counts),
         "content_class_counts": dict(content_class_counts),
+        "unique_canonical_documents": len(unique_canonical_documents),
+        "revisioned_rows_count": revisioned_rows_count,
+        "seen_again_rows_count": seen_again_rows_count,
         "top_failure_buckets": top_failures,
         "samples": samples,
     }
@@ -443,6 +466,11 @@ async def fetch_raw_scrapes_for_run(
           rs.error_message,
           rs.storage_uri,
           rs.document_id,
+          rs.canonical_document_key,
+          rs.previous_raw_scrape_id,
+          rs.revision_number,
+          rs.last_seen_at,
+          rs.seen_count,
           rs.metadata,
           s.url AS source_url,
           s.type AS source_type,
