@@ -3,15 +3,21 @@
 
 from __future__ import annotations
 
+import html
 import json
 import os
+import re
 import sys
+import urllib.request
 from argparse import Namespace
 from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
+from urllib.parse import urljoin
+from urllib.parse import urlsplit
+from urllib.parse import urlunsplit
 
 from pathlib import Path
 
@@ -44,6 +50,30 @@ ASSET_CLASS_TO_DOCUMENT_TYPES = {
     "municipal_code": {"municipal_code"},
 }
 
+CUSTOM_ARCHIVE_PROVIDER_FAMILY = "custom_archive_document_center"
+CUSTOM_ARCHIVE_ROOT_DOCUMENT_TYPE = "meeting_archive_root"
+DEFAULT_ARCHIVE_DOCUMENT_TYPES = {"agenda", "minutes"}
+AGENDA_KEYWORDS = ("agenda", "agendas")
+MINUTES_KEYWORDS = ("minutes", "minute")
+
+ANCHOR_LINK_PATTERN = re.compile(
+    r"<a[^>]*href=[\"']([^\"']+)[\"'][^>]*>(.*?)</a>",
+    re.IGNORECASE | re.DOTALL,
+)
+LABEL_PATTERN = re.compile(
+    r"<label[^>]*for=[\"']([^\"']+)[\"'][^>]*>(.*?)</label>",
+    re.IGNORECASE | re.DOTALL,
+)
+SELECT_PATTERN = re.compile(
+    r"<select(?P<attrs>[^>]*)>(?P<inner>.*?)</select>",
+    re.IGNORECASE | re.DOTALL,
+)
+OPTION_PATTERN = re.compile(
+    r"<option[^>]*value=[\"']([^\"']+)[\"'][^>]*>(.*?)</option>",
+    re.IGNORECASE | re.DOTALL,
+)
+TAG_PATTERN = re.compile(r"<[^>]+>")
+
 
 @dataclass(frozen=True)
 class SourceTarget:
@@ -66,6 +96,184 @@ def _slugify(value: str) -> str:
 
 def _manual_run_id() -> str:
     return f"manual-substrate-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}-{uuid4().hex[:8]}"
+
+
+def _strip_tags(value: str) -> str:
+    return re.sub(r"\s+", " ", html.unescape(TAG_PATTERN.sub(" ", value or ""))).strip()
+
+
+def _normalize_url(url: str, *, root_url: str) -> str:
+    absolute = urljoin(root_url, html.unescape(url or "").strip())
+    parts = urlsplit(absolute)
+    cleaned = parts._replace(fragment="")
+    return urlunsplit(cleaned)
+
+
+def _infer_archive_document_type(*, url: str, text: str) -> str | None:
+    combined = f"{url} {text}".strip().lower()
+    has_agenda = any(keyword in combined for keyword in AGENDA_KEYWORDS)
+    has_minutes = any(keyword in combined for keyword in MINUTES_KEYWORDS)
+    if has_agenda and not has_minutes:
+        return "agenda"
+    if has_minutes and not has_agenda:
+        return "minutes"
+    return None
+
+
+def _extract_anchor_candidates(*, page_html: str, root_url: str) -> list[dict[str, str]]:
+    candidates: list[dict[str, str]] = []
+    for href, text_html in ANCHOR_LINK_PATTERN.findall(page_html):
+        candidate_url = _normalize_url(href, root_url=root_url)
+        if not candidate_url.startswith(("http://", "https://")):
+            continue
+        text = _strip_tags(text_html)
+        document_type = _infer_archive_document_type(url=candidate_url, text=text)
+        if not document_type:
+            continue
+        title = text or candidate_url
+        candidates.append(
+            {
+                "url": candidate_url,
+                "title": title,
+                "document_type": document_type,
+            }
+        )
+    return candidates
+
+
+def _extract_civicplus_archive_candidates(
+    *,
+    page_html: str,
+    root_url: str,
+    required_label_keywords: set[str] | None = None,
+) -> list[dict[str, str]]:
+    label_by_for: dict[str, str] = {}
+    for label_for, label_text_html in LABEL_PATTERN.findall(page_html):
+        label_by_for[label_for.strip()] = _strip_tags(label_text_html)
+
+    candidates: list[dict[str, str]] = []
+    for select_match in SELECT_PATTERN.finditer(page_html):
+        attrs = select_match.group("attrs") or ""
+        inner = select_match.group("inner") or ""
+        onchange_match = re.search(r"ViewArchive\(this,\s*(\d+),", attrs, re.IGNORECASE)
+        if not onchange_match:
+            continue
+        amid = onchange_match.group(1)
+        select_id_match = re.search(r"\bid=[\"']([^\"']+)[\"']", attrs, re.IGNORECASE)
+        select_id = select_id_match.group(1) if select_id_match else ""
+        label_text = label_by_for.get(select_id, "")
+        if required_label_keywords:
+            label_lower = label_text.lower()
+            if not any(keyword in label_lower for keyword in required_label_keywords):
+                continue
+
+        for option_value, option_text_html in OPTION_PATTERN.findall(inner):
+            value = (option_value or "").strip()
+            if value in {"", "-1", "-2"}:
+                continue
+            parts = value.split("_")
+            if len(parts) < 4:
+                continue
+            is_recent = parts[2] == "1"
+            item_id = parts[3]
+            if is_recent:
+                candidate_url = _normalize_url(
+                    f"Archive.aspx?AMID={amid}&Type=Recent",
+                    root_url=root_url,
+                )
+            else:
+                candidate_url = _normalize_url(
+                    f"Archive.aspx?AMID={amid}&ADID={item_id}",
+                    root_url=root_url,
+                )
+            option_text = _strip_tags(option_text_html)
+            combined_text = " - ".join(part for part in (label_text, option_text) if part)
+            document_type = _infer_archive_document_type(
+                url=candidate_url,
+                text=combined_text,
+            )
+            if not document_type:
+                continue
+            title = combined_text or candidate_url
+            candidates.append(
+                {
+                    "url": candidate_url,
+                    "title": title,
+                    "document_type": document_type,
+                }
+            )
+    return candidates
+
+
+def _to_string_list(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [str(item).strip() for item in value if str(item).strip()]
+
+
+def _discover_custom_archive_candidates(
+    *,
+    row: dict[str, Any],
+) -> tuple[list[dict[str, str]], str | None]:
+    metadata = parse_metadata_blob(row.get("metadata"))
+    fetch_url = (metadata.get("archive_fetch_url") or row.get("url") or "").strip()
+    if not fetch_url:
+        return [], "missing_archive_fetch_url"
+
+    extraction_mode = (metadata.get("extraction_mode") or "anchors").strip().lower()
+    allowed_prefixes = _to_string_list(metadata.get("url_allowlist_prefixes"))
+    required_url_keywords = [keyword.lower() for keyword in _to_string_list(metadata.get("required_url_keywords"))]
+    required_label_keywords = {
+        keyword.lower() for keyword in _to_string_list(metadata.get("required_label_keywords"))
+    }
+    supported_document_types = {
+        item.lower() for item in _to_string_list(metadata.get("supported_document_types"))
+    } or set(DEFAULT_ARCHIVE_DOCUMENT_TYPES)
+
+    try:
+        with urllib.request.urlopen(fetch_url, timeout=20) as response:
+            page_html = response.read().decode("utf-8", "replace")
+    except Exception as exc:  # pragma: no cover - runtime safety path
+        return [], str(exc)
+
+    candidates: list[dict[str, str]] = []
+    if extraction_mode in {"anchors", "mixed", "auto"}:
+        candidates.extend(
+            _extract_anchor_candidates(
+                page_html=page_html,
+                root_url=fetch_url,
+            )
+        )
+    if extraction_mode in {"civicplus_archive_options", "mixed", "auto"}:
+        candidates.extend(
+            _extract_civicplus_archive_candidates(
+                page_html=page_html,
+                root_url=fetch_url,
+                required_label_keywords=required_label_keywords or None,
+            )
+        )
+
+    deduped: list[dict[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    for candidate in candidates:
+        candidate_url = candidate["url"]
+        candidate_document_type = candidate["document_type"]
+        if candidate_document_type not in supported_document_types:
+            continue
+        if allowed_prefixes and not any(
+            candidate_url.lower().startswith(prefix.lower()) for prefix in allowed_prefixes
+        ):
+            continue
+        if required_url_keywords and not any(
+            keyword in candidate_url.lower() for keyword in required_url_keywords
+        ):
+            continue
+        key = (candidate_url, candidate_document_type)
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(candidate)
+    return deduped, None
 
 
 async def _build_ingestion_service(db: PostgresDB) -> Any:
@@ -132,13 +340,10 @@ def _resolve_source_targets(
     asset_classes: list[str],
     max_documents_per_source: int,
 ) -> tuple[list[SourceTarget], list[dict[str, Any]]]:
-    requested_slugs = {_slugify(item) for item in jurisdictions}
     targets: list[SourceTarget] = []
     failures: list[dict[str, Any]] = []
-
-    grouped: dict[tuple[str, str], list[dict[str, Any]]] = {}
-    for row in source_rows:
-        grouped.setdefault((_slugify(row["jurisdiction_name"]), row["type"]), []).append(row)
+    custom_archive_cache: dict[str, tuple[list[dict[str, str]], str | None]] = {}
+    reported_custom_archive_failures: set[tuple[str, str, str]] = set()
 
     for jurisdiction in jurisdictions:
         jurisdiction_slug = _slugify(jurisdiction)
@@ -157,7 +362,7 @@ def _resolve_source_targets(
                 )
                 continue
 
-            matching_rows: list[dict[str, Any]] = []
+            matching_targets: list[SourceTarget] = []
             for row in source_rows:
                 row_slug = _slugify(row["jurisdiction_name"])
                 if row_slug != jurisdiction_slug:
@@ -167,11 +372,90 @@ def _resolve_source_targets(
                 url = (row.get("url") or "").strip()
                 if not url or url.startswith("unknown://"):
                     continue
-                if document_type not in document_types:
+                if document_type in document_types:
+                    trust_tier, _ = classify_trust(
+                        canonical_url=url,
+                        trust_tier=metadata.get("trust_tier"),
+                    )
+                    matching_targets.append(
+                        SourceTarget(
+                            jurisdiction_slug=jurisdiction_slug,
+                            jurisdiction_name=row["jurisdiction_name"],
+                            jurisdiction_type=row["jurisdiction_type"],
+                            asset_class=asset_class,
+                            source_id=str(row["id"]),
+                            source_name=row["name"],
+                            source_type=row["type"],
+                            document_type=document_type or next(iter(document_types)),
+                            url=url,
+                            title=metadata.get("title") or row["name"] or url,
+                            trust_tier=trust_tier,
+                        )
+                    )
                     continue
-                matching_rows.append(row)
 
-            if not matching_rows:
+                provider_family = (metadata.get("provider_family") or "").strip().lower()
+                if provider_family != CUSTOM_ARCHIVE_PROVIDER_FAMILY:
+                    continue
+                if document_type != CUSTOM_ARCHIVE_ROOT_DOCUMENT_TYPE:
+                    continue
+                if asset_class not in {"agendas", "minutes"}:
+                    continue
+
+                source_cache_key = str(row.get("id") or row.get("url") or "")
+                if source_cache_key not in custom_archive_cache:
+                    custom_archive_cache[source_cache_key] = _discover_custom_archive_candidates(row=row)
+                discovered_candidates, discovery_error = custom_archive_cache[source_cache_key]
+
+                if discovery_error:
+                    failure_key = (jurisdiction_slug, asset_class, source_cache_key)
+                    if failure_key not in reported_custom_archive_failures:
+                        reported_custom_archive_failures.add(failure_key)
+                        failures.append(
+                            {
+                                "jurisdiction": jurisdiction_slug,
+                                "asset_class": asset_class,
+                                "reason": "custom_archive_discovery_failed",
+                                "source_url": url,
+                                "detail": discovery_error,
+                            }
+                        )
+                    continue
+
+                for candidate in discovered_candidates:
+                    if candidate["document_type"] not in document_types:
+                        continue
+                    candidate_url = candidate["url"]
+                    trust_tier, _ = classify_trust(
+                        canonical_url=candidate_url,
+                        trust_tier=metadata.get("trust_tier"),
+                    )
+                    matching_targets.append(
+                        SourceTarget(
+                            jurisdiction_slug=jurisdiction_slug,
+                            jurisdiction_name=row["jurisdiction_name"],
+                            jurisdiction_type=row["jurisdiction_type"],
+                            asset_class=asset_class,
+                            source_id=str(row["id"]),
+                            source_name=metadata.get("source_label") or row["name"],
+                            source_type="meeting_document",
+                            document_type=candidate["document_type"],
+                            url=candidate_url,
+                            title=candidate.get("title") or candidate_url,
+                            trust_tier=trust_tier,
+                        )
+                    )
+
+            deduped_targets: list[SourceTarget] = []
+            seen_urls: set[tuple[str, str]] = set()
+            for target in matching_targets:
+                dedupe_key = (target.url, target.document_type)
+                if dedupe_key in seen_urls:
+                    continue
+                seen_urls.add(dedupe_key)
+                deduped_targets.append(target)
+
+            if not deduped_targets:
                 failures.append(
                     {
                         "jurisdiction": jurisdiction_slug,
@@ -181,28 +465,7 @@ def _resolve_source_targets(
                 )
                 continue
 
-            for row in matching_rows[:max_documents_per_source]:
-                metadata = parse_metadata_blob(row.get("metadata"))
-                url = (row.get("url") or "").strip()
-                trust_tier, _ = classify_trust(
-                    canonical_url=url,
-                    trust_tier=metadata.get("trust_tier"),
-                )
-                targets.append(
-                    SourceTarget(
-                        jurisdiction_slug=jurisdiction_slug,
-                        jurisdiction_name=row["jurisdiction_name"],
-                        jurisdiction_type=row["jurisdiction_type"],
-                        asset_class=asset_class,
-                        source_id=str(row["id"]),
-                        source_name=row["name"],
-                        source_type=row["type"],
-                        document_type=metadata.get("document_type") or next(iter(document_types)),
-                        url=url,
-                        title=metadata.get("title") or row["name"] or url,
-                        trust_tier=trust_tier,
-                    )
-                )
+            targets.extend(deduped_targets[:max_documents_per_source])
 
     return targets, failures
 
