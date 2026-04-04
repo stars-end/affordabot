@@ -1,5 +1,10 @@
+import base64
+import hashlib
+import hmac
+import json
 import os
 import re
+import time
 from pathlib import Path
 from urllib.parse import urlparse
 from urllib.parse import quote
@@ -67,6 +72,30 @@ async def _click_primary_continue(page: Page) -> None:
     raise RuntimeError("No suitable continue/sign-in button found")
 
 
+def _b64url_encode(value: bytes) -> str:
+    return base64.urlsafe_b64encode(value).decode().rstrip("=")
+
+
+def build_signed_bypass_cookie(
+    secret: str,
+    *,
+    now: int | None = None,
+    ttl_seconds: int = 3600,
+) -> str:
+    issued_at = now if now is not None else int(time.time())
+    payload = {
+        "sub": "test-admin",
+        "role": "admin",
+        "exp": issued_at + ttl_seconds,
+    }
+    payload_json = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+    payload_b64 = _b64url_encode(payload_json)
+    message = f"v1.{payload_b64}".encode("utf-8")
+    signature = hmac.new(secret.encode("utf-8"), message, hashlib.sha256).digest()
+    signature_b64 = _b64url_encode(signature)
+    return f"v1.{payload_b64}.{signature_b64}"
+
+
 async def clerk_login(page: Page, base_url: str, output_dir: Path) -> bool:
     """
     Attempt to authenticate for Clerk-protected routes.
@@ -82,18 +111,19 @@ async def clerk_login(page: Page, base_url: str, output_dir: Path) -> bool:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Cookie-gated bypass (preferred for non-prod verification runs).
-    # - Railway PR: middleware bypasses /admin unconditionally.
-    # - Railway dev: middleware bypasses /admin when `x-test-user=admin` cookie is present.
-    # Safe in prod because the middleware only honors this cookie on Railway preview/dev hosts.
+    # The current frontend middleware expects a signed x-test-user token on
+    # dev / staging / CI-style verification hosts, so verification helpers
+    # must mint the same v1 payload+HMAC format used by Playwright auth setup.
     try:
         parsed = urlparse(base_url)
         host = parsed.hostname
-        if host:
+        secret = os.environ.get("TEST_AUTH_BYPASS_SECRET")
+        if host and secret:
             await page.context.add_cookies(
                 [
                     {
                         "name": "x-test-user",
-                        "value": "admin",
+                        "value": build_signed_bypass_cookie(secret),
                         "domain": host,
                         "path": "/",
                         "secure": parsed.scheme == "https",

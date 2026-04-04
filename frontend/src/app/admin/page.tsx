@@ -128,7 +128,11 @@ export default function AdminDashboard() {
                         <Settings className="w-4 h-4 mr-2" />
                         Models
                     </TabsTrigger>
-                    <TabsTrigger value="substrate" className="data-[state=active]:bg-slate-900 data-[state=active]:text-white rounded text-sm">
+                    <TabsTrigger
+                        value="substrate"
+                        data-testid="substrate-tab-trigger"
+                        className="data-[state=active]:bg-slate-900 data-[state=active]:text-white rounded text-sm"
+                    >
                         <Search className="w-4 h-4 mr-2" />
                         Substrate
                     </TabsTrigger>

@@ -1,0 +1,37 @@
+id: substrate_run_list
+description: "Admin opens the substrate tab and verifies the run-first debugging surface loads"
+persona: admin_operator
+priority: P0
+timeout_seconds: 90
+goals:
+  - "Verify the substrate tab is reachable from /admin"
+  - "Verify the substrate explorer shell renders"
+  - "Verify the run list is visible even when data is empty"
+start_url: "/admin"
+steps:
+  - action: wait_for_selector
+    selector: "[data-testid='substrate-tab-trigger']"
+    description: "Verify substrate tab trigger is present"
+
+  - action: click
+    selector: "[data-testid='substrate-tab-trigger']"
+    description: "Open substrate explorer tab"
+
+  - action: wait_for_selector
+    selector: "[data-testid='substrate-explorer']"
+    description: "Verify substrate explorer root renders"
+
+  - action: assert_text
+    selector: "[data-testid='substrate-title']"
+    text: "Substrate Explorer"
+    description: "Verify substrate explorer title"
+
+  - action: wait_for_selector
+    selector: "[data-testid='substrate-run-item'], [data-testid='substrate-run-list-empty']"
+    description: "Verify run list has either items or an explicit empty state"
+
+metadata:
+  wait_after_login_ms: 2000
+  tags: ["admin", "substrate", "run-list", "deterministic"]
+  priority: 0
+  estimated_duration_seconds: 25

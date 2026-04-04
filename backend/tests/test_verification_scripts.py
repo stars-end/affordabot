@@ -4,7 +4,9 @@ Focused on path resolution, SQL generation, and text extraction helpers.
 Does NOT require a live database connection.
 """
 
+import importlib.util
 import sys
+import types
 from pathlib import Path
 from unittest.mock import AsyncMock
 
@@ -14,6 +16,25 @@ import pytest
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
+
+
+def _load_clerk_auth_module():
+    fake_playwright = types.ModuleType("playwright")
+    fake_async_api = types.ModuleType("playwright.async_api")
+
+    class FakePage:  # pragma: no cover - test shim only
+        pass
+
+    fake_async_api.Page = FakePage
+    sys.modules.setdefault("playwright", fake_playwright)
+    sys.modules["playwright.async_api"] = fake_async_api
+
+    script = BACKEND_ROOT / "scripts" / "verification" / "clerk_auth.py"
+    spec = importlib.util.spec_from_file_location("clerk_auth_test_module", script)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 class TestPathResolution:
@@ -198,6 +219,20 @@ class TestRerunScriptTriggerSource:
         )
         assert "trigger_source TEXT" in source, (
             "Schema pre-flight should ensure trigger_source column"
+        )
+
+
+class TestClerkAuthBypassCookie:
+    def test_build_signed_bypass_cookie_matches_frontend_contract(self) -> None:
+        clerk_auth = _load_clerk_auth_module()
+        token = clerk_auth.build_signed_bypass_cookie(
+            "test-secret-123",
+            now=1_700_000_000,
+            ttl_seconds=3600,
+        )
+        assert (
+            token
+            == "v1.eyJzdWIiOiJ0ZXN0LWFkbWluIiwicm9sZSI6ImFkbWluIiwiZXhwIjoxNzAwMDAzNjAwfQ.plzyRUzg0pTzW_bHAXBRBfG1Jro26QwhhAfTBz3FNlI"
         )
 
 

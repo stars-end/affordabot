@@ -225,15 +225,22 @@ export function SubstrateExplorer() {
         : previewText || 'n/a';
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6" data-testid="substrate-explorer">
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-2xl font-bold tracking-tight text-slate-900">Substrate Explorer</h2>
+                    <h2 className="text-2xl font-bold tracking-tight text-slate-900" data-testid="substrate-title">
+                        Substrate Explorer
+                    </h2>
                     <p className="text-sm text-slate-600">
                         Run-first debugging for raw substrate captures, failures, and row-level inspection.
                     </p>
                 </div>
-                <Button variant="outline" onClick={() => loadRuns(runsOffset)} disabled={runsLoading}>
+                <Button
+                    variant="outline"
+                    onClick={() => loadRuns(runsOffset)}
+                    disabled={runsLoading}
+                    data-testid="substrate-runs-refresh"
+                >
                     {runsLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCcw className="mr-2 h-4 w-4" />}
                     Refresh Runs
                 </Button>
@@ -248,7 +255,7 @@ export function SubstrateExplorer() {
             )}
 
             <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-                <Card className="xl:col-span-1">
+                <Card className="xl:col-span-1" data-testid="substrate-run-list">
                     <CardHeader>
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div>
@@ -285,6 +292,7 @@ export function SubstrateExplorer() {
                                         <button
                                             type="button"
                                             key={run.run_id}
+                                            data-testid="substrate-run-item"
                                             className={`w-full rounded border p-3 text-left transition ${
                                                 selected ? 'border-slate-900 bg-slate-50' : 'border-slate-200 hover:bg-slate-50'
                                             }`}
@@ -310,7 +318,9 @@ export function SubstrateExplorer() {
                                     );
                                 })}
                                 {!runsLoading && runs.length === 0 && (
-                                    <p className="text-sm text-slate-500">No substrate runs found.</p>
+                                    <p className="text-sm text-slate-500" data-testid="substrate-run-list-empty">
+                                        No substrate runs found.
+                                    </p>
                                 )}
                             </div>
                         </ScrollArea>
@@ -416,7 +426,7 @@ export function SubstrateExplorer() {
                         </CardContent>
                     </Card>
 
-                    <Card id="substrate-failure-buckets">
+                    <Card id="substrate-failure-buckets" data-testid="substrate-failure-buckets-section">
                         <CardHeader>
                             <CardTitle>Failure Buckets</CardTitle>
                             <CardDescription>Top grouped failure reasons for this run.</CardDescription>
@@ -436,7 +446,7 @@ export function SubstrateExplorer() {
                                             </Badge>
                                         ))}
                                     </div>
-                                    <Table>
+                                    <Table data-testid="substrate-failure-buckets-table">
                                         <TableHeader>
                                             <TableRow>
                                                 <TableHead>Reason</TableHead>
@@ -454,14 +464,16 @@ export function SubstrateExplorer() {
                                     </Table>
                                 </div>
                             ) : (
-                                <p className="text-sm text-slate-500">No failure buckets for this run.</p>
+                                <p className="text-sm text-slate-500" data-testid="substrate-failure-buckets-empty">
+                                    No failure buckets for this run.
+                                </p>
                             )}
                         </CardContent>
                     </Card>
                 </div>
             </div>
 
-            <Card id="substrate-raw-rows">
+            <Card id="substrate-raw-rows" data-testid="substrate-raw-rows-section">
                 <CardHeader>
                     <CardTitle>Run Raw Rows</CardTitle>
                     <CardDescription>
@@ -535,7 +547,7 @@ export function SubstrateExplorer() {
                     ) : (
                         <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
                             <ScrollArea className="h-[360px] rounded border">
-                                <Table>
+                                <Table data-testid="substrate-raw-rows-table">
                                     <TableHeader>
                                         <TableRow>
                                             <TableHead>Created</TableHead>
@@ -549,6 +561,7 @@ export function SubstrateExplorer() {
                                             <TableRow
                                                 key={row.id}
                                                 onClick={() => setSelectedRawId(row.id)}
+                                                data-testid="substrate-raw-row-item"
                                                 className={selectedRawId === row.id ? 'bg-slate-50' : 'cursor-pointer'}
                                             >
                                                 <TableCell className="text-xs">{formatTime(row.created_at)}</TableCell>
@@ -560,11 +573,13 @@ export function SubstrateExplorer() {
                                     </TableBody>
                                 </Table>
                                 {!rawRows.length && (
-                                    <p className="p-4 text-sm text-slate-500">No raw rows match the current filters.</p>
+                                    <p className="p-4 text-sm text-slate-500" data-testid="substrate-raw-rows-empty">
+                                        No raw rows match the current filters.
+                                    </p>
                                 )}
                             </ScrollArea>
 
-                            <Card>
+                            <Card data-testid="substrate-raw-row-detail">
                                 <CardHeader>
                                     <CardTitle className="text-base">Raw Row Detail</CardTitle>
                                     <CardDescription>{selectedRawId || 'Select a row to inspect details'}</CardDescription>
@@ -600,13 +615,18 @@ export function SubstrateExplorer() {
                                             </div>
                                             <div>
                                                 <p className="mb-1 text-xs font-semibold text-slate-700">Metadata JSON</p>
-                                                <pre className="max-h-48 overflow-auto rounded border bg-slate-950 p-2 text-[11px] text-slate-100">
+                                                <pre
+                                                    className="max-h-48 overflow-auto rounded border bg-slate-950 p-2 text-[11px] text-slate-100"
+                                                    data-testid="substrate-raw-row-metadata-json"
+                                                >
                                                     {JSON.stringify(rawDetail.metadata || {}, null, 2)}
                                                 </pre>
                                             </div>
                                         </div>
                                     ) : (
-                                        <p className="text-sm text-slate-500">No row detail loaded.</p>
+                                        <p className="text-sm text-slate-500" data-testid="substrate-raw-row-detail-empty">
+                                            No row detail loaded.
+                                        </p>
                                     )}
                                 </CardContent>
                             </Card>
