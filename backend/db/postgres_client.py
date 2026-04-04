@@ -3,7 +3,7 @@ import logging
 import json
 import asyncpg
 from typing import Optional, List, Dict, Any
-from datetime import datetime
+from datetime import datetime, timezone
 from urllib.parse import quote
 
 from services.revision_identity import build_revision_seed
@@ -532,7 +532,7 @@ class PostgresDB:
     ) -> bool:
         """Bump seen metadata for an unchanged canonical revision."""
         try:
-            stamp = seen_at or datetime.now()
+            stamp = seen_at or datetime.now(timezone.utc)
             await self._execute(
                 """
                 UPDATE raw_scrapes
