@@ -32,6 +32,7 @@ from db.postgres_client import PostgresDB
 from services.ingestion_service import IngestionService
 from services.pdf_markdown import PDFMarkdownError
 from services.pdf_markdown import extract_pdf_markdown
+from services.revision_identity import build_revision_seed
 from services.storage.s3_storage import S3Storage
 from services.substrate_promotion import apply_promotion_decision
 from services.substrate_promotion import evaluate_rules
@@ -407,9 +408,28 @@ async def capture_document(args: argparse.Namespace) -> dict[str, Any]:
             "metadata": raw_metadata,
             "storage_uri": storage_uri,
         }
-        scrape_id = await db.create_raw_scrape(scrape_record)
-        if not scrape_id:
-            raise RuntimeError("Failed to create raw scrape")
+        revision_seed = build_revision_seed(scrape_record)
+        latest_revision = await db.get_latest_raw_scrape_for_canonical_document(
+            revision_seed["canonical_document_key"]
+        )
+        reused_existing_revision = False
+
+        if (
+            latest_revision
+            and latest_revision.get("content_hash") == content_hash
+            and latest_revision.get("id")
+        ):
+            reused_existing_revision = True
+            scrape_id = str(latest_revision["id"])
+            await db.mark_raw_scrape_seen(scrape_id)
+        else:
+            if latest_revision and latest_revision.get("id"):
+                prior_revision_number = int(latest_revision.get("revision_number") or 1)
+                scrape_record["previous_raw_scrape_id"] = str(latest_revision["id"])
+                scrape_record["revision_number"] = prior_revision_number + 1
+            scrape_id = await db.create_raw_scrape(scrape_record)
+            if not scrape_id:
+                raise RuntimeError("Failed to create raw scrape")
 
         chunk_count = 0
         ingest_attempted = False
@@ -420,99 +440,108 @@ async def capture_document(args: argparse.Namespace) -> dict[str, Any]:
         error_message = None
 
         if args.ingest:
-            prepared_text_like = content_class in TEXT_CONTENT_CLASSES
-            if content_class == "pdf_binary":
-                extracted_markdown, extractor_name, extractor_error = extract_pdf_markdown_payload(
-                    content_bytes
-                )
-                existing_meta = parse_metadata_blob(scrape_row.get("metadata")) if scrape_row else {}
-                truth = parse_metadata_blob(existing_meta.get("ingestion_truth"))
-                if extracted_markdown:
-                    data_payload["parsed_markdown"] = extracted_markdown
-                    data_payload["pdf_markdown_extractor"] = extractor_name
-                    truth.update(
-                        {
-                            "parsed": True,
-                            "parse_method": extractor_name,
-                            "parse_error": None,
-                            "stage": "parsed_pdf_markdown",
-                            "last_updated_at": datetime.now(timezone.utc).isoformat(),
-                        }
-                    )
-                    existing_meta["ingestion_truth"] = truth
-                    await db._execute(
-                        "UPDATE raw_scrapes SET data = $1, metadata = $2 WHERE id = $3",
-                        json.dumps(data_payload),
-                        json.dumps(existing_meta),
-                        scrape_id,
-                    )
-                    scrape_row = await db._fetchrow("SELECT * FROM raw_scrapes WHERE id = $1", scrape_id)
-                    prepared_text_like = True
-                else:
-                    truth.update(
-                        {
-                            "parsed": False,
-                            "parse_method": "pdf_markdown",
-                            "parse_error": extractor_error,
-                            "stage": "parse_failed_pdf",
-                            "last_updated_at": datetime.now(timezone.utc).isoformat(),
-                        }
-                    )
-                    existing_meta["ingestion_truth"] = truth
-                    await db._execute(
-                        "UPDATE raw_scrapes SET metadata = $1, error_message = $2 WHERE id = $3",
-                        json.dumps(existing_meta),
-                        extractor_error,
-                        scrape_id,
-                    )
-                    scrape_row = await db._fetchrow("SELECT * FROM raw_scrapes WHERE id = $1", scrape_id)
-
-            if prepared_text_like:
-                ingest_attempted = True
-                existing_meta = parse_metadata_blob(scrape_row.get("metadata")) if scrape_row else {}
-                truth = parse_metadata_blob(existing_meta.get("ingestion_truth"))
-                truth.update(_build_ingestion_truth_update(stage="ingest_started", ingest_attempted=True))
-                existing_meta["ingestion_truth"] = truth
-                await db._execute(
-                    "UPDATE raw_scrapes SET metadata = $1 WHERE id = $2",
-                    json.dumps(existing_meta),
-                    scrape_id,
-                )
-                embedding_service = await build_embedding_service()
-
-                async def embed_fn(text: str) -> list[float]:
-                    return await embedding_service.embed_query(text)
-
-                vector_backend = create_vector_backend(
-                    postgres_client=db,
-                    embedding_fn=embed_fn,
-                )
-                ingestion_service = IngestionService(
-                    postgres_client=db,
-                    vector_backend=vector_backend,
-                    embedding_service=embedding_service,
-                    storage_backend=S3Storage(),
-                )
-                chunk_count = await ingestion_service.process_raw_scrape(scrape_id)
-                scrape_row = await db._fetchrow("SELECT * FROM raw_scrapes WHERE id = $1", scrape_id)
+            if reused_existing_revision:
+                ingest_skipped_reason = "unchanged_content_revision_reused"
             else:
-                ingest_skipped_reason = f"content_class={content_class} is not text-like"
-                existing_meta = parse_metadata_blob(scrape_row.get("metadata")) if scrape_row else {}
-                truth = parse_metadata_blob(existing_meta.get("ingestion_truth"))
-                truth.update(
-                    _build_ingestion_truth_update(
-                        stage="ingest_skipped_non_text",
-                        ingest_attempted=False,
-                        extra={"ingest_skipped_reason": ingest_skipped_reason},
+                prepared_text_like = content_class in TEXT_CONTENT_CLASSES
+                if content_class == "pdf_binary":
+                    extracted_markdown, extractor_name, extractor_error = extract_pdf_markdown_payload(
+                        content_bytes
                     )
-                )
-                existing_meta["ingestion_truth"] = truth
-                await db._execute(
-                    "UPDATE raw_scrapes SET metadata = $1 WHERE id = $2",
-                    json.dumps(existing_meta),
-                    scrape_id,
-                )
-                scrape_row = await db._fetchrow("SELECT * FROM raw_scrapes WHERE id = $1", scrape_id)
+                    existing_meta = parse_metadata_blob(scrape_row.get("metadata")) if scrape_row else {}
+                    truth = parse_metadata_blob(existing_meta.get("ingestion_truth"))
+                    if extracted_markdown:
+                        data_payload["parsed_markdown"] = extracted_markdown
+                        data_payload["pdf_markdown_extractor"] = extractor_name
+                        truth.update(
+                            {
+                                "parsed": True,
+                                "parse_method": extractor_name,
+                                "parse_error": None,
+                                "stage": "parsed_pdf_markdown",
+                                "last_updated_at": datetime.now(timezone.utc).isoformat(),
+                            }
+                        )
+                        existing_meta["ingestion_truth"] = truth
+                        await db._execute(
+                            "UPDATE raw_scrapes SET data = $1, metadata = $2 WHERE id = $3",
+                            json.dumps(data_payload),
+                            json.dumps(existing_meta),
+                            scrape_id,
+                        )
+                        scrape_row = await db._fetchrow(
+                            "SELECT * FROM raw_scrapes WHERE id = $1", scrape_id
+                        )
+                        prepared_text_like = True
+                    else:
+                        truth.update(
+                            {
+                                "parsed": False,
+                                "parse_method": "pdf_markdown",
+                                "parse_error": extractor_error,
+                                "stage": "parse_failed_pdf",
+                                "last_updated_at": datetime.now(timezone.utc).isoformat(),
+                            }
+                        )
+                        existing_meta["ingestion_truth"] = truth
+                        await db._execute(
+                            "UPDATE raw_scrapes SET metadata = $1, error_message = $2 WHERE id = $3",
+                            json.dumps(existing_meta),
+                            extractor_error,
+                            scrape_id,
+                        )
+                        scrape_row = await db._fetchrow(
+                            "SELECT * FROM raw_scrapes WHERE id = $1", scrape_id
+                        )
+
+                if prepared_text_like:
+                    ingest_attempted = True
+                    existing_meta = parse_metadata_blob(scrape_row.get("metadata")) if scrape_row else {}
+                    truth = parse_metadata_blob(existing_meta.get("ingestion_truth"))
+                    truth.update(
+                        _build_ingestion_truth_update(stage="ingest_started", ingest_attempted=True)
+                    )
+                    existing_meta["ingestion_truth"] = truth
+                    await db._execute(
+                        "UPDATE raw_scrapes SET metadata = $1 WHERE id = $2",
+                        json.dumps(existing_meta),
+                        scrape_id,
+                    )
+                    embedding_service = await build_embedding_service()
+
+                    async def embed_fn(text: str) -> list[float]:
+                        return await embedding_service.embed_query(text)
+
+                    vector_backend = create_vector_backend(
+                        postgres_client=db,
+                        embedding_fn=embed_fn,
+                    )
+                    ingestion_service = IngestionService(
+                        postgres_client=db,
+                        vector_backend=vector_backend,
+                        embedding_service=embedding_service,
+                        storage_backend=S3Storage(),
+                    )
+                    chunk_count = await ingestion_service.process_raw_scrape(scrape_id)
+                    scrape_row = await db._fetchrow("SELECT * FROM raw_scrapes WHERE id = $1", scrape_id)
+                else:
+                    ingest_skipped_reason = f"content_class={content_class} is not text-like"
+                    existing_meta = parse_metadata_blob(scrape_row.get("metadata")) if scrape_row else {}
+                    truth = parse_metadata_blob(existing_meta.get("ingestion_truth"))
+                    truth.update(
+                        _build_ingestion_truth_update(
+                            stage="ingest_skipped_non_text",
+                            ingest_attempted=False,
+                            extra={"ingest_skipped_reason": ingest_skipped_reason},
+                        )
+                    )
+                    existing_meta["ingestion_truth"] = truth
+                    await db._execute(
+                        "UPDATE raw_scrapes SET metadata = $1 WHERE id = $2",
+                        json.dumps(existing_meta),
+                        scrape_id,
+                    )
+                    scrape_row = await db._fetchrow("SELECT * FROM raw_scrapes WHERE id = $1", scrape_id)
 
         # Re-evaluate rules after ingest state updates so promotion fields remain
         # machine-checkable on the final stored row.
@@ -551,6 +580,7 @@ async def capture_document(args: argparse.Namespace) -> dict[str, Any]:
         "content_class": content_class,
         "ingest_attempted": ingest_attempted,
         "ingest_skipped_reason": ingest_skipped_reason,
+        "reused_existing_revision": reused_existing_revision,
         "defaults": asdict(defaults),
         "title": title,
         "preview_text": preview,
