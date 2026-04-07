@@ -1,19 +1,23 @@
 import json
 import sys
+from pathlib import Path
 
 import pytest
 
 from scripts.verification import validate_discovery_classifier as script
+
+REPO_ROOT = Path(__file__).resolve().parents[4]
 
 
 @pytest.mark.asyncio
 async def test_validate_discovery_classifier_with_stubbed_responses(tmp_path, monkeypatch):
     artifact_path = tmp_path / "report.json"
     fixture_path = (
-        "backend/scripts/verification/fixtures/discovery_classifier_eval_set.json"
+        REPO_ROOT / "backend/scripts/verification/fixtures/discovery_classifier_eval_set.json"
     )
     responses_path = (
-        "backend/scripts/verification/fixtures/discovery_classifier_stubbed_responses.json"
+        REPO_ROOT
+        / "backend/scripts/verification/fixtures/discovery_classifier_stubbed_responses.json"
     )
 
     monkeypatch.setattr(
@@ -22,9 +26,9 @@ async def test_validate_discovery_classifier_with_stubbed_responses(tmp_path, mo
         [
             "validate_discovery_classifier.py",
             "--fixture",
-            fixture_path,
+            str(fixture_path),
             "--responses",
-            responses_path,
+            str(responses_path),
             "--artifact",
             str(artifact_path),
         ],
