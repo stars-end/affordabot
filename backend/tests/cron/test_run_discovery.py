@@ -16,7 +16,7 @@ sys.modules.setdefault(
 sys.modules.setdefault("instructor", SimpleNamespace(from_openai=MagicMock()))
 sys.modules.setdefault("openai", SimpleNamespace(AsyncOpenAI=MagicMock()))
 
-from scripts.cron import run_discovery
+from scripts.cron import run_discovery  # noqa: E402
 
 
 @patch("scripts.cron.run_discovery._load_classifier_validation_contract")
