@@ -4,7 +4,7 @@ set -e
 # scripts/verification/uismoke-rerun.sh
 # Rerun failing stories from the last run (or specified RUN_DIR)
 
-RUN_TYPE=${1:-uismoke}
+RUN_TYPE=${1:-substrate-nightly}
 OVERRIDE_RUN_DIR=${RUN_DIR:-}
 
 echo "🔄 Starting UISmoke Rerun..."
