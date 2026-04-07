@@ -1,0 +1,62 @@
+[
+  {
+    "url": "https://sanjose.legistar.com/Calendar.aspx",
+    "page_text": "City of San Jose Calendar - Meeting Details, Agenda, Minutes",
+    "expected_scrapable": true,
+    "label": "Legistar meeting calendar"
+  },
+  {
+    "url": "https://www.sanjoseca.gov/your-government/departments-offices/city-clerk/meetings-agendas",
+    "page_text": "City Clerk Meetings and Agendas with archive links",
+    "expected_scrapable": true,
+    "label": "Official agenda landing page"
+  },
+  {
+    "url": "https://www.cityofberkeley.info/citycouncil",
+    "page_text": "City Council meetings, agendas, and minutes",
+    "expected_scrapable": true,
+    "label": "Official council page"
+  },
+  {
+    "url": "https://www.co.alameda.ca.us/board/calendar.htm",
+    "page_text": "Board of Supervisors meeting calendar with agenda packets",
+    "expected_scrapable": true,
+    "label": "County board meeting calendar"
+  },
+  {
+    "url": "https://www.sanjoseinside.com/local-news/housing-update",
+    "page_text": "Opinion and local news article about housing policies",
+    "expected_scrapable": false,
+    "label": "News article, not source system"
+  },
+  {
+    "url": "https://www.facebook.com/cityofsanjose/posts/12345",
+    "page_text": "Social post announcing tonight's city council session",
+    "expected_scrapable": false,
+    "label": "Social media post"
+  },
+  {
+    "url": "https://www.change.org/p/support-affordable-housing-in-san-jose",
+    "page_text": "Community petition page",
+    "expected_scrapable": false,
+    "label": "Petition platform"
+  },
+  {
+    "url": "https://www.youtube.com/watch?v=abcdefgh",
+    "page_text": "Public livestream recording",
+    "expected_scrapable": false,
+    "label": "Video platform landing page"
+  },
+  {
+    "url": "https://www.municode.com/library/ca/san_jose/codes/code_of_ordinances",
+    "page_text": "Municipal code and ordinance browser",
+    "expected_scrapable": true,
+    "label": "Municipal code source"
+  },
+  {
+    "url": "https://www.eventbrite.com/e/san-jose-housing-townhall-2026-tickets-123",
+    "page_text": "Community event listing",
+    "expected_scrapable": false,
+    "label": "Third-party event site"
+  }
+]
