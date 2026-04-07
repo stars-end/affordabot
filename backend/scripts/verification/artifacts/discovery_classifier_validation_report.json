@@ -1,0 +1,205 @@
+{
+  "generated_at": "2026-04-07T13:52:38.526268+00:00",
+  "fixture_path": "backend/scripts/verification/fixtures/discovery_classifier_eval_set.json",
+  "stubbed_responses_path": "backend/scripts/verification/fixtures/discovery_classifier_stubbed_responses.json",
+  "sample_size": 10,
+  "positive_examples": 7,
+  "negative_examples": 3,
+  "candidate_provenance": [
+    {
+      "url": "https://sanjose.legistar.com/Calendar.aspx",
+      "expected_scrapable": true,
+      "provenance_source": "scripts/lib/substrate_source_inventory.json",
+      "provenance_note": "jurisdiction_slug=san-jose, source_name=San Jose Legistar Calendar"
+    },
+    {
+      "url": "https://sunnyvaleca.legistar.com/Calendar.aspx",
+      "expected_scrapable": true,
+      "provenance_source": "scripts/lib/substrate_source_inventory.json",
+      "provenance_note": "jurisdiction_slug=sunnyvale, source_name=Sunnyvale Legistar Calendar"
+    },
+    {
+      "url": "https://cupertino.legistar.com/Calendar.aspx",
+      "expected_scrapable": true,
+      "provenance_source": "scripts/lib/substrate_source_inventory.json",
+      "provenance_note": "jurisdiction_slug=cupertino, source_name=Cupertino Legistar Calendar"
+    },
+    {
+      "url": "https://mountainview.legistar.com/Calendar.aspx",
+      "expected_scrapable": true,
+      "provenance_source": "scripts/lib/substrate_source_inventory.json",
+      "provenance_note": "jurisdiction_slug=mountain-view, source_name=Mountain View Legistar Calendar"
+    },
+    {
+      "url": "https://sanmateocounty.legistar.com/Calendar.aspx",
+      "expected_scrapable": true,
+      "provenance_source": "scripts/lib/substrate_source_inventory.json",
+      "provenance_note": "jurisdiction_slug=san-mateo-county, source_name=San Mateo County Legistar Calendar"
+    },
+    {
+      "url": "https://www.milpitas.gov/archive.aspx",
+      "expected_scrapable": true,
+      "provenance_source": "scripts/lib/substrate_source_inventory.json",
+      "provenance_note": "jurisdiction_slug=milpitas, source_name=Milpitas Archive Center (Agendas and Minutes)"
+    },
+    {
+      "url": "https://apps.acgov.org/agenda_minutes_app/board/bos_calendar/ag_min.jsp",
+      "expected_scrapable": true,
+      "provenance_source": "scripts/lib/substrate_source_inventory.json",
+      "provenance_note": "jurisdiction_slug=alameda-county, source_name=Alameda County BOS Agenda/Minutes App Root"
+    },
+    {
+      "url": "https://www.sanjoseinside.com/local-news/housing-update",
+      "expected_scrapable": false,
+      "provenance_source": "synthetic_negative",
+      "provenance_note": "Third-party editorial surface"
+    },
+    {
+      "url": "https://www.facebook.com/cityofsanjose/posts/12345",
+      "expected_scrapable": false,
+      "provenance_source": "synthetic_negative",
+      "provenance_note": "Third-party social surface"
+    },
+    {
+      "url": "https://www.youtube.com/watch?v=abcdefgh",
+      "expected_scrapable": false,
+      "provenance_source": "synthetic_negative",
+      "provenance_note": "Third-party video surface"
+    }
+  ],
+  "gate_requirements": {
+    "min_precision": 0.7,
+    "min_recall": 0.7,
+    "min_negative_rejection_rate": 0.7,
+    "max_false_positive_rate": 0.3
+  },
+  "sweep": [
+    {
+      "threshold": 0.5,
+      "total": 10,
+      "positives": 7,
+      "negatives": 3,
+      "true_positives": 7,
+      "false_positives": 1,
+      "true_negatives": 2,
+      "false_negatives": 0,
+      "precision": 0.875,
+      "recall": 1.0,
+      "f1": 0.9333333333333333,
+      "false_positive_rate": 0.3333333333333333,
+      "negative_rejection_rate": 0.6666666666666666
+    },
+    {
+      "threshold": 0.6,
+      "total": 10,
+      "positives": 7,
+      "negatives": 3,
+      "true_positives": 7,
+      "false_positives": 1,
+      "true_negatives": 2,
+      "false_negatives": 0,
+      "precision": 0.875,
+      "recall": 1.0,
+      "f1": 0.9333333333333333,
+      "false_positive_rate": 0.3333333333333333,
+      "negative_rejection_rate": 0.6666666666666666
+    },
+    {
+      "threshold": 0.65,
+      "total": 10,
+      "positives": 7,
+      "negatives": 3,
+      "true_positives": 7,
+      "false_positives": 1,
+      "true_negatives": 2,
+      "false_negatives": 0,
+      "precision": 0.875,
+      "recall": 1.0,
+      "f1": 0.9333333333333333,
+      "false_positive_rate": 0.3333333333333333,
+      "negative_rejection_rate": 0.6666666666666666
+    },
+    {
+      "threshold": 0.7,
+      "total": 10,
+      "positives": 7,
+      "negatives": 3,
+      "true_positives": 6,
+      "false_positives": 1,
+      "true_negatives": 2,
+      "false_negatives": 1,
+      "precision": 0.8571428571428571,
+      "recall": 0.8571428571428571,
+      "f1": 0.8571428571428571,
+      "false_positive_rate": 0.3333333333333333,
+      "negative_rejection_rate": 0.6666666666666666
+    },
+    {
+      "threshold": 0.75,
+      "total": 10,
+      "positives": 7,
+      "negatives": 3,
+      "true_positives": 5,
+      "false_positives": 0,
+      "true_negatives": 3,
+      "false_negatives": 2,
+      "precision": 1.0,
+      "recall": 0.7142857142857143,
+      "f1": 0.8333333333333333,
+      "false_positive_rate": 0.0,
+      "negative_rejection_rate": 1.0
+    },
+    {
+      "threshold": 0.8,
+      "total": 10,
+      "positives": 7,
+      "negatives": 3,
+      "true_positives": 4,
+      "false_positives": 0,
+      "true_negatives": 3,
+      "false_negatives": 3,
+      "precision": 1.0,
+      "recall": 0.5714285714285714,
+      "f1": 0.7272727272727273,
+      "false_positive_rate": 0.0,
+      "negative_rejection_rate": 1.0
+    },
+    {
+      "threshold": 0.85,
+      "total": 10,
+      "positives": 7,
+      "negatives": 3,
+      "true_positives": 3,
+      "false_positives": 0,
+      "true_negatives": 3,
+      "false_negatives": 4,
+      "precision": 1.0,
+      "recall": 0.42857142857142855,
+      "f1": 0.6,
+      "false_positive_rate": 0.0,
+      "negative_rejection_rate": 1.0
+    }
+  ],
+  "recommendation": {
+    "min_confidence": 0.75,
+    "passes_acceptance_gate": true,
+    "metrics": {
+      "threshold": 0.75,
+      "total": 10,
+      "positives": 7,
+      "negatives": 3,
+      "true_positives": 5,
+      "false_positives": 0,
+      "true_negatives": 3,
+      "false_negatives": 2,
+      "precision": 1.0,
+      "recall": 0.7142857142857143,
+      "f1": 0.8333333333333333,
+      "false_positive_rate": 0.0,
+      "negative_rejection_rate": 1.0
+    }
+  },
+  "known_failure_modes": [
+    "False negatives remain for valid sources with thin/ambiguous snippets (https://www.milpitas.gov/archive.aspx, https://apps.acgov.org/agenda_minutes_app/board/bos_calendar/ag_min.jsp)."
+  ]
+}

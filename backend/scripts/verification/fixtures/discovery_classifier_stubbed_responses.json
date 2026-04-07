@@ -1,0 +1,112 @@
+[
+  {
+    "url": "https://sanjose.legistar.com/Calendar.aspx",
+    "response": {
+      "is_scrapable": true,
+      "jurisdiction_name": "San Jose",
+      "source_type": "agenda",
+      "recommended_spider": "legistar",
+      "confidence": 0.93,
+      "reasoning": "Official meeting portal."
+    }
+  },
+  {
+    "url": "https://sunnyvaleca.legistar.com/Calendar.aspx",
+    "response": {
+      "is_scrapable": true,
+      "jurisdiction_name": "Sunnyvale",
+      "source_type": "agenda",
+      "recommended_spider": "legistar",
+      "confidence": 0.89,
+      "reasoning": "Legistar meeting calendar."
+    }
+  },
+  {
+    "url": "https://cupertino.legistar.com/Calendar.aspx",
+    "response": {
+      "is_scrapable": true,
+      "jurisdiction_name": "Cupertino",
+      "source_type": "agenda",
+      "recommended_spider": "legistar",
+      "confidence": 0.86,
+      "reasoning": "Legistar meeting calendar."
+    }
+  },
+  {
+    "url": "https://mountainview.legistar.com/Calendar.aspx",
+    "response": {
+      "is_scrapable": true,
+      "jurisdiction_name": "Mountain View",
+      "source_type": "agenda",
+      "recommended_spider": "legistar",
+      "confidence": 0.84,
+      "reasoning": "Legistar calendar appears valid."
+    }
+  },
+  {
+    "url": "https://sanmateocounty.legistar.com/Calendar.aspx",
+    "response": {
+      "is_scrapable": true,
+      "jurisdiction_name": "San Mateo County",
+      "source_type": "agenda",
+      "recommended_spider": "legistar",
+      "confidence": 0.79,
+      "reasoning": "County Legistar calendar."
+    }
+  },
+  {
+    "url": "https://www.milpitas.gov/archive.aspx",
+    "response": {
+      "is_scrapable": true,
+      "jurisdiction_name": "Milpitas",
+      "source_type": "minutes",
+      "recommended_spider": "generic_minutes",
+      "confidence": 0.71,
+      "reasoning": "Archive center likely hosts meeting records."
+    }
+  },
+  {
+    "url": "https://apps.acgov.org/agenda_minutes_app/board/bos_calendar/ag_min.jsp",
+    "response": {
+      "is_scrapable": true,
+      "jurisdiction_name": "Alameda County",
+      "source_type": "agenda",
+      "recommended_spider": "generic",
+      "confidence": 0.68,
+      "reasoning": "Official app root but sparse text."
+    }
+  },
+  {
+    "url": "https://www.sanjoseinside.com/local-news/housing-update",
+    "response": {
+      "is_scrapable": false,
+      "jurisdiction_name": "Unknown",
+      "source_type": "generic",
+      "recommended_spider": "none",
+      "confidence": 0.35,
+      "reasoning": "News page, not a source system."
+    }
+  },
+  {
+    "url": "https://www.facebook.com/cityofsanjose/posts/12345",
+    "response": {
+      "is_scrapable": false,
+      "jurisdiction_name": "Unknown",
+      "source_type": "generic",
+      "recommended_spider": "none",
+      "confidence": 0.2,
+      "reasoning": "Social media content."
+    }
+  },
+  {
+    "url": "https://www.youtube.com/watch?v=abcdefgh",
+    "response": {
+      "is_scrapable": true,
+      "jurisdiction_name": "Unknown",
+      "source_type": "generic",
+      "recommended_spider": "generic",
+      "confidence": 0.73,
+      "reasoning": "Video could mention council meeting but is not stable source root."
+    }
+  }
+]

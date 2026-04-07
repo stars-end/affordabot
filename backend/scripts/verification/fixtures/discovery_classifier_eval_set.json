@@ -1,0 +1,82 @@
+[
+  {
+    "url": "https://sanjose.legistar.com/Calendar.aspx",
+    "page_text": "City of San Jose Calendar - Meeting Details, Agenda, Minutes",
+    "expected_scrapable": true,
+    "label": "Legistar meeting calendar",
+    "provenance_source": "scripts/lib/substrate_source_inventory.json",
+    "provenance_note": "jurisdiction_slug=san-jose, source_name=San Jose Legistar Calendar"
+  },
+  {
+    "url": "https://sunnyvaleca.legistar.com/Calendar.aspx",
+    "page_text": "Sunnyvale Legistar meeting calendar with agenda and minutes links.",
+    "expected_scrapable": true,
+    "label": "Legistar meeting calendar",
+    "provenance_source": "scripts/lib/substrate_source_inventory.json",
+    "provenance_note": "jurisdiction_slug=sunnyvale, source_name=Sunnyvale Legistar Calendar"
+  },
+  {
+    "url": "https://cupertino.legistar.com/Calendar.aspx",
+    "page_text": "Cupertino city meeting calendar with agenda/minutes assets.",
+    "expected_scrapable": true,
+    "label": "Legistar meeting calendar",
+    "provenance_source": "scripts/lib/substrate_source_inventory.json",
+    "provenance_note": "jurisdiction_slug=cupertino, source_name=Cupertino Legistar Calendar"
+  },
+  {
+    "url": "https://mountainview.legistar.com/Calendar.aspx",
+    "page_text": "Mountain View meeting calendar and published packets/minutes.",
+    "expected_scrapable": true,
+    "label": "Legistar meeting calendar",
+    "provenance_source": "scripts/lib/substrate_source_inventory.json",
+    "provenance_note": "jurisdiction_slug=mountain-view, source_name=Mountain View Legistar Calendar"
+  },
+  {
+    "url": "https://sanmateocounty.legistar.com/Calendar.aspx",
+    "page_text": "County board calendar with agenda and minute artifacts.",
+    "expected_scrapable": true,
+    "label": "Legistar meeting calendar",
+    "provenance_source": "scripts/lib/substrate_source_inventory.json",
+    "provenance_note": "jurisdiction_slug=san-mateo-county, source_name=San Mateo County Legistar Calendar"
+  },
+  {
+    "url": "https://www.milpitas.gov/archive.aspx",
+    "page_text": "Milpitas archive center with agenda and minute file entries.",
+    "expected_scrapable": true,
+    "label": "Custom archive meeting root",
+    "provenance_source": "scripts/lib/substrate_source_inventory.json",
+    "provenance_note": "jurisdiction_slug=milpitas, source_name=Milpitas Archive Center (Agendas and Minutes)"
+  },
+  {
+    "url": "https://apps.acgov.org/agenda_minutes_app/board/bos_calendar/ag_min.jsp",
+    "page_text": "Alameda County BOS agenda/minutes application root.",
+    "expected_scrapable": true,
+    "label": "Custom archive meeting root",
+    "provenance_source": "scripts/lib/substrate_source_inventory.json",
+    "provenance_note": "jurisdiction_slug=alameda-county, source_name=Alameda County BOS Agenda/Minutes App Root"
+  },
+  {
+    "url": "https://www.sanjoseinside.com/local-news/housing-update",
+    "page_text": "Opinion and local news article about housing policies",
+    "expected_scrapable": false,
+    "label": "News article, not source system",
+    "provenance_source": "synthetic_negative",
+    "provenance_note": "Third-party editorial surface"
+  },
+  {
+    "url": "https://www.facebook.com/cityofsanjose/posts/12345",
+    "page_text": "Social post announcing tonight's city council session",
+    "expected_scrapable": false,
+    "label": "Social media post",
+    "provenance_source": "synthetic_negative",
+    "provenance_note": "Third-party social surface"
+  },
+  {
+    "url": "https://www.youtube.com/watch?v=abcdefgh",
+    "page_text": "Public livestream recording",
+    "expected_scrapable": false,
+    "label": "Video platform landing page",
+    "provenance_source": "synthetic_negative",
+    "provenance_note": "Third-party video surface"
+  }
+]
