@@ -14,6 +14,13 @@ Current discovery has three loosely connected modes:
 2. Admin auto-discovery via LLM-generated search queries + web search results
 3. Legacy search-discovery helper using Z.ai structured search with Playwright fallback
 
+There is also a naming/documentation trap inside the code:
+
+- `AutoDiscoveryService` in [auto_discovery_service.py](../../backend/services/auto_discovery_service.py) is the search-query and result aggregation path
+- `AutoDiscoveryService` in [service.py](../../backend/services/discovery/service.py) is a separate URL/page-text classifier
+
+Those are different systems with different jobs, but the current plan did not name that split clearly enough.
+
 That mix creates several risks:
 
 - query-first instead of jurisdiction-site-map-first behavior
@@ -49,6 +56,14 @@ The recent substrate work proved that manually curated source inventory is more 
 ### 5. Legacy search helper remains uneven
 
 `SearchDiscoveryService` in [search_discovery.py](../../backend/services/discovery/search_discovery.py) uses direct Z.ai structured search and falls back to DuckDuckGo + Playwright. That adds redundancy, but not a coherent truth model. It still remains search-first and result-oriented rather than first-party-path-oriented.
+
+### 6. Discovery concepts are still ahead of implementation
+
+Terms like `family` and `substrate` are the right target abstractions, but they are not yet mature discovery-system boundaries in the current codebase. The first implementation wave should treat them as the destination architecture, not as proof that the discovery layer already works that way.
+
+### 7. Bounded traversal already has existence proofs
+
+Affordabot already has specialized discovery surfaces such as [municode_discovery.py](../../backend/services/discovery/municode_discovery.py). Those do not solve general discovery, but they are evidence that bounded traversal is a valid pattern in this repo and should influence the MVP design.
 
 ## What Z.ai Gives Us Today
 
@@ -153,7 +168,24 @@ Recommended active contract:
 - truth scoring is local and explainable
 - weak candidates remain hypotheses, not accepted sources
 
+But the first implementation step should be smaller than the full target architecture.
+
+## Updated MVP
+
+The initial MVP should not try to build the full five-phase pipeline.
+
+Instead, it should:
+
+1. validate whether the existing classifier in [service.py](../../backend/services/discovery/service.py) can separate good from bad URLs using current source inventory plus explicit negatives
+2. wire that classifier into [run_discovery.py](../../backend/scripts/cron/run_discovery.py)
+3. add a simple acceptance gate before new sources are created
+4. remove the current duplicate-write pattern in `run_discovery.py`
+
+This keeps the first implementation bounded to the existing cron ingestion path and avoids premature expansion into a larger crawler/traversal project before the scoring signal is proven useful.
+
 ## Target Architecture
+
+The following remains the correct long-term destination, but not the first implementation batch.
 
 ### Phase A. Official-root discovery
 
@@ -232,12 +264,40 @@ Promote only when the candidate scores high enough on:
   - `bd-gl47f.5` — Audit current discovery pipeline and external search surfaces
   - `bd-gl47f.1` — Consultant pressure-test of discovery upgrade plan
   - `bd-gl47f.3` — Design first-party truth-scored discovery architecture
+  - `bd-gl47f.6` — Validate discovery classifier scoring against source inventory
   - `bd-gl47f.4` — Implement discovery-hardening MVP
 - `BLOCKING_EDGES`:
   - `bd-gl47f.3` blocks on `bd-gl47f.5`
   - `bd-gl47f.3` blocks on `bd-gl47f.1`
+  - `bd-gl47f.6` blocks on `bd-gl47f.5`
   - `bd-gl47f.4` blocks on `bd-gl47f.3`
+  - `bd-gl47f.4` blocks on `bd-gl47f.6`
 - `FIRST_TASK`: `bd-gl47f.5`
+
+## Execution Phases
+
+### Phase 1. Audit and pressure-test
+
+- complete the current-state audit
+- incorporate consultant review
+- lock the narrowed MVP
+
+### Phase 2. Classifier validation
+
+- build a scored evaluation set from current inventory plus explicit negatives
+- measure whether the classifier can separate likely-good from likely-bad candidates
+- define the minimum acceptance threshold for cron gating
+
+### Phase 3. Cron-gated MVP
+
+- wire the classifier into [run_discovery.py](../../backend/scripts/cron/run_discovery.py)
+- only create sources when the acceptance gate passes
+- remove duplicate-write behavior
+- keep the implementation to the existing discovery cron path, no new dependencies
+
+### Phase 4. Long-term architecture follow-through
+
+- only after the MVP proves useful, expand toward first-party traversal, explicit family classification, and richer truth-scored promotion
 
 ## Validation Gates
 
@@ -249,10 +309,11 @@ Promote only when the candidate scores high enough on:
 
 ### MVP Gate
 
+- classifier evaluation set includes positive and negative examples
+- acceptance gate is explicitly defined before cron wiring lands
 - bounded discovery run on a small jurisdiction set
-- candidate roots are explainable
-- promoted sources have explicit evidence for agendas/minutes
 - false-positive promotion rate is meaningfully lower than the current search-first path
+- duplicate source creation path in `run_discovery.py` is eliminated or proven impossible
 
 ### Product Gate
 
