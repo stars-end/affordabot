@@ -96,11 +96,21 @@ Results:
 - Discovery candidate counts: `0` for all three URLs.
 - No Alameda-only rerun was possible from this salvage lane because no official candidate root was reachable/discoverable from runtime.
 
+Post-closeout browser verification:
+- The same three official Alameda URLs were tested in a normal browser session.
+- Browser result matched backend runtime result: `net::ERR_NAME_NOT_RESOLVED` on all three.
+- There is no current browser-vs-backend disagreement for Alameda reachability.
+- Classification: likely genuine host/DNS availability issue (current external reachability), not a backend-only parsing issue.
+
 ## Verdict By Jurisdiction
 
 - **Milpitas**
   - Source row is present in dev.
-  - Current run still resolves zero discovered targets for `agendas/minutes` and reports `no_matching_sources`.
+  - Browser truth: `https://www.milpitas.gov/archive.aspx` loads and appears superficially compatible (CivicEngage archive surface with many `ViewArchive(...)` selects).
+  - Parser mismatch identified:
+    - `archive.aspx` contains many `ViewArchive(...)` selects, but label-keyword matching for `agenda/minute` is zero under current metadata path.
+    - data-only attempt to point discovery at `https://www.milpitas.gov/129/Agendas-and-Minutes` still yields zero parseable candidates under current anchor/civicplus machinery.
+  - Result: current run resolves zero discovered targets for `agendas/minutes` and reports `no_matching_sources`.
 
 - **Alameda County**
   - Official known roots are unreachable from affordabot runtime DNS in this environment, including:
@@ -119,12 +129,14 @@ We did not reach truthful live `agendas + minutes` coverage for at least one tar
 Nuanced verdict:
 - **Code shape**: still looks reusable (`custom_archive_document_center` family abstraction remains coherent).
 - **Live proof on affordabot/dev**: not yet proven for this wave due to:
-  - zero discovered targets for Milpitas path in this run, and
+  - zero discovered targets for Milpitas under both archive root and data-only Agendas & Minutes fetch override, and
   - Alameda official-root reachability failure from runtime DNS.
+- Practical conclusion for Milpitas: the currently locked family is not live-proven and likely needs scope expansion (different family or richer discovery path) to reach truthful agenda/minute targets.
 
 ## Recommended Next Decisions (Tech Lead)
 
-1. Authorize scoped expansion into a Milpitas-adjacent calendar/document-center family if desired.
-2. Treat Alameda runtime DNS reachability for `apps.acgov.org`/`aspawebq.acgov.org` as an infra prerequisite before further live validation on Alameda.
-3. Close this wave as not live-proven and roll findings into the next planning cycle.
-
+1. Authorize scope expansion for Milpitas into either:
+   - a different family aligned to the live site information architecture, or
+   - a richer first-party discovery path beyond current label-keyword civicplus extraction.
+2. Treat Alameda reachability for `apps.acgov.org`/`aspawebq.acgov.org` as a current host/DNS availability prerequisite (browser and backend both fail), not as a backend-only parser bug.
+3. If neither expansion nor reachability remediation is selected now, close this wave as not live-proven and roll findings into the next planning cycle.
