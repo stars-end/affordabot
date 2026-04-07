@@ -11,36 +11,69 @@
     }
   },
   {
-    "url": "https://www.sanjoseca.gov/your-government/departments-offices/city-clerk/meetings-agendas",
+    "url": "https://sunnyvaleca.legistar.com/Calendar.aspx",
     "response": {
       "is_scrapable": true,
-      "jurisdiction_name": "San Jose",
+      "jurisdiction_name": "Sunnyvale",
       "source_type": "agenda",
-      "recommended_spider": "generic",
-      "confidence": 0.88,
-      "reasoning": "Official city clerk agenda page."
+      "recommended_spider": "legistar",
+      "confidence": 0.89,
+      "reasoning": "Legistar meeting calendar."
     }
   },
   {
-    "url": "https://www.cityofberkeley.info/citycouncil",
+    "url": "https://cupertino.legistar.com/Calendar.aspx",
     "response": {
       "is_scrapable": true,
-      "jurisdiction_name": "Berkeley",
-      "source_type": "minutes",
-      "recommended_spider": "generic",
-      "confidence": 0.72,
-      "reasoning": "Likely valid city council page."
+      "jurisdiction_name": "Cupertino",
+      "source_type": "agenda",
+      "recommended_spider": "legistar",
+      "confidence": 0.86,
+      "reasoning": "Legistar meeting calendar."
     }
   },
   {
-    "url": "https://www.co.alameda.ca.us/board/calendar.htm",
+    "url": "https://mountainview.legistar.com/Calendar.aspx",
+    "response": {
+      "is_scrapable": true,
+      "jurisdiction_name": "Mountain View",
+      "source_type": "agenda",
+      "recommended_spider": "legistar",
+      "confidence": 0.84,
+      "reasoning": "Legistar calendar appears valid."
+    }
+  },
+  {
+    "url": "https://sanmateocounty.legistar.com/Calendar.aspx",
+    "response": {
+      "is_scrapable": true,
+      "jurisdiction_name": "San Mateo County",
+      "source_type": "agenda",
+      "recommended_spider": "legistar",
+      "confidence": 0.79,
+      "reasoning": "County Legistar calendar."
+    }
+  },
+  {
+    "url": "https://www.milpitas.gov/archive.aspx",
+    "response": {
+      "is_scrapable": true,
+      "jurisdiction_name": "Milpitas",
+      "source_type": "minutes",
+      "recommended_spider": "generic_minutes",
+      "confidence": 0.71,
+      "reasoning": "Archive center likely hosts meeting records."
+    }
+  },
+  {
+    "url": "https://apps.acgov.org/agenda_minutes_app/board/bos_calendar/ag_min.jsp",
     "response": {
       "is_scrapable": true,
       "jurisdiction_name": "Alameda County",
       "source_type": "agenda",
       "recommended_spider": "generic",
-      "confidence": 0.69,
-      "reasoning": "County board calendar appears valid."
+      "confidence": 0.68,
+      "reasoning": "Official app root but sparse text."
     }
   },
   {
@@ -66,47 +99,14 @@
     }
   },
   {
-    "url": "https://www.change.org/p/support-affordable-housing-in-san-jose",
-    "response": {
-      "is_scrapable": false,
-      "jurisdiction_name": "Unknown",
-      "source_type": "generic",
-      "recommended_spider": "none",
-      "confidence": 0.18,
-      "reasoning": "Petition page."
-    }
-  },
-  {
     "url": "https://www.youtube.com/watch?v=abcdefgh",
     "response": {
       "is_scrapable": true,
       "jurisdiction_name": "Unknown",
       "source_type": "generic",
       "recommended_spider": "generic",
-      "confidence": 0.67,
+      "confidence": 0.73,
       "reasoning": "Video could mention council meeting but is not stable source root."
-    }
-  },
-  {
-    "url": "https://www.municode.com/library/ca/san_jose/codes/code_of_ordinances",
-    "response": {
-      "is_scrapable": true,
-      "jurisdiction_name": "San Jose",
-      "source_type": "legislation",
-      "recommended_spider": "municode",
-      "confidence": 0.77,
-      "reasoning": "Valid municipal code publisher."
-    }
-  },
-  {
-    "url": "https://www.eventbrite.com/e/san-jose-housing-townhall-2026-tickets-123",
-    "response": {
-      "is_scrapable": false,
-      "jurisdiction_name": "Unknown",
-      "source_type": "generic",
-      "recommended_spider": "none",
-      "confidence": 0.25,
-      "reasoning": "Event listing site, not canonical source."
     }
   }
 ]

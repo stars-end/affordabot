@@ -15,6 +15,14 @@ class LabeledDiscoveryCandidate(BaseModel):
     page_text: str = ""
     expected_scrapable: bool
     label: str = Field(default="", description="Human-readable reason for label")
+    provenance_source: str = Field(
+        default="",
+        description="Repo path or source backing this label.",
+    )
+    provenance_note: str = Field(
+        default="",
+        description="Optional context for how this candidate maps to inventory.",
+    )
 
 
 class EvaluationMetrics(BaseModel):

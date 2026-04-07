@@ -5,7 +5,9 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import importlib.util
 import json
+import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -88,6 +90,10 @@ def load_stubbed_responses(
 async def score_with_live_classifier(
     candidates: Sequence[LabeledDiscoveryCandidate],
 ) -> list[ClassifierResponse]:
+    missing = _live_runtime_preflight()
+    if missing:
+        raise RuntimeError(_format_live_runtime_error(missing))
+
     from services.discovery.service import AutoDiscoveryService
 
     classifier = AutoDiscoveryService()
@@ -104,16 +110,44 @@ async def score_with_live_classifier(
     return responses
 
 
+def _live_runtime_preflight() -> list[str]:
+    missing: list[str] = []
+    if importlib.util.find_spec("instructor") is None:
+        missing.append(
+            "python dependency `instructor` not installed (run `cd backend && poetry install`)"
+        )
+    if importlib.util.find_spec("openai") is None:
+        missing.append(
+            "python dependency `openai` not installed (run `cd backend && poetry install`)"
+        )
+    if not os.getenv("ZAI_API_KEY") and not os.getenv("OPENROUTER_API_KEY"):
+        missing.append("missing `ZAI_API_KEY` or `OPENROUTER_API_KEY` in environment")
+    return missing
+
+
+def _format_live_runtime_error(missing: Sequence[str]) -> str:
+    lines = [
+        "Live classifier mode preflight failed.",
+        "Use --responses for deterministic offline validation, or satisfy live requirements:",
+    ]
+    lines.extend(f"- {item}" for item in missing)
+    return "\n".join(lines)
+
+
 async def main() -> int:
     args = parse_args()
     thresholds = parse_thresholds(args.thresholds)
     gate = ClassifierAcceptanceGate()
     candidates = load_candidates(args.fixture)
 
-    if args.responses:
-        responses = load_stubbed_responses(args.responses, candidates)
-    else:
-        responses = await score_with_live_classifier(candidates)
+    try:
+        if args.responses:
+            responses = load_stubbed_responses(args.responses, candidates)
+        else:
+            responses = await score_with_live_classifier(candidates)
+    except RuntimeError as exc:
+        print(f"[discovery-classifier] {exc}")
+        return 2
 
     sweep = sweep_thresholds(candidates=candidates, responses=responses, thresholds=thresholds)
     recommendation = recommend_threshold(sweep, gate)
@@ -126,6 +160,17 @@ async def main() -> int:
         "fixture_path": str(args.fixture),
         "stubbed_responses_path": str(args.responses) if args.responses else None,
         "sample_size": len(candidates),
+        "positive_examples": sum(1 for candidate in candidates if candidate.expected_scrapable),
+        "negative_examples": sum(1 for candidate in candidates if not candidate.expected_scrapable),
+        "candidate_provenance": [
+            {
+                "url": candidate.url,
+                "expected_scrapable": candidate.expected_scrapable,
+                "provenance_source": candidate.provenance_source,
+                "provenance_note": candidate.provenance_note,
+            }
+            for candidate in candidates
+        ],
         "gate_requirements": gate.model_dump(),
         "sweep": [item.model_dump() for item in sweep],
         "recommendation": {
