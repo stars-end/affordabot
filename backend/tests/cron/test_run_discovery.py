@@ -156,6 +156,8 @@ async def test_run_discovery_creates_single_source_write_with_classifier_gate(
         return_value=[{"id": uuid.UUID("a23f2953-8ade-4c43-a287-eb03f06b2501"), "name": "San Jose", "type": "city"}]
     )
     mock_db._fetchrow = AsyncMock(return_value=None)
+    mock_db.get_discovery_classifier_cache = AsyncMock(return_value=None)
+    mock_db.upsert_discovery_classifier_cache = AsyncMock(return_value=True)
     mock_db.get_or_create_source = AsyncMock()
     mock_db.create_source = AsyncMock()
     mock_db.update_admin_task = AsyncMock()
@@ -197,6 +199,8 @@ async def test_run_discovery_creates_single_source_write_with_classifier_gate(
         "a23f2953-8ade-4c43-a287-eb03f06b2501",
         "https://example.gov/agenda",
     )
+    mock_db.get_discovery_classifier_cache.assert_awaited_once()
+    mock_db.upsert_discovery_classifier_cache.assert_awaited_once()
     mock_db.create_source.assert_called_once()
     create_payload = mock_db.create_source.call_args.args[0]
     assert create_payload["url"] == "https://example.gov/agenda"
@@ -266,8 +270,131 @@ async def test_run_discovery_respects_jurisdiction_scope_filter(
         "Milpitas",
         "city",
         max_queries=2,
+        allow_provider_query_generation=True,
+        query_cache_ttl_hours=72,
     )
     update_kwargs = mock_db.update_admin_task.call_args.kwargs
     assert update_kwargs["result"]["jurisdictions_processed"] == 1
     assert update_kwargs["result"]["jurisdiction_scope"] == ["milpitas"]
     assert update_kwargs["result"]["max_queries_per_jurisdiction"] == 2
+
+
+@patch("scripts.cron.run_discovery._load_classifier_validation_contract")
+@patch("scripts.cron.run_discovery.DiscoveryClassifierService")
+@patch("scripts.cron.run_discovery.SearchDiscoveryService")
+@patch("scripts.cron.run_discovery.LegacySearchDiscoveryService")
+@patch("scripts.cron.run_discovery.WebSearchClient")
+@patch("scripts.cron.run_discovery.PostgresDB")
+async def test_run_discovery_rejects_obvious_junk_before_classifier(
+    mock_db_cls,
+    _mock_search_client_cls,
+    _mock_legacy_search_cls,
+    mock_search_service_cls,
+    mock_classifier_cls,
+    mock_gate_loader,
+):
+    mock_db = MagicMock()
+    mock_db.create_admin_task = AsyncMock()
+    mock_db._fetch = AsyncMock(
+        return_value=[{"id": "jur-1", "name": "San Jose", "type": "city"}]
+    )
+    mock_db._fetchrow = AsyncMock(return_value=None)
+    mock_db.create_source = AsyncMock()
+    mock_db.update_admin_task = AsyncMock()
+    mock_db_cls.return_value = mock_db
+
+    mock_search_service = MagicMock()
+    mock_search_service.last_discovery_stats = {}
+    mock_search_service.discover_sources = AsyncMock(
+        return_value=[
+            {"url": "https://www.youtube.com/watch?v=123", "title": "junk", "snippet": "video"}
+        ]
+    )
+    mock_search_service_cls.return_value = mock_search_service
+
+    mock_classifier = MagicMock()
+    mock_classifier.client = object()
+    mock_classifier.discover_url = AsyncMock()
+    mock_classifier_cls.return_value = mock_classifier
+    mock_gate_loader.return_value = (True, {"status": "passed", "min_confidence": 0.75})
+
+    await run_discovery.main()
+
+    mock_classifier.discover_url.assert_not_called()
+    update_kwargs = mock_db.update_admin_task.call_args.kwargs
+    assert update_kwargs["result"]["rejected_by_reason"]["heuristic_obvious_junk"] == 1
+
+
+@patch("scripts.cron.run_discovery._load_classifier_validation_contract")
+@patch("scripts.cron.run_discovery.DiscoveryClassifierService")
+@patch("scripts.cron.run_discovery.SearchDiscoveryService")
+@patch("scripts.cron.run_discovery.LegacySearchDiscoveryService")
+@patch("scripts.cron.run_discovery.WebSearchClient")
+@patch("scripts.cron.run_discovery.PostgresDB")
+async def test_run_discovery_uses_cached_positive_classifier_without_provider_call(
+    mock_db_cls,
+    _mock_search_client_cls,
+    _mock_legacy_search_cls,
+    mock_search_service_cls,
+    mock_classifier_cls,
+    mock_gate_loader,
+):
+    mock_db = MagicMock()
+    mock_db.create_admin_task = AsyncMock()
+    mock_db._fetch = AsyncMock(
+        return_value=[{"id": "jur-1", "name": "San Jose", "type": "city"}]
+    )
+    mock_db._fetchrow = AsyncMock(return_value=None)
+    mock_db.get_discovery_classifier_cache = AsyncMock(
+        return_value={
+            "is_scrapable": True,
+            "jurisdiction_name": "San Jose",
+            "source_type": "agenda",
+            "recommended_spider": "generic",
+            "confidence": 0.99,
+            "reasoning": "cached pass",
+        }
+    )
+    mock_db.upsert_discovery_classifier_cache = AsyncMock(return_value=True)
+    mock_db.create_source = AsyncMock()
+    mock_db.update_admin_task = AsyncMock()
+    mock_db_cls.return_value = mock_db
+
+    mock_search_service = MagicMock()
+    mock_search_service.last_discovery_stats = {}
+    mock_search_service.discover_sources = AsyncMock(
+        return_value=[
+            {
+                "url": "https://example.gov/agenda",
+                "title": "Agenda Center",
+                "category": "agenda",
+                "snippet": "meeting agendas",
+            }
+        ]
+    )
+    mock_search_service_cls.return_value = mock_search_service
+
+    mock_classifier = MagicMock()
+    mock_classifier.client = object()
+    mock_classifier.classifier_version = "discovery-classifier-v1"
+    mock_classifier.response_from_cache_payload = MagicMock(
+        return_value=MagicMock(
+            is_scrapable=True,
+            confidence=0.99,
+            source_type="agenda",
+            recommended_spider="generic",
+            reasoning="cached pass",
+        )
+    )
+    mock_classifier.response_to_cache_payload = MagicMock(return_value={})
+    mock_classifier.discover_url = AsyncMock()
+    mock_classifier_cls.return_value = mock_classifier
+    mock_gate_loader.return_value = (True, {"status": "passed", "min_confidence": 0.75})
+
+    await run_discovery.main(classifier_provider_budget=0)
+
+    mock_classifier.discover_url.assert_not_called()
+    mock_db.create_source.assert_called_once()
+    update_kwargs = mock_db.update_admin_task.call_args.kwargs
+    assert update_kwargs["result"]["classifier_cache_hits"] == 1
+    assert update_kwargs["result"]["classifier_provider_calls_used"] == 0

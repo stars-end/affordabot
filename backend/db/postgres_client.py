@@ -377,6 +377,147 @@ class PostgresDB:
         row = await self._fetchrow(query, *insert_data.values())
         return dict(row)
 
+    async def get_discovery_query_cache(
+        self,
+        jurisdiction_name: str,
+        jurisdiction_type: str,
+        prompt_version: str,
+    ) -> Optional[List[str]]:
+        """Return cached discovery queries when available and not expired."""
+        try:
+            row = await self._fetchrow(
+                """
+                SELECT queries
+                FROM discovery_query_cache
+                WHERE jurisdiction_name = $1
+                  AND jurisdiction_type = $2
+                  AND prompt_version = $3
+                  AND expires_at > NOW()
+                LIMIT 1
+                """,
+                jurisdiction_name,
+                jurisdiction_type,
+                prompt_version,
+            )
+        except Exception as e:
+            logger.warning("Discovery query cache read skipped: %s", e)
+            return None
+
+        if not row:
+            return None
+
+        queries = row["queries"]
+        if isinstance(queries, str):
+            try:
+                queries = json.loads(queries)
+            except json.JSONDecodeError:
+                return None
+        if isinstance(queries, list) and all(isinstance(item, str) for item in queries):
+            return queries
+        return None
+
+    async def upsert_discovery_query_cache(
+        self,
+        jurisdiction_name: str,
+        jurisdiction_type: str,
+        prompt_version: str,
+        queries: List[str],
+        ttl_hours: int = 72,
+    ) -> bool:
+        """Persist discovery query cache with TTL."""
+        if not queries:
+            return False
+        try:
+            await self._execute(
+                """
+                INSERT INTO discovery_query_cache (
+                    jurisdiction_name,
+                    jurisdiction_type,
+                    prompt_version,
+                    queries,
+                    expires_at
+                )
+                VALUES ($1, $2, $3, $4::jsonb, NOW() + ($5::text || ' hours')::interval)
+                ON CONFLICT (jurisdiction_name, jurisdiction_type, prompt_version)
+                DO UPDATE SET
+                    queries = EXCLUDED.queries,
+                    expires_at = EXCLUDED.expires_at,
+                    updated_at = NOW()
+                """,
+                jurisdiction_name,
+                jurisdiction_type,
+                prompt_version,
+                json.dumps(queries),
+                str(max(ttl_hours, 1)),
+            )
+            return True
+        except Exception as e:
+            logger.warning("Discovery query cache write skipped: %s", e)
+            return False
+
+    async def get_discovery_classifier_cache(
+        self,
+        normalized_url: str,
+        classifier_version: str,
+    ) -> Optional[Dict[str, Any]]:
+        """Return cached classifier decision for an exact normalized URL."""
+        try:
+            row = await self._fetchrow(
+                """
+                SELECT normalized_url, classifier_version, decision
+                FROM discovery_classifier_cache
+                WHERE normalized_url = $1
+                  AND classifier_version = $2
+                LIMIT 1
+                """,
+                normalized_url,
+                classifier_version,
+            )
+        except Exception as e:
+            logger.warning("Discovery classifier cache read skipped: %s", e)
+            return None
+
+        if not row:
+            return None
+
+        payload = row["decision"]
+        if isinstance(payload, str):
+            try:
+                payload = json.loads(payload)
+            except json.JSONDecodeError:
+                return None
+        return payload if isinstance(payload, dict) else None
+
+    async def upsert_discovery_classifier_cache(
+        self,
+        normalized_url: str,
+        classifier_version: str,
+        decision: Dict[str, Any],
+    ) -> bool:
+        """Persist a classifier decision for exact URL cache lookups."""
+        try:
+            await self._execute(
+                """
+                INSERT INTO discovery_classifier_cache (
+                    normalized_url,
+                    classifier_version,
+                    decision
+                )
+                VALUES ($1, $2, $3::jsonb)
+                ON CONFLICT (normalized_url, classifier_version)
+                DO UPDATE SET
+                    decision = EXCLUDED.decision,
+                    updated_at = NOW()
+                """,
+                normalized_url,
+                classifier_version,
+                json.dumps(decision),
+            )
+            return True
+        except Exception as e:
+            logger.warning("Discovery classifier cache write skipped: %s", e)
+            return False
+
     async def update_source(
         self, source_id: str, data: Dict[str, Any]
     ) -> Dict[str, Any]:

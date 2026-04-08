@@ -11,8 +11,10 @@ import logging
 import asyncio
 import json
 import argparse
+import inspect
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from uuid import uuid4
 
 # Add backend to path
@@ -36,6 +38,9 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger("discovery")
 
 CLASSIFIER_MIN_CONFIDENCE = 0.75
+DEFAULT_QUERY_PROVIDER_BUDGET = 5
+DEFAULT_CLASSIFIER_PROVIDER_BUDGET = 50
+DEFAULT_QUERY_CACHE_TTL_HOURS = 72
 VALIDATION_REPORT_PATH = (
     Path(__file__).resolve().parents[1]
     / "verification"
@@ -70,6 +75,42 @@ class ResilientWebSearchClient:
             return []
 
 
+_OBVIOUS_JUNK_DOMAINS = {
+    "facebook.com",
+    "instagram.com",
+    "x.com",
+    "twitter.com",
+    "youtube.com",
+    "tiktok.com",
+    "reddit.com",
+    "linkedin.com",
+    "yelp.com",
+    "zillow.com",
+}
+
+
+def _normalize_url_for_cache(url: str) -> str:
+    """Normalize URL to maximize exact-cache hits without changing authority/path semantics."""
+    parts = urlsplit((url or "").strip())
+    scheme = (parts.scheme or "https").lower()
+    netloc = parts.netloc.lower()
+    path = parts.path.rstrip("/") or "/"
+    query_pairs = parse_qsl(parts.query, keep_blank_values=False)
+    filtered_pairs = [
+        (k, v)
+        for k, v in query_pairs
+        if not k.lower().startswith("utm_")
+    ]
+    normalized_query = urlencode(sorted(filtered_pairs))
+    return urlunsplit((scheme, netloc, path, normalized_query, ""))
+
+
+def _is_obvious_junk_candidate(url: str) -> bool:
+    netloc = urlsplit((url or "").strip()).netloc.lower()
+    host = netloc.split(":")[0]
+    return any(host == domain or host.endswith(f".{domain}") for domain in _OBVIOUS_JUNK_DOMAINS)
+
+
 def _normalize_jurisdiction_scope(values: list[str] | None) -> set[str] | None:
     """Normalize optional jurisdiction scope list into casefolded names."""
     if not values:
@@ -100,6 +141,18 @@ def _parse_args() -> argparse.Namespace:
         type=int,
         default=None,
         help="Optional cap for number of discovery queries per jurisdiction (for bounded validation runs).",
+    )
+    parser.add_argument(
+        "--query-provider-budget",
+        type=int,
+        default=None,
+        help="Max count of provider-backed query-generation calls allowed per invocation.",
+    )
+    parser.add_argument(
+        "--classifier-provider-budget",
+        type=int,
+        default=None,
+        help="Max count of provider-backed classifier calls allowed per invocation.",
     )
     return parser.parse_args()
 
@@ -154,6 +207,8 @@ def _load_classifier_validation_contract() -> tuple[bool, dict]:
 async def main(
     jurisdiction_scope: set[str] | None = None,
     max_queries_per_jurisdiction: int | None = None,
+    query_provider_budget: int | None = None,
+    classifier_provider_budget: int | None = None,
 ):
     task_id = str(uuid4())
     logger.info(f"🚀 Starting Discovery (Task {task_id})")
@@ -173,6 +228,23 @@ async def main(
     classifier_service = DiscoveryClassifierService()
     gate_enabled, gate_contract = _load_classifier_validation_contract()
     classifier_trusted = classifier_service.client is not None
+    query_provider_budget_limit = (
+        query_provider_budget
+        if query_provider_budget is not None
+        else int(os.environ.get("DISCOVERY_QUERY_PROVIDER_BUDGET", str(DEFAULT_QUERY_PROVIDER_BUDGET)))
+    )
+    classifier_provider_budget_limit = (
+        classifier_provider_budget
+        if classifier_provider_budget is not None
+        else int(
+            os.environ.get(
+                "DISCOVERY_CLASSIFIER_PROVIDER_BUDGET",
+                str(DEFAULT_CLASSIFIER_PROVIDER_BUDGET),
+            )
+        )
+    )
+    query_provider_calls_used = 0
+    classifier_provider_calls_used = 0
     
     # 1. Log Start
     try:
@@ -205,12 +277,17 @@ async def main(
             "new": 0,
             "duplicates": 0,
             "rejected": 0,
+            "query_cache_hits": 0,
+            "classifier_cache_hits": 0,
+            "classifier_cache_positive_reuse": 0,
             "rejected_by_reason": {
                 "batch_gate_fail_closed": 0,
                 "classifier_untrusted_fail_closed": 0,
                 "classifier_error_fail_closed": 0,
                 "not_scrapable": 0,
                 "low_confidence": 0,
+                "heuristic_obvious_junk": 0,
+                "provider_budget_exhausted": 0,
             },
             "batch_gate": gate_contract,
             "classifier_trusted": classifier_trusted,
@@ -219,6 +296,10 @@ async def main(
             "jurisdictions_processed": len(jurisdictions),
             "jurisdictions_available": len(all_jurisdictions),
             "max_queries_per_jurisdiction": max_queries_per_jurisdiction,
+            "query_provider_budget_limit": query_provider_budget_limit,
+            "query_provider_calls_used": 0,
+            "classifier_provider_budget_limit": classifier_provider_budget_limit,
+            "classifier_provider_calls_used": 0,
         }
 
         if not gate_enabled:
@@ -232,7 +313,19 @@ async def main(
             jurisdiction_id = str(jur["id"])
             
             # Run Discovery
-            discover_kwargs = {}
+            allow_provider_query_generation = query_provider_calls_used < max(
+                query_provider_budget_limit,
+                0,
+            )
+            discover_kwargs = {
+                "allow_provider_query_generation": allow_provider_query_generation,
+                "query_cache_ttl_hours": int(
+                    os.environ.get(
+                        "DISCOVERY_QUERY_CACHE_TTL_HOURS",
+                        str(DEFAULT_QUERY_CACHE_TTL_HOURS),
+                    )
+                ),
+            }
             if max_queries_per_jurisdiction is not None:
                 discover_kwargs["max_queries"] = max_queries_per_jurisdiction
             discovered_items = await discovery_service.discover_sources(
@@ -240,6 +333,11 @@ async def main(
                 jur.get('type', 'city'),
                 **discover_kwargs,
             )
+            discovery_stats = getattr(discovery_service, "last_discovery_stats", {}) or {}
+            if discovery_stats.get("query_cache_hit"):
+                results["query_cache_hits"] += 1
+            if discovery_stats.get("query_provider_used"):
+                query_provider_calls_used += 1
             
             for item in discovered_items:
                 results["found"] += 1
@@ -249,6 +347,12 @@ async def main(
                     results["rejected"] += 1
                     results["rejected_by_reason"]["classifier_error_fail_closed"] += 1
                     logger.info("   - Rejected (missing URL in discovery item)")
+                    continue
+
+                if _is_obvious_junk_candidate(candidate_url):
+                    results["rejected"] += 1
+                    results["rejected_by_reason"]["heuristic_obvious_junk"] += 1
+                    logger.info("   - Rejected (heuristic obvious junk): %s", candidate_url)
                     continue
 
                 if not gate_enabled:
@@ -263,11 +367,48 @@ async def main(
                     logger.info("   - Rejected (classifier unavailable): %s", candidate_url)
                     continue
 
-                try:
-                    classification = await classifier_service.discover_url(
-                        url=candidate_url,
-                        page_text=item.get("snippet", ""),
+                normalized_url = _normalize_url_for_cache(candidate_url)
+                classification = None
+                cached_payload = None
+                cache_reader = getattr(db, "get_discovery_classifier_cache", None)
+                if cache_reader and inspect.iscoroutinefunction(cache_reader):
+                    cached_payload = await cache_reader(
+                        normalized_url=normalized_url,
+                        classifier_version=classifier_service.classifier_version,
                     )
+                if cached_payload:
+                    cached_decision = classifier_service.response_from_cache_payload(cached_payload)
+                    if cached_decision:
+                        classification = cached_decision
+                        results["classifier_cache_hits"] += 1
+                        if (
+                            classification.is_scrapable
+                            and classification.confidence >= CLASSIFIER_MIN_CONFIDENCE
+                        ):
+                            results["classifier_cache_positive_reuse"] += 1
+
+                try:
+                    if classification is None:
+                        if classifier_provider_calls_used >= max(classifier_provider_budget_limit, 0):
+                            results["rejected"] += 1
+                            results["rejected_by_reason"]["provider_budget_exhausted"] += 1
+                            logger.info(
+                                "   - Rejected (classifier provider budget exhausted): %s",
+                                candidate_url,
+                            )
+                            continue
+                        classification = await classifier_service.discover_url(
+                            url=candidate_url,
+                            page_text=item.get("snippet", ""),
+                        )
+                        classifier_provider_calls_used += 1
+                        cache_writer = getattr(db, "upsert_discovery_classifier_cache", None)
+                        if cache_writer and inspect.iscoroutinefunction(cache_writer):
+                            await cache_writer(
+                                normalized_url=normalized_url,
+                                classifier_version=classifier_service.classifier_version,
+                                decision=classifier_service.response_to_cache_payload(classification),
+                            )
                 except Exception as exc:
                     logger.warning("Classifier failure for %s: %s", candidate_url, exc)
                     results["rejected"] += 1
@@ -336,6 +477,8 @@ async def main(
                 )
         
         # 3. Log Success
+        results["query_provider_calls_used"] = query_provider_calls_used
+        results["classifier_provider_calls_used"] = classifier_provider_calls_used
         logger.info(f"🏁 Discovery Complete. {results}")
         
         await db.update_admin_task(
@@ -366,5 +509,7 @@ if __name__ == "__main__":
         main(
             jurisdiction_scope=scope,
             max_queries_per_jurisdiction=args.max_queries_per_jurisdiction,
+            query_provider_budget=args.query_provider_budget,
+            classifier_provider_budget=args.classifier_provider_budget,
         )
     )
