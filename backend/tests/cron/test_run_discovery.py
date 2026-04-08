@@ -508,3 +508,218 @@ async def test_run_discovery_query_provider_budget_blocks_llm_generation_after_c
     second_kwargs = mock_search_service.discover_sources.await_args_list[1].kwargs
     assert first_kwargs["allow_provider_query_generation"] is True
     assert second_kwargs["allow_provider_query_generation"] is False
+
+
+@patch("scripts.cron.run_discovery._load_classifier_validation_contract")
+@patch("scripts.cron.run_discovery.DiscoveryClassifierService")
+@patch("scripts.cron.run_discovery.SearchDiscoveryService")
+@patch("scripts.cron.run_discovery.LegacySearchDiscoveryService")
+@patch("scripts.cron.run_discovery.WebSearchClient")
+@patch("scripts.cron.run_discovery.PostgresDB")
+async def test_run_discovery_defers_when_classifier_budget_exhausted(
+    mock_db_cls,
+    _mock_search_client_cls,
+    _mock_legacy_search_cls,
+    mock_search_service_cls,
+    mock_classifier_cls,
+    mock_gate_loader,
+):
+    mock_db = MagicMock()
+    mock_db.create_admin_task = AsyncMock()
+    mock_db._fetch = AsyncMock(
+        return_value=[{"id": "jur-1", "name": "San Jose", "type": "city"}]
+    )
+    mock_db._fetchrow = AsyncMock(return_value=None)
+    mock_db.get_discovery_classifier_cache = AsyncMock(return_value=None)
+    mock_db.upsert_discovery_classifier_cache = AsyncMock(return_value=True)
+    mock_db.upsert_discovery_deferred_item = AsyncMock(return_value=True)
+    mock_db.get_due_discovery_deferred_items = AsyncMock(return_value=[])
+    mock_db.resolve_discovery_deferred_item = AsyncMock(return_value=True)
+    mock_db.reschedule_discovery_deferred_item = AsyncMock(return_value=True)
+    mock_db.create_source = AsyncMock()
+    mock_db.update_admin_task = AsyncMock()
+    mock_db_cls.return_value = mock_db
+
+    mock_search_service = MagicMock()
+    mock_search_service.last_discovery_stats = {}
+    mock_search_service.discover_sources = AsyncMock(
+        return_value=[
+            {
+                "url": "https://example.gov/agenda",
+                "title": "Agenda Center",
+                "category": "agenda",
+                "snippet": "meeting agendas",
+            }
+        ]
+    )
+    mock_search_service_cls.return_value = mock_search_service
+
+    mock_classifier = MagicMock()
+    mock_classifier.client = object()
+    mock_classifier.classifier_version = "discovery-classifier-v1"
+    mock_classifier.response_from_cache_payload = MagicMock(return_value=None)
+    mock_classifier.response_to_cache_payload = MagicMock(return_value={})
+    mock_classifier.discover_url = AsyncMock()
+    mock_classifier_cls.return_value = mock_classifier
+    mock_gate_loader.return_value = (True, {"status": "passed", "min_confidence": 0.75})
+
+    await run_discovery.main(classifier_provider_budget=0, deferred_retry_budget=0)
+
+    mock_classifier.discover_url.assert_not_called()
+    mock_db.create_source.assert_not_called()
+    mock_db.upsert_discovery_deferred_item.assert_awaited_once()
+    deferred_kwargs = mock_db.upsert_discovery_deferred_item.await_args.kwargs
+    assert deferred_kwargs["stage"] == "classification"
+    assert deferred_kwargs["reason_code"] == "provider_budget_exhausted"
+    update_kwargs = mock_db.update_admin_task.call_args.kwargs
+    assert update_kwargs["result"]["deferred"]["enqueued"] == 1
+    assert update_kwargs["result"]["rejected_by_reason"]["provider_budget_exhausted"] == 0
+
+
+@patch("scripts.cron.run_discovery._load_classifier_validation_contract")
+@patch("scripts.cron.run_discovery.DiscoveryClassifierService")
+@patch("scripts.cron.run_discovery.SearchDiscoveryService")
+@patch("scripts.cron.run_discovery.LegacySearchDiscoveryService")
+@patch("scripts.cron.run_discovery.WebSearchClient")
+@patch("scripts.cron.run_discovery.PostgresDB")
+async def test_run_discovery_processes_due_deferred_classification_items(
+    mock_db_cls,
+    _mock_search_client_cls,
+    _mock_legacy_search_cls,
+    mock_search_service_cls,
+    mock_classifier_cls,
+    mock_gate_loader,
+):
+    mock_db = MagicMock()
+    mock_db.create_admin_task = AsyncMock()
+    mock_db._fetch = AsyncMock(return_value=[])
+    mock_db._fetchrow = AsyncMock(return_value=None)
+    mock_db.get_discovery_classifier_cache = AsyncMock(return_value=None)
+    mock_db.upsert_discovery_classifier_cache = AsyncMock(return_value=True)
+    mock_db.upsert_discovery_deferred_item = AsyncMock(return_value=True)
+    mock_db.get_due_discovery_deferred_items = AsyncMock(
+        return_value=[
+            {
+                "id": "dq-1",
+                "jurisdiction_id": "jur-1",
+                "jurisdiction_name": "San Jose",
+                "stage": "classification",
+                "reason_code": "provider_unavailable",
+                "payload": {
+                    "url": "https://example.gov/agenda",
+                    "title": "Agenda Center",
+                    "snippet": "meeting agendas",
+                    "category": "agenda",
+                    "jurisdiction_type": "city",
+                },
+                "retry_count": 1,
+            }
+        ]
+    )
+    mock_db.resolve_discovery_deferred_item = AsyncMock(return_value=True)
+    mock_db.reschedule_discovery_deferred_item = AsyncMock(return_value=True)
+    mock_db.create_source = AsyncMock()
+    mock_db.update_admin_task = AsyncMock()
+    mock_db_cls.return_value = mock_db
+
+    mock_search_service = MagicMock()
+    mock_search_service.discover_sources = AsyncMock(return_value=[])
+    mock_search_service.last_discovery_stats = {}
+    mock_search_service_cls.return_value = mock_search_service
+
+    mock_classifier = MagicMock()
+    mock_classifier.client = object()
+    mock_classifier.classifier_version = "discovery-classifier-v1"
+    mock_classifier.response_from_cache_payload = MagicMock(return_value=None)
+    mock_classifier.response_to_cache_payload = MagicMock(return_value={})
+    mock_classifier.discover_url = AsyncMock(
+        return_value=MagicMock(
+            is_scrapable=True,
+            confidence=0.91,
+            source_type="agenda",
+            recommended_spider="generic",
+            reasoning="official source",
+        )
+    )
+    mock_classifier_cls.return_value = mock_classifier
+    mock_gate_loader.return_value = (True, {"status": "passed", "min_confidence": 0.75})
+
+    await run_discovery.main(deferred_retry_budget=1)
+
+    mock_db.get_due_discovery_deferred_items.assert_awaited_once_with(limit=1)
+    mock_db.create_source.assert_called_once()
+    mock_db.resolve_discovery_deferred_item.assert_awaited_once_with("dq-1")
+    mock_db.reschedule_discovery_deferred_item.assert_not_called()
+    update_kwargs = mock_db.update_admin_task.call_args.kwargs
+    assert update_kwargs["result"]["deferred"]["processed"] == 1
+    assert update_kwargs["result"]["deferred"]["resolved"] == 1
+
+
+@patch("scripts.cron.run_discovery._load_classifier_validation_contract")
+@patch("scripts.cron.run_discovery.DiscoveryClassifierService")
+@patch("scripts.cron.run_discovery.SearchDiscoveryService")
+@patch("scripts.cron.run_discovery.LegacySearchDiscoveryService")
+@patch("scripts.cron.run_discovery.WebSearchClient")
+@patch("scripts.cron.run_discovery.PostgresDB")
+async def test_run_discovery_reschedules_due_deferred_on_provider_limited_classifier_error(
+    mock_db_cls,
+    _mock_search_client_cls,
+    _mock_legacy_search_cls,
+    mock_search_service_cls,
+    mock_classifier_cls,
+    mock_gate_loader,
+):
+    mock_db = MagicMock()
+    mock_db.create_admin_task = AsyncMock()
+    mock_db._fetch = AsyncMock(return_value=[])
+    mock_db._fetchrow = AsyncMock(return_value=None)
+    mock_db.get_discovery_classifier_cache = AsyncMock(return_value=None)
+    mock_db.upsert_discovery_classifier_cache = AsyncMock(return_value=True)
+    mock_db.upsert_discovery_deferred_item = AsyncMock(return_value=True)
+    mock_db.get_due_discovery_deferred_items = AsyncMock(
+        return_value=[
+            {
+                "id": "dq-2",
+                "jurisdiction_id": "jur-1",
+                "jurisdiction_name": "San Jose",
+                "stage": "classification",
+                "reason_code": "provider_unavailable",
+                "payload": {
+                    "url": "https://example.gov/agenda",
+                    "title": "Agenda Center",
+                    "snippet": "meeting agendas",
+                    "jurisdiction_type": "city",
+                },
+                "retry_count": 2,
+            }
+        ]
+    )
+    mock_db.resolve_discovery_deferred_item = AsyncMock(return_value=True)
+    mock_db.reschedule_discovery_deferred_item = AsyncMock(return_value=True)
+    mock_db.create_source = AsyncMock()
+    mock_db.update_admin_task = AsyncMock()
+    mock_db_cls.return_value = mock_db
+
+    mock_search_service = MagicMock()
+    mock_search_service.discover_sources = AsyncMock(return_value=[])
+    mock_search_service.last_discovery_stats = {}
+    mock_search_service_cls.return_value = mock_search_service
+
+    mock_classifier = MagicMock()
+    mock_classifier.client = object()
+    mock_classifier.classifier_version = "discovery-classifier-v1"
+    mock_classifier.response_from_cache_payload = MagicMock(return_value=None)
+    mock_classifier.response_to_cache_payload = MagicMock(return_value={})
+    mock_classifier.discover_url = AsyncMock(side_effect=RuntimeError("429 rate limit"))
+    mock_classifier_cls.return_value = mock_classifier
+    mock_gate_loader.return_value = (True, {"status": "passed", "min_confidence": 0.75})
+
+    await run_discovery.main(deferred_retry_budget=1)
+
+    mock_db.create_source.assert_not_called()
+    mock_db.resolve_discovery_deferred_item.assert_not_called()
+    mock_db.reschedule_discovery_deferred_item.assert_awaited_once()
+    reschedule_kwargs = mock_db.reschedule_discovery_deferred_item.await_args.kwargs
+    assert reschedule_kwargs["item_id"] == "dq-2"
+    assert reschedule_kwargs["retry_count"] == 3
+    assert reschedule_kwargs["reason_code"] == "rate_limit"

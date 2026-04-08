@@ -518,6 +518,160 @@ class PostgresDB:
             logger.warning("Discovery classifier cache write skipped: %s", e)
             return False
 
+    async def upsert_discovery_deferred_item(
+        self,
+        jurisdiction_id: str,
+        jurisdiction_name: str,
+        stage: str,
+        reason_code: str,
+        payload: Dict[str, Any],
+        retry_count: int = 0,
+        next_attempt_at: Optional[datetime] = None,
+        last_error: Optional[str] = None,
+    ) -> bool:
+        """Insert or update deferred provider-limited discovery work."""
+        if not payload:
+            return False
+        try:
+            await self._execute(
+                """
+                INSERT INTO discovery_deferred_queue (
+                    jurisdiction_id,
+                    jurisdiction_name,
+                    stage,
+                    reason_code,
+                    payload,
+                    retry_count,
+                    next_attempt_at,
+                    last_error
+                )
+                VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8)
+                ON CONFLICT (jurisdiction_id, stage, reason_code, payload)
+                DO UPDATE SET
+                    retry_count = GREATEST(discovery_deferred_queue.retry_count, EXCLUDED.retry_count),
+                    next_attempt_at = GREATEST(discovery_deferred_queue.next_attempt_at, EXCLUDED.next_attempt_at),
+                    last_error = EXCLUDED.last_error,
+                    updated_at = NOW()
+                """,
+                jurisdiction_id,
+                jurisdiction_name,
+                stage,
+                reason_code,
+                json.dumps(payload),
+                max(retry_count, 0),
+                next_attempt_at or datetime.now(timezone.utc),
+                last_error,
+            )
+            return True
+        except Exception as e:
+            logger.warning("Discovery deferred queue write skipped: %s", e)
+            return False
+
+    async def get_due_discovery_deferred_items(
+        self,
+        limit: int,
+        as_of: Optional[datetime] = None,
+    ) -> List[Dict[str, Any]]:
+        """Return deferred items that are due for retry."""
+        if limit <= 0:
+            return []
+        try:
+            rows = await self._fetch(
+                """
+                SELECT
+                    id::text AS id,
+                    jurisdiction_id,
+                    jurisdiction_name,
+                    stage,
+                    reason_code,
+                    payload,
+                    retry_count,
+                    next_attempt_at,
+                    last_error
+                FROM discovery_deferred_queue
+                WHERE next_attempt_at <= $1
+                ORDER BY next_attempt_at ASC, created_at ASC
+                LIMIT $2
+                """,
+                as_of or datetime.now(timezone.utc),
+                limit,
+            )
+        except Exception as e:
+            logger.warning("Discovery deferred queue read skipped: %s", e)
+            return []
+
+        items: List[Dict[str, Any]] = []
+        for row in rows:
+            item = dict(row)
+            payload = item.get("payload")
+            if isinstance(payload, str):
+                try:
+                    payload = json.loads(payload)
+                except json.JSONDecodeError:
+                    payload = {}
+            item["payload"] = payload if isinstance(payload, dict) else {}
+            items.append(item)
+        return items
+
+    async def resolve_discovery_deferred_item(self, item_id: str) -> bool:
+        """Delete a deferred queue item after successful processing or terminal outcome."""
+        try:
+            await self._execute(
+                "DELETE FROM discovery_deferred_queue WHERE id::text = $1",
+                item_id,
+            )
+            return True
+        except Exception as e:
+            logger.warning("Discovery deferred queue delete skipped: %s", e)
+            return False
+
+    async def reschedule_discovery_deferred_item(
+        self,
+        item_id: str,
+        retry_count: int,
+        next_attempt_at: datetime,
+        last_error: str,
+        reason_code: Optional[str] = None,
+    ) -> bool:
+        """Reschedule a deferred queue item with updated retry metadata."""
+        try:
+            if reason_code:
+                await self._execute(
+                    """
+                    UPDATE discovery_deferred_queue
+                    SET retry_count = $1,
+                        next_attempt_at = $2,
+                        last_error = $3,
+                        reason_code = $4,
+                        updated_at = NOW()
+                    WHERE id::text = $5
+                    """,
+                    max(retry_count, 0),
+                    next_attempt_at,
+                    last_error,
+                    reason_code,
+                    item_id,
+                )
+            else:
+                await self._execute(
+                    """
+                    UPDATE discovery_deferred_queue
+                    SET retry_count = $1,
+                        next_attempt_at = $2,
+                        last_error = $3,
+                        updated_at = NOW()
+                    WHERE id::text = $4
+                    """,
+                    max(retry_count, 0),
+                    next_attempt_at,
+                    last_error,
+                    item_id,
+                )
+            return True
+        except Exception as e:
+            logger.warning("Discovery deferred queue reschedule skipped: %s", e)
+            return False
+
     async def update_source(
         self, source_id: str, data: Dict[str, Any]
     ) -> Dict[str, Any]:

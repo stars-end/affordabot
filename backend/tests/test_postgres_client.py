@@ -1,6 +1,7 @@
 from unittest.mock import AsyncMock
 import sys
 import types
+from datetime import datetime, timezone
 
 import pytest
 
@@ -226,3 +227,25 @@ async def test_upsert_discovery_classifier_cache_writes_json_payload() -> None:
     args = db._execute.await_args.args
     assert args[2] == "discovery-classifier-v1"
     assert args[3] == '{"is_scrapable": true, "confidence": 0.92}'
+
+
+@pytest.mark.asyncio
+async def test_upsert_discovery_deferred_item_merges_retry_forward() -> None:
+    db = PostgresDB("postgresql://example.test/db")
+    db._execute = AsyncMock(return_value="INSERT 0 1")
+
+    ok = await db.upsert_discovery_deferred_item(
+        jurisdiction_id="jur-1",
+        jurisdiction_name="San Jose",
+        stage="classification",
+        reason_code="provider_unavailable",
+        payload={"url": "https://example.gov/agenda"},
+        retry_count=2,
+        next_attempt_at=datetime(2026, 4, 8, 12, 0, tzinfo=timezone.utc),
+        last_error="timeout",
+    )
+
+    assert ok is True
+    sql = db._execute.await_args.args[0]
+    assert "retry_count = GREATEST" in sql
+    assert "next_attempt_at = GREATEST" in sql
