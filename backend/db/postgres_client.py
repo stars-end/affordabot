@@ -366,10 +366,15 @@ class PostgresDB:
 
     async def create_source(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Create a new source."""
-        columns = ", ".join(data.keys())
-        placeholders = ", ".join([f"${i + 1}" for i in range(len(data))])
+        insert_data = dict(data)
+        metadata = insert_data.get("metadata")
+        if isinstance(metadata, (dict, list)):
+            insert_data["metadata"] = json.dumps(metadata)
+
+        columns = ", ".join(insert_data.keys())
+        placeholders = ", ".join([f"${i + 1}" for i in range(len(insert_data))])
         query = f"INSERT INTO sources ({columns}) VALUES ({placeholders}) RETURNING *"
-        row = await self._fetchrow(query, *data.values())
+        row = await self._fetchrow(query, *insert_data.values())
         return dict(row)
 
     async def update_source(

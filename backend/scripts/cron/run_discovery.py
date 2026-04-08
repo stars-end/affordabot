@@ -178,7 +178,7 @@ async def main(
     try:
         await db.create_admin_task(
             task_id=task_id,
-            task_type='discovery',
+            task_type='research',
             jurisdiction='all',
             status='running'
         )
@@ -229,6 +229,7 @@ async def main(
 
         for jur in jurisdictions:
             logger.info(f"🔎 Discovering for {jur['name']}...")
+            jurisdiction_id = str(jur["id"])
             
             # Run Discovery
             discover_kwargs = {}
@@ -298,7 +299,7 @@ async def main(
 
                 existing = await db._fetchrow(
                     "SELECT id FROM sources WHERE jurisdiction_id = $1 AND url = $2",
-                    jur['id'],
+                    jurisdiction_id,
                     candidate_url,
                 )
 
@@ -308,7 +309,7 @@ async def main(
                     continue
 
                 await db.create_source({
-                    'jurisdiction_id': str(jur['id']),
+                    'jurisdiction_id': jurisdiction_id,
                     'name': item.get('title') or candidate_url,
                     'type': 'web',
                     'url': candidate_url,

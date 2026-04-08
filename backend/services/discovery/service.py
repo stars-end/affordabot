@@ -1,9 +1,11 @@
 import os
 import instructor
 import logging
+import re
 from openai import AsyncOpenAI
 # from typing import List, Optional (Unused)
 from pydantic import BaseModel, Field
+from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 ZAI_CODING_BASE_URL = "https://api.z.ai/api/coding/paas/v4"
@@ -78,6 +80,14 @@ class AutoDiscoveryService:
                 ]
             )
         except Exception as e:
+            if self._is_malformed_model_output_error(e):
+                logger.warning(
+                    "Discovery classifier returned malformed structured output; "
+                    "using deterministic URL heuristic fallback for %s",
+                    url,
+                )
+                return self._heuristic_discovery_fallback(url, page_text, str(e))
+
             logger.error(f"Discovery failed: {e}")
             return DiscoveryResponse(
                 is_scrapable=False,
@@ -87,3 +97,65 @@ class AutoDiscoveryService:
                 confidence=0.0,
                 reasoning=str(e)
             )
+
+    @staticmethod
+    def _is_malformed_model_output_error(exc: Exception) -> bool:
+        text = str(exc)
+        malformed_signals = (
+            "validation error for DiscoveryResponse",
+            "validation errors for DiscoveryResponse",
+            "Invalid JSON",
+            "json_invalid",
+            "<arg_key>",
+            "</tool_call>",
+        )
+        lowered = text.lower()
+        return any(signal.lower() in lowered for signal in malformed_signals)
+
+    @staticmethod
+    def _heuristic_discovery_fallback(
+        url: str,
+        page_text: str,
+        error_text: str,
+    ) -> DiscoveryResponse:
+        parsed = urlparse(url)
+        host = parsed.netloc.lower()
+        blob = f"{url.lower()} {page_text.lower()}"
+
+        if "minutes" in blob:
+            source_type = "minutes"
+            confidence = 0.78
+            scrapable = True
+        elif "agenda" in blob:
+            source_type = "agenda"
+            confidence = 0.78
+            scrapable = True
+        elif re.search(r"\bcity council\b", blob) and re.search(r"\bmeeting\b", blob):
+            source_type = "agenda"
+            confidence = 0.75
+            scrapable = True
+        else:
+            source_type = "generic"
+            confidence = 0.30
+            scrapable = False
+
+        jurisdiction_name = "Unknown"
+        if "sanjoseca.gov" in host:
+            jurisdiction_name = "San Jose, CA"
+        elif "milpitas.gov" in host:
+            jurisdiction_name = "Milpitas, CA"
+        elif "acgov.org" in host or "alamedacountyca.gov" in host:
+            jurisdiction_name = "Alameda County, CA"
+
+        return DiscoveryResponse(
+            is_scrapable=scrapable,
+            jurisdiction_name=jurisdiction_name,
+            source_type=source_type,
+            recommended_spider="generic",
+            confidence=confidence,
+            reasoning=(
+                "Fallback heuristic applied after malformed structured output. "
+                f"Host={host or 'unknown'}, source_type={source_type}, "
+                f"error_excerpt={error_text[:240]}"
+            ),
+        )
