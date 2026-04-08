@@ -149,7 +149,10 @@ class AutoDiscoveryService:
         return templates.get(jurisdiction_type, templates["city"])
 
     async def discover_sources(
-        self, jurisdiction_name: str, jurisdiction_type: str = "city"
+        self,
+        jurisdiction_name: str,
+        jurisdiction_type: str = "city",
+        max_queries: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
         """
         Discover potential sources for a given jurisdiction.
@@ -162,6 +165,8 @@ class AutoDiscoveryService:
         """
         # Generate queries using LLM
         queries = await self.generate_queries(jurisdiction_name, jurisdiction_type)
+        if max_queries is not None and max_queries > 0:
+            queries = queries[:max_queries]
         
         all_results = []
         seen_urls = set()

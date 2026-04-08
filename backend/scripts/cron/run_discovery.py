@@ -10,6 +10,7 @@ import os
 import logging
 import asyncio
 import json
+import argparse
 from datetime import datetime
 from pathlib import Path
 from uuid import uuid4
@@ -20,6 +21,9 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
 from db.postgres_client import PostgresDB
 from llm_common import WebSearchClient
 from services.auto_discovery_service import AutoDiscoveryService as SearchDiscoveryService
+from services.discovery.search_discovery import (
+    SearchDiscoveryService as LegacySearchDiscoveryService,
+)
 from services.discovery.classifier_validation import (
     ClassifierAcceptanceGate,
     EvaluationMetrics,
@@ -38,6 +42,66 @@ VALIDATION_REPORT_PATH = (
     / "artifacts"
     / "discovery_classifier_validation_report.json"
 )
+
+
+class ResilientWebSearchClient:
+    """Use llm_common search first, then fail over to legacy structured discovery search."""
+
+    def __init__(self, primary_client, fallback_service=None):
+        self.primary_client = primary_client
+        self.fallback_service = fallback_service
+
+    async def search(self, query: str):
+        try:
+            primary_results = await self.primary_client.search(query)
+            if primary_results:
+                return primary_results
+            logger.warning("Primary search returned no results; trying fallback for query '%s'", query)
+        except Exception as exc:
+            logger.warning("Primary search failed for query '%s': %s", query, exc)
+
+        if not self.fallback_service:
+            return []
+
+        try:
+            return await self.fallback_service.find_urls(query, count=10)
+        except Exception as exc:
+            logger.warning("Fallback search failed for query '%s': %s", query, exc)
+            return []
+
+
+def _normalize_jurisdiction_scope(values: list[str] | None) -> set[str] | None:
+    """Normalize optional jurisdiction scope list into casefolded names."""
+    if not values:
+        return None
+    normalized = {
+        value.strip().casefold()
+        for value in values
+        if value and value.strip()
+    }
+    return normalized or None
+
+
+def _parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Run discovery cron with optional bounded scope.")
+    parser.add_argument(
+        "--jurisdiction",
+        action="append",
+        default=[],
+        help="Jurisdiction name to include. Repeat for multiple jurisdictions.",
+    )
+    parser.add_argument(
+        "--jurisdictions",
+        default="",
+        help="Comma-separated jurisdiction names to include.",
+    )
+    parser.add_argument(
+        "--max-queries-per-jurisdiction",
+        type=int,
+        default=None,
+        help="Optional cap for number of discovery queries per jurisdiction (for bounded validation runs).",
+    )
+    return parser.parse_args()
 
 
 def _load_classifier_validation_contract() -> tuple[bool, dict]:
@@ -87,13 +151,23 @@ def _load_classifier_validation_contract() -> tuple[bool, dict]:
     }
 
 
-async def main():
+async def main(
+    jurisdiction_scope: set[str] | None = None,
+    max_queries_per_jurisdiction: int | None = None,
+):
     task_id = str(uuid4())
     logger.info(f"🚀 Starting Discovery (Task {task_id})")
     
     db = PostgresDB()
-    search_client = WebSearchClient(
+    primary_search_client = WebSearchClient(
         api_key=os.environ.get("ZAI_API_KEY", "mock-key"),
+    )
+    fallback_search_service = LegacySearchDiscoveryService(
+        api_key=os.environ.get("ZAI_API_KEY"),
+    )
+    search_client = ResilientWebSearchClient(
+        primary_client=primary_search_client,
+        fallback_service=fallback_search_service,
     )
     discovery_service = SearchDiscoveryService(search_client=search_client, db_client=db)
     classifier_service = DiscoveryClassifierService()
@@ -115,7 +189,15 @@ async def main():
         # 2. Get Jurisdictions
         # For now, just active ones or all. Let's do all.
         jurisdictions_rows = await db._fetch("SELECT * FROM jurisdictions")
-        jurisdictions = [dict(row) for row in jurisdictions_rows]
+        all_jurisdictions = [dict(row) for row in jurisdictions_rows]
+        if jurisdiction_scope:
+            jurisdictions = [
+                jur
+                for jur in all_jurisdictions
+                if str(jur.get("name", "")).casefold() in jurisdiction_scope
+            ]
+        else:
+            jurisdictions = all_jurisdictions
         
         results = {
             "found": 0,
@@ -133,6 +215,10 @@ async def main():
             "batch_gate": gate_contract,
             "classifier_trusted": classifier_trusted,
             "classifier_min_confidence": CLASSIFIER_MIN_CONFIDENCE,
+            "jurisdiction_scope": sorted(jurisdiction_scope) if jurisdiction_scope else "all",
+            "jurisdictions_processed": len(jurisdictions),
+            "jurisdictions_available": len(all_jurisdictions),
+            "max_queries_per_jurisdiction": max_queries_per_jurisdiction,
         }
 
         if not gate_enabled:
@@ -145,7 +231,14 @@ async def main():
             logger.info(f"🔎 Discovering for {jur['name']}...")
             
             # Run Discovery
-            discovered_items = await discovery_service.discover_sources(jur['name'], jur.get('type', 'city'))
+            discover_kwargs = {}
+            if max_queries_per_jurisdiction is not None:
+                discover_kwargs["max_queries"] = max_queries_per_jurisdiction
+            discovered_items = await discovery_service.discover_sources(
+                jur['name'],
+                jur.get('type', 'city'),
+                **discover_kwargs,
+            )
             
             for item in discovered_items:
                 results["found"] += 1
@@ -263,4 +356,14 @@ async def main():
         sys.exit(1)
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    args = _parse_args()
+    scope_values = list(args.jurisdiction)
+    if args.jurisdictions:
+        scope_values.extend(item for item in args.jurisdictions.split(","))
+    scope = _normalize_jurisdiction_scope(scope_values)
+    asyncio.run(
+        main(
+            jurisdiction_scope=scope,
+            max_queries_per_jurisdiction=args.max_queries_per_jurisdiction,
+        )
+    )
