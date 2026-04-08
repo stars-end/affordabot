@@ -1,5 +1,5 @@
--- Discovery resilience cache tables (Phase 1: bd-ss6db)
--- Keep schema reference aligned with migration 008.
+-- Phase 1 discovery resilience caches (bd-ss6db).
+-- Keeps provider-heavy query generation/classification work bounded per run.
 
 CREATE TABLE IF NOT EXISTS public.discovery_query_cache (
   jurisdiction_name text NOT NULL,

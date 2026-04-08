@@ -134,3 +134,21 @@ async def test_discover_url_non_malformed_error_returns_error_response():
         assert result.is_scrapable is False
         assert result.source_type == "error"
         assert result.confidence == 0.0
+
+
+def test_discovery_response_cache_payload_roundtrip():
+    response = DiscoveryResponse(
+        is_scrapable=True,
+        jurisdiction_name="San Jose",
+        source_type="agenda",
+        recommended_spider="generic",
+        confidence=0.9,
+        reasoning="test",
+    )
+
+    payload = AutoDiscoveryService.response_to_cache_payload(response)
+    restored = AutoDiscoveryService.response_from_cache_payload(payload)
+
+    assert restored is not None
+    assert restored.is_scrapable is True
+    assert restored.confidence == 0.9

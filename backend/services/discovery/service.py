@@ -9,6 +9,7 @@ from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 ZAI_CODING_BASE_URL = "https://api.z.ai/api/coding/paas/v4"
+DISCOVERY_CLASSIFIER_VERSION = "discovery-classifier-v1"
 
 class DiscoveryResponse(BaseModel):
     is_scrapable: bool = Field(..., description="Whether the URL looks like a valid source for scraping")
@@ -41,6 +42,7 @@ class AutoDiscoveryService:
             self.model = "x-ai/grok-4.1-fast:free" # Default fast model
         else:
             logger.warning("AutoDiscoveryService: No LLM API keys found. Discovery will fail.")
+        self.classifier_version = DISCOVERY_CLASSIFIER_VERSION
 
     async def discover_url(self, url: str, page_text: str = "") -> DiscoveryResponse:
         """
@@ -97,6 +99,21 @@ class AutoDiscoveryService:
                 confidence=0.0,
                 reasoning=str(e)
             )
+
+    @staticmethod
+    def response_to_cache_payload(response: DiscoveryResponse) -> dict:
+        """Serialize classifier response into DB-cache-safe payload."""
+        return response.model_dump()
+
+    @staticmethod
+    def response_from_cache_payload(payload: dict) -> DiscoveryResponse | None:
+        """Deserialize a cached classifier payload."""
+        if not isinstance(payload, dict):
+            return None
+        try:
+            return DiscoveryResponse.model_validate(payload)
+        except Exception:
+            return None
 
     @staticmethod
     def _is_malformed_model_output_error(exc: Exception) -> bool:
