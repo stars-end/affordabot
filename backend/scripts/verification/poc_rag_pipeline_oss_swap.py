@@ -159,8 +159,14 @@ class MockSearxHandler(BaseHTTPRequestHandler):
         return
 
 
-async def run_poc(base_url: str) -> dict[str, Any]:
-    search = OssSearxngWebSearchClient(endpoint=f"{base_url}/search", timeout_s=5.0)
+async def run_poc(base_url: str, bill_id: str, jurisdiction: str, bill_text: str) -> dict[str, Any]:
+    search = OssSearxngWebSearchClient(
+        endpoint=f"{base_url}/search",
+        timeout_s=5.0,
+        max_retries=3,
+        backoff_base_s=0.1,
+        backoff_max_s=0.5,
+    )
     service = LegislationResearchService(
         llm_client=object(),
         search_client=search,  # type: ignore[arg-type]
@@ -168,12 +174,9 @@ async def run_poc(base_url: str) -> dict[str, Any]:
     )
 
     result = await service.research(
-        bill_id="AB-123",
-        bill_text=(
-            "A bill to establish reporting and compliance requirements with "
-            "potential fiscal impacts for implementing agencies. " * 4
-        ),
-        jurisdiction="California",
+        bill_id=bill_id,
+        bill_text=bill_text,
+        jurisdiction=jurisdiction,
         top_k=3,
         min_score=0.4,
     )
@@ -186,6 +189,7 @@ async def run_poc(base_url: str) -> dict[str, Any]:
         "is_sufficient": result.is_sufficient,
         "insufficiency_reason": result.insufficiency_reason,
         "first_web_source": (result.web_sources[0]["url"] if result.web_sources else None),
+        "top_web_titles": [item.get("title", "") for item in result.web_sources[:3]],
     }
 
 
@@ -193,6 +197,15 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8877)
+    parser.add_argument("--bill-id", default="AB-123")
+    parser.add_argument("--jurisdiction", default="California")
+    parser.add_argument(
+        "--bill-text",
+        default=(
+            "A bill to establish reporting and compliance requirements with "
+            "potential fiscal impacts for implementing agencies. " * 4
+        ),
+    )
     args = parser.parse_args()
 
     server = ThreadingHTTPServer((args.host, args.port), MockSearxHandler)
@@ -201,7 +214,14 @@ def main() -> None:
 
     summary: dict[str, Any]
     try:
-        summary = asyncio.run(run_poc(base_url=f"http://{args.host}:{args.port}"))
+        summary = asyncio.run(
+            run_poc(
+                base_url=f"http://{args.host}:{args.port}",
+                bill_id=args.bill_id,
+                jurisdiction=args.jurisdiction,
+                bill_text=args.bill_text,
+            )
+        )
     finally:
         server.shutdown()
         server.server_close()

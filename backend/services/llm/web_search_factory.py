@@ -289,9 +289,15 @@ class OssSearxngWebSearchClient:
         self,
         endpoint: str = DEFAULT_SEARXNG_SEARCH_URL,
         timeout_s: float = 20.0,
+        max_retries: int = 2,
+        backoff_base_s: float = 0.5,
+        backoff_max_s: float = 5.0,
     ) -> None:
         self.endpoint = endpoint.rstrip("/")
         self.timeout_s = max(0.1, timeout_s)
+        self.max_retries = max(0, max_retries)
+        self.backoff_base_s = max(0.0, backoff_base_s)
+        self.backoff_max_s = max(self.backoff_base_s, backoff_max_s)
         self.client = httpx.AsyncClient(timeout=self.timeout_s)
 
     async def search(
@@ -314,9 +320,26 @@ class OssSearxngWebSearchClient:
         if kwargs:
             params.update(kwargs)
 
-        response = await self.client.get(self.endpoint, params=params)
-        response.raise_for_status()
-        payload = response.json()
+        last_error: Exception | None = None
+        payload: dict[str, Any] = {}
+        for attempt in range(self.max_retries + 1):
+            try:
+                response = await self.client.get(self.endpoint, params=params)
+                status_code = getattr(response, "status_code", 200)
+                if status_code in {429, 503} and attempt < self.max_retries:
+                    await self._sleep_backoff(attempt)
+                    continue
+                response.raise_for_status()
+                payload = response.json()
+                break
+            except Exception as e:
+                last_error = e
+                if attempt >= self.max_retries:
+                    raise
+                await self._sleep_backoff(attempt)
+
+        if not payload and last_error:
+            raise last_error
 
         normalized: list[dict[str, Any]] = []
         seen_urls: set[str] = set()
@@ -338,6 +361,17 @@ class OssSearxngWebSearchClient:
                 break
         return normalized
 
+    async def _sleep_backoff(self, attempt: int) -> None:
+        if self.backoff_base_s <= 0:
+            return
+        delay = min(
+            self.backoff_max_s,
+            self.backoff_base_s * (2**attempt),
+        )
+        # light jitter avoids synchronized retries across workers.
+        jitter = delay * 0.2
+        await asyncio.sleep(max(0.0, delay + ((jitter * 2 * os.urandom(1)[0] / 255.0) - jitter)))
+
     async def close(self) -> None:
         await self.client.aclose()
 
@@ -356,8 +390,17 @@ def create_web_search_client(
         if not endpoint:
             endpoint = DEFAULT_SEARXNG_SEARCH_URL
         timeout_s = float(os.getenv("OSS_WEB_SEARCH_TIMEOUT_S", "20"))
+        max_retries = int(os.getenv("OSS_WEB_SEARCH_MAX_RETRIES", "2"))
+        backoff_base_s = float(os.getenv("OSS_WEB_SEARCH_BACKOFF_BASE_S", "0.5"))
+        backoff_max_s = float(os.getenv("OSS_WEB_SEARCH_BACKOFF_MAX_S", "5"))
         logger.info("Using OSS web search endpoint: %s", endpoint)
-        return OssSearxngWebSearchClient(endpoint=endpoint, timeout_s=timeout_s)
+        return OssSearxngWebSearchClient(
+            endpoint=endpoint,
+            timeout_s=timeout_s,
+            max_retries=max_retries,
+            backoff_base_s=backoff_base_s,
+            backoff_max_s=backoff_max_s,
+        )
 
     # Default to existing Z.ai behavior.
     endpoint = (
