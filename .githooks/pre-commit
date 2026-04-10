@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Non-blocking pre-commit hook
 # Just reminds user to run validation.
 
