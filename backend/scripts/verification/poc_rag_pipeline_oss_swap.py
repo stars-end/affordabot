@@ -12,6 +12,7 @@ import argparse
 import asyncio
 import json
 import threading
+import time
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -159,9 +160,43 @@ class MockSearxHandler(BaseHTTPRequestHandler):
         return
 
 
-async def run_poc(base_url: str, bill_id: str, jurisdiction: str, bill_text: str) -> dict[str, Any]:
+def _render_markdown(summary: dict[str, Any], out_path: str | None) -> None:
+    if not out_path:
+        return
+    lines = [
+        "# OSS Swap RAG Verification Report",
+        "",
+        f"Generated: {time.strftime('%Y-%m-%d %H:%M:%S UTC', time.gmtime())}",
+        "",
+        f"- Jurisdiction: `{summary['jurisdiction']}`",
+        f"- Bill ID: `{summary['bill_id']}`",
+        f"- Endpoint mode: `{summary['endpoint_mode']}`",
+        f"- Endpoint: `{summary['endpoint']}`",
+        "",
+        "## Pipeline contract checks",
+        f"- rag_chunks: `{summary['rag_chunks']}`",
+        f"- web_sources: `{summary['web_sources']}`",
+        f"- evidence_envelopes: `{summary['evidence_envelopes']}`",
+        f"- is_sufficient: `{summary['is_sufficient']}`",
+        f"- insufficiency_reason: `{summary['insufficiency_reason']}`",
+        "",
+        "## Top web results",
+        "",
+    ]
+    for idx, item in enumerate(summary.get("top_web_sources", []), 1):
+        lines.append(f"{idx}. [{item.get('title','')}]({item.get('url','')})")
+    lines.append("")
+    lines.append("## Saratoga relevance signals")
+    lines.append(f"- official_domain_hits: `{summary.get('official_domain_hits', 0)}`")
+    lines.append(f"- saratoga_mention_hits: `{summary.get('saratoga_mention_hits', 0)}`")
+    lines.append("")
+    Path(out_path).parent.mkdir(parents=True, exist_ok=True)
+    Path(out_path).write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+async def run_poc(endpoint: str, endpoint_mode: str, bill_id: str, jurisdiction: str, bill_text: str) -> dict[str, Any]:
     search = OssSearxngWebSearchClient(
-        endpoint=f"{base_url}/search",
+        endpoint=endpoint,
         timeout_s=5.0,
         max_retries=3,
         backoff_base_s=0.1,
@@ -182,7 +217,30 @@ async def run_poc(base_url: str, bill_id: str, jurisdiction: str, bill_text: str
     )
     await search.close()
 
+    top_web_sources = [
+        {
+            "title": item.get("title", ""),
+            "url": item.get("url") or item.get("link") or "",
+        }
+        for item in result.web_sources[:5]
+    ]
+    official_domains = ("ci.saratoga.ca.us", ".gov", "sccgov.org", "santaclaracounty.gov")
+    official_domain_hits = sum(
+        1
+        for item in result.web_sources
+        if any(token in ((item.get("url") or item.get("link") or "").lower()) for token in official_domains)
+    )
+    saratoga_mention_hits = sum(
+        1
+        for item in result.web_sources
+        if "saratoga" in (item.get("title", "") + " " + item.get("snippet", "")).lower()
+    )
+
     return {
+        "bill_id": bill_id,
+        "jurisdiction": jurisdiction,
+        "endpoint_mode": endpoint_mode,
+        "endpoint": endpoint,
         "rag_chunks": len(result.rag_chunks),
         "web_sources": len(result.web_sources),
         "evidence_envelopes": len(result.evidence_envelopes),
@@ -190,6 +248,9 @@ async def run_poc(base_url: str, bill_id: str, jurisdiction: str, bill_text: str
         "insufficiency_reason": result.insufficiency_reason,
         "first_web_source": (result.web_sources[0]["url"] if result.web_sources else None),
         "top_web_titles": [item.get("title", "") for item in result.web_sources[:3]],
+        "top_web_sources": top_web_sources,
+        "official_domain_hits": official_domain_hits,
+        "saratoga_mention_hits": saratoga_mention_hits,
     }
 
 
@@ -200,6 +261,16 @@ def main() -> None:
     parser.add_argument("--bill-id", default="AB-123")
     parser.add_argument("--jurisdiction", default="California")
     parser.add_argument(
+        "--live-endpoint",
+        default="",
+        help="Use a real OSS endpoint (e.g. http://127.0.0.1:8080/search). If omitted, local mock server is used.",
+    )
+    parser.add_argument(
+        "--out",
+        default="",
+        help="Optional markdown output path for result report.",
+    )
+    parser.add_argument(
         "--bill-text",
         default=(
             "A bill to establish reporting and compliance requirements with "
@@ -208,25 +279,38 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    server = ThreadingHTTPServer((args.host, args.port), MockSearxHandler)
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
-
     summary: dict[str, Any]
-    try:
+    if args.live_endpoint.strip():
+        endpoint = args.live_endpoint.strip()
         summary = asyncio.run(
             run_poc(
-                base_url=f"http://{args.host}:{args.port}",
+                endpoint=endpoint,
+                endpoint_mode="live",
                 bill_id=args.bill_id,
                 jurisdiction=args.jurisdiction,
                 bill_text=args.bill_text,
             )
         )
-    finally:
-        server.shutdown()
-        server.server_close()
+    else:
+        server = ThreadingHTTPServer((args.host, args.port), MockSearxHandler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            summary = asyncio.run(
+                run_poc(
+                    endpoint=f"http://{args.host}:{args.port}/search",
+                    endpoint_mode="mock",
+                    bill_id=args.bill_id,
+                    jurisdiction=args.jurisdiction,
+                    bill_text=args.bill_text,
+                )
+            )
+        finally:
+            server.shutdown()
+            server.server_close()
 
     print(json.dumps(summary, indent=2))
+    _render_markdown(summary, args.out or None)
 
 
 if __name__ == "__main__":
