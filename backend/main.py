@@ -683,31 +683,78 @@ async def poc_finalize_report(request: Request, payload: PipelinePocRunRequest):
     if not analyze_response:
         raise HTTPException(status_code=409, detail="analyze step not completed")
 
+    child_statuses = {
+        "read": read_response.get("status"),
+        "analyze": analyze_response.get("status"),
+    }
+    child_decisions = {
+        "read": read_response.get("decision"),
+        "analyze": analyze_response.get("decision"),
+    }
+    child_reasons = {
+        "read": read_response.get("decision_reason"),
+        "analyze": analyze_response.get("decision_reason"),
+    }
+    failing_children = [
+        step
+        for step, status in child_statuses.items()
+        if status in {"failed", "blocked"}
+    ]
+    child_alerts = read_response.get("alerts", []) + analyze_response.get("alerts", [])
+    alerts = search_response.get("alerts", []) + child_alerts
+
+    if failing_children:
+        has_blocked = any(
+            child_statuses[step] == "blocked" for step in failing_children
+        )
+        final_status = "blocked" if has_blocked else "failed"
+        final_decision = "downstream_blocked" if has_blocked else "downstream_failed"
+        detail = ", ".join(
+            f"{step}:{child_statuses[step]}/{child_decisions.get(step) or 'unknown'}"
+            for step in failing_children
+        )
+        decision_reason = (
+            f"finalize detected non-succeeded downstream step(s): {detail}"
+        )
+        alerts = alerts + [
+            {
+                "severity": "WARN" if has_blocked else "ERROR",
+                "code": "poc_finalize_child_step_not_succeeded",
+                "message": decision_reason,
+                "failing_steps": failing_children,
+            }
+        ]
+    else:
+        final_status = "succeeded"
+        final_decision = search_response.get("decision", "fresh_snapshot")
+        decision_reason = "pipeline step sequence finalized"
+
     response = {
         "contract_version": "persisted-pipeline.v1",
         "run_id": payload.run_id,
         "windmill_flow_run_id": ctx.get("windmill_flow_run_id"),
         "windmill_job_id": ctx.get("windmill_job_id"),
         "step": "finalize",
-        "status": "succeeded",
-        "decision": search_response.get("decision", "fresh_snapshot"),
-        "decision_reason": "pipeline step sequence finalized",
+        "status": final_status,
+        "decision": final_decision,
+        "decision_reason": decision_reason,
         "evidence": {
             "snapshot_id": search_response.get("evidence", {}).get("snapshot_id"),
             "result_count": search_response.get("evidence", {}).get("result_count", 0),
             "search_decision": search_response.get("decision"),
-            "read_decision": read_response.get("decision"),
-            "analyze_decision": analyze_response.get("decision"),
+            "read_decision": child_decisions.get("read"),
+            "read_status": child_statuses.get("read"),
+            "read_decision_reason": child_reasons.get("read"),
+            "analyze_decision": child_decisions.get("analyze"),
+            "analyze_status": child_statuses.get("analyze"),
+            "analyze_decision_reason": child_reasons.get("analyze"),
+            "failing_steps": failing_children,
         },
-        "alerts": (
-            search_response.get("alerts", [])
-            + read_response.get("alerts", [])
-            + analyze_response.get("alerts", [])
-        ),
+        "alerts": alerts,
     }
     ctx["store"].complete_run(
         payload.run_id,
-        "completed",
+        "completed" if final_status == "succeeded" else final_status,
         response,
         response.get("alerts", []),
         datetime.now(timezone.utc),
