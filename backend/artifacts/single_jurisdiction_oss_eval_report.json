@@ -1,0 +1,69 @@
+{
+  "jurisdiction": "Saratoga CA",
+  "endpoint_mode": "mock",
+  "endpoint": "http://127.0.0.1:8899/search",
+  "method_1": {
+    "name": "method_1_query_scorecard",
+    "query_count": 3,
+    "rows": [
+      {
+        "query": "Saratoga CA city council housing ordinance fiscal impact",
+        "top3_count": 3,
+        "official_domain_hits_top3": 2,
+        "top3_domains": [
+          "www.ci.saratoga.ca.us",
+          "www.sccgov.org",
+          "www.mercurynews.com"
+        ]
+      },
+      {
+        "query": "Saratoga CA planning commission zoning amendment cost estimate",
+        "top3_count": 3,
+        "official_domain_hits_top3": 2,
+        "top3_domains": [
+          "www.ci.saratoga.ca.us",
+          "www.sccgov.org",
+          "www.mercurynews.com"
+        ]
+      },
+      {
+        "query": "Saratoga CA municipal budget implementation analysis",
+        "top3_count": 3,
+        "official_domain_hits_top3": 2,
+        "top3_domains": [
+          "www.ci.saratoga.ca.us",
+          "www.sccgov.org",
+          "www.mercurynews.com"
+        ]
+      }
+    ],
+    "official_domain_hits_total": 6,
+    "unique_domains_total": 3
+  },
+  "method_2": {
+    "name": "method_2_pipeline_stability",
+    "bill_count": 3,
+    "runs": [
+      {
+        "bill_id": "SR-2026-001",
+        "web_sources": 3,
+        "evidence_envelopes": 2,
+        "is_sufficient": true
+      },
+      {
+        "bill_id": "SR-2026-002",
+        "web_sources": 3,
+        "evidence_envelopes": 2,
+        "is_sufficient": true
+      },
+      {
+        "bill_id": "SR-2026-003",
+        "web_sources": 3,
+        "evidence_envelopes": 2,
+        "is_sufficient": true
+      }
+    ],
+    "sufficiency_rate": 1.0,
+    "avg_web_sources": 3.0
+  }
+}
