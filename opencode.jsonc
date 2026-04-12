@@ -1,0 +1,24 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "agent": {
+    "code": {
+      "permission": {
+        "read": "allow",
+        "edit": "allow",
+        "bash": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "list": "allow",
+        "task": "allow",
+        "webfetch": "allow",
+        "websearch": "allow",
+        "codesearch": "allow",
+        "lsp": "allow",
+        "todowrite": "allow",
+        "question": "allow",
+        "skill": "allow",
+        "external_directory": "allow"
+      }
+    }
+  }
+}
