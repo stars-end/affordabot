@@ -48,3 +48,27 @@ def test_failure_drill_statuses(tmp_path):
     assert searx["status"] == module.STATUS_SOURCE_ERROR
     assert reader["status"] == module.STATUS_READER_ERROR
     assert storage["status"] == module.STATUS_STORAGE_ERROR
+
+
+def test_stale_gate_statuses(tmp_path):
+    module = _load_module()
+    runner = module.DirectStoragePipelineRunner(state_dir=tmp_path)
+    run_date = "2026-04-12"
+
+    baseline = runner.run(run_date=run_date, scenario="normal")
+    stale_usable = runner.run(run_date=run_date, scenario="normal", force_stale_hours=36)
+    stale_blocked = runner.run(run_date=run_date, scenario="normal", force_stale_hours=96)
+
+    assert baseline["status"] == module.STATUS_SUCCEEDED
+    assert stale_usable["status"] == module.STATUS_SUCCEEDED
+    assert "stale_backed=true" in stale_usable.get("alerts", [])
+    freshness_step_usable = next(
+        step for step in stale_usable["steps"] if step["step"] == "freshness_gate"
+    )
+    assert freshness_step_usable["status"] == module.STATUS_STALE_USABLE
+
+    assert stale_blocked["status"] == module.STATUS_STALE_BLOCKED
+    freshness_step_blocked = next(
+        step for step in stale_blocked["steps"] if step["step"] == "freshness_gate"
+    )
+    assert freshness_step_blocked["status"] == module.STATUS_STALE_BLOCKED
