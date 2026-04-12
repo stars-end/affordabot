@@ -1,6 +1,9 @@
 # Storage Snapshots
 
 This file captures storage-state evidence from `artifacts/happy_rerun.json`.
+Additional stale-gate evidence comes from:
+- `artifacts/stale_usable.json`
+- `artifacts/stale_blocked.json`
 
 ## After First Run (`run-first`)
 
@@ -45,3 +48,15 @@ Idempotency signals:
 
 Path B can keep Windmill-style orchestration while preserving product write invariants in affordabot:
 stable identity, deduplicated artifacts/chunks, and evidence-gated analysis.
+
+## Stale Gate Storage Effects
+
+From `stale_usable.json`:
+- `freshness_gate.status = stale_but_usable`
+- downstream `read_fetch`, `index`, and `analyze` still execute
+- run carries alert `freshness_gate:stale_but_usable`
+
+From `stale_blocked.json`:
+- `freshness_gate.status = stale_blocked`
+- pipeline fails closed before `read_fetch`
+- storage remains bounded at discovery snapshot only

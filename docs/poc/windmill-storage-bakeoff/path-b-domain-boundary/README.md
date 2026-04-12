@@ -6,6 +6,11 @@ storage writes are performed only by coarse affordabot domain commands.
 Implementation entrypoint:
 - `backend/scripts/verification/windmill_bakeoff_domain_boundary.py`
 
+Committed Windmill export (reviewable orchestration shape):
+- `ops/windmill/f/affordabot/pipeline_daily_refresh_domain_boundary.py`
+- `ops/windmill/f/affordabot/pipeline_daily_refresh_domain_boundary.script.yaml`
+- `ops/windmill/f/affordabot/pipeline_daily_refresh_domain_boundary__flow/flow.yaml`
+
 Runner flow steps (Windmill-shaped):
 1. `search_materialize`
 2. `freshness_gate`
@@ -43,6 +48,8 @@ Live infra was intentionally not used because secret access is currently restric
 - `artifacts/source_failure.json`
 - `artifacts/reader_failure.json`
 - `artifacts/storage_failure.json`
+- `artifacts/stale_usable.json`
+- `artifacts/stale_blocked.json`
 
 ## Architectural Finding (Path B)
 

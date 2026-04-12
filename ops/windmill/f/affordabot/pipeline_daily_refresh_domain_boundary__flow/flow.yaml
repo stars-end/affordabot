@@ -1,0 +1,231 @@
+summary: Affordabot Path B domain-boundary daily refresh
+description: >
+  Windmill-shaped flow export for Path B. Orchestration is step-separate while
+  product writes are owned by affordabot domain commands.
+value:
+  modules:
+  - id: search_materialize
+    value:
+      type: script
+      path: f/affordabot/pipeline_daily_refresh_domain_boundary
+      retry:
+        attempts: 3
+        backoff:
+          initial_interval: 30
+          max_interval: 300
+          multiplier: 2
+      input_transforms:
+        step:
+          type: static
+          value: search_materialize
+        windmill_run_id:
+          type: static
+          value: $flow_job_id
+        windmill_job_id:
+          type: static
+          value: search_materialize
+        idempotency_key:
+          type: javascript
+          expr: flow_input.idempotency_key
+        jurisdiction:
+          type: javascript
+          expr: flow_input.jurisdiction
+        source_family:
+          type: javascript
+          expr: flow_input.source_family
+        search_query:
+          type: javascript
+          expr: flow_input.search_query
+  - id: freshness_gate
+    value:
+      type: script
+      path: f/affordabot/pipeline_daily_refresh_domain_boundary
+      retry:
+        attempts: 2
+        backoff:
+          initial_interval: 30
+          max_interval: 120
+          multiplier: 2
+      input_transforms:
+        step:
+          type: static
+          value: freshness_gate
+        windmill_run_id:
+          type: static
+          value: $flow_job_id
+        windmill_job_id:
+          type: static
+          value: freshness_gate
+        idempotency_key:
+          type: javascript
+          expr: flow_input.idempotency_key
+        jurisdiction:
+          type: javascript
+          expr: flow_input.jurisdiction
+        source_family:
+          type: javascript
+          expr: flow_input.source_family
+        stale_status:
+          type: javascript
+          expr: flow_input.stale_status
+        previous_step_output:
+          type: javascript
+          expr: results.search_materialize
+  - id: read_fetch
+    value:
+      type: script
+      path: f/affordabot/pipeline_daily_refresh_domain_boundary
+      retry:
+        attempts: 2
+        backoff:
+          initial_interval: 60
+          max_interval: 300
+          multiplier: 2
+      input_transforms:
+        step:
+          type: static
+          value: read_fetch
+        windmill_run_id:
+          type: static
+          value: $flow_job_id
+        windmill_job_id:
+          type: static
+          value: read_fetch
+        idempotency_key:
+          type: javascript
+          expr: flow_input.idempotency_key
+        jurisdiction:
+          type: javascript
+          expr: flow_input.jurisdiction
+        source_family:
+          type: javascript
+          expr: flow_input.source_family
+        previous_step_output:
+          type: javascript
+          expr: results.freshness_gate
+  - id: index
+    value:
+      type: script
+      path: f/affordabot/pipeline_daily_refresh_domain_boundary
+      retry:
+        attempts: 2
+        backoff:
+          initial_interval: 60
+          max_interval: 300
+          multiplier: 2
+      input_transforms:
+        step:
+          type: static
+          value: index
+        windmill_run_id:
+          type: static
+          value: $flow_job_id
+        windmill_job_id:
+          type: static
+          value: index
+        idempotency_key:
+          type: javascript
+          expr: flow_input.idempotency_key
+        jurisdiction:
+          type: javascript
+          expr: flow_input.jurisdiction
+        source_family:
+          type: javascript
+          expr: flow_input.source_family
+        previous_step_output:
+          type: javascript
+          expr: results.read_fetch
+  - id: analyze
+    value:
+      type: script
+      path: f/affordabot/pipeline_daily_refresh_domain_boundary
+      retry:
+        attempts: 1
+      input_transforms:
+        step:
+          type: static
+          value: analyze
+        windmill_run_id:
+          type: static
+          value: $flow_job_id
+        windmill_job_id:
+          type: static
+          value: analyze
+        idempotency_key:
+          type: javascript
+          expr: flow_input.idempotency_key
+        jurisdiction:
+          type: javascript
+          expr: flow_input.jurisdiction
+        source_family:
+          type: javascript
+          expr: flow_input.source_family
+        analysis_question:
+          type: javascript
+          expr: flow_input.analysis_question
+        previous_step_output:
+          type: javascript
+          expr: results.index
+  - id: summarize_run
+    value:
+      type: script
+      path: f/affordabot/pipeline_daily_refresh_domain_boundary
+      input_transforms:
+        step:
+          type: static
+          value: summarize_run
+        windmill_run_id:
+          type: static
+          value: $flow_job_id
+        windmill_job_id:
+          type: static
+          value: summarize_run
+        idempotency_key:
+          type: javascript
+          expr: flow_input.idempotency_key
+        jurisdiction:
+          type: javascript
+          expr: flow_input.jurisdiction
+        source_family:
+          type: javascript
+          expr: flow_input.source_family
+        previous_step_output:
+          type: javascript
+          expr: results.analyze
+concurrency:
+  limit: 1
+  key: affordabot-domain-boundary-bakeoff
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  required:
+    - idempotency_key
+    - jurisdiction
+    - source_family
+    - search_query
+    - analysis_question
+    - stale_status
+  properties:
+    idempotency_key:
+      type: string
+      default: san-jose-ca:meeting_minutes:2026-04-12
+    jurisdiction:
+      type: string
+      default: San Jose CA
+    source_family:
+      type: string
+      default: meeting_minutes
+    search_query:
+      type: string
+      default: San Jose CA city council meeting minutes housing
+    analysis_question:
+      type: string
+      default: Summarize housing-related signals from recent San Jose meeting minutes.
+    stale_status:
+      type: string
+      enum:
+        - fresh
+        - stale_but_usable
+        - stale_blocked
+      default: fresh
+ws_error_handler_muted: false

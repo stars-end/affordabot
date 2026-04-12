@@ -255,7 +255,9 @@ class DomainBoundaryService:
         status = "empty_result" if len(results) == 0 else "fresh"
         return {"status": status, "snapshot_id": snapshot_id, "result_count": len(results)}
 
-    def freshness_gate(self, env: Envelope, snapshot_id: str, max_stale_hours: int) -> Dict[str, Any]:
+    def freshness_gate(
+        self, env: Envelope, snapshot_id: str, max_stale_hours: int, fallback_stale_hours: int
+    ) -> Dict[str, Any]:
         """Invariant: explicit stale policy; zero results are not transport failures."""
         snap = self.store.search_snapshots.get(snapshot_id)
         if not snap:
@@ -266,6 +268,8 @@ class DomainBoundaryService:
             return {"status": "empty_result", "age_seconds": int(age.total_seconds())}
         if age <= timedelta(hours=max_stale_hours):
             return {"status": "fresh", "age_seconds": int(age.total_seconds())}
+        if age <= timedelta(hours=fallback_stale_hours):
+            return {"status": "stale_but_usable", "age_seconds": int(age.total_seconds())}
         return {"status": "stale_blocked", "age_seconds": int(age.total_seconds())}
 
     def read_fetch(self, env: Envelope, snapshot_id: str) -> Dict[str, Any]:
@@ -370,8 +374,11 @@ class DomainBoundaryService:
         summary_id = f"summary-{env.windmill_run_id}"
         status = "succeeded"
         alerts: List[str] = []
-        for step_name in ("search_materialize", "freshness_gate", "read_fetch", "index", "analyze"):
-            step_status = step_results.get(step_name, {}).get("status", "unknown")
+        for step_name, step_payload in step_results.items():
+            step_status = step_payload.get("status", "unknown")
+            if step_name == "freshness_gate" and step_status == "stale_but_usable":
+                alerts.append("freshness_gate:stale_but_usable")
+                continue
             if step_status not in {"fresh", "succeeded"}:
                 status = "failed"
                 alerts.append(f"{step_name}:{step_status}")
@@ -414,6 +421,7 @@ class WindmillShapedRunner:
         question: str,
         jurisdiction: str = DEFAULT_JURISDICTION,
         source_family: str = DEFAULT_SOURCE_FAMILY,
+        snapshot_age_hours: int = 0,
     ) -> Dict[str, Any]:
         env = Envelope(
             architecture_path="affordabot_domain_boundary",
@@ -432,10 +440,13 @@ class WindmillShapedRunner:
             return self.domain.summarize_run(env, steps)
 
         snapshot_id = steps["search_materialize"].get("snapshot_id", "")
+        if snapshot_age_hours > 0 and snapshot_id in self.domain.store.search_snapshots:
+            aged = utc_now() - timedelta(hours=snapshot_age_hours)
+            self.domain.store.search_snapshots[snapshot_id]["captured_at"] = aged.isoformat()
         steps["freshness_gate"] = self._safe_step(
-            "freshness_gate", self.domain.freshness_gate, env, snapshot_id, 24
+            "freshness_gate", self.domain.freshness_gate, env, snapshot_id, 24, 72
         )
-        if steps["freshness_gate"].get("status") != "fresh":
+        if steps["freshness_gate"].get("status") not in {"fresh", "stale_but_usable"}:
             return self.domain.summarize_run(env, steps)
 
         steps["read_fetch"] = self._safe_step("read_fetch", self.domain.read_fetch, env, snapshot_id)
@@ -491,6 +502,32 @@ def run_scenario(scenario: str) -> Dict[str, Any]:
         runner = WindmillShapedRunner(domain)
         return runner.run_once("run-storage-failure", "job-index", idempotency, query, question)
 
+    if scenario == "stale_usable":
+        domain = DomainBoundaryService(
+            store=store,
+            search_client=SearxLikeClient(fail_mode=False),
+            reader_client=ReaderContractClient(fail_mode=False),
+            vector_adapter=VectorAdapter(),
+            analysis_adapter=AnalysisAdapter(),
+        )
+        runner = WindmillShapedRunner(domain)
+        return runner.run_once(
+            "run-stale-usable", "job-freshness", idempotency, query, question, snapshot_age_hours=30
+        )
+
+    if scenario == "stale_blocked":
+        domain = DomainBoundaryService(
+            store=store,
+            search_client=SearxLikeClient(fail_mode=False),
+            reader_client=ReaderContractClient(fail_mode=False),
+            vector_adapter=VectorAdapter(),
+            analysis_adapter=AnalysisAdapter(),
+        )
+        runner = WindmillShapedRunner(domain)
+        return runner.run_once(
+            "run-stale-blocked", "job-freshness", idempotency, query, question, snapshot_age_hours=80
+        )
+
     domain = DomainBoundaryService(
         store=store,
         search_client=SearxLikeClient(fail_mode=False),
@@ -510,7 +547,14 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--scenario",
-        choices=["happy_rerun", "source_failure", "reader_failure", "storage_failure"],
+        choices=[
+            "happy_rerun",
+            "source_failure",
+            "reader_failure",
+            "storage_failure",
+            "stale_usable",
+            "stale_blocked",
+        ],
         default="happy_rerun",
         help="Scenario to execute.",
     )
