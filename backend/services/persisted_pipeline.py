@@ -40,7 +40,7 @@ FRESHNESS_TTL_HOURS = 36
 DEFAULT_SEARXNG_URL = "http://localhost:8888"
 ZAI_READER_ENDPOINT_PAAS = "https://api.z.ai/api/paas/v4/reader"
 ZAI_READER_ENDPOINT_CODING = "https://api.z.ai/api/coding/paas/v4/reader"
-ZAI_LLM_ENDPOINT = "https://api.z.ai/v1/chat/completions"
+ZAI_LLM_BASE_URL_DEFAULT = "https://api.z.ai/api/paas/v4"
 
 
 # ---------------------------------------------------------------------------
@@ -334,18 +334,42 @@ class ZaiWebReaderProvider:
         )
         with urllib.request.urlopen(request, timeout=self.timeout_seconds) as resp:
             body = resp.read()
+            content_type = resp.headers.get("content-type", "application/json")
+
         data = json.loads(body.decode("utf-8"))
-        md = data.get("markdown") or data.get("content") or ""
-        text = data.get("text") or md
+        reader_result = data.get("reader_result", {})
+        if not isinstance(reader_result, dict):
+            reader_result = {}
+
+        md = (
+            reader_result.get("content")
+            or reader_result.get("markdown")
+            or data.get("markdown")
+            or data.get("content")
+            or ""
+        )
+        text = (
+            reader_result.get("text")
+            or reader_result.get("content")
+            or data.get("text")
+            or md
+        )
+        if not md.strip():
+            raise RuntimeError("reader response did not contain non-empty content")
+
         return ReaderResult(
             url=url,
             raw_response=body,
             markdown=md,
             text=text,
-            content_type=resp.headers.get("content-type", "application/json"),
+            content_type=content_type,
             provider="zai_web_reader",
             metadata={
                 "endpoint": self.endpoint,
+                "reader_title": reader_result.get("title"),
+                "reader_description": reader_result.get("description"),
+                "reader_url": reader_result.get("url"),
+                "reader_metadata": reader_result.get("metadata"),
                 "ZAI_DIRECT_SEARCH_DEPRECATED": True,
             },
         )
@@ -380,10 +404,19 @@ class ZaiLLMAnalysisProvider:
         self,
         api_key: str | None = None,
         model: str | None = None,
+        base_url: str | None = None,
+        endpoint_path: str = "/chat/completions",
         timeout_seconds: int = 60,
     ):
         self.api_key = api_key or os.getenv("ZAI_API_KEY", "")
         self.model = model or os.getenv("ZAI_LLM_MODEL", "glm-4.7")
+        env_base_url = os.getenv("ZAI_LLM_BASE_URL")
+        env_endpoint = os.getenv("ZAI_LLM_ENDPOINT")
+        self.base_url = (base_url or env_base_url or ZAI_LLM_BASE_URL_DEFAULT).rstrip(
+            "/"
+        )
+        self.endpoint_path = endpoint_path
+        self.endpoint = env_endpoint or f"{self.base_url}{self.endpoint_path}"
         self.timeout_seconds = timeout_seconds
 
     def analyze(self, content: str, context: dict[str, Any]) -> AnalysisResult:
@@ -406,7 +439,7 @@ class ZaiLLMAnalysisProvider:
             }
         ).encode("utf-8")
         request = urllib.request.Request(
-            ZAI_LLM_ENDPOINT,
+            self.endpoint,
             data=payload,
             headers={
                 "Authorization": f"Bearer {self.api_key}",
@@ -425,6 +458,7 @@ class ZaiLLMAnalysisProvider:
             raw_response=body,
             metadata={
                 "model": self.model,
+                "endpoint": self.endpoint,
                 "ZAI_DIRECT_SEARCH_DEPRECATED": True,
             },
         )
@@ -481,6 +515,8 @@ class PersistedPipelineStore:
                 status TEXT NOT NULL,
                 triggered_by TEXT NOT NULL,
                 contract_version TEXT NOT NULL,
+                windmill_flow_run_id TEXT,
+                windmill_job_id TEXT,
                 started_at TEXT NOT NULL,
                 completed_at TEXT,
                 result_json TEXT,
@@ -537,15 +573,18 @@ class PersistedPipelineStore:
         *,
         jurisdiction: str = "San Jose, CA",
         target_family: str = "san-jose-city-council-minutes",
+        windmill_flow_run_id: str | None = None,
+        windmill_job_id: str | None = None,
     ) -> str:
         run_id = f"run_{uuid4().hex}"
         self.conn.execute(
             """
             INSERT INTO pipeline_runs (
                 id, run_label, jurisdiction, target_family, status, triggered_by,
-                contract_version, started_at, alerts_json
+                contract_version, windmill_flow_run_id, windmill_job_id,
+                started_at, alerts_json
             )
-            VALUES (?, ?, ?, ?, 'running', ?, ?, ?, '[]')
+            VALUES (?, ?, ?, ?, 'running', ?, ?, ?, ?, ?, '[]')
             """,
             (
                 run_id,
@@ -554,6 +593,8 @@ class PersistedPipelineStore:
                 target_family,
                 triggered_by,
                 CONTRACT_VERSION,
+                windmill_flow_run_id,
+                windmill_job_id,
                 iso(now),
             ),
         )
@@ -634,20 +675,21 @@ class PersistedPipelineStore:
         return dict(row)
 
     def latest_fresh_snapshot(
-        self, family: str, now: datetime
+        self, family: str, query: str, now: datetime
     ) -> dict[str, Any] | None:
         row = self.conn.execute(
             """
             SELECT *
             FROM search_result_snapshots
             WHERE family = ?
+              AND query_hash = ?
               AND status = 'succeeded'
               AND expires_at > ?
               AND result_count > 0
             ORDER BY observed_at DESC
             LIMIT 1
             """,
-            (family, iso(now)),
+            (family, stable_hash(query), iso(now)),
         ).fetchone()
         return dict(row) if row else None
 
@@ -810,6 +852,8 @@ class PersistedPipeline:
         prefer_cached_search: bool = False,
         allow_stale_fallback: bool = True,
         skip_analysis: bool = False,
+        windmill_flow_run_id: str | None = None,
+        windmill_job_id: str | None = None,
     ) -> dict[str, Any]:
         """Execute the full pipeline and return the final step response."""
         alerts: list[dict[str, Any]] = []
@@ -820,6 +864,8 @@ class PersistedPipeline:
             started_at,
             jurisdiction=jurisdiction,
             target_family=family,
+            windmill_flow_run_id=windmill_flow_run_id,
+            windmill_job_id=windmill_job_id,
         )
 
         # Step 1: search_materialize
@@ -830,6 +876,8 @@ class PersistedPipeline:
             prefer_cached_search=prefer_cached_search,
             allow_stale_fallback=allow_stale_fallback,
             alerts=alerts,
+            windmill_flow_run_id=windmill_flow_run_id,
+            windmill_job_id=windmill_job_id,
         )
         if search_resp["status"] == "failed":
             self.store.complete_run(
@@ -852,6 +900,8 @@ class PersistedPipeline:
                     "search_decision": "zero_results",
                 },
                 alerts=alerts,
+                windmill_flow_run_id=windmill_flow_run_id,
+                windmill_job_id=windmill_job_id,
             )
             self.store.complete_run(
                 run_id, "completed", finalize_resp, alerts, self.now_fn()
@@ -867,6 +917,8 @@ class PersistedPipeline:
             snapshot=snapshot,
             family=family,
             alerts=alerts,
+            windmill_flow_run_id=windmill_flow_run_id,
+            windmill_job_id=windmill_job_id,
         )
         if read_resp["status"] == "failed":
             self.store.complete_run(run_id, "failed", read_resp, alerts, self.now_fn())
@@ -880,6 +932,8 @@ class PersistedPipeline:
                 family=family,
                 snapshot_id=snapshot_id,
                 alerts=alerts,
+                windmill_flow_run_id=windmill_flow_run_id,
+                windmill_job_id=windmill_job_id,
             )
             if analyze_resp["status"] == "failed":
                 self.store.complete_run(
@@ -894,6 +948,8 @@ class PersistedPipeline:
                 decision="analysis_succeeded",
                 decision_reason="skipped by request",
                 evidence={"skipped": True},
+                windmill_flow_run_id=windmill_flow_run_id,
+                windmill_job_id=windmill_job_id,
             )
 
         # Step 4: finalize
@@ -914,6 +970,8 @@ class PersistedPipeline:
                 "analyze_decision": analyze_resp["decision"],
             },
             alerts=alerts,
+            windmill_flow_run_id=windmill_flow_run_id,
+            windmill_job_id=windmill_job_id,
         )
 
         self.store.complete_run(
@@ -932,13 +990,15 @@ class PersistedPipeline:
         prefer_cached_search: bool,
         allow_stale_fallback: bool,
         alerts: list[dict[str, Any]],
+        windmill_flow_run_id: str | None,
+        windmill_job_id: str | None,
     ) -> dict[str, Any]:
         now = self.now_fn()
         provider_name = type(self.search_provider).__name__
 
         # Idempotent: check for fresh snapshot
         if prefer_cached_search:
-            latest = self.store.latest_fresh_snapshot(family, now)
+            latest = self.store.latest_fresh_snapshot(family, query, now)
             if latest:
                 return make_step_response(
                     run_id=run_id,
@@ -952,6 +1012,8 @@ class PersistedPipeline:
                         "provider": latest["provider"],
                         "reused": True,
                     },
+                    windmill_flow_run_id=windmill_flow_run_id,
+                    windmill_job_id=windmill_job_id,
                 )
 
         # Try live search
@@ -963,7 +1025,7 @@ class PersistedPipeline:
                 "message": str(exc),
                 "provider": provider_name,
             }
-            fallback = self.store.latest_fresh_snapshot(family, now)
+            fallback = self.store.latest_fresh_snapshot(family, query, now)
             if not allow_stale_fallback or not fallback:
                 return make_step_response(
                     run_id=run_id,
@@ -981,6 +1043,8 @@ class PersistedPipeline:
                             "message": str(exc),
                         }
                     ],
+                    windmill_flow_run_id=windmill_flow_run_id,
+                    windmill_job_id=windmill_job_id,
                 )
 
             # Stale fallback
@@ -1020,6 +1084,8 @@ class PersistedPipeline:
                     "provider_failure": failure,
                 },
                 alerts=alerts,
+                windmill_flow_run_id=windmill_flow_run_id,
+                windmill_job_id=windmill_job_id,
             )
 
         # Zero results — distinct from provider failure
@@ -1042,6 +1108,8 @@ class PersistedPipeline:
                         "message": "Search returned zero results for query",
                     }
                 ],
+                windmill_flow_run_id=windmill_flow_run_id,
+                windmill_job_id=windmill_job_id,
             )
 
         # Fresh results
@@ -1065,6 +1133,8 @@ class PersistedPipeline:
                 "provider": provider_name,
                 "stale_backed": False,
             },
+            windmill_flow_run_id=windmill_flow_run_id,
+            windmill_job_id=windmill_job_id,
         )
 
     def _step_read_extract(
@@ -1074,6 +1144,8 @@ class PersistedPipeline:
         snapshot: dict[str, Any],
         family: str,
         alerts: list[dict[str, Any]],
+        windmill_flow_run_id: str | None,
+        windmill_job_id: str | None,
     ) -> dict[str, Any]:
         results = [
             SearchResult.from_dict(r) for r in json_loads(snapshot["results_json"], [])
@@ -1085,6 +1157,8 @@ class PersistedPipeline:
                 status="failed",
                 decision="reader_failed",
                 decision_reason="no search results to read",
+                windmill_flow_run_id=windmill_flow_run_id,
+                windmill_job_id=windmill_job_id,
             )
 
         target = results[0]
@@ -1107,6 +1181,8 @@ class PersistedPipeline:
                     "reused": True,
                     "url": target.url,
                 },
+                windmill_flow_run_id=windmill_flow_run_id,
+                windmill_job_id=windmill_job_id,
             )
 
         # Read from provider
@@ -1127,6 +1203,8 @@ class PersistedPipeline:
                         "message": str(exc),
                     }
                 ],
+                windmill_flow_run_id=windmill_flow_run_id,
+                windmill_job_id=windmill_job_id,
             )
 
         # Persist raw provider response
@@ -1180,6 +1258,8 @@ class PersistedPipeline:
                 "url": target.url,
                 "provider": reader_result.provider,
             },
+            windmill_flow_run_id=windmill_flow_run_id,
+            windmill_job_id=windmill_job_id,
         )
 
     def _step_analyze(
@@ -1190,6 +1270,8 @@ class PersistedPipeline:
         family: str,
         snapshot_id: str,
         alerts: list[dict[str, Any]],
+        windmill_flow_run_id: str | None,
+        windmill_job_id: str | None,
     ) -> dict[str, Any]:
         evidence = read_response.get("evidence", {})
         canonical_key = evidence.get("canonical_key", "")
@@ -1200,6 +1282,8 @@ class PersistedPipeline:
                 status="failed",
                 decision="analysis_failed",
                 decision_reason="no canonical key from read step",
+                windmill_flow_run_id=windmill_flow_run_id,
+                windmill_job_id=windmill_job_id,
             )
 
         # Load content from artifact
@@ -1211,6 +1295,8 @@ class PersistedPipeline:
                 status="failed",
                 decision="analysis_failed",
                 decision_reason="reader markdown artifact not found",
+                windmill_flow_run_id=windmill_flow_run_id,
+                windmill_job_id=windmill_job_id,
             )
         md_path = Path(md_art["storage_uri"])
         content = md_path.read_text("utf-8") if md_path.exists() else ""
@@ -1229,6 +1315,8 @@ class PersistedPipeline:
                     "canonical_key": canonical_key,
                     "reused": True,
                 },
+                windmill_flow_run_id=windmill_flow_run_id,
+                windmill_job_id=windmill_job_id,
             )
 
         try:
@@ -1248,6 +1336,8 @@ class PersistedPipeline:
                         "message": str(exc),
                     }
                 ],
+                windmill_flow_run_id=windmill_flow_run_id,
+                windmill_job_id=windmill_job_id,
             )
 
         # Persist analysis
@@ -1293,4 +1383,6 @@ class PersistedPipeline:
                 "provider": result.provider,
                 "summary_preview": result.summary[:200],
             },
+            windmill_flow_run_id=windmill_flow_run_id,
+            windmill_job_id=windmill_job_id,
         )

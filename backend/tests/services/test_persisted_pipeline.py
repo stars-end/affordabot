@@ -18,6 +18,7 @@ import shutil
 import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -309,6 +310,60 @@ class TestZaiWebReader:
         assert raw[0]["bytes"] > 0
         assert md[0]["bytes"] > 0
 
+    def test_reader_parses_official_nested_reader_result_shape(self):
+        provider = ZaiWebReaderProvider(api_key="test-key")
+
+        class DummyHeaders:
+            def get(self, key, default=None):
+                if key.lower() == "content-type":
+                    return "application/json"
+                return default
+
+        class DummyResponse:
+            headers = DummyHeaders()
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+            def read(self):
+                return b'{"reader_result":{"content":"# markdown","title":"Title","description":"Desc","url":"https://x","metadata":{"lang":"en"}}}'
+
+        with patch("services.persisted_pipeline.urllib.request.urlopen") as mocked:
+            mocked.return_value = DummyResponse()
+            result = provider.read("https://example.com")
+
+        assert result.markdown == "# markdown"
+        assert result.text == "# markdown"
+        assert result.metadata["reader_title"] == "Title"
+        assert result.metadata["reader_description"] == "Desc"
+
+    def test_reader_rejects_empty_markdown_content(self):
+        provider = ZaiWebReaderProvider(api_key="test-key")
+
+        class DummyHeaders:
+            def get(self, key, default=None):
+                return "application/json"
+
+        class DummyResponse:
+            headers = DummyHeaders()
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+            def read(self):
+                return b'{"reader_result":{"content":"  "}}'
+
+        with patch("services.persisted_pipeline.urllib.request.urlopen") as mocked:
+            mocked.return_value = DummyResponse()
+            with pytest.raises(RuntimeError, match="non-empty content"):
+                provider.read("https://example.com")
+
 
 class TestZaiLLMAnalysis:
     def test_mock_analysis_provider(self):
@@ -325,6 +380,19 @@ class TestZaiLLMAnalysis:
         provider = ZaiLLMAnalysisProvider(api_key="")
         with pytest.raises(RuntimeError, match="ZAI_API_KEY"):
             provider.analyze("test", {})
+
+    def test_zai_llm_default_endpoint_uses_paas_base(self):
+        provider = ZaiLLMAnalysisProvider(api_key="test-key")
+        assert provider.endpoint == "https://api.z.ai/api/paas/v4/chat/completions"
+
+    def test_zai_llm_endpoint_construction_configurable(self):
+        provider = ZaiLLMAnalysisProvider(
+            api_key="test-key",
+            base_url="https://api.z.ai/api/coding/paas/v4",
+        )
+        assert (
+            provider.endpoint == "https://api.z.ai/api/coding/paas/v4/chat/completions"
+        )
 
     def test_analysis_result_persisted(self, tmp_dirs):
         store, _ = tmp_dirs
@@ -417,6 +485,44 @@ class TestIdempotentReplay:
         )
         assert len(store.rows("content_artifacts")) == initial_count
 
+    def test_cached_snapshot_reuse_scoped_by_query_hash(self, tmp_dirs):
+        store, _ = tmp_dirs
+        pipeline = PersistedPipeline(
+            store,
+            FixedSearchProvider(),
+            MockReaderProvider(),
+            MockAnalysisProvider(),
+            now_fn=_now,
+        )
+        pipeline.run_full(
+            run_label="first-query",
+            triggered_by="test",
+            query="query-one",
+            family=FAMILY,
+            skip_analysis=True,
+        )
+
+        now2 = _now() + timedelta(minutes=1)
+        pipeline2 = PersistedPipeline(
+            store,
+            FixedSearchProvider(),
+            MockReaderProvider(),
+            MockAnalysisProvider(),
+            now_fn=lambda: now2,
+        )
+        pipeline2.run_full(
+            run_label="second-query",
+            triggered_by="test",
+            query="query-two",
+            family=FAMILY,
+            prefer_cached_search=True,
+            skip_analysis=True,
+        )
+
+        snapshots = store.rows("search_result_snapshots")
+        assert len(snapshots) == 2
+        assert snapshots[0]["query_hash"] != snapshots[1]["query_hash"]
+
 
 class TestStepResponseContract:
     def test_no_retry_fields_in_response(self):
@@ -471,6 +577,29 @@ class TestStepResponseContract:
         assert "next_recommended_step" not in resp
         assert "max_retries" not in resp
         assert "retry_after_seconds" not in resp
+
+    def test_windmill_linkage_persisted_and_propagated(self, tmp_dirs):
+        store, _ = tmp_dirs
+        pipeline = PersistedPipeline(
+            store,
+            FixedSearchProvider(),
+            MockReaderProvider(),
+            MockAnalysisProvider(),
+            now_fn=_now,
+        )
+        resp = pipeline.run_full(
+            run_label="windmill-linkage",
+            triggered_by="test",
+            query=QUERY,
+            family=FAMILY,
+            windmill_flow_run_id="wm-flow-1",
+            windmill_job_id="wm-job-2",
+        )
+        assert resp["windmill_flow_run_id"] == "wm-flow-1"
+        assert resp["windmill_job_id"] == "wm-job-2"
+        runs = store.rows("pipeline_runs")
+        assert runs[0]["windmill_flow_run_id"] == "wm-flow-1"
+        assert runs[0]["windmill_job_id"] == "wm-job-2"
 
 
 class TestDeprecatedSearch:

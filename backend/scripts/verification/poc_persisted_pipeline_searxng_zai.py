@@ -91,11 +91,16 @@ def run_poc(
         analysis_provider,
         now_fn=fixed_now,
     )
+    windmill_linkage = {
+        "windmill_flow_run_id": "wm-flow-poc-001",
+        "windmill_job_id": "wm-job-poc-001",
+    }
     r1 = pipeline.run_full(
         run_label="baseline-fresh-search",
         triggered_by="manual:poc_persisted_pipeline_searxng_zai",
         query=query,
         family=family,
+        **windmill_linkage,
     )
     results["baseline"] = r1
 
@@ -114,6 +119,7 @@ def run_poc(
         query=query,
         family=family,
         prefer_cached_search=True,
+        **windmill_linkage,
     )
     results["replay"] = r2
 
@@ -133,6 +139,7 @@ def run_poc(
         family=family,
         allow_stale_fallback=True,
         skip_analysis=True,
+        **windmill_linkage,
     )
     results["zero_results"] = r3
 
@@ -151,6 +158,7 @@ def run_poc(
         query=query,
         family=family,
         allow_stale_fallback=True,
+        **windmill_linkage,
     )
     results["stale_fallback"] = r4
 
@@ -173,6 +181,7 @@ def run_poc(
         query=query,
         family=family,
         allow_stale_fallback=True,
+        **windmill_linkage,
     )
     results["fails_closed"] = r5
     fresh_store.close()
@@ -252,6 +261,10 @@ def evaluate_checks(
     checks["9_zai_direct_search_deprecated"] = provider_checks[
         "zai_direct_search_deprecated"
     ]
+    checks["windmill_linkage_propagated"] = (
+        baseline.get("windmill_flow_run_id") == "wm-flow-poc-001"
+        and baseline.get("windmill_job_id") == "wm-job-poc-001"
+    )
     checks["three_tables_populated"] = all(
         counts.get(name, 0) > 0
         for name in ("pipeline_runs", "search_result_snapshots", "content_artifacts")
@@ -277,7 +290,9 @@ def render_report(
         run_rows.append(
             f"| {label} | {run.get('status')} | {run.get('decision')} | "
             f"{run.get('step', 'finalize')} | "
-            f"{run.get('evidence', {}).get('snapshot_id', 'N/A')} |"
+            f"{run.get('evidence', {}).get('snapshot_id', 'N/A')} | "
+            f"{run.get('windmill_flow_run_id', 'N/A')} | "
+            f"{run.get('windmill_job_id', 'N/A')} |"
         )
 
     artifact_rows = []
@@ -325,8 +340,8 @@ def render_report(
             "",
             "## Run Results",
             "",
-            "| Label | Status | Decision | Step | Snapshot |",
-            "| --- | --- | --- | --- | --- |",
+            "| Label | Status | Decision | Step | Snapshot | Flow Run | Job |",
+            "| --- | --- | --- | --- | --- | --- | --- |",
             *run_rows,
             "",
             "## Content Artifacts",

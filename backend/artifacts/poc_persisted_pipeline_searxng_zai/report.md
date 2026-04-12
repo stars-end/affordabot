@@ -30,21 +30,21 @@ python3 backend/scripts/verification/poc_persisted_pipeline_searxng_zai.py \
 
 ## Run Results
 
-| Label | Status | Decision | Step | Snapshot |
-| --- | --- | --- | --- | --- |
-| baseline | succeeded | fresh_snapshot | finalize | snap_77a7e79cfc8f4b5bbdd0781b575014a4 |
-| replay | succeeded | fresh_snapshot | finalize | snap_77a7e79cfc8f4b5bbdd0781b575014a4 |
-| zero_results | succeeded | zero_results | finalize | None |
-| stale_fallback | succeeded | stale_backed | finalize | snap_b10b8f6c5c734effa8fe4fd20358dbe3 |
-| fails_closed | failed | provider_failed_no_fallback | search_materialize | N/A |
+| Label | Status | Decision | Step | Snapshot | Flow Run | Job |
+| --- | --- | --- | --- | --- | --- | --- |
+| baseline | succeeded | fresh_snapshot | finalize | snap_13189e9572bf4316ac4fcb79080afb22 | wm-flow-poc-001 | wm-job-poc-001 |
+| replay | succeeded | fresh_snapshot | finalize | snap_13189e9572bf4316ac4fcb79080afb22 | wm-flow-poc-001 | wm-job-poc-001 |
+| zero_results | succeeded | zero_results | finalize | None | wm-flow-poc-001 | wm-job-poc-001 |
+| stale_fallback | succeeded | stale_backed | finalize | snap_afebe5dcf341455da50e3f98dd68e61e | wm-flow-poc-001 | wm-job-poc-001 |
+| fails_closed | failed | provider_failed_no_fallback | search_materialize | N/A | wm-flow-poc-001 | wm-job-poc-001 |
 
 ## Content Artifacts
 
 | Kind | ID | Bytes | Source |
 | --- | --- | --- | --- |
-| raw_provider_response | artifact_6a6c16b24a2... | 334 | {"mock":true,"provider":"mock_ |
-| reader_markdown | artifact_63950a5b32d... | 235 | {"provider":"mock_reader"} |
-| analysis_result | artifact_64ab013b100... | 155 | {"provider":"mock_analysis","s |
+| raw_provider_response | artifact_0c9a55b8912... | 334 | {"mock":true,"provider":"mock_ |
+| reader_markdown | artifact_c02dbbe7c25... | 235 | {"provider":"mock_reader"} |
+| analysis_result | artifact_462374a1ede... | 155 | {"provider":"mock_analysis","s |
 
 ## Requirement Checks
 
@@ -57,6 +57,7 @@ python3 backend/scripts/verification/poc_persisted_pipeline_searxng_zai.py \
 - [x] 7_analysis_mockable: True
 - [x] 8_idempotent_replay_reuses: True
 - [x] 9_zai_direct_search_deprecated: True
+- [x] windmill_linkage_propagated: True
 - [x] three_tables_populated: True
 
 ## Provider Shape Checks
