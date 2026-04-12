@@ -17,6 +17,15 @@ STEP_ENDPOINT_BY_NAME = {
     "zai_search_canary": "/internal/pipeline/poc/zai-search-canary",
 }
 
+SOURCE_BY_STEP = {
+    "start_run": "windmill:f/affordabot/pipeline_sanjose_searxng_zai_poc/start_run",
+    "search_materialize": "windmill:f/affordabot/pipeline_sanjose_searxng_zai_poc/search_materialize",
+    "read_extract": "windmill:f/affordabot/pipeline_sanjose_searxng_zai_poc/read_extract",
+    "analyze": "windmill:f/affordabot/pipeline_sanjose_searxng_zai_poc/analyze",
+    "finalize_report": "windmill:f/affordabot/pipeline_sanjose_searxng_zai_poc/finalize_report",
+    "zai_search_canary": "windmill:f/affordabot/zai_web_search_weekly_canary/zai_search_canary",
+}
+
 
 def normalize_slack_webhook_url(webhook_url: Optional[str]) -> Optional[str]:
     if webhook_url is None:
@@ -109,10 +118,11 @@ def main(
     url = f"{backend_url.rstrip('/')}{endpoint}"
     normalized_slack_webhook_url = normalize_slack_webhook_url(slack_webhook_url)
 
+    source = SOURCE_BY_STEP.get(step, f"windmill:f/affordabot/pipeline_step/{step}")
     headers = {
         "Authorization": f"Bearer {cron_secret}",
         "X-PR-CRON-SECRET": cron_secret,
-        "X-PR-CRON-SOURCE": f"windmill:f/affordabot/pipeline_sanjose_searxng_zai_poc/{step}",
+        "X-PR-CRON-SOURCE": source,
         "X-PR-PIPELINE-STEP": step,
         "Content-Type": "application/json",
     }

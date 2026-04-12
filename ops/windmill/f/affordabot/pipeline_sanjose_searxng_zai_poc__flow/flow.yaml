@@ -80,10 +80,9 @@ value:
   - id: decision_branch
     value:
       type: branchone
-      expr: results.search_materialize.response.decision
       branches:
-        fresh_snapshot:
-          modules:
+      - expr: results.search_materialize.response.decision == "fresh_snapshot"
+        modules:
           - id: read_extract_fresh
             value:
               type: script
@@ -189,8 +188,8 @@ value:
                 jurisdiction:
                   type: javascript
                   expr: flow_input.jurisdiction || "San Jose, CA"
-        stale_backed:
-          modules:
+      - expr: results.search_materialize.response.decision == "stale_backed"
+        modules:
           - id: read_extract_stale
             value:
               type: script
@@ -296,27 +295,69 @@ value:
                 jurisdiction:
                   type: javascript
                   expr: flow_input.jurisdiction || "San Jose, CA"
-        zero_results:
-          modules:
+      - expr: results.search_materialize.response.decision == "zero_results"
+        modules:
           - id: fail_zero_results
             value:
               type: javascript
               expr: >-
                 throw new Error("search_materialize decision was zero_results; no silent fallback allowed")
-        provider_failed_no_fallback:
-          modules:
+      - expr: results.search_materialize.response.decision == "provider_failed_no_fallback"
+        modules:
           - id: fail_provider_no_fallback
             value:
               type: javascript
               expr: >-
                 throw new Error("search_materialize decision was provider_failed_no_fallback")
-      default_branch:
-        modules:
+      default:
         - id: fail_unexpected_decision
           value:
             type: javascript
             expr: >-
               throw new Error(`Unexpected search decision: ${results.search_materialize.response.decision}`)
+  failure_module:
+    id: flow_failure_handler
+    value:
+      type: script
+      path: f/affordabot/trigger_pipeline_step
+      input_transforms:
+        step:
+          type: static
+          value: finalize_report
+        backend_url:
+          type: static
+          value: $var:f/affordabot/BACKEND_PUBLIC_URL
+        cron_secret:
+          type: static
+          value: $var:f/affordabot/CRON_SECRET
+        env:
+          type: static
+          value: dev
+        timeout_seconds:
+          type: static
+          value: 180
+        slack_webhook_url:
+          type: static
+          value: $var:f/affordabot/SLACK_WEBHOOK_URL
+        run_id:
+          type: javascript
+          expr: results.start_run.response.run_id || null
+        windmill_flow_run_id:
+          type: javascript
+          expr: flow_input.windmill_flow_run_id || null
+        windmill_job_id:
+          type: javascript
+          expr: flow_input.windmill_job_id || null
+        jurisdiction:
+          type: javascript
+          expr: flow_input.jurisdiction || "San Jose, CA"
+        payload:
+          type: javascript
+          expr: >-
+            ({
+              failure_handler: "windmill_failure_module",
+              failure_reason: "pipeline_flow_failed_before_finalize"
+            })
 concurrency:
   limit: 1
   key: affordabot-persisted-pipeline-poc

@@ -66,6 +66,15 @@ Auth model:
 
 ## Syntax Assumption Note
 
-The committed flow uses a `branchone` block shape for branch contracts.
-If live Windmill parser syntax differs, only syntax wrapping should change.
-Branch semantics and step ordering must remain unchanged.
+The committed flow uses `branchone` with OpenFlow-style branch list:
+
+- `branches: [{ expr, modules }]`
+- `default: [modules]`
+
+Reference:
+
+- https://www.windmill.dev/docs/flows/flow_branches
+
+This PR validates the YAML structure in repo tests by parsing YAML and asserting
+the branch/failure wiring. Live `wmill sync` was not executed in this PR, so
+final parser compatibility is still a runtime check.

@@ -151,12 +151,14 @@ Assumed response shape for branching:
 }
 ```
 
-Syntax assumption:
+OpenFlow reference and syntax note:
 
-The `decision_branch` module currently uses a `branchone` contract shape that is
-validated by repo tests as a committed orchestration contract. If live Windmill
-parser expectations differ, keep this branch contract and adjust only syntax-level
-wrapping during `wmill sync` rollout.
+- Windmill docs describe `branch one` using an ordered `branches` list with per-branch `expr` + `modules`, plus a `default` branch.
+- Reference: `https://www.windmill.dev/docs/flows/flow_branches` (OpenFlow/TS branch-one examples).
+
+This repo validates that shape via parsed YAML tests. We did not run live `wmill sync`
+in this PR, so parser compatibility remains a runtime verification item. If parser
+wrapping differs, keep branch semantics and only adapt syntax wrappers during rollout.
 
 ### Z.ai Direct Web Search Deprecation Boundary
 
