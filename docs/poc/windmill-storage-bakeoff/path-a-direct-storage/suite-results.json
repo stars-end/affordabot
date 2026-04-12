@@ -1,0 +1,372 @@
+{
+  "checks": {
+    "analyses_stable": true,
+    "chunks_stable": true,
+    "documents_stable": true,
+    "idempotent": true
+  },
+  "failures": {
+    "reader_failure": {
+      "alerts": [],
+      "analysis_preview": null,
+      "counts": {
+        "analyses_total": 1,
+        "chunks_total": 1,
+        "documents_total": 1,
+        "objects_total": 3,
+        "search_results": 3
+      },
+      "created_at": "2026-04-12T17:19:09.349195+00:00",
+      "envelope": {
+        "architecture_path": "windmill_direct_storage",
+        "contract_version": "2026-04-12.windmill-storage-bakeoff.v1",
+        "idempotency_key": "san-jose-ca:meeting_minutes:2026-04-12",
+        "jurisdiction": "San Jose CA",
+        "orchestrator": "windmill",
+        "source_family": "meeting_minutes",
+        "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_direct_storage",
+        "windmill_job_id": "job-local-6a37a66a-d465-4074-837a-c2a9c85962a7",
+        "windmill_run_id": "local-6a37a66a-d465-4074-837a-c2a9c85962a7",
+        "windmill_workspace": "affordabot"
+      },
+      "reason": "simulated_reader_failure",
+      "scenario": "reader_failure",
+      "status": "reader_error",
+      "steps": [
+        {
+          "artifact_ref": "minio://affordabot-artifacts/idempotency/san-jose-ca:meeting_minutes:2026-04-12/search/ad52464ef535c48b.json#b0f216d429a0dc71d70720b8304c1816c248eab1c58f28d1b31b639101efaf62",
+          "result_count": 3,
+          "snapshot_created": false,
+          "snapshot_id": "san-jose-ca:meeting_minutes:2026-04-12::535a80471cc2cdd4",
+          "status": "succeeded",
+          "step": "search_materialize"
+        },
+        {
+          "reason": "age_hours=0.00",
+          "status": "fresh",
+          "step": "freshness_gate"
+        },
+        {
+          "error": "simulated_reader_failure",
+          "status": "reader_error",
+          "step": "read_fetch"
+        }
+      ],
+      "storage_snapshot": {
+        "object_store": {
+          "keys": [
+            "documents/sanjoseca-gov-your-government-departments-offices-city-clerk-city-council-meetings/reader/52e6d8a43914d77c.md",
+            "idempotency/san-jose-ca:meeting_minutes:2026-04-12/analysis/69e1e31c34f41ea6.json",
+            "idempotency/san-jose-ca:meeting_minutes:2026-04-12/search/ad52464ef535c48b.json"
+          ],
+          "object_count": 3
+        },
+        "relational_store": {
+          "analysis_count": 1,
+          "document_count": 1,
+          "search_snapshot_count": 1
+        },
+        "vector_store": {
+          "chunk_count": 1,
+          "chunk_ids": [
+            "sanjoseca.gov/your-government/departments-offices/city-clerk/city-council-meetings::chunk-0::712bf03ddc3f"
+          ]
+        }
+      }
+    },
+    "searx_failure": {
+      "alerts": [],
+      "analysis_preview": null,
+      "counts": {
+        "analyses_total": 1,
+        "chunks_total": 1,
+        "documents_total": 1,
+        "objects_total": 3,
+        "search_results": 0
+      },
+      "created_at": "2026-04-12T17:19:09.349006+00:00",
+      "envelope": {
+        "architecture_path": "windmill_direct_storage",
+        "contract_version": "2026-04-12.windmill-storage-bakeoff.v1",
+        "idempotency_key": "san-jose-ca:meeting_minutes:2026-04-12",
+        "jurisdiction": "San Jose CA",
+        "orchestrator": "windmill",
+        "source_family": "meeting_minutes",
+        "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_direct_storage",
+        "windmill_job_id": "job-local-320275f7-7e7d-402b-b22d-209fc974419a",
+        "windmill_run_id": "local-320275f7-7e7d-402b-b22d-209fc974419a",
+        "windmill_workspace": "affordabot"
+      },
+      "reason": "simulated_searx_failure",
+      "scenario": "searx_failure",
+      "status": "source_error",
+      "steps": [
+        {
+          "error": "simulated_searx_failure",
+          "status": "source_error",
+          "step": "search_materialize"
+        }
+      ],
+      "storage_snapshot": {
+        "object_store": {
+          "keys": [
+            "documents/sanjoseca-gov-your-government-departments-offices-city-clerk-city-council-meetings/reader/52e6d8a43914d77c.md",
+            "idempotency/san-jose-ca:meeting_minutes:2026-04-12/analysis/69e1e31c34f41ea6.json",
+            "idempotency/san-jose-ca:meeting_minutes:2026-04-12/search/ad52464ef535c48b.json"
+          ],
+          "object_count": 3
+        },
+        "relational_store": {
+          "analysis_count": 1,
+          "document_count": 1,
+          "search_snapshot_count": 1
+        },
+        "vector_store": {
+          "chunk_count": 1,
+          "chunk_ids": [
+            "sanjoseca.gov/your-government/departments-offices/city-clerk/city-council-meetings::chunk-0::712bf03ddc3f"
+          ]
+        }
+      }
+    },
+    "storage_failure": {
+      "alerts": [],
+      "analysis_preview": null,
+      "counts": {
+        "analyses_total": 1,
+        "chunks_total": 1,
+        "documents_total": 1,
+        "objects_total": 3,
+        "search_results": 3
+      },
+      "created_at": "2026-04-12T17:19:09.349651+00:00",
+      "envelope": {
+        "architecture_path": "windmill_direct_storage",
+        "contract_version": "2026-04-12.windmill-storage-bakeoff.v1",
+        "idempotency_key": "san-jose-ca:meeting_minutes:2026-04-12",
+        "jurisdiction": "San Jose CA",
+        "orchestrator": "windmill",
+        "source_family": "meeting_minutes",
+        "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_direct_storage",
+        "windmill_job_id": "job-local-5bd21465-cfd1-4f43-a250-cf904fe6c358",
+        "windmill_run_id": "local-5bd21465-cfd1-4f43-a250-cf904fe6c358",
+        "windmill_workspace": "affordabot"
+      },
+      "reason": "simulated_storage_error",
+      "scenario": "storage_failure",
+      "status": "storage_error",
+      "steps": [
+        {
+          "error": "simulated_storage_error",
+          "status": "storage_error",
+          "step": "search_materialize"
+        }
+      ],
+      "storage_snapshot": {
+        "object_store": {
+          "keys": [
+            "documents/sanjoseca-gov-your-government-departments-offices-city-clerk-city-council-meetings/reader/52e6d8a43914d77c.md",
+            "idempotency/san-jose-ca:meeting_minutes:2026-04-12/analysis/69e1e31c34f41ea6.json",
+            "idempotency/san-jose-ca:meeting_minutes:2026-04-12/search/ad52464ef535c48b.json"
+          ],
+          "object_count": 3
+        },
+        "relational_store": {
+          "analysis_count": 1,
+          "document_count": 1,
+          "search_snapshot_count": 1
+        },
+        "vector_store": {
+          "chunk_count": 1,
+          "chunk_ids": [
+            "sanjoseca.gov/your-government/departments-offices/city-clerk/city-council-meetings::chunk-0::712bf03ddc3f"
+          ]
+        }
+      }
+    }
+  },
+  "generated_at": "2026-04-12T17:19:09.349837+00:00",
+  "live_blockers": [
+    "SEARX_ENDPOINT not configured; used deterministic SearX fixture.",
+    "Z.ai reader/analysis live call unavailable; used deterministic contract-shape substitutes."
+  ],
+  "live_flags": {
+    "allow_live_zai": false,
+    "searx_endpoint_configured": false,
+    "zai_api_key_present": false
+  },
+  "run_date": "2026-04-12",
+  "runs": {
+    "first": {
+      "alerts": [],
+      "analysis_preview": "San Jose meeting minutes indicate transit funding decisions and housing permit acceleration updates were discussed in recent sessions.",
+      "counts": {
+        "analyses_total": 1,
+        "chunks_total": 1,
+        "documents_total": 1,
+        "objects_total": 3,
+        "search_results": 3
+      },
+      "created_at": "2026-04-12T17:19:09.346009+00:00",
+      "envelope": {
+        "architecture_path": "windmill_direct_storage",
+        "contract_version": "2026-04-12.windmill-storage-bakeoff.v1",
+        "idempotency_key": "san-jose-ca:meeting_minutes:2026-04-12",
+        "jurisdiction": "San Jose CA",
+        "orchestrator": "windmill",
+        "source_family": "meeting_minutes",
+        "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_direct_storage",
+        "windmill_job_id": "job-local-f2b23d63-0eaf-4c06-98bc-5b488d562ace",
+        "windmill_run_id": "local-f2b23d63-0eaf-4c06-98bc-5b488d562ace",
+        "windmill_workspace": "affordabot"
+      },
+      "reason": "completed",
+      "scenario": "normal",
+      "status": "succeeded",
+      "steps": [
+        {
+          "artifact_ref": "minio://affordabot-artifacts/idempotency/san-jose-ca:meeting_minutes:2026-04-12/search/ad52464ef535c48b.json#b0f216d429a0dc71d70720b8304c1816c248eab1c58f28d1b31b639101efaf62",
+          "result_count": 3,
+          "snapshot_created": true,
+          "snapshot_id": "san-jose-ca:meeting_minutes:2026-04-12::535a80471cc2cdd4",
+          "status": "succeeded",
+          "step": "search_materialize"
+        },
+        {
+          "reason": "age_hours=0.00",
+          "status": "fresh",
+          "step": "freshness_gate"
+        },
+        {
+          "artifact_ref": "minio://affordabot-artifacts/documents/sanjoseca-gov-your-government-departments-offices-city-clerk-city-council-meetings/reader/52e6d8a43914d77c.md#52e6d8a43914d77c7e131fc1420160385cedd325b800eb313d7c8f3c51e60502",
+          "canonical_document_key": "sanjoseca.gov/your-government/departments-offices/city-clerk/city-council-meetings",
+          "document_created": true,
+          "reader_mode": "deterministic",
+          "status": "succeeded",
+          "step": "read_fetch"
+        },
+        {
+          "chunks_created": 1,
+          "chunks_reused": 0,
+          "chunks_total_for_document": 1,
+          "status": "succeeded",
+          "step": "index_chunks"
+        },
+        {
+          "analysis_artifact_ref": "minio://affordabot-artifacts/idempotency/san-jose-ca:meeting_minutes:2026-04-12/analysis/69e1e31c34f41ea6.json#6ef14f3decf189c7f1fa6e1c2537c6ee70ceee7ae1c9128154a42edcc510f35d",
+          "analysis_created": true,
+          "analysis_mode": "deterministic",
+          "status": "succeeded",
+          "step": "analyze"
+        }
+      ],
+      "storage_snapshot": {
+        "object_store": {
+          "keys": [
+            "documents/sanjoseca-gov-your-government-departments-offices-city-clerk-city-council-meetings/reader/52e6d8a43914d77c.md",
+            "idempotency/san-jose-ca:meeting_minutes:2026-04-12/analysis/69e1e31c34f41ea6.json",
+            "idempotency/san-jose-ca:meeting_minutes:2026-04-12/search/ad52464ef535c48b.json"
+          ],
+          "object_count": 3
+        },
+        "relational_store": {
+          "analysis_count": 1,
+          "document_count": 1,
+          "search_snapshot_count": 1
+        },
+        "vector_store": {
+          "chunk_count": 1,
+          "chunk_ids": [
+            "sanjoseca.gov/your-government/departments-offices/city-clerk/city-council-meetings::chunk-0::712bf03ddc3f"
+          ]
+        }
+      }
+    },
+    "rerun": {
+      "alerts": [],
+      "analysis_preview": "San Jose meeting minutes indicate transit funding decisions and housing permit acceleration updates were discussed in recent sessions.",
+      "counts": {
+        "analyses_total": 1,
+        "chunks_total": 1,
+        "documents_total": 1,
+        "objects_total": 3,
+        "search_results": 3
+      },
+      "created_at": "2026-04-12T17:19:09.347826+00:00",
+      "envelope": {
+        "architecture_path": "windmill_direct_storage",
+        "contract_version": "2026-04-12.windmill-storage-bakeoff.v1",
+        "idempotency_key": "san-jose-ca:meeting_minutes:2026-04-12",
+        "jurisdiction": "San Jose CA",
+        "orchestrator": "windmill",
+        "source_family": "meeting_minutes",
+        "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_direct_storage",
+        "windmill_job_id": "job-local-17377228-ab0b-4657-94b4-52d6ded0c1c2",
+        "windmill_run_id": "local-17377228-ab0b-4657-94b4-52d6ded0c1c2",
+        "windmill_workspace": "affordabot"
+      },
+      "reason": "completed",
+      "scenario": "normal",
+      "status": "succeeded",
+      "steps": [
+        {
+          "artifact_ref": "minio://affordabot-artifacts/idempotency/san-jose-ca:meeting_minutes:2026-04-12/search/ad52464ef535c48b.json#b0f216d429a0dc71d70720b8304c1816c248eab1c58f28d1b31b639101efaf62",
+          "result_count": 3,
+          "snapshot_created": false,
+          "snapshot_id": "san-jose-ca:meeting_minutes:2026-04-12::535a80471cc2cdd4",
+          "status": "succeeded",
+          "step": "search_materialize"
+        },
+        {
+          "reason": "age_hours=0.00",
+          "status": "fresh",
+          "step": "freshness_gate"
+        },
+        {
+          "artifact_ref": "minio://affordabot-artifacts/documents/sanjoseca-gov-your-government-departments-offices-city-clerk-city-council-meetings/reader/52e6d8a43914d77c.md#52e6d8a43914d77c7e131fc1420160385cedd325b800eb313d7c8f3c51e60502",
+          "canonical_document_key": "sanjoseca.gov/your-government/departments-offices/city-clerk/city-council-meetings",
+          "document_created": false,
+          "reader_mode": "deterministic",
+          "status": "succeeded",
+          "step": "read_fetch"
+        },
+        {
+          "chunks_created": 0,
+          "chunks_reused": 1,
+          "chunks_total_for_document": 1,
+          "status": "succeeded",
+          "step": "index_chunks"
+        },
+        {
+          "analysis_artifact_ref": "minio://affordabot-artifacts/idempotency/san-jose-ca:meeting_minutes:2026-04-12/analysis/69e1e31c34f41ea6.json#6ef14f3decf189c7f1fa6e1c2537c6ee70ceee7ae1c9128154a42edcc510f35d",
+          "analysis_created": false,
+          "analysis_mode": "deterministic",
+          "status": "succeeded",
+          "step": "analyze"
+        }
+      ],
+      "storage_snapshot": {
+        "object_store": {
+          "keys": [
+            "documents/sanjoseca-gov-your-government-departments-offices-city-clerk-city-council-meetings/reader/52e6d8a43914d77c.md",
+            "idempotency/san-jose-ca:meeting_minutes:2026-04-12/analysis/69e1e31c34f41ea6.json",
+            "idempotency/san-jose-ca:meeting_minutes:2026-04-12/search/ad52464ef535c48b.json"
+          ],
+          "object_count": 3
+        },
+        "relational_store": {
+          "analysis_count": 1,
+          "document_count": 1,
+          "search_snapshot_count": 1
+        },
+        "vector_store": {
+          "chunk_count": 1,
+          "chunk_ids": [
+            "sanjoseca.gov/your-government/departments-offices/city-clerk/city-council-meetings::chunk-0::712bf03ddc3f"
+          ]
+        }
+      }
+    }
+  },
+  "state_dir": "docs/poc/windmill-storage-bakeoff/path-a-direct-storage/runtime_state"
+}
