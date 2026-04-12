@@ -183,7 +183,7 @@ cd /tmp/agents/bd-xxxx/repo-name
 - **Source-of-truth runbook**: \`~/agent-skills/docs/PRIME_RADIANT_BEADS_DOLT_RUNBOOK.md\`
 
 ## 2) V8 DX Automation Rules
-1. **No auto-merge**: never enable auto-merge on PRs — humans merge
+1. **No auto-merge**: never enable GitHub auto-merge on PRs. Direct agent-executed merges are allowed only after explicit current-session HITL approval and passing merge gates.
 2. **No PR factory**: one PR per meaningful unit of work
 3. **No canonical writes**: always use worktrees
 4. **Feature-Key mandatory**: every commit needs \`Feature-Key: bd-<beads-id>\`
