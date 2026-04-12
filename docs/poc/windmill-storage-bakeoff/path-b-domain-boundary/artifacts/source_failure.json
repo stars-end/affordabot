@@ -1,0 +1,38 @@
+{
+  "alerts": [
+    "search_materialize:source_error",
+    "freshness_gate:unknown",
+    "read_fetch:unknown",
+    "index:unknown",
+    "analyze:unknown"
+  ],
+  "created_at": "2026-04-12T17:16:12.240926+00:00",
+  "envelope": {
+    "architecture_path": "affordabot_domain_boundary",
+    "contract_version": "2026-04-12.windmill-storage-bakeoff.v1",
+    "idempotency_key": "san-jose-ca:meeting_minutes:2026-04-12",
+    "jurisdiction": "San Jose CA",
+    "orchestrator": "windmill",
+    "source_family": "meeting_minutes",
+    "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+    "windmill_job_id": "job-search",
+    "windmill_run_id": "run-source-failure",
+    "windmill_workspace": "affordabot"
+  },
+  "status": "failed",
+  "step_results": {
+    "search_materialize": {
+      "error": "simulated_source_error",
+      "status": "source_error"
+    }
+  },
+  "storage_counts": {
+    "analyses": 0,
+    "artifacts": 0,
+    "chunks": 0,
+    "documents": 0,
+    "run_summaries": 0,
+    "search_snapshots": 0
+  },
+  "summary_id": "summary-run-source-failure"
+}
