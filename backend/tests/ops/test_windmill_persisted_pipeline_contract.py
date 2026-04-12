@@ -48,6 +48,13 @@ def test_poc_flow_contract_has_step_order_retry_timeout_and_branches():
     assert "search_materialize" in modules_by_id
     assert "decision_branch" in modules_by_id
 
+    start_payload = modules_by_id["start_run"]["value"]["input_transforms"]["payload"]
+    assert start_payload["type"] == "javascript"
+    payload_expr = start_payload["expr"]
+    assert "run_label" in payload_expr
+    assert "query" in payload_expr
+    assert "family" in payload_expr
+
     search_retry = modules_by_id["search_materialize"]["value"]["retry"]
     assert search_retry["attempts"] == 3
     assert search_retry["backoff"]["initial_interval"] == 60
@@ -139,6 +146,8 @@ def test_step_trigger_schema_and_script_contract():
     assert "X-PR-CRON-SECRET" in script_text
     assert "X-PR-CRON-SOURCE" in script_text
     assert "X-PR-PIPELINE-STEP" in script_text
+    assert "X-PR-WINDMILL-FLOW-RUN-ID" in script_text
+    assert "X-PR-WINDMILL-JOB-ID" in script_text
 
     # Windmill orchestration only: no direct DB/object-store writes in trigger scripts.
     assert "psycopg" not in script_text_lower
@@ -185,6 +194,8 @@ def test_main_posts_expected_step_headers_and_payload(monkeypatch):
     assert captured["headers"]["X-PR-CRON-SECRET"] == "secret-123"
     assert captured["headers"]["X-PR-PIPELINE-STEP"] == "search_materialize"
     assert captured["headers"]["X-PR-CRON-SOURCE"] == "windmill:f/affordabot/pipeline_sanjose_searxng_zai_poc/search_materialize"
+    assert captured["headers"]["X-PR-WINDMILL-FLOW-RUN-ID"] == "flow-1"
+    assert captured["headers"]["X-PR-WINDMILL-JOB-ID"] == "job-1"
     assert captured["timeout"] == 180
     assert captured["json"]["contract_version"] == "persisted-pipeline.v1"
     assert captured["json"]["run_id"] == "run-123"

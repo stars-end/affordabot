@@ -126,6 +126,10 @@ def main(
         "X-PR-PIPELINE-STEP": step,
         "Content-Type": "application/json",
     }
+    if windmill_flow_run_id:
+        headers["X-PR-WINDMILL-FLOW-RUN-ID"] = windmill_flow_run_id
+    if windmill_job_id:
+        headers["X-PR-WINDMILL-JOB-ID"] = windmill_job_id
 
     request_payload = {
         "contract_version": "persisted-pipeline.v1",

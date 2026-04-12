@@ -36,6 +36,19 @@ value:
         jurisdiction:
           type: javascript
           expr: flow_input.jurisdiction || "San Jose, CA"
+        payload:
+          type: javascript
+          expr: >-
+            ({
+              run_label: flow_input.run_label || "windmill-sanjose-poc",
+              query: flow_input.query || "San Jose City Council meeting minutes",
+              family: flow_input.family || "city_council_minutes",
+              jurisdiction: flow_input.jurisdiction || "San Jose, CA",
+              live: flow_input.live || false,
+              prefer_cached_search: flow_input.prefer_cached_search || false,
+              allow_stale_fallback: flow_input.allow_stale_fallback !== false,
+              skip_analysis: flow_input.skip_analysis || false
+            })
   - id: search_materialize
     value:
       type: script
@@ -377,5 +390,33 @@ schema:
       type: string
       description: Optional explicit job identifier for downstream traceability.
       default: null
+    run_label:
+      type: string
+      description: Optional run label override for POC start step.
+      default: windmill-sanjose-poc
+    query:
+      type: string
+      description: Optional query override for SearXNG materialization.
+      default: San Jose City Council meeting minutes
+    family:
+      type: string
+      description: Optional source family key.
+      default: city_council_minutes
+    live:
+      type: boolean
+      description: Use live providers (SearXNG and Z.ai) when true.
+      default: false
+    prefer_cached_search:
+      type: boolean
+      description: Prefer cached search snapshots when fresh.
+      default: false
+    allow_stale_fallback:
+      type: boolean
+      description: Allow stale-backed fallback when provider fails.
+      default: true
+    skip_analysis:
+      type: boolean
+      description: Skip analysis step for faster orchestration checks.
+      default: false
   required: []
 ws_error_handler_muted: false
