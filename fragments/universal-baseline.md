@@ -1,7 +1,7 @@
 # Universal Baseline — Agent Skills
 <!-- AUTO-GENERATED -->
-<!-- Source SHA: c5c8b61c17a693162ae2cfeaf28235f9f091b8df -->
-<!-- Last updated: 2026-04-11 21:05:38 UTC -->
+<!-- Source SHA: 0c91f6d615f07f67a6432407d6a46ea6633a1759 -->
+<!-- Last updated: 2026-04-12 05:22:02 UTC -->
 <!-- Regenerate: make publish-baseline -->
 
 ## Nakomi Agent Protocol
@@ -203,6 +203,14 @@ cd /tmp/agents/bd-xxxx/repo-name
 - **API keys**: \`op://dev/Agent-Secrets-Production/<FIELD>\` (see SECRETS_INDEX.md).
 - **Railway CLI token**: \`op://dev/Agent-Secrets-Production/RAILWAY_API_TOKEN\` for CI/automation.
 - **Quick reference**: use the \`op-secrets-quickref\` skill.
+
+### 5.0) Agent Secret-Auth Invariant (Always-On)
+
+- For routine agent secret access, raw \`op read\`, \`op item get\`, \`op item list\`, and \`op whoami\` are forbidden.
+- Human GUI-backed OP is bootstrap/recovery only; it is not an acceptable fallback for autonomous agent tasks.
+- Agents must use cache/service-account helpers, preferably \`DX_AUTH_CACHE_ONLY=1 dx_auth_read_secret_cached ...\`.
+- On cache/service-account miss, fail closed with a blocker. Do not fall back to GUI OP.
+- Do not run OP retry loops unless the task is explicitly auth repair.
 
 ### 5.1) Agent Onboarding SOP (Required First Steps)
 

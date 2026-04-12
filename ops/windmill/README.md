@@ -5,6 +5,16 @@
 Windmill is the scheduler of record for affordabot's scheduled jobs.
 Backend remains the execution plane; Windmill handles schedule, trigger, and observability.
 
+## Shared Dev Instance vs Workspace
+
+Windmill dev is a shared Railway-hosted instance:
+- `https://server-dev-8d5b.up.railway.app`
+
+This repo targets a specific workspace on that shared instance:
+- affordabot assets `f/affordabot/*` -> workspace `affordabot`
+
+Do not assume all repos share one workspace.
+
 ## Migration from Railway Cron
 
 As of `bd-s8id.3`, scheduling moved from root `railway.toml` Railway Cron to Windmill.
@@ -37,6 +47,10 @@ Required workspace variables:
 - `f/affordabot/BACKEND_PUBLIC_URL`
 - `f/affordabot/CRON_SECRET`
 - `f/affordabot/SLACK_WEBHOOK_URL`
+
+Auth source for CLI and automation:
+- `op://dev/Agent-Secrets-Production/WINDMILL_API_TOKEN`
+- `op://dev/Agent-Secrets-Production/WINDMILL_DEV_LOGIN_URL`
 
 Slack webhook note:
 - `trigger_cron_job` now normalizes accidentally quoted webhook values (for example `"https://hooks.slack..."`) before posting.
@@ -125,6 +139,31 @@ curl -X POST \
   -H "Authorization: Bearer $CRON_SECRET" \
   https://backend-dev-3d99.up.railway.app/cron/discovery
 ```
+
+If `wmill` is not installed locally:
+
+```bash
+npx windmill-cli --version
+```
+
+Safe auth pattern with cached 1Password helper (token never printed):
+
+```bash
+source ~/agent-skills/scripts/lib/dx-auth.sh
+export WINDMILL_API_TOKEN="$(dx_auth_read_secret_cached "op://dev/Agent-Secrets-Production/WINDMILL_API_TOKEN")"
+export WINDMILL_BASE_URL="$(dx_auth_read_secret_cached "op://dev/Agent-Secrets-Production/WINDMILL_DEV_LOGIN_URL")"
+```
+
+Safe live checks:
+
+```bash
+npx windmill-cli version -r "$WINDMILL_BASE_URL"
+npx windmill-cli workspace list-remote -r "$WINDMILL_BASE_URL"
+```
+
+Sync safety:
+- Always confirm target workspace is `affordabot` before `sync push`.
+- Do not run broad sync operations if schedule mutation intent is not explicit.
 
 ## Manual Operator Run (CLI-Safe)
 
