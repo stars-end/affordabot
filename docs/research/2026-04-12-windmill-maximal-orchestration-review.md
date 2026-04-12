@@ -1,843 +1,652 @@
 # Windmill-Maximal Orchestration Review
 
-- BEADS_EPIC: bd-jxclm
-- BEADS_SUBTASK: bd-jxclm.13
-- Related: bd-jxclm.1 (spec PR #415), bd-jxclm.12 (POC PR #417)
-- Author role: senior research/architecture
-- Date: 2026-04-12
+BEADS_SUBTASK: bd-jxclm.13
+DATE: 2026-04-12
+SPEC_PR: #415 (SHA 8a00ea8)
+POC_PR: #417 (SHA eef4089)
+VERDICT: approve_with_changes
 
 ## Executive Verdict
 
-VERDICT: `approve_with_changes`
+PR #415's architecture is directionally correct: Windmill owns orchestration, backend owns domain logic. The spec already avoids the two worst failure modes (business logic in Windmill, Windmill writing domain tables directly).
 
-The current spec (PR #415) and POC (PR #417) are on the right architectural
-line: Windmill owns orchestration, affordabot backend owns domain logic and
-writes. But three concrete biases in the spec are under-using Windmill and
-quietly rebuilding orchestration features that Windmill already ships:
+However, the spec **under-uses Windmill's native orchestration primitives** in three areas where Windmill already provides first-class support that the spec reinvents or omits:
 
-1. `pipeline_steps` duplicates a large fraction of Windmill's native job/step
-   history (status, timings, retry metadata, operator-visible summary). We
-   should keep a trimmed `pipeline_steps` focused on *domain* state, not
-   orchestration state, and lean on Windmill's run history for everything
-   operator-visible.
-2. Retry metadata (`retryable`, `max_retries`, `retry_after_seconds`) is
-   being invented inside the backend response contract. Windmill already has
-   first-class per-step constant + exponential backoff retries, step
-   timeouts, and `continue-on-error`. Backend should emit *status* and
-   *error classification*; Windmill should decide retry behavior from the
-   flow definition, not from advisory fields in the JSON body.
-3. The spec treats Windmill flows as thin HTTP fan-in (`Windmill -> one
-   backend endpoint -> next backend endpoint`) and passes on native flow
-   features such as branches, error handlers, recovery handlers, and
-   suspend/approval for operator overrides. This leaves us with a plausible
-   path back to "one big backend script per run" with a thin schedule in
-   front of it — exactly the shape bd-jxclm.1 says we are trying to escape.
+1. **Retries** — The spec puts retry policy (`retryable`, `max_retries`, `retry_after_seconds`) in backend responses, but never maps these to Windmill's native per-step retry configuration (constant + exponential backoff, "continue on error"). The backend should declare retry intent; Windmill should execute it.
 
-Recommended changes are additive and do not break the four-table MVP or the
-POC. See `Concrete Edits to PR #415` below.
+2. **Branching** — The spec mentions Windmill "branches on backend response status" but never specifies the branch-one/branch-all structure. Windmill's branch-one with predicate expressions on `results.<step>.status` is the natural fit. The spec should define the concrete flow shape.
 
-Spec PR #415 should be updated in-place as part of bd-jxclm.13; POC PR #417
-can remain as-is for now and its learnings roll forward into a new Windmill-
-maximal follow-on POC (`bd-jxclm.14`, proposed).
+3. **Suspend/Approval** — The spec has no approval step, but the domain clearly needs one: stale-fallback ceiling exceeded, promotion review, operator rerun decisions. Windmill's native suspend/approval with Slack integration eliminates the need for any custom approval surface.
 
-## Scope and Method
+The POC (PR #417) validates the persistence model correctly but runs the entire pipeline as a monolithic Python function. The next POC must prove **Windmill as the actual orchestrator** calling backend step endpoints, not just a scheduler calling a monolith.
 
-Sources read (verbatim, via `git show` against fetched refs):
-
-- `review-bd-jxclm-spec` (PR #415, SHA `8a00ea84`):
-  `docs/specs/2026-04-11-windmill-driven-persisted-pipeline.md`
-- `review-bd-jxclm-poc` (PR #417, SHA `eef408900d`):
-  - `backend/services/persisted_pipeline_poc.py`
-  - `backend/scripts/verification/poc_sanjose_persisted_pipeline.py`
-  - `backend/artifacts/poc_sanjose_persisted_pipeline/report.md`
-- `origin/master`:
-  - `ops/windmill/README.md`
-  - `ops/windmill/f/affordabot/trigger_cron_job.py`
-  - `backend/tests/ops/test_windmill_contract.py`
-
-External sources: official Windmill documentation at
-`https://www.windmill.dev/docs/*`. Specific pages referenced below.
-
-Non-goals for this review:
-
-- Does not attempt to reimplement the spec.
-- Does not re-validate the POC run evidence; that was already PASS-verified
-  in bd-jxclm.12.
-- Does not schedule Windmill infra changes. Any worker-pool or concurrency-
-  related recommendation assumes we stay on our current Windmill deployment
-  tier unless explicitly noted.
-
-Tool routing exception: `llm-tldr` and `serena` MCP servers were available
-in this session but not required — this task is a write-only research
-artifact backed by direct `git show` reads and official doc fetches. No
-symbol-aware edits to affordabot source were made.
+---
 
 ## Windmill Capability Inventory
 
-Each capability is called out with official-doc link and with whether it is
-free/OSS-available vs tier-gated. "Tier-gated" means Cloud or Enterprise
-Self-Hosted is required per Windmill docs as of April 2026.
+| Capability | Windmill Feature | Doc Link | Tier |
+|---|---|---|---|
+| Flow/DAG architecture | Flow editor with DAG steps | https://www.windmill.dev/docs/flows/flow_editor | Free |
+| Branching (conditional) | Branch one (if/else) and branch all (parallel) | https://www.windmill.dev/docs/flows/flow_branches | Free |
+| For loops | For-each with parallelism control, skip failure, squash | https://www.windmill.dev/docs/flows/flow_loops | Free |
+| While loops | While loop with early stop | https://www.windmill.dev/docs/flows/while_loops | Free |
+| Retries (constant) | Per-step constant retry with delay | https://www.windmill.dev/docs/flows/retries | Free |
+| Retries (exponential) | Per-step exponential backoff | https://www.windmill.dev/docs/flows/retries | Free |
+| Continue on error | Step-level toggle; error passed as result to downstream branch | https://www.windmill.dev/docs/flows/retries | Free |
+| Step timeout | Custom timeout per step | https://www.windmill.dev/docs/flows/custom_timeout | Free |
+| Error handler | Flow-level error handler step | https://www.windmill.dev/docs/flows/flow_error_handler | Free |
+| Early stop/break | Predicate-based early termination | https://www.windmill.dev/docs/flows/early_stop | Free |
+| Early return | Sync return + async continuation | https://www.windmill.dev/docs/flows/early_return | Free |
+| Schedules/cron | Schedule triggers on scripts and flows | https://www.windmill.dev/docs/core_concepts/scheduling | Free |
+| Webhooks | Webhook triggers | https://www.windmill.dev/docs/core_concepts/webhooks | Free |
+| HTTP routes | Custom HTTP endpoints | https://www.windmill.dev/docs/core_concepts/http_routing | Free |
+| Postgres triggers | LISTEN/NOTIFY-based Postgres event triggers | https://www.windmill.dev/docs/core_concepts/postgres_triggers | Free |
+| Suspend/Approval | Suspend flow until approval/cancel, Slack integration, forms | https://www.windmill.dev/docs/flows/flow_approval | Free (forms: EE) |
+| Sleep/delays | Per-step sleep before scheduling next | https://www.windmill.dev/docs/flows/sleep | Free |
+| Concurrency limits | Per-script and per-flow rate limits | https://www.windmill.dev/docs/flows/concurrency_limit | EE/Cloud |
+| Job debouncing | Cancel pending jobs with identical characteristics | https://www.windmill.dev/docs/core_concepts/job_debouncing | EE/Cloud |
+| Worker groups | Dedicated workers by tag | https://www.windmill.dev/docs/core_concepts/worker_groups | Free |
+| Resources and secrets | Workspace-level typed resources and encrypted variables | https://www.windmill.dev/docs/core_concepts/resources_and_types | Free |
+| Variables/secrets | Workspace variables with secret encryption | https://www.windmill.dev/docs/core_concepts/variables_and_secrets | Free |
+| Object storage (S3) | Workspace and instance S3 integration | https://www.windmill.dev/docs/core_concepts/object_storage_in_windmill | EE |
+| Custom instance DB | Windmill's own Postgres for internal queries | https://www.windmill.dev/docs/core_concepts/custom_instance_database | Free |
+| Data pipelines | SQL-based ETL pipelines | https://www.windmill.dev/docs/core_concepts/data_pipelines | Free |
+| Run history/observability | Job logs, inputs/outputs, labels, run page | https://www.windmill.dev/docs/core_concepts/monitor_past_and_future_runs | Free |
+| Caching | Per-step result caching | https://www.windmill.dev/docs/flows/cache | Free |
+| Labels | Key-value labels on runs for filtering | https://www.windmill.dev/docs/core_concepts/labels | Free |
+| Step mocking/pin | Pin a step result for testing | https://www.windmill.dev/docs/flows/step_mocking | Free |
+| Trigger scripts | Poll-based incremental data fetch | https://www.windmill.dev/docs/flows/flow_trigger | Free |
+| Workflows as code | Python/TS programs that define DAGs | https://www.windmill.dev/docs/core_concepts/workflows_as_code | Free |
+| Git sync | Bidirectional sync with Git repo | https://www.windmill.dev/docs/advanced/git_sync | EE |
+| Critical alerts | Configurable alert on job failure patterns | https://www.windmill.dev/docs/core_concepts/critical_alerts | EE/Cloud |
+| Audit logs | Detailed audit trail | https://www.windmill.dev/docs/core_concepts/audit_logs | EE/Cloud |
+| Autoscaling | Worker autoscaling | https://www.windmill.dev/docs/core_concepts/autoscaling | EE/Cloud |
 
-### Orchestration primitives (free/OSS)
+### Tier Gating Summary
 
-- **Flows (DAG)** — `https://www.windmill.dev/docs/flows/flow_editor`.
-  Flow = ordered step graph. Steps can be scripts (TS/Python/Go/Bash), flow
-  references, or subflows. Each step gets its own inputs, outputs, logs,
-  retry policy, and timeout.
-- **Branch one / Branch all** —
-  `https://www.windmill.dev/docs/flows/flow_branches`. Conditional
-  branching on JS expressions; parallel "branch all" with per-branch
-  "skip on failure".
-- **For loops and while loops** —
-  `https://www.windmill.dev/docs/flows/flow_loops`. Parallel or sequential,
-  with early-stop/break and early-return.
-- **Per-step retries with constant + exponential backoff** —
-  `https://www.windmill.dev/docs/flows/retries`. Both constant and
-  exponential retries are per-step. Static attempts run before exponential
-  attempts if both are configured. Retries are per-step only — flow-level
-  retry needs to be modeled as either an outer flow or a `branch one` loop.
-- **Continue on error** — same page. After retries are exhausted, a step
-  can be configured to pass the error object downstream instead of
-  failing the whole flow. This is the primary mechanism for "run partial
-  on failure" without inventing a protocol in the JSON body.
-- **Step timeouts** — `https://www.windmill.dev/docs/flows/flow_settings`.
-  Per-step custom timeout in addition to the instance default.
-- **Early stop / early return** — same page. First-class flow exit.
-- **Flow-level error handler** —
-  `https://www.windmill.dev/docs/flows/flow_error_handler`. A designated
-  flow step runs when any step errors, receives the error object, and
-  owns recovery/alerting logic.
-- **Suspend / approval / prompts (human-in-the-loop)** —
-  `https://www.windmill.dev/docs/flows/flow_approval`. Flow is paused until
-  N approvers hit a resume URL, or optionally times out. Supports restricted
-  approver groups, forms, and "continue on disapproval".
-- **Caching** —
-  `https://www.windmill.dev/docs/core_concepts/caching`. Per-step cache by
-  input hash for a configurable TTL. This is the native idempotency story
-  for "same inputs -> skip work".
-- **Step mocking** — first-class for tests, per
-  `https://www.windmill.dev/docs/flows/flow_editor`.
-- **Run history, logs, labels, inputs/outputs, operator replay** —
-  `https://www.windmill.dev/docs/core_concepts/jobs`. Every step run has an
-  addressable job id, inputs, outputs, logs, and replay/rerun affordances.
+Most flow orchestration features (branches, loops, retries, error handlers, approval, sleep, caching) are **free/self-host**. The key features that require **Enterprise or Cloud**:
 
-### Scheduling (free/OSS)
+- Concurrency limits (rate-limit protection)
+- Job debouncing
+- S3/object storage integration
+- Git sync
+- Critical alerts
+- Audit logs
+- Approval forms (basic suspend is free; adding a form schema is EE)
 
-- **Cron schedules** —
-  `https://www.windmill.dev/docs/core_concepts/scheduling`. Uses croner;
-  supports seconds field and advanced modifiers. Schedules can be attached
-  to a script or flow. Each flow can have one "primary" schedule plus any
-  number of "other" schedules via the Schedules menu.
-- **Schedule-level error handler and recovery handler** — same page.
-  Pre-packaged Slack and Teams handlers. "Recovery" handler specifically
-  fires when a schedule resumes from an errored state — this is a built-in
-  way to emit "pipeline is back" alerts we currently would hand-roll.
-- **Dynamic skip validation** — conditional skip logic on each tick
-  without editing the cron expression.
+**Risk**: If affordabot runs on the free self-hosted tier, it lacks concurrency limits and job debouncing. The spec's `retry_after_seconds` and backend-side rate awareness partially compensates, but a proper concurrency guard would require either EE or an external semaphore (e.g., backend-side admission control).
 
-### Triggers beyond cron
-
-- **Webhooks / HTTP routes** — `https://www.windmill.dev/docs/core_concepts/webhooks`
-  and `https://www.windmill.dev/docs/core_concepts/http_routing`. Free/OSS.
-- **Postgres triggers (logical replication)** —
-  `https://www.windmill.dev/docs/core_concepts/postgres_triggers`.
-  **Not available on Windmill Cloud** per docs; requires self-host with
-  `wal_level=logical`, sufficient `max_wal_senders` / `max_replication_slots`,
-  and publication config. Important constraint for any "fire flow when a
-  row appears" pattern.
-- **Kafka / NATS / MQTT / WebSocket / Email / Object store triggers** —
-  `https://www.windmill.dev/docs/core_concepts/triggers`. Most are EE-
-  gated; treat as not available until we verify our deployment tier.
-
-### Resources, secrets, integrations (free/OSS)
-
-- **Resources + Resource Types** —
-  `https://www.windmill.dev/docs/core_concepts/resources_and_types`.
-  Postgres and S3-compatible (MinIO, R2) resource types are preloaded.
-  Resources are JSON Schema-typed, path-scoped, and passable as typed
-  script parameters.
-- **Variables and Secrets** — same page. `$var:<NAME>` substitution in
-  resources, workspace-scoped, encrypted at rest.
-- **Workspace Object Storage** —
-  `https://www.windmill.dev/docs/core_concepts/persistent_storage/large_data_files`.
-  Workspace-level S3 connection so scripts can read/write files without
-  handling credentials. Free tier has UI limits (20 files per directory in
-  the browser, 50 MB upload via UI). Direct API use is unconstrained. This
-  matters when deciding if Windmill scripts should touch MinIO directly.
-- **S3 streaming for large queries** and **instance object storage cache** —
-  flagged as EE-only by docs.
-
-### Concurrency and rate-limit control
-
-- **Per-script / per-flow / per-step concurrency limits, per-key queuing** —
-  `https://www.windmill.dev/docs/core_concepts/concurrency_limits`.
-  **Enterprise/Cloud-gated per docs.** On OSS self-host this feature is
-  not available; we must treat "one flow instance at a time" as a
-  backend-owned invariant (or accept over-run), not as a Windmill-owned
-  one. This is a blocking constraint on any plan that would remove the
-  backend's own in-flight lock.
+---
 
 ## Current Affordabot Usage Gap Analysis
 
-### What we already use
+### What Affordabot Currently Uses
 
-From `ops/windmill/README.md` and `ops/windmill/f/affordabot/trigger_cron_job.py`:
+From `ops/windmill/README.md` and `trigger_cron_job.py`:
 
-- Windmill triggers shared-instance cron endpoints on the backend over
-  HTTPS with `CRON_SECRET` auth and `X-PR-CRON-SOURCE`.
-- `trigger_cron_job.py` is the single shim used by every cron flow,
-  which means:
-  - Slack alerting lives in that shim as Python code.
-  - Retry/backoff is effectively zero at the Windmill layer — a single
-    HTTP POST, and any 4xx/5xx bubbles up and the flow fails.
-  - "Observability" is `print()` plus a Slack webhook.
-- Flow wrappers exist as `f/affordabot/*__flow/flow.yaml` plus
-  `*.schedule.yaml` pairs — one flow per cron endpoint.
-- `backend/tests/ops/test_windmill_contract.py` enforces that these
-  wrappers keep calling the shared trigger script and that the required
-  variables remain declared.
+- **Schedules**: 4 cron jobs (discovery, daily-scrape, rag-spiders, universal-harvester) + 1 manual flow
+- **Execution model**: Shared-instance — Windmill calls authenticated backend cron endpoints over HTTP
+- **Observability**: Slack webhook success/failure alerts from `trigger_cron_job`
+- **No flows**: Each job is a single-script wrapper that calls one monolithic backend endpoint
+- **No branching**: Success/failure is the only branching (via Slack alert)
+- **No retries**: If the backend endpoint fails, the job fails. No retry at the Windmill level.
+- **No step-level visibility**: One job = one HTTP call. No intermediate step tracking in Windmill.
+- **No concurrency control**: Multiple jobs could hit the backend simultaneously without coordination.
+- **No approval/suspend**: All jobs run to completion or fail. No human-in-the-loop.
+- **No caching**: Each run starts from scratch.
+- **No for-loops**: Multi-jurisdiction expansion is handled inside the backend monolith, not in the flow graph.
 
-This is fine as a migration shim out of Railway Cron. It is not "using
-Windmill as an orchestrator." It's "using Windmill as a cron that also
-posts to Slack."
+### What the Spec Proposes (PR #415)
 
-### What we are rebuilding or planning to rebuild
+- Step-oriented pipeline endpoints (search-materialize, freshness-gate, read-fetch, extract, embed)
+- Backend returns `status`, `retryable`, `max_retries`, `retry_after_seconds`
+- Windmill "branches on backend response status"
+- Pipeline state persisted in 4 tables
+- Artifact storage in MinIO
+- Named freshness policies owned by backend
 
-Cross-referencing PR #415 against the capability inventory:
+### Gap: What Windmill Already Provides That the Spec Rebuilds or Omits
 
-| Spec element | Windmill-native feature we are rebuilding |
-| --- | --- |
-| `pipeline_steps.status` / `started_at` / `finished_at` / `error_code` / `error_detail` / `alerts` columns | Windmill job/step history (every run, every step, every retry attempt already stores these) |
-| `retryable`, `max_retries`, `retry_after_seconds` advisory fields in response | Windmill per-step retry policy (constant + exponential backoff), step timeouts |
-| `status: partial` / `skipped` / `in_progress` plus "Windmill should poll" | Windmill `continue on error`, `suspend` / resume URL, and subflow polling patterns |
-| `next_recommended_step` advisory field | Windmill flow graph is already the explicit step graph |
-| `freshness_gate` as a dedicated backend step | Can stay backend-owned, but Windmill's `branch one` + `continue on error` already models "skip or alert" cleanly without a custom response protocol |
-| Manual rerun as a separate Windmill flow `pipeline_retry_step` plus backend reconciliation | Native per-job **replay/rerun** from Windmill run history; flow-level early return |
-| Backend-authored Slack alerts delivered through response `alerts[]` | Flow-level error handler + schedule-level recovery handler, both already Slack/Teams aware |
-| Operator overrides baked into manifest JSON with named policies | Suspend/approval steps with forms for explicit overrides, audited per run |
-| `stale_backed` flag in `pipeline_steps` to signal "degraded but succeeded" | Data still belongs in the backend (domain state), but degraded-but-succeeded is *also* a concept Windmill can express via continue-on-error + operator-visible labels |
+| Capability | Spec approach | Windmill already provides | Gap severity |
+|---|---|---|---|
+| Retry execution | Backend declares retry params in response; spec says Windmill "obeys" but doesn't wire it | Native per-step retry: constant delay, exponential backoff, max attempts, "continue on error" | High — spec should map backend retry intent to Windmill retry config |
+| Conditional branching | "Windmill branches on backend response" (unspecified) | Branch-one with JS predicates on `results.<step>.status`, `results.<step>.retryable` | High — spec should define the branch predicates |
+| Stale-fallback escalation | Backend increments counters, alerts, hard ceiling | Could use Windmill early-stop + approval for ceiling escalation | Medium — backend logic is correct, but approval at ceiling should use Windmill suspend |
+| Per-step timeout | Not specified in spec | Native custom timeout per step | Medium — each backend endpoint call should have a Windmill timeout |
+| Concurrency/rate limiting | Not addressed | Windmill concurrency limits (EE) or backend admission control | Medium — needed when scaling to multiple jurisdictions |
+| Human approval | Not in spec | Native suspend/approval with Slack integration and forms | Medium — needed for promotion review and stale-ceiling override |
+| For-loop over jurisdictions | Spec mentions jurisdiction list in manifest | Native for-loop with parallelism control, skip-failure, squash | High — should iterate jurisdictions in Windmill, not inside backend |
+| Run labels | Not in spec | Native labels on runs for filtering | Low — nice-to-have for observability |
+| Step-level caching | Backend reuses via content hash | Native step result caching | Low — backend content-hash reuse is more domain-specific |
+| Error handler | Not specified | Native flow-level error handler step | Medium — should define what Windmill does on unrecoverable failure |
 
-None of these are wrong to store; the issue is that the spec is using
-`pipeline_steps` as *both* the domain ledger *and* as an operator-visible
-run log. The second job is Windmill's by construction. If we keep
-`pipeline_steps` for domain state only, we shed about half the fields, and
-operators get a better view of pipeline runs in the Windmill UI than they
-would from a backend-owned table we'd have to build a UI for.
+---
 
-### What is not rebuilt, but is still under-used
+## Core Questions
 
-- No current flow uses **branches**. All logic is linear HTTP POSTs.
-- No current flow uses **retries** at the Windmill layer. We instead
-  catch `requests.RequestException` and fail loudly, which means a
-  single transient 502 from Railway kills a daily run.
-- No current flow uses **approvals**. Manual substrate expansion uses a
-  manifest JSON but no human-in-the-loop checkpoint; operators cannot
-  gate "look at what we found, then promote."
-- No current flow uses **caching**. Every re-run pays for the same
-  search/fetch work unless the backend short-circuits via its own
-  domain state.
-- No current flow uses **Postgres triggers** (and we should not assume
-  they are available without first confirming deployment tier).
-- No current flow uses **workspace S3**. All MinIO reads/writes go
-  through the backend, which the spec codifies ("Windmill should not
-  delete objects directly"). This is the right call; see RACI below.
+### Q1: What orchestration features are we currently rebuilding or planning to rebuild that Windmill already provides?
+
+**Retry execution**: The spec puts `retryable`, `max_retries`, `retry_after_seconds` in the backend response, expecting Windmill to "obey" them. But the spec never specifies how Windmill implements this. Windmill's native per-step retry (constant + exponential backoff) is the right mechanism. The backend should declare retry intent declaratively; Windmill should configure its native retry from those declarations.
+
+**Conditional branching**: The spec says Windmill "branches on backend response status" but never defines the branch structure. Windmill's branch-one with predicate expressions is the natural mechanism.
+
+**Jurisdiction iteration**: The spec's manifest includes a `jurisdictions` array, but doesn't specify whether the backend or Windmill iterates over it. Windmill's for-loop with parallelism control is the right mechanism — it gives per-jurisdiction step visibility, skip-failure isolation, and parallelism tuning.
+
+**Step timeout**: Not mentioned in the spec, but every backend HTTP call needs a Windmill-side timeout to prevent stuck flows.
+
+### Q2: What should move from affordabot backend code into Windmill flow configuration?
+
+- **Retry policy wiring**: Move from "backend declares, Windmill somehow obeys" to "backend declares, Windmill configures native retry"
+- **Step graph structure**: The sequence (search-materialize -> freshness-gate -> read-fetch -> extract -> embed) should be explicit Windmill flow steps, not backend-internal routing
+- **Jurisdiction iteration**: Windmill for-loop over jurisdictions
+- **Branch predicates**: `results.search_materialize.status === "failed" && results.search_materialize.retryable` etc.
+- **Step timeouts**: Windmill per-step timeout
+- **Error handler**: Windmill flow-level error handler that sends Slack alert + marks run failed
+- **Approval at stale ceiling**: Windmill suspend/approval step
+
+### Q3: What should stay in affordabot backend no matter how powerful Windmill is?
+
+- All Postgres writes (pipeline_runs, pipeline_steps, domain tables)
+- All MinIO artifact writes
+- Freshness policy evaluation and stale-fallback logic
+- Idempotency key enforcement and manifest hash validation
+- Search provider selection, query generation, URL normalization, dedupe, scoring
+- Content hashing, content classification (PII detection), retention policy
+- Source trust scoring and promotion decisions
+- pgvector ingestion
+- Contract version validation
+- Alert content generation (backend authors the alert; Windmill delivers it)
+
+### Q4: Should Windmill write directly to affordabot Postgres/MinIO, or only call backend endpoints?
+
+**Recommendation: Only call backend endpoints.**
+
+Tradeoffs:
+
+| Approach | Pros | Cons |
+|---|---|---|
+| Windmill writes directly | Fewer network hops, simpler for trivial writes | Breaks auth boundary; Windmill must hold DB credentials; business logic leaks into Windmill scripts; no idempotency/manifest-hash enforcement; no content classification; version drift risk |
+| Windmill calls backend endpoints | Clean auth boundary; backend enforces all invariants; idempotency guaranteed; single source of truth for writes | Extra network hop; backend must be available; requires careful timeout/retry config |
+
+The spec's current position is correct. Windmill should never hold affordabot DB credentials or write domain rows directly. The network hop cost is negligible compared to the correctness benefit.
+
+### Q5: Should pipeline_steps remain an affordabot table if Windmill already has job/step history?
+
+**Yes, pipeline_steps must remain.**
+
+Windmill's job history is orchestration-level: it tracks which Windmill step ran, when, with what inputs/outputs, and whether it succeeded. It does not know about:
+
+- Idempotency keys and manifest hashes
+- Freshness policy names and stale-backing decisions
+- Content hash reuse and artifact manifests
+- Domain-specific counters (created_count, reused_count, failed_count)
+- Backend-authored alert content
+- Business-logic error codes
+
+These are domain concepts that belong in affordabot's schema. pipeline_steps should reference Windmill's job/step IDs (add a `windmill_job_id` column) for cross-referencing, but the table itself must persist domain state.
+
+### Q6: What is the cleanest backend response contract for Windmill to branch/retry/alert on?
+
+The current spec response shape is good but needs two adjustments:
+
+**Add `windmill_retry_hint`** to allow Windmill to configure native retries from backend declarations:
+
+```json
+{
+  "contract_version": "1.0.0",
+  "status": "succeeded|failed|partial|skipped|in_progress",
+  "run_id": "uuid",
+  "step_key": "search_materialize",
+  "retryable": true,
+  "windmill_retry_hint": {
+    "constant_delay_seconds": 300,
+    "max_attempts": 3,
+    "exponential_base": 2,
+    "exponential_multiplier": 60
+  },
+  "alerts": [],
+  "next_recommended_step": "freshness_gate",
+  "operator_summary": "plain English summary"
+}
+```
+
+The `windmill_retry_hint` is advisory — the Windmill flow definition is the authoritative retry config. But it allows the flow YAML to reference backend-declared values instead of hardcoding them.
+
+**Add `windmill_suspend_hint`** for stale-ceiling and promotion scenarios:
+
+```json
+{
+  "status": "failed",
+  "retryable": false,
+  "windmill_suspend_hint": {
+    "reason": "stale_ceiling_exceeded",
+    "approval_message": "Stale fallback ceiling exceeded for San Jose minutes. Approve to continue with expired data.",
+    "timeout_seconds": 86400
+  }
+}
+```
+
+### Q7: What should the next Windmill-maximal POC prove?
+
+1. A Windmill flow (not a single script) calls backend step endpoints in sequence
+2. Each step is a separate Windmill flow node with native retry configuration
+3. Branch-one on `results.<step>.status` routes "failed + retryable" to retry, "failed + non-retryable" to error handler, "succeeded" to next step
+4. For-loop over 2+ jurisdictions with parallelism=1 (serial) and skip-failure=true
+5. Flow-level error handler sends a Slack alert with run_id and failed step summary
+6. One step times out via Windmill native timeout (not backend timeout)
+7. Suspend/approval step triggered when backend returns `windmill_suspend_hint`
+8. Run the same pipeline twice with unchanged content; prove the second run reuses prior artifacts via backend idempotency (Windmill does NOT cache; backend content-hash reuse works)
+
+### Q8: What specific changes should be made to PR #415 and the bd-jxclm task graph?
+
+See "Concrete Edits Recommended for PR #415" and "Concrete New/Changed Beads Subtasks" below.
+
+---
 
 ## Revised Architecture Recommendation
 
-### One-sentence version
+### RACI Table
 
-Keep the "Windmill calls backend endpoints, backend owns all domain
-writes" rule from the spec, but rewrite the Windmill flow as a real
-DAG — with branches, retries, error handlers, caching, and a suspend
-checkpoint for operator promotion — and trim `pipeline_steps` down to
-*domain* state so it does not duplicate Windmill's run history.
+| Responsibility | Windmill | Backend | Postgres/MinIO | Human/Operator |
+|---|---|---|---|---|
+| Scheduling (cron, manual trigger) | **R** | I | - | A (enable/disable) |
+| Flow graph definition | **R** | C | - | I |
+| Per-step retry execution | **R** | C (declares intent) | - | I |
+| Per-step timeout | **R** | I (declares expected duration) | - | - |
+| Branch predicates | **R** | C (response shape enables it) | - | - |
+| Jurisdiction iteration | **R** | I (manifest provides list) | - | - |
+| Error handler / Slack alert delivery | **R** | C (authors alert content) | - | I |
+| Approval/suspend at stale ceiling | **R** | C (declares suspend hint) | - | **A** |
+| Approval/suspend for promotion | **R** | C (declares suspend hint) | - | **A** |
+| All Postgres writes | I | **R** | **R** (storage) | - |
+| All MinIO artifact writes | I | **R** | **R** (storage) | - |
+| Freshness policy evaluation | I | **R** | - | - |
+| Idempotency enforcement | I | **R** | - | - |
+| Manifest hash validation | I | **R** | - | - |
+| Search provider selection + scoring | I | **R** | - | - |
+| Content hashing + classification | I | **R** | - | - |
+| Source trust + promotion decisions | I | **R** | - | **A** (review) |
+| pgvector ingestion | I | **R** | - | - |
+| Contract version validation | I | **R** | - | - |
+| Artifact retention + purge | I | **R** (backend endpoint) | **R** (storage) | - |
+| Run labels + observability metadata | **R** | I | - | I |
+| Step-level observability (Windmill UI) | **R** | - | - | I |
+| Run-level observability (pipeline_runs) | I | **R** | - | I |
 
-### Longer version
+R = Responsible, A = Accountable/Approver, C = Consulted, I = Informed
 
-The spec's core invariant is correct and should stay:
-
-> Windmill never writes `sources`, `raw_scrapes`, `document_chunks`,
-> review tables, or pipeline domain tables. The backend owns auth,
-> idempotency, policy, artifact writes, and final product state.
-
-Inside that invariant there is still a lot of Windmill to use. The
-revised split is:
-
-- **Windmill flow** is the explicit step graph. Each step is one
-  backend HTTP call. Steps are wired with retries (exponential backoff
-  with small base, capped attempts), per-step timeouts, `continue on
-  error` only where the downstream steps are safe to run on partial
-  upstream state, and a flow-level error handler that emits a
-  backend-authored alert. Schedules get a Windmill-native recovery
-  handler so "pipeline is back after an outage" alerts are free.
-- **Backend endpoints** stay small, idempotent, and synchronous.
-  Every endpoint owns one domain decision and returns a *minimal*
-  status: `succeeded`, `failed`, `skipped`, or `stale_backed`. It
-  does not hand retry advice back to Windmill — retry is a Windmill
-  flow concern. It does carry an error *classification* so the flow
-  can branch between "transient, let Windmill retry" and "non-
-  retryable, go straight to error handler". Operator summaries are
-  still returned for Slack, but are authored in the backend because
-  they reference domain evidence.
-- **`pipeline_runs`** stays — it is the durable domain anchor that
-  links Windmill run ids to jurisdiction/family coverage decisions
-  and to artifact lineage.
-- **`pipeline_steps`** shrinks. It loses orchestration-mirror columns
-  (`started_at`, `finished_at`, `retryable`, `max_retries`,
-  `retry_after_seconds`, most of `alerts` jsonb). It keeps *domain*
-  columns (`run_id`, `step_key`, `idempotency_key`, `manifest_hash`,
-  `status`, `freshness_policy`, `latest_success_at`, `max_stale_hours`,
-  `stale_backed`, `decision_reason`, `error_code`, `artifact_manifest`).
-  It gains `windmill_job_id` so the row can cheaply link out to the
-  full run log in Windmill instead of mirroring it.
-- **`search_result_snapshots`** stays — it is irreplaceable domain
-  evidence. It gets a `windmill_run_id` FK-like pointer for the same
-  reason.
-- **`content_artifacts`** stays — MinIO lineage is the POC's core
-  proof and is the right shape. See table-by-table section.
-
-### Why not let Windmill write to Postgres directly
-
-Three reasons, in order:
-
-1. **Tier risk.** Concurrency limits, Postgres triggers, S3 streaming,
-   and instance caches are all either Cloud or EE-gated. If we let
-   Windmill scripts hold logic that depends on those features, we
-   silently couple our orchestrator choice to a paid tier. Backend-
-   owned writes keep the whole product runnable on a plain self-hosted
-   Windmill.
-2. **Blast radius.** If a Windmill script bug writes malformed rows
-   into `sources` or `document_chunks`, we have no unit tests between
-   it and the table. Keeping writes in the backend means the same
-   SQLAlchemy models, constraints, and tests that every other code
-   path exercises.
-3. **Auth and audit.** The backend already has `CRON_SECRET`,
-   `X-PR-CRON-SOURCE`, and request-level audit. Windmill has its own
-   RBAC but no per-request domain audit. Dual paths mean dual audit.
-
-### Why let Windmill do more orchestration
-
-Three reasons, in order:
-
-1. **Retries and backoff that actually work.** A single Railway
-   restart today breaks a daily flow; exponential-backoff retries
-   at the step level fix that without any backend change.
-2. **Operator UX.** Windmill already renders a step graph, logs,
-   inputs/outputs, and a re-run button per step. Every hour we spend
-   building a `pipeline_runs/{id}/report` viewer is an hour rebuilding
-   the Windmill run page. The report endpoint can stay (for cross-
-   linking and for Slack summaries), but it does not need to become
-   the primary operator surface.
-3. **Human-in-the-loop.** Suspend/approval gives us a native
-   "operator promotes this candidate set" step without writing a new
-   UI. For MVP that covers the "promotion deferred" cutout the spec
-   already called out.
-
-## RACI Table
-
-"R = responsible / executes, A = accountable / owns the boundary,
-C = consulted, I = informed."
-
-| Concern | Windmill | Affordabot backend | Postgres/MinIO | Operator |
-| --- | --- | --- | --- | --- |
-| Cron schedule + timezones | R/A | I | - | I |
-| DAG shape / step ordering | R/A | C | - | I |
-| Per-step retry + backoff + timeout | R/A | C | - | I |
-| Step mocking in tests | R | C | - | - |
-| Run history / step logs / re-run UI | R/A | I | - | R (read) |
-| Schedule error + recovery handlers | R/A | C | - | I |
-| Flow-level alerts (orchestration health) | R/A | C | - | I |
-| Domain alerts (stale fallback, zero result) | C | R/A | - | I |
-| Manifest parsing + contract version gate | C | R/A | - | - |
-| Idempotency key enforcement | I | R/A | R | - |
-| Freshness policy parameters + named policies | - | R/A | - | C |
-| Source trust / promotion decisions | - | R/A | R | C |
-| `sources` / `document_chunks` / review queue writes | - | R/A | R | - |
-| `pipeline_runs` / `pipeline_steps` writes | - | R/A | R | - |
-| `search_result_snapshots` writes | - | R/A | R | - |
-| `content_artifacts` row writes | - | R/A | R | - |
-| MinIO object writes (raw/fetch/extract/report) | - | R/A | R | - |
-| MinIO object purge (retention) | R (trigger) | R/A (execute) | R | - |
-| Suspend / approval gates for promotion | R/A | C (returns context) | - | R (acts) |
-| Manual rerun a single step | R/A | R (execute) | R | R (decides) |
-| Rollback to old cron path | R (disable schedule) | R (execute old cron) | - | R (decides) |
-
-Key deltas from the spec's implicit RACI:
-
-- Retry ownership moves from "backend declares retry metadata,
-  Windmill obeys" to "Windmill owns retry from flow definition,
-  backend classifies errors so Windmill can branch." Simpler contract,
-  fewer new fields, and uses a Windmill feature that already exists.
-- Operator rerun moves from "Windmill calls `pipeline_retry_step`"
-  to "operator uses Windmill's native per-step replay." The
-  `pipeline_retry_step` flow is deferred unless we hit a real gap.
-- Approval gates are a Windmill concern with a backend data feed;
-  the spec currently has no approval gate at all.
-
-## Recommended Endpoint Contract Shape
-
-Trim the spec's proposed request/response down to what the backend
-genuinely owns. Drop any field that is a second-order copy of
-Windmill's own state.
-
-Request (every mutating step):
-
-```json
-{
-  "contract_version": "1.0.0",
-  "run_id": "uuid",
-  "step_key": "search_materialize",
-  "idempotency_key": "run_id:step_key:manifest_hash",
-  "manifest_hash": "sha256:...",
-  "trigger_source": "windmill:f/affordabot/pipeline_daily_refresh",
-  "windmill_job_id": "01JABC...",
-  "manifest": {}
-}
-```
-
-Response (every mutating step):
-
-```json
-{
-  "contract_version": "1.0.0",
-  "status": "succeeded | skipped | stale_backed | failed",
-  "error_class": "none | transient | policy_violation | contract_mismatch | upstream_missing",
-  "run_id": "uuid",
-  "step_key": "search_materialize",
-  "counts": {
-    "created": 0,
-    "reused": 0,
-    "failed": 0
-  },
-  "artifact_paths": [],
-  "domain_alerts": [],
-  "operator_summary": "plain English summary",
-  "stale_backed": false,
-  "decision_reason": "fresh | latest_good_within_policy | hard_stale_ceiling | zero_results"
-}
-```
-
-Removed vs spec:
-
-- `retryable`, `max_retries`, `retry_after_seconds`. Retries are a
-  flow concern; backend tells the truth about whether the error is
-  transient via `error_class`.
-- `in_progress` status. Long-running work should either run
-  synchronously inside the backend step or use a Windmill
-  suspend/resume pattern, not a polling loop in JSON.
-- `next_recommended_step`. The flow graph is the step graph. If the
-  backend wants to signal "skip the next step", use
-  `status: skipped` + `decision_reason`, branch in Windmill.
-- `alerts[]` as orchestration-health messages. Keep `domain_alerts[]`
-  for data-quality alerts authored by the backend (e.g., "3 consecutive
-  stale fallbacks") — those still belong to the backend because they
-  cite domain evidence. Orchestration-health alerts (HTTP errors,
-  timeouts) belong in Windmill's flow-level error handler and
-  schedule-level recovery handler.
-
-Kept vs spec:
-
-- `contract_version` gate. The spec's rationale here is sound and
-  survives unchanged.
-- `idempotency_key` + `manifest_hash`. This is the bit Windmill cannot
-  own on our behalf without leaking domain logic. Keep.
-- `operator_summary` and `counts`. These feed Slack and the
-  report endpoint regardless of whether Windmill owns the run UI.
-
-## Recommended Windmill Flow Shape
-
-Pseudo-flow for `f/affordabot/pipeline_daily_refresh` under the revised
-architecture:
+### Recommended Endpoint Contract Shape
 
 ```text
-flow pipeline_daily_refresh
-  step create_run
-    POST /internal/pipeline/runs
-    retry: constant 2 attempts / 30s
-    timeout: 30s
-    on_error: flow_error_handler
-  step search_materialize
-    POST /internal/pipeline/search-materialize
-    retry: exponential base=30, multiplier=2, max=4
-    timeout: 15m
-    continue_on_error: false
-  step freshness_gate
-    POST /internal/pipeline/freshness-gate
-    retry: constant 2 attempts / 30s
-    timeout: 1m
-  branch_one on results.freshness_gate.status
-    when "skipped":
-      early_return "nothing fresh to do"
-    when "stale_backed":
-      step record_stale_alert (backend-authored domain alert)
-      continue to read_fetch
-    default:
-      continue to read_fetch
-  step read_fetch
-    POST /internal/pipeline/read-fetch
-    retry: exponential base=60, multiplier=2, max=4
-    timeout: 30m
-    continue_on_error: true   # downstream can still extract partial results
-  step extract
-    POST /internal/pipeline/extract
-    retry: exponential base=30, multiplier=2, max=3
-    timeout: 20m
-  step embed
-    POST /internal/pipeline/embed
-    retry: exponential base=30, multiplier=2, max=3
-    timeout: 30m
-  step report
-    GET /internal/pipeline/runs/{run_id}/report
-    retry: constant 2 / 30s
-    timeout: 30s
-  flow_error_handler
-    POST /internal/pipeline/runs/{run_id}/mark-failed
-    then Slack alert (workspace SLACK_WEBHOOK_URL, reuses existing pattern)
-schedule:
-  cron: "0 5 * * *"
-  timezone: UTC
-  recovery_handler: Slack "pipeline recovered"
+POST /internal/pipeline/runs
+  Request:  { contract_version, run_label, run_mode, manifest, manifest_hash, trigger_source }
+  Response: { contract_version, status, run_id, windmill_retry_hint? }
+
+POST /internal/pipeline/search-materialize
+  Request:  { contract_version, run_id, step_key, idempotency_key, manifest_hash, manifest, trigger_source }
+  Response: { contract_version, status, run_id, step_key, retryable, windmill_retry_hint?, windmill_suspend_hint?, created_count, reused_count, failed_count, artifact_paths, alerts, next_recommended_step, operator_summary }
+
+POST /internal/pipeline/freshness-gate
+  Request:  (same shape)
+  Response: { ...status, freshness_policy_name, stale_backed, latest_success_at, max_stale_hours, windmill_suspend_hint? }
+
+POST /internal/pipeline/read-fetch
+  Request:  (same shape)
+  Response: { ...status, artifact_paths }
+
+POST /internal/pipeline/extract
+  Request:  (same shape)
+  Response: { ...status, artifact_paths, extraction_method }
+
+POST /internal/pipeline/embed
+  Request:  (same shape)
+  Response: { ...status, embedded_count, reused_count }
+
+GET /internal/pipeline/runs/{run_id}/report
+  Response: { contract_version, run_id, status, steps[], artifacts[], alerts[], operator_summary }
 ```
 
-Design notes:
+### Recommended Windmill Flow Shape
 
-- Every retry policy lives in the Windmill flow, not in the response
-  body. We pick conservative values (small base, bounded attempts,
-  per-step timeout) so a flaky network does not destroy a daily run
-  and so a runaway step cannot hold a worker hostage.
-- `freshness_gate` uses `branch_one` on a backend-owned `status`
-  value. The branch itself is declared in flow code; the *decision*
-  remains backend-owned. No business logic moves to the flow.
-- `read_fetch` uses `continue_on_error: true`. Partial fetch is a
-  known-safe state for `extract` and `embed` because artifacts are
-  hashed and reusable. This replaces the spec's `status: partial`
-  polling story with a native Windmill feature.
-- `flow_error_handler` calls a backend endpoint so the domain state
-  transitions to a "run failed at <step>" row. The Slack alert then
-  happens in the error handler script, not in every step.
-- The existing `trigger_cron_job.py` shim can remain as the HTTP
-  primitive used by each step, so we do not have to rewrite the
-  Slack normalization + auth logic. It just runs per step, not per
-  run.
+```yaml
+# f/affordabot/pipeline_daily_refresh__flow/flow.yaml
+summary: "Daily persisted discovery pipeline"
+schema:
+  type: object
+  properties:
+    contract_version:
+      type: string
+      default: "1.0.0"
+    jurisdictions:
+      type: array
+      items: { type: string }
+      default: ["San Jose CA"]
+    families:
+      type: array
+      items: { type: string }
+      default: ["meetings", "permits"]
+    freshness_policy:
+      type: string
+      default: "standard_daily_discovery"
+    processing_policy:
+      type: string
+      default: "bounded_daily_default"
+modules:
+  - id: create_run
+    value:
+      type: script
+      path: f/affordabot/trigger_pipeline_step
+      input_transforms:
+        endpoint: { value: "runs" }
+        payload:
+          type: javascript
+          expr: |
+            JSON.stringify({
+              contract_version: flow_input.contract_version,
+              run_label: "daily-discovery-refresh",
+              run_mode: "capture_and_ingest",
+              jurisdictions: flow_input.jurisdictions,
+              families: flow_input.families,
+              freshness_policy: flow_input.freshness_policy,
+              processing_policy: flow_input.processing_policy,
+              trigger_source: "windmill:f/affordabot/pipeline_daily_refresh"
+            })
 
-An additional manual flow `f/affordabot/pipeline_promote_candidates`
-should use **suspend/approval** between "show me what the daily run
-found" and "write to review queue / promote". This is where the
-spec's deferred promotion boundary can land natively.
+  - id: per_jurisdiction
+    value:
+      type: forloop
+      iterator:
+        type: javascript
+        expr: "flow_input.jurisdictions"
+      parallelism: 1
+      skip_failure: true
+      modules:
+        - id: search_materialize
+          value:
+            type: script
+            path: f/affordabot/trigger_pipeline_step
+            input_transforms:
+              endpoint: { value: "search-materialize" }
+              payload:
+                type: javascript
+                expr: |
+                  JSON.stringify({
+                    contract_version: flow_input.contract_version,
+                    run_id: results.create_run.run_id,
+                    step_key: "search_materialize",
+                    idempotency_key: `${results.create_run.run_id}:search_materialize:${flow_input.families.join(',')}`,
+                    manifest_hash: results.create_run.manifest_hash,
+                    manifest: { jurisdiction: iter.value, families: flow_input.families },
+                    trigger_source: "windmill:f/affordabot/pipeline_daily_refresh"
+                  })
+            retry: &default_retry
+              constant_delay: 300
+              max_constant_attempts: 3
+              exponential_base: 2
+              exponential_multiplier: 60
+              max_exponential_attempts: 2
+            timeout: 600
 
-## Table-by-Table Recommendation
+        - id: branch_on_search
+          value:
+            type: branchone
+            branches:
+              - summary: "Search succeeded"
+                predicate: "results.search_materialize.status === 'succeeded'"
+              - summary: "Search failed, suspend for approval"
+                predicate: "results.search_materialize.windmill_suspend_hint != null"
+            default:
+              summary: "Search failed, not retryable"
 
-### `pipeline_runs`
+        - id: freshness_gate
+          value:
+            type: script
+            path: f/affordabot/trigger_pipeline_step
+            input_transforms:
+              endpoint: { value: "freshness-gate" }
+            retry: *default_retry
+            timeout: 120
 
-Keep essentially as spec'd. Small additions:
+        - id: read_fetch
+          value:
+            type: script
+            path: f/affordabot/trigger_pipeline_step
+            input_transforms:
+              endpoint: { value: "read-fetch" }
+            retry: *default_retry
+            timeout: 1200
 
-- `windmill_flow_path` TEXT — which flow triggered this run
-  (`f/affordabot/pipeline_daily_refresh`).
-- `windmill_run_id` TEXT — the Windmill job id of the top-level flow
-  run, for cross-linking from Slack/operator report back to the
-  Windmill UI.
-- Drop `summary` free-text (migrate to an `operator_summary`
-  materialized in report artifact) only if storage budget matters;
-  not strictly necessary for MVP.
+        - id: extract
+          value:
+            type: script
+            path: f/affordabot/trigger_pipeline_step
+            input_transforms:
+              endpoint: { value: "extract" }
+            retry: *default_retry
+            timeout: 600
 
-### `pipeline_steps`
+        - id: embed
+          value:
+            type: script
+            path: f/affordabot/trigger_pipeline_step
+            input_transforms:
+              endpoint: { value: "embed" }
+            retry: *default_retry
+            timeout: 600
 
-Shrink. Rationale: Windmill's run history is the authoritative
-orchestration log; duplicating it is cost without benefit.
+  - id: stale_ceiling_approval
+    value:
+      type: script
+      path: f/affordabot/request_approval
+      suspend:
+        required_events: 1
+        timeout: 86400
+      input_transforms:
+        message:
+          type: javascript
+          expr: "results.search_materialize.windmill_suspend_hint.approval_message"
 
-Keep:
+  - id: error_handler
+    value:
+      type: script
+      path: f/affordabot/send_error_alert
+      input_transforms:
+        run_id:
+          type: javascript
+          expr: "results.create_run.run_id"
+        error_detail:
+          type: javascript
+          expr: "JSON.stringify(error)"
+```
 
-- `id`, `run_id`, `contract_version`, `step_key`, `idempotency_key
-  unique`, `manifest_hash`, `status`, `freshness_policy`,
-  `latest_success_at`, `max_stale_hours`, `stale_backed default false`,
-  `decision_reason`, `error_code`, `artifact_manifest jsonb`.
+### Table-by-Table Recommendation
 
-Drop or move:
+#### pipeline_runs
 
-- `started_at`, `finished_at`: covered by Windmill job history.
-  Keep only if we need it for long-horizon analytics; if so, keep
-  `finished_at` only.
-- `retryable`, `max_retries`, `retry_after_seconds`: not a backend
-  concern anymore.
-- `error_detail`: move to `error_payload jsonb` only if we need
-  structured parse; otherwise drop and link to Windmill job log via
-  `windmill_job_id`.
-- `alerts jsonb`: rename to `domain_alerts jsonb`, keep only
-  backend-authored domain alerts (stale fallback, zero-result). Flow
-  health alerts do not belong here.
+**Keep.** Windmill has flow-run history, but pipeline_runs holds domain concepts: contract_version, manifest, manifest_hash, run_label, run_mode, trigger_source, summary, error_summary. Add `windmill_flow_run_id` column for cross-reference.
 
-Add:
+Do NOT replace with Windmill's run history. Windmill doesn't know about contract versions, manifests, or business-logic summaries.
 
-- `windmill_job_id TEXT` — cheap link to the step's Windmill job log.
+#### pipeline_steps
 
-### `search_result_snapshots`
+**Keep.** Same reasoning. Windmill's step history tracks orchestration; pipeline_steps tracks domain state: idempotency_key, manifest_hash, freshness_policy, stale_backed, decision_reason, alerts, artifact_manifest. Add `windmill_job_id` column.
 
-Keep exactly as spec'd. This is domain evidence that has no
-Windmill analogue; the POC already validates this shape end-to-end.
-No changes recommended for MVP.
+Do NOT replace with Windmill's step history. The idempotency key, freshness policy, and stale-backing decisions are business logic that Windmill must not own.
 
-### `content_artifacts`
+#### search_result_snapshots
 
-Keep essentially as spec'd. Minor recommendations:
+**Keep.** This is pure domain data — search provider results, normalized URLs, scoring, freshness. Windmill has no equivalent concept.
 
-- Accept that workspace S3 on Windmill free tier has UI limits (20
-  files per dir, 50 MB UI upload cap). Writes stay in the backend
-  regardless, so the UI cap does not block us. However:
-- MVP should keep object layout under `pipeline-runs/<run_id>/...`
-  so that the operator browser (when used) hits *per-run* subdirs
-  of size <20 most of the time. This is a cheap precaution that
-  costs nothing.
-- Add `windmill_job_id TEXT NULL` to artifact rows so an operator
-  reading an artifact can jump back to the exact step run. Nullable
-  because the purge job and backfill jobs also write artifacts.
+#### content_artifacts
 
-No change to retention defaults; spec's retention table is
-reasonable.
+**Keep.** Artifact lineage, content classification, retention, and hash-based reuse are business logic. Windmill's S3/object storage is an infrastructure concern (where bytes live), not a lineage concern (what bytes mean). The backend should write to MinIO directly and record the storage path in this table.
 
-## Concrete Edits to PR #415
+---
 
-The following are the minimum changes to bring the spec in line with
-this review without expanding scope.
+## Concrete Edits Recommended for PR #415
 
-1. **Replace the retry-advice response fields** (`retryable`,
-   `max_retries`, `retry_after_seconds`) with `error_class`. Document
-   that retries live in the Windmill flow definition. Remove
-   `in_progress` as a backend-returned status.
-2. **Remove `next_recommended_step`** from both the contract and the
-   rationale. Add one sentence: "The Windmill flow graph is the step
-   graph; backend returns `status` + `decision_reason` and the flow
-   branches on it."
-3. **Rename `alerts` to `domain_alerts`** in the response and in
-   `pipeline_steps` to make it explicit that orchestration-health
-   alerts do not live on the response.
-4. **Trim `pipeline_steps` schema** per the table-by-table section:
-   drop `retryable`, `max_retries`, `retry_after_seconds`, and the
-   two timestamps if not needed; add `windmill_job_id`.
-5. **Add `windmill_flow_path` and `windmill_run_id`** to
-   `pipeline_runs`. Add `windmill_job_id` to `content_artifacts`
-   (nullable).
-6. **Add a Windmill Flow Shape section** to the spec that commits to
-   at least:
-   - per-step exponential retries (numbers can be placeholders)
-   - per-step timeouts
-   - a flow-level error handler
-   - at least one `branch_one` on backend `status`
-   - a schedule-level recovery handler
-   - no `pipeline_retry_step` flow in MVP; native Windmill rerun
-     is sufficient
-7. **Add a "Windmill tier constraints" sub-section** to Risks. It
-   should list: concurrency limits are tier-gated, Postgres triggers
-   are not available on Cloud, workspace S3 has free-tier UI caps.
-   It should explicitly say we do not depend on any of those for
-   MVP. This closes the "what if our deployment tier changes"
-   audit question.
-8. **Update the execution phases**. Phase 7 (`Windmill Flow
-   Orchestration`) should add: "use native Windmill retries, error
-   handlers, branching, caching, and suspend/approval where they
-   map cleanly; do not reimplement those features in backend
-   scripts or response bodies."
-9. **Replace the manual `pipeline_retry_step` bullet** in the Beads
-   structure with either a deletion or a down-scoping note that
-   Windmill's per-step rerun covers the MVP case. If we want a
-   dedicated flow later for repair semantics, promote it to its
-   own Beads subtask.
-10. **Amend the completion-proof list** to include: "a Windmill run
-    page link is embedded in the operator report" and "the daily
-    schedule has a Slack recovery-handler firing after a simulated
-    outage."
+### 1. Add Windmill Flow Shape Section
 
-None of these edits changes the four-table MVP, breaks the POC, or
-expands scope beyond what the consultant review at PR #416 already
-accepted.
+After the "Backend Step API" section, add a new section "Windmill Flow Definition" that specifies:
 
-## Concrete New / Changed Beads Subtasks
+- The flow is a multi-step Windmill flow, not a single-script wrapper
+- Each backend endpoint is a separate flow step calling `f/affordabot/trigger_pipeline_step`
+- For-loop over jurisdictions with configurable parallelism
+- Branch-one on `results.<step>.status` and `results.<step>.windmill_suspend_hint`
+- Per-step native retry configuration derived from backend `windmill_retry_hint`
+- Per-step timeout (search: 600s, freshness-gate: 120s, read-fetch: 1200s, extract: 600s, embed: 600s)
+- Flow-level error handler that sends Slack alert with run_id
+- Suspend/approval step for stale-ceiling and promotion
 
-Proposed:
+### 2. Add `windmill_retry_hint` to Response Contract
 
-- **bd-jxclm.1a (amendment)**: apply edits 1–10 above to the spec
-  at `docs/specs/2026-04-11-windmill-driven-persisted-pipeline.md`.
-  Owner: whoever picks up bd-jxclm.13 follow-up.
-- **bd-jxclm.14 (new, follow-on POC)**: Windmill-maximal POC. Take
-  the existing San Jose POC (bd-jxclm.12) and prove the native
-  Windmill retries, branch_one, flow error handler, schedule
-  recovery handler, and one suspend/approval gate against a small
-  jurisdiction. Acceptance criteria below.
-- **bd-jxclm.9 (scope tweak)**: Windmill orchestration flows task
-  should explicitly include "use native retries / error handler /
-  branch_one / caching" rather than "call backend endpoints". The
-  current wording lets an implementer ship the thin-HTTP shape by
-  accident.
-- **bd-jxclm.2 (scope tweak)**: shrink `pipeline_steps` to the
-  domain-only column set before the first migration lands. It is
-  significantly cheaper to not add columns now than to drop them
-  once backend code depends on them.
-- **bd-jxclm.promotion (deferred)**: promote-candidates flow with a
-  suspend/approval gate. Not MVP. Tracked separately so it does not
-  quietly become MVP creep.
+Add to the response shape:
 
-No existing Beads subtask needs to be deleted; this review recommends
-scope trims, not scope deletions.
+```json
+"windmill_retry_hint": {
+  "constant_delay_seconds": 300,
+  "max_constant_attempts": 3,
+  "exponential_base": 2,
+  "exponential_multiplier": 60,
+  "max_exponential_attempts": 2
+}
+```
 
-## Hands-On POC Plan (proposed `bd-jxclm.14`)
+And `windmill_suspend_hint`:
 
-Goal: prove that a Windmill-maximal flow can drive the existing
-San Jose vertical slice with native retries, branches, error handler,
-and recovery handler, without moving any domain logic into Windmill
-scripts.
+```json
+"windmill_suspend_hint": {
+  "reason": "stale_ceiling_exceeded|promotion_review|operator_rerun",
+  "approval_message": "plain English for approval page",
+  "timeout_seconds": 86400
+}
+```
 
-Artifacts:
+### 3. Add `windmill_flow_run_id` and `windmill_job_id` to Tables
 
-- a committed flow under `ops/windmill/f/affordabot/pipeline_sj_poc/flow.yaml`
-- a schedule `pipeline_sj_poc.schedule.yaml`
-- a contract test extension in
-  `backend/tests/ops/test_windmill_contract.py` asserting that the
-  new flow references the shared trigger script and declares the
-  required retries / error handler
-- a POC report at
-  `backend/artifacts/poc_windmill_maximal_pipeline/report.md`
+Add to `pipeline_runs`:
+- `windmill_flow_run_id text`
 
-Scope:
+Add to `pipeline_steps`:
+- `windmill_job_id text`
 
-- one jurisdiction (Saratoga CA or reuse the San Jose slice)
-- one source family (meetings)
-- five flow steps: create_run, search_materialize, freshness_gate,
-  read_fetch, extract
-- *no* ingestion to production pgvector from the POC flow
-- backend endpoints from bd-jxclm.3 (or local stubs pointing at the
-  bd-jxclm.12 POC service) so we do not block on full backend impl
+These allow cross-referencing between affordabot persistence and Windmill's observability UI.
 
-Acceptance criteria:
+### 4. Add "Windmill Retry vs Backend Retry" Clarification
 
-1. Baseline run: flow completes successfully end to end with all
-   five steps green in the Windmill UI.
-2. Transient failure drill: inject a 503 from the backend on
-   `read_fetch`; Windmill retries and the flow eventually succeeds.
-   Windmill run history shows the retry attempts distinctly.
-3. Non-retryable failure drill: inject a `contract_mismatch`
-   `error_class`; flow does not retry and the flow-level error
-   handler fires a Slack alert.
-4. Freshness skip drill: force `freshness_gate` to return
-   `skipped`; `branch_one` short-circuits the flow with
-   `early_return` and no downstream writes happen.
-5. Stale-backed drill: force `freshness_gate` to return
-   `stale_backed`; flow proceeds, backend records the domain alert,
-   and the operator report includes the stale-backed evidence.
-6. Recovery handler drill: disable the schedule, re-enable after a
-   simulated outage, and observe a Slack recovery message.
-7. Re-run a single step from the Windmill UI; the backend idempotency
-   key prevents duplicate artifact creation.
-8. No flow step contains Python code beyond the existing
-   `trigger_cron_job.py` shim and its error-handler counterpart.
-9. No domain table write happens from Windmill code.
+Add a subsection under "Idempotency and Concurrent Retries":
 
-This POC is a direct successor to bd-jxclm.12 and should re-use its
-POC tables / service layer to keep the blast radius small.
+> Windmill native retry is the retry execution mechanism. Backend `windmill_retry_hint` declares the desired policy. The Windmill flow YAML is the authoritative retry config. If Windmill retries a step, the backend idempotency key ensures the step is not re-executed if it already succeeded.
 
-## Risks, Unknowns, and Plan-Tier Constraints
+### 5. Add Approval/Suspend Boundary
 
-### Tier-gated Windmill features
+Add to the "Active Contract" section:
 
-Confirmed tier-gated in docs (April 2026):
+> Windmill is allowed to suspend a flow pending operator approval when the backend returns `windmill_suspend_hint`. The approval mechanism is Windmill's native suspend/approval with Slack notification. The backend does not implement its own approval queue.
 
-- Concurrency limits (per-path / per-key queuing): **Cloud or EE
-  only**. Mitigation: do not depend on Windmill concurrency limits
-  in MVP. Continue to enforce "one pipeline run per jurisdiction" in
-  the backend via `pipeline_runs` + `idempotency_key` uniqueness.
-- Postgres triggers (logical replication → flow): **not on Cloud**.
-  Self-host requires `wal_level=logical` and publication config.
-  Mitigation: do not use Postgres triggers in MVP at all. Cron +
-  webhook-triggered reruns cover every spec'd use case.
-- S3 streaming for large queries and instance cache: **EE only**.
-  Mitigation: backend streams MinIO via boto3, not Windmill.
+### 6. Add a Thin Trigger Script
 
-### Workspace S3 free-tier limits
+The current `trigger_cron_job.py` is designed for monolithic cron endpoints. Add a new `trigger_pipeline_step.py` that:
 
-- Free tier caps: 20 files per directory in the UI browser, 50 MB
-  per UI upload. Mitigation: keep MinIO writes in the backend
-  (they already are per the spec), and keep object layout one
-  run deep so the UI remains usable for operator debugging.
+- Takes endpoint, payload, backend_url, cron_secret, timeout_seconds
+- POSTs to `/internal/pipeline/{endpoint}`
+- Returns the parsed JSON response (for branch predicates)
+- Does NOT send its own Slack alert (let the flow error handler do that)
 
-### Retries ≠ idempotency
+### 7. Specify Concurrency Strategy
 
-- Windmill retries are per-step only; they fire on any error unless
-  the flow also marks the step `continue_on_error`. Idempotency is
-  entirely a backend responsibility. We already have
-  `idempotency_key UNIQUE` in the spec; nothing more to do here.
+Add a section:
 
-### Flow-level retries
+> When affordabot runs on Windmill EE, use native concurrency limits on the pipeline flow (max 1 concurrent run per jurisdiction-family pair) and on individual steps (max N concurrent search-materialize calls to avoid SearXNG overload). When on free self-host, implement backend-side admission control via a `pipeline_locks` table.
 
-- Windmill does not have a built-in "retry the whole flow" knob.
-  If we want run-level retries we model them as an outer flow that
-  `for`-loops the inner one N times with `continue_on_error`.
-  Decision: do not do this in MVP. Step-level retries cover
-  transient failures. Run-level retries are an operator decision
-  and should go through explicit rerun.
+---
 
-### Suspend/approval blocks flow slots
+## Concrete New/Changed Beads Subtasks
 
-- Flows in suspended state occupy Windmill queue state. If we wire
-  suspend/approval into the daily cron, operator inattention will
-  leave flows hanging. Mitigation: put approval in the *manual*
-  promote flow only, not in the daily pipeline. Use a default
-  timeout on the approval step so forgotten approvals cancel
-  cleanly.
+| Beads ID | Title | Change | Rationale |
+|---|---|---|---|
+| bd-jxclm.9 | Add Windmill orchestration flows and run controls | **Expand**: change from "add flows that call existing cron endpoints" to "add multi-step Windmill flow with native retry, branching, for-loop, timeout, error handler, and approval steps" | Current description is too vague; must specify the flow shape |
+| bd-jxclm.2 | Add persisted pipeline state and artifact schema | **Minor expand**: add `windmill_flow_run_id` to pipeline_runs, `windmill_job_id` to pipeline_steps | Cross-reference with Windmill observability |
+| bd-jxclm.3 | Implement backend pipeline step endpoints | **Minor expand**: add `windmill_retry_hint` and `windmill_suspend_hint` to response shapes | Enable Windmill-native retry and approval |
+| (new) bd-jxclm.14 | Add thin `trigger_pipeline_step` Windmill script | **New**: separate from `trigger_cron_job.py`; returns parsed response for branching; no inline Slack alerting | Current trigger script is monolith-oriented |
+| (new) bd-jxclm.15 | Windmill-maximal POC: multi-step flow calling backend step endpoints | **New**: prove the flow shape works with native retry, branching, for-loop, timeout, error handler | POC #417 proved persistence, not Windmill orchestration |
+| (new) bd-jxclm.16 | Add concurrency strategy: EE concurrency limits or backend admission control | **New**: prevents SearXNG overload and concurrent-run conflicts | Currently unaddressed |
 
-### Failure mode: "Windmill becomes a second backend"
+---
 
-- Already called out in the spec. This review reinforces the
-  mitigation: every Windmill step should remain a thin HTTP call.
-  Any time a flow needs a conditional beyond `branch_one`/`for`, we
-  write the conditional in the backend and return a status. The
-  flow never sees a raw business rule.
+## Hands-On POC Plan
 
-### Unknowns this review did not resolve
+### Objective
 
-- **Windmill deployment tier**. This review assumes OSS self-host
-  with no EE features. If our deployment is actually Pro
-  Self-Hosted / Cloud, we get concurrency limits and Postgres
-  triggers for free and should reconsider a few decisions (e.g.,
-  we could cheaply enforce "only one pipeline_daily_refresh in
-  flight at a time" at Windmill level). Action: add a
-  `bd-jxclm.13-followup` note asking an operator to confirm tier
-  before bd-jxclm.9 is closed.
-- **Long-step behavior under Railway restarts**. If a backend step
-  runs for 30 minutes and Railway restarts mid-step, the POC did
-  not test Windmill's response. Recommended to cover in the POC
-  acceptance criteria above.
-- **Contract-version rollout story**. The spec says fail closed on
-  major mismatch, but does not specify how we roll the backend
-  version forward while Windmill flows are still on the old one.
-  Out of scope for this review, but worth calling out as a Phase 7
-  followup.
+Prove that a Windmill flow (not a monolithic script) can orchestrate backend step endpoints with native retry, branching, for-loop, and approval.
 
-## Sources
+### Scope
 
-Windmill docs:
+- 2 jurisdictions (San Jose CA, Saratoga CA)
+- 1 family (meetings)
+- Backend endpoints: create-run, search-materialize, freshness-gate, read-fetch, extract
+- No embed (defer to later work)
 
-- `https://www.windmill.dev/docs/flows/flow_editor`
-- `https://www.windmill.dev/docs/flows/flow_branches`
-- `https://www.windmill.dev/docs/flows/flow_loops`
-- `https://www.windmill.dev/docs/flows/retries`
-- `https://www.windmill.dev/docs/flows/flow_settings`
-- `https://www.windmill.dev/docs/flows/flow_error_handler`
-- `https://www.windmill.dev/docs/flows/flow_approval`
-- `https://www.windmill.dev/docs/core_concepts/scheduling`
-- `https://www.windmill.dev/docs/core_concepts/jobs`
-- `https://www.windmill.dev/docs/core_concepts/triggers`
-- `https://www.windmill.dev/docs/core_concepts/webhooks`
-- `https://www.windmill.dev/docs/core_concepts/http_routing`
-- `https://www.windmill.dev/docs/core_concepts/postgres_triggers`
-- `https://www.windmill.dev/docs/core_concepts/concurrency_limits`
-- `https://www.windmill.dev/docs/core_concepts/caching`
-- `https://www.windmill.dev/docs/core_concepts/resources_and_types`
-- `https://www.windmill.dev/docs/core_concepts/persistent_storage/large_data_files`
+### Acceptance Criteria
 
-Affordabot source:
+1. Windmill flow has 5+ separate steps (create-run, for-loop with search-materialize + freshness-gate + read-fetch + extract per jurisdiction)
+2. Each step has native retry configured (constant: 2 attempts, 60s delay)
+3. Each step has a timeout (search: 600s, freshness: 120s, fetch: 1200s, extract: 600s)
+4. Branch-one on search-materialize status: succeeded -> freshness-gate, failed+retryable -> retry (via Windmill native), failed+non-retryable -> error handler
+5. For-loop over jurisdictions with parallelism=1, skip-failure=true
+6. Flow-level error handler sends Slack alert with run_id and failed step
+7. One simulated failure (search provider outage) triggers Windmill retry, then error handler
+8. One simulated suspend scenario (stale ceiling) triggers approval step
+9. Second run with unchanged content reuses prior artifacts (verified by pipeline_steps.reused_count > 0)
+10. All 4 pipeline tables populated with correct domain state
+11. At least 1 artifact in MinIO (or fixture-backed object store)
+12. No business logic in Windmill scripts (all scripts are thin HTTP wrappers)
 
-- `docs/specs/2026-04-11-windmill-driven-persisted-pipeline.md` (PR #415)
-- `backend/services/persisted_pipeline_poc.py` (PR #417)
-- `backend/scripts/verification/poc_sanjose_persisted_pipeline.py` (PR #417)
-- `backend/artifacts/poc_sanjose_persisted_pipeline/report.md` (PR #417)
-- `ops/windmill/README.md` (master)
-- `ops/windmill/f/affordabot/trigger_cron_job.py` (master)
-- `backend/tests/ops/test_windmill_contract.py` (master)
+### Prerequisites
+
+- bd-jxclm.2 (schema) complete
+- bd-jxclm.3 (step endpoints) at least search-materialize, freshness-gate, read-fetch, extract implemented
+- bd-jxclm.14 (trigger_pipeline_step script) implemented
+- Backend deployed with internal pipeline endpoints
+
+### Estimated Duration
+
+2-3 implementation sessions after prerequisites are met.
+
+---
+
+## Risks, Unknowns, and Plan-Tier/Self-Hosting Constraints
+
+### Tier-Gated Features
+
+| Feature | Tier | Impact if Unavailable | Mitigation |
+|---|---|---|---|
+| Concurrency limits | EE/Cloud | Cannot rate-limit search-materialize calls at the Windmill level | Backend-side admission control via pipeline_locks table |
+| Job debouncing | EE/Cloud | Concurrent manual + scheduled runs could conflict | Backend idempotency keys already prevent double-execution |
+| Approval forms | EE | Cannot add structured form to approval page (basic suspend is free) | Approval message in suspend hint; operator reviews in Windmill UI |
+| S3/object storage | EE | Cannot use Windmill's S3 integration for artifacts | Backend writes to MinIO directly (already planned) |
+| Git sync | EE | Windmill assets must be synced manually via `wmill sync push` | Already using CLI sync |
+| Critical alerts | EE/Cloud | No built-in failure-pattern alerting | Custom Slack alerting in flow error handler |
+| Audit logs | EE/Cloud | No Windmill audit trail | Backend pipeline_steps table serves as domain audit trail |
+
+### Key Unknown
+
+**Affordabot's Windmill tier is not documented in the spec or README.** The concurrency limits and approval forms are the most impactful EE-gated features for this pipeline. If affordabot is on the free self-hosted tier, the POC must prove that backend-side admission control is a viable fallback for concurrency, and that basic suspend (without forms) is sufficient for approvals.
+
+### Risk: Windmill Retry vs Backend Idempotency Interaction
+
+If Windmill retries a step and the backend had already completed it, the idempotency key must return the existing step state (not re-execute). The spec already requires this. The POC must prove it with a concrete test: simulate a Windmill retry after a step has succeeded, verify the backend returns the existing result.
+
+### Risk: For-Loop Scale
+
+If the jurisdiction list grows to 50+, the for-loop with parallelism=1 becomes very slow. With parallelism=5, it risks overloading SearXNG or the backend. The concurrency strategy (bd-jxclm.16) must be resolved before scaling.
+
+### Risk: Approval Timeout
+
+If an operator doesn't respond to a stale-ceiling approval, the flow hangs. The suspend/approval timeout (default 86400s = 24h) must be configured, and the error handler must mark the run as "approval timed out" in pipeline_runs.
+
+---
+
+## Tool Routing Exception
+
+No exceptions. Used webfetch for Windmill official documentation, llm-tldr for semantic discovery, and bash for file operations.
