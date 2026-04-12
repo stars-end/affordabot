@@ -40,7 +40,9 @@ class DummyResponse:
         ("universal_harvester", "universal-harvester", "schedule: 0 0 8 * * ?"),
     ],
 )
-def test_shared_instance_windmill_assets_reference_trigger_contract(job_name, endpoint, schedule):
+def test_shared_instance_windmill_assets_reference_trigger_contract(
+    job_name, endpoint, schedule
+):
     flow_text = (WINDMILL_DIR / f"{job_name}__flow" / "flow.yaml").read_text()
     schedule_text = (WINDMILL_DIR / f"{job_name}.schedule.yaml").read_text()
 
@@ -62,7 +64,9 @@ def test_trigger_script_schema_keeps_slack_webhook_input():
     schema_text = (WINDMILL_DIR / "trigger_cron_job.script.yaml").read_text()
 
     assert "slack_webhook_url:" in schema_text
-    assert "Optional Slack webhook for Prime-style dev alert notifications." in schema_text
+    assert (
+        "Optional Slack webhook for Prime-style dev alert notifications." in schema_text
+    )
     assert "timeout_seconds:" in schema_text
     assert "backend_url:" in schema_text
     assert "cron_secret:" in schema_text
@@ -70,7 +74,9 @@ def test_trigger_script_schema_keeps_slack_webhook_input():
 
 
 def test_manual_substrate_expansion_flow_references_trigger_contract():
-    flow_text = (WINDMILL_DIR / "manual_substrate_expansion__flow" / "flow.yaml").read_text()
+    flow_text = (
+        WINDMILL_DIR / "manual_substrate_expansion__flow" / "flow.yaml"
+    ).read_text()
 
     assert "path: f/affordabot/trigger_cron_job" in flow_text
     assert "value: manual-substrate-expansion" in flow_text
@@ -113,7 +119,9 @@ def test_send_slack_alert_posts_webhook_payload(monkeypatch):
 
     assert captured["url"] == "https://hooks.slack.test/services/123"
     assert captured["timeout"] == 10
-    assert captured["json"]["text"].startswith("[INFO] ✅ Affordabot discovery: SUCCESS")
+    assert captured["json"]["text"].startswith(
+        "[INFO] ✅ Affordabot discovery: SUCCESS"
+    )
     assert captured["json"]["blocks"][1]["text"]["text"] == "Everything worked"
     assert "env=dev" in captured["json"]["blocks"][2]["elements"][0]["text"]
 
@@ -168,7 +176,9 @@ def test_main_success_posts_expected_headers_and_info_alert(monkeypatch):
         captured["url"] = url
         captured["headers"] = headers
         captured["timeout"] = timeout
-        return DummyResponse(status_code=200, payload={"status": "succeeded", "job": "daily_scrape"})
+        return DummyResponse(
+            status_code=200, payload={"status": "succeeded", "job": "daily_scrape"}
+        )
 
     def fake_alert(webhook_url, severity, title, message, env):
         captured["alerts"].append((webhook_url, severity, title, message, env))
@@ -189,7 +199,9 @@ def test_main_success_posts_expected_headers_and_info_alert(monkeypatch):
     assert captured["timeout"] == 321
     assert captured["headers"]["Authorization"] == "Bearer secret-123"
     assert captured["headers"]["X-PR-CRON-SECRET"] == "secret-123"
-    assert captured["headers"]["X-PR-CRON-SOURCE"] == "windmill:f/affordabot/daily_scrape"
+    assert (
+        captured["headers"]["X-PR-CRON-SOURCE"] == "windmill:f/affordabot/daily_scrape"
+    )
     assert captured["alerts"] == [
         (
             "https://hooks.slack.test/services/abc",
@@ -206,10 +218,14 @@ def test_main_success_posts_expected_headers_and_info_alert(monkeypatch):
 
 def test_main_marks_slack_unconfigured_for_malformed_url(monkeypatch):
     def fake_post(url, headers, timeout):
-        return DummyResponse(status_code=200, payload={"status": "succeeded", "job": "daily_scrape"})
+        return DummyResponse(
+            status_code=200, payload={"status": "succeeded", "job": "daily_scrape"}
+        )
 
     monkeypatch.setattr(windmill_trigger.requests, "post", fake_post)
-    monkeypatch.setattr(windmill_trigger, "send_slack_alert", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        windmill_trigger, "send_slack_alert", lambda *args, **kwargs: None
+    )
 
     result = windmill_trigger.main(
         endpoint="daily-scrape",
@@ -228,7 +244,9 @@ def test_main_http_failure_sends_error_alert(monkeypatch):
     alerts = []
 
     def fake_post(url, headers, timeout):
-        return DummyResponse(status_code=500, payload={"status": "failed", "detail": "boom"})
+        return DummyResponse(
+            status_code=500, payload={"status": "failed", "detail": "boom"}
+        )
 
     def fake_alert(webhook_url, severity, title, message, env):
         alerts.append((severity, title, message, env))
@@ -292,10 +310,15 @@ def test_main_posts_json_payload_when_present(monkeypatch):
         captured["headers"] = headers
         captured["timeout"] = timeout
         captured["json"] = json
-        return DummyResponse(status_code=200, payload={"status": "succeeded", "job": "manual_substrate_expansion"})
+        return DummyResponse(
+            status_code=200,
+            payload={"status": "succeeded", "job": "manual_substrate_expansion"},
+        )
 
     monkeypatch.setattr(windmill_trigger.requests, "post", fake_post)
-    monkeypatch.setattr(windmill_trigger, "send_slack_alert", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        windmill_trigger, "send_slack_alert", lambda *args, **kwargs: None
+    )
 
     payload = {
         "run_label": "broad-test-2026-04-02",
@@ -313,6 +336,11 @@ def test_main_posts_json_payload_when_present(monkeypatch):
         payload=payload,
     )
 
-    assert captured["url"] == "https://backend.example.com/cron/manual-substrate-expansion"
-    assert captured["headers"]["X-PR-CRON-SOURCE"] == "windmill:f/affordabot/manual_substrate_expansion"
+    assert (
+        captured["url"] == "https://backend.example.com/cron/manual-substrate-expansion"
+    )
+    assert (
+        captured["headers"]["X-PR-CRON-SOURCE"]
+        == "windmill:f/affordabot/manual_substrate_expansion"
+    )
     assert captured["json"] == payload

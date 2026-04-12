@@ -312,22 +312,37 @@ value:
         modules:
           - id: fail_zero_results
             value:
-              type: javascript
-              expr: >-
-                throw new Error("search_materialize decision was zero_results; no silent fallback allowed")
+              type: rawscript
+              language: bun
+              input_transforms: {}
+              content: |-
+                export async function main() {
+                  throw new Error("search_materialize decision was zero_results; no silent fallback allowed");
+                }
       - expr: results.search_materialize.response.decision == "provider_failed_no_fallback"
         modules:
           - id: fail_provider_no_fallback
             value:
-              type: javascript
-              expr: >-
-                throw new Error("search_materialize decision was provider_failed_no_fallback")
+              type: rawscript
+              language: bun
+              input_transforms: {}
+              content: |-
+                export async function main() {
+                  throw new Error("search_materialize decision was provider_failed_no_fallback");
+                }
       default:
         - id: fail_unexpected_decision
           value:
-            type: javascript
-            expr: >-
-              throw new Error(`Unexpected search decision: ${results.search_materialize.response.decision}`)
+            type: rawscript
+            language: bun
+            input_transforms:
+              decision:
+                type: javascript
+                expr: results.search_materialize.response.decision
+            content: |-
+              export async function main(decision) {
+                throw new Error(`Unexpected search decision: ${decision}`);
+              }
   failure_module:
     id: flow_failure_handler
     value:

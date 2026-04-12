@@ -17,7 +17,9 @@ ZAI_CANARY_FLOW_PATH = WINDMILL_DIR / "zai_web_search_weekly_canary__flow" / "fl
 ZAI_CANARY_SCHEDULE_PATH = WINDMILL_DIR / "zai_web_search_weekly_canary.schedule.yaml"
 README_PATH = ROOT / "ops" / "windmill" / "README.md"
 
-spec = spec_from_file_location("windmill_trigger_pipeline_step", STEP_TRIGGER_SCRIPT_PATH)
+spec = spec_from_file_location(
+    "windmill_trigger_pipeline_step", STEP_TRIGGER_SCRIPT_PATH
+)
 trigger_pipeline_step = module_from_spec(spec)
 assert spec.loader is not None
 spec.loader.exec_module(trigger_pipeline_step)
@@ -60,7 +62,9 @@ def test_poc_flow_contract_has_step_order_retry_timeout_and_branches():
     assert search_retry["backoff"]["initial_interval"] == 60
     assert search_retry["backoff"]["max_interval"] == 600
     assert search_retry["backoff"]["multiplier"] == 2
-    search_timeout = modules_by_id["search_materialize"]["value"]["input_transforms"]["timeout_seconds"]["value"]
+    search_timeout = modules_by_id["search_materialize"]["value"]["input_transforms"][
+        "timeout_seconds"
+    ]["value"]
     assert search_timeout == 180
 
     branch_value = modules_by_id["decision_branch"]["value"]
@@ -68,12 +72,24 @@ def test_poc_flow_contract_has_step_order_retry_timeout_and_branches():
     assert isinstance(branch_value["branches"], list)
 
     branch_exprs = [branch["expr"] for branch in branch_value["branches"]]
-    assert 'results.search_materialize.response.decision == "fresh_snapshot"' in branch_exprs
-    assert 'results.search_materialize.response.decision == "stale_backed"' in branch_exprs
-    assert 'results.search_materialize.response.decision == "zero_results"' in branch_exprs
-    assert 'results.search_materialize.response.decision == "provider_failed_no_fallback"' in branch_exprs
+    assert (
+        'results.search_materialize.response.decision == "fresh_snapshot"'
+        in branch_exprs
+    )
+    assert (
+        'results.search_materialize.response.decision == "stale_backed"' in branch_exprs
+    )
+    assert (
+        'results.search_materialize.response.decision == "zero_results"' in branch_exprs
+    )
+    assert (
+        'results.search_materialize.response.decision == "provider_failed_no_fallback"'
+        in branch_exprs
+    )
     assert "default" in branch_value
-    assert any(module["id"] == "fail_unexpected_decision" for module in branch_value["default"])
+    assert any(
+        module["id"] == "fail_unexpected_decision" for module in branch_value["default"]
+    )
 
     def branch_modules(expr: str) -> list[dict]:
         for branch in branch_value["branches"]:
@@ -81,23 +97,61 @@ def test_poc_flow_contract_has_step_order_retry_timeout_and_branches():
                 return branch["modules"]
         raise AssertionError(f"Missing branch expr: {expr}")
 
-    assert [module["id"] for module in branch_modules('results.search_materialize.response.decision == "fresh_snapshot"')] == [
+    assert [
+        module["id"]
+        for module in branch_modules(
+            'results.search_materialize.response.decision == "fresh_snapshot"'
+        )
+    ] == [
         "read_extract_fresh",
         "analyze_fresh",
         "finalize_report_fresh",
     ]
-    assert [module["id"] for module in branch_modules('results.search_materialize.response.decision == "stale_backed"')] == [
+    assert [
+        module["id"]
+        for module in branch_modules(
+            'results.search_materialize.response.decision == "stale_backed"'
+        )
+    ] == [
         "read_extract_stale",
         "analyze_stale",
         "finalize_report_stale",
     ]
-    assert [module["id"] for module in branch_modules('results.search_materialize.response.decision == "zero_results"')] == [
-        "fail_zero_results"
-    ]
     assert [
         module["id"]
-        for module in branch_modules('results.search_materialize.response.decision == "provider_failed_no_fallback"')
+        for module in branch_modules(
+            'results.search_materialize.response.decision == "zero_results"'
+        )
+    ] == ["fail_zero_results"]
+    zero_result_fail = branch_modules(
+        'results.search_materialize.response.decision == "zero_results"'
+    )[0]["value"]
+    assert zero_result_fail["type"] == "rawscript"
+    assert zero_result_fail["language"] == "bun"
+    assert "zero_results" in zero_result_fail["content"]
+
+    assert [
+        module["id"]
+        for module in branch_modules(
+            'results.search_materialize.response.decision == "provider_failed_no_fallback"'
+        )
     ] == ["fail_provider_no_fallback"]
+    provider_fail = branch_modules(
+        'results.search_materialize.response.decision == "provider_failed_no_fallback"'
+    )[0]["value"]
+    assert provider_fail["type"] == "rawscript"
+    assert provider_fail["language"] == "bun"
+    assert "provider_failed_no_fallback" in provider_fail["content"]
+
+    default_fail = next(
+        module
+        for module in branch_value["default"]
+        if module["id"] == "fail_unexpected_decision"
+    )["value"]
+    assert default_fail["type"] == "rawscript"
+    assert default_fail["language"] == "bun"
+    assert default_fail["input_transforms"]["decision"]["type"] == "javascript"
+    assert "Unexpected search decision" in default_fail["content"]
 
     failure_module = flow_doc["value"]["failure_module"]
     assert failure_module["id"] == "flow_failure_handler"
@@ -106,7 +160,9 @@ def test_poc_flow_contract_has_step_order_retry_timeout_and_branches():
     failure_step = failure_module["value"]["input_transforms"]["step"]["value"]
     assert failure_step == "finalize_report"
 
-    assert schedule_doc["script_path"] == "f/affordabot/pipeline_sanjose_searxng_zai_poc"
+    assert (
+        schedule_doc["script_path"] == "f/affordabot/pipeline_sanjose_searxng_zai_poc"
+    )
     assert schedule_doc["is_flow"] is True
     assert schedule_doc["enabled"] is False
 
@@ -118,10 +174,15 @@ def test_deprecated_zai_web_search_is_canary_only():
 
     assert "value: zai_search_canary" in canary_flow_text
     assert "product_path_enabled: false" in canary_flow_text
-    assert "script_path: f/affordabot/zai_web_search_weekly_canary" in canary_schedule_text
+    assert (
+        "script_path: f/affordabot/zai_web_search_weekly_canary" in canary_schedule_text
+    )
     assert "enabled: false" in canary_schedule_text
 
-    assert "Z.ai direct Web Search: deprecated, canary only, disabled by default" in readme_text
+    assert (
+        "Z.ai direct Web Search: deprecated, canary only, disabled by default"
+        in readme_text
+    )
     assert "zai_web_search_weekly_canary" in readme_text
 
 
@@ -175,7 +236,9 @@ def test_main_posts_expected_step_headers_and_payload(monkeypatch):
         )
 
     monkeypatch.setattr(trigger_pipeline_step.requests, "post", fake_post)
-    monkeypatch.setattr(trigger_pipeline_step, "send_slack_alert", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        trigger_pipeline_step, "send_slack_alert", lambda *args, **kwargs: None
+    )
 
     result = trigger_pipeline_step.main(
         step="search_materialize",
@@ -189,11 +252,17 @@ def test_main_posts_expected_step_headers_and_payload(monkeypatch):
         payload={"query_family": "city_council_minutes"},
     )
 
-    assert captured["url"] == "https://backend.example.com/internal/pipeline/poc/search-materialize"
+    assert (
+        captured["url"]
+        == "https://backend.example.com/internal/pipeline/poc/search-materialize"
+    )
     assert captured["headers"]["Authorization"] == "Bearer secret-123"
     assert captured["headers"]["X-PR-CRON-SECRET"] == "secret-123"
     assert captured["headers"]["X-PR-PIPELINE-STEP"] == "search_materialize"
-    assert captured["headers"]["X-PR-CRON-SOURCE"] == "windmill:f/affordabot/pipeline_sanjose_searxng_zai_poc/search_materialize"
+    assert (
+        captured["headers"]["X-PR-CRON-SOURCE"]
+        == "windmill:f/affordabot/pipeline_sanjose_searxng_zai_poc/search_materialize"
+    )
     assert captured["headers"]["X-PR-WINDMILL-FLOW-RUN-ID"] == "flow-1"
     assert captured["headers"]["X-PR-WINDMILL-JOB-ID"] == "job-1"
     assert captured["timeout"] == 180
@@ -212,10 +281,15 @@ def test_main_uses_canary_source_header_for_deprecated_zai_search(monkeypatch):
 
     def fake_post(url, headers, json, timeout):
         captured["headers"] = headers
-        return DummyResponse(status_code=200, payload={"status": "succeeded", "decision": "analysis_succeeded"})
+        return DummyResponse(
+            status_code=200,
+            payload={"status": "succeeded", "decision": "analysis_succeeded"},
+        )
 
     monkeypatch.setattr(trigger_pipeline_step.requests, "post", fake_post)
-    monkeypatch.setattr(trigger_pipeline_step, "send_slack_alert", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        trigger_pipeline_step, "send_slack_alert", lambda *args, **kwargs: None
+    )
 
     trigger_pipeline_step.main(
         step="zai_search_canary",
@@ -224,14 +298,20 @@ def test_main_uses_canary_source_header_for_deprecated_zai_search(monkeypatch):
         payload={"canary_name": "weekly"},
     )
 
-    assert captured["headers"]["X-PR-CRON-SOURCE"] == "windmill:f/affordabot/zai_web_search_weekly_canary/zai_search_canary"
+    assert (
+        captured["headers"]["X-PR-CRON-SOURCE"]
+        == "windmill:f/affordabot/zai_web_search_weekly_canary/zai_search_canary"
+    )
 
 
 def test_main_raises_on_http_error_and_sends_error_alert(monkeypatch):
     alerts = []
 
     def fake_post(url, headers, json, timeout):
-        return DummyResponse(status_code=503, payload={"status": "failed", "decision": "provider_failed_no_fallback"})
+        return DummyResponse(
+            status_code=503,
+            payload={"status": "failed", "decision": "provider_failed_no_fallback"},
+        )
 
     def fake_alert(webhook_url, severity, title, message, env):
         alerts.append((severity, title, message, env))
