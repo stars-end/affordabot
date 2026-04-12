@@ -60,6 +60,43 @@ Why this matters:
 - Domain boundary prevents analysis from running after storage/index failure.
 - Partial state remains inspectable but bounded.
 
+## 4) Stale Gate Drill (`stale_but_usable`)
+
+Command:
+
+```bash
+/usr/bin/python3 backend/scripts/verification/windmill_bakeoff_domain_boundary.py --scenario stale_usable --pretty --out docs/poc/windmill-storage-bakeoff/path-b-domain-boundary/artifacts/stale_usable.json
+```
+
+Observed:
+
+- Run `status=succeeded`
+- `freshness_gate.status=stale_but_usable`
+- Alert emitted: `freshness_gate:stale_but_usable`
+- `read_fetch/index/analyze` continue
+
+Why this matters:
+- Staleness can degrade gracefully with explicit alerting.
+- Supports "use yesterday's data" behavior while retaining traceability.
+
+## 5) Stale Gate Drill (`stale_blocked`)
+
+Command:
+
+```bash
+/usr/bin/python3 backend/scripts/verification/windmill_bakeoff_domain_boundary.py --scenario stale_blocked --pretty --out docs/poc/windmill-storage-bakeoff/path-b-domain-boundary/artifacts/stale_blocked.json
+```
+
+Observed:
+
+- Run `status=failed`
+- `freshness_gate.status=stale_blocked`
+- Pipeline stops before `read_fetch`
+
+Why this matters:
+- Fail-closed behavior is explicit at the freshness boundary.
+- Prevents stale evidence from flowing into analysis.
+
 ## Assessment
 
 Path B failure behavior is explicit and step-scoped. Windmill can orchestrate retries/branches,
