@@ -1,0 +1,8 @@
+schedule: 0 30 9 * * ?
+on_failure: ""
+script_path: f/affordabot/pipeline_sanjose_searxng_zai_poc
+args:
+  jurisdiction: San Jose, CA
+timezone: Etc/UTC
+is_flow: true
+enabled: false
