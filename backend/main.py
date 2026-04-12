@@ -17,6 +17,7 @@ from scripts.substrate.manual_expansion_runner import run_manual_substrate_expan
 from pathlib import Path
 from datetime import datetime, timezone
 from pydantic import BaseModel, Field
+from uuid import uuid4
 
 # Initialize Sentry
 if os.getenv("SENTRY_DSN"):
@@ -390,6 +391,344 @@ class ManualSubstrateExpansionManifest(BaseModel):
     notes: Optional[str] = None
 
 
+class PipelinePocStartRunRequest(BaseModel):
+    run_label: str = Field(min_length=1)
+    query: str = Field(min_length=1)
+    family: str = Field(min_length=1)
+    jurisdiction: str = Field(default="San Jose, CA")
+    live: bool = Field(default=False)
+    prefer_cached_search: bool = Field(default=False)
+    allow_stale_fallback: bool = Field(default=True)
+    skip_analysis: bool = Field(default=False)
+
+
+class PipelinePocRunRequest(BaseModel):
+    run_id: str = Field(min_length=1)
+
+
+_POC_PIPELINE_RUNS: Dict[str, Dict[str, Any]] = {}
+
+
+def _extract_windmill_linkage(request: Request) -> dict[str, Optional[str]]:
+    flow_id = (
+        request.headers.get("x-pr-windmill-flow-run-id")
+        or request.headers.get("x-windmill-flow-run-id")
+        or request.headers.get("x-pr-flow-run-id")
+    )
+    job_id = (
+        request.headers.get("x-pr-windmill-job-id")
+        or request.headers.get("x-windmill-job-id")
+        or request.headers.get("x-pr-job-id")
+    )
+    return {"windmill_flow_run_id": flow_id, "windmill_job_id": job_id}
+
+
+def _build_poc_pipeline_context(*, live: bool) -> Dict[str, Any]:
+    from services.persisted_pipeline import (
+        FixedSearchProvider,
+        MockAnalysisProvider,
+        MockReaderProvider,
+        PersistedPipeline,
+        PersistedPipelineStore,
+        SearXNGSearchProvider,
+        ZaiLLMAnalysisProvider,
+        ZaiWebReaderProvider,
+    )
+
+    run_id = f"run_{uuid4().hex}"
+    root = BACKEND_ROOT / "artifacts" / "poc_persisted_pipeline_adapter" / run_id
+    db_path = root / "poc.sqlite3"
+    artifact_dir = root / "object_store"
+    store = PersistedPipelineStore(db_path=db_path, artifact_dir=artifact_dir)
+
+    if live:
+        search_provider = SearXNGSearchProvider()
+        reader_provider = ZaiWebReaderProvider()
+        analysis_provider = ZaiLLMAnalysisProvider()
+    else:
+        search_provider = FixedSearchProvider()
+        reader_provider = MockReaderProvider()
+        analysis_provider = MockAnalysisProvider()
+
+    pipeline = PersistedPipeline(
+        store=store,
+        search_provider=search_provider,
+        reader_provider=reader_provider,
+        analysis_provider=analysis_provider,
+    )
+    return {
+        "store": store,
+        "pipeline": pipeline,
+        "run_id": run_id,
+        "search_response": None,
+        "read_response": None,
+        "analyze_response": None,
+    }
+
+
+def _domain_http_status(step_response: Dict[str, Any]) -> int:
+    # Domain outcomes are branchable states for Windmill and should be 2xx.
+    return 200
+
+
+@app.post("/internal/pipeline/poc/start-run")
+async def poc_start_run(request: Request, payload: PipelinePocStartRunRequest):
+    if not _verify_cron_auth(request):
+        raise HTTPException(status_code=401, detail="Invalid cron credentials")
+
+    linkage = _extract_windmill_linkage(request)
+    try:
+        ctx = _build_poc_pipeline_context(live=payload.live)
+        pipeline = ctx["pipeline"]
+        store = ctx["store"]
+        _ = pipeline  # satisfy linters in explicit context assignment
+        run_id = store.create_run(
+            run_label=payload.run_label,
+            triggered_by=(
+                request.headers.get("x-pr-pipeline-step") or "windmill:poc/start-run"
+            ),
+            now=datetime.now(timezone.utc),
+            jurisdiction=payload.jurisdiction,
+            target_family=payload.family,
+            windmill_flow_run_id=linkage["windmill_flow_run_id"],
+            windmill_job_id=linkage["windmill_job_id"],
+        )
+        ctx.update(
+            {
+                "query": payload.query,
+                "family": payload.family,
+                "jurisdiction": payload.jurisdiction,
+                "prefer_cached_search": payload.prefer_cached_search,
+                "allow_stale_fallback": payload.allow_stale_fallback,
+                "skip_analysis": payload.skip_analysis,
+                "windmill_flow_run_id": linkage["windmill_flow_run_id"],
+                "windmill_job_id": linkage["windmill_job_id"],
+            }
+        )
+        ctx["run_id"] = run_id
+        _POC_PIPELINE_RUNS[run_id] = ctx
+        return JSONResponse(
+            status_code=200,
+            content={
+                "contract_version": "persisted-pipeline.v1",
+                "run_id": run_id,
+                "step": "start_run",
+                "status": "succeeded",
+                "decision": "run_started",
+                "decision_reason": "POC run context created",
+                "windmill_flow_run_id": linkage["windmill_flow_run_id"],
+                "windmill_job_id": linkage["windmill_job_id"],
+                "evidence": {
+                    "query": payload.query,
+                    "family": payload.family,
+                    "live_mode": payload.live,
+                },
+                "alerts": [],
+            },
+        )
+    except Exception as exc:
+        logger.exception("POC start-run failed")
+        raise HTTPException(status_code=503, detail=f"poc start-run failed: {exc}")
+
+
+@app.post("/internal/pipeline/poc/search-materialize")
+async def poc_search_materialize(request: Request, payload: PipelinePocRunRequest):
+    if not _verify_cron_auth(request):
+        raise HTTPException(status_code=401, detail="Invalid cron credentials")
+    ctx = _POC_PIPELINE_RUNS.get(payload.run_id)
+    if not ctx:
+        raise HTTPException(status_code=404, detail="Unknown run_id")
+
+    try:
+        response = ctx["pipeline"]._step_search_materialize(
+            run_id=payload.run_id,
+            query=ctx["query"],
+            family=ctx["family"],
+            prefer_cached_search=ctx["prefer_cached_search"],
+            allow_stale_fallback=ctx["allow_stale_fallback"],
+            alerts=[],
+            windmill_flow_run_id=ctx.get("windmill_flow_run_id"),
+            windmill_job_id=ctx.get("windmill_job_id"),
+        )
+        ctx["search_response"] = response
+        return JSONResponse(status_code=_domain_http_status(response), content=response)
+    except Exception as exc:
+        logger.exception("POC search-materialize runtime failure")
+        raise HTTPException(
+            status_code=503, detail=f"retryable runtime failure in search step: {exc}"
+        )
+
+
+@app.post("/internal/pipeline/poc/read-extract")
+async def poc_read_extract(request: Request, payload: PipelinePocRunRequest):
+    if not _verify_cron_auth(request):
+        raise HTTPException(status_code=401, detail="Invalid cron credentials")
+    ctx = _POC_PIPELINE_RUNS.get(payload.run_id)
+    if not ctx:
+        raise HTTPException(status_code=404, detail="Unknown run_id")
+    search_response = ctx.get("search_response")
+    if not search_response:
+        raise HTTPException(status_code=409, detail="search step not completed")
+    if search_response.get("decision") == "zero_results":
+        return JSONResponse(status_code=200, content=search_response)
+    snapshot_id = search_response.get("evidence", {}).get("snapshot_id")
+    if not snapshot_id:
+        raise HTTPException(status_code=409, detail="snapshot_id not available")
+
+    try:
+        snapshot = ctx["store"].get_snapshot(snapshot_id)
+        response = ctx["pipeline"]._step_read_extract(
+            run_id=payload.run_id,
+            snapshot=snapshot,
+            family=ctx["family"],
+            alerts=[],
+            windmill_flow_run_id=ctx.get("windmill_flow_run_id"),
+            windmill_job_id=ctx.get("windmill_job_id"),
+        )
+        ctx["read_response"] = response
+        return JSONResponse(status_code=_domain_http_status(response), content=response)
+    except Exception as exc:
+        logger.exception("POC read-extract runtime failure")
+        raise HTTPException(
+            status_code=503, detail=f"retryable runtime failure in read step: {exc}"
+        )
+
+
+@app.post("/internal/pipeline/poc/analyze")
+async def poc_analyze(request: Request, payload: PipelinePocRunRequest):
+    if not _verify_cron_auth(request):
+        raise HTTPException(status_code=401, detail="Invalid cron credentials")
+    ctx = _POC_PIPELINE_RUNS.get(payload.run_id)
+    if not ctx:
+        raise HTTPException(status_code=404, detail="Unknown run_id")
+    read_response = ctx.get("read_response")
+    if not read_response:
+        raise HTTPException(status_code=409, detail="read step not completed")
+
+    snapshot_id = (
+        ctx.get("search_response", {}).get("evidence", {}).get("snapshot_id") or ""
+    )
+    try:
+        if ctx.get("skip_analysis"):
+            response = {
+                "contract_version": "persisted-pipeline.v1",
+                "run_id": payload.run_id,
+                "windmill_flow_run_id": ctx.get("windmill_flow_run_id"),
+                "windmill_job_id": ctx.get("windmill_job_id"),
+                "step": "analyze",
+                "status": "succeeded",
+                "decision": "analysis_succeeded",
+                "decision_reason": "skipped by request",
+                "evidence": {"skipped": True},
+                "alerts": [],
+            }
+        else:
+            response = ctx["pipeline"]._step_analyze(
+                run_id=payload.run_id,
+                read_response=read_response,
+                family=ctx["family"],
+                snapshot_id=snapshot_id,
+                alerts=[],
+                windmill_flow_run_id=ctx.get("windmill_flow_run_id"),
+                windmill_job_id=ctx.get("windmill_job_id"),
+            )
+        ctx["analyze_response"] = response
+        return JSONResponse(status_code=_domain_http_status(response), content=response)
+    except Exception as exc:
+        logger.exception("POC analyze runtime failure")
+        raise HTTPException(
+            status_code=503, detail=f"retryable runtime failure in analyze step: {exc}"
+        )
+
+
+@app.post("/internal/pipeline/poc/finalize-report")
+async def poc_finalize_report(request: Request, payload: PipelinePocRunRequest):
+    if not _verify_cron_auth(request):
+        raise HTTPException(status_code=401, detail="Invalid cron credentials")
+    ctx = _POC_PIPELINE_RUNS.get(payload.run_id)
+    if not ctx:
+        raise HTTPException(status_code=404, detail="Unknown run_id")
+    search_response = ctx.get("search_response")
+    if not search_response:
+        raise HTTPException(status_code=409, detail="search step not completed")
+
+    if search_response.get("decision") == "zero_results":
+        response = {
+            "contract_version": "persisted-pipeline.v1",
+            "run_id": payload.run_id,
+            "windmill_flow_run_id": ctx.get("windmill_flow_run_id"),
+            "windmill_job_id": ctx.get("windmill_job_id"),
+            "step": "finalize",
+            "status": "succeeded",
+            "decision": "zero_results",
+            "decision_reason": "search returned zero results; pipeline terminated",
+            "evidence": search_response.get("evidence", {}),
+            "alerts": search_response.get("alerts", []),
+        }
+        ctx["store"].complete_run(
+            payload.run_id,
+            "completed",
+            response,
+            response.get("alerts", []),
+            datetime.now(timezone.utc),
+        )
+        ctx["store"].close()
+        _POC_PIPELINE_RUNS.pop(payload.run_id, None)
+        return JSONResponse(status_code=200, content=response)
+
+    read_response = ctx.get("read_response")
+    analyze_response = ctx.get("analyze_response")
+    if not read_response:
+        raise HTTPException(status_code=409, detail="read step not completed")
+    if not analyze_response:
+        raise HTTPException(status_code=409, detail="analyze step not completed")
+
+    response = {
+        "contract_version": "persisted-pipeline.v1",
+        "run_id": payload.run_id,
+        "windmill_flow_run_id": ctx.get("windmill_flow_run_id"),
+        "windmill_job_id": ctx.get("windmill_job_id"),
+        "step": "finalize",
+        "status": "succeeded",
+        "decision": search_response.get("decision", "fresh_snapshot"),
+        "decision_reason": "pipeline step sequence finalized",
+        "evidence": {
+            "snapshot_id": search_response.get("evidence", {}).get("snapshot_id"),
+            "result_count": search_response.get("evidence", {}).get("result_count", 0),
+            "search_decision": search_response.get("decision"),
+            "read_decision": read_response.get("decision"),
+            "analyze_decision": analyze_response.get("decision"),
+        },
+        "alerts": (
+            search_response.get("alerts", [])
+            + read_response.get("alerts", [])
+            + analyze_response.get("alerts", [])
+        ),
+    }
+    ctx["store"].complete_run(
+        payload.run_id,
+        "completed",
+        response,
+        response.get("alerts", []),
+        datetime.now(timezone.utc),
+    )
+    ctx["store"].close()
+    _POC_PIPELINE_RUNS.pop(payload.run_id, None)
+    return JSONResponse(status_code=200, content=response)
+
+
+@app.post("/internal/pipeline/poc/zai-search-canary")
+async def poc_zai_search_canary(request: Request):
+    if not _verify_cron_auth(request):
+        raise HTTPException(status_code=401, detail="Invalid cron credentials")
+    return {
+        "status": "succeeded",
+        "decision": "zai_direct_search_deprecated",
+        "decision_reason": "Z.ai direct web search remains canary-only and excluded from product flow",
+        "ZAI_DIRECT_SEARCH_DEPRECATED": True,
+    }
+
+
 @app.post("/cron/discovery")
 async def cron_discovery(request: Request):
     """
@@ -590,9 +929,9 @@ async def get_legislation(jurisdiction: str, limit: int = 10):
                 "sufficiency_state": leg.get("sufficiency_state"),
                 "insufficiency_reason": leg.get("insufficiency_reason"),
                 "quantification_eligible": leg.get("quantification_eligible"),
-                "analysis_timestamp": leg.get("created_at").isoformat()
-                if leg.get("created_at")
-                else None,
+                "analysis_timestamp": (
+                    leg.get("created_at").isoformat() if leg.get("created_at") else None
+                ),
                 "model_used": "n/a",
             }
         )
