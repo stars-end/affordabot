@@ -841,6 +841,8 @@ def write_markdown(path: Path, content: str) -> None:
 def render_run_evidence(suite: dict[str, Any]) -> str:
     first = suite["runs"]["first"]
     rerun = suite["runs"]["rerun"]
+    stale_usable = suite["stale_gate"]["stale_usable"]
+    stale_blocked = suite["stale_gate"]["stale_blocked"]
     return textwrap.dedent(
         f"""
         # Path A Run Evidence
@@ -877,6 +879,23 @@ def render_run_evidence(suite: dict[str, Any]) -> str:
         - chunks stable: `{suite["checks"]["chunks_stable"]}`
         - analyses stable: `{suite["checks"]["analyses_stable"]}`
         - overall idempotent: `{suite["checks"]["idempotent"]}`
+
+        ## Freshness Gate Drills
+
+        - stale usable status: `{stale_usable["status"]}`
+        - stale usable alert count: `{len(stale_usable["alerts"])}`
+        - stale usable freshness step: `{stale_usable["steps"][1]["status"] if len(stale_usable["steps"]) > 1 else "n/a"}`
+        - stale blocked status: `{stale_blocked["status"]}`
+        - stale blocked reason: `{stale_blocked["reason"]}`
+        - stale blocked terminal freshness step: `{stale_blocked["steps"][1]["status"] if len(stale_blocked["steps"]) > 1 else "n/a"}`
+
+        ## Windmill Mapping Limitation
+
+        The committed flow export is Windmill-shaped, but Path A execution still concentrates
+        most domain-like behavior in one script implementation. This proves direct-storage viability,
+        not full Windmill-native step decomposition. A truly maximal Windmill implementation would
+        require step-level storage context handoff or more granular scripts, which shifts more domain
+        invariants into Windmill code.
         """
     ).strip()
 
@@ -898,13 +917,36 @@ def render_storage_snapshots(suite: dict[str, Any]) -> str:
 
 
 def render_failure_drills(suite: dict[str, Any]) -> str:
-    rows = []
-    for name, result in suite["failures"].items():
-        rows.append(f"- `{name}` => status `{result['status']}` reason `{result['reason']}`")
-    bullets = "\n".join(rows)
+    warm_rows = []
+    for name, result in suite["failures"]["warm_state"].items():
+        warm_rows.append(
+            "- `{name}` => status `{status}` reason `{reason}` objects `{objects}`".format(
+                name=name,
+                status=result["status"],
+                reason=result["reason"],
+                objects=result["counts"]["objects_total"],
+            )
+        )
+    cold_rows = []
+    for name, payload in suite["failures"]["cold_state"].items():
+        result = payload["result"]
+        cold_rows.append(
+            "- `{name}` => status `{status}` reason `{reason}` objects `{objects}` state_dir `{state_dir}`".format(
+                name=name,
+                status=result["status"],
+                reason=result["reason"],
+                objects=result["counts"]["objects_total"],
+                state_dir=payload["state_dir"],
+            )
+        )
+    warm_bullets = "\n".join(warm_rows)
+    cold_bullets = "\n".join(cold_rows)
     return (
         "# Path A Failure Drills\n\n"
-        f"{bullets}\n\n"
+        "## Warm-State Failures (after successful baseline run)\n\n"
+        f"{warm_bullets}\n\n"
+        "## Cold-State Failures (isolated fresh state per drill)\n\n"
+        f"{cold_bullets}\n\n"
         "Expected terminal statuses:\n"
         f"- SearXNG failure => `{STATUS_SOURCE_ERROR}`\n"
         f"- Reader failure => `{STATUS_READER_ERROR}`\n"
@@ -924,16 +966,48 @@ def run_suite(args: argparse.Namespace) -> dict[str, Any]:
     run_date = args.run_date or now_utc().date().isoformat()
     first = runner.run(run_date=run_date, scenario="normal")
     rerun = runner.run(run_date=run_date, scenario="normal")
+    stale_usable = runner.run(
+        run_date=run_date,
+        scenario="normal",
+        stale_usable_hours=args.stale_usable_hours,
+        stale_blocked_hours=args.stale_blocked_hours,
+        force_stale_hours=max(args.stale_usable_hours + 12, 36),
+    )
+    stale_blocked = runner.run(
+        run_date=run_date,
+        scenario="normal",
+        stale_usable_hours=args.stale_usable_hours,
+        stale_blocked_hours=args.stale_blocked_hours,
+        force_stale_hours=max(args.stale_blocked_hours + 24, 96),
+    )
+
     searx_failure = runner.run(run_date=run_date, scenario="searx_failure")
     reader_failure = runner.run(run_date=run_date, scenario="reader_failure")
     storage_failure = runner.run(run_date=run_date, scenario="storage_failure")
+
+    def run_cold_failure(scenario: str) -> dict[str, Any]:
+        isolated_dir = state_dir.parent / f"{state_dir.name}__cold_{scenario}"
+        if isolated_dir.exists():
+            shutil.rmtree(isolated_dir)
+        isolated_runner = DirectStoragePipelineRunner(
+            state_dir=isolated_dir,
+            searx_endpoint=args.searx_endpoint,
+            allow_live_zai=args.allow_live_zai,
+        )
+        result = isolated_runner.run(run_date=run_date, scenario=scenario)
+        return {"state_dir": str(isolated_dir), "result": result}
 
     checks = {
         "documents_stable": first["counts"]["documents_total"] == rerun["counts"]["documents_total"],
         "chunks_stable": first["counts"]["chunks_total"] == rerun["counts"]["chunks_total"],
         "analyses_stable": first["counts"]["analyses_total"] == rerun["counts"]["analyses_total"],
+        "stale_usable_status": stale_usable["status"] == STATUS_SUCCEEDED,
+        "stale_usable_alerted": "stale_backed=true" in stale_usable.get("alerts", []),
+        "stale_blocked_status": stale_blocked["status"] == STATUS_STALE_BLOCKED,
     }
-    checks["idempotent"] = all(checks.values())
+    checks["idempotent"] = (
+        checks["documents_stable"] and checks["chunks_stable"] and checks["analyses_stable"]
+    )
 
     suite = {
         "generated_at": utc_iso(),
@@ -941,10 +1015,21 @@ def run_suite(args: argparse.Namespace) -> dict[str, Any]:
         "run_date": run_date,
         "checks": checks,
         "runs": {"first": first, "rerun": rerun},
+        "stale_gate": {
+            "stale_usable": stale_usable,
+            "stale_blocked": stale_blocked,
+        },
         "failures": {
-            "searx_failure": searx_failure,
-            "reader_failure": reader_failure,
-            "storage_failure": storage_failure,
+            "warm_state": {
+                "searx_failure": searx_failure,
+                "reader_failure": reader_failure,
+                "storage_failure": storage_failure,
+            },
+            "cold_state": {
+                "searx_failure": run_cold_failure("searx_failure"),
+                "reader_failure": run_cold_failure("reader_failure"),
+                "storage_failure": run_cold_failure("storage_failure"),
+            },
         },
         "live_flags": {
             "searx_endpoint_configured": bool(args.searx_endpoint),
@@ -1016,6 +1101,8 @@ def build_parser() -> argparse.ArgumentParser:
     suite_parser.add_argument("--searx-endpoint", default=None)
     suite_parser.add_argument("--allow-live-zai", action="store_true")
     suite_parser.add_argument("--reset-state", action="store_true")
+    suite_parser.add_argument("--stale-usable-hours", type=int, default=24)
+    suite_parser.add_argument("--stale-blocked-hours", type=int, default=72)
 
     return parser
 

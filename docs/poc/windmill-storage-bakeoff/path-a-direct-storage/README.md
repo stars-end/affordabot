@@ -12,7 +12,11 @@ This implementation captures the Path A bakeoff for the San Jose meeting-minutes
 - Search/reader/analysis:
   - SearXNG-compatible payload shape
   - Z.ai reader and LLM contract shapes
-  - deterministic local fallbacks when live infra/secrets are unavailable
+- deterministic local fallbacks when live infra/secrets are unavailable
+
+Interpretation note:
+- The current Windmill export demonstrates flow shape and retry wiring, but most execution remains concentrated in one script entrypoint.
+- This is useful for Path A boundary evidence, not proof of full Windmill-native step decomposition.
 
 ## Files
 
@@ -37,6 +41,15 @@ Path A is viable for a thin pre-MVP slice, but direct-storage logic quickly star
 - status vocabulary enforcement for failure/freshness outcomes
 
 In short: Windmill can own orchestration well, but pure direct storage writes force orchestration code to absorb domain responsibilities unless those invariants are moved into reusable domain commands/libraries.
+
+Additional limitation:
+- To be maximally Windmill-native, this path would need explicit per-step state passing with smaller scripts (or a shared execution context contract between scripts). Without that, one Windmill script becomes a de facto backend pipeline implementation.
+
+## Failure Drill Interpretation
+
+- Warm-state drills (executed after successful baseline run) show fallback behavior with previously materialized state present.
+- Cold-state drills (isolated state dir per drill) show failure behavior without prior state.
+- Both views are included in `failure-drills.md` and `suite-results.json`.
 
 ## Live Infra Blockers in This Run
 

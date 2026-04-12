@@ -32,3 +32,20 @@ Computed checks:
 - chunks stable: `True`
 - analyses stable: `True`
 - overall idempotent: `True`
+
+## Freshness Gate Drills
+
+- stale usable status: `succeeded`
+- stale usable alert count: `1`
+- stale usable freshness step: `stale_but_usable`
+- stale blocked status: `stale_blocked`
+- stale blocked reason: `age_hours=96.00`
+- stale blocked terminal freshness step: `stale_blocked`
+
+## Windmill Mapping Limitation
+
+The committed flow export is Windmill-shaped, but Path A execution still concentrates
+most domain-like behavior in one script implementation. This proves direct-storage viability,
+not full Windmill-native step decomposition. A truly maximal Windmill implementation would
+require step-level storage context handoff or more granular scripts, which shifts more domain
+invariants into Windmill code.
