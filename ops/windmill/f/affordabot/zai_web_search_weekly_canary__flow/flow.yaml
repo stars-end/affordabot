@@ -1,0 +1,53 @@
+summary: Affordabot deprecated Z.ai direct Web Search weekly canary
+description: >
+  Canary-only flow. This is explicitly outside the product pipeline path and
+  exists to detect if the deprecated Z.ai direct Web Search endpoint recovers.
+value:
+  modules:
+  - id: zai_search_canary
+    value:
+      type: script
+      path: f/affordabot/trigger_pipeline_step
+      input_transforms:
+        step:
+          type: static
+          value: zai_search_canary
+        backend_url:
+          type: static
+          value: $var:f/affordabot/BACKEND_PUBLIC_URL
+        cron_secret:
+          type: static
+          value: $var:f/affordabot/CRON_SECRET
+        env:
+          type: static
+          value: dev
+        timeout_seconds:
+          type: static
+          value: 120
+        slack_webhook_url:
+          type: static
+          value: $var:f/affordabot/SLACK_WEBHOOK_URL
+        payload:
+          type: javascript
+          expr: >-
+            ({
+              canary_name: "zai_direct_web_search_weekly",
+              expected_contract: "search_result[]",
+              product_path_enabled: false
+            })
+      retry:
+        attempts: 1
+        backoff:
+          initial_interval: 60
+          max_interval: 60
+          multiplier: 1
+concurrency:
+  limit: 1
+  key: affordabot-zai-search-weekly-canary
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order: []
+  properties: {}
+  required: []
+ws_error_handler_muted: false

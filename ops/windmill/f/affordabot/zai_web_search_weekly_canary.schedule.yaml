@@ -1,0 +1,7 @@
+schedule: 0 0 10 ? * MON
+on_failure: ""
+script_path: f/affordabot/zai_web_search_weekly_canary
+args: {}
+timezone: Etc/UTC
+is_flow: true
+enabled: false
