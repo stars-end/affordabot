@@ -12,6 +12,9 @@ Path: `B / affordabot_domain_boundary`
 /usr/bin/python3 backend/scripts/verification/windmill_bakeoff_domain_boundary.py --scenario source_failure --pretty --out docs/poc/windmill-storage-bakeoff/path-b-domain-boundary/artifacts/source_failure.json
 /usr/bin/python3 backend/scripts/verification/windmill_bakeoff_domain_boundary.py --scenario reader_failure --pretty --out docs/poc/windmill-storage-bakeoff/path-b-domain-boundary/artifacts/reader_failure.json
 /usr/bin/python3 backend/scripts/verification/windmill_bakeoff_domain_boundary.py --scenario storage_failure --pretty --out docs/poc/windmill-storage-bakeoff/path-b-domain-boundary/artifacts/storage_failure.json
+/usr/bin/python3 backend/scripts/verification/windmill_bakeoff_domain_boundary.py --scenario stale_usable --pretty --out docs/poc/windmill-storage-bakeoff/path-b-domain-boundary/artifacts/stale_usable.json
+/usr/bin/python3 backend/scripts/verification/windmill_bakeoff_domain_boundary.py --scenario stale_blocked --pretty --out docs/poc/windmill-storage-bakeoff/path-b-domain-boundary/artifacts/stale_blocked.json
+/usr/bin/python3 -m unittest backend/tests/verification/test_windmill_bakeoff_domain_boundary.py
 ```
 
 ## Outcome Summary
@@ -22,6 +25,9 @@ Path: `B / affordabot_domain_boundary`
 - Source failure drill: `status=failed` with `search_materialize:source_error`
 - Reader failure drill: `status=failed` with `read_fetch:reader_error`
 - Storage failure drill: `status=failed` with `index:storage_error`
+- Stale usable drill: `status=succeeded` with `freshness_gate:stale_but_usable`
+- Stale blocked drill: `status=failed` with `freshness_gate:stale_blocked`
+- Narrow tests: pass (`Ran 3 tests ... OK`)
 
 ## Key Evidence
 
@@ -44,3 +50,11 @@ Interpretation: idempotency is preserved across document identity, artifacts, ch
 
 - None for deterministic contract validation.
 - Live Windmill/SearXNG/Z.ai credentials were intentionally not used under current safety constraints.
+
+## Windmill Export Evidence
+
+The Path B orchestration shape is committed as reviewable repo code:
+
+- `ops/windmill/f/affordabot/pipeline_daily_refresh_domain_boundary.py`
+- `ops/windmill/f/affordabot/pipeline_daily_refresh_domain_boundary.script.yaml`
+- `ops/windmill/f/affordabot/pipeline_daily_refresh_domain_boundary__flow/flow.yaml`

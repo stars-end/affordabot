@@ -1,0 +1,65 @@
+summary: Affordabot Path B domain-boundary bakeoff step
+description: >
+  Step-level script for the Path B windmill storage-boundary bakeoff.
+  This export is for orchestration-shape review and contract comparison.
+lock: ""
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  properties:
+    step:
+      type: string
+      description: Pipeline step name.
+      enum:
+        - search_materialize
+        - freshness_gate
+        - read_fetch
+        - index
+        - analyze
+        - summarize_run
+    contract_version:
+      type: string
+      default: 2026-04-12.windmill-storage-bakeoff.v1
+    architecture_path:
+      type: string
+      default: affordabot_domain_boundary
+    windmill_workspace:
+      type: string
+      default: affordabot
+    windmill_flow_path:
+      type: string
+      default: f/affordabot/pipeline_daily_refresh_domain_boundary__flow
+    windmill_run_id:
+      type: string
+      default: windmill-run-id
+    windmill_job_id:
+      type: string
+      default: windmill-job-id
+    idempotency_key:
+      type: string
+      default: san-jose-ca:meeting_minutes:2026-04-12
+    jurisdiction:
+      type: string
+      default: San Jose CA
+    source_family:
+      type: string
+      default: meeting_minutes
+    stale_status:
+      type: string
+      default: fresh
+      enum:
+        - fresh
+        - stale_but_usable
+        - stale_blocked
+    search_query:
+      type: string
+      default: San Jose CA city council meeting minutes housing
+    analysis_question:
+      type: string
+      default: Summarize housing-related signals from recent San Jose meeting minutes.
+    previous_step_output:
+      type: object
+      default: null
+  required:
+    - step
