@@ -4,12 +4,19 @@
 
 **Before starting work**:
 ```bash
-cd ~/bd
+export BEADS_DIR="${BEADS_DIR:-$HOME/.beads-runtime/.beads}"
 export BEADS_DOLT_SERVER_HOST="${BEADS_DOLT_SERVER_HOST:-100.107.173.83}"
-export BEADS_DOLT_SERVER_PORT=3307
-beads-dolt dolt test --json
+export BEADS_DOLT_SERVER_PORT="${BEADS_DOLT_SERVER_PORT:-3307}"
+bd dolt test --json
 beads-dolt status --json | jq -c '.summary'
 ```
+
+Notes:
+- `~/.beads-runtime/.beads` is the active runtime path.
+- `~/beads` is the Beads CLI source/build checkout, not runtime state.
+- `~/bd` is legacy rollback state and not active runtime truth.
+- Do not run mutating Beads operations from app repos unless a documented override says otherwise.
+- For control-plane Beads operations, prefer a non-app cwd with `BEADS_DIR` set.
 
 **Failure mode**:
 - `beads-dolt dolt test --json` reports `connection_ok: false`
