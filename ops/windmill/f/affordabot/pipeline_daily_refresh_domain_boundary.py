@@ -697,6 +697,15 @@ def main(
     command_client: str = "stub",
     domain_state: Any | None = None,
 ) -> Dict[str, Any]:
+    contract_version = contract_version or CONTRACT_VERSION
+    architecture_path = architecture_path or "affordabot_domain_boundary"
+    windmill_workspace = windmill_workspace or "affordabot"
+    windmill_flow_path = windmill_flow_path or "f/affordabot/pipeline_daily_refresh_domain_boundary__flow"
+    windmill_run_id = windmill_run_id or idempotency_key or "windmill-run-id"
+    windmill_job_id = windmill_job_id or step
+    idempotency_key = idempotency_key or "run:2026-04-13"
+    mode = mode or "scheduled"
+    stale_status = stale_status or "fresh"
     jurisdictions = jurisdictions or ["San Jose CA"]
     source_families = source_families or ["meeting_minutes"]
 

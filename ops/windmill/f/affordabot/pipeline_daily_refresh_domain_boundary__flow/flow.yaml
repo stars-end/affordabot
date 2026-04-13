@@ -13,9 +13,21 @@ value:
         step:
           type: static
           value: failure_handler
-        windmill_run_id:
+        contract_version:
           type: static
-          value: $flow_job_id
+          value: 2026-04-13.windmill-domain.v1
+        architecture_path:
+          type: static
+          value: affordabot_domain_boundary
+        windmill_workspace:
+          type: static
+          value: affordabot
+        windmill_flow_path:
+          type: static
+          value: f/affordabot/pipeline_daily_refresh_domain_boundary__flow
+        windmill_run_id:
+          type: javascript
+          expr: "typeof flow_job_id !== 'undefined' ? flow_job_id : flow_input.idempotency_key"
         windmill_job_id:
           type: static
           value: failure_handler
@@ -34,9 +46,21 @@ value:
         step:
           type: static
           value: build_scope_matrix
-        windmill_run_id:
+        contract_version:
           type: static
-          value: $flow_job_id
+          value: 2026-04-13.windmill-domain.v1
+        architecture_path:
+          type: static
+          value: affordabot_domain_boundary
+        windmill_workspace:
+          type: static
+          value: affordabot
+        windmill_flow_path:
+          type: static
+          value: f/affordabot/pipeline_daily_refresh_domain_boundary__flow
+        windmill_run_id:
+          type: javascript
+          expr: "typeof flow_job_id !== 'undefined' ? flow_job_id : flow_input.idempotency_key"
         windmill_job_id:
           type: static
           value: build_scope_matrix
@@ -61,6 +85,7 @@ value:
       skip_failures: false
       parallel: true
       parallelism:
+        type: javascript
         expr: flow_input.scope_parallelism
       modules:
       - id: run_scope_pipeline
@@ -77,9 +102,21 @@ value:
             step:
               type: static
               value: run_scope_pipeline
-            windmill_run_id:
+            contract_version:
               type: static
-              value: $flow_job_id
+              value: 2026-04-13.windmill-domain.v1
+            architecture_path:
+              type: static
+              value: affordabot_domain_boundary
+            windmill_workspace:
+              type: static
+              value: affordabot
+            windmill_flow_path:
+              type: static
+              value: f/affordabot/pipeline_daily_refresh_domain_boundary__flow
+            windmill_run_id:
+              type: javascript
+              expr: "typeof flow_job_id !== 'undefined' ? flow_job_id : flow_input.idempotency_key"
             windmill_job_id:
               type: static
               value: run_scope_pipeline
@@ -91,10 +128,10 @@ value:
               expr: flow_input.mode
             scope_item:
               type: javascript
-              expr: iter.value
+              expr: flow_input.iter.value
             scope_index:
               type: javascript
-              expr: iter.index
+              expr: flow_input.iter.index
             stale_status:
               type: javascript
               expr: flow_input.stale_status
@@ -122,9 +159,21 @@ value:
               step:
                 type: static
                 value: aggregate_run_summary
-              windmill_run_id:
+              contract_version:
                 type: static
-                value: $flow_job_id
+                value: 2026-04-13.windmill-domain.v1
+              architecture_path:
+                type: static
+                value: affordabot_domain_boundary
+              windmill_workspace:
+                type: static
+                value: affordabot
+              windmill_flow_path:
+                type: static
+                value: f/affordabot/pipeline_daily_refresh_domain_boundary__flow
+              windmill_run_id:
+                type: javascript
+                expr: "typeof flow_job_id !== 'undefined' ? flow_job_id : flow_input.idempotency_key"
               windmill_job_id:
                 type: static
                 value: blocked_or_failed_summary
@@ -143,9 +192,21 @@ value:
             step:
               type: static
               value: aggregate_run_summary
-            windmill_run_id:
+            contract_version:
               type: static
-              value: $flow_job_id
+              value: 2026-04-13.windmill-domain.v1
+            architecture_path:
+              type: static
+              value: affordabot_domain_boundary
+            windmill_workspace:
+              type: static
+              value: affordabot
+            windmill_flow_path:
+              type: static
+              value: f/affordabot/pipeline_daily_refresh_domain_boundary__flow
+            windmill_run_id:
+              type: javascript
+              expr: "typeof flow_job_id !== 'undefined' ? flow_job_id : flow_input.idempotency_key"
             windmill_job_id:
               type: static
               value: successful_summary
