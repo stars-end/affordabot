@@ -1,6 +1,6 @@
 # Windmill San Jose Live Validation Gate
 
-- generated_at: `2026-04-13T17:05:59.583267+00:00`
+- generated_at: `2026-04-13T17:12:10.940661+00:00`
 - feature_key: `bd-9qjof.6`
 - harness_version: `2026-04-13.worker-b.v2`
 - run_mode: `stub-run`
@@ -14,8 +14,8 @@
 
 ## Manual Run
 - attempted: `true`
-- idempotency_key: `bd-9qjof.6-live-gate-20260413-170552`
-- windmill_job_id: `019d87ce-8be1-da47-4243-e27217549cdc`
+- idempotency_key: `bd-9qjof.6-live-gate-20260413-171203`
+- windmill_job_id: `019d87d4-33e4-8737-16db-83b2e530b945`
 - final_status: `succeeded`
 - scope_totals: `{'scope_total': 1, 'scope_succeeded': 1, 'scope_failed': 0, 'scope_blocked': 0}`
 - step_sequence: `['search_materialize', 'freshness_gate', 'read_fetch', 'index', 'analyze', 'summarize_run']`

@@ -51,3 +51,6 @@ Live gate classification rules:
 
 `backend_endpoint` is now an explicit command-client mode in the Windmill flow
 and script, but it is opt-in and fail-closed. The live default remains `stub`.
+The endpoint contract is backend-owned at `/cron/pipeline/domain/run-scope`;
+Windmill resolves backend URL and cron auth through workspace vars when that
+mode is explicitly enabled.

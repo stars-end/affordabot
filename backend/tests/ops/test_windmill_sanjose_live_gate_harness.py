@@ -145,7 +145,7 @@ def test_backend_endpoint_readiness_marks_ready_when_local_probe_passes(monkeypa
         lambda _: {"status": "passed", "note": "ok"},
     )
     readiness = module._build_backend_endpoint_readiness(
-        backend_endpoint_url="https://backend.example/internal/pipeline/domain-command",
+        backend_endpoint_url="https://backend.example/cron/pipeline/domain/run-scope",
         backend_endpoint_auth_token="token-123",
     )
     assert readiness["status"] == "ready_for_opt_in"

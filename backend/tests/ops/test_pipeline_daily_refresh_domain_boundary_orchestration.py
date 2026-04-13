@@ -334,10 +334,10 @@ def test_backend_endpoint_mode_fails_closed_when_url_missing():
     )
 
     assert result["status"] == "failed"
-    assert result["alert"] == "freshness_gate:failed"
-    search_step = result["steps"]["search_materialize"]
-    assert search_step["error"] == "backend_endpoint_missing_configuration"
-    assert search_step["error_details"]["missing"] == ["backend_endpoint_url"]
+    assert result["alert"] == "backend_endpoint:backend_endpoint_missing_configuration"
+    run_step = result["steps"]["run_scope_pipeline"]
+    assert run_step["error"] == "backend_endpoint_missing_configuration"
+    assert run_step["error_details"]["missing"] == ["backend_endpoint_url"]
 
 
 def test_backend_endpoint_mode_fails_closed_when_auth_missing():
@@ -345,14 +345,14 @@ def test_backend_endpoint_mode_fails_closed_when_auth_missing():
         step="run_scope_pipeline",
         scope_item={"jurisdiction": "San Jose CA", "source_family": "meeting_minutes"},
         command_client="backend_endpoint",
-        backend_endpoint_url="https://backend.example/internal/pipeline/domain-command",
+        backend_endpoint_url="https://backend.example/cron/pipeline/domain/run-scope",
     )
 
     assert result["status"] == "failed"
-    assert result["alert"] == "freshness_gate:failed"
-    search_step = result["steps"]["search_materialize"]
-    assert search_step["error"] == "backend_endpoint_missing_configuration"
-    assert search_step["error_details"]["missing"] == ["backend_endpoint_auth_token"]
+    assert result["alert"] == "backend_endpoint:backend_endpoint_missing_configuration"
+    run_step = result["steps"]["run_scope_pipeline"]
+    assert run_step["error"] == "backend_endpoint_missing_configuration"
+    assert run_step["error_details"]["missing"] == ["backend_endpoint_auth_token"]
 
 
 def test_backend_endpoint_mode_maps_http_error_to_contract_failure(monkeypatch):
@@ -373,14 +373,14 @@ def test_backend_endpoint_mode_maps_http_error_to_contract_failure(monkeypatch):
         step="run_scope_pipeline",
         scope_item={"jurisdiction": "San Jose CA", "source_family": "meeting_minutes"},
         command_client="backend_endpoint",
-        backend_endpoint_url="https://backend.example/internal/pipeline/domain-command",
+        backend_endpoint_url="https://backend.example/cron/pipeline/domain/run-scope",
         backend_endpoint_auth_token="token-123",
     )
 
     assert result["status"] == "failed"
-    search_step = result["steps"]["search_materialize"]
-    assert search_step["error"] == "backend_endpoint_http_error"
-    assert search_step["error_details"]["http_status"] == 503
+    run_step = result["steps"]["run_scope_pipeline"]
+    assert run_step["error"] == "backend_endpoint_http_error"
+    assert run_step["error_details"]["http_status"] == 503
 
 
 def test_backend_endpoint_mode_passthrough_success_payload(monkeypatch):
@@ -391,9 +391,23 @@ def test_backend_endpoint_mode_passthrough_success_payload(monkeypatch):
 
         @staticmethod
         def json():
-            return {"status": "fresh", "echo": "ok"}
+            return {
+                "status": "succeeded",
+                "decision_reason": "scope_completed",
+                "alerts": [],
+                "steps": {
+                    "search_materialize": {"status": "succeeded"},
+                    "freshness_gate": {"status": "succeeded", "decision_reason": "fresh"},
+                    "read_fetch": {"status": "succeeded"},
+                    "index": {"status": "succeeded"},
+                    "analyze": {"status": "succeeded"},
+                    "summarize_run": {"status": "succeeded"},
+                },
+                "storage_mode": "in_memory_domain_ports",
+                "missing_runtime_adapters": ["postgres_pipeline_state_store_adapter"],
+            }
 
-        text = '{"status":"fresh","echo":"ok"}'
+        text = '{"status":"succeeded"}'
 
     def _fake_post(url, json, headers, timeout):  # noqa: ANN001
         captured.append(
@@ -411,16 +425,20 @@ def test_backend_endpoint_mode_passthrough_success_payload(monkeypatch):
         step="run_scope_pipeline",
         scope_item={"jurisdiction": "San Jose CA", "source_family": "meeting_minutes"},
         command_client="backend_endpoint",
-        backend_endpoint_url="https://backend.example/internal/pipeline/domain-command",
+        backend_endpoint_url="https://backend.example/cron/pipeline/domain/run-scope",
         backend_endpoint_auth_token="token-123",
     )
 
     assert result["status"] == "succeeded"
+    assert result["backend_response"]["storage_mode"] == "in_memory_domain_ports"
+    assert "search_materialize" in result["steps"]
     assert captured
     first_call = captured[0]
-    assert first_call["url"] == "https://backend.example/internal/pipeline/domain-command"
+    assert first_call["url"] == "https://backend.example/cron/pipeline/domain/run-scope"
     request_body = first_call["json"]
     assert isinstance(request_body, dict)
-    assert request_body["command"] == "search_materialize"
-    assert request_body["envelope"]["orchestrator"] == "windmill"
+    assert request_body["jurisdiction"] == "San Jose CA"
+    assert request_body["source_family"] == "meeting_minutes"
+    assert request_body["windmill_workspace"] == "affordabot"
     assert first_call["headers"]["Authorization"] == "Bearer token-123"
+    assert first_call["headers"]["X-PR-CRON-SOURCE"] == "f/affordabot/pipeline_daily_refresh_domain_boundary__flow"

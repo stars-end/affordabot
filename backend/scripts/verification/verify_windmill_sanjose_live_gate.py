@@ -349,11 +349,26 @@ def _run_backend_endpoint_local_probe(backend_endpoint_auth_token: str) -> dict[
                 self.end_headers()
                 self.wfile.write(json.dumps({"status": "failed", "error": "unauthorized"}).encode("utf-8"))
                 return
-            command = payload.get("command", "")
             response = {
-                "status": "fresh",
+                "status": "succeeded",
+                "decision_reason": "scope_completed",
                 "probe": "backend_endpoint_local_mock",
-                "command": command,
+                "jurisdiction": payload.get("jurisdiction"),
+                "source_family": payload.get("source_family"),
+                "steps": {
+                    "search_materialize": {"status": "succeeded"},
+                    "freshness_gate": {"status": "succeeded", "decision_reason": "fresh"},
+                    "read_fetch": {"status": "succeeded"},
+                    "index": {"status": "succeeded"},
+                    "analyze": {"status": "succeeded"},
+                    "summarize_run": {"status": "succeeded"},
+                },
+                "storage_mode": "in_memory_domain_ports",
+                "missing_runtime_adapters": [
+                    "postgres_pipeline_state_store_adapter",
+                    "minio_artifact_store_adapter",
+                    "pgvector_chunk_store_adapter",
+                ],
             }
             self.send_response(200)
             self.send_header("Content-Type", "application/json")

@@ -257,6 +257,10 @@ Harness classifications:
 Backend endpoint mode (`command_client=backend_endpoint`) is opt-in and fail-closed.
 The flow default remains `command_client=stub`. Do not switch live runs to
 `backend_endpoint` until backend URL/auth and storage adapters are ready.
+When enabled, the flow calls the backend-owned coarse command endpoint at
+`/cron/pipeline/domain/run-scope`; it resolves `BACKEND_PUBLIC_URL` and
+`CRON_SECRET` from Windmill vars using the same pattern as the existing cron
+flows, rather than accepting a pasted auth token in manual run input.
 
 Harness blocker categories:
 - `infra/auth`
