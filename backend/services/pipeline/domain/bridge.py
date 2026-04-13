@@ -66,6 +66,17 @@ def _json(value: Any) -> str:
     return json.dumps(value, ensure_ascii=True)
 
 
+def _db_json(value: Any, fallback: Any) -> Any:
+    if value is None:
+        return fallback
+    if isinstance(value, str):
+        try:
+            return json.loads(value)
+        except json.JSONDecodeError:
+            return fallback
+    return value
+
+
 def _hash(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
@@ -281,7 +292,7 @@ class RailwayRuntimeBridge:
         )
         if not row:
             return None
-        details = dict(row["details"] or {})
+        details = dict(_db_json(row["details"], {}) or {})
         details["idempotent_reuse"] = True
         return CommandResponse(
             command=command,  # type: ignore[arg-type]
@@ -289,8 +300,8 @@ class RailwayRuntimeBridge:
             decision_reason=row["decision_reason"] or "",
             retry_class=row["retry_class"] or "none",
             alerts=[],
-            refs=dict(row["refs"] or {}),
-            counts={k: int(v) for k, v in dict(row["counts"] or {}).items()},
+            refs=dict(_db_json(row["refs"], {}) or {}),
+            counts={k: int(v) for k, v in dict(_db_json(row["counts"], {}) or {}).items()},
             details=details,
             contract_version=row["contract_version"] or CONTRACT_VERSION,
         )
@@ -541,7 +552,7 @@ class RailwayRuntimeBridge:
             "SELECT snapshot_payload FROM search_result_snapshots WHERE id = $1::uuid",
             snapshot_id,
         )
-        payload = list(snapshot["snapshot_payload"] if snapshot else [])
+        payload = list(_db_json(snapshot["snapshot_payload"], []) if snapshot else [])
         if not payload:
             response = CommandResponse(
                 command="read_fetch",
@@ -797,7 +808,7 @@ class RailwayRuntimeBridge:
         document_id = str(raw_row["document_id"])
         content_hash = str(raw_row["content_hash"])
         canonical_key = str(raw_row["canonical_document_key"])
-        data = dict(raw_row["data"] or {})
+        data = dict(_db_json(raw_row["data"], {}) or {})
         markdown_body = str(data.get("content", "")).strip()
         chunks = chunk_markdown_lines(markdown_body)
         chunk_count = 0

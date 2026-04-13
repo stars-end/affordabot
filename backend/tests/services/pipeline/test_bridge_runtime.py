@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import Any
 import asyncio
+import json
 
 from services.pipeline.domain.bridge import RailwayRuntimeBridge, RunScopeRequest
 
@@ -171,6 +172,24 @@ class FakeStorage:
         return path
 
 
+class JsonStringFakeDB(FakeDB):
+    async def _fetchrow(self, query: str, *args: Any) -> _Row | None:
+        row = await super()._fetchrow(query, *args)
+        if row and "SELECT snapshot_payload FROM search_result_snapshots" in query:
+            return _Row({"snapshot_payload": json.dumps(row["snapshot_payload"])})
+        if row and "FROM raw_scrapes" in query and "WHERE id = $1::uuid" in query:
+            data = dict(row.data)
+            data["data"] = json.dumps(data["data"])
+            return _Row(data)
+        if row and "FROM pipeline_command_results" in query:
+            data = dict(row.data)
+            data["refs"] = json.dumps(data["refs"])
+            data["counts"] = json.dumps(data["counts"])
+            data["details"] = json.dumps(data["details"])
+            return _Row(data)
+        return row
+
+
 class FakeSearchClient:
     def __init__(self, results: list[dict[str, Any]]) -> None:
         self.results = results
@@ -255,6 +274,25 @@ def test_runtime_bridge_writes_sql_storage_and_chunks() -> None:
     assert len(db.snapshots) == 1
     assert any("INSERT INTO content_artifacts" in query for query in db.exec_queries)
     assert any("INSERT INTO document_chunks" in query for query in db.exec_queries)
+
+
+def test_runtime_bridge_accepts_jsonb_values_returned_as_strings() -> None:
+    db = JsonStringFakeDB()
+    storage = FakeStorage()
+    runtime = RailwayRuntimeBridge(db=db, storage=storage)  # type: ignore[arg-type]
+    runtime.search_client = FakeSearchClient(
+        [{"url": "https://www.sanjoseca.gov/agenda/1", "title": "SJ Agenda", "snippet": "Housing"}]
+    )
+    runtime.reader_client = FakeReaderClient()
+    runtime._llm_client = FakeLLMClient()
+    runtime.zai_api_key = "x"
+
+    response = asyncio.run(runtime.run_scope_pipeline(_request()))
+    rerun = asyncio.run(runtime.run_scope_pipeline(_request()))
+
+    assert response["steps"]["read_fetch"]["status"] == "succeeded"
+    assert response["steps"]["index"]["counts"]["chunks"] > 0
+    assert rerun["steps"]["search_materialize"]["details"]["idempotent_reuse"] is True
 
 
 def test_runtime_bridge_rerun_reuses_idempotent_rows_without_duplicate_blob() -> None:

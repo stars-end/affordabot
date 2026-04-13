@@ -69,7 +69,8 @@ ALTER TABLE IF EXISTS public.pipeline_runs
   ADD COLUMN IF NOT EXISTS windmill_job_id text,
   ADD COLUMN IF NOT EXISTS source_family text,
   ADD COLUMN IF NOT EXISTS contract_version text,
-  ADD COLUMN IF NOT EXISTS idempotency_key text;
+  ADD COLUMN IF NOT EXISTS idempotency_key text,
+  ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_pipeline_runs_windmill_scope
   ON public.pipeline_runs (windmill_run_id, source_family, jurisdiction)
@@ -87,3 +88,7 @@ ALTER TABLE IF EXISTS public.pipeline_steps
 CREATE UNIQUE INDEX IF NOT EXISTS idx_pipeline_steps_run_command_idempotency
   ON public.pipeline_steps (run_id, command, idempotency_key)
   WHERE idempotency_key IS NOT NULL;
+
+ALTER TABLE IF EXISTS public.document_chunks
+  ADD COLUMN IF NOT EXISTS chunk_index integer,
+  ADD COLUMN IF NOT EXISTS source text;
