@@ -14,6 +14,9 @@ from pathlib import Path
 from typing import Any
 
 
+STABLE_CREATED_AT = "2026-04-13T00:00:00+00:00"
+
+
 def _load_windmill_script() -> Any:
     repo_root = Path(__file__).resolve().parents[3]
     script_path = (
@@ -58,7 +61,7 @@ def _default_md_path(repo_root: Path) -> Path:
 
 def run_verification() -> dict[str, Any]:
     module = _load_windmill_script()
-    return module.main(
+    report = module.main(
         step="run_local_integration_harness",
         idempotency_key="run:bd-9qjof.6:san-jose",
         scope_item={"jurisdiction": "San Jose CA", "source_family": "meeting_minutes"},
@@ -67,6 +70,18 @@ def run_verification() -> dict[str, Any]:
         windmill_run_id="wm-local-bd9qjof6",
         windmill_job_id="wm-local-job-bd9qjof6",
     )
+    return _stabilize_report(report)
+
+
+def _stabilize_report(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {
+            key: STABLE_CREATED_AT if key == "created_at" else _stabilize_report(item)
+            for key, item in value.items()
+        }
+    if isinstance(value, list):
+        return [_stabilize_report(item) for item in value]
+    return value
 
 
 def _to_markdown(report: dict[str, Any]) -> str:
