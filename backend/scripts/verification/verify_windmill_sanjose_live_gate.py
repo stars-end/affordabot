@@ -66,6 +66,7 @@ WINDMILL_DOMAIN_SCRIPT_PATH = (
     REPO_ROOT / "ops" / "windmill" / "f" / "affordabot" / "pipeline_daily_refresh_domain_boundary.py"
 )
 DEFAULT_SEARX_ENDPOINTS = ["https://searx.tiekoetter.com/search"]
+DEFAULT_BACKEND_ENDPOINT_TIMEOUT_SECONDS = 120
 EXA_SECRET_REF = "op://dev/Agent-Secrets-Production/EXA_API_KEY"
 TAVILY_SECRET_REF = "op://dev/Agent-Secrets-Production/TAVILY_API_KEY"
 
@@ -1040,6 +1041,7 @@ def run_harness(
     backend_endpoint_url: str | None,
     backend_endpoint_auth_token: str | None,
     database_url: str | None,
+    backend_endpoint_timeout_seconds: int = DEFAULT_BACKEND_ENDPOINT_TIMEOUT_SECONDS,
 ) -> dict[str, Any]:
     blockers: list[dict[str, Any]] = []
     result_payload: dict[str, Any] | None = None
@@ -1131,6 +1133,7 @@ def run_harness(
             "analysis_question": analysis_question,
             "stale_status": stale_status,
             "command_client": command_client,
+            "backend_endpoint_timeout_seconds": backend_endpoint_timeout_seconds,
         }
         try:
             run_started_at = datetime.now(UTC)
@@ -1446,6 +1449,11 @@ def main() -> int:
     parser.add_argument("--idempotency-key", default=None)
     parser.add_argument("--backend-endpoint-url", default=None)
     parser.add_argument("--backend-endpoint-auth-token", default=None)
+    parser.add_argument(
+        "--backend-endpoint-timeout-seconds",
+        type=int,
+        default=DEFAULT_BACKEND_ENDPOINT_TIMEOUT_SECONDS,
+    )
     parser.add_argument("--database-url", default=None)
     parser.add_argument("--out-json", type=Path, default=DEFAULT_JSON_ARTIFACT)
     parser.add_argument("--out-md", type=Path, default=DEFAULT_MD_ARTIFACT)
@@ -1470,6 +1478,7 @@ def main() -> int:
         searx_endpoints=searx_endpoints,
         backend_endpoint_url=args.backend_endpoint_url,
         backend_endpoint_auth_token=args.backend_endpoint_auth_token,
+        backend_endpoint_timeout_seconds=args.backend_endpoint_timeout_seconds,
         database_url=args.database_url,
     )
 

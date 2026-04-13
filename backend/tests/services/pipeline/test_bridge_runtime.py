@@ -120,11 +120,11 @@ class FakeDB:
                 "status": args[3],
                 "decision_reason": args[4],
                 "retry_class": args[5],
-                "refs": __import__("json").loads(args[6]),
-                "counts": __import__("json").loads(args[7]),
-                "details": __import__("json").loads(args[8]),
-                "contract_version": args[9],
-                "alerts": [],
+                "alerts": __import__("json").loads(args[6]),
+                "refs": __import__("json").loads(args[7]),
+                "counts": __import__("json").loads(args[8]),
+                "details": __import__("json").loads(args[9]),
+                "contract_version": args[10],
             }
 
         if "INSERT INTO content_artifacts" in query:
@@ -183,6 +183,7 @@ class JsonStringFakeDB(FakeDB):
             return _Row(data)
         if row and "FROM pipeline_command_results" in query:
             data = dict(row.data)
+            data["alerts"] = json.dumps(data["alerts"])
             data["refs"] = json.dumps(data["refs"])
             data["counts"] = json.dumps(data["counts"])
             data["details"] = json.dumps(data["details"])

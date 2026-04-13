@@ -16,7 +16,9 @@ CREATE TABLE IF NOT EXISTS public.search_result_snapshots (
   created_at timestamp with time zone NOT NULL DEFAULT now()
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_search_snapshots_scope_hash
+DROP INDEX IF EXISTS public.idx_search_snapshots_scope_hash;
+
+CREATE INDEX IF NOT EXISTS idx_search_snapshots_scope_hash
   ON public.search_result_snapshots (jurisdiction_id, source_family, query_hash, results_hash);
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_search_snapshots_idempotency
@@ -52,6 +54,7 @@ CREATE TABLE IF NOT EXISTS public.pipeline_command_results (
   status text NOT NULL,
   decision_reason text,
   retry_class text,
+  alerts jsonb NOT NULL DEFAULT '[]'::jsonb,
   refs jsonb NOT NULL DEFAULT '{}'::jsonb,
   counts jsonb NOT NULL DEFAULT '{}'::jsonb,
   details jsonb NOT NULL DEFAULT '{}'::jsonb,
@@ -61,6 +64,9 @@ CREATE TABLE IF NOT EXISTS public.pipeline_command_results (
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_pipeline_command_results_idempotency
   ON public.pipeline_command_results (command, idempotency_key);
+
+ALTER TABLE IF EXISTS public.pipeline_command_results
+  ADD COLUMN IF NOT EXISTS alerts jsonb NOT NULL DEFAULT '[]'::jsonb;
 
 ALTER TABLE IF EXISTS public.pipeline_runs
   ADD COLUMN IF NOT EXISTS orchestrator text,

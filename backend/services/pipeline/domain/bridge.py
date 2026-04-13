@@ -282,7 +282,7 @@ class RailwayRuntimeBridge:
         idempotency_key = _scope_idempotency_key(request)
         row = await self.db._fetchrow(
             """
-            SELECT status, decision_reason, retry_class, refs, counts, details, contract_version
+            SELECT status, decision_reason, retry_class, alerts, refs, counts, details, contract_version
             FROM pipeline_command_results
             WHERE command = $1 AND idempotency_key = $2
             LIMIT 1
@@ -299,7 +299,7 @@ class RailwayRuntimeBridge:
             status=row["status"],
             decision_reason=row["decision_reason"] or "",
             retry_class=row["retry_class"] or "none",
-            alerts=[],
+            alerts=list(_db_json(row["alerts"], []) or []),
             refs=dict(_db_json(row["refs"], {}) or {}),
             counts={k: int(v) for k, v in dict(_db_json(row["counts"], {}) or {}).items()},
             details=details,
@@ -312,15 +312,16 @@ class RailwayRuntimeBridge:
         await self.db._execute(
             """
             INSERT INTO pipeline_command_results
-              (run_id, command, idempotency_key, status, decision_reason, retry_class,
+              (run_id, command, idempotency_key, status, decision_reason, retry_class, alerts,
                refs, counts, details, contract_version)
             VALUES
-              ($1::uuid, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9::jsonb, $10)
+              ($1::uuid, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9::jsonb, $10::jsonb, $11)
             ON CONFLICT (command, idempotency_key)
             DO UPDATE SET
               status = EXCLUDED.status,
               decision_reason = EXCLUDED.decision_reason,
               retry_class = EXCLUDED.retry_class,
+              alerts = EXCLUDED.alerts,
               refs = EXCLUDED.refs,
               counts = EXCLUDED.counts,
               details = EXCLUDED.details,
@@ -332,6 +333,7 @@ class RailwayRuntimeBridge:
             response.status,
             response.decision_reason,
             response.retry_class,
+            _json(response.alerts),
             _json(response.refs),
             _json(response.counts),
             _json(response.details),
