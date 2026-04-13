@@ -19,6 +19,8 @@ DEFAULT_ZAI_SEARCH_MODEL = "glm-4.7"
 DDG_HTML_SEARCH_URL = "https://html.duckduckgo.com/html/"
 DEFAULT_USER_AGENT = "Mozilla/5.0"
 SEARXNG_PROVIDER_NAMES = {"oss_searxng", "searxng", "searx"}
+TAVILY_PROVIDER_NAMES = {"tavily"}
+DEFAULT_TAVILY_SEARCH_URL = "https://api.tavily.com/search"
 
 
 class ZaiStructuredWebSearchClient:
@@ -296,6 +298,88 @@ class OssSearxngWebSearchClient:
         await self.client.aclose()
 
 
+class TavilyWebSearchClient:
+    """Search client using Tavily's search API."""
+
+    def __init__(
+        self,
+        api_key: str,
+        *,
+        endpoint: str = DEFAULT_TAVILY_SEARCH_URL,
+        timeout_s: float = 20.0,
+    ) -> None:
+        self.api_key = api_key.strip()
+        self.endpoint = endpoint.strip() or DEFAULT_TAVILY_SEARCH_URL
+        self.timeout_s = max(0.1, timeout_s)
+        self.client = httpx.AsyncClient(timeout=self.timeout_s)
+
+    async def search(
+        self,
+        query: str,
+        count: int = 5,
+        domains: list[str] | None = None,
+        recency: str | None = None,
+        **kwargs: Any,
+    ) -> list[dict[str, Any]]:
+        _ = recency
+        if not self.api_key:
+            logger.warning("Tavily search requested without TAVILY_API_KEY")
+            return []
+
+        payload: dict[str, Any] = {
+            "query": query,
+            "search_depth": os.getenv("TAVILY_SEARCH_DEPTH", "basic"),
+            "include_raw_content": os.getenv("TAVILY_INCLUDE_RAW_CONTENT", "false").lower()
+            in {"1", "true", "yes"},
+            "max_results": max(1, count),
+        }
+        if domains:
+            payload["include_domains"] = domains
+        payload.update(kwargs)
+
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
+        try:
+            response = await self.client.post(self.endpoint, json=payload, headers=headers)
+            response.raise_for_status()
+            return self._normalize_results(response.json(), count=count)
+        except Exception as e:
+            logger.warning("Tavily search failed for %r: %s", query, e)
+            return []
+
+    @staticmethod
+    def _normalize_results(payload: dict[str, Any], count: int) -> list[dict[str, Any]]:
+        results: list[dict[str, Any]] = []
+        seen_urls: set[str] = set()
+        for item in payload.get("results") or []:
+            if not isinstance(item, dict):
+                continue
+            url = item.get("url") or item.get("link")
+            if not url or url in seen_urls:
+                continue
+            seen_urls.add(str(url))
+            snippet = item.get("content") or item.get("snippet") or ""
+            content = item.get("raw_content") or snippet
+            results.append(
+                {
+                    "title": item.get("title", ""),
+                    "url": str(url),
+                    "link": str(url),
+                    "snippet": str(snippet),
+                    "content": str(content),
+                    "score": item.get("score"),
+                }
+            )
+            if len(results) >= count:
+                break
+        return results
+
+    async def close(self) -> None:
+        await self.client.aclose()
+
+
 def _configured_searxng_endpoint() -> str:
     return (
         os.getenv("SEARXNG_SEARCH_ENDPOINT")
@@ -305,7 +389,9 @@ def _configured_searxng_endpoint() -> str:
     ).strip()
 
 
-def create_web_search_client(api_key: str | None) -> ZaiStructuredWebSearchClient | OssSearxngWebSearchClient:
+def create_web_search_client(
+    api_key: str | None,
+) -> ZaiStructuredWebSearchClient | OssSearxngWebSearchClient | TavilyWebSearchClient:
     """Create the configured web-search client.
 
     Z.ai structured search is retained for backward compatibility, but the
@@ -324,6 +410,19 @@ def create_web_search_client(api_key: str | None) -> ZaiStructuredWebSearchClien
             endpoint=searxng_endpoint,
             timeout_s=timeout_s,
         )
+    if provider in TAVILY_PROVIDER_NAMES:
+        tavily_api_key = (os.getenv("TAVILY_API_KEY", "") or api_key or "").strip()
+        if not tavily_api_key:
+            raise ValueError("missing TAVILY_API_KEY for WEB_SEARCH_PROVIDER=tavily")
+        tavily_endpoint = os.getenv("TAVILY_SEARCH_ENDPOINT", DEFAULT_TAVILY_SEARCH_URL).strip()
+        timeout_s = float(os.getenv("WEB_SEARCH_TAVILY_TIMEOUT_S", "20"))
+        logger.info("Using Tavily search endpoint: %s", tavily_endpoint)
+        return TavilyWebSearchClient(
+            api_key=tavily_api_key,
+            endpoint=tavily_endpoint,
+            timeout_s=timeout_s,
+        )
+
     if provider and provider not in {"zai", "zai_structured", "zai_web_search"}:
         raise ValueError(f"unsupported WEB_SEARCH_PROVIDER: {provider}")
 

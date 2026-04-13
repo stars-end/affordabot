@@ -16,6 +16,22 @@ from services.pipeline.domain import (
     WindmillMetadata,
     build_v2_canonical_document_key,
 )
+from services.pipeline.domain.ports import ReaderDocument
+
+
+class _StaticReaderProvider:
+    def __init__(self, text: str) -> None:
+        self.text = text
+
+    def fetch(self, *, url: str) -> ReaderDocument:
+        return ReaderDocument(
+            url=url,
+            title="San Jose City Council",
+            text=self.text,
+            fetched_at=datetime.now(timezone.utc),
+            document_type="meeting_minutes",
+            published_date="2026-04-13",
+        )
 
 
 def _envelope(command: str, key: str) -> CommandEnvelope:
@@ -273,6 +289,112 @@ def test_storage_failure_on_reader_artifact_is_terminal() -> None:
     )
     assert read.status == "failed_terminal"
     assert read.retry_class == "transient_storage"
+
+
+def test_navigation_heavy_reader_output_blocks_with_alert_reason() -> None:
+    state, service = _service(
+        search_results=[
+            SearchResultItem(
+                url="https://www.sanjoseca.gov/city-hall",
+                title="City Hall",
+                snippet="navigation shell",
+            )
+        ]
+    )
+    service.reader_provider = _StaticReaderProvider(
+        "\n".join(
+            [
+                "Home",
+                "Contact Us",
+                "Sitemap",
+                "Departments",
+                "Sign Up for Alerts",
+                "Accessibility",
+                "Privacy Policy",
+                "Menu",
+            ]
+        )
+    )
+
+    search = service.search_materialize(envelope=_envelope("search_materialize", "ns1"), query="q")
+    read = service.read_fetch(
+        envelope=_envelope("read_fetch", "ns2"),
+        snapshot_id=str(search.refs["search_snapshot_id"]),
+    )
+
+    assert read.status == "blocked"
+    assert read.decision_reason == "reader_output_insufficient_substance"
+    assert read.retry_class == "insufficient_evidence"
+    assert "reader_output_insufficient_substance:navigation_heavy" in read.alerts
+    assert read.details["reader_quality_failures"][0]["reason"] == "navigation_heavy"
+    assert len(state.raw_scrapes) == 0
+
+
+def test_substantive_meeting_reader_output_is_allowed() -> None:
+    _, service = _service(
+        search_results=[
+            SearchResultItem(
+                url="https://www.sanjoseca.gov/council/agenda/2026-04-13",
+                title="Agenda and Minutes",
+                snippet="housing hearing",
+            )
+        ]
+    )
+    service.reader_provider = _StaticReaderProvider(
+        (
+            "San Jose City Council meeting minutes for April 13, 2026. "
+            "Agenda item 4.2 covered housing affordability policy updates. "
+            "Council voted 9-2 to advance tenant protection ordinance amendments "
+            "after public comment and budget hearing."
+        )
+    )
+
+    search = service.search_materialize(envelope=_envelope("search_materialize", "sm1"), query="q")
+    read = service.read_fetch(
+        envelope=_envelope("read_fetch", "sm2"),
+        snapshot_id=str(search.refs["search_snapshot_id"]),
+    )
+
+    assert read.status == "succeeded"
+    assert read.decision_reason == "raw_scrapes_materialized"
+    assert read.counts["raw_scrapes"] == 1
+    assert read.alerts == []
+
+
+def test_full_refresh_surfaces_reader_quality_alert_to_summary() -> None:
+    state, service = _service(
+        search_results=[
+            SearchResultItem(
+                url="https://www.sanjoseca.gov/city-hall",
+                title="City Hall",
+                snippet="navigation shell",
+            )
+        ]
+    )
+    service.reader_provider = _StaticReaderProvider(
+        "Home Contact Sitemap Menu Accessibility Privacy Sign Up for Alerts Departments"
+    )
+    state.now = datetime(2026, 4, 13, tzinfo=timezone.utc)
+
+    responses = service.full_refresh(
+        query="q",
+        question="What changed?",
+        search_envelope=_envelope("search_materialize", "rq1"),
+        freshness_envelope=_envelope("freshness_gate", "rq2"),
+        read_envelope=_envelope("read_fetch", "rq3"),
+        index_envelope=_envelope("index", "rq4"),
+        analyze_envelope=_envelope("analyze", "rq5"),
+        summarize_envelope=_envelope("summarize_run", "rq6"),
+        policy=_default_policy(),
+    )
+    by_command = {item.command: item for item in responses}
+
+    assert by_command["read_fetch"].status == "blocked"
+    assert by_command["read_fetch"].decision_reason == "reader_output_insufficient_substance"
+    assert "reader_output_insufficient_substance:navigation_heavy" in by_command["summarize_run"].alerts
+    assert "index" not in by_command
+    assert "analyze" not in by_command
+    assert by_command["summarize_run"].status == "blocked"
 
 
 def test_no_analysis_without_evidence_is_blocked() -> None:

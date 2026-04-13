@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import asdict
 from datetime import datetime, timezone
 import hashlib
+import re
 from typing import Any
 
 from services.pipeline.domain.constants import CONTRACT_VERSION
@@ -18,6 +19,36 @@ from services.pipeline.domain.ports import (
     SearchProvider,
     SearchResultItem,
     VectorStore,
+)
+
+NAVIGATION_MARKERS = (
+    "home",
+    "contact",
+    "sitemap",
+    "menu",
+    "navigation",
+    "skip to content",
+    "privacy",
+    "accessibility",
+    "subscribe",
+    "sign up",
+    "alerts",
+    "departments",
+)
+
+SUBSTANTIVE_MARKERS = (
+    "meeting",
+    "minutes",
+    "agenda",
+    "council",
+    "ordinance",
+    "resolution",
+    "vote",
+    "hearing",
+    "public comment",
+    "housing",
+    "budget",
+    "policy",
 )
 
 
@@ -48,6 +79,43 @@ def _split_chunks(text: str) -> list[str]:
     if not lines:
         return []
     return lines
+
+
+def _reader_substance_assessment(text: str) -> tuple[bool, dict[str, Any]]:
+    normalized_lines = [line.strip().lower() for line in text.splitlines() if line.strip()]
+    joined = " ".join(normalized_lines)
+    word_count = len(re.findall(r"[a-z0-9$%.-]+", joined))
+    nav_line_hits = sum(
+        1 for line in normalized_lines if any(marker in line for marker in NAVIGATION_MARKERS)
+    )
+    nav_marker_hits = sum(1 for marker in NAVIGATION_MARKERS if marker in joined)
+    substantive_hits = sum(1 for marker in SUBSTANTIVE_MARKERS if marker in joined)
+    line_count = len(normalized_lines)
+
+    reason = "ok"
+    is_substantive = True
+    if not normalized_lines or word_count == 0:
+        reason = "empty_reader_output"
+        is_substantive = False
+    elif nav_line_hits >= max(2, line_count // 2) and substantive_hits == 0:
+        reason = "navigation_heavy"
+        is_substantive = False
+    elif nav_marker_hits >= 6 and substantive_hits <= 1:
+        reason = "navigation_heavy"
+        is_substantive = False
+    elif word_count < 25 and substantive_hits == 0:
+        reason = "low_substantive_signal"
+        is_substantive = False
+
+    details = {
+        "reason": reason,
+        "word_count": word_count,
+        "line_count": line_count,
+        "navigation_line_hits": nav_line_hits,
+        "navigation_marker_hits": nav_marker_hits,
+        "substantive_marker_hits": substantive_hits,
+    }
+    return is_substantive, details
 
 
 class PipelineDomainCommands:
@@ -283,6 +351,8 @@ class PipelineDomainCommands:
 
         raw_scrape_ids: list[str] = []
         artifact_refs: list[str] = []
+        quality_alerts: list[str] = []
+        reader_quality_failures: list[dict[str, Any]] = []
         for candidate in selected:
             try:
                 doc = self.reader_provider.fetch(url=candidate.url)
@@ -298,6 +368,19 @@ class PipelineDomainCommands:
                         refs=self._windmill_refs(envelope),
                     ),
                 )
+
+            is_substantive, quality_details = _reader_substance_assessment(doc.text)
+            if not is_substantive:
+                reason = str(quality_details["reason"])
+                quality_alerts.append(f"reader_output_insufficient_substance:{reason}")
+                reader_quality_failures.append(
+                    {
+                        "url": candidate.url,
+                        "reason": reason,
+                        "quality_details": quality_details,
+                    }
+                )
+                continue
 
             canonical_key = build_v2_canonical_document_key(
                 jurisdiction_id=envelope.jurisdiction_id,
@@ -353,19 +436,42 @@ class PipelineDomainCommands:
             raw_scrape_ids.append(scrape_id)
             artifact_refs.append(artifact.artifact_ref)
 
+        if not raw_scrape_ids:
+            alerts = list(dict.fromkeys(quality_alerts)) or ["reader_output_insufficient_substance"]
+            return self._store_result(
+                envelope,
+                CommandResponse(
+                    command="read_fetch",
+                    status="blocked",
+                    decision_reason="reader_output_insufficient_substance",
+                    retry_class="insufficient_evidence",
+                    alerts=alerts,
+                    refs=self._windmill_refs(envelope),
+                    details={"reader_quality_failures": reader_quality_failures},
+                ),
+            )
+
+        status = "succeeded_with_alerts" if quality_alerts else "succeeded"
+        decision_reason = (
+            "raw_scrapes_materialized_with_reader_alerts"
+            if quality_alerts
+            else "raw_scrapes_materialized"
+        )
         return self._store_result(
             envelope,
             CommandResponse(
                 command="read_fetch",
-                status="succeeded",
-                decision_reason="raw_scrapes_materialized",
+                status=status,
+                decision_reason=decision_reason,
                 retry_class="none",
+                alerts=list(dict.fromkeys(quality_alerts)),
                 counts={"raw_scrapes": len(raw_scrape_ids), "artifacts": len(artifact_refs)},
                 refs={
                     **self._windmill_refs(envelope),
                     "raw_scrape_ids": raw_scrape_ids,
                     "artifact_refs": artifact_refs,
                 },
+                details={"reader_quality_failures": reader_quality_failures},
             ),
         )
 

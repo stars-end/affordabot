@@ -1,7 +1,12 @@
 import asyncio
+import json
+
+import httpx
+import pytest
 
 from services.llm.web_search_factory import (
     OssSearxngWebSearchClient,
+    TavilyWebSearchClient,
     ZaiStructuredWebSearchClient,
     create_web_search_client,
 )
@@ -149,3 +154,144 @@ def test_factory_prefers_configured_searxng_endpoint_over_zai_default(monkeypatc
 
     assert isinstance(client, OssSearxngWebSearchClient)
     asyncio.run(client.close())
+
+
+def test_factory_selects_tavily_with_env_key(monkeypatch):
+    monkeypatch.setenv("WEB_SEARCH_PROVIDER", "tavily")
+    monkeypatch.setenv("TAVILY_API_KEY", "tavily-test-key")
+
+    client = create_web_search_client(api_key=None)
+
+    assert isinstance(client, TavilyWebSearchClient)
+    asyncio.run(client.close())
+
+
+def test_factory_selects_tavily_with_explicit_key(monkeypatch):
+    monkeypatch.setenv("WEB_SEARCH_PROVIDER", "tavily")
+    monkeypatch.delenv("TAVILY_API_KEY", raising=False)
+
+    client = create_web_search_client(api_key="explicit-key")
+
+    assert isinstance(client, TavilyWebSearchClient)
+    assert client.api_key == "explicit-key"
+    asyncio.run(client.close())
+
+
+def test_factory_tavily_prefers_provider_specific_env_key(monkeypatch):
+    monkeypatch.setenv("WEB_SEARCH_PROVIDER", "tavily")
+    monkeypatch.setenv("TAVILY_API_KEY", "tavily-env-key")
+
+    client = create_web_search_client(api_key="zai-key-that-should-not-be-used")
+
+    assert isinstance(client, TavilyWebSearchClient)
+    assert client.api_key == "tavily-env-key"
+    asyncio.run(client.close())
+
+
+def test_factory_tavily_requires_key(monkeypatch):
+    monkeypatch.setenv("WEB_SEARCH_PROVIDER", "tavily")
+    monkeypatch.delenv("TAVILY_API_KEY", raising=False)
+
+    with pytest.raises(
+        ValueError, match="missing TAVILY_API_KEY for WEB_SEARCH_PROVIDER=tavily"
+    ):
+        create_web_search_client(api_key=None)
+
+
+def test_tavily_search_posts_expected_payload_and_headers():
+    observed: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        observed["url"] = str(request.url)
+        observed["auth"] = request.headers.get("Authorization")
+        observed["content_type"] = request.headers.get("Content-Type")
+        observed["payload"] = request.read().decode("utf-8")
+        return httpx.Response(
+            200,
+            json={
+                "results": [
+                    {
+                        "title": "City Council Minutes",
+                        "url": "https://www.sanjoseca.gov/minutes",
+                        "content": "Council considered housing policy updates.",
+                        "raw_content": "Full minutes body content",
+                        "score": 0.92,
+                    }
+                ]
+            },
+        )
+
+    transport = httpx.MockTransport(handler)
+    client = TavilyWebSearchClient(api_key="tavily-key", endpoint="https://api.tavily.com/search")
+    client.client = httpx.AsyncClient(transport=transport, timeout=20.0)
+
+    async def _run():
+        results = await client.search("san jose city council meeting minutes", count=3)
+        await client.close()
+        return results
+
+    results = asyncio.run(_run())
+
+    assert observed["url"] == "https://api.tavily.com/search"
+    assert observed["auth"] == "Bearer tavily-key"
+    assert observed["content_type"] == "application/json"
+    payload = json.loads(str(observed["payload"]))
+    assert payload["query"] == "san jose city council meeting minutes"
+    assert payload["search_depth"] == "basic"
+    assert payload["include_raw_content"] is False
+    assert payload["max_results"] == 3
+    assert results == [
+        {
+            "title": "City Council Minutes",
+            "url": "https://www.sanjoseca.gov/minutes",
+            "link": "https://www.sanjoseca.gov/minutes",
+            "snippet": "Council considered housing policy updates.",
+            "content": "Full minutes body content",
+            "score": 0.92,
+        }
+    ]
+
+
+def test_tavily_normalizes_and_deduplicates_results():
+    payload = {
+        "results": [
+            {
+                "title": "A",
+                "url": "https://example.com/a",
+                "content": "snippet-a",
+                "raw_content": "raw-a",
+                "score": 0.7,
+            },
+            {
+                "title": "Duplicate A",
+                "url": "https://example.com/a",
+                "content": "dup",
+            },
+            {
+                "title": "B",
+                "url": "https://example.com/b",
+                "snippet": "snippet-b",
+            },
+        ]
+    }
+
+    results = TavilyWebSearchClient._normalize_results(payload, count=5)
+
+    assert results == [
+        {
+            "title": "A",
+            "url": "https://example.com/a",
+            "link": "https://example.com/a",
+            "snippet": "snippet-a",
+            "content": "raw-a",
+            "score": 0.7,
+        },
+        {
+            "title": "B",
+            "url": "https://example.com/b",
+            "link": "https://example.com/b",
+            "snippet": "snippet-b",
+            "content": "snippet-b",
+            "score": None,
+        },
+    ]
