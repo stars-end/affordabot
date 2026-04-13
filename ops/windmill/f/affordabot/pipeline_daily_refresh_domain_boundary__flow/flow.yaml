@@ -141,6 +141,18 @@ value:
             analysis_question:
               type: javascript
               expr: flow_input.analysis_question
+            command_client:
+              type: javascript
+              expr: flow_input.command_client
+            backend_endpoint_url:
+              type: static
+              value: $var:f/affordabot/BACKEND_PUBLIC_URL
+            backend_endpoint_auth_token:
+              type: static
+              value: $var:f/affordabot/CRON_SECRET
+            backend_endpoint_timeout_seconds:
+              type: javascript
+              expr: flow_input.backend_endpoint_timeout_seconds
       aggregate:
         script:
           type: javascript
@@ -271,4 +283,15 @@ schema:
         - empty_but_usable
         - empty_blocked
       default: fresh
+    command_client:
+      type: string
+      enum:
+        - stub
+        - domain_package
+        - backend_endpoint
+      default: stub
+    backend_endpoint_timeout_seconds:
+      type: integer
+      minimum: 1
+      default: 120
 ws_error_handler_muted: false

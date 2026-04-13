@@ -1,0 +1,918 @@
+{
+  "backend_endpoint_readiness": {
+    "local_mock_probe": {
+      "note": "local mock backend endpoint probe passed",
+      "status": "passed"
+    },
+    "missing_inputs": [],
+    "note": "backend endpoint config is present and local mock probe passed",
+    "status": "ready_for_opt_in"
+  },
+  "blockers": [],
+  "canonical_variables": {
+    "BACKEND_ENDPOINT_AUTH_TOKEN": "optional local readiness input only",
+    "BACKEND_ENDPOINT_URL": "optional local readiness input only",
+    "BACKEND_PUBLIC_URL_VAR": "f/affordabot/BACKEND_PUBLIC_URL",
+    "CRON_SECRET_VAR": "f/affordabot/CRON_SECRET",
+    "TMP_WMILL_CONFIG": "auto-created temporary profile directory",
+    "WINDMILL_API_TOKEN": "op://dev/Agent-Secrets-Production/WINDMILL_API_TOKEN",
+    "WINDMILL_BASE_URL": "derived as WINDMILL_DEV_LOGIN_URL without /user/login",
+    "WINDMILL_DEV_LOGIN_URL": "op://dev/Agent-Secrets-Production/WINDMILL_DEV_LOGIN_URL",
+    "WINDMILL_WORKSPACE": "affordabot"
+  },
+  "classification": "full_product_pass",
+  "db_storage_probe": {
+    "content_artifact_rows": [
+      {
+        "artifact_kind": "reader_output",
+        "content_hash": "beb5625c2920eb405475cd29fcecd1b9eab9f6087c25183754e0267a37c60800",
+        "id": "9eb9d570-c7fb-43c3-b1b6-36d9c3b99bff",
+        "storage_uri": "artifacts/2026-04-13.windmill-domain.v1/San Jose CA/meeting_minutes/reader_output/beb5625c2920eb405475cd29fcecd1b9eab9f6087c25183754e0267a37c60800.md"
+      }
+    ],
+    "document_chunks_count": 197,
+    "document_chunks_with_embedding_count": 197,
+    "minio_object_checks": [
+      {
+        "status": "not_probeable_without_storage_client",
+        "uri": "artifacts/2026-04-13.windmill-domain.v1/San Jose CA/meeting_minutes/reader_output/beb5625c2920eb405475cd29fcecd1b9eab9f6087c25183754e0267a37c60800.md"
+      }
+    ],
+    "pipeline_command_rows": [
+      {
+        "alerts": [],
+        "command": "summarize_run",
+        "id": "fe9eece4-18f3-4597-bed8-3e1c6e131145",
+        "refs": {},
+        "status": "succeeded"
+      },
+      {
+        "alerts": [],
+        "command": "analyze",
+        "id": "bdc3df7e-4552-46db-8e2a-8f7fe83198f4",
+        "refs": {},
+        "status": "succeeded"
+      },
+      {
+        "alerts": [],
+        "command": "index",
+        "id": "1b9df1b0-96e5-4df5-bfbd-dfa0dc439f05",
+        "refs": {},
+        "status": "succeeded"
+      },
+      {
+        "alerts": [],
+        "command": "read_fetch",
+        "id": "b930505c-bdc7-40dc-a988-ce17ac3d8d6f",
+        "refs": {},
+        "status": "succeeded"
+      },
+      {
+        "alerts": [],
+        "command": "freshness_gate",
+        "id": "06862ce2-b920-418f-acf3-8ec6bf8928ba",
+        "refs": {},
+        "status": "succeeded"
+      },
+      {
+        "alerts": [],
+        "command": "search_materialize",
+        "id": "48d1ff0e-92cd-4659-9f6d-5ee23913abde",
+        "refs": {},
+        "status": "succeeded"
+      }
+    ],
+    "raw_scrape_rows": [
+      {
+        "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=meeting_minutes|doctype=meeting_minutes|url=https://www.sanjoseca.gov/your-government/appointees/city-clerk/council-agendas-minutes",
+        "content_excerpt": "![Image 1: Skip to page body](https://www.sanjoseca.gov/DefaultContent/Default/_gfx/spacer.gif)\n![Image 2: Home](https://www.sanjoseca.gov/DefaultContent/Default/_gfx/spacer.gif)\n![Image 3: Residents](https://www.sanjoseca.gov/DefaultContent/Default/_gfx/spacer.gif)\n![Image 4: Businesses](https://www.sanjoseca.gov/DefaultContent/Default/_gfx/spacer.gif)\n![Image 5: Jobs](https://www.sanjoseca.gov/DefaultContent/Default/_gfx/spacer.gif)\n![Image 6: Your Government](https://www.sanjoseca.gov/DefaultContent/Default/_gfx/spacer.gif)\n![Image 7: News & Stories](https://www.sanjoseca.gov/DefaultContent/Default/_gfx/spacer.gif)\n\nHome\nMenu\n\nAccessibility\n\n![Image 8: facebook](https://www.sanjoseca.gov/",
+        "id": "2140d4b0-b2cb-5939-b442-bd941efaa7f2",
+        "url": "https://www.sanjoseca.gov/your-government/appointees/city-clerk/council-agendas-minutes"
+      }
+    ],
+    "search_snapshot_rows": [
+      {
+        "id": "1da9e3fe-8f6a-41c4-9f9e-729f6f3d5318",
+        "result_count": 10
+      }
+    ],
+    "status": "queried"
+  },
+  "deployment_surface": {
+    "flow_deployed": true,
+    "flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+    "flow_unscheduled": true,
+    "script_deployed": true,
+    "script_path": "f/affordabot/pipeline_daily_refresh_domain_boundary"
+  },
+  "feature_key": "bd-9qjof.6",
+  "full_run_readiness": "ready",
+  "generated_at": "2026-04-13T19:40:55.686382+00:00",
+  "harness_version": "2026-04-13.worker-b.v2",
+  "idempotent_rerun": {
+    "attempted": true,
+    "result_payload": {
+      "alerts": [],
+      "scope_blocked": 0,
+      "scope_failed": 0,
+      "scope_results": [
+        {
+          "alert": "",
+          "backend_response": {
+            "decision_reason": "run_summary_materialized",
+            "missing_runtime_adapters": [],
+            "refs": {
+              "analyze_reason": "analysis_completed",
+              "analyze_retry_class": "none",
+              "freshness_gate_reason": "fresh",
+              "freshness_gate_retry_class": "none",
+              "index_reason": "chunks_indexed",
+              "index_retry_class": "none",
+              "read_fetch_reason": "raw_scrapes_materialized",
+              "read_fetch_retry_class": "none",
+              "run_id": "fa2046fa-7526-4b7b-abb6-8368c2ed2b72",
+              "search_materialize_reason": "fresh_snapshot_materialized",
+              "search_materialize_retry_class": "none",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-9qjof.6-live-gate-20260413-193847"
+            },
+            "status": "succeeded",
+            "storage_mode": "railway_runtime"
+          },
+          "scope_index": 0,
+          "scope_item": {
+            "jurisdiction": "San Jose CA",
+            "scope_key": "san jose ca::meeting_minutes",
+            "source_family": "meeting_minutes"
+          },
+          "status": "succeeded",
+          "steps": {
+            "analyze": {
+              "alerts": [],
+              "command": "analyze",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "counts": {
+                "analyses": 1,
+                "evidence_chunks": 20
+              },
+              "created_at": "2026-04-13T19:40:49.836230+00:00",
+              "decision_reason": "analysis_completed",
+              "details": {
+                "analysis": {
+                  "key_points": [
+                    "The provided evidence contains only website navigation elements and spacer images.",
+                    "No text or data regarding meeting minutes or housing policies is present.",
+                    "Therefore, no housing-related signals can be extracted or summarized."
+                  ],
+                  "sufficiency_state": "insufficient",
+                  "summary": "The provided evidence does not contain any content from recent San Jose meeting minutes or housing-related signals. The evidence consists solely of website navigation menu items (Home, Residents, Businesses, Jobs, etc.) and placeholder images."
+                },
+                "idempotent_reuse": true
+              },
+              "envelope": {
+                "analysis_question": "Summarize housing-related signals from recent San Jose meeting minutes.",
+                "contract_version": "2026-04-13.windmill-domain.v1",
+                "idempotency_key": "bd-9qjof.6-live-gate-20260413-193847",
+                "jurisdiction": "San Jose CA",
+                "orchestrator": "windmill",
+                "scope_idempotency_key": "bd-9qjof.6-live-gate-20260413-193847::1c07b61a28453506",
+                "search_query": "San Jose CA city council meeting minutes housing",
+                "source_family": "meeting_minutes",
+                "stale_status": "fresh",
+                "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+                "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+                "windmill_run_id": "bd-9qjof.6-live-gate-20260413-193847",
+                "windmill_workspace": "affordabot"
+              },
+              "refs": {
+                "analysis_id": "f0765b7e-6a5e-5a76-a149-b78081bd3fec",
+                "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+                "windmill_run_id": "bd-9qjof.6-live-gate-20260413-193847"
+              },
+              "retry_class": "none",
+              "status": "succeeded"
+            },
+            "freshness_gate": {
+              "alerts": [],
+              "command": "freshness_gate",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "counts": {
+                "search_results": 10
+              },
+              "created_at": "2026-04-13T19:40:49.812524+00:00",
+              "decision_reason": "fresh",
+              "details": {
+                "fail_closed_ceiling_hours": 168,
+                "fresh_hours": 24,
+                "freshness_status": "fresh",
+                "idempotent_reuse": true,
+                "snapshot_age_hours": 0,
+                "stale_usable_ceiling_hours": 72
+              },
+              "envelope": {
+                "analysis_question": "Summarize housing-related signals from recent San Jose meeting minutes.",
+                "contract_version": "2026-04-13.windmill-domain.v1",
+                "idempotency_key": "bd-9qjof.6-live-gate-20260413-193847",
+                "jurisdiction": "San Jose CA",
+                "orchestrator": "windmill",
+                "scope_idempotency_key": "bd-9qjof.6-live-gate-20260413-193847::1c07b61a28453506",
+                "search_query": "San Jose CA city council meeting minutes housing",
+                "source_family": "meeting_minutes",
+                "stale_status": "fresh",
+                "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+                "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+                "windmill_run_id": "bd-9qjof.6-live-gate-20260413-193847",
+                "windmill_workspace": "affordabot"
+              },
+              "refs": {
+                "search_snapshot_id": "1da9e3fe-8f6a-41c4-9f9e-729f6f3d5318",
+                "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+                "windmill_run_id": "bd-9qjof.6-live-gate-20260413-193847"
+              },
+              "retry_class": "none",
+              "status": "succeeded"
+            },
+            "index": {
+              "alerts": [],
+              "command": "index",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "counts": {
+                "chunks": 197
+              },
+              "created_at": "2026-04-13T19:40:49.830749+00:00",
+              "decision_reason": "chunks_indexed",
+              "details": {
+                "embedding_count": 197,
+                "embedding_provider": "openrouter:qwen/qwen3-embedding-8b",
+                "idempotent_reuse": true
+              },
+              "envelope": {
+                "analysis_question": "Summarize housing-related signals from recent San Jose meeting minutes.",
+                "contract_version": "2026-04-13.windmill-domain.v1",
+                "idempotency_key": "bd-9qjof.6-live-gate-20260413-193847",
+                "jurisdiction": "San Jose CA",
+                "orchestrator": "windmill",
+                "scope_idempotency_key": "bd-9qjof.6-live-gate-20260413-193847::1c07b61a28453506",
+                "search_query": "San Jose CA city council meeting minutes housing",
+                "source_family": "meeting_minutes",
+                "stale_status": "fresh",
+                "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+                "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+                "windmill_run_id": "bd-9qjof.6-live-gate-20260413-193847",
+                "windmill_workspace": "affordabot"
+              },
+              "refs": {
+                "document_id": "a90da874-d409-54a7-a4ac-e6b2d729adbe",
+                "raw_scrape_ids": [
+                  "2140d4b0-b2cb-5939-b442-bd941efaa7f2"
+                ],
+                "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+                "windmill_run_id": "bd-9qjof.6-live-gate-20260413-193847"
+              },
+              "retry_class": "none",
+              "status": "succeeded"
+            },
+            "read_fetch": {
+              "alerts": [],
+              "command": "read_fetch",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "counts": {
+                "artifacts": 1,
+                "raw_scrapes": 1
+              },
+              "created_at": "2026-04-13T19:40:49.820666+00:00",
+              "decision_reason": "raw_scrapes_materialized",
+              "details": {
+                "idempotent_reuse": true
+              },
+              "envelope": {
+                "analysis_question": "Summarize housing-related signals from recent San Jose meeting minutes.",
+                "contract_version": "2026-04-13.windmill-domain.v1",
+                "idempotency_key": "bd-9qjof.6-live-gate-20260413-193847",
+                "jurisdiction": "San Jose CA",
+                "orchestrator": "windmill",
+                "scope_idempotency_key": "bd-9qjof.6-live-gate-20260413-193847::1c07b61a28453506",
+                "search_query": "San Jose CA city council meeting minutes housing",
+                "source_family": "meeting_minutes",
+                "stale_status": "fresh",
+                "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+                "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+                "windmill_run_id": "bd-9qjof.6-live-gate-20260413-193847",
+                "windmill_workspace": "affordabot"
+              },
+              "refs": {
+                "artifact_refs": [
+                  "artifacts/2026-04-13.windmill-domain.v1/San Jose CA/meeting_minutes/reader_output/beb5625c2920eb405475cd29fcecd1b9eab9f6087c25183754e0267a37c60800.md"
+                ],
+                "document_id": "a90da874-d409-54a7-a4ac-e6b2d729adbe",
+                "raw_scrape_ids": [
+                  "2140d4b0-b2cb-5939-b442-bd941efaa7f2"
+                ],
+                "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+                "windmill_run_id": "bd-9qjof.6-live-gate-20260413-193847"
+              },
+              "retry_class": "none",
+              "status": "succeeded"
+            },
+            "search_materialize": {
+              "alerts": [],
+              "command": "search_materialize",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "counts": {
+                "search_results": 10
+              },
+              "created_at": "2026-04-13T19:40:49.805358+00:00",
+              "decision_reason": "fresh_snapshot_materialized",
+              "details": {
+                "idempotent_reuse": true,
+                "query": "San Jose CA city council meeting minutes housing"
+              },
+              "envelope": {
+                "analysis_question": "Summarize housing-related signals from recent San Jose meeting minutes.",
+                "contract_version": "2026-04-13.windmill-domain.v1",
+                "idempotency_key": "bd-9qjof.6-live-gate-20260413-193847",
+                "jurisdiction": "San Jose CA",
+                "orchestrator": "windmill",
+                "scope_idempotency_key": "bd-9qjof.6-live-gate-20260413-193847::1c07b61a28453506",
+                "search_query": "San Jose CA city council meeting minutes housing",
+                "source_family": "meeting_minutes",
+                "stale_status": "fresh",
+                "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+                "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+                "windmill_run_id": "bd-9qjof.6-live-gate-20260413-193847",
+                "windmill_workspace": "affordabot"
+              },
+              "refs": {
+                "search_snapshot_id": "1da9e3fe-8f6a-41c4-9f9e-729f6f3d5318",
+                "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+                "windmill_run_id": "bd-9qjof.6-live-gate-20260413-193847"
+              },
+              "retry_class": "none",
+              "status": "succeeded"
+            },
+            "summarize_run": {
+              "alerts": [],
+              "command": "summarize_run",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "counts": {
+                "analyses": 1,
+                "artifacts": 1,
+                "chunks": 197,
+                "evidence_chunks": 20,
+                "raw_scrapes": 1,
+                "search_results": 20
+              },
+              "created_at": "2026-04-13T19:40:49.841759+00:00",
+              "decision_reason": "run_summary_materialized",
+              "details": {
+                "idempotent_reuse": true,
+                "step_statuses": {
+                  "analyze": "succeeded",
+                  "freshness_gate": "succeeded",
+                  "index": "succeeded",
+                  "read_fetch": "succeeded",
+                  "search_materialize": "succeeded"
+                }
+              },
+              "envelope": {
+                "analysis_question": "Summarize housing-related signals from recent San Jose meeting minutes.",
+                "contract_version": "2026-04-13.windmill-domain.v1",
+                "idempotency_key": "bd-9qjof.6-live-gate-20260413-193847",
+                "jurisdiction": "San Jose CA",
+                "orchestrator": "windmill",
+                "scope_idempotency_key": "bd-9qjof.6-live-gate-20260413-193847::1c07b61a28453506",
+                "search_query": "San Jose CA city council meeting minutes housing",
+                "source_family": "meeting_minutes",
+                "stale_status": "fresh",
+                "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+                "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+                "windmill_run_id": "bd-9qjof.6-live-gate-20260413-193847",
+                "windmill_workspace": "affordabot"
+              },
+              "refs": {
+                "analyze_reason": "analysis_completed",
+                "analyze_retry_class": "none",
+                "freshness_gate_reason": "fresh",
+                "freshness_gate_retry_class": "none",
+                "index_reason": "chunks_indexed",
+                "index_retry_class": "none",
+                "read_fetch_reason": "raw_scrapes_materialized",
+                "read_fetch_retry_class": "none",
+                "run_id": "fa2046fa-7526-4b7b-abb6-8368c2ed2b72",
+                "search_materialize_reason": "fresh_snapshot_materialized",
+                "search_materialize_retry_class": "none",
+                "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+                "windmill_run_id": "bd-9qjof.6-live-gate-20260413-193847"
+              },
+              "retry_class": "none",
+              "status": "succeeded"
+            }
+          }
+        }
+      ],
+      "scope_succeeded": 1,
+      "scope_total": 1,
+      "status": "succeeded"
+    },
+    "scope_totals": {
+      "scope_blocked": 0,
+      "scope_failed": 0,
+      "scope_succeeded": 1,
+      "scope_total": 1
+    },
+    "status": "succeeded",
+    "step_sequence": [
+      "search_materialize",
+      "freshness_gate",
+      "read_fetch",
+      "index",
+      "analyze",
+      "summarize_run"
+    ]
+  },
+  "manual_audit_notes": {
+    "llm_analysis_excerpt": "The provided evidence does not contain any content from recent San Jose meeting minutes or housing-related signals. The evidence consists solely of website navigation menu items (Home, Residents, Businesses, Jobs, etc.) and placeholder images.",
+    "llm_quality_note": "Z.ai analysis correctly refused to infer housing signals from insufficient evidence; product mechanics passed, discovery/source targeting did not.",
+    "manual_verdict": "PASS_MECHANICS_FAIL_DISCOVERY_QUALITY",
+    "reader_output_excerpt": "https://www.sanjoseca.gov/your-government/appointees/city-clerk/council-agendas-minutes: ![Image 1: Skip to page body](https://www.sanjoseca.gov/DefaultContent/Default/_gfx/spacer.gif) ![Image 2: Home](https://www.sanjoseca.gov/DefaultContent/Default/_gfx/spacer.gif) ![Image 3: Residents](https://www.sanjoseca.gov/DefaultContent/Default/_gfx/spacer.gif) ![Image 4: Businesses](https://www.sanjoseca.gov/DefaultContent/Default/_gfx/spacer.gif) ![Image 5: Jobs](https://www.sanjoseca.gov/DefaultContent/Default/_gfx/spacer.gif) ![Image 6: Your Government](https://www.sanjoseca.gov/Default",
+    "reader_quality_note": "Z.ai reader executed and persisted output, but the selected San Jose source resolved to navigation/menu content rather than actual meeting minutes."
+  },
+  "manual_run": {
+    "attempted": true,
+    "command_client": "backend_endpoint",
+    "contract_metadata_present": true,
+    "final_status": "succeeded",
+    "idempotency_key": "bd-9qjof.6-live-gate-20260413-193847",
+    "job_get": {
+      "canceled": false,
+      "completed_at": "2026-04-13T19:39:39.279017Z",
+      "created_at": "2026-04-13T19:38:48.522300Z",
+      "deleted": false,
+      "duration_ms": 50697,
+      "flow_status": {
+        "failure_module": {
+          "id": "failure_handler",
+          "type": "WaitingForPriorSteps"
+        },
+        "modules": [
+          {
+            "branch_chosen": null,
+            "id": "build_scope_matrix",
+            "skipped": false,
+            "type": "Success"
+          },
+          {
+            "branch_chosen": null,
+            "id": "per_scope_pipeline",
+            "skipped": false,
+            "type": "Success"
+          },
+          {
+            "branch_chosen": {
+              "type": "default"
+            },
+            "id": "branch_outcome_review",
+            "skipped": false,
+            "type": "Success"
+          }
+        ],
+        "step": 3
+      },
+      "id": "019d885a-8b5a-ba1c-343d-cf0093edb51e",
+      "job_kind": "flow",
+      "script_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow"
+    },
+    "job_logs_excerpt": "\u001b[33mNo wmill.yaml found. Use 'wmill init' to bootstrap it.\u001b[39m\n\u001b[36m\u001b[1m\n====== build_scope_matrix ======\u001b[22m\u001b[39m\njob=019d885a-8b9d-ea0c-c5c6-f146da9519db tag=python3 worker=wk-default-661cef133dc0-WZTwK hostname=661cef133dc0 isolation=none\n\nenv deps from local cache: certifi==2026.2.25, charset-normalizer==3.4.7, idna==3.11, requests==2.33.1, urllib3==2.6.3\n\n\n--- PYTHON (3.12) CODE EXECUTION ---\n\n\u001b[36m\u001b[1m\n====== per_scope_pipeline (iteration 0) ======\u001b[22m\u001b[39m\nFlow job completed with success\n\n\u001b[36m\u001b[1m\n====== branch_outcome_review ======\u001b[22m\u001b[39m\nFlow job completed with success\n\n",
+    "scope_totals": {
+      "scope_blocked": 0,
+      "scope_failed": 0,
+      "scope_succeeded": 1,
+      "scope_total": 1
+    },
+    "step_sequence": [
+      "search_materialize",
+      "freshness_gate",
+      "read_fetch",
+      "index",
+      "analyze",
+      "summarize_run"
+    ],
+    "step_sequence_matches_expected": true,
+    "windmill_job_id": "019d885a-8b5a-ba1c-343d-cf0093edb51e"
+  },
+  "result_payload": {
+    "alerts": [],
+    "scope_blocked": 0,
+    "scope_failed": 0,
+    "scope_results": [
+      {
+        "alert": "",
+        "backend_response": {
+          "decision_reason": "run_summary_materialized",
+          "missing_runtime_adapters": [],
+          "refs": {
+            "analyze_reason": "analysis_completed",
+            "analyze_retry_class": "none",
+            "freshness_gate_reason": "fresh",
+            "freshness_gate_retry_class": "none",
+            "index_reason": "chunks_indexed",
+            "index_retry_class": "none",
+            "read_fetch_reason": "raw_scrapes_materialized",
+            "read_fetch_retry_class": "none",
+            "run_id": "fa2046fa-7526-4b7b-abb6-8368c2ed2b72",
+            "search_materialize_reason": "fresh_snapshot_materialized",
+            "search_materialize_retry_class": "none",
+            "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+            "windmill_run_id": "bd-9qjof.6-live-gate-20260413-193847"
+          },
+          "status": "succeeded",
+          "storage_mode": "railway_runtime"
+        },
+        "scope_index": 0,
+        "scope_item": {
+          "jurisdiction": "San Jose CA",
+          "scope_key": "san jose ca::meeting_minutes",
+          "source_family": "meeting_minutes"
+        },
+        "status": "succeeded",
+        "steps": {
+          "analyze": {
+            "alerts": [],
+            "command": "analyze",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "counts": {
+              "analyses": 1,
+              "evidence_chunks": 20
+            },
+            "created_at": "2026-04-13T19:39:38.540162+00:00",
+            "decision_reason": "analysis_completed",
+            "details": {
+              "analysis": {
+                "key_points": [
+                  "The provided evidence contains only website navigation elements and spacer images.",
+                  "No text or data regarding meeting minutes or housing policies is present.",
+                  "Therefore, no housing-related signals can be extracted or summarized."
+                ],
+                "sufficiency_state": "insufficient",
+                "summary": "The provided evidence does not contain any content from recent San Jose meeting minutes or housing-related signals. The evidence consists solely of website navigation menu items (Home, Residents, Businesses, Jobs, etc.) and placeholder images."
+              }
+            },
+            "envelope": {
+              "analysis_question": "Summarize housing-related signals from recent San Jose meeting minutes.",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-9qjof.6-live-gate-20260413-193847",
+              "jurisdiction": "San Jose CA",
+              "orchestrator": "windmill",
+              "scope_idempotency_key": "bd-9qjof.6-live-gate-20260413-193847::1c07b61a28453506",
+              "search_query": "San Jose CA city council meeting minutes housing",
+              "source_family": "meeting_minutes",
+              "stale_status": "fresh",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-9qjof.6-live-gate-20260413-193847",
+              "windmill_workspace": "affordabot"
+            },
+            "refs": {
+              "analysis_id": "f0765b7e-6a5e-5a76-a149-b78081bd3fec",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-9qjof.6-live-gate-20260413-193847"
+            },
+            "retry_class": "none",
+            "status": "succeeded"
+          },
+          "freshness_gate": {
+            "alerts": [],
+            "command": "freshness_gate",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "counts": {
+              "search_results": 10
+            },
+            "created_at": "2026-04-13T19:39:05.681005+00:00",
+            "decision_reason": "fresh",
+            "details": {
+              "fail_closed_ceiling_hours": 168,
+              "fresh_hours": 24,
+              "freshness_status": "fresh",
+              "snapshot_age_hours": 0,
+              "stale_usable_ceiling_hours": 72
+            },
+            "envelope": {
+              "analysis_question": "Summarize housing-related signals from recent San Jose meeting minutes.",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-9qjof.6-live-gate-20260413-193847",
+              "jurisdiction": "San Jose CA",
+              "orchestrator": "windmill",
+              "scope_idempotency_key": "bd-9qjof.6-live-gate-20260413-193847::1c07b61a28453506",
+              "search_query": "San Jose CA city council meeting minutes housing",
+              "source_family": "meeting_minutes",
+              "stale_status": "fresh",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-9qjof.6-live-gate-20260413-193847",
+              "windmill_workspace": "affordabot"
+            },
+            "refs": {
+              "search_snapshot_id": "1da9e3fe-8f6a-41c4-9f9e-729f6f3d5318",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-9qjof.6-live-gate-20260413-193847"
+            },
+            "retry_class": "none",
+            "status": "succeeded"
+          },
+          "index": {
+            "alerts": [],
+            "command": "index",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "counts": {
+              "chunks": 197
+            },
+            "created_at": "2026-04-13T19:39:13.550894+00:00",
+            "decision_reason": "chunks_indexed",
+            "details": {
+              "embedding_count": 197,
+              "embedding_provider": "openrouter:qwen/qwen3-embedding-8b"
+            },
+            "envelope": {
+              "analysis_question": "Summarize housing-related signals from recent San Jose meeting minutes.",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-9qjof.6-live-gate-20260413-193847",
+              "jurisdiction": "San Jose CA",
+              "orchestrator": "windmill",
+              "scope_idempotency_key": "bd-9qjof.6-live-gate-20260413-193847::1c07b61a28453506",
+              "search_query": "San Jose CA city council meeting minutes housing",
+              "source_family": "meeting_minutes",
+              "stale_status": "fresh",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-9qjof.6-live-gate-20260413-193847",
+              "windmill_workspace": "affordabot"
+            },
+            "refs": {
+              "document_id": "a90da874-d409-54a7-a4ac-e6b2d729adbe",
+              "raw_scrape_ids": [
+                "2140d4b0-b2cb-5939-b442-bd941efaa7f2"
+              ],
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-9qjof.6-live-gate-20260413-193847"
+            },
+            "retry_class": "none",
+            "status": "succeeded"
+          },
+          "read_fetch": {
+            "alerts": [],
+            "command": "read_fetch",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "counts": {
+              "artifacts": 1,
+              "raw_scrapes": 1
+            },
+            "created_at": "2026-04-13T19:39:06.727266+00:00",
+            "decision_reason": "raw_scrapes_materialized",
+            "details": {},
+            "envelope": {
+              "analysis_question": "Summarize housing-related signals from recent San Jose meeting minutes.",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-9qjof.6-live-gate-20260413-193847",
+              "jurisdiction": "San Jose CA",
+              "orchestrator": "windmill",
+              "scope_idempotency_key": "bd-9qjof.6-live-gate-20260413-193847::1c07b61a28453506",
+              "search_query": "San Jose CA city council meeting minutes housing",
+              "source_family": "meeting_minutes",
+              "stale_status": "fresh",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-9qjof.6-live-gate-20260413-193847",
+              "windmill_workspace": "affordabot"
+            },
+            "refs": {
+              "artifact_refs": [
+                "artifacts/2026-04-13.windmill-domain.v1/San Jose CA/meeting_minutes/reader_output/beb5625c2920eb405475cd29fcecd1b9eab9f6087c25183754e0267a37c60800.md"
+              ],
+              "document_id": "a90da874-d409-54a7-a4ac-e6b2d729adbe",
+              "raw_scrape_ids": [
+                "2140d4b0-b2cb-5939-b442-bd941efaa7f2"
+              ],
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-9qjof.6-live-gate-20260413-193847"
+            },
+            "retry_class": "none",
+            "status": "succeeded"
+          },
+          "search_materialize": {
+            "alerts": [],
+            "command": "search_materialize",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "counts": {
+              "search_results": 10
+            },
+            "created_at": "2026-04-13T19:39:05.626720+00:00",
+            "decision_reason": "fresh_snapshot_materialized",
+            "details": {
+              "query": "San Jose CA city council meeting minutes housing"
+            },
+            "envelope": {
+              "analysis_question": "Summarize housing-related signals from recent San Jose meeting minutes.",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-9qjof.6-live-gate-20260413-193847",
+              "jurisdiction": "San Jose CA",
+              "orchestrator": "windmill",
+              "scope_idempotency_key": "bd-9qjof.6-live-gate-20260413-193847::1c07b61a28453506",
+              "search_query": "San Jose CA city council meeting minutes housing",
+              "source_family": "meeting_minutes",
+              "stale_status": "fresh",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-9qjof.6-live-gate-20260413-193847",
+              "windmill_workspace": "affordabot"
+            },
+            "refs": {
+              "search_snapshot_id": "1da9e3fe-8f6a-41c4-9f9e-729f6f3d5318",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-9qjof.6-live-gate-20260413-193847"
+            },
+            "retry_class": "none",
+            "status": "succeeded"
+          },
+          "summarize_run": {
+            "alerts": [],
+            "command": "summarize_run",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "counts": {
+              "analyses": 1,
+              "artifacts": 1,
+              "chunks": 197,
+              "evidence_chunks": 20,
+              "raw_scrapes": 1,
+              "search_results": 20
+            },
+            "created_at": "2026-04-13T19:39:38.572538+00:00",
+            "decision_reason": "run_summary_materialized",
+            "details": {
+              "step_statuses": {
+                "analyze": "succeeded",
+                "freshness_gate": "succeeded",
+                "index": "succeeded",
+                "read_fetch": "succeeded",
+                "search_materialize": "succeeded"
+              }
+            },
+            "envelope": {
+              "analysis_question": "Summarize housing-related signals from recent San Jose meeting minutes.",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-9qjof.6-live-gate-20260413-193847",
+              "jurisdiction": "San Jose CA",
+              "orchestrator": "windmill",
+              "scope_idempotency_key": "bd-9qjof.6-live-gate-20260413-193847::1c07b61a28453506",
+              "search_query": "San Jose CA city council meeting minutes housing",
+              "source_family": "meeting_minutes",
+              "stale_status": "fresh",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-9qjof.6-live-gate-20260413-193847",
+              "windmill_workspace": "affordabot"
+            },
+            "refs": {
+              "analyze_reason": "analysis_completed",
+              "analyze_retry_class": "none",
+              "freshness_gate_reason": "fresh",
+              "freshness_gate_retry_class": "none",
+              "index_reason": "chunks_indexed",
+              "index_retry_class": "none",
+              "read_fetch_reason": "raw_scrapes_materialized",
+              "read_fetch_retry_class": "none",
+              "run_id": "fa2046fa-7526-4b7b-abb6-8368c2ed2b72",
+              "search_materialize_reason": "fresh_snapshot_materialized",
+              "search_materialize_retry_class": "none",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-9qjof.6-live-gate-20260413-193847"
+            },
+            "retry_class": "none",
+            "status": "succeeded"
+          }
+        }
+      }
+    ],
+    "scope_succeeded": 1,
+    "scope_total": 1,
+    "status": "succeeded"
+  },
+  "run_mode": "backend-endpoint-run",
+  "search_provider_bakeoff": [
+    {
+      "endpoint": "https://searx.tiekoetter.com/search",
+      "failure_classification": "http_error",
+      "http_status": 429,
+      "latency_ms": 673,
+      "provider": "searxng",
+      "query": "San Jose CA city council meeting minutes housing",
+      "result_count": 0,
+      "status": "failed",
+      "top_results": []
+    },
+    {
+      "endpoint": "https://search.inetol.net/search",
+      "failure_classification": "http_error",
+      "http_status": 429,
+      "latency_ms": 1145,
+      "provider": "searxng",
+      "query": "San Jose CA city council meeting minutes housing",
+      "result_count": 0,
+      "status": "failed",
+      "top_results": []
+    },
+    {
+      "failure_classification": "missing_secret",
+      "latency_ms": 0,
+      "provider": "exa",
+      "query": "San Jose CA city council meeting minutes housing",
+      "result_count": 0,
+      "status": "not_configured",
+      "top_results": []
+    },
+    {
+      "failure_classification": "missing_secret",
+      "latency_ms": 0,
+      "provider": "tavily",
+      "query": "San Jose CA city council meeting minutes housing",
+      "result_count": 0,
+      "status": "not_configured",
+      "top_results": []
+    }
+  ],
+  "stale_drills": [
+    {
+      "idempotency_key": "bd-9qjof.6-live-gate-20260413-193847:stale_but_usable",
+      "requested_stale_status": "stale_but_usable",
+      "scope_failed": 0,
+      "scope_succeeded": 1,
+      "status": "succeeded",
+      "step_sequence": [
+        "search_materialize",
+        "freshness_gate",
+        "read_fetch",
+        "index",
+        "analyze",
+        "summarize_run"
+      ]
+    },
+    {
+      "idempotency_key": "bd-9qjof.6-live-gate-20260413-193847:stale_blocked",
+      "requested_stale_status": "stale_blocked",
+      "scope_failed": 0,
+      "scope_succeeded": 0,
+      "status": "failed",
+      "step_sequence": [
+        "search_materialize",
+        "freshness_gate",
+        "summarize_run"
+      ]
+    }
+  ],
+  "storage_evidence_gates": {
+    "analysis_provenance_chain": {
+      "note": "successful analyze command row found",
+      "status": "passed"
+    },
+    "bridge_mode": {
+      "note": "",
+      "status": "railway_runtime"
+    },
+    "failure_handler_drill": {
+      "note": "failure injection is a separate pre-schedule gate; this San Jose product path run verified the native failure handler surface was configured",
+      "status": "not_run"
+    },
+    "idempotent_rerun": {
+      "note": "rerun_status=succeeded idempotent_reuse=True",
+      "status": "passed"
+    },
+    "minio_object_refs": {
+      "note": "storage_uri refs present in content_artifacts",
+      "status": "passed"
+    },
+    "pgvector_index_probe": {
+      "note": "document_chunks rows found with embeddings (197)",
+      "status": "passed"
+    },
+    "postgres_rows_written": {
+      "note": "Postgres product rows found",
+      "status": "passed"
+    },
+    "reader_output_ref": {
+      "note": "content_artifacts rows found",
+      "status": "passed"
+    },
+    "stale_drill_stale_blocked": {
+      "note": "{'idempotency_key': 'bd-9qjof.6-live-gate-20260413-193847:stale_blocked', 'requested_stale_status': 'stale_blocked', 'status': 'failed', 'scope_succeeded': 0, 'scope_failed': 0, 'step_sequence': ['search_materialize', 'freshness_gate', 'summarize_run']}",
+      "status": "passed"
+    },
+    "stale_drill_stale_but_usable": {
+      "note": "{'idempotency_key': 'bd-9qjof.6-live-gate-20260413-193847:stale_but_usable', 'requested_stale_status': 'stale_but_usable', 'status': 'succeeded', 'scope_succeeded': 1, 'scope_failed': 0, 'step_sequence': ['search_materialize', 'freshness_gate', 'read_fetch', 'index', 'analyze', 'summarize_run']}",
+      "status": "passed"
+    }
+  },
+  "surface_checks": {
+    "jobs_checked_count": 20,
+    "schedule_count": 4,
+    "workspace_profile_listed": true
+  }
+}

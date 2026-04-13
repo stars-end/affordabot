@@ -2,29 +2,52 @@
 
 This file intentionally models orchestration behavior only:
 - build scope matrix (jurisdiction x source family)
-- invoke coarse domain commands via stubs
+- invoke coarse domain commands via stubs (live-safe default)
 - branch on freshness status (blocked vs usable)
 - aggregate run summary + failure handler surface
 
 No direct product writes are performed here.
+
+Notes:
+- `command_client=domain_package` is repo-local execution that depends on the
+  affordabot backend package being present on disk.
+- `command_client=backend_endpoint` is explicit opt-in and fail-closed when
+  endpoint URL/auth are missing or invalid.
+- Windmill-hosted runtime should stay on `command_client=stub` by default.
 """
 
 from __future__ import annotations
 
 import hashlib
+import json
 import sys
 from datetime import timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+import requests
+
 
 CONTRACT_VERSION = "2026-04-13.windmill-domain.v1"
 USABLE_STATUSES = {"fresh", "stale_but_usable", "empty_but_usable"}
 BLOCKED_STATUSES = {"stale_blocked", "empty_blocked"}
+ALLOWED_COMMAND_CLIENTS = {"stub", "domain_package", "backend_endpoint"}
+BACKEND_ENDPOINT_CONNECT_TIMEOUT_SECONDS = 5
+BACKEND_ENDPOINT_READ_TIMEOUT_SECONDS = 120
+BACKEND_RUN_SCOPE_PATH = "/cron/pipeline/domain/run-scope"
 
 
 def _stable_hash(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
+
+
+def _normalize_backend_endpoint_url(endpoint_url: str) -> str:
+    candidate = endpoint_url.rstrip("/")
+    if not candidate:
+        return ""
+    if candidate.endswith(BACKEND_RUN_SCOPE_PATH):
+        return candidate
+    return f"{candidate}{BACKEND_RUN_SCOPE_PATH}"
 
 
 def _envelope(
@@ -166,6 +189,120 @@ def _invoke_command_stub(
     }
 
 
+def _invoke_scope_backend_endpoint(
+    *,
+    envelope: Dict[str, Any],
+    stale_status: str,
+    search_query: Optional[str],
+    analysis_question: Optional[str],
+    backend_endpoint_url: Optional[str],
+    backend_endpoint_auth_token: Optional[str],
+    backend_endpoint_timeout_seconds: int,
+) -> Dict[str, Any]:
+    endpoint_url = _normalize_backend_endpoint_url((backend_endpoint_url or "").strip())
+    auth_token = (backend_endpoint_auth_token or "").strip()
+    if not endpoint_url:
+        return {
+            "status": "failed",
+            "error": "backend_endpoint_missing_configuration",
+            "error_details": {"missing": ["backend_endpoint_url"]},
+            "envelope": envelope,
+            "invoked_command": "run_scope_pipeline",
+        }
+    if not auth_token:
+        return {
+            "status": "failed",
+            "error": "backend_endpoint_missing_configuration",
+            "error_details": {"missing": ["backend_endpoint_auth_token"]},
+            "envelope": envelope,
+            "invoked_command": "run_scope_pipeline",
+        }
+
+    request_payload = {
+        "contract_version": envelope["contract_version"],
+        "idempotency_key": envelope["idempotency_key"],
+        "jurisdiction": envelope["jurisdiction_id"],
+        "source_family": envelope["source_family"],
+        "stale_status": stale_status,
+        "windmill_workspace": envelope["windmill_workspace"],
+        "windmill_flow_path": envelope["windmill_flow_path"],
+        "windmill_run_id": envelope["windmill_run_id"],
+        "windmill_job_id": envelope["windmill_job_id"],
+        "search_query": search_query,
+        "analysis_question": analysis_question,
+    }
+    request_headers = {
+        "Authorization": f"Bearer {auth_token}",
+        "X-PR-CRON-SECRET": auth_token,
+        "X-PR-CRON-SOURCE": envelope["windmill_flow_path"],
+        "Content-Type": "application/json",
+    }
+
+    timeout_seconds = max(1, int(backend_endpoint_timeout_seconds))
+    timeout_tuple = (BACKEND_ENDPOINT_CONNECT_TIMEOUT_SECONDS, timeout_seconds)
+
+    try:
+        response = requests.post(
+            endpoint_url,
+            json=request_payload,
+            headers=request_headers,
+            timeout=timeout_tuple,
+        )
+    except requests.RequestException as exc:
+        return {
+            "status": "failed",
+            "error": "backend_endpoint_request_error",
+            "error_details": {"detail": str(exc), "endpoint_url": endpoint_url},
+            "envelope": envelope,
+            "invoked_command": "run_scope_pipeline",
+        }
+
+    response_payload: Dict[str, Any] | Any
+    try:
+        response_payload = response.json()
+    except ValueError:
+        response_payload = {"raw_text": response.text}
+
+    if response.status_code >= 400:
+        return {
+            "status": "failed",
+            "error": "backend_endpoint_http_error",
+            "error_details": {
+                "http_status": response.status_code,
+                "endpoint_url": endpoint_url,
+                "response": response_payload,
+            },
+            "envelope": envelope,
+            "invoked_command": "run_scope_pipeline",
+        }
+
+    if not isinstance(response_payload, dict):
+        return {
+            "status": "failed",
+            "error": "backend_endpoint_invalid_response",
+            "error_details": {
+                "detail": "response payload is not an object",
+                "endpoint_url": endpoint_url,
+                "response_excerpt": json.dumps(response_payload)[:400],
+            },
+            "envelope": envelope,
+            "invoked_command": "run_scope_pipeline",
+        }
+    if not response_payload.get("status"):
+        return {
+            "status": "failed",
+            "error": "backend_endpoint_invalid_response",
+            "error_details": {
+                "detail": "missing required status in backend response",
+                "endpoint_url": endpoint_url,
+                "response": response_payload,
+            },
+            "envelope": envelope,
+            "invoked_command": "run_scope_pipeline",
+        }
+    return response_payload
+
+
 def _build_scope_matrix(jurisdictions: List[str], source_families: List[str]) -> Dict[str, Any]:
     items: List[Dict[str, Any]] = []
     for jurisdiction in jurisdictions:
@@ -199,8 +336,84 @@ def _run_scope_pipeline(
     stale_status: str,
     search_query: Optional[str],
     analysis_question: Optional[str],
+    command_client: str,
+    backend_endpoint_url: Optional[str],
+    backend_endpoint_auth_token: Optional[str],
+    backend_endpoint_timeout_seconds: int,
 ) -> Dict[str, Any]:
     steps: Dict[str, Dict[str, Any]] = {}
+
+    if command_client == "backend_endpoint":
+        env = _envelope(
+            step="run_scope_pipeline",
+            contract_version=contract_version,
+            architecture_path=architecture_path,
+            windmill_workspace=windmill_workspace,
+            windmill_flow_path=windmill_flow_path,
+            windmill_run_id=windmill_run_id,
+            windmill_job_id=f"{windmill_job_id}:{scope_index}:run_scope_pipeline",
+            idempotency_key=idempotency_key,
+            scope_item=scope_item,
+            scope_index=scope_index,
+            mode=mode,
+        )
+        backend_response = _invoke_scope_backend_endpoint(
+            envelope=env,
+            stale_status=stale_status,
+            search_query=search_query,
+            analysis_question=analysis_question,
+            backend_endpoint_url=backend_endpoint_url,
+            backend_endpoint_auth_token=backend_endpoint_auth_token,
+            backend_endpoint_timeout_seconds=backend_endpoint_timeout_seconds,
+        )
+        if backend_response.get("error"):
+            return {
+                "scope_item": scope_item,
+                "scope_index": scope_index,
+                "status": "failed",
+                "steps": {"run_scope_pipeline": backend_response},
+                "alert": f"backend_endpoint:{backend_response.get('error')}",
+            }
+
+        backend_steps = backend_response.get("steps")
+        if not isinstance(backend_steps, dict):
+            invalid = {
+                "status": "failed",
+                "error": "backend_endpoint_invalid_response",
+                "error_details": {"detail": "missing required steps object"},
+                "envelope": env,
+                "invoked_command": "run_scope_pipeline",
+            }
+            return {
+                "scope_item": scope_item,
+                "scope_index": scope_index,
+                "status": "failed",
+                "steps": {"run_scope_pipeline": invalid},
+                "alert": "backend_endpoint:backend_endpoint_invalid_response",
+            }
+
+        backend_status = backend_response.get("status", "failed")
+        if backend_status in {"succeeded", "succeeded_with_alerts"}:
+            scope_status = "succeeded"
+        elif backend_status == "blocked":
+            scope_status = "blocked"
+        else:
+            scope_status = "failed"
+        backend_alerts = backend_response.get("alerts") or []
+        return {
+            "scope_item": scope_item,
+            "scope_index": scope_index,
+            "status": scope_status,
+            "steps": backend_steps,
+            "alert": ";".join(str(alert) for alert in backend_alerts),
+            "backend_response": {
+                "status": backend_status,
+                "decision_reason": backend_response.get("decision_reason"),
+                "storage_mode": backend_response.get("storage_mode"),
+                "missing_runtime_adapters": backend_response.get("missing_runtime_adapters", []),
+                "refs": backend_response.get("refs", {}),
+            },
+        }
 
     def run_step(command: str, previous: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         env = _envelope(
@@ -695,6 +908,9 @@ def main(
     previous_step_output: Optional[Dict[str, Any]] = None,
     scope_results: Optional[List[Dict[str, Any]]] = None,
     command_client: str = "stub",
+    backend_endpoint_url: Optional[str] = None,
+    backend_endpoint_auth_token: Optional[str] = None,
+    backend_endpoint_timeout_seconds: int = BACKEND_ENDPOINT_READ_TIMEOUT_SECONDS,
     domain_state: Any | None = None,
 ) -> Dict[str, Any]:
     contract_version = contract_version or CONTRACT_VERSION
@@ -706,8 +922,19 @@ def main(
     idempotency_key = idempotency_key or "run:2026-04-13"
     mode = mode or "scheduled"
     stale_status = stale_status or "fresh"
+    command_client = command_client or "stub"
+    backend_endpoint_url = backend_endpoint_url or ""
+    backend_endpoint_auth_token = backend_endpoint_auth_token or ""
+    backend_endpoint_timeout_seconds = int(backend_endpoint_timeout_seconds or BACKEND_ENDPOINT_READ_TIMEOUT_SECONDS)
     jurisdictions = jurisdictions or ["San Jose CA"]
     source_families = source_families or ["meeting_minutes"]
+
+    if command_client not in ALLOWED_COMMAND_CLIENTS:
+        return {
+            "status": "failed",
+            "error": f"unsupported_command_client:{command_client}",
+            "allowed_command_clients": sorted(ALLOWED_COMMAND_CLIENTS),
+        }
 
     if step == "build_scope_matrix":
         return _build_scope_matrix(jurisdictions, source_families)
@@ -716,20 +943,28 @@ def main(
         if not scope_item:
             return {"status": "failed", "error": "missing_scope_item"}
         if command_client == "domain_package":
-            return _run_scope_pipeline_domain_package(
-                contract_version=contract_version,
-                windmill_workspace=windmill_workspace,
-                windmill_flow_path=windmill_flow_path,
-                windmill_run_id=windmill_run_id,
-                windmill_job_id=windmill_job_id,
-                idempotency_key=idempotency_key,
-                scope_item=scope_item,
-                scope_index=scope_index,
-                stale_status=stale_status,
-                search_query=search_query,
-                analysis_question=analysis_question,
-                domain_state=domain_state,
-            )
+            try:
+                return _run_scope_pipeline_domain_package(
+                    contract_version=contract_version,
+                    windmill_workspace=windmill_workspace,
+                    windmill_flow_path=windmill_flow_path,
+                    windmill_run_id=windmill_run_id,
+                    windmill_job_id=windmill_job_id,
+                    idempotency_key=idempotency_key,
+                    scope_item=scope_item,
+                    scope_index=scope_index,
+                    stale_status=stale_status,
+                    search_query=search_query,
+                    analysis_question=analysis_question,
+                    domain_state=domain_state,
+                )
+            except (ImportError, ModuleNotFoundError, FileNotFoundError) as exc:
+                return {
+                    "status": "failed",
+                    "error": "domain_package_unavailable",
+                    "command_client": command_client,
+                    "detail": str(exc),
+                }
         return _run_scope_pipeline(
             contract_version=contract_version,
             architecture_path=architecture_path,
@@ -744,6 +979,10 @@ def main(
             stale_status=stale_status,
             search_query=search_query,
             analysis_question=analysis_question,
+            command_client=command_client,
+            backend_endpoint_url=backend_endpoint_url,
+            backend_endpoint_auth_token=backend_endpoint_auth_token,
+            backend_endpoint_timeout_seconds=backend_endpoint_timeout_seconds,
         )
 
     if step == "run_local_integration_harness":

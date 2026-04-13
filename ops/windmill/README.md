@@ -236,6 +236,55 @@ npx --yes windmill-cli flow get f/affordabot/pipeline_daily_refresh_domain_bound
   --json
 ```
 
+Canonical manual validation harness (Worker B):
+
+```bash
+cd backend
+poetry run python scripts/verification/verify_windmill_sanjose_live_gate.py \
+  --run-mode stub-run \
+  --stale-drill-statuses stale_but_usable,stale_blocked \
+  --idempotent-rerun
+```
+
+Harness artifacts:
+- `docs/poc/windmill-domain-boundary-integration/artifacts/sanjose_live_gate_report.json`
+- `docs/poc/windmill-domain-boundary-integration/artifacts/sanjose_live_gate_report.md`
+- `docs/poc/windmill-domain-boundary-integration/artifacts/search_provider_bakeoff_report.json`
+
+Harness classifications:
+- `stub_orchestration_pass`: Windmill orchestration succeeded, but run is still stub-backed.
+- `backend_bridge_surface_ready`: backend endpoint configuration + local mock probe passed, but storage/runtime evidence is still pending.
+- `full_product_pass`: orchestration plus storage/runtime evidence gates succeeded.
+- `read_only_surface_pass`: deployment/auth surface checks passed in `--run-mode read-only`.
+- `blocked`: required backend endpoint/runtime inputs were unavailable or security checks failed.
+
+Backend endpoint mode (`command_client=backend_endpoint`) is opt-in and fail-closed.
+The flow default remains `command_client=stub`. Do not switch live runs to
+`backend_endpoint` until backend URL/auth and storage adapters are ready.
+When enabled, the flow calls the backend-owned coarse command endpoint at
+`/cron/pipeline/domain/run-scope`; it resolves `BACKEND_PUBLIC_URL` and
+`CRON_SECRET` from Windmill vars using the same pattern as the existing cron
+flows, rather than accepting a pasted auth token in manual run input.
+
+For live product discovery, configure backend search explicitly:
+
+```bash
+WEB_SEARCH_PROVIDER=oss_searxng
+SEARXNG_SEARCH_ENDPOINT=https://<private-or-paid-searxng-host>/search
+```
+
+If `SEARXNG_SEARCH_ENDPOINT` is present and `WEB_SEARCH_PROVIDER` is unset, the
+backend chooses SearXNG for this POC. Z.ai direct search remains available only
+as an explicit fallback (`WEB_SEARCH_PROVIDER=zai`) and should not be used as the
+primary discovery path.
+
+Harness blocker categories:
+- `infra/auth`
+- `windmill_cli`
+- `deployment`
+- `product_bridge`
+- `storage/runtime`
+
 Deploy only the unscheduled domain-boundary POC assets:
 
 ```bash
