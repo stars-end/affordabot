@@ -1,0 +1,437 @@
+summary: Affordabot persisted pipeline POC (San Jose, SearXNG, Z.ai reader/LLM)
+description: >
+  Architecture-locking orchestration POC. Windmill owns flow/retry/timeout/branching.
+  Backend owns domain decisions and persistence.
+value:
+  modules:
+  - id: start_run
+    value:
+      type: script
+      path: f/affordabot/trigger_pipeline_step
+      input_transforms:
+        step:
+          type: static
+          value: start_run
+        backend_url:
+          type: static
+          value: $var:f/affordabot/BACKEND_PUBLIC_URL
+        cron_secret:
+          type: static
+          value: $var:f/affordabot/CRON_SECRET
+        env:
+          type: static
+          value: dev
+        timeout_seconds:
+          type: static
+          value: 120
+        slack_webhook_url:
+          type: static
+          value: $var:f/affordabot/SLACK_WEBHOOK_URL
+        windmill_flow_run_id:
+          type: javascript
+          expr: flow_input.windmill_flow_run_id || null
+        windmill_job_id:
+          type: javascript
+          expr: flow_input.windmill_job_id || null
+        jurisdiction:
+          type: javascript
+          expr: flow_input.jurisdiction || "San Jose, CA"
+        payload:
+          type: javascript
+          expr: >-
+            ({
+              run_label: flow_input.run_label || "windmill-sanjose-poc",
+              query: flow_input.query || "San Jose City Council meeting minutes",
+              family: flow_input.family || "city_council_minutes",
+              jurisdiction: flow_input.jurisdiction || "San Jose, CA",
+              live: flow_input.live || false,
+              prefer_cached_search: flow_input.prefer_cached_search || false,
+              allow_stale_fallback: flow_input.allow_stale_fallback !== false,
+              skip_analysis: flow_input.skip_analysis || false
+            })
+  - id: search_materialize
+    value:
+      type: script
+      path: f/affordabot/trigger_pipeline_step
+      input_transforms:
+        step:
+          type: static
+          value: search_materialize
+        backend_url:
+          type: static
+          value: $var:f/affordabot/BACKEND_PUBLIC_URL
+        cron_secret:
+          type: static
+          value: $var:f/affordabot/CRON_SECRET
+        env:
+          type: static
+          value: dev
+        timeout_seconds:
+          type: static
+          value: 180
+        slack_webhook_url:
+          type: static
+          value: $var:f/affordabot/SLACK_WEBHOOK_URL
+        run_id:
+          type: javascript
+          expr: results.start_run.response.run_id
+        windmill_flow_run_id:
+          type: javascript
+          expr: flow_input.windmill_flow_run_id || null
+        windmill_job_id:
+          type: javascript
+          expr: flow_input.windmill_job_id || null
+        jurisdiction:
+          type: javascript
+          expr: flow_input.jurisdiction || "San Jose, CA"
+      retry:
+        attempts: 3
+        backoff:
+          initial_interval: 60
+          max_interval: 600
+          multiplier: 2
+  - id: decision_branch
+    value:
+      type: branchone
+      branches:
+      - expr: results.search_materialize.response.decision == "fresh_snapshot"
+        modules:
+          - id: read_extract_fresh
+            value:
+              type: script
+              path: f/affordabot/trigger_pipeline_step
+              input_transforms:
+                step:
+                  type: static
+                  value: read_extract
+                backend_url:
+                  type: static
+                  value: $var:f/affordabot/BACKEND_PUBLIC_URL
+                cron_secret:
+                  type: static
+                  value: $var:f/affordabot/CRON_SECRET
+                env:
+                  type: static
+                  value: dev
+                timeout_seconds:
+                  type: static
+                  value: 240
+                slack_webhook_url:
+                  type: static
+                  value: $var:f/affordabot/SLACK_WEBHOOK_URL
+                run_id:
+                  type: javascript
+                  expr: results.start_run.response.run_id
+                windmill_flow_run_id:
+                  type: javascript
+                  expr: flow_input.windmill_flow_run_id || null
+                windmill_job_id:
+                  type: javascript
+                  expr: flow_input.windmill_job_id || null
+                jurisdiction:
+                  type: javascript
+                  expr: flow_input.jurisdiction || "San Jose, CA"
+          - id: analyze_fresh
+            value:
+              type: script
+              path: f/affordabot/trigger_pipeline_step
+              input_transforms:
+                step:
+                  type: static
+                  value: analyze
+                backend_url:
+                  type: static
+                  value: $var:f/affordabot/BACKEND_PUBLIC_URL
+                cron_secret:
+                  type: static
+                  value: $var:f/affordabot/CRON_SECRET
+                env:
+                  type: static
+                  value: dev
+                timeout_seconds:
+                  type: static
+                  value: 240
+                slack_webhook_url:
+                  type: static
+                  value: $var:f/affordabot/SLACK_WEBHOOK_URL
+                run_id:
+                  type: javascript
+                  expr: results.start_run.response.run_id
+                windmill_flow_run_id:
+                  type: javascript
+                  expr: flow_input.windmill_flow_run_id || null
+                windmill_job_id:
+                  type: javascript
+                  expr: flow_input.windmill_job_id || null
+                jurisdiction:
+                  type: javascript
+                  expr: flow_input.jurisdiction || "San Jose, CA"
+          - id: finalize_report_fresh
+            value:
+              type: script
+              path: f/affordabot/trigger_pipeline_step
+              input_transforms:
+                step:
+                  type: static
+                  value: finalize_report
+                backend_url:
+                  type: static
+                  value: $var:f/affordabot/BACKEND_PUBLIC_URL
+                cron_secret:
+                  type: static
+                  value: $var:f/affordabot/CRON_SECRET
+                env:
+                  type: static
+                  value: dev
+                timeout_seconds:
+                  type: static
+                  value: 180
+                slack_webhook_url:
+                  type: static
+                  value: $var:f/affordabot/SLACK_WEBHOOK_URL
+                run_id:
+                  type: javascript
+                  expr: results.start_run.response.run_id
+                windmill_flow_run_id:
+                  type: javascript
+                  expr: flow_input.windmill_flow_run_id || null
+                windmill_job_id:
+                  type: javascript
+                  expr: flow_input.windmill_job_id || null
+                jurisdiction:
+                  type: javascript
+                  expr: flow_input.jurisdiction || "San Jose, CA"
+      - expr: results.search_materialize.response.decision == "stale_backed"
+        modules:
+          - id: read_extract_stale
+            value:
+              type: script
+              path: f/affordabot/trigger_pipeline_step
+              input_transforms:
+                step:
+                  type: static
+                  value: read_extract
+                backend_url:
+                  type: static
+                  value: $var:f/affordabot/BACKEND_PUBLIC_URL
+                cron_secret:
+                  type: static
+                  value: $var:f/affordabot/CRON_SECRET
+                env:
+                  type: static
+                  value: dev
+                timeout_seconds:
+                  type: static
+                  value: 240
+                slack_webhook_url:
+                  type: static
+                  value: $var:f/affordabot/SLACK_WEBHOOK_URL
+                run_id:
+                  type: javascript
+                  expr: results.start_run.response.run_id
+                windmill_flow_run_id:
+                  type: javascript
+                  expr: flow_input.windmill_flow_run_id || null
+                windmill_job_id:
+                  type: javascript
+                  expr: flow_input.windmill_job_id || null
+                jurisdiction:
+                  type: javascript
+                  expr: flow_input.jurisdiction || "San Jose, CA"
+          - id: analyze_stale
+            value:
+              type: script
+              path: f/affordabot/trigger_pipeline_step
+              input_transforms:
+                step:
+                  type: static
+                  value: analyze
+                backend_url:
+                  type: static
+                  value: $var:f/affordabot/BACKEND_PUBLIC_URL
+                cron_secret:
+                  type: static
+                  value: $var:f/affordabot/CRON_SECRET
+                env:
+                  type: static
+                  value: dev
+                timeout_seconds:
+                  type: static
+                  value: 240
+                slack_webhook_url:
+                  type: static
+                  value: $var:f/affordabot/SLACK_WEBHOOK_URL
+                run_id:
+                  type: javascript
+                  expr: results.start_run.response.run_id
+                windmill_flow_run_id:
+                  type: javascript
+                  expr: flow_input.windmill_flow_run_id || null
+                windmill_job_id:
+                  type: javascript
+                  expr: flow_input.windmill_job_id || null
+                jurisdiction:
+                  type: javascript
+                  expr: flow_input.jurisdiction || "San Jose, CA"
+          - id: finalize_report_stale
+            value:
+              type: script
+              path: f/affordabot/trigger_pipeline_step
+              input_transforms:
+                step:
+                  type: static
+                  value: finalize_report
+                backend_url:
+                  type: static
+                  value: $var:f/affordabot/BACKEND_PUBLIC_URL
+                cron_secret:
+                  type: static
+                  value: $var:f/affordabot/CRON_SECRET
+                env:
+                  type: static
+                  value: dev
+                timeout_seconds:
+                  type: static
+                  value: 180
+                slack_webhook_url:
+                  type: static
+                  value: $var:f/affordabot/SLACK_WEBHOOK_URL
+                run_id:
+                  type: javascript
+                  expr: results.start_run.response.run_id
+                windmill_flow_run_id:
+                  type: javascript
+                  expr: flow_input.windmill_flow_run_id || null
+                windmill_job_id:
+                  type: javascript
+                  expr: flow_input.windmill_job_id || null
+                jurisdiction:
+                  type: javascript
+                  expr: flow_input.jurisdiction || "San Jose, CA"
+      - expr: results.search_materialize.response.decision == "zero_results"
+        modules:
+          - id: fail_zero_results
+            value:
+              type: rawscript
+              language: bun
+              input_transforms: {}
+              content: |-
+                export async function main() {
+                  throw new Error("search_materialize decision was zero_results; no silent fallback allowed");
+                }
+      - expr: results.search_materialize.response.decision == "provider_failed_no_fallback"
+        modules:
+          - id: fail_provider_no_fallback
+            value:
+              type: rawscript
+              language: bun
+              input_transforms: {}
+              content: |-
+                export async function main() {
+                  throw new Error("search_materialize decision was provider_failed_no_fallback");
+                }
+      default:
+        - id: fail_unexpected_decision
+          value:
+            type: rawscript
+            language: bun
+            input_transforms:
+              decision:
+                type: javascript
+                expr: results.search_materialize.response.decision
+            content: |-
+              export async function main(decision) {
+                throw new Error(`Unexpected search decision: ${decision}`);
+              }
+  failure_module:
+    id: flow_failure_handler
+    value:
+      type: script
+      path: f/affordabot/trigger_pipeline_step
+      input_transforms:
+        step:
+          type: static
+          value: finalize_report
+        backend_url:
+          type: static
+          value: $var:f/affordabot/BACKEND_PUBLIC_URL
+        cron_secret:
+          type: static
+          value: $var:f/affordabot/CRON_SECRET
+        env:
+          type: static
+          value: dev
+        timeout_seconds:
+          type: static
+          value: 180
+        slack_webhook_url:
+          type: static
+          value: $var:f/affordabot/SLACK_WEBHOOK_URL
+        run_id:
+          type: javascript
+          expr: results.start_run.response.run_id || null
+        windmill_flow_run_id:
+          type: javascript
+          expr: flow_input.windmill_flow_run_id || null
+        windmill_job_id:
+          type: javascript
+          expr: flow_input.windmill_job_id || null
+        jurisdiction:
+          type: javascript
+          expr: flow_input.jurisdiction || "San Jose, CA"
+        payload:
+          type: javascript
+          expr: >-
+            ({
+              failure_handler: "windmill_failure_module",
+              failure_reason: "pipeline_flow_failed_before_finalize"
+            })
+concurrency:
+  limit: 1
+  key: affordabot-persisted-pipeline-poc
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  properties:
+    jurisdiction:
+      type: string
+      description: Jurisdiction identifier for this run.
+      default: San Jose, CA
+    windmill_flow_run_id:
+      type: string
+      description: Optional explicit flow run identifier for downstream traceability.
+      default: null
+    windmill_job_id:
+      type: string
+      description: Optional explicit job identifier for downstream traceability.
+      default: null
+    run_label:
+      type: string
+      description: Optional run label override for POC start step.
+      default: windmill-sanjose-poc
+    query:
+      type: string
+      description: Optional query override for SearXNG materialization.
+      default: San Jose City Council meeting minutes
+    family:
+      type: string
+      description: Optional source family key.
+      default: city_council_minutes
+    live:
+      type: boolean
+      description: Use live providers (SearXNG and Z.ai) when true.
+      default: false
+    prefer_cached_search:
+      type: boolean
+      description: Prefer cached search snapshots when fresh.
+      default: false
+    allow_stale_fallback:
+      type: boolean
+      description: Allow stale-backed fallback when provider fails.
+      default: true
+    skip_analysis:
+      type: boolean
+      description: Skip analysis step for faster orchestration checks.
+      default: false
+  required: []
+ws_error_handler_muted: false
