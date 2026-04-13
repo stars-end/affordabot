@@ -3,6 +3,7 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from services.notifications.email import EmailNotificationService
 from db.postgres_client import PostgresDB
+from services.storage import S3Storage
 from typing import Dict, Any, List, Literal, Optional
 import os
 import logging
@@ -411,7 +412,11 @@ class PipelineDomainRunScopeRequest(BaseModel):
 def _get_pipeline_domain_bridge() -> PipelineDomainBridge:
     bridge = getattr(app.state, "pipeline_domain_bridge", None)
     if bridge is None:
-        bridge = PipelineDomainBridge()
+        storage = getattr(app.state, "pipeline_artifact_storage", None)
+        if storage is None:
+            storage = S3Storage()
+            app.state.pipeline_artifact_storage = storage
+        bridge = PipelineDomainBridge(db=db, storage=storage)
         app.state.pipeline_domain_bridge = bridge
     return bridge
 
@@ -524,7 +529,7 @@ async def cron_pipeline_domain_run_scope(
 
     bridge = _get_pipeline_domain_bridge()
     try:
-        return bridge.run_scope_pipeline(
+        return await bridge.run_scope_pipeline(
             RunScopeRequest(
                 contract_version=payload.contract_version,
                 idempotency_key=payload.idempotency_key,
