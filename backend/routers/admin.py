@@ -1324,16 +1324,20 @@ async def get_pipeline_run_steps_read_model(
             SELECT
                 id,
                 run_id,
+                command,
                 step_name,
                 status,
                 duration_ms,
-                input_args,
+                input_context,
                 output_result,
-                error,
-                timestamp
+                retry_class,
+                decision_reason,
+                alerts,
+                refs,
+                created_at
             FROM pipeline_steps
             WHERE run_id::text = $1
-            ORDER BY timestamp ASC
+            ORDER BY created_at ASC
             """,
             run_id,
         )
@@ -1342,31 +1346,39 @@ async def get_pipeline_run_steps_read_model(
             output_result = _json_payload(row.get("output_result"))
             step_alerts = output_result.get("alerts")
             if not isinstance(step_alerts, list):
+                step_alerts = row.get("alerts")
+            if not isinstance(step_alerts, list):
                 step_alerts = []
             refs = output_result.get("refs")
             if not isinstance(refs, dict):
+                refs = row.get("refs")
+            if not isinstance(refs, dict):
                 refs = {}
+            decision_reason = _to_text(row.get("decision_reason")) or _to_text(
+                output_result.get("decision_reason")
+            )
+            retry_class = _to_text(row.get("retry_class")) or _to_text(
+                output_result.get("retry_class")
+            )
 
             steps.append(
                 {
                     "contract_version": CONTRACT_VERSION,
                     "step_id": _to_text(row.get("id")),
                     "run_id": _to_text(row.get("run_id")),
-                    "command": _to_text(row.get("step_name")),
+                    "command": _to_text(row.get("command"))
+                    or _to_text(row.get("step_name")),
                     "status": _to_text(row.get("status")),
-                    "decision_reason": _to_text(
-                        output_result.get("decision_reason")
-                    )
-                    or None,
-                    "retry_class": _to_text(output_result.get("retry_class")) or "none",
+                    "decision_reason": decision_reason or None,
+                    "retry_class": retry_class or "none",
                     "alerts": [_to_text(item) for item in step_alerts if _to_text(item)],
                     "counts": output_result.get("counts")
                     if isinstance(output_result.get("counts"), dict)
                     else {},
                     "refs": refs,
                     "duration_ms": _coerce_int(row.get("duration_ms")),
-                    "error": _to_text(row.get("error")) or None,
-                    "timestamp": str(row["timestamp"]) if row.get("timestamp") else None,
+                    "error": _to_text(output_result.get("error")) or None,
+                    "timestamp": str(row["created_at"]) if row.get("created_at") else None,
                 }
             )
         return {"contract_version": CONTRACT_VERSION, "run_id": run_id, "steps": steps}

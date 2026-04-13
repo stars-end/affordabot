@@ -55,9 +55,7 @@ export function PipelineStatusPanel({ runId }: Props) {
             try {
                 const data = await adminService.getJurisdictions();
                 setJurisdictions(data);
-                if (data.length > 0 && !selectedJurisdiction) {
-                    setSelectedJurisdiction(data[0].id);
-                }
+                setSelectedJurisdiction((current) => current || data[0]?.id || '');
             } catch (err) {
                 console.error('Failed to load jurisdictions for pipeline panel:', err);
                 setError('Unable to load jurisdictions');

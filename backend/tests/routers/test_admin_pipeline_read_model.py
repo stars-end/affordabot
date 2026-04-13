@@ -154,18 +154,20 @@ def test_get_pipeline_run_steps_shape(client, mock_db):
             "id": "step-1",
             "run_id": "run-2",
             "step_name": "search_materialize",
+            "command": "search_materialize",
             "status": "succeeded",
             "duration_ms": 42,
-            "input_args": {"q": "san jose meeting minutes"},
+            "input_context": {"q": "san jose meeting minutes"},
             "output_result": {
                 "decision_reason": "fresh_snapshot_materialized",
                 "retry_class": "none",
-                "alerts": [],
                 "counts": {"search_results": 2},
-                "refs": {"search_snapshot_id": "snap-1"},
             },
-            "error": None,
-            "timestamp": "2026-04-13T02:00:10Z",
+            "decision_reason": "fresh_snapshot_materialized",
+            "retry_class": "none",
+            "alerts": [],
+            "refs": {"search_snapshot_id": "snap-1"},
+            "created_at": "2026-04-13T02:00:10Z",
         }
     ]
     client.set_auth("admin")

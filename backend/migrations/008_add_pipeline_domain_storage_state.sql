@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS public.pipeline_command_results (
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_pipeline_command_results_idempotency
-  ON public.pipeline_command_results (idempotency_key);
+  ON public.pipeline_command_results (command, idempotency_key);
 
 ALTER TABLE IF EXISTS public.pipeline_runs
   ADD COLUMN IF NOT EXISTS orchestrator text,
