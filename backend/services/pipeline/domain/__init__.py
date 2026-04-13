@@ -1,6 +1,7 @@
 """Affordabot pipeline domain package for Windmill boundary commands."""
 
 from services.pipeline.domain.commands import PipelineDomainCommands
+from services.pipeline.domain.bridge import PipelineDomainBridge, RunScopeRequest
 from services.pipeline.domain.constants import CONTRACT_VERSION
 from services.pipeline.domain.identity import build_v2_canonical_document_key
 from services.pipeline.domain.in_memory import (
@@ -41,6 +42,8 @@ __all__ = [
     "InMemoryVectorStore",
     "PipelineStorageCoordinator",
     "PipelineDomainCommands",
+    "PipelineDomainBridge",
+    "RunScopeRequest",
     "SearchResultItem",
     "WindmillMetadata",
     "build_v2_canonical_document_key",
