@@ -61,11 +61,19 @@ jobs:
       - name: Anti-Prime Contamination Check
         run: bash scripts/ci/check-prime-contamination.sh frontend
 
+      - name: Preservation preflight
+        env:
+          NEXT_PUBLIC_TEST_AUTH_BYPASS: 'true'
+          TEST_AUTH_BYPASS_SECRET: ci-test-secret-for-playwright-only
+          NEXT_PUBLIC_API_URL: http://127.0.0.1:65535
+        run: bash scripts/ci/preservation-preflight.sh
+
       - name: Run Preservation Tests
         env:
           NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_ci_placeholder_for_build_only
           CLERK_SECRET_KEY: sk_test_ci_placeholder_for_build_only
           NEXT_PUBLIC_TEST_AUTH_BYPASS: 'true'
+          NEXT_PUBLIC_API_URL: http://127.0.0.1:65535
           RAILWAY_ENVIRONMENT_NAME: 'dev'
           TEST_AUTH_BYPASS_SECRET: ci-test-secret-for-playwright-only
         run: cd frontend && pnpm test
@@ -78,9 +86,29 @@ jobs:
           path: frontend/playwright-report/
           retention-days: 30
 
+  backend-ruff-preflight:
+    name: Backend Ruff Preflight
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install Ruff
+        run: python3 -m pip install --upgrade ruff
+
+      - name: Run fast Ruff preflight
+        run: |
+          chmod +x scripts/ci/backend-ruff-preflight.sh
+          scripts/ci/backend-ruff-preflight.sh
+
   backend-lint-and-test:
     name: Backend Lint & Test
     runs-on: ubuntu-latest
+    needs: backend-ruff-preflight
     services:
       postgres:
         image: pgvector/pgvector:pg16
@@ -150,36 +178,4 @@ jobs:
 
       - name: Enforce PR metadata (Feature-Key + Agent)
         run: |
-          python3 - <<'PY'
-          import json, os, re, sys
-          event_path = os.environ.get("GITHUB_EVENT_PATH")
-          if not event_path:
-            print("ERROR: GITHUB_EVENT_PATH not set")
-            sys.exit(1)
-
-          with open(event_path, "r", encoding="utf-8") as f:
-            event = json.load(f)
-
-          pr = event.get("pull_request") or {}
-          title = pr.get("title") or ""
-          body = pr.get("body") or ""
-          author = (pr.get("user") or {}).get("login") or ""
-
-          if not re.search(r"\bbd-[a-z0-9]+\b", title):
-            print("ERROR: PR title missing Feature-Key (bd-<beads-id>)")
-            print("Include the Beads id in the PR title, e.g.:")
-            print("  bd-f6fh: Short summary")
-            sys.exit(1)
-
-          if author in {"dependabot[bot]", "renovate[bot]", "github-actions[bot]"}:
-            print(f"INFO: Bot PR ({author}): skipping Agent: enforcement")
-            sys.exit(0)
-
-          if "Agent:" not in body:
-            print("ERROR: PR body missing 'Agent:'")
-            print("Add to PR body, e.g.:")
-            print("  Agent: codex")
-            sys.exit(1)
-
-          print("OK: PR metadata enforcement passed")
-          PY
+          python3 scripts/ci/check-pr-metadata.py
