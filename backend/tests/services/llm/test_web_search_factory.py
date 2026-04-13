@@ -1,7 +1,14 @@
 import asyncio
 import pytest
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import json
+import threading
 
-from services.llm.web_search_factory import ZaiStructuredWebSearchClient
+from services.llm.web_search_factory import (
+    OssSearxngWebSearchClient,
+    ZaiStructuredWebSearchClient,
+    create_web_search_client,
+)
 
 
 def test_parse_duckduckgo_html_extracts_redirected_urls_and_snippets():
@@ -85,3 +92,111 @@ async def test_search_returns_empty_when_fallback_times_out():
 
     assert results == []
     await client.close()
+
+
+@pytest.mark.asyncio
+async def test_oss_searxng_client_normalizes_results():
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):  # noqa: N802
+            body = json.dumps(
+                {
+                    "results": [
+                        {
+                            "title": "Official fiscal analysis",
+                            "url": "https://lao.ca.gov/analysis",
+                            "content": "Contains cost estimates.",
+                        },
+                        {
+                            "title": "Duplicate",
+                            "url": "https://lao.ca.gov/analysis",
+                            "content": "Duplicate row",
+                        },
+                    ]
+                }
+            ).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *args):  # noqa: D401
+            return
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        port = server.server_address[1]
+        client = OssSearxngWebSearchClient(endpoint=f"http://127.0.0.1:{port}/search")
+        results = await client.search("AB 123 fiscal impact", count=5)
+        await client.close()
+    finally:
+        server.shutdown()
+        server.server_close()
+
+    assert len(results) == 1
+    assert results[0]["url"] == "https://lao.ca.gov/analysis"
+    assert "cost estimates" in results[0]["snippet"]
+
+
+@pytest.mark.asyncio
+async def test_oss_searxng_client_retries_on_throttle():
+    calls = {"count": 0}
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):  # noqa: N802
+            calls["count"] += 1
+            if calls["count"] < 3:
+                self.send_response(429)
+                self.end_headers()
+                return
+
+            body = json.dumps(
+                {
+                    "results": [
+                        {
+                            "title": "Recovered result",
+                            "url": "https://example.com/recovered",
+                            "content": "Recovered after throttle.",
+                        }
+                    ]
+                }
+            ).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *args):
+            return
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        port = server.server_address[1]
+        client = OssSearxngWebSearchClient(
+            endpoint=f"http://127.0.0.1:{port}/search",
+            max_retries=3,
+            backoff_base_s=0.0,
+        )
+        results = await client.search("Saratoga CA zoning update", count=3)
+        await client.close()
+    finally:
+        server.shutdown()
+        server.server_close()
+
+    assert calls["count"] == 3
+    assert len(results) == 1
+    assert results[0]["url"] == "https://example.com/recovered"
+
+
+def test_create_web_search_client_uses_oss_provider(monkeypatch):
+    monkeypatch.setenv("WEB_SEARCH_PROVIDER", "oss-searxng")
+    monkeypatch.setenv("OSS_WEB_SEARCH_ENDPOINT", "http://127.0.0.1:9999/search")
+
+    client = create_web_search_client(api_key=None)
+
+    assert isinstance(client, OssSearxngWebSearchClient)

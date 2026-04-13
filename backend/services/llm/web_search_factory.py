@@ -9,14 +9,73 @@ import os
 import re
 from typing import Any
 from urllib.parse import parse_qs, unquote, urlparse
+import urllib.parse
+import urllib.request
+import urllib.error
 
-import httpx
+try:
+    import httpx
+except ModuleNotFoundError:  # pragma: no cover - compatibility path for lean runtimes
+    class _CompatResponse:
+        def __init__(self, status_code: int, body: bytes):
+            self.status_code = status_code
+            self._body = body
+            self.text = body.decode("utf-8", errors="replace")
+
+        def raise_for_status(self) -> None:
+            if self.status_code >= 400:
+                raise RuntimeError(f"HTTP error: {self.status_code}")
+
+        def json(self) -> Any:
+            import json
+
+            return json.loads(self.text)
+
+    class _CompatAsyncClient:
+        def __init__(self, timeout: float = 60.0):
+            self.timeout = timeout
+
+        async def get(self, url: str, params: dict[str, Any] | None = None, headers: dict[str, str] | None = None):
+            def _do_get() -> _CompatResponse:
+                full_url = url
+                if params:
+                    sep = "&" if "?" in url else "?"
+                    full_url = f"{url}{sep}{urllib.parse.urlencode(params, doseq=True)}"
+                req = urllib.request.Request(full_url, headers=headers or {}, method="GET")
+                try:
+                    with urllib.request.urlopen(req, timeout=self.timeout) as response:
+                        return _CompatResponse(response.status, response.read())
+                except urllib.error.HTTPError as e:
+                    return _CompatResponse(e.code, e.read())
+
+            return await asyncio.to_thread(_do_get)
+
+        async def post(self, url: str, json: Any | None = None, headers: dict[str, str] | None = None):
+            def _do_post() -> _CompatResponse:
+                import json as jsonlib
+
+                payload = jsonlib.dumps(json or {}).encode("utf-8")
+                req = urllib.request.Request(url, data=payload, headers=headers or {}, method="POST")
+                try:
+                    with urllib.request.urlopen(req, timeout=self.timeout) as response:
+                        return _CompatResponse(response.status, response.read())
+                except urllib.error.HTTPError as e:
+                    return _CompatResponse(e.code, e.read())
+
+            return await asyncio.to_thread(_do_post)
+
+        async def aclose(self) -> None:
+            return None
+
+    class httpx:  # type: ignore[no-redef]
+        AsyncClient = _CompatAsyncClient
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_ZAI_CHAT_COMPLETIONS_URL = "https://api.z.ai/api/coding/paas/v4/chat/completions"
 DEFAULT_ZAI_SEARCH_MODEL = "glm-4.7"
 DDG_HTML_SEARCH_URL = "https://html.duckduckgo.com/html/"
+DEFAULT_SEARXNG_SEARCH_URL = "http://127.0.0.1:8080/search"
 DEFAULT_USER_AGENT = "Mozilla/5.0"
 
 
@@ -223,8 +282,127 @@ class ZaiStructuredWebSearchClient:
         await self.client.aclose()
 
 
-def create_web_search_client(api_key: str | None) -> ZaiStructuredWebSearchClient:
-    """Create a web-search client using the validated Z.ai structured-search path."""
+class OssSearxngWebSearchClient:
+    """Search client backed by an OSS-hosted SearXNG endpoint."""
+
+    def __init__(
+        self,
+        endpoint: str = DEFAULT_SEARXNG_SEARCH_URL,
+        timeout_s: float = 20.0,
+        max_retries: int = 2,
+        backoff_base_s: float = 0.5,
+        backoff_max_s: float = 5.0,
+    ) -> None:
+        self.endpoint = endpoint.rstrip("/")
+        self.timeout_s = max(0.1, timeout_s)
+        self.max_retries = max(0, max_retries)
+        self.backoff_base_s = max(0.0, backoff_base_s)
+        self.backoff_max_s = max(self.backoff_base_s, backoff_max_s)
+        self.client = httpx.AsyncClient(timeout=self.timeout_s)
+
+    async def search(
+        self,
+        query: str,
+        count: int = 5,
+        domains: list[str] | None = None,
+        recency: str | None = None,
+        **kwargs: Any,
+    ) -> list[dict[str, Any]]:
+        params: dict[str, Any] = {
+            "q": query,
+            "format": "json",
+            "language": "en-US",
+        }
+        if domains:
+            params["engines"] = ",".join(domains)
+        if recency:
+            params["time_range"] = recency
+        if kwargs:
+            params.update(kwargs)
+
+        last_error: Exception | None = None
+        payload: dict[str, Any] = {}
+        for attempt in range(self.max_retries + 1):
+            try:
+                response = await self.client.get(self.endpoint, params=params)
+                status_code = getattr(response, "status_code", 200)
+                if status_code in {429, 503} and attempt < self.max_retries:
+                    await self._sleep_backoff(attempt)
+                    continue
+                response.raise_for_status()
+                payload = response.json()
+                break
+            except Exception as e:
+                last_error = e
+                if attempt >= self.max_retries:
+                    raise
+                await self._sleep_backoff(attempt)
+
+        if not payload and last_error:
+            raise last_error
+
+        normalized: list[dict[str, Any]] = []
+        seen_urls: set[str] = set()
+        for item in payload.get("results", []):
+            url = item.get("url")
+            if not url or url in seen_urls:
+                continue
+            seen_urls.add(url)
+            normalized.append(
+                {
+                    "title": item.get("title", ""),
+                    "url": url,
+                    "link": url,
+                    "snippet": item.get("content", ""),
+                    "content": item.get("content", ""),
+                }
+            )
+            if len(normalized) >= count:
+                break
+        return normalized
+
+    async def _sleep_backoff(self, attempt: int) -> None:
+        if self.backoff_base_s <= 0:
+            return
+        delay = min(
+            self.backoff_max_s,
+            self.backoff_base_s * (2**attempt),
+        )
+        # light jitter avoids synchronized retries across workers.
+        jitter = delay * 0.2
+        await asyncio.sleep(max(0.0, delay + ((jitter * 2 * os.urandom(1)[0] / 255.0) - jitter)))
+
+    async def close(self) -> None:
+        await self.client.aclose()
+
+
+def create_web_search_client(
+    api_key: str | None,
+) -> ZaiStructuredWebSearchClient | OssSearxngWebSearchClient:
+    """Create a web-search client for either Z.ai structured search or OSS SearXNG."""
+    provider = os.getenv("WEB_SEARCH_PROVIDER", "zai").strip().lower()
+    if provider in {"oss", "oss-searxng", "searxng"}:
+        endpoint = (
+            os.getenv("OSS_WEB_SEARCH_ENDPOINT", DEFAULT_SEARXNG_SEARCH_URL)
+            .strip()
+            .rstrip("/")
+        )
+        if not endpoint:
+            endpoint = DEFAULT_SEARXNG_SEARCH_URL
+        timeout_s = float(os.getenv("OSS_WEB_SEARCH_TIMEOUT_S", "20"))
+        max_retries = int(os.getenv("OSS_WEB_SEARCH_MAX_RETRIES", "2"))
+        backoff_base_s = float(os.getenv("OSS_WEB_SEARCH_BACKOFF_BASE_S", "0.5"))
+        backoff_max_s = float(os.getenv("OSS_WEB_SEARCH_BACKOFF_MAX_S", "5"))
+        logger.info("Using OSS web search endpoint: %s", endpoint)
+        return OssSearxngWebSearchClient(
+            endpoint=endpoint,
+            timeout_s=timeout_s,
+            max_retries=max_retries,
+            backoff_base_s=backoff_base_s,
+            backoff_max_s=backoff_max_s,
+        )
+
+    # Default to existing Z.ai behavior.
     endpoint = (
         os.getenv("ZAI_SEARCH_ENDPOINT", DEFAULT_ZAI_CHAT_COMPLETIONS_URL)
         .strip()
