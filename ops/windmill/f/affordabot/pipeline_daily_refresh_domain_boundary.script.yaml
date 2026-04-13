@@ -1,7 +1,7 @@
-summary: Affordabot Path B domain-boundary bakeoff step
+summary: Affordabot Path B domain-boundary orchestration skeleton step
 description: >
-  Step-level script for the Path B windmill storage-boundary bakeoff.
-  This export is for orchestration-shape review and contract comparison.
+  Step-level script for Path B Windmill orchestration.
+  It models scope fanout, freshness branching, and coarse domain command calls.
 lock: ""
 kind: script
 schema:
@@ -12,15 +12,13 @@ schema:
       type: string
       description: Pipeline step name.
       enum:
-        - search_materialize
-        - freshness_gate
-        - read_fetch
-        - index
-        - analyze
-        - summarize_run
+        - build_scope_matrix
+        - run_scope_pipeline
+        - aggregate_run_summary
+        - failure_handler
     contract_version:
       type: string
-      default: 2026-04-12.windmill-storage-bakeoff.v1
+      default: 2026-04-13.windmill-domain-boundary.v1
     architecture_path:
       type: string
       default: affordabot_domain_boundary
@@ -38,13 +36,39 @@ schema:
       default: windmill-job-id
     idempotency_key:
       type: string
-      default: san-jose-ca:meeting_minutes:2026-04-12
-    jurisdiction:
+      default: run:2026-04-13
+    mode:
       type: string
-      default: San Jose CA
-    source_family:
-      type: string
-      default: meeting_minutes
+      default: scheduled
+      enum:
+        - scheduled
+        - manual
+        - replay
+    jurisdictions:
+      type: array
+      items:
+        type: string
+      default:
+        - San Jose CA
+    source_families:
+      type: array
+      items:
+        type: string
+      default:
+        - meeting_minutes
+    scope_item:
+      type: object
+      default: null
+      properties:
+        jurisdiction:
+          type: string
+        source_family:
+          type: string
+        scope_key:
+          type: string
+    scope_index:
+      type: integer
+      default: 0
     stale_status:
       type: string
       default: fresh
@@ -52,6 +76,8 @@ schema:
         - fresh
         - stale_but_usable
         - stale_blocked
+        - empty_but_usable
+        - empty_blocked
     search_query:
       type: string
       default: San Jose CA city council meeting minutes housing
@@ -61,5 +87,10 @@ schema:
     previous_step_output:
       type: object
       default: null
+    scope_results:
+      type: array
+      default: []
+      items:
+        type: object
   required:
     - step

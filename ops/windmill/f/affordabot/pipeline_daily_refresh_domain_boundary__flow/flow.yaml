@@ -1,220 +1,200 @@
-summary: Affordabot Path B domain-boundary daily refresh
+summary: Affordabot Path B domain-boundary daily refresh (orchestration skeleton)
 description: >
-  Windmill-shaped flow export for Path B. Orchestration is step-separate while
-  product writes are owned by affordabot domain commands.
+  Windmill-native orchestration skeleton for Path B.
+  Uses matrix fanout and freshness branching while keeping product writes inside
+  affordabot coarse domain commands.
 value:
+  failure_module:
+    id: failure_handler
+    value:
+      type: script
+      path: f/affordabot/pipeline_daily_refresh_domain_boundary
+      input_transforms:
+        step:
+          type: static
+          value: failure_handler
+        windmill_run_id:
+          type: static
+          value: $flow_job_id
+        windmill_job_id:
+          type: static
+          value: failure_handler
+        idempotency_key:
+          type: javascript
+          expr: flow_input.idempotency_key
+        previous_step_output:
+          type: javascript
+          expr: error
   modules:
-  - id: search_materialize
-    value:
-      type: script
-      path: f/affordabot/pipeline_daily_refresh_domain_boundary
-      retry:
-        attempts: 3
-        backoff:
-          initial_interval: 30
-          max_interval: 300
-          multiplier: 2
-      input_transforms:
-        step:
-          type: static
-          value: search_materialize
-        windmill_run_id:
-          type: static
-          value: $flow_job_id
-        windmill_job_id:
-          type: static
-          value: search_materialize
-        idempotency_key:
-          type: javascript
-          expr: flow_input.idempotency_key
-        jurisdiction:
-          type: javascript
-          expr: flow_input.jurisdiction
-        source_family:
-          type: javascript
-          expr: flow_input.source_family
-        search_query:
-          type: javascript
-          expr: flow_input.search_query
-  - id: freshness_gate
-    value:
-      type: script
-      path: f/affordabot/pipeline_daily_refresh_domain_boundary
-      retry:
-        attempts: 2
-        backoff:
-          initial_interval: 30
-          max_interval: 120
-          multiplier: 2
-      input_transforms:
-        step:
-          type: static
-          value: freshness_gate
-        windmill_run_id:
-          type: static
-          value: $flow_job_id
-        windmill_job_id:
-          type: static
-          value: freshness_gate
-        idempotency_key:
-          type: javascript
-          expr: flow_input.idempotency_key
-        jurisdiction:
-          type: javascript
-          expr: flow_input.jurisdiction
-        source_family:
-          type: javascript
-          expr: flow_input.source_family
-        stale_status:
-          type: javascript
-          expr: flow_input.stale_status
-        previous_step_output:
-          type: javascript
-          expr: results.search_materialize
-  - id: read_fetch
-    value:
-      type: script
-      path: f/affordabot/pipeline_daily_refresh_domain_boundary
-      retry:
-        attempts: 2
-        backoff:
-          initial_interval: 60
-          max_interval: 300
-          multiplier: 2
-      input_transforms:
-        step:
-          type: static
-          value: read_fetch
-        windmill_run_id:
-          type: static
-          value: $flow_job_id
-        windmill_job_id:
-          type: static
-          value: read_fetch
-        idempotency_key:
-          type: javascript
-          expr: flow_input.idempotency_key
-        jurisdiction:
-          type: javascript
-          expr: flow_input.jurisdiction
-        source_family:
-          type: javascript
-          expr: flow_input.source_family
-        previous_step_output:
-          type: javascript
-          expr: results.freshness_gate
-  - id: index
-    value:
-      type: script
-      path: f/affordabot/pipeline_daily_refresh_domain_boundary
-      retry:
-        attempts: 2
-        backoff:
-          initial_interval: 60
-          max_interval: 300
-          multiplier: 2
-      input_transforms:
-        step:
-          type: static
-          value: index
-        windmill_run_id:
-          type: static
-          value: $flow_job_id
-        windmill_job_id:
-          type: static
-          value: index
-        idempotency_key:
-          type: javascript
-          expr: flow_input.idempotency_key
-        jurisdiction:
-          type: javascript
-          expr: flow_input.jurisdiction
-        source_family:
-          type: javascript
-          expr: flow_input.source_family
-        previous_step_output:
-          type: javascript
-          expr: results.read_fetch
-  - id: analyze
-    value:
-      type: script
-      path: f/affordabot/pipeline_daily_refresh_domain_boundary
-      retry:
-        attempts: 1
-      input_transforms:
-        step:
-          type: static
-          value: analyze
-        windmill_run_id:
-          type: static
-          value: $flow_job_id
-        windmill_job_id:
-          type: static
-          value: analyze
-        idempotency_key:
-          type: javascript
-          expr: flow_input.idempotency_key
-        jurisdiction:
-          type: javascript
-          expr: flow_input.jurisdiction
-        source_family:
-          type: javascript
-          expr: flow_input.source_family
-        analysis_question:
-          type: javascript
-          expr: flow_input.analysis_question
-        previous_step_output:
-          type: javascript
-          expr: results.index
-  - id: summarize_run
+  - id: build_scope_matrix
     value:
       type: script
       path: f/affordabot/pipeline_daily_refresh_domain_boundary
       input_transforms:
         step:
           type: static
-          value: summarize_run
+          value: build_scope_matrix
         windmill_run_id:
           type: static
           value: $flow_job_id
         windmill_job_id:
           type: static
-          value: summarize_run
+          value: build_scope_matrix
         idempotency_key:
           type: javascript
           expr: flow_input.idempotency_key
-        jurisdiction:
+        mode:
           type: javascript
-          expr: flow_input.jurisdiction
-        source_family:
+          expr: flow_input.mode
+        jurisdictions:
           type: javascript
-          expr: flow_input.source_family
-        previous_step_output:
+          expr: flow_input.jurisdictions
+        source_families:
           type: javascript
-          expr: results.analyze
+          expr: flow_input.source_families
+  - id: per_scope_pipeline
+    value:
+      type: forloopflow
+      iterator:
+        type: javascript
+        expr: results.build_scope_matrix.scope_items
+      skip_failures: false
+      parallel: true
+      parallelism:
+        expr: flow_input.scope_parallelism
+      modules:
+      - id: run_scope_pipeline
+        value:
+          type: script
+          path: f/affordabot/pipeline_daily_refresh_domain_boundary
+          retry:
+            attempts: 2
+            backoff:
+              initial_interval: 30
+              max_interval: 300
+              multiplier: 2
+          input_transforms:
+            step:
+              type: static
+              value: run_scope_pipeline
+            windmill_run_id:
+              type: static
+              value: $flow_job_id
+            windmill_job_id:
+              type: static
+              value: run_scope_pipeline
+            idempotency_key:
+              type: javascript
+              expr: flow_input.idempotency_key
+            mode:
+              type: javascript
+              expr: flow_input.mode
+            scope_item:
+              type: javascript
+              expr: iter.value
+            scope_index:
+              type: javascript
+              expr: iter.index
+            stale_status:
+              type: javascript
+              expr: flow_input.stale_status
+            search_query:
+              type: javascript
+              expr: flow_input.search_query
+            analysis_question:
+              type: javascript
+              expr: flow_input.analysis_question
+      aggregate:
+        script:
+          type: javascript
+          expr: "return results;"
+  - id: branch_outcome_review
+    value:
+      type: branchone
+      branches:
+      - expr: results.per_scope_pipeline.some(item => item.status !== 'succeeded')
+        modules:
+        - id: blocked_or_failed_summary
+          value:
+            type: script
+            path: f/affordabot/pipeline_daily_refresh_domain_boundary
+            input_transforms:
+              step:
+                type: static
+                value: aggregate_run_summary
+              windmill_run_id:
+                type: static
+                value: $flow_job_id
+              windmill_job_id:
+                type: static
+                value: blocked_or_failed_summary
+              idempotency_key:
+                type: javascript
+                expr: flow_input.idempotency_key
+              scope_results:
+                type: javascript
+                expr: results.per_scope_pipeline
+      default:
+      - id: successful_summary
+        value:
+          type: script
+          path: f/affordabot/pipeline_daily_refresh_domain_boundary
+          input_transforms:
+            step:
+              type: static
+              value: aggregate_run_summary
+            windmill_run_id:
+              type: static
+              value: $flow_job_id
+            windmill_job_id:
+              type: static
+              value: successful_summary
+            idempotency_key:
+              type: javascript
+              expr: flow_input.idempotency_key
+            scope_results:
+              type: javascript
+              expr: results.per_scope_pipeline
 concurrency:
-  limit: 1
-  key: affordabot-domain-boundary-bakeoff
+  limit: 2
+  key: affordabot-domain-boundary
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
   required:
     - idempotency_key
-    - jurisdiction
-    - source_family
+    - jurisdictions
+    - source_families
     - search_query
     - analysis_question
-    - stale_status
+    - mode
   properties:
     idempotency_key:
       type: string
-      default: san-jose-ca:meeting_minutes:2026-04-12
-    jurisdiction:
+      default: run:2026-04-13
+    jurisdictions:
+      type: array
+      items:
+        type: string
+      default:
+        - San Jose CA
+    source_families:
+      type: array
+      items:
+        type: string
+      default:
+        - meeting_minutes
+    mode:
       type: string
-      default: San Jose CA
-    source_family:
-      type: string
-      default: meeting_minutes
+      enum:
+        - scheduled
+        - manual
+        - replay
+      default: scheduled
+    scope_parallelism:
+      type: integer
+      minimum: 1
+      default: 2
     search_query:
       type: string
       default: San Jose CA city council meeting minutes housing
@@ -227,5 +207,7 @@ schema:
         - fresh
         - stale_but_usable
         - stale_blocked
+        - empty_but_usable
+        - empty_blocked
       default: fresh
 ws_error_handler_muted: false
