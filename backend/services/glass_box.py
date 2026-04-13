@@ -469,9 +469,21 @@ class GlassBoxService:
 
         try:
             query = """
-                SELECT id, bill_id, jurisdiction, status, started_at, completed_at, error, models, result,
-                       trigger_source
-                FROM pipeline_runs 
+                SELECT
+                    id,
+                    bill_id,
+                    jurisdiction,
+                    status,
+                    started_at,
+                    completed_at,
+                    error,
+                    models,
+                    result,
+                    trigger_source,
+                    source_family,
+                    windmill_workspace,
+                    windmill_run_id
+                FROM pipeline_runs
                 WHERE id::text = $1
             """
             r = await self.db._fetchrow(query, run_id)
@@ -525,6 +537,9 @@ class GlassBoxService:
                 ),
                 "aggregate_scenario_bounds": analysis.get("aggregate_scenario_bounds"),
                 "trigger_source": trigger_source,
+                "source_family": r.get("source_family"),
+                "windmill_workspace": r.get("windmill_workspace"),
+                "windmill_run_id": r.get("windmill_run_id"),
                 "is_prefix_run": is_prefix_run,
                 "is_fixture_run": is_fixture_run,
                 "run_label": run_label,

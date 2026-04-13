@@ -2,14 +2,12 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, ExternalLink, Loader2, RefreshCcw } from 'lucide-react';
+import Link from 'next/link';
 import { adminService } from '@/services/adminService';
 import type {
     Jurisdiction,
     PipelineJurisdictionStatus,
     PipelineRefreshResponse,
-    PipelineRunDetail,
-    PipelineRunEvidenceResponse,
-    PipelineRunStepsResponse,
 } from '@/services/adminService';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -24,10 +22,6 @@ const SOURCE_FAMILIES = [
     'general_web_reference',
 ];
 
-type Props = {
-    runId?: string | null;
-};
-
 function formatTime(value?: string | null): string {
     if (!value) return 'n/a';
     const date = new Date(value);
@@ -35,15 +29,12 @@ function formatTime(value?: string | null): string {
     return date.toLocaleString();
 }
 
-export function PipelineStatusPanel({ runId }: Props) {
+export function PipelineStatusPanel() {
     const [jurisdictions, setJurisdictions] = useState<Jurisdiction[]>([]);
     const [selectedJurisdiction, setSelectedJurisdiction] = useState<string>('');
     const [sourceFamily, setSourceFamily] = useState<string>('meeting_minutes');
 
     const [status, setStatus] = useState<PipelineJurisdictionStatus | null>(null);
-    const [runDetail, setRunDetail] = useState<PipelineRunDetail | null>(null);
-    const [runSteps, setRunSteps] = useState<PipelineRunStepsResponse | null>(null);
-    const [runEvidence, setRunEvidence] = useState<PipelineRunEvidenceResponse | null>(null);
     const [refreshAck, setRefreshAck] = useState<PipelineRefreshResponse | null>(null);
 
     const [loading, setLoading] = useState(false);
@@ -87,33 +78,6 @@ export function PipelineStatusPanel({ runId }: Props) {
         loadStatus(selectedJurisdiction, sourceFamily);
     }, [selectedJurisdiction, sourceFamily]);
 
-    useEffect(() => {
-        const loadRunData = async () => {
-            if (!runId) {
-                setRunDetail(null);
-                setRunSteps(null);
-                setRunEvidence(null);
-                return;
-            }
-            try {
-                const [detail, steps, evidence] = await Promise.all([
-                    adminService.getPipelineRun(runId),
-                    adminService.getPipelineRunSteps(runId),
-                    adminService.getPipelineRunEvidence(runId),
-                ]);
-                setRunDetail(detail);
-                setRunSteps(steps);
-                setRunEvidence(evidence);
-            } catch (err) {
-                console.error('Failed to load pipeline run detail bundle:', err);
-                setRunDetail(null);
-                setRunSteps(null);
-                setRunEvidence(null);
-            }
-        };
-        loadRunData();
-    }, [runId]);
-
     const statusBadge = useMemo(() => {
         const value = status?.pipeline_status || 'unknown';
         if (value === 'fresh') return <Badge className="bg-emerald-600 text-white">fresh</Badge>;
@@ -139,6 +103,8 @@ export function PipelineStatusPanel({ runId }: Props) {
             setRefreshing(false);
         }
     };
+
+    const pipelineRunId = status?.latest_pipeline_run_id || status?.operator_links?.pipeline_run_id || null;
 
     return (
         <Card data-testid="pipeline-status-panel">
@@ -240,6 +206,14 @@ export function PipelineStatusPanel({ runId }: Props) {
                                     Open Windmill run <ExternalLink className="ml-1 h-3 w-3" />
                                 </a>
                             ) : null}
+                            {pipelineRunId ? (
+                                <Link
+                                    href={`/admin/audits/trace/${encodeURIComponent(pipelineRunId)}`}
+                                    className="mt-2 inline-flex items-center text-xs text-blue-700 underline"
+                                >
+                                    Open Audit Trace run <ExternalLink className="ml-1 h-3 w-3" />
+                                </Link>
+                            ) : null}
                         </div>
                         <div className="rounded border border-slate-200 p-3">
                             <p className="text-sm font-medium text-slate-900">Counts</p>
@@ -270,19 +244,6 @@ export function PipelineStatusPanel({ runId }: Props) {
                 {refreshAck ? (
                     <div className="rounded border border-slate-200 bg-slate-50 p-2 text-xs text-slate-600">
                         {refreshAck.message}
-                    </div>
-                ) : null}
-
-                {runDetail ? (
-                    <div className="rounded border border-slate-200 p-3 text-xs text-slate-700">
-                        <p className="font-medium text-slate-900">Selected Run Context</p>
-                        <p className="mt-1">Run: {runDetail.run_id}</p>
-                        <p>Status: {runDetail.status}</p>
-                        <p>Source family: {runDetail.source_family}</p>
-                        <p>
-                            Steps: {runSteps?.steps.length ?? 0} / Evidence refs:{' '}
-                            {runEvidence?.evidence_count ?? 0}
-                        </p>
                     </div>
                 ) : null}
             </CardContent>
