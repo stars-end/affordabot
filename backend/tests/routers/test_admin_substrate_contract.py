@@ -15,6 +15,15 @@ def test_substrate_routes_exist_on_admin_router() -> None:
     assert '@router.get("/substrate/raw-scrapes/{raw_scrape_id}")' in source
 
 
+def test_pipeline_read_model_routes_exist_on_admin_router() -> None:
+    source = _admin_source()
+    assert '@router.get("/pipeline/jurisdictions/{jurisdiction_id}/status")' in source
+    assert '@router.get("/pipeline/runs/{run_id}")' in source
+    assert '@router.get("/pipeline/runs/{run_id}/steps")' in source
+    assert '@router.get("/pipeline/runs/{run_id}/evidence")' in source
+    assert '@router.post("/pipeline/jurisdictions/{jurisdiction_id}/refresh")' in source
+
+
 def test_substrate_run_query_uses_manual_run_stamp() -> None:
     source = _admin_source()
     assert "COALESCE(rs.metadata->>$1, '') AS run_id" in source

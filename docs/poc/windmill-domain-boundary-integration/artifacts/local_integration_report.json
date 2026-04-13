@@ -1,0 +1,707 @@
+{
+  "evidence": {
+    "happy_status": "succeeded",
+    "rerun_chunk_count_stable": true,
+    "rerun_index_idempotent_reuse": true,
+    "rerun_status": "succeeded",
+    "stale_blocked_short_circuit": true,
+    "stale_blocked_status": "blocked",
+    "windmill_refs_propagated": true
+  },
+  "scenarios": {
+    "happy_first": {
+      "alert": "",
+      "scope_index": 0,
+      "scope_item": {
+        "jurisdiction": "San Jose CA",
+        "source_family": "meeting_minutes"
+      },
+      "status": "succeeded",
+      "steps": {
+        "analyze": {
+          "alerts": [],
+          "command": "analyze",
+          "contract_version": "2026-04-13.windmill-domain.v1",
+          "counts": {
+            "analyses": 1,
+            "evidence_chunks": 4
+          },
+          "created_at": "2026-04-13T00:00:00+00:00",
+          "decision_reason": "analysis_completed",
+          "details": {
+            "sufficiency_state": "qualitative_only"
+          },
+          "envelope": {
+            "architecture_path": "affordabot_domain_boundary",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "idempotency_key": "run:bd-9qjof.6:san-jose:analyze",
+            "jurisdiction_id": "San Jose CA",
+            "jurisdiction_name": "San Jose CA",
+            "mode": "domain_package",
+            "orchestrator": "windmill",
+            "scope_index": 0,
+            "scope_key": "San Jose CA|meeting_minutes|0",
+            "source_family": "meeting_minutes",
+            "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+            "windmill_job_id": "wm-local-job-bd9qjof6:0:5",
+            "windmill_run_id": "wm-local-bd9qjof6",
+            "windmill_step_id": "analyze",
+            "windmill_workspace": "affordabot"
+          },
+          "invoked_command": "analyze",
+          "refs": {
+            "analysis_id": "analysis_0d847e9806531877",
+            "windmill_job_id": "wm-local-job-bd9qjof6:0:5",
+            "windmill_run_id": "wm-local-bd9qjof6"
+          },
+          "retry_class": "none",
+          "status": "succeeded"
+        },
+        "freshness_gate": {
+          "alerts": [],
+          "command": "freshness_gate",
+          "contract_version": "2026-04-13.windmill-domain.v1",
+          "counts": {
+            "search_results": 1
+          },
+          "created_at": "2026-04-13T00:00:00+00:00",
+          "decision_reason": "fresh",
+          "details": {
+            "fail_closed_ceiling_hours": 168,
+            "fallback_age_hours": null,
+            "fresh_hours": 24,
+            "freshness_status": "fresh",
+            "snapshot_age_hours": 0,
+            "stale_usable_ceiling_hours": 72
+          },
+          "envelope": {
+            "architecture_path": "affordabot_domain_boundary",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "idempotency_key": "run:bd-9qjof.6:san-jose:freshness_gate",
+            "jurisdiction_id": "San Jose CA",
+            "jurisdiction_name": "San Jose CA",
+            "mode": "domain_package",
+            "orchestrator": "windmill",
+            "scope_index": 0,
+            "scope_key": "San Jose CA|meeting_minutes|0",
+            "source_family": "meeting_minutes",
+            "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+            "windmill_job_id": "wm-local-job-bd9qjof6:0:2",
+            "windmill_run_id": "wm-local-bd9qjof6",
+            "windmill_step_id": "freshness_gate",
+            "windmill_workspace": "affordabot"
+          },
+          "invoked_command": "freshness_gate",
+          "refs": {
+            "search_snapshot_id": "snapshot_58d18f23ed3a62a1",
+            "windmill_job_id": "wm-local-job-bd9qjof6:0:2",
+            "windmill_run_id": "wm-local-bd9qjof6"
+          },
+          "retry_class": "none",
+          "status": "succeeded"
+        },
+        "index": {
+          "alerts": [],
+          "command": "index",
+          "contract_version": "2026-04-13.windmill-domain.v1",
+          "counts": {
+            "chunks": 4
+          },
+          "created_at": "2026-04-13T00:00:00+00:00",
+          "decision_reason": "chunks_indexed",
+          "details": {},
+          "envelope": {
+            "architecture_path": "affordabot_domain_boundary",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "idempotency_key": "run:bd-9qjof.6:san-jose:index",
+            "jurisdiction_id": "San Jose CA",
+            "jurisdiction_name": "San Jose CA",
+            "mode": "domain_package",
+            "orchestrator": "windmill",
+            "scope_index": 0,
+            "scope_key": "San Jose CA|meeting_minutes|0",
+            "source_family": "meeting_minutes",
+            "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+            "windmill_job_id": "wm-local-job-bd9qjof6:0:4",
+            "windmill_run_id": "wm-local-bd9qjof6",
+            "windmill_step_id": "index",
+            "windmill_workspace": "affordabot"
+          },
+          "invoked_command": "index",
+          "refs": {
+            "raw_scrape_ids": [
+              "raw_cd7d532efe76b4b7"
+            ],
+            "windmill_job_id": "wm-local-job-bd9qjof6:0:4",
+            "windmill_run_id": "wm-local-bd9qjof6"
+          },
+          "retry_class": "none",
+          "status": "succeeded"
+        },
+        "read_fetch": {
+          "alerts": [],
+          "command": "read_fetch",
+          "contract_version": "2026-04-13.windmill-domain.v1",
+          "counts": {
+            "artifacts": 1,
+            "raw_scrapes": 1
+          },
+          "created_at": "2026-04-13T00:00:00+00:00",
+          "decision_reason": "raw_scrapes_materialized",
+          "details": {},
+          "envelope": {
+            "architecture_path": "affordabot_domain_boundary",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "idempotency_key": "run:bd-9qjof.6:san-jose:read_fetch",
+            "jurisdiction_id": "San Jose CA",
+            "jurisdiction_name": "San Jose CA",
+            "mode": "domain_package",
+            "orchestrator": "windmill",
+            "scope_index": 0,
+            "scope_key": "San Jose CA|meeting_minutes|0",
+            "source_family": "meeting_minutes",
+            "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+            "windmill_job_id": "wm-local-job-bd9qjof6:0:3",
+            "windmill_run_id": "wm-local-bd9qjof6",
+            "windmill_step_id": "read_fetch",
+            "windmill_workspace": "affordabot"
+          },
+          "invoked_command": "read_fetch",
+          "refs": {
+            "artifact_refs": [
+              "artifacts/2026-04-13.windmill-domain.v1/San Jose CA/meeting_minutes/reader_output/2ac6d83f3e9b6730204a78fa7b6211a69f0912e09f1756c4d1aee408132c66ff.md"
+            ],
+            "raw_scrape_ids": [
+              "raw_cd7d532efe76b4b7"
+            ],
+            "windmill_job_id": "wm-local-job-bd9qjof6:0:3",
+            "windmill_run_id": "wm-local-bd9qjof6"
+          },
+          "retry_class": "none",
+          "status": "succeeded"
+        },
+        "search_materialize": {
+          "alerts": [],
+          "command": "search_materialize",
+          "contract_version": "2026-04-13.windmill-domain.v1",
+          "counts": {
+            "search_results": 1
+          },
+          "created_at": "2026-04-13T00:00:00+00:00",
+          "decision_reason": "fresh_snapshot_materialized",
+          "details": {
+            "query": "San Jose city council meeting minutes housing"
+          },
+          "envelope": {
+            "architecture_path": "affordabot_domain_boundary",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "idempotency_key": "run:bd-9qjof.6:san-jose:search_materialize",
+            "jurisdiction_id": "San Jose CA",
+            "jurisdiction_name": "San Jose CA",
+            "mode": "domain_package",
+            "orchestrator": "windmill",
+            "scope_index": 0,
+            "scope_key": "San Jose CA|meeting_minutes|0",
+            "source_family": "meeting_minutes",
+            "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+            "windmill_job_id": "wm-local-job-bd9qjof6:0:1",
+            "windmill_run_id": "wm-local-bd9qjof6",
+            "windmill_step_id": "search_materialize",
+            "windmill_workspace": "affordabot"
+          },
+          "invoked_command": "search_materialize",
+          "refs": {
+            "search_snapshot_id": "snapshot_58d18f23ed3a62a1",
+            "windmill_job_id": "wm-local-job-bd9qjof6:0:1",
+            "windmill_run_id": "wm-local-bd9qjof6"
+          },
+          "retry_class": "none",
+          "status": "succeeded"
+        },
+        "summarize_run": {
+          "alerts": [],
+          "command": "summarize_run",
+          "contract_version": "2026-04-13.windmill-domain.v1",
+          "counts": {
+            "analyses": 1,
+            "artifacts": 1,
+            "chunks": 4,
+            "evidence_chunks": 4,
+            "raw_scrapes": 1,
+            "search_results": 2
+          },
+          "created_at": "2026-04-13T00:00:00+00:00",
+          "decision_reason": "run_summary_materialized",
+          "details": {
+            "step_statuses": {
+              "analyze": "succeeded",
+              "freshness_gate": "succeeded",
+              "index": "succeeded",
+              "read_fetch": "succeeded",
+              "search_materialize": "succeeded"
+            }
+          },
+          "envelope": {
+            "architecture_path": "affordabot_domain_boundary",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "idempotency_key": "run:bd-9qjof.6:san-jose:summarize_run",
+            "jurisdiction_id": "San Jose CA",
+            "jurisdiction_name": "San Jose CA",
+            "mode": "domain_package",
+            "orchestrator": "windmill",
+            "scope_index": 0,
+            "scope_key": "San Jose CA|meeting_minutes|0",
+            "source_family": "meeting_minutes",
+            "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+            "windmill_job_id": "wm-local-job-bd9qjof6:0:6",
+            "windmill_run_id": "wm-local-bd9qjof6",
+            "windmill_step_id": "summarize_run",
+            "windmill_workspace": "affordabot"
+          },
+          "invoked_command": "summarize_run",
+          "refs": {
+            "analyze_reason": "analysis_completed",
+            "analyze_retry_class": "none",
+            "freshness_gate_reason": "fresh",
+            "freshness_gate_retry_class": "none",
+            "index_reason": "chunks_indexed",
+            "index_retry_class": "none",
+            "read_fetch_reason": "raw_scrapes_materialized",
+            "read_fetch_retry_class": "none",
+            "run_id": "run_wm-local-bd9qjof6",
+            "search_materialize_reason": "fresh_snapshot_materialized",
+            "search_materialize_retry_class": "none",
+            "windmill_job_id": "wm-local-job-bd9qjof6:0:6",
+            "windmill_run_id": "wm-local-bd9qjof6"
+          },
+          "retry_class": "none",
+          "status": "succeeded"
+        }
+      }
+    },
+    "happy_rerun": {
+      "alert": "",
+      "scope_index": 0,
+      "scope_item": {
+        "jurisdiction": "San Jose CA",
+        "source_family": "meeting_minutes"
+      },
+      "status": "succeeded",
+      "steps": {
+        "analyze": {
+          "alerts": [],
+          "command": "analyze",
+          "contract_version": "2026-04-13.windmill-domain.v1",
+          "counts": {
+            "analyses": 1,
+            "evidence_chunks": 4
+          },
+          "created_at": "2026-04-13T00:00:00+00:00",
+          "decision_reason": "analysis_completed",
+          "details": {
+            "idempotent_reuse": true,
+            "sufficiency_state": "qualitative_only"
+          },
+          "envelope": {
+            "architecture_path": "affordabot_domain_boundary",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "idempotency_key": "run:bd-9qjof.6:san-jose:analyze",
+            "jurisdiction_id": "San Jose CA",
+            "jurisdiction_name": "San Jose CA",
+            "mode": "domain_package",
+            "orchestrator": "windmill",
+            "scope_index": 0,
+            "scope_key": "San Jose CA|meeting_minutes|0",
+            "source_family": "meeting_minutes",
+            "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+            "windmill_job_id": "wm-local-job-bd9qjof6:0:5",
+            "windmill_run_id": "wm-local-bd9qjof6",
+            "windmill_step_id": "analyze",
+            "windmill_workspace": "affordabot"
+          },
+          "invoked_command": "analyze",
+          "refs": {
+            "analysis_id": "analysis_0d847e9806531877",
+            "windmill_job_id": "wm-local-job-bd9qjof6:0:5",
+            "windmill_run_id": "wm-local-bd9qjof6"
+          },
+          "retry_class": "none",
+          "status": "succeeded"
+        },
+        "freshness_gate": {
+          "alerts": [],
+          "command": "freshness_gate",
+          "contract_version": "2026-04-13.windmill-domain.v1",
+          "counts": {
+            "search_results": 1
+          },
+          "created_at": "2026-04-13T00:00:00+00:00",
+          "decision_reason": "fresh",
+          "details": {
+            "fail_closed_ceiling_hours": 168,
+            "fallback_age_hours": null,
+            "fresh_hours": 24,
+            "freshness_status": "fresh",
+            "idempotent_reuse": true,
+            "snapshot_age_hours": 0,
+            "stale_usable_ceiling_hours": 72
+          },
+          "envelope": {
+            "architecture_path": "affordabot_domain_boundary",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "idempotency_key": "run:bd-9qjof.6:san-jose:freshness_gate",
+            "jurisdiction_id": "San Jose CA",
+            "jurisdiction_name": "San Jose CA",
+            "mode": "domain_package",
+            "orchestrator": "windmill",
+            "scope_index": 0,
+            "scope_key": "San Jose CA|meeting_minutes|0",
+            "source_family": "meeting_minutes",
+            "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+            "windmill_job_id": "wm-local-job-bd9qjof6:0:2",
+            "windmill_run_id": "wm-local-bd9qjof6",
+            "windmill_step_id": "freshness_gate",
+            "windmill_workspace": "affordabot"
+          },
+          "invoked_command": "freshness_gate",
+          "refs": {
+            "search_snapshot_id": "snapshot_58d18f23ed3a62a1",
+            "windmill_job_id": "wm-local-job-bd9qjof6:0:2",
+            "windmill_run_id": "wm-local-bd9qjof6"
+          },
+          "retry_class": "none",
+          "status": "succeeded"
+        },
+        "index": {
+          "alerts": [],
+          "command": "index",
+          "contract_version": "2026-04-13.windmill-domain.v1",
+          "counts": {
+            "chunks": 4
+          },
+          "created_at": "2026-04-13T00:00:00+00:00",
+          "decision_reason": "chunks_indexed",
+          "details": {
+            "idempotent_reuse": true
+          },
+          "envelope": {
+            "architecture_path": "affordabot_domain_boundary",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "idempotency_key": "run:bd-9qjof.6:san-jose:index",
+            "jurisdiction_id": "San Jose CA",
+            "jurisdiction_name": "San Jose CA",
+            "mode": "domain_package",
+            "orchestrator": "windmill",
+            "scope_index": 0,
+            "scope_key": "San Jose CA|meeting_minutes|0",
+            "source_family": "meeting_minutes",
+            "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+            "windmill_job_id": "wm-local-job-bd9qjof6:0:4",
+            "windmill_run_id": "wm-local-bd9qjof6",
+            "windmill_step_id": "index",
+            "windmill_workspace": "affordabot"
+          },
+          "invoked_command": "index",
+          "refs": {
+            "raw_scrape_ids": [
+              "raw_cd7d532efe76b4b7"
+            ],
+            "windmill_job_id": "wm-local-job-bd9qjof6:0:4",
+            "windmill_run_id": "wm-local-bd9qjof6"
+          },
+          "retry_class": "none",
+          "status": "succeeded"
+        },
+        "read_fetch": {
+          "alerts": [],
+          "command": "read_fetch",
+          "contract_version": "2026-04-13.windmill-domain.v1",
+          "counts": {
+            "artifacts": 1,
+            "raw_scrapes": 1
+          },
+          "created_at": "2026-04-13T00:00:00+00:00",
+          "decision_reason": "raw_scrapes_materialized",
+          "details": {
+            "idempotent_reuse": true
+          },
+          "envelope": {
+            "architecture_path": "affordabot_domain_boundary",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "idempotency_key": "run:bd-9qjof.6:san-jose:read_fetch",
+            "jurisdiction_id": "San Jose CA",
+            "jurisdiction_name": "San Jose CA",
+            "mode": "domain_package",
+            "orchestrator": "windmill",
+            "scope_index": 0,
+            "scope_key": "San Jose CA|meeting_minutes|0",
+            "source_family": "meeting_minutes",
+            "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+            "windmill_job_id": "wm-local-job-bd9qjof6:0:3",
+            "windmill_run_id": "wm-local-bd9qjof6",
+            "windmill_step_id": "read_fetch",
+            "windmill_workspace": "affordabot"
+          },
+          "invoked_command": "read_fetch",
+          "refs": {
+            "artifact_refs": [
+              "artifacts/2026-04-13.windmill-domain.v1/San Jose CA/meeting_minutes/reader_output/2ac6d83f3e9b6730204a78fa7b6211a69f0912e09f1756c4d1aee408132c66ff.md"
+            ],
+            "raw_scrape_ids": [
+              "raw_cd7d532efe76b4b7"
+            ],
+            "windmill_job_id": "wm-local-job-bd9qjof6:0:3",
+            "windmill_run_id": "wm-local-bd9qjof6"
+          },
+          "retry_class": "none",
+          "status": "succeeded"
+        },
+        "search_materialize": {
+          "alerts": [],
+          "command": "search_materialize",
+          "contract_version": "2026-04-13.windmill-domain.v1",
+          "counts": {
+            "search_results": 1
+          },
+          "created_at": "2026-04-13T00:00:00+00:00",
+          "decision_reason": "fresh_snapshot_materialized",
+          "details": {
+            "idempotent_reuse": true,
+            "query": "San Jose city council meeting minutes housing"
+          },
+          "envelope": {
+            "architecture_path": "affordabot_domain_boundary",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "idempotency_key": "run:bd-9qjof.6:san-jose:search_materialize",
+            "jurisdiction_id": "San Jose CA",
+            "jurisdiction_name": "San Jose CA",
+            "mode": "domain_package",
+            "orchestrator": "windmill",
+            "scope_index": 0,
+            "scope_key": "San Jose CA|meeting_minutes|0",
+            "source_family": "meeting_minutes",
+            "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+            "windmill_job_id": "wm-local-job-bd9qjof6:0:1",
+            "windmill_run_id": "wm-local-bd9qjof6",
+            "windmill_step_id": "search_materialize",
+            "windmill_workspace": "affordabot"
+          },
+          "invoked_command": "search_materialize",
+          "refs": {
+            "search_snapshot_id": "snapshot_58d18f23ed3a62a1",
+            "windmill_job_id": "wm-local-job-bd9qjof6:0:1",
+            "windmill_run_id": "wm-local-bd9qjof6"
+          },
+          "retry_class": "none",
+          "status": "succeeded"
+        },
+        "summarize_run": {
+          "alerts": [],
+          "command": "summarize_run",
+          "contract_version": "2026-04-13.windmill-domain.v1",
+          "counts": {
+            "analyses": 1,
+            "artifacts": 1,
+            "chunks": 4,
+            "evidence_chunks": 4,
+            "raw_scrapes": 1,
+            "search_results": 2
+          },
+          "created_at": "2026-04-13T00:00:00+00:00",
+          "decision_reason": "run_summary_materialized",
+          "details": {
+            "idempotent_reuse": true,
+            "step_statuses": {
+              "analyze": "succeeded",
+              "freshness_gate": "succeeded",
+              "index": "succeeded",
+              "read_fetch": "succeeded",
+              "search_materialize": "succeeded"
+            }
+          },
+          "envelope": {
+            "architecture_path": "affordabot_domain_boundary",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "idempotency_key": "run:bd-9qjof.6:san-jose:summarize_run",
+            "jurisdiction_id": "San Jose CA",
+            "jurisdiction_name": "San Jose CA",
+            "mode": "domain_package",
+            "orchestrator": "windmill",
+            "scope_index": 0,
+            "scope_key": "San Jose CA|meeting_minutes|0",
+            "source_family": "meeting_minutes",
+            "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+            "windmill_job_id": "wm-local-job-bd9qjof6:0:6",
+            "windmill_run_id": "wm-local-bd9qjof6",
+            "windmill_step_id": "summarize_run",
+            "windmill_workspace": "affordabot"
+          },
+          "invoked_command": "summarize_run",
+          "refs": {
+            "analyze_reason": "analysis_completed",
+            "analyze_retry_class": "none",
+            "freshness_gate_reason": "fresh",
+            "freshness_gate_retry_class": "none",
+            "index_reason": "chunks_indexed",
+            "index_retry_class": "none",
+            "read_fetch_reason": "raw_scrapes_materialized",
+            "read_fetch_retry_class": "none",
+            "run_id": "run_wm-local-bd9qjof6",
+            "search_materialize_reason": "fresh_snapshot_materialized",
+            "search_materialize_retry_class": "none",
+            "windmill_job_id": "wm-local-job-bd9qjof6:0:6",
+            "windmill_run_id": "wm-local-bd9qjof6"
+          },
+          "retry_class": "none",
+          "status": "succeeded"
+        }
+      }
+    },
+    "stale_blocked": {
+      "alert": "freshness_gate:stale_blocked",
+      "scope_index": 1,
+      "scope_item": {
+        "jurisdiction": "San Jose CA",
+        "source_family": "meeting_minutes"
+      },
+      "status": "blocked",
+      "steps": {
+        "freshness_gate": {
+          "alerts": [
+            "stale_search_results_fail_closed"
+          ],
+          "command": "freshness_gate",
+          "contract_version": "2026-04-13.windmill-domain.v1",
+          "counts": {
+            "search_results": 1
+          },
+          "created_at": "2026-04-13T00:00:00+00:00",
+          "decision_reason": "stale_blocked",
+          "details": {
+            "fail_closed_ceiling_hours": 168,
+            "fallback_age_hours": 0,
+            "fresh_hours": 24,
+            "freshness_status": "stale_blocked",
+            "snapshot_age_hours": 120,
+            "stale_usable_ceiling_hours": 72
+          },
+          "envelope": {
+            "architecture_path": "affordabot_domain_boundary",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "idempotency_key": "run:bd-9qjof.6:san-jose:blocked:freshness_gate",
+            "jurisdiction_id": "San Jose CA",
+            "jurisdiction_name": "San Jose CA",
+            "mode": "domain_package",
+            "orchestrator": "windmill",
+            "scope_index": 1,
+            "scope_key": "San Jose CA|meeting_minutes|1",
+            "source_family": "meeting_minutes",
+            "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+            "windmill_job_id": "wm-local-job-bd9qjof6:1:2",
+            "windmill_run_id": "wm-local-bd9qjof6",
+            "windmill_step_id": "freshness_gate",
+            "windmill_workspace": "affordabot"
+          },
+          "invoked_command": "freshness_gate",
+          "refs": {
+            "search_snapshot_id": "snapshot_58d18f23ed3a62a1",
+            "windmill_job_id": "wm-local-job-bd9qjof6:1:2",
+            "windmill_run_id": "wm-local-bd9qjof6"
+          },
+          "retry_class": "operator_required",
+          "status": "blocked"
+        },
+        "search_materialize": {
+          "alerts": [],
+          "command": "search_materialize",
+          "contract_version": "2026-04-13.windmill-domain.v1",
+          "counts": {
+            "search_results": 1
+          },
+          "created_at": "2026-04-13T00:00:00+00:00",
+          "decision_reason": "fresh_snapshot_materialized",
+          "details": {
+            "query": "San Jose city council meeting minutes housing"
+          },
+          "envelope": {
+            "architecture_path": "affordabot_domain_boundary",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "idempotency_key": "run:bd-9qjof.6:san-jose:blocked:search_materialize",
+            "jurisdiction_id": "San Jose CA",
+            "jurisdiction_name": "San Jose CA",
+            "mode": "domain_package",
+            "orchestrator": "windmill",
+            "scope_index": 1,
+            "scope_key": "San Jose CA|meeting_minutes|1",
+            "source_family": "meeting_minutes",
+            "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+            "windmill_job_id": "wm-local-job-bd9qjof6:1:1",
+            "windmill_run_id": "wm-local-bd9qjof6",
+            "windmill_step_id": "search_materialize",
+            "windmill_workspace": "affordabot"
+          },
+          "invoked_command": "search_materialize",
+          "refs": {
+            "search_snapshot_id": "snapshot_58d18f23ed3a62a1",
+            "windmill_job_id": "wm-local-job-bd9qjof6:1:1",
+            "windmill_run_id": "wm-local-bd9qjof6"
+          },
+          "retry_class": "none",
+          "status": "succeeded"
+        },
+        "summarize_run": {
+          "alerts": [
+            "stale_search_results_fail_closed"
+          ],
+          "command": "summarize_run",
+          "contract_version": "2026-04-13.windmill-domain.v1",
+          "counts": {
+            "search_results": 2
+          },
+          "created_at": "2026-04-13T00:00:00+00:00",
+          "decision_reason": "run_summary_materialized",
+          "details": {
+            "step_statuses": {
+              "freshness_gate": "blocked",
+              "search_materialize": "succeeded"
+            }
+          },
+          "envelope": {
+            "architecture_path": "affordabot_domain_boundary",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "idempotency_key": "run:bd-9qjof.6:san-jose:blocked:summarize_run",
+            "jurisdiction_id": "San Jose CA",
+            "jurisdiction_name": "San Jose CA",
+            "mode": "domain_package",
+            "orchestrator": "windmill",
+            "scope_index": 1,
+            "scope_key": "San Jose CA|meeting_minutes|1",
+            "source_family": "meeting_minutes",
+            "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+            "windmill_job_id": "wm-local-job-bd9qjof6:1:6",
+            "windmill_run_id": "wm-local-bd9qjof6",
+            "windmill_step_id": "summarize_run",
+            "windmill_workspace": "affordabot"
+          },
+          "invoked_command": "summarize_run",
+          "refs": {
+            "freshness_gate_reason": "stale_blocked",
+            "freshness_gate_retry_class": "operator_required",
+            "run_id": "run_wm-local-bd9qjof6",
+            "search_materialize_reason": "fresh_snapshot_materialized",
+            "search_materialize_retry_class": "none",
+            "windmill_job_id": "wm-local-job-bd9qjof6:1:6",
+            "windmill_run_id": "wm-local-bd9qjof6"
+          },
+          "retry_class": "operator_required",
+          "status": "blocked"
+        }
+      }
+    }
+  },
+  "scope_item": {
+    "jurisdiction": "San Jose CA",
+    "source_family": "meeting_minutes"
+  },
+  "status": "succeeded"
+}

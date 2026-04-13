@@ -19,6 +19,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { PipelineStatusPanel } from '@/components/admin/PipelineStatusPanel';
 
 const RUN_PAGE_SIZE = 30;
 const RAW_ROWS_PAGE_SIZE = 80;
@@ -226,6 +227,8 @@ export function SubstrateExplorer() {
 
     return (
         <div className="space-y-6" data-testid="substrate-explorer">
+            <PipelineStatusPanel runId={selectedRunId} />
+
             <div className="flex items-center justify-between">
                 <div>
                     <h2 className="text-2xl font-bold tracking-tight text-slate-900" data-testid="substrate-title">

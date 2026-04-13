@@ -1,0 +1,37 @@
+summary: Affordabot direct-storage bakeoff runner
+description: >
+  Path A bakeoff script. Windmill owns orchestration and invokes direct-storage
+  helper execution without calling affordabot backend domain endpoints.
+lock: ""
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  properties:
+    run_date:
+      type: string
+      description: Idempotency date for the San Jose meeting-minutes slice.
+      default: null
+      originalType: string
+    scenario:
+      type: string
+      enum:
+        - normal
+        - searx_failure
+        - reader_failure
+        - storage_failure
+      default: normal
+      originalType: string
+    state_dir:
+      type: string
+      default: docs/poc/windmill-storage-bakeoff/path-a-direct-storage/runtime_state
+      originalType: string
+    evidence_dir:
+      type: string
+      default: docs/poc/windmill-storage-bakeoff/path-a-direct-storage
+      originalType: string
+    emit_suite:
+      type: boolean
+      default: false
+      originalType: boolean
+  required: []

@@ -42,6 +42,16 @@ Committed Windmill assets:
 - `ops/windmill/f/affordabot/*__flow/flow.yaml`
 - `ops/windmill/f/affordabot/*.schedule.yaml`
 
+Path B orchestration skeleton (unscheduled by default):
+- `ops/windmill/f/affordabot/pipeline_daily_refresh_domain_boundary.py`
+- `ops/windmill/f/affordabot/pipeline_daily_refresh_domain_boundary.script.yaml`
+- `ops/windmill/f/affordabot/pipeline_daily_refresh_domain_boundary__flow/flow.yaml`
+
+Boundary note:
+- this flow shape calls coarse domain-command stubs only (`search_materialize`, `freshness_gate`,
+  `read_fetch`, `index`, `analyze`, `summarize_run`).
+- direct product writes (Postgres, pgvector, object storage) stay outside Windmill assets.
+
 Required workspace variables:
 
 - `f/affordabot/BACKEND_PUBLIC_URL`
