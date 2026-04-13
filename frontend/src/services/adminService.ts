@@ -138,6 +138,111 @@ export interface SubstrateRunRawFilters {
     content_class?: string;
 }
 
+export interface PipelineFreshness {
+    status: string;
+    fresh_hours: number;
+    stale_usable_ceiling_hours: number;
+    fail_closed_ceiling_hours: number;
+    alerts: string[];
+}
+
+export interface PipelineCounts {
+    search_results: number;
+    raw_scrapes: number;
+    artifacts: number;
+    chunks: number;
+    analyses: number;
+}
+
+export interface PipelineLatestAnalysis {
+    status: 'ready' | 'not_ready' | 'blocked' | string;
+    sufficiency_state: string;
+    evidence_count: number;
+}
+
+export interface PipelineOperatorLinks {
+    windmill_run_url?: string | null;
+    windmill_workspace?: string | null;
+}
+
+export interface PipelineJurisdictionStatus {
+    contract_version: string;
+    jurisdiction_id: string;
+    jurisdiction_name: string;
+    source_family: string;
+    pipeline_status: string;
+    last_success_at: string | null;
+    freshness: PipelineFreshness;
+    counts: PipelineCounts;
+    latest_analysis: PipelineLatestAnalysis;
+    alerts: string[];
+    operator_links: PipelineOperatorLinks;
+}
+
+export interface PipelineRunDetail {
+    contract_version: string;
+    run_id: string;
+    status: string;
+    jurisdiction: string;
+    source_family: string;
+    bill_id: string | null;
+    started_at: string | null;
+    completed_at: string | null;
+    error: string | null;
+    trigger_source: string | null;
+    counts: PipelineCounts;
+    latest_analysis: PipelineLatestAnalysis;
+    alerts: string[];
+    operator_links: PipelineOperatorLinks;
+}
+
+export interface PipelineRunStep {
+    contract_version: string;
+    step_id: string;
+    run_id: string;
+    command: string;
+    status: string;
+    decision_reason: string | null;
+    retry_class: string;
+    alerts: string[];
+    counts: Record<string, number>;
+    refs: Record<string, unknown>;
+    duration_ms: number;
+    error: string | null;
+    timestamp: string | null;
+}
+
+export interface PipelineRunStepsResponse {
+    contract_version: string;
+    run_id: string;
+    steps: PipelineRunStep[];
+}
+
+export interface PipelineEvidenceItem {
+    id: string;
+    type: string;
+    label: string;
+    confidence: number | null;
+    source_ref: string | null;
+}
+
+export interface PipelineRunEvidenceResponse {
+    contract_version: string;
+    run_id: string;
+    evidence_count: number;
+    items: PipelineEvidenceItem[];
+}
+
+export interface PipelineRefreshResponse {
+    contract_version: string;
+    status: string;
+    decision_reason: string;
+    jurisdiction_id: string;
+    jurisdiction_name: string;
+    source_family: string;
+    message: string;
+}
+
 export const adminService = {
     // Sources
     async getSources(): Promise<Source[]> {
@@ -205,6 +310,45 @@ export const adminService = {
     async getJurisdictionDashboard(id: string): Promise<JurisdictionDashboardStats> {
         const res = await fetch(`${API_URL}/api/admin/jurisdiction/${id}/dashboard`);
         if (!res.ok) throw new Error('Failed to fetch dashboard stats');
+        return res.json();
+    },
+
+    // Pipeline read model
+    async getPipelineJurisdictionStatus(jurisdictionId: string, sourceFamily = 'meeting_minutes'): Promise<PipelineJurisdictionStatus> {
+        const params = new URLSearchParams({ source_family: sourceFamily });
+        const res = await fetch(
+            `${API_URL}/api/admin/pipeline/jurisdictions/${encodeURIComponent(jurisdictionId)}/status?${params.toString()}`,
+            NO_STORE_FETCH,
+        );
+        if (!res.ok) throw new Error('Failed to fetch pipeline jurisdiction status');
+        return res.json();
+    },
+
+    async getPipelineRun(runId: string): Promise<PipelineRunDetail> {
+        const res = await fetch(`${API_URL}/api/admin/pipeline/runs/${encodeURIComponent(runId)}`, NO_STORE_FETCH);
+        if (!res.ok) throw new Error('Failed to fetch pipeline run');
+        return res.json();
+    },
+
+    async getPipelineRunSteps(runId: string): Promise<PipelineRunStepsResponse> {
+        const res = await fetch(`${API_URL}/api/admin/pipeline/runs/${encodeURIComponent(runId)}/steps`, NO_STORE_FETCH);
+        if (!res.ok) throw new Error('Failed to fetch pipeline run steps');
+        return res.json();
+    },
+
+    async getPipelineRunEvidence(runId: string): Promise<PipelineRunEvidenceResponse> {
+        const res = await fetch(`${API_URL}/api/admin/pipeline/runs/${encodeURIComponent(runId)}/evidence`, NO_STORE_FETCH);
+        if (!res.ok) throw new Error('Failed to fetch pipeline run evidence');
+        return res.json();
+    },
+
+    async refreshPipelineJurisdiction(jurisdictionId: string, sourceFamily = 'meeting_minutes'): Promise<PipelineRefreshResponse> {
+        const params = new URLSearchParams({ source_family: sourceFamily });
+        const res = await fetch(
+            `${API_URL}/api/admin/pipeline/jurisdictions/${encodeURIComponent(jurisdictionId)}/refresh?${params.toString()}`,
+            { method: 'POST', cache: 'no-store' },
+        );
+        if (!res.ok) throw new Error('Failed to trigger pipeline refresh');
         return res.json();
     },
 
