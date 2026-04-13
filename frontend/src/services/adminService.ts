@@ -163,6 +163,7 @@ export interface PipelineLatestAnalysis {
 export interface PipelineOperatorLinks {
     windmill_run_url?: string | null;
     windmill_workspace?: string | null;
+    pipeline_run_id?: string | null;
 }
 
 export interface PipelineJurisdictionStatus {
@@ -177,60 +178,7 @@ export interface PipelineJurisdictionStatus {
     latest_analysis: PipelineLatestAnalysis;
     alerts: string[];
     operator_links: PipelineOperatorLinks;
-}
-
-export interface PipelineRunDetail {
-    contract_version: string;
-    run_id: string;
-    status: string;
-    jurisdiction: string;
-    source_family: string;
-    bill_id: string | null;
-    started_at: string | null;
-    completed_at: string | null;
-    error: string | null;
-    trigger_source: string | null;
-    counts: PipelineCounts;
-    latest_analysis: PipelineLatestAnalysis;
-    alerts: string[];
-    operator_links: PipelineOperatorLinks;
-}
-
-export interface PipelineRunStep {
-    contract_version: string;
-    step_id: string;
-    run_id: string;
-    command: string;
-    status: string;
-    decision_reason: string | null;
-    retry_class: string;
-    alerts: string[];
-    counts: Record<string, number>;
-    refs: Record<string, unknown>;
-    duration_ms: number;
-    error: string | null;
-    timestamp: string | null;
-}
-
-export interface PipelineRunStepsResponse {
-    contract_version: string;
-    run_id: string;
-    steps: PipelineRunStep[];
-}
-
-export interface PipelineEvidenceItem {
-    id: string;
-    type: string;
-    label: string;
-    confidence: number | null;
-    source_ref: string | null;
-}
-
-export interface PipelineRunEvidenceResponse {
-    contract_version: string;
-    run_id: string;
-    evidence_count: number;
-    items: PipelineEvidenceItem[];
+    latest_pipeline_run_id?: string | null;
 }
 
 export interface PipelineRefreshResponse {
@@ -321,24 +269,6 @@ export const adminService = {
             NO_STORE_FETCH,
         );
         if (!res.ok) throw new Error('Failed to fetch pipeline jurisdiction status');
-        return res.json();
-    },
-
-    async getPipelineRun(runId: string): Promise<PipelineRunDetail> {
-        const res = await fetch(`${API_URL}/api/admin/pipeline/runs/${encodeURIComponent(runId)}`, NO_STORE_FETCH);
-        if (!res.ok) throw new Error('Failed to fetch pipeline run');
-        return res.json();
-    },
-
-    async getPipelineRunSteps(runId: string): Promise<PipelineRunStepsResponse> {
-        const res = await fetch(`${API_URL}/api/admin/pipeline/runs/${encodeURIComponent(runId)}/steps`, NO_STORE_FETCH);
-        if (!res.ok) throw new Error('Failed to fetch pipeline run steps');
-        return res.json();
-    },
-
-    async getPipelineRunEvidence(runId: string): Promise<PipelineRunEvidenceResponse> {
-        const res = await fetch(`${API_URL}/api/admin/pipeline/runs/${encodeURIComponent(runId)}/evidence`, NO_STORE_FETCH);
-        if (!res.ok) throw new Error('Failed to fetch pipeline run evidence');
         return res.json();
     },
 

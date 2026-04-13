@@ -227,7 +227,7 @@ export function SubstrateExplorer() {
 
     return (
         <div className="space-y-6" data-testid="substrate-explorer">
-            <PipelineStatusPanel runId={selectedRunId} />
+            <PipelineStatusPanel />
 
             <div className="flex items-center justify-between">
                 <div>
