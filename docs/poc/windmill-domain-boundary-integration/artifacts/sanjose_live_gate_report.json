@@ -1,0 +1,319 @@
+{
+  "blockers": [
+    {
+      "blocking": false,
+      "category": "product_bridge",
+      "details": {
+        "bridge_mode": "stub"
+      },
+      "message": "flow run is still stub-backed; full product validation not yet possible"
+    },
+    {
+      "blocking": false,
+      "category": "storage/runtime",
+      "details": {
+        "pending_gates": [
+          "postgres_rows_written",
+          "pgvector_index_probe",
+          "minio_object_refs",
+          "reader_output_ref",
+          "analysis_provenance_chain",
+          "idempotent_rerun",
+          "stale_drill_stale_but_usable",
+          "stale_drill_stale_blocked",
+          "failure_handler_drill"
+        ]
+      },
+      "message": "storage/runtime evidence gates are pending"
+    }
+  ],
+  "canonical_variables": {
+    "TMP_WMILL_CONFIG": "auto-created temporary profile directory",
+    "WINDMILL_API_TOKEN": "op://dev/Agent-Secrets-Production/WINDMILL_API_TOKEN",
+    "WINDMILL_BASE_URL": "derived as WINDMILL_DEV_LOGIN_URL without /user/login",
+    "WINDMILL_DEV_LOGIN_URL": "op://dev/Agent-Secrets-Production/WINDMILL_DEV_LOGIN_URL",
+    "WINDMILL_WORKSPACE": "affordabot"
+  },
+  "classification": "stub_orchestration_pass",
+  "deployment_surface": {
+    "flow_deployed": true,
+    "flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+    "flow_unscheduled": true,
+    "script_deployed": true,
+    "script_path": "f/affordabot/pipeline_daily_refresh_domain_boundary"
+  },
+  "feature_key": "bd-9qjof.6",
+  "full_run_readiness": "partial",
+  "generated_at": "2026-04-13T16:55:32.604224+00:00",
+  "harness_version": "2026-04-13.worker-b.v1",
+  "manual_run": {
+    "attempted": true,
+    "contract_metadata_present": true,
+    "final_status": "succeeded",
+    "idempotency_key": "bd-9qjof.6-live-gate-20260413-165526",
+    "job_get": {
+      "canceled": false,
+      "completed_at": "2026-04-13T16:55:28.085069Z",
+      "created_at": "2026-04-13T16:55:27.120576Z",
+      "deleted": false,
+      "duration_ms": 887,
+      "flow_status": {
+        "failure_module": {
+          "id": "failure_handler",
+          "type": "WaitingForPriorSteps"
+        },
+        "modules": [
+          {
+            "branch_chosen": null,
+            "id": "build_scope_matrix",
+            "skipped": false,
+            "type": "Success"
+          },
+          {
+            "branch_chosen": null,
+            "id": "per_scope_pipeline",
+            "skipped": false,
+            "type": "Success"
+          },
+          {
+            "branch_chosen": {
+              "type": "default"
+            },
+            "id": "branch_outcome_review",
+            "skipped": false,
+            "type": "Success"
+          }
+        ],
+        "step": 3
+      },
+      "id": "019d87c4-fca3-6779-c83e-960402d16ccc",
+      "job_kind": "flow",
+      "script_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow"
+    },
+    "job_logs_excerpt": "\u001b[33mNo wmill.yaml found. Use 'wmill init' to bootstrap it.\u001b[39m\n\u001b[36m\u001b[1m\n====== build_scope_matrix ======\u001b[22m\u001b[39m\njob=019d87c4-fcf6-0723-edc6-488707c7dfd0 tag=python3 worker=wk-default-661cef133dc0-WZTwK hostname=661cef133dc0 isolation=none\n\n\n--- PYTHON (3.12) CODE EXECUTION ---\n\n\u001b[36m\u001b[1m\n====== per_scope_pipeline (iteration 0) ======\u001b[22m\u001b[39m\nFlow job completed with success\n\n\u001b[36m\u001b[1m\n====== branch_outcome_review ======\u001b[22m\u001b[39m\nFlow job completed with success\n\n",
+    "scope_totals": {
+      "scope_blocked": 0,
+      "scope_failed": 0,
+      "scope_succeeded": 1,
+      "scope_total": 1
+    },
+    "step_sequence": [
+      "search_materialize",
+      "freshness_gate",
+      "read_fetch",
+      "index",
+      "analyze",
+      "summarize_run"
+    ],
+    "step_sequence_matches_expected": true,
+    "windmill_job_id": "019d87c4-fca3-6779-c83e-960402d16ccc"
+  },
+  "result_payload": {
+    "alerts": [],
+    "scope_blocked": 0,
+    "scope_failed": 0,
+    "scope_results": [
+      {
+        "alert": "",
+        "scope_index": 0,
+        "scope_item": {
+          "jurisdiction": "San Jose CA",
+          "scope_key": "san jose ca::meeting_minutes",
+          "source_family": "meeting_minutes"
+        },
+        "status": "succeeded",
+        "steps": {
+          "analyze": {
+            "analysis_id": "analysis-9c429d7f5322fc15",
+            "envelope": {
+              "architecture_path": "affordabot_domain_boundary",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-9qjof.6-live-gate-20260413-165526",
+              "jurisdiction_id": "San Jose CA",
+              "jurisdiction_name": "San Jose CA",
+              "mode": "manual",
+              "orchestrator": "windmill",
+              "scope_index": 0,
+              "scope_key": "San Jose CA|meeting_minutes|0",
+              "source_family": "meeting_minutes",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:analyze",
+              "windmill_run_id": "bd-9qjof.6-live-gate-20260413-165526",
+              "windmill_step_id": "analyze",
+              "windmill_workspace": "affordabot"
+            },
+            "invoked_command": "analyze",
+            "question": "Summarize housing-related signals from recent San Jose meeting minutes.",
+            "status": "fresh"
+          },
+          "freshness_gate": {
+            "age_seconds": 3600,
+            "envelope": {
+              "architecture_path": "affordabot_domain_boundary",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-9qjof.6-live-gate-20260413-165526",
+              "jurisdiction_id": "San Jose CA",
+              "jurisdiction_name": "San Jose CA",
+              "mode": "manual",
+              "orchestrator": "windmill",
+              "scope_index": 0,
+              "scope_key": "San Jose CA|meeting_minutes|0",
+              "source_family": "meeting_minutes",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:freshness_gate",
+              "windmill_run_id": "bd-9qjof.6-live-gate-20260413-165526",
+              "windmill_step_id": "freshness_gate",
+              "windmill_workspace": "affordabot"
+            },
+            "invoked_command": "freshness_gate",
+            "status": "fresh"
+          },
+          "index": {
+            "chunks_created": 5,
+            "chunks_total": 5,
+            "envelope": {
+              "architecture_path": "affordabot_domain_boundary",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-9qjof.6-live-gate-20260413-165526",
+              "jurisdiction_id": "San Jose CA",
+              "jurisdiction_name": "San Jose CA",
+              "mode": "manual",
+              "orchestrator": "windmill",
+              "scope_index": 0,
+              "scope_key": "San Jose CA|meeting_minutes|0",
+              "source_family": "meeting_minutes",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:index",
+              "windmill_run_id": "bd-9qjof.6-live-gate-20260413-165526",
+              "windmill_step_id": "index",
+              "windmill_workspace": "affordabot"
+            },
+            "invoked_command": "index",
+            "status": "fresh"
+          },
+          "read_fetch": {
+            "canonical_document_key": "doc-f7636943f509e1ec",
+            "envelope": {
+              "architecture_path": "affordabot_domain_boundary",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-9qjof.6-live-gate-20260413-165526",
+              "jurisdiction_id": "San Jose CA",
+              "jurisdiction_name": "San Jose CA",
+              "mode": "manual",
+              "orchestrator": "windmill",
+              "scope_index": 0,
+              "scope_key": "San Jose CA|meeting_minutes|0",
+              "source_family": "meeting_minutes",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:read_fetch",
+              "windmill_run_id": "bd-9qjof.6-live-gate-20260413-165526",
+              "windmill_step_id": "read_fetch",
+              "windmill_workspace": "affordabot"
+            },
+            "invoked_command": "read_fetch",
+            "reader_record_id": "reader-9c429d7f5322fc15",
+            "status": "fresh"
+          },
+          "search_materialize": {
+            "envelope": {
+              "architecture_path": "affordabot_domain_boundary",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-9qjof.6-live-gate-20260413-165526",
+              "jurisdiction_id": "San Jose CA",
+              "jurisdiction_name": "San Jose CA",
+              "mode": "manual",
+              "orchestrator": "windmill",
+              "scope_index": 0,
+              "scope_key": "San Jose CA|meeting_minutes|0",
+              "source_family": "meeting_minutes",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:search_materialize",
+              "windmill_run_id": "bd-9qjof.6-live-gate-20260413-165526",
+              "windmill_step_id": "search_materialize",
+              "windmill_workspace": "affordabot"
+            },
+            "invoked_command": "search_materialize",
+            "query": "San Jose CA city council meeting minutes housing",
+            "result_count": 2,
+            "snapshot_id": "snapshot-f7636943f509e1ec",
+            "status": "fresh"
+          },
+          "summarize_run": {
+            "envelope": {
+              "architecture_path": "affordabot_domain_boundary",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-9qjof.6-live-gate-20260413-165526",
+              "jurisdiction_id": "San Jose CA",
+              "jurisdiction_name": "San Jose CA",
+              "mode": "manual",
+              "orchestrator": "windmill",
+              "scope_index": 0,
+              "scope_key": "San Jose CA|meeting_minutes|0",
+              "source_family": "meeting_minutes",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:summarize_run",
+              "windmill_run_id": "bd-9qjof.6-live-gate-20260413-165526",
+              "windmill_step_id": "summarize_run",
+              "windmill_workspace": "affordabot"
+            },
+            "invoked_command": "summarize_run",
+            "status": "succeeded",
+            "summary": "Path B orchestration skeleton. Product writes belong to affordabot commands.",
+            "terminal_step_status": "fresh"
+          }
+        }
+      }
+    ],
+    "scope_succeeded": 1,
+    "scope_total": 1,
+    "status": "succeeded"
+  },
+  "run_mode": "stub-run",
+  "storage_evidence_gates": {
+    "analysis_provenance_chain": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "bridge_mode": {
+      "note": "Path B orchestration skeleton. Product writes belong to affordabot commands.",
+      "status": "stub"
+    },
+    "failure_handler_drill": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "idempotent_rerun": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "minio_object_refs": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "pgvector_index_probe": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "postgres_rows_written": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "reader_output_ref": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "stale_drill_stale_blocked": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "stale_drill_stale_but_usable": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    }
+  },
+  "surface_checks": {
+    "jobs_checked_count": 10,
+    "schedule_count": 4,
+    "workspace_profile_listed": true
+  }
+}

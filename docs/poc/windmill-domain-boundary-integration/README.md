@@ -26,3 +26,24 @@ Artifacts are written to:
 
 - `docs/poc/windmill-domain-boundary-integration/artifacts/local_integration_report.json`
 - `docs/poc/windmill-domain-boundary-integration/artifacts/local_integration_report.md`
+
+## Live Windmill Manual Gate
+
+Use the canonical live harness:
+
+```bash
+cd backend
+poetry run python scripts/verification/verify_windmill_sanjose_live_gate.py \
+  --run-mode stub-run
+```
+
+Live gate artifacts:
+
+- `docs/poc/windmill-domain-boundary-integration/artifacts/sanjose_live_gate_report.json`
+- `docs/poc/windmill-domain-boundary-integration/artifacts/sanjose_live_gate_report.md`
+
+Live gate classification rules:
+
+- `stub_orchestration_pass`: Windmill DAG + envelope path validated, but command path remains stub-backed.
+- `full_product_pass`: Windmill DAG validated and storage/runtime evidence gates are satisfied.
+- `read_only_surface_pass`: workspace/script/flow/job/schedule surfaces validated without triggering a flow run.

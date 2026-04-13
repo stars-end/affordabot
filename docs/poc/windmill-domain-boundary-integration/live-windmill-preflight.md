@@ -2,14 +2,29 @@
 
 Date: 2026-04-13  
 Epic/Subtask: `bd-9qjof` / `bd-9qjof.6`  
-PR branch: `feature/offline-20260412-windmill-bakeoff`  
-Target PR head at start: `44d0bbe9bfc546cd937b20273991895117e2d7f9`
+PR branch: `feature-bd-9qjof.6`
+Merged baseline: PR #432 at `b89ea9c04924673a221b28e3c1f16d535d4472e2`
 
 ## Verdict
 
-`blocked_by_auth`
+`stub_orchestration_pass` (partial readiness)
 
-Live remote preflight cannot proceed in this session because no Windmill workspace/profile is configured locally, and no non-interactive remote context is available without introducing secret/auth mutation risk.
+Live remote preflight is no longer auth-blocked. The canonical live harness now runs end to end against the shared dev Windmill workspace using cache-only secret access and a temporary CLI profile.
+
+Current blocker to full architecture lock is not CLI/auth; it is product bridge + storage/runtime evidence.
+
+## Canonical Command
+
+```bash
+cd backend
+poetry run python scripts/verification/verify_windmill_sanjose_live_gate.py \
+  --run-mode stub-run
+```
+
+Outputs:
+
+- `docs/poc/windmill-domain-boundary-integration/artifacts/sanjose_live_gate_report.json`
+- `docs/poc/windmill-domain-boundary-integration/artifacts/sanjose_live_gate_report.md`
 
 ### 2026-04-13 Expanded CLI Smoke Update
 
@@ -57,11 +72,11 @@ Observed live workspace state:
 - Domain-boundary POC script and flow were then deployed as unscheduled dev
   assets.
 - Manual San Jose meeting-minutes skeleton flow run completed successfully:
-  - job id: `019d87a2-41c1-9576-7d85-55834a78dbfc`
-  - created at: `2026-04-13T16:17:31.052996Z`
+  - job id: `019d87c4-fca3-6779-c83e-960402d16ccc`
+  - report generated at: `2026-04-13T16:55:32.604224+00:00`
   - script path: `f/affordabot/pipeline_daily_refresh_domain_boundary__flow`
   - success: `true`
-  - idempotency key: `bd-9qjof.6-cli-smoke-2026-04-13-r5`
+  - idempotency key: `bd-9qjof.6-live-gate-20260413-165526`
   - scope: `San Jose CA` / `meeting_minutes`
   - final status: `succeeded`
   - scope totals: `scope_total=1`, `scope_succeeded=1`,
@@ -130,19 +145,18 @@ sed -n '1,220p' ops/windmill/wmill.yaml
 
 Proven:
 
-- PR branch is pinned to expected head SHA (`44d0bbe...`) before investigation.
-- Local native `wmill` binary is not installed on PATH.
+- Local native `wmill` binary is not required; `npx --yes windmill-cli` works.
 - Windmill CLI is available via `npx windmill-cli` (version `1.682.0`).
-- Local Windmill profile state shows no active workspace.
-- Remote workspace enumeration fails with: no workspace given and no default set.
-- Repository has committed Windmill sync config (`ops/windmill/wmill.yaml`) for paths and sync behavior.
+- Agent-safe cached auth resolves `WINDMILL_API_TOKEN` and `WINDMILL_DEV_LOGIN_URL`.
+- Live `affordabot` workspace is reachable with a temp `--config-dir` profile.
+- Domain-boundary script and flow are deployed and unscheduled.
+- Manual San Jose stub run succeeds and emits expected command envelopes.
 
 Not proven:
 
-- Presence of required remote workspace paths/resources for domain-boundary dry-run.
-- Safe isolated run namespace in live workspace.
-- Backend endpoint + internal auth token wiring for live command execution.
-- End-to-end non-scheduled flow run in live Windmill.
+- Full product bridge execution from Windmill to affordabot domain commands with storage writes.
+- Postgres + pgvector + MinIO evidence gates for this run.
+- Idempotent rerun and stale/failure drills in live storage-backed mode.
 
 ## Risk Assessment
 
@@ -155,7 +169,7 @@ workspace if it remains manual and unscheduled because:
    path.
 4. The skeleton flow does not perform product writes.
 
-## Required Next Step
+## Required Next Step (Before Full Product Pass)
 
 Replace skeleton stubs with backend domain-command calls behind the same
 Windmill flow shape, then repeat the manual San Jose run and verify persisted

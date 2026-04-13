@@ -2,11 +2,16 @@
 
 This file intentionally models orchestration behavior only:
 - build scope matrix (jurisdiction x source family)
-- invoke coarse domain commands via stubs
+- invoke coarse domain commands via stubs (live-safe default)
 - branch on freshness status (blocked vs usable)
 - aggregate run summary + failure handler surface
 
 No direct product writes are performed here.
+
+Note: `command_client=domain_package` is repo-local execution that depends on
+the affordabot backend package being present on disk. Windmill-hosted runtime
+should stay on `command_client=stub` unless a backend-hosted command endpoint
+or packaged runtime path is explicitly wired and validated.
 """
 
 from __future__ import annotations
@@ -21,6 +26,7 @@ from typing import Any, Dict, List, Optional
 CONTRACT_VERSION = "2026-04-13.windmill-domain.v1"
 USABLE_STATUSES = {"fresh", "stale_but_usable", "empty_but_usable"}
 BLOCKED_STATUSES = {"stale_blocked", "empty_blocked"}
+ALLOWED_COMMAND_CLIENTS = {"stub", "domain_package"}
 
 
 def _stable_hash(text: str) -> str:
@@ -706,8 +712,16 @@ def main(
     idempotency_key = idempotency_key or "run:2026-04-13"
     mode = mode or "scheduled"
     stale_status = stale_status or "fresh"
+    command_client = command_client or "stub"
     jurisdictions = jurisdictions or ["San Jose CA"]
     source_families = source_families or ["meeting_minutes"]
+
+    if command_client not in ALLOWED_COMMAND_CLIENTS:
+        return {
+            "status": "failed",
+            "error": f"unsupported_command_client:{command_client}",
+            "allowed_command_clients": sorted(ALLOWED_COMMAND_CLIENTS),
+        }
 
     if step == "build_scope_matrix":
         return _build_scope_matrix(jurisdictions, source_families)
@@ -716,20 +730,28 @@ def main(
         if not scope_item:
             return {"status": "failed", "error": "missing_scope_item"}
         if command_client == "domain_package":
-            return _run_scope_pipeline_domain_package(
-                contract_version=contract_version,
-                windmill_workspace=windmill_workspace,
-                windmill_flow_path=windmill_flow_path,
-                windmill_run_id=windmill_run_id,
-                windmill_job_id=windmill_job_id,
-                idempotency_key=idempotency_key,
-                scope_item=scope_item,
-                scope_index=scope_index,
-                stale_status=stale_status,
-                search_query=search_query,
-                analysis_question=analysis_question,
-                domain_state=domain_state,
-            )
+            try:
+                return _run_scope_pipeline_domain_package(
+                    contract_version=contract_version,
+                    windmill_workspace=windmill_workspace,
+                    windmill_flow_path=windmill_flow_path,
+                    windmill_run_id=windmill_run_id,
+                    windmill_job_id=windmill_job_id,
+                    idempotency_key=idempotency_key,
+                    scope_item=scope_item,
+                    scope_index=scope_index,
+                    stale_status=stale_status,
+                    search_query=search_query,
+                    analysis_question=analysis_question,
+                    domain_state=domain_state,
+                )
+            except (ImportError, ModuleNotFoundError, FileNotFoundError) as exc:
+                return {
+                    "status": "failed",
+                    "error": "domain_package_unavailable",
+                    "command_client": command_client,
+                    "detail": str(exc),
+                }
         return _run_scope_pipeline(
             contract_version=contract_version,
             architecture_path=architecture_path,

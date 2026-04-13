@@ -236,6 +236,30 @@ npx --yes windmill-cli flow get f/affordabot/pipeline_daily_refresh_domain_bound
   --json
 ```
 
+Canonical manual validation harness (Worker B):
+
+```bash
+cd backend
+poetry run python scripts/verification/verify_windmill_sanjose_live_gate.py \
+  --run-mode stub-run
+```
+
+Harness artifacts:
+- `docs/poc/windmill-domain-boundary-integration/artifacts/sanjose_live_gate_report.json`
+- `docs/poc/windmill-domain-boundary-integration/artifacts/sanjose_live_gate_report.md`
+
+Harness classifications:
+- `stub_orchestration_pass`: Windmill orchestration succeeded, but run is still stub-backed.
+- `full_product_pass`: orchestration plus storage/runtime evidence gates succeeded.
+- `read_only_surface_pass`: deployment/auth surface checks passed in `--run-mode read-only`.
+
+Harness blocker categories:
+- `infra/auth`
+- `windmill_cli`
+- `deployment`
+- `product_bridge`
+- `storage/runtime`
+
 Deploy only the unscheduled domain-boundary POC assets:
 
 ```bash

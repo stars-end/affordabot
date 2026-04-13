@@ -141,6 +141,9 @@ value:
             analysis_question:
               type: javascript
               expr: flow_input.analysis_question
+            command_client:
+              type: javascript
+              expr: flow_input.command_client
       aggregate:
         script:
           type: javascript
@@ -271,4 +274,10 @@ schema:
         - empty_but_usable
         - empty_blocked
       default: fresh
+    command_client:
+      type: string
+      enum:
+        - stub
+        - domain_package
+      default: stub
 ws_error_handler_muted: false
