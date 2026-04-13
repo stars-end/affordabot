@@ -518,7 +518,7 @@ def _render_markdown(report: dict[str, Any]) -> str:
     if manual_run.get("attempted"):
         lines.extend(
             [
-                f"- attempted: `true`",
+                "- attempted: `true`",
                 f"- idempotency_key: `{manual_run.get('idempotency_key', '')}`",
                 f"- windmill_job_id: `{manual_run.get('windmill_job_id', 'not_found')}`",
                 f"- final_status: `{manual_run.get('final_status', 'unknown')}`",
