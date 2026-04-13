@@ -149,8 +149,10 @@ def test_rerun_idempotency_keeps_counts_stable() -> None:
         policy=_default_policy(),
     )
     by_command = {item.command: item for item in second}
-    assert by_command["search_materialize"].status == "skipped"
-    assert by_command["index"].status == "skipped"
+    assert by_command["search_materialize"].status == "succeeded"
+    assert by_command["search_materialize"].details["idempotent_reuse"] is True
+    assert by_command["index"].status == "succeeded"
+    assert by_command["index"].details["idempotent_reuse"] is True
     assert len(state.chunks) == chunk_count
     assert first[-1].refs["run_id"] == second[-1].refs["run_id"]
 
@@ -303,4 +305,3 @@ def test_empty_blocked_flow_summarizes_and_stops() -> None:
     assert by_command["freshness_gate"].decision_reason == "empty_blocked"
     assert "read_fetch" not in by_command
     assert by_command["summarize_run"].status == "blocked"
-

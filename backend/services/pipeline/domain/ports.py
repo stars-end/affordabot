@@ -70,4 +70,3 @@ class Analyzer(Protocol):
         self, *, question: str, evidence_chunks: list[dict[str, Any]]
     ) -> dict[str, Any]:
         ...
-

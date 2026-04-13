@@ -15,6 +15,7 @@ import hashlib
 from typing import Any, Dict, List, Optional
 
 
+CONTRACT_VERSION = "2026-04-13.windmill-domain.v1"
 USABLE_STATUSES = {"fresh", "stale_but_usable", "empty_but_usable"}
 BLOCKED_STATUSES = {"stale_blocked", "empty_blocked"}
 
@@ -50,7 +51,8 @@ def _envelope(
         "windmill_job_id": windmill_job_id,
         "windmill_step_id": step,
         "idempotency_key": idempotency_key,
-        "jurisdiction": jurisdiction,
+        "jurisdiction_id": jurisdiction,
+        "jurisdiction_name": jurisdiction,
         "source_family": source_family,
         "scope_index": scope_index,
         "scope_key": scope_key,
@@ -297,7 +299,7 @@ def _aggregate_scope_results(scope_results: List[Dict[str, Any]]) -> Dict[str, A
 
 def main(
     step: str,
-    contract_version: str = "2026-04-13.windmill-domain-boundary.v1",
+    contract_version: str = CONTRACT_VERSION,
     architecture_path: str = "affordabot_domain_boundary",
     windmill_workspace: str = "affordabot",
     windmill_flow_path: str = "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",

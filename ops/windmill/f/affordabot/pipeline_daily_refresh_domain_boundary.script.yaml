@@ -18,7 +18,7 @@ schema:
         - failure_handler
     contract_version:
       type: string
-      default: 2026-04-13.windmill-domain-boundary.v1
+      default: 2026-04-13.windmill-domain.v1
     architecture_path:
       type: string
       default: affordabot_domain_boundary

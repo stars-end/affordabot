@@ -76,4 +76,3 @@ class FreshnessPolicy:
     fresh_hours: int
     stale_usable_ceiling_hours: int
     fail_closed_ceiling_hours: int
-

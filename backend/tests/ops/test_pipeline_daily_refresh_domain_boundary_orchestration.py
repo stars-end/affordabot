@@ -35,9 +35,12 @@ def test_scope_pipeline_happy_path_passes_windmill_envelope_between_steps():
         "summarize_run",
     }
     for step_name, payload in result["steps"].items():
+        assert payload["envelope"]["contract_version"] == "2026-04-13.windmill-domain.v1"
         assert payload["envelope"]["orchestrator"] == "windmill"
         assert payload["envelope"]["windmill_workspace"] == "affordabot"
         assert payload["envelope"]["windmill_step_id"] == step_name
+        assert payload["envelope"]["jurisdiction_id"] == "San Jose CA"
+        assert payload["envelope"]["jurisdiction_name"] == "San Jose CA"
         assert payload["invoked_command"] in {
             "search_materialize",
             "freshness_gate",

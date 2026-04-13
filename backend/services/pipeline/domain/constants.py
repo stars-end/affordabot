@@ -34,4 +34,3 @@ RetryClass = Literal[
     "insufficient_evidence",
     "operator_required",
 ]
-

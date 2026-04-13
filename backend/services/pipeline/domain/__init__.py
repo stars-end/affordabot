@@ -35,4 +35,3 @@ __all__ = [
     "WindmillMetadata",
     "build_v2_canonical_document_key",
 ]
-

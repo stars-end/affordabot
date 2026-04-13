@@ -71,14 +71,22 @@ class PipelineDomainCommands:
         self.analyzer = analyzer
 
     def _reuse_if_idempotent(self, envelope: CommandEnvelope) -> CommandResponse | None:
-        cached = self.state.command_results.get(envelope.idempotency_key)
+        cached = self.state.command_results.get(self._command_result_key(envelope))
         if not cached:
             return None
-        return CommandResponse(**cached)
+        response = CommandResponse(**cached)
+        response.details = {
+            **response.details,
+            "idempotent_reuse": True,
+        }
+        return response
 
     def _store_result(self, envelope: CommandEnvelope, response: CommandResponse) -> CommandResponse:
-        self.state.command_results[envelope.idempotency_key] = asdict(response)
+        self.state.command_results[self._command_result_key(envelope)] = asdict(response)
         return response
+
+    def _command_result_key(self, envelope: CommandEnvelope) -> str:
+        return f"{envelope.command}:{envelope.idempotency_key}"
 
     def _windmill_refs(self, envelope: CommandEnvelope) -> dict[str, str]:
         return {
@@ -92,8 +100,6 @@ class PipelineDomainCommands:
         envelope.validate()
         reused = self._reuse_if_idempotent(envelope)
         if reused:
-            reused.status = "skipped"
-            reused.decision_reason = "idempotent_reuse"
             return reused
 
         try:
@@ -163,8 +169,6 @@ class PipelineDomainCommands:
         envelope.validate()
         reused = self._reuse_if_idempotent(envelope)
         if reused:
-            reused.status = "skipped"
-            reused.decision_reason = "idempotent_reuse"
             return reused
 
         snapshot = self.state.search_snapshots.get(snapshot_id)
@@ -242,8 +246,6 @@ class PipelineDomainCommands:
         envelope.validate()
         reused = self._reuse_if_idempotent(envelope)
         if reused:
-            reused.status = "skipped"
-            reused.decision_reason = "idempotent_reuse"
             return reused
 
         snapshot = self.state.search_snapshots.get(snapshot_id)
@@ -371,8 +373,6 @@ class PipelineDomainCommands:
         envelope.validate()
         reused = self._reuse_if_idempotent(envelope)
         if reused:
-            reused.status = "skipped"
-            reused.decision_reason = "idempotent_reuse"
             return reused
 
         rows = [self.state.raw_scrapes.get(raw_id) for raw_id in raw_scrape_ids]
@@ -450,8 +450,6 @@ class PipelineDomainCommands:
         envelope.validate()
         reused = self._reuse_if_idempotent(envelope)
         if reused:
-            reused.status = "skipped"
-            reused.decision_reason = "idempotent_reuse"
             return reused
 
         evidence = [
@@ -519,8 +517,6 @@ class PipelineDomainCommands:
         envelope.validate()
         reused = self._reuse_if_idempotent(envelope)
         if reused:
-            reused.status = "skipped"
-            reused.decision_reason = "idempotent_reuse"
             return reused
 
         counts: dict[str, int] = {}

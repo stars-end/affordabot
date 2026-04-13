@@ -74,4 +74,3 @@ def build_v2_canonical_document_key(
         f"v2|jurisdiction={jurisdiction_slug}|family={family}|doctype={document_type}"
         f"|title={title}|date={date_hint}"
     )
-

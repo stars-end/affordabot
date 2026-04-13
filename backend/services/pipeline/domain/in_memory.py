@@ -160,4 +160,3 @@ class InMemoryAnalyzer(Analyzer):
 
 def stable_json_hash(value: Any) -> str:
     return sha256_text(json.dumps(value, sort_keys=True, separators=(",", ":")))
-
