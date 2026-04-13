@@ -1032,6 +1032,7 @@ class RailwayRuntimeBridge:
         payload = response.to_dict()
         payload["envelope"] = {
             "contract_version": request.contract_version,
+            "orchestrator": "windmill",
             "idempotency_key": request.idempotency_key,
             "scope_idempotency_key": _scope_idempotency_key(request),
             "jurisdiction": request.jurisdiction,
@@ -1255,7 +1256,9 @@ class PipelineDomainBridge:
         payload = response.to_dict()
         payload["envelope"] = {
             "contract_version": request.contract_version,
+            "orchestrator": "windmill",
             "idempotency_key": request.idempotency_key,
+            "scope_idempotency_key": _scope_idempotency_key(request),
             "jurisdiction": request.jurisdiction,
             "source_family": request.source_family,
             "stale_status": request.stale_status,

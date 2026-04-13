@@ -91,6 +91,9 @@ ALTER TABLE IF EXISTS public.pipeline_steps
   ADD COLUMN IF NOT EXISTS windmill_job_id text,
   ADD COLUMN IF NOT EXISTS idempotency_key text;
 
+ALTER TABLE IF EXISTS public.pipeline_steps
+  ALTER COLUMN status TYPE text;
+
 CREATE UNIQUE INDEX IF NOT EXISTS idx_pipeline_steps_run_command_idempotency
   ON public.pipeline_steps (run_id, command, idempotency_key)
   WHERE idempotency_key IS NOT NULL;
