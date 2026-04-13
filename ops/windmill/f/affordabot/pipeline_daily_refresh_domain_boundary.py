@@ -12,6 +12,9 @@ No direct product writes are performed here.
 from __future__ import annotations
 
 import hashlib
+import sys
+from datetime import timedelta
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 
@@ -279,6 +282,381 @@ def _run_scope_pipeline(
     }
 
 
+def _load_domain_package() -> Any:
+    repo_root = Path(__file__).resolve().parents[4]
+    backend_dir = repo_root / "backend"
+    backend_dir_text = str(backend_dir)
+    if backend_dir_text not in sys.path:
+        sys.path.insert(0, backend_dir_text)
+
+    from services.pipeline.domain import (  # noqa: PLC0415
+        CommandEnvelope,
+        FreshnessPolicy,
+        InMemoryAnalyzer,
+        InMemoryArtifactStore,
+        InMemoryDomainState,
+        InMemoryReaderProvider,
+        InMemorySearchProvider,
+        InMemoryVectorStore,
+        PipelineDomainCommands,
+        SearchResultItem,
+        WindmillMetadata,
+    )
+
+    return {
+        "CommandEnvelope": CommandEnvelope,
+        "FreshnessPolicy": FreshnessPolicy,
+        "InMemoryAnalyzer": InMemoryAnalyzer,
+        "InMemoryArtifactStore": InMemoryArtifactStore,
+        "InMemoryDomainState": InMemoryDomainState,
+        "InMemoryReaderProvider": InMemoryReaderProvider,
+        "InMemorySearchProvider": InMemorySearchProvider,
+        "InMemoryVectorStore": InMemoryVectorStore,
+        "PipelineDomainCommands": PipelineDomainCommands,
+        "SearchResultItem": SearchResultItem,
+        "WindmillMetadata": WindmillMetadata,
+    }
+
+
+def _build_domain_service(
+    *,
+    domain_state: Any | None,
+    scope_item: Dict[str, str],
+    search_query: str | None,
+) -> tuple[Any, Any]:
+    domain = _load_domain_package()
+    state = domain_state or domain["InMemoryDomainState"]()
+
+    default_url = (
+        "https://www.sanjoseca.gov/your-government/departments-offices/"
+        "city-clerk/city-council-meeting-minutes"
+    )
+    title = f"{scope_item.get('jurisdiction', 'Unknown')} Meeting Minutes"
+    snippet = search_query or "Local meeting minutes and agenda updates."
+    search_results = [
+        domain["SearchResultItem"](
+            url=default_url,
+            title=title,
+            snippet=snippet,
+        )
+    ]
+
+    service = domain["PipelineDomainCommands"](
+        state=state,
+        search_provider=domain["InMemorySearchProvider"](results=search_results),
+        reader_provider=domain["InMemoryReaderProvider"](),
+        artifact_store=domain["InMemoryArtifactStore"](state),
+        vector_store=domain["InMemoryVectorStore"](state),
+        analyzer=domain["InMemoryAnalyzer"](),
+    )
+    return state, service
+
+
+def _apply_staleness_override(
+    *,
+    stale_status: str,
+    state: Any,
+    snapshot_id: str,
+    scope_key: str,
+) -> Any | None:
+    now = state.now
+    latest_success = None
+    if stale_status == "stale_but_usable":
+        state.search_snapshots[snapshot_id]["captured_at"] = (now - timedelta(hours=36)).isoformat()
+        latest_success = now
+    elif stale_status == "stale_blocked":
+        state.search_snapshots[snapshot_id]["captured_at"] = (now - timedelta(hours=120)).isoformat()
+        latest_success = now
+    elif stale_status == "empty_but_usable":
+        state.search_snapshots[snapshot_id]["results"] = []
+        latest_success = now
+    elif stale_status == "empty_blocked":
+        state.search_snapshots[snapshot_id]["results"] = []
+        latest_success = None
+    if latest_success is not None:
+        state.previous_success_by_scope[scope_key] = latest_success
+    return latest_success
+
+
+def _run_scope_pipeline_domain_package(
+    *,
+    contract_version: str,
+    windmill_workspace: str,
+    windmill_flow_path: str,
+    windmill_run_id: str,
+    windmill_job_id: str,
+    idempotency_key: str,
+    scope_item: Dict[str, str],
+    scope_index: int,
+    stale_status: str,
+    search_query: str | None,
+    analysis_question: str | None,
+    domain_state: Any | None,
+) -> Dict[str, Any]:
+    state, service = _build_domain_service(
+        domain_state=domain_state,
+        scope_item=scope_item,
+        search_query=search_query,
+    )
+    domain = _load_domain_package()
+    policy = domain["FreshnessPolicy"](
+        fresh_hours=24,
+        stale_usable_ceiling_hours=72,
+        fail_closed_ceiling_hours=168,
+    )
+
+    scope_key = f"{scope_item.get('jurisdiction', '')}|{scope_item.get('source_family', '')}"
+    steps: Dict[str, Dict[str, Any]] = {}
+    envelopes: Dict[str, Dict[str, Any]] = {}
+
+    def make_envelope(command: str, step_idx: int) -> Any:
+        env = _envelope(
+            step=command,
+            contract_version=contract_version,
+            architecture_path="affordabot_domain_boundary",
+            windmill_workspace=windmill_workspace,
+            windmill_flow_path=windmill_flow_path,
+            windmill_run_id=windmill_run_id,
+            windmill_job_id=f"{windmill_job_id}:{scope_index}:{step_idx}",
+            idempotency_key=f"{idempotency_key}:{command}",
+            scope_item=scope_item,
+            scope_index=scope_index,
+            mode="domain_package",
+        )
+        envelopes[command] = env
+        return domain["CommandEnvelope"](
+            command=command,
+            jurisdiction_id=env["jurisdiction_id"],
+            source_family=env["source_family"],
+            idempotency_key=env["idempotency_key"],
+            contract_version=env["contract_version"],
+            windmill=domain["WindmillMetadata"](
+                run_id=env["windmill_run_id"],
+                job_id=env["windmill_job_id"],
+                workspace=env["windmill_workspace"],
+                flow_path=env["windmill_flow_path"],
+            ),
+        )
+
+    def store_step(command: str, response: Any) -> None:
+        payload = response.to_dict()
+        payload["envelope"] = envelopes[command]
+        payload["invoked_command"] = command
+        steps[command] = payload
+
+    search_env = make_envelope("search_materialize", 1)
+    search = service.search_materialize(
+        envelope=search_env,
+        query=search_query or "San Jose meeting minutes",
+    )
+    store_step("search_materialize", search)
+    snapshot_id = str(search.refs.get("search_snapshot_id", ""))
+    latest_success = _apply_staleness_override(
+        stale_status=stale_status,
+        state=state,
+        snapshot_id=snapshot_id,
+        scope_key=scope_key,
+    )
+
+    freshness_env = make_envelope("freshness_gate", 2)
+    freshness = service.freshness_gate(
+        envelope=freshness_env,
+        snapshot_id=snapshot_id,
+        policy=policy,
+        latest_success_at=latest_success,
+    )
+    store_step("freshness_gate", freshness)
+
+    if freshness.decision_reason in BLOCKED_STATUSES:
+        summarize_env = make_envelope("summarize_run", 6)
+        summary = service.summarize_run(
+            envelope=summarize_env,
+            command_responses=[search, freshness],
+        )
+        store_step("summarize_run", summary)
+        return {
+            "scope_item": scope_item,
+            "scope_index": scope_index,
+            "status": "blocked",
+            "steps": steps,
+            "alert": f"freshness_gate:{freshness.decision_reason}",
+            "domain_state": state,
+        }
+
+    if freshness.status.startswith("failed"):
+        summarize_env = make_envelope("summarize_run", 6)
+        summary = service.summarize_run(
+            envelope=summarize_env,
+            command_responses=[search, freshness],
+        )
+        store_step("summarize_run", summary)
+        return {
+            "scope_item": scope_item,
+            "scope_index": scope_index,
+            "status": "failed",
+            "steps": steps,
+            "alert": f"freshness_gate:{freshness.decision_reason}",
+            "domain_state": state,
+        }
+
+    read_env = make_envelope("read_fetch", 3)
+    read = service.read_fetch(
+        envelope=read_env,
+        snapshot_id=snapshot_id,
+    )
+    store_step("read_fetch", read)
+    if read.status != "succeeded":
+        summarize_env = make_envelope("summarize_run", 6)
+        summary = service.summarize_run(
+            envelope=summarize_env,
+            command_responses=[search, freshness, read],
+        )
+        store_step("summarize_run", summary)
+        return {
+            "scope_item": scope_item,
+            "scope_index": scope_index,
+            "status": "failed",
+            "steps": steps,
+            "alert": f"read_fetch:{read.decision_reason}",
+            "domain_state": state,
+        }
+
+    index_env = make_envelope("index", 4)
+    index = service.index(
+        envelope=index_env,
+        raw_scrape_ids=list(read.refs.get("raw_scrape_ids", [])),
+    )
+    store_step("index", index)
+    if index.status.startswith("failed") or index.status == "blocked":
+        summarize_env = make_envelope("summarize_run", 6)
+        summary = service.summarize_run(
+            envelope=summarize_env,
+            command_responses=[search, freshness, read, index],
+        )
+        store_step("summarize_run", summary)
+        return {
+            "scope_item": scope_item,
+            "scope_index": scope_index,
+            "status": "failed",
+            "steps": steps,
+            "alert": f"index:{index.decision_reason}",
+            "domain_state": state,
+        }
+
+    analyze_env = make_envelope("analyze", 5)
+    analyze = service.analyze(
+        envelope=analyze_env,
+        question=analysis_question or "Summarize meeting minutes",
+        jurisdiction_id=scope_item.get("jurisdiction", ""),
+        source_family=scope_item.get("source_family", ""),
+    )
+    store_step("analyze", analyze)
+
+    summarize_env = make_envelope("summarize_run", 6)
+    summary = service.summarize_run(
+        envelope=summarize_env,
+        command_responses=[search, freshness, read, index, analyze],
+    )
+    store_step("summarize_run", summary)
+
+    run_status = "succeeded"
+    if summary.status in {"failed_retryable", "failed_terminal"}:
+        run_status = "failed"
+    elif summary.status == "blocked":
+        run_status = "blocked"
+    return {
+        "scope_item": scope_item,
+        "scope_index": scope_index,
+        "status": run_status,
+        "steps": steps,
+        "alert": "" if run_status == "succeeded" else f"summarize_run:{summary.status}",
+        "domain_state": state,
+    }
+
+
+def _run_local_integration_harness(
+    *,
+    contract_version: str,
+    windmill_workspace: str,
+    windmill_flow_path: str,
+    windmill_run_id: str,
+    windmill_job_id: str,
+    idempotency_key: str,
+    scope_item: Dict[str, str],
+    search_query: str | None,
+    analysis_question: str | None,
+) -> Dict[str, Any]:
+    first = _run_scope_pipeline_domain_package(
+        contract_version=contract_version,
+        windmill_workspace=windmill_workspace,
+        windmill_flow_path=windmill_flow_path,
+        windmill_run_id=windmill_run_id,
+        windmill_job_id=windmill_job_id,
+        idempotency_key=idempotency_key,
+        scope_item=scope_item,
+        scope_index=0,
+        stale_status="fresh",
+        search_query=search_query,
+        analysis_question=analysis_question,
+        domain_state=None,
+    )
+    rerun = _run_scope_pipeline_domain_package(
+        contract_version=contract_version,
+        windmill_workspace=windmill_workspace,
+        windmill_flow_path=windmill_flow_path,
+        windmill_run_id=windmill_run_id,
+        windmill_job_id=windmill_job_id,
+        idempotency_key=idempotency_key,
+        scope_item=scope_item,
+        scope_index=0,
+        stale_status="fresh",
+        search_query=search_query,
+        analysis_question=analysis_question,
+        domain_state=first["domain_state"],
+    )
+    blocked = _run_scope_pipeline_domain_package(
+        contract_version=contract_version,
+        windmill_workspace=windmill_workspace,
+        windmill_flow_path=windmill_flow_path,
+        windmill_run_id=windmill_run_id,
+        windmill_job_id=windmill_job_id,
+        idempotency_key=f"{idempotency_key}:blocked",
+        scope_item=scope_item,
+        scope_index=1,
+        stale_status="stale_blocked",
+        search_query=search_query,
+        analysis_question=analysis_question,
+        domain_state=first["domain_state"],
+    )
+
+    first_index = first["steps"]["index"]
+    rerun_index = rerun["steps"]["index"]
+    evidence = {
+        "happy_status": first["status"],
+        "rerun_status": rerun["status"],
+        "stale_blocked_status": blocked["status"],
+        "rerun_index_idempotent_reuse": bool(rerun_index["details"].get("idempotent_reuse")),
+        "rerun_chunk_count_stable": first_index["counts"].get("chunks") == rerun_index["counts"].get("chunks"),
+        "stale_blocked_short_circuit": "read_fetch" not in blocked["steps"],
+        "windmill_refs_propagated": all(
+            step["refs"].get("windmill_run_id") == windmill_run_id
+            for step in first["steps"].values()
+        ),
+    }
+    for result in (first, rerun, blocked):
+        result.pop("domain_state", None)
+    return {
+        "status": "succeeded" if all(v for v in evidence.values()) else "failed",
+        "scope_item": scope_item,
+        "scenarios": {
+            "happy_first": first,
+            "happy_rerun": rerun,
+            "stale_blocked": blocked,
+        },
+        "evidence": evidence,
+    }
+
+
 def _aggregate_scope_results(scope_results: List[Dict[str, Any]]) -> Dict[str, Any]:
     total = len(scope_results)
     blocked = sum(1 for result in scope_results if result.get("status") == "blocked")
@@ -316,6 +694,8 @@ def main(
     analysis_question: Optional[str] = None,
     previous_step_output: Optional[Dict[str, Any]] = None,
     scope_results: Optional[List[Dict[str, Any]]] = None,
+    command_client: str = "stub",
+    domain_state: Any | None = None,
 ) -> Dict[str, Any]:
     jurisdictions = jurisdictions or ["San Jose CA"]
     source_families = source_families or ["meeting_minutes"]
@@ -326,6 +706,21 @@ def main(
     if step == "run_scope_pipeline":
         if not scope_item:
             return {"status": "failed", "error": "missing_scope_item"}
+        if command_client == "domain_package":
+            return _run_scope_pipeline_domain_package(
+                contract_version=contract_version,
+                windmill_workspace=windmill_workspace,
+                windmill_flow_path=windmill_flow_path,
+                windmill_run_id=windmill_run_id,
+                windmill_job_id=windmill_job_id,
+                idempotency_key=idempotency_key,
+                scope_item=scope_item,
+                scope_index=scope_index,
+                stale_status=stale_status,
+                search_query=search_query,
+                analysis_question=analysis_question,
+                domain_state=domain_state,
+            )
         return _run_scope_pipeline(
             contract_version=contract_version,
             architecture_path=architecture_path,
@@ -338,6 +733,21 @@ def main(
             scope_item=scope_item,
             scope_index=scope_index,
             stale_status=stale_status,
+            search_query=search_query,
+            analysis_question=analysis_question,
+        )
+
+    if step == "run_local_integration_harness":
+        if not scope_item:
+            scope_item = {"jurisdiction": jurisdictions[0], "source_family": source_families[0]}
+        return _run_local_integration_harness(
+            contract_version=contract_version,
+            windmill_workspace=windmill_workspace,
+            windmill_flow_path=windmill_flow_path,
+            windmill_run_id=windmill_run_id,
+            windmill_job_id=windmill_job_id,
+            idempotency_key=idempotency_key,
+            scope_item=scope_item,
             search_query=search_query,
             analysis_question=analysis_question,
         )
