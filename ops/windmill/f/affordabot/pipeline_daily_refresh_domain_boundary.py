@@ -8,25 +8,32 @@ This file intentionally models orchestration behavior only:
 
 No direct product writes are performed here.
 
-Note: `command_client=domain_package` is repo-local execution that depends on
-the affordabot backend package being present on disk. Windmill-hosted runtime
-should stay on `command_client=stub` unless a backend-hosted command endpoint
-or packaged runtime path is explicitly wired and validated.
+Notes:
+- `command_client=domain_package` is repo-local execution that depends on the
+  affordabot backend package being present on disk.
+- `command_client=backend_endpoint` is explicit opt-in and fail-closed when
+  endpoint URL/auth are missing or invalid.
+- Windmill-hosted runtime should stay on `command_client=stub` by default.
 """
 
 from __future__ import annotations
 
 import hashlib
+import json
 import sys
 from datetime import timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+import requests
+
 
 CONTRACT_VERSION = "2026-04-13.windmill-domain.v1"
 USABLE_STATUSES = {"fresh", "stale_but_usable", "empty_but_usable"}
 BLOCKED_STATUSES = {"stale_blocked", "empty_blocked"}
-ALLOWED_COMMAND_CLIENTS = {"stub", "domain_package"}
+ALLOWED_COMMAND_CLIENTS = {"stub", "domain_package", "backend_endpoint"}
+BACKEND_ENDPOINT_CONNECT_TIMEOUT_SECONDS = 5
+BACKEND_ENDPOINT_READ_TIMEOUT_SECONDS = 30
 
 
 def _stable_hash(text: str) -> str:
@@ -172,6 +179,116 @@ def _invoke_command_stub(
     }
 
 
+def _invoke_command_backend_endpoint(
+    *,
+    command: str,
+    envelope: Dict[str, Any],
+    stale_status: str,
+    previous_step_output: Optional[Dict[str, Any]],
+    search_query: Optional[str],
+    analysis_question: Optional[str],
+    backend_endpoint_url: Optional[str],
+    backend_endpoint_auth_token: Optional[str],
+    backend_endpoint_timeout_seconds: int,
+) -> Dict[str, Any]:
+    endpoint_url = (backend_endpoint_url or "").strip()
+    auth_token = (backend_endpoint_auth_token or "").strip()
+    if not endpoint_url:
+        return {
+            "status": "failed",
+            "error": "backend_endpoint_missing_configuration",
+            "error_details": {"missing": ["backend_endpoint_url"]},
+            "envelope": envelope,
+            "invoked_command": command,
+        }
+    if not auth_token:
+        return {
+            "status": "failed",
+            "error": "backend_endpoint_missing_configuration",
+            "error_details": {"missing": ["backend_endpoint_auth_token"]},
+            "envelope": envelope,
+            "invoked_command": command,
+        }
+
+    request_payload = {
+        "command": command,
+        "envelope": envelope,
+        "stale_status": stale_status,
+        "search_query": search_query,
+        "analysis_question": analysis_question,
+        "previous_step_output": previous_step_output,
+    }
+    request_headers = {
+        "Authorization": f"Bearer {auth_token}",
+        "X-PR-CRON-SECRET": auth_token,
+        "Content-Type": "application/json",
+    }
+
+    timeout_seconds = max(1, int(backend_endpoint_timeout_seconds))
+    timeout_tuple = (BACKEND_ENDPOINT_CONNECT_TIMEOUT_SECONDS, timeout_seconds)
+
+    try:
+        response = requests.post(
+            endpoint_url,
+            json=request_payload,
+            headers=request_headers,
+            timeout=timeout_tuple,
+        )
+    except requests.RequestException as exc:
+        return {
+            "status": "failed",
+            "error": "backend_endpoint_request_error",
+            "error_details": {"detail": str(exc), "endpoint_url": endpoint_url},
+            "envelope": envelope,
+            "invoked_command": command,
+        }
+
+    response_payload: Dict[str, Any] | Any
+    try:
+        response_payload = response.json()
+    except ValueError:
+        response_payload = {"raw_text": response.text}
+
+    if response.status_code >= 400:
+        return {
+            "status": "failed",
+            "error": "backend_endpoint_http_error",
+            "error_details": {
+                "http_status": response.status_code,
+                "endpoint_url": endpoint_url,
+                "response": response_payload,
+            },
+            "envelope": envelope,
+            "invoked_command": command,
+        }
+
+    if not isinstance(response_payload, dict):
+        return {
+            "status": "failed",
+            "error": "backend_endpoint_invalid_response",
+            "error_details": {
+                "detail": "response payload is not an object",
+                "endpoint_url": endpoint_url,
+                "response_excerpt": json.dumps(response_payload)[:400],
+            },
+            "envelope": envelope,
+            "invoked_command": command,
+        }
+    if not response_payload.get("status"):
+        return {
+            "status": "failed",
+            "error": "backend_endpoint_invalid_response",
+            "error_details": {
+                "detail": "missing required status in backend response",
+                "endpoint_url": endpoint_url,
+                "response": response_payload,
+            },
+            "envelope": envelope,
+            "invoked_command": command,
+        }
+    return response_payload
+
+
 def _build_scope_matrix(jurisdictions: List[str], source_families: List[str]) -> Dict[str, Any]:
     items: List[Dict[str, Any]] = []
     for jurisdiction in jurisdictions:
@@ -205,6 +322,10 @@ def _run_scope_pipeline(
     stale_status: str,
     search_query: Optional[str],
     analysis_question: Optional[str],
+    command_client: str,
+    backend_endpoint_url: Optional[str],
+    backend_endpoint_auth_token: Optional[str],
+    backend_endpoint_timeout_seconds: int,
 ) -> Dict[str, Any]:
     steps: Dict[str, Dict[str, Any]] = {}
 
@@ -222,6 +343,18 @@ def _run_scope_pipeline(
             scope_index=scope_index,
             mode=mode,
         )
+        if command_client == "backend_endpoint":
+            return _invoke_command_backend_endpoint(
+                command=command,
+                envelope=env,
+                stale_status=stale_status,
+                previous_step_output=previous,
+                search_query=search_query,
+                analysis_question=analysis_question,
+                backend_endpoint_url=backend_endpoint_url,
+                backend_endpoint_auth_token=backend_endpoint_auth_token,
+                backend_endpoint_timeout_seconds=backend_endpoint_timeout_seconds,
+            )
         return _invoke_command_stub(
             command=command,
             envelope=env,
@@ -701,6 +834,9 @@ def main(
     previous_step_output: Optional[Dict[str, Any]] = None,
     scope_results: Optional[List[Dict[str, Any]]] = None,
     command_client: str = "stub",
+    backend_endpoint_url: Optional[str] = None,
+    backend_endpoint_auth_token: Optional[str] = None,
+    backend_endpoint_timeout_seconds: int = BACKEND_ENDPOINT_READ_TIMEOUT_SECONDS,
     domain_state: Any | None = None,
 ) -> Dict[str, Any]:
     contract_version = contract_version or CONTRACT_VERSION
@@ -713,6 +849,9 @@ def main(
     mode = mode or "scheduled"
     stale_status = stale_status or "fresh"
     command_client = command_client or "stub"
+    backend_endpoint_url = backend_endpoint_url or ""
+    backend_endpoint_auth_token = backend_endpoint_auth_token or ""
+    backend_endpoint_timeout_seconds = int(backend_endpoint_timeout_seconds or BACKEND_ENDPOINT_READ_TIMEOUT_SECONDS)
     jurisdictions = jurisdictions or ["San Jose CA"]
     source_families = source_families or ["meeting_minutes"]
 
@@ -766,6 +905,10 @@ def main(
             stale_status=stale_status,
             search_query=search_query,
             analysis_question=analysis_question,
+            command_client=command_client,
+            backend_endpoint_url=backend_endpoint_url,
+            backend_endpoint_auth_token=backend_endpoint_auth_token,
+            backend_endpoint_timeout_seconds=backend_endpoint_timeout_seconds,
         )
 
     if step == "run_local_integration_harness":

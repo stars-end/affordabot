@@ -307,6 +307,7 @@ def test_flow_schema_defaults_to_stub_command_client_for_live_safety():
     text = FLOW_PATH.read_text(encoding="utf-8")
     assert "command_client:" in text
     assert "default: stub" in text
+    assert "- backend_endpoint" in text
 
 
 def test_domain_package_import_failure_returns_contract_error(monkeypatch):
@@ -322,3 +323,104 @@ def test_domain_package_import_failure_returns_contract_error(monkeypatch):
     assert result["status"] == "failed"
     assert result["error"] == "domain_package_unavailable"
     assert result["command_client"] == "domain_package"
+
+
+def test_backend_endpoint_mode_fails_closed_when_url_missing():
+    result = module.main(
+        step="run_scope_pipeline",
+        scope_item={"jurisdiction": "San Jose CA", "source_family": "meeting_minutes"},
+        command_client="backend_endpoint",
+        backend_endpoint_auth_token="token-123",
+    )
+
+    assert result["status"] == "failed"
+    assert result["alert"] == "freshness_gate:failed"
+    search_step = result["steps"]["search_materialize"]
+    assert search_step["error"] == "backend_endpoint_missing_configuration"
+    assert search_step["error_details"]["missing"] == ["backend_endpoint_url"]
+
+
+def test_backend_endpoint_mode_fails_closed_when_auth_missing():
+    result = module.main(
+        step="run_scope_pipeline",
+        scope_item={"jurisdiction": "San Jose CA", "source_family": "meeting_minutes"},
+        command_client="backend_endpoint",
+        backend_endpoint_url="https://backend.example/internal/pipeline/domain-command",
+    )
+
+    assert result["status"] == "failed"
+    assert result["alert"] == "freshness_gate:failed"
+    search_step = result["steps"]["search_materialize"]
+    assert search_step["error"] == "backend_endpoint_missing_configuration"
+    assert search_step["error_details"]["missing"] == ["backend_endpoint_auth_token"]
+
+
+def test_backend_endpoint_mode_maps_http_error_to_contract_failure(monkeypatch):
+    class _FakeResponse:
+        status_code = 503
+
+        @staticmethod
+        def json():
+            return {"status": "failed", "error": "upstream_unavailable"}
+
+        text = '{"status":"failed","error":"upstream_unavailable"}'
+
+    def _fake_post(*args, **kwargs):  # noqa: ARG001
+        return _FakeResponse()
+
+    monkeypatch.setattr(module.requests, "post", _fake_post)
+    result = module.main(
+        step="run_scope_pipeline",
+        scope_item={"jurisdiction": "San Jose CA", "source_family": "meeting_minutes"},
+        command_client="backend_endpoint",
+        backend_endpoint_url="https://backend.example/internal/pipeline/domain-command",
+        backend_endpoint_auth_token="token-123",
+    )
+
+    assert result["status"] == "failed"
+    search_step = result["steps"]["search_materialize"]
+    assert search_step["error"] == "backend_endpoint_http_error"
+    assert search_step["error_details"]["http_status"] == 503
+
+
+def test_backend_endpoint_mode_passthrough_success_payload(monkeypatch):
+    captured: list[dict[str, object]] = []
+
+    class _FakeResponse:
+        status_code = 200
+
+        @staticmethod
+        def json():
+            return {"status": "fresh", "echo": "ok"}
+
+        text = '{"status":"fresh","echo":"ok"}'
+
+    def _fake_post(url, json, headers, timeout):  # noqa: ANN001
+        captured.append(
+            {
+                "url": url,
+                "json": json,
+                "headers": headers,
+                "timeout": timeout,
+            }
+        )
+        return _FakeResponse()
+
+    monkeypatch.setattr(module.requests, "post", _fake_post)
+    result = module.main(
+        step="run_scope_pipeline",
+        scope_item={"jurisdiction": "San Jose CA", "source_family": "meeting_minutes"},
+        command_client="backend_endpoint",
+        backend_endpoint_url="https://backend.example/internal/pipeline/domain-command",
+        backend_endpoint_auth_token="token-123",
+    )
+
+    assert result["status"] == "succeeded"
+    assert captured
+    first_call = captured[0]
+    assert first_call["url"] == "https://backend.example/internal/pipeline/domain-command"
+    request_body = first_call["json"]
+    assert isinstance(request_body, dict)
+    assert request_body["command"] == "search_materialize"
+    assert request_body["envelope"]["orchestrator"] == "windmill"
+    assert first_call["headers"]["Authorization"] == "Bearer token-123"

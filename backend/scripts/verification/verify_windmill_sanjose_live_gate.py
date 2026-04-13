@@ -16,6 +16,9 @@ import argparse
 import json
 import subprocess
 import tempfile
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from importlib.util import module_from_spec, spec_from_file_location
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -43,7 +46,7 @@ DEFAULT_FLOW_PATH = "f/affordabot/pipeline_daily_refresh_domain_boundary__flow"
 DEFAULT_SCRIPT_PATH = "f/affordabot/pipeline_daily_refresh_domain_boundary"
 DEFAULT_WORKSPACE = "affordabot"
 FEATURE_KEY = "bd-9qjof.6"
-HARNESS_VERSION = "2026-04-13.worker-b.v1"
+HARNESS_VERSION = "2026-04-13.worker-b.v2"
 STUB_SUMMARY_MARKER = "Path B orchestration skeleton. Product writes belong to affordabot commands."
 EXPECTED_STEP_SEQUENCE = [
     "search_materialize",
@@ -53,6 +56,9 @@ EXPECTED_STEP_SEQUENCE = [
     "analyze",
     "summarize_run",
 ]
+WINDMILL_DOMAIN_SCRIPT_PATH = (
+    REPO_ROOT / "ops" / "windmill" / "f" / "affordabot" / "pipeline_daily_refresh_domain_boundary.py"
+)
 
 
 class HarnessError(RuntimeError):
@@ -311,15 +317,139 @@ def _build_storage_evidence_gates(result_payload: dict[str, Any]) -> dict[str, d
     }
 
 
+def _load_windmill_domain_script_module() -> Any:
+    spec = spec_from_file_location("windmill_domain_boundary", WINDMILL_DOMAIN_SCRIPT_PATH)
+    if spec is None or spec.loader is None:
+        raise HarnessError(
+            "product_bridge",
+            "unable to load windmill domain script for backend endpoint probe",
+            {"script_path": str(WINDMILL_DOMAIN_SCRIPT_PATH)},
+        )
+    module = module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _run_backend_endpoint_local_probe(backend_endpoint_auth_token: str) -> dict[str, Any]:
+    module = _load_windmill_domain_script_module()
+    expected_auth = f"Bearer {backend_endpoint_auth_token}"
+
+    class _ProbeHandler(BaseHTTPRequestHandler):
+        def do_POST(self) -> None:  # noqa: N802
+            auth_header = self.headers.get("Authorization", "")
+            content_length = int(self.headers.get("Content-Length", "0"))
+            body = self.rfile.read(content_length)
+            try:
+                payload = json.loads(body.decode("utf-8") if body else "{}")
+            except json.JSONDecodeError:
+                payload = {}
+            if auth_header != expected_auth:
+                self.send_response(401)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"status": "failed", "error": "unauthorized"}).encode("utf-8"))
+                return
+            command = payload.get("command", "")
+            response = {
+                "status": "fresh",
+                "probe": "backend_endpoint_local_mock",
+                "command": command,
+            }
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps(response).encode("utf-8"))
+
+        def log_message(self, format: str, *args: Any) -> None:  # noqa: A003
+            return
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), _ProbeHandler)
+    endpoint_url = f"http://127.0.0.1:{server.server_port}/domain-command"
+    server_thread = threading.Thread(target=server.serve_forever, daemon=True)
+    server_thread.start()
+    try:
+        result = module.main(
+            step="run_scope_pipeline",
+            idempotency_key=f"{FEATURE_KEY}-backend-probe",
+            scope_item={"jurisdiction": "San Jose CA", "source_family": "meeting_minutes"},
+            scope_index=0,
+            stale_status="fresh",
+            search_query="San Jose CA city council meeting minutes housing",
+            analysis_question="Summarize housing-related signals.",
+            command_client="backend_endpoint",
+            backend_endpoint_url=endpoint_url,
+            backend_endpoint_auth_token=backend_endpoint_auth_token,
+            backend_endpoint_timeout_seconds=10,
+        )
+        expected_steps = {"search_materialize", "freshness_gate", "read_fetch", "index", "analyze", "summarize_run"}
+        if result.get("status") != "succeeded":
+            return {"status": "failed", "note": "local mock probe did not complete", "result_status": result.get("status")}
+        observed_steps = set((result.get("steps") or {}).keys())
+        if observed_steps != expected_steps:
+            return {
+                "status": "failed",
+                "note": "local mock probe missing expected command sequence",
+                "observed_steps": sorted(observed_steps),
+            }
+        return {"status": "passed", "note": "local mock backend endpoint probe passed"}
+    except Exception as exc:  # noqa: BLE001
+        return {"status": "failed", "note": "local mock backend endpoint probe failed", "detail": str(exc)}
+    finally:
+        server.shutdown()
+        server_thread.join(timeout=2)
+        server.server_close()
+
+
+def _build_backend_endpoint_readiness(
+    *,
+    backend_endpoint_url: str | None,
+    backend_endpoint_auth_token: str | None,
+) -> dict[str, Any]:
+    endpoint_url = (backend_endpoint_url or "").strip()
+    auth_token = (backend_endpoint_auth_token or "").strip()
+    missing: list[str] = []
+    if not endpoint_url:
+        missing.append("backend_endpoint_url")
+    if not auth_token:
+        missing.append("backend_endpoint_auth_token")
+
+    if missing:
+        return {
+            "status": "not_configured",
+            "note": "backend endpoint mode is opt-in and currently not configured",
+            "missing_inputs": missing,
+            "local_mock_probe": {"status": "skipped", "note": "missing required backend endpoint inputs"},
+        }
+
+    local_probe = _run_backend_endpoint_local_probe(auth_token)
+    if local_probe.get("status") == "passed":
+        return {
+            "status": "ready_for_opt_in",
+            "note": "backend endpoint config is present and local mock probe passed",
+            "missing_inputs": [],
+            "local_mock_probe": local_probe,
+        }
+    return {
+        "status": "probe_failed",
+        "note": "backend endpoint config is present but local mock probe failed",
+        "missing_inputs": [],
+        "local_mock_probe": local_probe,
+    }
+
+
 def _derive_classification(
     *,
     result_payload: dict[str, Any] | None,
+    storage_gates: dict[str, dict[str, Any]],
+    backend_endpoint_readiness: dict[str, Any],
     blockers: list[dict[str, Any]],
 ) -> tuple[str, str]:
     hard_blockers = [b for b in blockers if b.get("blocking", True)]
     if hard_blockers:
         return "blocked", "blocked"
     if not result_payload:
+        if backend_endpoint_readiness.get("status") == "ready_for_opt_in":
+            return "backend_bridge_surface_ready", "partial"
         return "read_only_surface_pass", "partial"
 
     run_status = result_payload.get("status")
@@ -330,15 +460,25 @@ def _derive_classification(
     if not scope_results:
         return "failed_run", "partial"
 
+    pending_storage_gates = [
+        gate_name
+        for gate_name, gate in storage_gates.items()
+        if gate_name != "bridge_mode" and gate.get("status") == "pending"
+    ]
+    if not pending_storage_gates and storage_gates.get("bridge_mode", {}).get("status") not in {"stub", "unknown"}:
+        return "full_product_pass", "ready"
+
     summary = (
         scope_results[0]
         .get("steps", {})
         .get("summarize_run", {})
         .get("summary", "")
     )
+    if backend_endpoint_readiness.get("status") == "ready_for_opt_in":
+        return "backend_bridge_surface_ready", "partial"
     if STUB_SUMMARY_MARKER in summary:
         return "stub_orchestration_pass", "partial"
-    return "full_product_pass", "ready"
+    return "failed_run", "partial"
 
 
 def _render_markdown(report: dict[str, Any]) -> str:
@@ -380,6 +520,18 @@ def _render_markdown(report: dict[str, Any]) -> str:
     for gate_name, gate in report["storage_evidence_gates"].items():
         lines.append(f"- {gate_name}: `{gate['status']}` ({gate['note']})")
 
+    backend_readiness = report.get("backend_endpoint_readiness") or {}
+    lines.extend(
+        [
+            "",
+            "## Backend Endpoint Readiness",
+            f"- status: `{backend_readiness.get('status', 'unknown')}`",
+            f"- note: {backend_readiness.get('note', '')}",
+            f"- missing_inputs: `{backend_readiness.get('missing_inputs', [])}`",
+            f"- local_mock_probe: `{backend_readiness.get('local_mock_probe', {})}`",
+        ]
+    )
+
     lines.extend(["", "## Blockers"])
     if report["blockers"]:
         for blocker in report["blockers"]:
@@ -403,6 +555,8 @@ def run_harness(
     stale_status: str,
     scope_parallelism: int,
     idempotency_key: str | None,
+    backend_endpoint_url: str | None,
+    backend_endpoint_auth_token: str | None,
 ) -> dict[str, Any]:
     blockers: list[dict[str, Any]] = []
     result_payload: dict[str, Any] | None = None
@@ -536,6 +690,10 @@ def run_harness(
         manual_run["attempted"] = False
 
     storage_gates = _build_storage_evidence_gates(result_payload or {})
+    backend_endpoint_readiness = _build_backend_endpoint_readiness(
+        backend_endpoint_url=backend_endpoint_url,
+        backend_endpoint_auth_token=backend_endpoint_auth_token,
+    )
     if result_payload and storage_gates.get("bridge_mode", {}).get("status") == "stub":
         blockers.append(
             {
@@ -558,7 +716,31 @@ def run_harness(
                 }
             )
 
-    classification, readiness = _derive_classification(result_payload=result_payload, blockers=blockers)
+    if backend_endpoint_readiness.get("status") == "not_configured":
+        blockers.append(
+            {
+                "category": "product_bridge",
+                "message": "backend endpoint client is not configured for live Windmill validation",
+                "details": {"missing_inputs": backend_endpoint_readiness.get("missing_inputs", [])},
+                "blocking": False,
+            }
+        )
+    elif backend_endpoint_readiness.get("status") == "probe_failed":
+        blockers.append(
+            {
+                "category": "product_bridge",
+                "message": "backend endpoint local mock probe failed",
+                "details": backend_endpoint_readiness.get("local_mock_probe", {}),
+                "blocking": False,
+            }
+        )
+
+    classification, readiness = _derive_classification(
+        result_payload=result_payload,
+        storage_gates=storage_gates,
+        backend_endpoint_readiness=backend_endpoint_readiness,
+        blockers=blockers,
+    )
     report: dict[str, Any] = {
         "generated_at": _now_iso(),
         "feature_key": FEATURE_KEY,
@@ -572,6 +754,8 @@ def run_harness(
             "WINDMILL_BASE_URL": "derived as WINDMILL_DEV_LOGIN_URL without /user/login",
             "WINDMILL_WORKSPACE": workspace,
             "TMP_WMILL_CONFIG": "auto-created temporary profile directory",
+            "BACKEND_ENDPOINT_URL": "optional flow input; full backend command endpoint URL",
+            "BACKEND_ENDPOINT_AUTH_TOKEN": "optional flow input; endpoint bearer token",
         },
         "deployment_surface": {
             "flow_path": flow_path,
@@ -588,6 +772,7 @@ def run_harness(
         "manual_run": manual_run,
         "result_payload": result_payload,
         "storage_evidence_gates": storage_gates,
+        "backend_endpoint_readiness": backend_endpoint_readiness,
         "blockers": blockers,
     }
     return report
@@ -609,6 +794,8 @@ def main() -> int:
     parser.add_argument("--stale-status", default="fresh")
     parser.add_argument("--scope-parallelism", type=int, default=1)
     parser.add_argument("--idempotency-key", default=None)
+    parser.add_argument("--backend-endpoint-url", default=None)
+    parser.add_argument("--backend-endpoint-auth-token", default=None)
     parser.add_argument("--out-json", type=Path, default=DEFAULT_JSON_ARTIFACT)
     parser.add_argument("--out-md", type=Path, default=DEFAULT_MD_ARTIFACT)
     args = parser.parse_args()
@@ -625,6 +812,8 @@ def main() -> int:
         stale_status=args.stale_status,
         scope_parallelism=args.scope_parallelism,
         idempotency_key=args.idempotency_key,
+        backend_endpoint_url=args.backend_endpoint_url,
+        backend_endpoint_auth_token=args.backend_endpoint_auth_token,
     )
 
     args.out_json.parent.mkdir(parents=True, exist_ok=True)
@@ -636,7 +825,7 @@ def main() -> int:
     print(f"Wrote Markdown report: {args.out_md}")
     print(f"classification={report['classification']}")
     print(f"full_run_readiness={report['full_run_readiness']}")
-    return 0 if report["classification"] in {"read_only_surface_pass", "stub_orchestration_pass", "full_product_pass"} else 1
+    return 0 if report["classification"] in {"read_only_surface_pass", "stub_orchestration_pass", "backend_bridge_surface_ready", "full_product_pass"} else 1
 
 
 if __name__ == "__main__":

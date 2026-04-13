@@ -250,8 +250,13 @@ Harness artifacts:
 
 Harness classifications:
 - `stub_orchestration_pass`: Windmill orchestration succeeded, but run is still stub-backed.
+- `backend_bridge_surface_ready`: backend endpoint configuration + local mock probe passed, but storage/runtime evidence is still pending.
 - `full_product_pass`: orchestration plus storage/runtime evidence gates succeeded.
 - `read_only_surface_pass`: deployment/auth surface checks passed in `--run-mode read-only`.
+
+Backend endpoint mode (`command_client=backend_endpoint`) is opt-in and fail-closed.
+The flow default remains `command_client=stub`. Do not switch live runs to
+`backend_endpoint` until backend URL/auth and storage adapters are ready.
 
 Harness blocker categories:
 - `infra/auth`

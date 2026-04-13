@@ -12,6 +12,8 @@ Merged baseline: PR #432 at `b89ea9c04924673a221b28e3c1f16d535d4472e2`
 Live remote preflight is no longer auth-blocked. The canonical live harness now runs end to end against the shared dev Windmill workspace using cache-only secret access and a temporary CLI profile.
 
 Current blocker to full architecture lock is not CLI/auth; it is product bridge + storage/runtime evidence.
+`command_client=backend_endpoint` is now available as an opt-in flow/script mode
+and remains fail-closed when URL/auth are missing.
 
 ## Canonical Command
 

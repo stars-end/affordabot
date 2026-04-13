@@ -1,8 +1,8 @@
 # Windmill San Jose Live Validation Gate
 
-- generated_at: `2026-04-13T16:55:32.604224+00:00`
+- generated_at: `2026-04-13T17:05:59.583267+00:00`
 - feature_key: `bd-9qjof.6`
-- harness_version: `2026-04-13.worker-b.v1`
+- harness_version: `2026-04-13.worker-b.v2`
 - run_mode: `stub-run`
 - classification: `stub_orchestration_pass`
 - full_run_readiness: `partial`
@@ -14,8 +14,8 @@
 
 ## Manual Run
 - attempted: `true`
-- idempotency_key: `bd-9qjof.6-live-gate-20260413-165526`
-- windmill_job_id: `019d87c4-fca3-6779-c83e-960402d16ccc`
+- idempotency_key: `bd-9qjof.6-live-gate-20260413-170552`
+- windmill_job_id: `019d87ce-8be1-da47-4243-e27217549cdc`
 - final_status: `succeeded`
 - scope_totals: `{'scope_total': 1, 'scope_succeeded': 1, 'scope_failed': 0, 'scope_blocked': 0}`
 - step_sequence: `['search_materialize', 'freshness_gate', 'read_fetch', 'index', 'analyze', 'summarize_run']`
@@ -34,6 +34,13 @@
 - failure_handler_drill: `pending` (not proven in Windmill stub run; requires Worker A product bridge + live storage adapters)
 - bridge_mode: `stub` (Path B orchestration skeleton. Product writes belong to affordabot commands.)
 
+## Backend Endpoint Readiness
+- status: `not_configured`
+- note: backend endpoint mode is opt-in and currently not configured
+- missing_inputs: `['backend_endpoint_url', 'backend_endpoint_auth_token']`
+- local_mock_probe: `{'status': 'skipped', 'note': 'missing required backend endpoint inputs'}`
+
 ## Blockers
 - `product_bridge`: flow run is still stub-backed; full product validation not yet possible
 - `storage/runtime`: storage/runtime evidence gates are pending
+- `product_bridge`: backend endpoint client is not configured for live Windmill validation

@@ -45,5 +45,9 @@ Live gate artifacts:
 Live gate classification rules:
 
 - `stub_orchestration_pass`: Windmill DAG + envelope path validated, but command path remains stub-backed.
+- `backend_bridge_surface_ready`: backend endpoint configuration + local mock probe validated, but live storage-backed execution is still unproven.
 - `full_product_pass`: Windmill DAG validated and storage/runtime evidence gates are satisfied.
 - `read_only_surface_pass`: workspace/script/flow/job/schedule surfaces validated without triggering a flow run.
+
+`backend_endpoint` is now an explicit command-client mode in the Windmill flow
+and script, but it is opt-in and fail-closed. The live default remains `stub`.

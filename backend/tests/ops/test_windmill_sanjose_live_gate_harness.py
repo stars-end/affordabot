@@ -105,9 +105,51 @@ def test_storage_gates_mark_stub_bridge_mode_when_stub_summary_present():
 def test_classification_is_stub_orchestration_pass_without_blockers():
     result_payload = _stub_scope_result(module.STUB_SUMMARY_MARKER)
     result_payload["status"] = "succeeded"
-    classification, readiness = module._derive_classification(result_payload=result_payload, blockers=[])
+    classification, readiness = module._derive_classification(
+        result_payload=result_payload,
+        storage_gates=module._build_storage_evidence_gates(result_payload),
+        backend_endpoint_readiness={"status": "not_configured"},
+        blockers=[],
+    )
     assert classification == "stub_orchestration_pass"
     assert readiness == "partial"
+
+
+def test_classification_is_backend_bridge_surface_ready_when_probe_ready():
+    result_payload = _stub_scope_result(module.STUB_SUMMARY_MARKER)
+    result_payload["status"] = "succeeded"
+    classification, readiness = module._derive_classification(
+        result_payload=result_payload,
+        storage_gates=module._build_storage_evidence_gates(result_payload),
+        backend_endpoint_readiness={"status": "ready_for_opt_in"},
+        blockers=[],
+    )
+    assert classification == "backend_bridge_surface_ready"
+    assert readiness == "partial"
+
+
+def test_backend_endpoint_readiness_marks_not_configured_when_inputs_missing():
+    readiness = module._build_backend_endpoint_readiness(
+        backend_endpoint_url=None,
+        backend_endpoint_auth_token=None,
+    )
+    assert readiness["status"] == "not_configured"
+    assert "backend_endpoint_url" in readiness["missing_inputs"]
+    assert "backend_endpoint_auth_token" in readiness["missing_inputs"]
+
+
+def test_backend_endpoint_readiness_marks_ready_when_local_probe_passes(monkeypatch):
+    monkeypatch.setattr(
+        module,
+        "_run_backend_endpoint_local_probe",
+        lambda _: {"status": "passed", "note": "ok"},
+    )
+    readiness = module._build_backend_endpoint_readiness(
+        backend_endpoint_url="https://backend.example/internal/pipeline/domain-command",
+        backend_endpoint_auth_token="token-123",
+    )
+    assert readiness["status"] == "ready_for_opt_in"
+    assert readiness["local_mock_probe"]["status"] == "passed"
 
 
 def test_job_lookup_uses_idempotency_key():
