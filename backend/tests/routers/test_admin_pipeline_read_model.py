@@ -124,6 +124,7 @@ def test_get_pipeline_run_detail_shape(client, mock_db):
         "started_at": "2026-04-13T02:00:00Z",
         "completed_at": "2026-04-13T02:01:00Z",
         "error": None,
+        "models": {"analysis": "zai"},
         "trigger_source": "windmill",
         "windmill_workspace": "affordabot",
         "windmill_run_id": "wm-run-2",
@@ -143,32 +144,47 @@ def test_get_pipeline_run_detail_shape(client, mock_db):
     data = response.json()
     assert data["contract_version"] == CONTRACT_VERSION
     assert data["run_id"] == "run-2"
+    assert data["pipeline_run_id"] == "run-2"
     assert data["counts"]["search_results"] == 3
     assert data["latest_analysis"]["evidence_count"] == 5
     assert data["operator_links"]["windmill_run_url"].endswith("/wm-run-2")
 
 
 def test_get_pipeline_run_steps_shape(client, mock_db):
+    mock_db._fetchrow.return_value = {
+        "id": "run-2",
+        "bill_id": "SB-1",
+        "jurisdiction": "San Jose CA",
+        "status": "completed",
+        "started_at": "2026-04-13T02:00:00Z",
+        "completed_at": "2026-04-13T02:01:00Z",
+        "error": None,
+        "models": {"analysis": "zai"},
+        "trigger_source": "windmill",
+        "windmill_workspace": "affordabot",
+        "windmill_run_id": "wm-run-2",
+        "source_family": "meeting_minutes",
+        "result": {},
+    }
     mock_db._fetch.return_value = [
         {
             "id": "step-1",
             "run_id": "run-2",
+            "step_number": 1,
             "step_name": "search_materialize",
-            "command": "search_materialize",
             "status": "succeeded",
             "duration_ms": 42,
             "input_context": {"q": "san jose meeting minutes"},
             "output_result": {
+                "command": "search_materialize",
                 "decision_reason": "fresh_snapshot_materialized",
                 "retry_class": "none",
                 "counts": {"search_results": 2},
+                "refs": {"search_snapshot_id": "snap-1"},
             },
-            "decision_reason": "fresh_snapshot_materialized",
-            "retry_class": "none",
-            "alerts": [],
-            "refs": {"search_snapshot_id": "snap-1"},
+            "model_config": {},
             "created_at": "2026-04-13T02:00:10Z",
-        }
+        },
     ]
     client.set_auth("admin")
     response = client.get("/api/admin/pipeline/runs/run-2/steps")
@@ -176,6 +192,7 @@ def test_get_pipeline_run_steps_shape(client, mock_db):
     data = response.json()
     assert data["contract_version"] == CONTRACT_VERSION
     assert data["run_id"] == "run-2"
+    assert data["pipeline_run_id"] == "run-2"
     assert len(data["steps"]) == 1
     assert data["steps"][0]["command"] == "search_materialize"
     assert data["steps"][0]["refs"]["search_snapshot_id"] == "snap-1"
@@ -184,6 +201,17 @@ def test_get_pipeline_run_steps_shape(client, mock_db):
 def test_get_pipeline_run_evidence_shape(client, mock_db):
     mock_db._fetchrow.return_value = {
         "id": "run-3",
+        "bill_id": "SB-1",
+        "jurisdiction": "San Jose CA",
+        "status": "completed",
+        "started_at": "2026-04-13T02:00:00Z",
+        "completed_at": "2026-04-13T02:01:00Z",
+        "error": None,
+        "models": {"analysis": "zai"},
+        "trigger_source": "windmill",
+        "windmill_workspace": "affordabot",
+        "windmill_run_id": "wm-run-3",
+        "source_family": "meeting_minutes",
         "result": {
             "analysis": {
                 "citations": [
@@ -199,6 +227,16 @@ def test_get_pipeline_run_evidence_shape(client, mock_db):
     assert data["contract_version"] == CONTRACT_VERSION
     assert data["evidence_count"] == 1
     assert data["items"][0]["label"] == "City Agenda Packet"
+
+
+def test_get_pipeline_run_steps_rejects_non_run_uuid_query_key(client, mock_db):
+    # get_pipeline_run is strict id lookup; bill/manual keys should not resolve here.
+    mock_db._fetchrow.return_value = None
+    client.set_auth("admin")
+    response = client.get("/api/admin/pipeline/runs/SR-2026-001/steps")
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Pipeline run not found"
+    mock_db._fetch.assert_not_called()
 
 
 def test_post_pipeline_jurisdiction_refresh_shape(client, mock_db):

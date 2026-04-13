@@ -1257,52 +1257,41 @@ async def get_pipeline_jurisdiction_status(
 
 
 @router.get("/pipeline/runs/{run_id}")
-async def get_pipeline_run_read_model(run_id: str, db: PostgresDB = Depends(get_db)):
-    """Return backend-authored run summary for pipeline UI."""
+async def get_pipeline_run_read_model(
+    run_id: str,
+    service: GlassBoxService = Depends(get_glass_box_service),
+):
+    """Compatibility alias over GlassBox run semantics for pipeline UI."""
     try:
-        row = await db._fetchrow(
-            """
-            SELECT
-                id,
-                bill_id,
-                jurisdiction,
-                status,
-                started_at,
-                completed_at,
-                error,
-                result,
-                trigger_source,
-                windmill_workspace,
-                windmill_run_id,
-                source_family
-            FROM pipeline_runs
-            WHERE id::text = $1
-            LIMIT 1
-            """,
-            run_id,
-        )
-        if not row:
+        run = await service.get_pipeline_run(run_id)
+        if not run:
             raise HTTPException(status_code=404, detail="Pipeline run not found")
 
-        result = _json_payload(row.get("result"))
+        result = _json_payload(run.get("result"))
         counts = _extract_counts(result)
+        pipeline_run_id = _to_text(run.get("id"))
+        source_family = _to_text(run.get("source_family")) or DEFAULT_SOURCE_FAMILY
+        windmill_run_id = _to_text(run.get("windmill_run_id"))
+
         return {
             "contract_version": CONTRACT_VERSION,
-            "run_id": _to_text(row.get("id")),
-            "status": _to_text(row.get("status")),
-            "jurisdiction": _to_text(row.get("jurisdiction")),
-            "source_family": _to_text(row.get("source_family")) or DEFAULT_SOURCE_FAMILY,
-            "bill_id": _to_text(row.get("bill_id")) or None,
-            "started_at": str(row["started_at"]) if row.get("started_at") else None,
-            "completed_at": str(row["completed_at"]) if row.get("completed_at") else None,
-            "error": _to_text(row.get("error")) or None,
-            "trigger_source": _to_text(row.get("trigger_source")) or None,
+            "run_id": pipeline_run_id,
+            "pipeline_run_id": pipeline_run_id,
+            "status": _to_text(run.get("status")),
+            "jurisdiction": _to_text(run.get("jurisdiction")),
+            "source_family": source_family,
+            "bill_id": _to_text(run.get("bill_id")) or None,
+            "started_at": _to_text(run.get("started_at")) or None,
+            "completed_at": _to_text(run.get("completed_at")) or None,
+            "error": _to_text(run.get("error")) or None,
+            "trigger_source": _to_text(run.get("trigger_source")) or None,
             "counts": counts,
             "latest_analysis": _extract_latest_analysis(result, counts),
             "alerts": _extract_pipeline_alerts(result),
             "operator_links": {
-                "windmill_workspace": _to_text(row.get("windmill_workspace")) or "affordabot",
-                "windmill_run_url": _build_windmill_run_url(row.get("windmill_run_id")),
+                "windmill_workspace": _to_text(run.get("windmill_workspace"))
+                or "affordabot",
+                "windmill_run_url": _build_windmill_run_url(windmill_run_id),
             },
         }
     except HTTPException:
@@ -1313,75 +1302,59 @@ async def get_pipeline_run_read_model(run_id: str, db: PostgresDB = Depends(get_
         )
 
 
+def _normalize_pipeline_step(step: PipelineStep) -> dict[str, Any]:
+    output_result = _json_payload(step.output_result)
+    step_alerts = output_result.get("alerts")
+    if not isinstance(step_alerts, list):
+        step_alerts = []
+    refs = output_result.get("refs")
+    if not isinstance(refs, dict):
+        refs = {}
+    decision_reason = _to_text(output_result.get("decision_reason"))
+    retry_class = _to_text(output_result.get("retry_class")) or "none"
+    command = _to_text(output_result.get("command")) or _to_text(step.step_name)
+
+    return {
+        "contract_version": CONTRACT_VERSION,
+        "step_id": _to_text(step.id),
+        "run_id": _to_text(step.run_id),
+        "pipeline_run_id": _to_text(step.run_id),
+        "command": command,
+        "status": _to_text(step.status),
+        "decision_reason": decision_reason or None,
+        "retry_class": retry_class,
+        "alerts": [_to_text(item) for item in step_alerts if _to_text(item)],
+        "counts": output_result.get("counts")
+        if isinstance(output_result.get("counts"), dict)
+        else {},
+        "refs": refs,
+        "duration_ms": _coerce_int(step.duration_ms),
+        "error": _to_text(output_result.get("error")) or None,
+        "timestamp": str(step.created_at) if step.created_at else None,
+    }
+
+
 @router.get("/pipeline/runs/{run_id}/steps")
 async def get_pipeline_run_steps_read_model(
-    run_id: str, db: PostgresDB = Depends(get_db)
+    run_id: str,
+    service: GlassBoxService = Depends(get_glass_box_service),
 ):
-    """Return run steps in a stable read-model shape."""
+    """Compatibility alias over GlassBox step semantics for pipeline UI."""
     try:
-        rows = await db._fetch(
-            """
-            SELECT
-                id,
-                run_id,
-                command,
-                step_name,
-                status,
-                duration_ms,
-                input_context,
-                output_result,
-                retry_class,
-                decision_reason,
-                alerts,
-                refs,
-                created_at
-            FROM pipeline_steps
-            WHERE run_id::text = $1
-            ORDER BY created_at ASC
-            """,
-            run_id,
-        )
-        steps: list[dict[str, Any]] = []
-        for row in rows:
-            output_result = _json_payload(row.get("output_result"))
-            step_alerts = output_result.get("alerts")
-            if not isinstance(step_alerts, list):
-                step_alerts = row.get("alerts")
-            if not isinstance(step_alerts, list):
-                step_alerts = []
-            refs = output_result.get("refs")
-            if not isinstance(refs, dict):
-                refs = row.get("refs")
-            if not isinstance(refs, dict):
-                refs = {}
-            decision_reason = _to_text(row.get("decision_reason")) or _to_text(
-                output_result.get("decision_reason")
-            )
-            retry_class = _to_text(row.get("retry_class")) or _to_text(
-                output_result.get("retry_class")
-            )
+        run = await service.get_pipeline_run(run_id)
+        if not run:
+            raise HTTPException(status_code=404, detail="Pipeline run not found")
 
-            steps.append(
-                {
-                    "contract_version": CONTRACT_VERSION,
-                    "step_id": _to_text(row.get("id")),
-                    "run_id": _to_text(row.get("run_id")),
-                    "command": _to_text(row.get("command"))
-                    or _to_text(row.get("step_name")),
-                    "status": _to_text(row.get("status")),
-                    "decision_reason": decision_reason or None,
-                    "retry_class": retry_class or "none",
-                    "alerts": [_to_text(item) for item in step_alerts if _to_text(item)],
-                    "counts": output_result.get("counts")
-                    if isinstance(output_result.get("counts"), dict)
-                    else {},
-                    "refs": refs,
-                    "duration_ms": _coerce_int(row.get("duration_ms")),
-                    "error": _to_text(output_result.get("error")) or None,
-                    "timestamp": str(row["created_at"]) if row.get("created_at") else None,
-                }
-            )
-        return {"contract_version": CONTRACT_VERSION, "run_id": run_id, "steps": steps}
+        steps = await service.get_pipeline_steps(run_id)
+        normalized = [_normalize_pipeline_step(step) for step in steps]
+        return {
+            "contract_version": CONTRACT_VERSION,
+            "run_id": run_id,
+            "pipeline_run_id": run_id,
+            "steps": normalized,
+        }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to fetch pipeline run steps: {str(e)}"
@@ -1389,22 +1362,17 @@ async def get_pipeline_run_steps_read_model(
 
 
 @router.get("/pipeline/runs/{run_id}/evidence")
-async def get_pipeline_run_evidence(run_id: str, db: PostgresDB = Depends(get_db)):
+async def get_pipeline_run_evidence(
+    run_id: str,
+    service: GlassBoxService = Depends(get_glass_box_service),
+):
     """Return evidence refs for a run without exposing storage internals."""
     try:
-        row = await db._fetchrow(
-            """
-            SELECT id, result
-            FROM pipeline_runs
-            WHERE id::text = $1
-            LIMIT 1
-            """,
-            run_id,
-        )
-        if not row:
+        run = await service.get_pipeline_run(run_id)
+        if not run:
             raise HTTPException(status_code=404, detail="Pipeline run not found")
 
-        result = _json_payload(row.get("result"))
+        result = _json_payload(run.get("result"))
         analysis = result.get("analysis")
         evidence_items: list[dict[str, Any]] = []
         if isinstance(analysis, dict):
