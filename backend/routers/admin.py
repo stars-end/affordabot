@@ -1194,21 +1194,27 @@ async def get_pipeline_jurisdiction_status(
                 windmill_run_id
             FROM pipeline_runs
             WHERE LOWER(COALESCE(jurisdiction, '')) IN (LOWER($1), LOWER($2))
+              AND (source_family = $3 OR source_family IS NULL)
+            ORDER BY
+                CASE WHEN source_family = $3 THEN 0 ELSE 1 END,
+                started_at DESC
+            LIMIT 1
+        """
+        latest_run = await db._fetchrow(run_query, jur_name, jur_id, normalized_source_family)
+
+        latest_success_query = """
+            SELECT id, completed_at
+            FROM pipeline_runs
+            WHERE LOWER(COALESCE(jurisdiction, '')) IN (LOWER($1), LOWER($2))
+              AND (source_family = $3 OR source_family IS NULL)
+              AND status = 'completed'
+              AND completed_at IS NOT NULL
             ORDER BY started_at DESC
             LIMIT 1
         """
-        latest_run = await db._fetchrow(run_query, jur_name, jur_id)
-
-        latest_success_query = """
-            SELECT completed_at
-            FROM pipeline_runs
-            WHERE LOWER(COALESCE(jurisdiction, '')) IN (LOWER($1), LOWER($2))
-              AND status = 'completed'
-              AND completed_at IS NOT NULL
-            ORDER BY completed_at DESC
-            LIMIT 1
-        """
-        latest_success = await db._fetchrow(latest_success_query, jur_name, jur_id)
+        latest_success = await db._fetchrow(
+            latest_success_query, jur_name, jur_id, normalized_source_family
+        )
 
         result = _json_payload(latest_run.get("result")) if latest_run else {}
         run_status = _to_text(latest_run.get("status")) if latest_run else ""
@@ -1221,12 +1227,14 @@ async def get_pipeline_jurisdiction_status(
         if not isinstance(freshness_alerts, list):
             freshness_alerts = _extract_pipeline_alerts(result)
         pipeline_status = _derive_pipeline_status(run_status, freshness_status)
+        latest_pipeline_run_id = _to_text(latest_run.get("id")) if latest_run else None
 
         response = {
             "contract_version": CONTRACT_VERSION,
             "jurisdiction_id": jur_id,
             "jurisdiction_name": jur_name,
             "source_family": normalized_source_family,
+            "latest_pipeline_run_id": latest_pipeline_run_id,
             "pipeline_status": pipeline_status,
             "last_success_at": str(latest_success["completed_at"])
             if latest_success and latest_success.get("completed_at")
@@ -1242,6 +1250,7 @@ async def get_pipeline_jurisdiction_status(
             "latest_analysis": latest_analysis,
             "alerts": _extract_pipeline_alerts(result),
             "operator_links": {
+                "pipeline_run_id": latest_pipeline_run_id,
                 "windmill_run_url": _build_windmill_run_url(
                     latest_run.get("windmill_run_id") if latest_run else None
                 ),

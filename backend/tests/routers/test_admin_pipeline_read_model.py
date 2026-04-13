@@ -109,10 +109,14 @@ def test_get_pipeline_jurisdiction_status_shape(client, mock_db):
     assert data["contract_version"] == CONTRACT_VERSION
     assert data["jurisdiction_id"] == "jur-1"
     assert data["source_family"] == "meeting_minutes"
+    assert data["latest_pipeline_run_id"] == "run-1"
+    assert data["operator_links"]["pipeline_run_id"] == "run-1"
     assert data["pipeline_status"] == "stale_but_usable"
     assert data["freshness"]["stale_usable_ceiling_hours"] == 72
     assert data["counts"]["chunks"] == 4
     assert data["latest_analysis"]["status"] == "ready"
+    first_query = mock_db._fetchrow.call_args_list[1]
+    assert first_query.args[3] == "meeting_minutes"
 
 
 def test_get_pipeline_run_detail_shape(client, mock_db):
