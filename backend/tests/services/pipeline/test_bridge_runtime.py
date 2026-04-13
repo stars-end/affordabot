@@ -157,7 +157,8 @@ class FakeDB:
                 "id": chunk_id,
                 "document_id": str(args[1]),
                 "content": str(args[2]),
-                "chunk_index": int(args[4]),
+                "embedding": args[3],
+                "chunk_index": int(args[5]),
             }
 
         return "OK"
@@ -234,6 +235,11 @@ class FakeLLMClient:
         self.chat = SimpleNamespace(completions=_FakeCompletions(fail=fail))
 
 
+class FakeEmbeddingService:
+    async def embed_documents(self, chunks: list[str]) -> list[list[float]]:
+        return [[0.1] * 4096 for _ in chunks]
+
+
 def _request(
     stale_status: str = "fresh",
     idempotency_key: str = "wm:run-scope:runtime",
@@ -264,6 +270,7 @@ def test_runtime_bridge_writes_sql_storage_and_chunks() -> None:
     )
     runtime.reader_client = FakeReaderClient()
     runtime._llm_client = FakeLLMClient()
+    runtime.embedding_service = FakeEmbeddingService()
     runtime.zai_api_key = "x"
 
     response = asyncio.run(runtime.run_scope_pipeline(_request()))
@@ -271,8 +278,10 @@ def test_runtime_bridge_writes_sql_storage_and_chunks() -> None:
     assert response["storage_mode"] == "railway_runtime"
     assert response["missing_runtime_adapters"] == []
     assert response["steps"]["index"]["counts"]["chunks"] > 0
+    assert response["steps"]["index"]["details"]["embedding_count"] == response["steps"]["index"]["counts"]["chunks"]
     assert len(storage.upload_calls) == 1
     assert len(db.snapshots) == 1
+    assert all(chunk["embedding"] for chunk in db.chunks.values())
     assert any("INSERT INTO content_artifacts" in query for query in db.exec_queries)
     assert any("INSERT INTO document_chunks" in query for query in db.exec_queries)
 

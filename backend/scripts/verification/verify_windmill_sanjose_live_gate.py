@@ -773,9 +773,11 @@ async def _query_db_evidence(
             """,
             f"%{jurisdiction.lower().replace(' ', '-')}%",
         )
-        chunk_count = await conn.fetchval(
+        chunk_stats = await conn.fetchrow(
             """
-            SELECT COUNT(*)::int
+            SELECT
+              COUNT(*)::int AS total,
+              COUNT(*) FILTER (WHERE embedding IS NOT NULL)::int AS with_embedding
             FROM public.document_chunks
             WHERE metadata::text ILIKE $1
             """,
@@ -828,7 +830,8 @@ async def _query_db_evidence(
             }
             for r in raw_scrapes
         ],
-        "document_chunks_count": int(chunk_count or 0),
+        "document_chunks_count": int((chunk_stats or {}).get("total") or 0),
+        "document_chunks_with_embedding_count": int((chunk_stats or {}).get("with_embedding") or 0),
         "pipeline_command_rows": [
             {
                 "id": str(r["id"]),
@@ -1064,6 +1067,7 @@ def _render_markdown(report: dict[str, Any]) -> str:
             f"- content_artifact_rows: `{len(db_probe.get('content_artifact_rows', []))}`",
             f"- raw_scrape_rows: `{len(db_probe.get('raw_scrape_rows', []))}`",
             f"- document_chunks_count: `{db_probe.get('document_chunks_count', 0)}`",
+            f"- document_chunks_with_embedding_count: `{db_probe.get('document_chunks_with_embedding_count', 0)}`",
             f"- minio_object_checks: `{db_probe.get('minio_object_checks', [])}`",
         ]
     )
@@ -1376,7 +1380,17 @@ def run_harness(
             storage_gates["reader_output_ref"] = {"status": "passed", "note": "content_artifacts rows found"}
             storage_gates["minio_object_refs"] = {"status": "passed", "note": "storage_uri refs present in content_artifacts"}
         if db_storage_probe.get("document_chunks_count", 0) > 0:
-            storage_gates["pgvector_index_probe"] = {"status": "passed", "note": "document_chunks rows found"}
+            embedded_count = int(db_storage_probe.get("document_chunks_with_embedding_count", 0) or 0)
+            if embedded_count > 0:
+                storage_gates["pgvector_index_probe"] = {
+                    "status": "passed",
+                    "note": f"document_chunks rows found with embeddings ({embedded_count})",
+                }
+            else:
+                storage_gates["pgvector_index_probe"] = {
+                    "status": "failed",
+                    "note": "document_chunks rows found but embeddings are NULL; chunk persistence passed, pgvector retrieval not proven",
+                }
         analysis_rows = [
             row
             for row in db_storage_probe.get("pipeline_command_rows", [])

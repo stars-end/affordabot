@@ -40,6 +40,8 @@ from services.pipeline.domain.storage import (
 )
 from services.storage import S3Storage
 
+EMBEDDING_DIMENSIONS = 4096
+
 ALLOWED_STALE_STATUSES = {
     "fresh",
     "stale_but_usable",
@@ -127,6 +129,20 @@ class RailwayRuntimeBridge:
             self.reader_client = None
         self.zai_api_key = os.getenv("ZAI_API_KEY", "").strip()
         self.zai_model = os.getenv("LLM_MODEL_RESEARCH", "glm-4.7")
+        self.embedding_service: Any | None = None
+        openrouter_api_key = os.getenv("OPENROUTER_API_KEY", "").strip()
+        if openrouter_api_key:
+            try:
+                from llm_common.embeddings.openai import OpenAIEmbeddingService
+
+                self.embedding_service = OpenAIEmbeddingService(
+                    base_url="https://openrouter.ai/api/v1",
+                    api_key=openrouter_api_key,
+                    model="qwen/qwen3-embedding-8b",
+                    dimensions=EMBEDDING_DIMENSIONS,
+                )
+            except Exception:
+                self.embedding_service = None
         self._llm_client = (
             AsyncOpenAI(
                 api_key=self.zai_api_key,
@@ -813,15 +829,33 @@ class RailwayRuntimeBridge:
         data = dict(_db_json(raw_row["data"], {}) or {})
         markdown_body = str(data.get("content", "")).strip()
         chunks = chunk_markdown_lines(markdown_body)
+        embeddings: list[Any | None] = [None] * len(chunks)
+        index_alerts: list[str] = []
+        if chunks and self.embedding_service:
+            try:
+                generated_embeddings = await self.embedding_service.embed_documents(chunks)
+                embeddings = list(generated_embeddings)
+                if len(embeddings) != len(chunks):
+                    index_alerts.append("embedding_count_mismatch")
+                    embeddings = (embeddings + [None] * len(chunks))[: len(chunks)]
+            except Exception as exc:  # noqa: BLE001
+                index_alerts.append(f"embedding_generation_failed:{type(exc).__name__}")
+                embeddings = [None] * len(chunks)
+        elif chunks:
+            index_alerts.append("embedding_provider_unavailable")
+
         chunk_count = 0
         for idx, text in enumerate(chunks):
             chunk_id = _stable_uuid(canonical_key, content_hash, str(idx), text)
+            embedding = embeddings[idx] if idx < len(embeddings) else None
+            embedding_value = str(embedding) if embedding is not None else None
             await self.db._execute(
                 """
                 INSERT INTO document_chunks (id, document_id, content, embedding, metadata, chunk_index, source)
-                VALUES ($1::uuid, $2::uuid, $3, NULL, $4::jsonb, $5, $6)
+                VALUES ($1::uuid, $2::uuid, $3, $4::vector, $5::jsonb, $6, $7)
                 ON CONFLICT (id) DO UPDATE SET
                   content = EXCLUDED.content,
+                  embedding = EXCLUDED.embedding,
                   metadata = EXCLUDED.metadata,
                   chunk_index = EXCLUDED.chunk_index,
                   source = EXCLUDED.source
@@ -829,6 +863,7 @@ class RailwayRuntimeBridge:
                 chunk_id,
                 document_id,
                 text,
+                embedding_value,
                 _json(
                     {
                         "canonical_document_key": canonical_key,
@@ -858,15 +893,20 @@ class RailwayRuntimeBridge:
 
         response = CommandResponse(
             command="index",
-            status="succeeded",
+            status="succeeded_with_alerts" if index_alerts else "succeeded",
             decision_reason="chunks_indexed",
             retry_class="none",
+            alerts=index_alerts,
             counts={"chunks": chunk_count},
             refs={
                 "windmill_run_id": meta.run_id,
                 "windmill_job_id": meta.job_id,
                 "raw_scrape_ids": [raw_scrape_id],
                 "document_id": document_id,
+            },
+            details={
+                "embedding_provider": "openrouter:qwen/qwen3-embedding-8b" if self.embedding_service else None,
+                "embedding_count": sum(1 for item in embeddings if item is not None),
             },
         )
         return await self._persist_response(run_id=run_id, request=request, response=response)
