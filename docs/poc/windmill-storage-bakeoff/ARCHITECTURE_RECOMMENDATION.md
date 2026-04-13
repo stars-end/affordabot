@@ -13,6 +13,8 @@ Adopt a hybrid architecture:
 
 The final locked boundary, including frontend, Postgres, pgvector, and MinIO ownership, is documented in `docs/architecture/2026-04-12-windmill-affordabot-boundary-adr.md`.
 
+The brownfield implementation contract, including exact existing-stack mapping, command contracts, identity, atomicity, concurrency, frontend read models, and two-agent execution waves, is documented in `docs/specs/2026-04-13-windmill-domain-brownfield-spec-lock.md`.
+
 This is not a recommendation to preserve the current monolithic backend cron pattern. The current pattern should still be replaced by Windmill-native DAGs.
 
 ## Evidence Produced

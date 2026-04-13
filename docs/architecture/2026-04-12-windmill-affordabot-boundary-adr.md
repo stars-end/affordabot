@@ -3,6 +3,7 @@
 Date: 2026-04-12
 Status: Accepted for implementation planning; production rollout still requires live Windmill validation.
 Tracking: `bd-jxclm.15` while local Beads reconciliation is offline.
+Spec lock: `docs/specs/2026-04-13-windmill-domain-brownfield-spec-lock.md`
 
 ## Decision
 
