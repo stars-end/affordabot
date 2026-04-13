@@ -29,6 +29,13 @@ async function mockAdminAPIDefault(page) {
   await page.route('**/api/admin/**', async (route) => {
     await route.fulfill({ json: [] });
   });
+  await page.route('**/api/sources**', async (route) => {
+    if (route.request().method() === 'GET') {
+      await route.fulfill({ json: [] });
+      return;
+    }
+    await route.fulfill({ json: { ok: true } });
+  });
 }
 
 adminTest.describe('Preserved Admin Routes', () => {

@@ -24,6 +24,14 @@
 - `bulk_validation.py`: Batch validation logic.
 - `validate_pipeline_sanjose.py`: Specific pipeline verification.
 - `e2e_test.py`: End-to-end testing script.
+- `backend-ruff-preflight.sh`: Fast backend Ruff gate (no full backend test suite).
+- `preservation-preflight.sh`: Frontend preservation env/fixture preflight.
+- `check-pr-metadata.py`: Feature-Key + Agent PR metadata check (local/CI).
+
+### CI quick commands
+- `scripts/ci/backend-ruff-preflight.sh`
+- `NEXT_PUBLIC_TEST_AUTH_BYPASS=true TEST_AUTH_BYPASS_SECRET=ci-test-secret-for-playwright-only NEXT_PUBLIC_API_URL=http://127.0.0.1:65535 scripts/ci/preservation-preflight.sh`
+- `python3 scripts/ci/check-pr-metadata.py --title "bd-xyz: summary" --body "Agent: codex"`
 
 ### Maintenance
 - `create_minio_bucket.py`: Infrastructure setup.

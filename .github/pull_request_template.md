@@ -2,6 +2,11 @@
 
 Describe the change and link the Beads issue.
 
+## Preflight (required)
+
+- [ ] `scripts/ci/backend-ruff-preflight.sh`
+- [ ] `python3 scripts/ci/check-pr-metadata.py --title "bd-xyz: summary" --body "Agent: <id>"`
+
 ## Feature Metadata
 
 **Required fields:**

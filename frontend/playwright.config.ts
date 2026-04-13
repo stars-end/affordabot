@@ -45,6 +45,7 @@ export default defineConfig({
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || '',
       CLERK_SECRET_KEY: process.env.CLERK_SECRET_KEY || '',
       NEXT_PUBLIC_TEST_AUTH_BYPASS: 'true',
+      NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:65535',
       RAILWAY_ENVIRONMENT_NAME: 'dev',
       TEST_AUTH_BYPASS_SECRET: process.env.TEST_AUTH_BYPASS_SECRET || 'ci-test-secret-for-playwright-only',
     },
