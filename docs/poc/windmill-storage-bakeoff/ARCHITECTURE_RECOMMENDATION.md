@@ -11,6 +11,8 @@ Adopt a hybrid architecture:
 - Affordabot owns product data invariants through a small domain-command layer or shared package: canonical document identity, idempotency, freshness semantics, artifact references, chunk provenance, sufficiency gates, and analysis output shape.
 - Storage remains boring infrastructure: Postgres/pgvector/MinIO are the durable state systems. Windmill may write operational run reports, but product records should be written through affordabot domain commands.
 
+The final locked boundary, including frontend, Postgres, pgvector, and MinIO ownership, is documented in `docs/architecture/2026-04-12-windmill-affordabot-boundary-adr.md`.
+
 This is not a recommendation to preserve the current monolithic backend cron pattern. The current pattern should still be replaced by Windmill-native DAGs.
 
 ## Evidence Produced
@@ -157,4 +159,3 @@ Should the next implementation build Path B as:
 2. a shared affordabot domain package imported by Windmill worker scripts?
 
 The POC evidence favors the domain boundary either way. The remaining choice is transport/deployment ergonomics, not whether product invariants should live in Windmill.
-
