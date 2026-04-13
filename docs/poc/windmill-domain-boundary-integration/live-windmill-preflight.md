@@ -20,13 +20,42 @@ and remains fail-closed when URL/auth are missing.
 ```bash
 cd backend
 poetry run python scripts/verification/verify_windmill_sanjose_live_gate.py \
-  --run-mode stub-run
+  --run-mode stub-run \
+  --stale-drill-statuses stale_but_usable,stale_blocked \
+  --idempotent-rerun
 ```
 
 Outputs:
 
 - `docs/poc/windmill-domain-boundary-integration/artifacts/sanjose_live_gate_report.json`
 - `docs/poc/windmill-domain-boundary-integration/artifacts/sanjose_live_gate_report.md`
+
+Additional read-only provider bakeoff:
+
+```bash
+cd backend
+poetry run python scripts/verification/verify_search_provider_bakeoff.py
+```
+
+Output:
+
+- `docs/poc/windmill-domain-boundary-integration/artifacts/search_provider_bakeoff_report.json`
+
+## Expanded Evidence Schema
+
+The live gate report now includes:
+
+- Windmill run/job ids and flow input summary.
+- backend run idempotency key and rerun surface.
+- stale drills (`fresh`, `stale_but_usable`, `stale_blocked`) when requested.
+- search provider bakeoff table for SearXNG + optional Exa/Tavily probes.
+- optional DB/storage probes keyed by idempotency key:
+  - `search_result_snapshots`
+  - `content_artifacts` + storage refs
+  - `raw_scrapes`
+  - `document_chunks` count
+  - `pipeline_command_results`
+- manual-audit placeholders for reader/LLM excerpts and final verdict.
 
 ### 2026-04-13 Expanded CLI Smoke Update
 

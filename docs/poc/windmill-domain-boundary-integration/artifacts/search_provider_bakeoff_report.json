@@ -1,0 +1,39 @@
+{
+  "feature_key": "bd-9qjof.6",
+  "generated_at": "2026-04-13T18:38:50.290901+00:00",
+  "providers": [
+    {
+      "endpoint": "https://searx.tiekoetter.com/search",
+      "failure_classification": "http_error",
+      "http_status": 429,
+      "latency_ms": 639,
+      "provider": "searxng",
+      "query": "San Jose CA city council meeting minutes housing",
+      "result_count": 0,
+      "status": "failed",
+      "top_results": []
+    },
+    {
+      "failure_classification": "missing_secret",
+      "latency_ms": 0,
+      "provider": "exa",
+      "query": "San Jose CA city council meeting minutes housing",
+      "result_count": 0,
+      "status": "not_configured",
+      "top_results": []
+    },
+    {
+      "failure_classification": "missing_secret",
+      "latency_ms": 0,
+      "provider": "tavily",
+      "query": "San Jose CA city council meeting minutes housing",
+      "result_count": 0,
+      "status": "not_configured",
+      "top_results": []
+    }
+  ],
+  "query": "San Jose CA city council meeting minutes housing",
+  "searx_endpoints": [
+    "https://searx.tiekoetter.com/search"
+  ]
+}

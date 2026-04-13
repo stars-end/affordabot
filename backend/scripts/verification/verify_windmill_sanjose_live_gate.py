@@ -13,16 +13,22 @@ It intentionally distinguishes:
 from __future__ import annotations
 
 import argparse
+import asyncio
 import json
+import os
 import subprocess
 import tempfile
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib.util import module_from_spec, spec_from_file_location
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
+
+import requests
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -59,6 +65,9 @@ EXPECTED_STEP_SEQUENCE = [
 WINDMILL_DOMAIN_SCRIPT_PATH = (
     REPO_ROOT / "ops" / "windmill" / "f" / "affordabot" / "pipeline_daily_refresh_domain_boundary.py"
 )
+DEFAULT_SEARX_ENDPOINTS = ["https://searx.tiekoetter.com/search"]
+EXA_SECRET_REF = "op://dev/Agent-Secrets-Production/EXA_API_KEY"
+TAVILY_SECRET_REF = "op://dev/Agent-Secrets-Production/TAVILY_API_KEY"
 
 
 class HarnessError(RuntimeError):
@@ -452,6 +461,407 @@ def _build_backend_endpoint_readiness(
     }
 
 
+def _normalize_searx_results(payload: dict[str, Any], limit: int = 3) -> list[dict[str, str]]:
+    top = []
+    for item in payload.get("results") or []:
+        if not isinstance(item, dict):
+            continue
+        top.append(
+            {
+                "url": str(item.get("url") or ""),
+                "title": str(item.get("title") or ""),
+                "snippet": str(item.get("content") or ""),
+            }
+        )
+        if len(top) >= limit:
+            break
+    return top
+
+
+def _probe_searx(endpoint: str, query: str, timeout_seconds: int = 20) -> dict[str, Any]:
+    start = time.perf_counter()
+    try:
+        response = requests.get(
+            endpoint,
+            params={"q": query, "format": "json"},
+            timeout=timeout_seconds,
+        )
+        latency_ms = int((time.perf_counter() - start) * 1000)
+        if response.status_code != 200:
+            return {
+                "provider": "searxng",
+                "endpoint": endpoint,
+                "query": query,
+                "status": "failed",
+                "failure_classification": "http_error",
+                "http_status": response.status_code,
+                "result_count": 0,
+                "latency_ms": latency_ms,
+                "top_results": [],
+            }
+        payload = response.json()
+        result_count = len(payload.get("results") or [])
+        return {
+            "provider": "searxng",
+            "endpoint": endpoint,
+            "query": query,
+            "status": "succeeded",
+            "failure_classification": None,
+            "http_status": response.status_code,
+            "result_count": result_count,
+            "latency_ms": latency_ms,
+            "top_results": _normalize_searx_results(payload),
+        }
+    except requests.Timeout:
+        return {
+            "provider": "searxng",
+            "endpoint": endpoint,
+            "query": query,
+            "status": "failed",
+            "failure_classification": "timeout",
+            "result_count": 0,
+            "latency_ms": int((time.perf_counter() - start) * 1000),
+            "top_results": [],
+        }
+    except requests.RequestException as exc:
+        return {
+            "provider": "searxng",
+            "endpoint": endpoint,
+            "query": query,
+            "status": "failed",
+            "failure_classification": "network_error",
+            "error": str(exc),
+            "result_count": 0,
+            "latency_ms": int((time.perf_counter() - start) * 1000),
+            "top_results": [],
+        }
+
+
+def _probe_exa(query: str, api_key: str, timeout_seconds: int = 20) -> dict[str, Any]:
+    start = time.perf_counter()
+    try:
+        response = requests.post(
+            "https://api.exa.ai/search",
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json={"query": query, "numResults": 5},
+            timeout=timeout_seconds,
+        )
+        latency_ms = int((time.perf_counter() - start) * 1000)
+        if response.status_code != 200:
+            return {
+                "provider": "exa",
+                "query": query,
+                "status": "failed",
+                "failure_classification": "http_error",
+                "http_status": response.status_code,
+                "result_count": 0,
+                "latency_ms": latency_ms,
+                "top_results": [],
+            }
+        payload = response.json()
+        results = payload.get("results") or []
+        top = []
+        for item in results[:3]:
+            if not isinstance(item, dict):
+                continue
+            top.append(
+                {
+                    "url": str(item.get("url") or ""),
+                    "title": str(item.get("title") or ""),
+                    "snippet": str(item.get("text") or item.get("snippet") or ""),
+                }
+            )
+        return {
+            "provider": "exa",
+            "query": query,
+            "status": "succeeded",
+            "failure_classification": None,
+            "http_status": response.status_code,
+            "result_count": len(results),
+            "latency_ms": latency_ms,
+            "top_results": top,
+        }
+    except requests.Timeout:
+        return {
+            "provider": "exa",
+            "query": query,
+            "status": "failed",
+            "failure_classification": "timeout",
+            "result_count": 0,
+            "latency_ms": int((time.perf_counter() - start) * 1000),
+            "top_results": [],
+        }
+    except requests.RequestException as exc:
+        return {
+            "provider": "exa",
+            "query": query,
+            "status": "failed",
+            "failure_classification": "network_error",
+            "error": str(exc),
+            "result_count": 0,
+            "latency_ms": int((time.perf_counter() - start) * 1000),
+            "top_results": [],
+        }
+
+
+def _probe_tavily(query: str, api_key: str, timeout_seconds: int = 20) -> dict[str, Any]:
+    start = time.perf_counter()
+    try:
+        response = requests.post(
+            "https://api.tavily.com/search",
+            headers={"Content-Type": "application/json"},
+            json={"api_key": api_key, "query": query, "max_results": 5, "include_answer": False},
+            timeout=timeout_seconds,
+        )
+        latency_ms = int((time.perf_counter() - start) * 1000)
+        if response.status_code != 200:
+            return {
+                "provider": "tavily",
+                "query": query,
+                "status": "failed",
+                "failure_classification": "http_error",
+                "http_status": response.status_code,
+                "result_count": 0,
+                "latency_ms": latency_ms,
+                "top_results": [],
+            }
+        payload = response.json()
+        results = payload.get("results") or []
+        top = []
+        for item in results[:3]:
+            if not isinstance(item, dict):
+                continue
+            top.append(
+                {
+                    "url": str(item.get("url") or ""),
+                    "title": str(item.get("title") or ""),
+                    "snippet": str(item.get("content") or ""),
+                }
+            )
+        return {
+            "provider": "tavily",
+            "query": query,
+            "status": "succeeded",
+            "failure_classification": None,
+            "http_status": response.status_code,
+            "result_count": len(results),
+            "latency_ms": latency_ms,
+            "top_results": top,
+        }
+    except requests.Timeout:
+        return {
+            "provider": "tavily",
+            "query": query,
+            "status": "failed",
+            "failure_classification": "timeout",
+            "result_count": 0,
+            "latency_ms": int((time.perf_counter() - start) * 1000),
+            "top_results": [],
+        }
+    except requests.RequestException as exc:
+        return {
+            "provider": "tavily",
+            "query": query,
+            "status": "failed",
+            "failure_classification": "network_error",
+            "error": str(exc),
+            "result_count": 0,
+            "latency_ms": int((time.perf_counter() - start) * 1000),
+            "top_results": [],
+        }
+
+
+def _run_search_provider_bakeoff(
+    *,
+    query: str,
+    searx_endpoints: list[str],
+) -> tuple[list[dict[str, Any]], list[str]]:
+    probes: list[dict[str, Any]] = []
+    sensitive_values: list[str] = []
+    for endpoint in searx_endpoints:
+        probes.append(_probe_searx(endpoint, query))
+
+    exa_key = ""
+    try:
+        exa_key = _get_cached_secret(EXA_SECRET_REF)
+    except HarnessError:
+        probes.append(
+            {
+                "provider": "exa",
+                "query": query,
+                "status": "not_configured",
+                "failure_classification": "missing_secret",
+                "result_count": 0,
+                "latency_ms": 0,
+                "top_results": [],
+            }
+        )
+    if exa_key:
+        sensitive_values.append(exa_key)
+        probes.append(_probe_exa(query, exa_key))
+
+    tavily_key = ""
+    try:
+        tavily_key = _get_cached_secret(TAVILY_SECRET_REF)
+    except HarnessError:
+        probes.append(
+            {
+                "provider": "tavily",
+                "query": query,
+                "status": "not_configured",
+                "failure_classification": "missing_secret",
+                "result_count": 0,
+                "latency_ms": 0,
+                "top_results": [],
+            }
+        )
+    if tavily_key:
+        sensitive_values.append(tavily_key)
+        probes.append(_probe_tavily(query, tavily_key))
+
+    return probes, sensitive_values
+
+
+async def _query_db_evidence(
+    database_url: str,
+    *,
+    idempotency_key: str,
+    jurisdiction: str,
+    source_family: str,
+) -> dict[str, Any]:
+    try:
+        import asyncpg
+    except ImportError:
+        return {"status": "blocked", "reason": "asyncpg_missing"}
+
+    conn = await asyncpg.connect(database_url)
+    try:
+        search_rows = await conn.fetch(
+            """
+            SELECT id, result_count
+            FROM public.search_result_snapshots
+            WHERE idempotency_key = $1
+            ORDER BY created_at DESC
+            LIMIT 10
+            """,
+            idempotency_key,
+        )
+        artifacts = await conn.fetch(
+            """
+            SELECT id, artifact_kind, content_hash, storage_uri
+            FROM public.content_artifacts
+            WHERE source_family = $1
+            ORDER BY created_at DESC
+            LIMIT 25
+            """,
+            source_family,
+        )
+        raw_scrapes = await conn.fetch(
+            """
+            SELECT id, url, canonical_document_key
+            FROM public.raw_scrapes
+            WHERE canonical_document_key ILIKE $1
+            ORDER BY created_at DESC
+            LIMIT 25
+            """,
+            f"%{jurisdiction.lower().replace(' ', '-')}%",
+        )
+        chunk_count = await conn.fetchval(
+            """
+            SELECT COUNT(*)::int
+            FROM public.document_chunks
+            WHERE metadata::text ILIKE $1
+            """,
+            f"%{jurisdiction.lower().replace(' ', '-')}%",
+        )
+        command_rows = await conn.fetch(
+            """
+            SELECT id, command, status, refs, alerts
+            FROM public.pipeline_command_results
+            WHERE idempotency_key = $1
+            ORDER BY created_at DESC
+            LIMIT 20
+            """,
+            idempotency_key,
+        )
+    finally:
+        await conn.close()
+
+    object_refs = [row["storage_uri"] for row in artifacts if row.get("storage_uri")]
+    minio_checks = []
+    for uri in object_refs[:3]:
+        parsed = urlparse(uri)
+        if parsed.scheme in {"http", "https"}:
+            try:
+                resp = requests.head(uri, timeout=10)
+                minio_checks.append({"uri": uri, "status": "checked", "http_status": resp.status_code})
+            except requests.RequestException as exc:
+                minio_checks.append({"uri": uri, "status": "probe_failed", "error": str(exc)})
+        else:
+            minio_checks.append({"uri": uri, "status": "not_probeable_without_storage_client"})
+
+    return {
+        "status": "queried",
+        "search_snapshot_rows": [{"id": str(r["id"]), "result_count": int(r["result_count"] or 0)} for r in search_rows],
+        "content_artifact_rows": [
+            {
+                "id": str(r["id"]),
+                "artifact_kind": str(r["artifact_kind"]),
+                "content_hash": str(r["content_hash"]),
+                "storage_uri": str(r["storage_uri"] or ""),
+            }
+            for r in artifacts
+        ],
+        "raw_scrape_rows": [
+            {"id": str(r["id"]), "url": str(r["url"] or ""), "canonical_document_key": str(r["canonical_document_key"] or "")}
+            for r in raw_scrapes
+        ],
+        "document_chunks_count": int(chunk_count or 0),
+        "pipeline_command_rows": [
+            {
+                "id": str(r["id"]),
+                "command": str(r["command"]),
+                "status": str(r["status"]),
+                "refs": r["refs"] if isinstance(r["refs"], dict) else {},
+                "alerts": r["alerts"] if isinstance(r["alerts"], list) else [],
+            }
+            for r in command_rows
+        ],
+        "minio_object_checks": minio_checks,
+    }
+
+
+def _derive_db_probe(
+    *,
+    idempotency_key: str,
+    jurisdiction: str,
+    source_family: str,
+    database_url: str | None,
+) -> dict[str, Any]:
+    if not database_url:
+        return {"status": "not_configured", "reason": "DATABASE_URL missing"}
+    try:
+        return asyncio.run(
+            _query_db_evidence(
+                database_url,
+                idempotency_key=idempotency_key,
+                jurisdiction=jurisdiction,
+                source_family=source_family,
+            )
+        )
+    except Exception as exc:  # noqa: BLE001
+        return {"status": "probe_failed", "reason": str(exc)}
+
+
+def _assert_no_secret_leak(report: dict[str, Any], secrets: list[str]) -> list[str]:
+    blob = json.dumps(report, sort_keys=True)
+    leaked = []
+    for secret in secrets:
+        if secret and len(secret) >= 8 and secret in blob:
+            leaked.append(secret[:6] + "...redacted")
+    return leaked
+
+
 def _derive_classification(
     *,
     result_payload: dict[str, Any] | None,
@@ -547,6 +957,60 @@ def _render_markdown(report: dict[str, Any]) -> str:
         ]
     )
 
+    lines.extend(["", "## Search Provider Bakeoff"])
+    probes = report.get("search_provider_bakeoff") or []
+    if probes:
+        lines.extend(
+            [
+                "| Provider | Status | Result Count | Latency (ms) | Failure Class | Top URL |",
+                "|---|---:|---:|---:|---|---|",
+            ]
+        )
+        for probe in probes:
+            top_url = ""
+            top_results = probe.get("top_results") or []
+            if top_results and isinstance(top_results, list):
+                top_url = str(top_results[0].get("url") or "")
+            lines.append(
+                "| {provider} | {status} | {count} | {latency} | {failure} | {top_url} |".format(
+                    provider=probe.get("provider", ""),
+                    status=probe.get("status", ""),
+                    count=probe.get("result_count", 0),
+                    latency=probe.get("latency_ms", 0),
+                    failure=probe.get("failure_classification") or "",
+                    top_url=top_url,
+                )
+            )
+    else:
+        lines.append("- no probes")
+
+    db_probe = report.get("db_storage_probe") or {}
+    lines.extend(
+        [
+            "",
+            "## DB/Storage Evidence",
+            f"- probe_status: `{db_probe.get('status', 'unknown')}`",
+            f"- search_snapshot_rows: `{len(db_probe.get('search_snapshot_rows', []))}`",
+            f"- content_artifact_rows: `{len(db_probe.get('content_artifact_rows', []))}`",
+            f"- raw_scrape_rows: `{len(db_probe.get('raw_scrape_rows', []))}`",
+            f"- document_chunks_count: `{db_probe.get('document_chunks_count', 0)}`",
+            f"- minio_object_checks: `{db_probe.get('minio_object_checks', [])}`",
+        ]
+    )
+
+    manual_notes = report.get("manual_audit_notes") or {}
+    lines.extend(
+        [
+            "",
+            "## Manual Audit Notes",
+            f"- reader_output_excerpt: {manual_notes.get('reader_output_excerpt', '-') or '-'}",
+            f"- reader_quality_note: {manual_notes.get('reader_quality_note', '-') or '-'}",
+            f"- llm_analysis_excerpt: {manual_notes.get('llm_analysis_excerpt', '-') or '-'}",
+            f"- llm_quality_note: {manual_notes.get('llm_quality_note', '-') or '-'}",
+            f"- manual_verdict: {manual_notes.get('manual_verdict', 'PENDING_MANUAL_AUDIT')}",
+        ]
+    )
+
     lines.extend(["", "## Blockers"])
     if report["blockers"]:
         for blocker in report["blockers"]:
@@ -570,13 +1034,19 @@ def run_harness(
     stale_status: str,
     scope_parallelism: int,
     idempotency_key: str | None,
+    stale_drill_statuses: list[str],
+    run_idempotent_rerun: bool,
+    searx_endpoints: list[str],
     backend_endpoint_url: str | None,
     backend_endpoint_auth_token: str | None,
+    database_url: str | None,
 ) -> dict[str, Any]:
     blockers: list[dict[str, Any]] = []
     result_payload: dict[str, Any] | None = None
+    sensitive_values: list[str] = []
 
     context = _build_context(workspace)
+    sensitive_values.append(context.windmill_api_token)
     _setup_workspace_profile(context)
 
     try:
@@ -625,8 +1095,29 @@ def run_harness(
             }
         )
 
-    manual_run: dict[str, Any] = {"attempted": False}
-    if not blockers and run_mode == "stub-run":
+    backend_endpoint_readiness = _build_backend_endpoint_readiness(
+        backend_endpoint_url=backend_endpoint_url,
+        backend_endpoint_auth_token=backend_endpoint_auth_token,
+    )
+
+    command_client = "stub" if run_mode == "stub-run" else "backend_endpoint"
+    manual_run: dict[str, Any] = {"attempted": False, "command_client": command_client}
+    stale_drills: list[dict[str, Any]] = []
+    idempotent_rerun: dict[str, Any] = {"attempted": False}
+    if not blockers and run_mode in {"stub-run", "backend-endpoint-run"}:
+        if run_mode == "backend-endpoint-run" and backend_endpoint_readiness.get("status") != "ready_for_opt_in":
+            blockers.append(
+                {
+                    "category": "product_bridge",
+                    "message": "backend-endpoint-run requested but backend endpoint readiness is not ready_for_opt_in",
+                    "details": backend_endpoint_readiness,
+                    "blocking": True,
+                }
+            )
+            manual_run["attempted"] = False
+        else:
+            manual_run["attempted"] = True
+    if manual_run.get("attempted"):
         manual_run["attempted"] = True
         idempotency = idempotency_key or f"{FEATURE_KEY}-live-gate-{datetime.now(UTC).strftime('%Y%m%d-%H%M%S')}"
         manual_run["idempotency_key"] = idempotency
@@ -639,6 +1130,7 @@ def run_harness(
             "search_query": search_query,
             "analysis_question": analysis_question,
             "stale_status": stale_status,
+            "command_client": command_client,
         }
         try:
             run_started_at = datetime.now(UTC)
@@ -699,16 +1191,122 @@ def run_harness(
             manual_run["step_sequence"] = step_sequence
             manual_run["step_sequence_matches_expected"] = step_sequence == EXPECTED_STEP_SEQUENCE
             manual_run["contract_metadata_present"] = _all_step_envelopes_have_contract(result_payload)
+
+            for drill_status in stale_drill_statuses:
+                drill_key = f"{idempotency}:{drill_status}"
+                drill_payload = dict(payload)
+                drill_payload["idempotency_key"] = drill_key
+                drill_payload["stale_status"] = drill_status
+                drill_result = _wmill(
+                    context,
+                    "flow",
+                    "run",
+                    flow_path,
+                    "-s",
+                    "-d",
+                    json.dumps(drill_payload),
+                    expect_json=True,
+                )
+                stale_drills.append(
+                    {
+                        "idempotency_key": drill_key,
+                        "requested_stale_status": drill_status,
+                        "status": drill_result.get("status"),
+                        "scope_succeeded": drill_result.get("scope_succeeded"),
+                        "scope_failed": drill_result.get("scope_failed"),
+                        "step_sequence": _extract_step_sequence(drill_result),
+                    }
+                )
+
+            if run_idempotent_rerun:
+                idempotent_rerun["attempted"] = True
+                rerun_result = _wmill(
+                    context,
+                    "flow",
+                    "run",
+                    flow_path,
+                    "-s",
+                    "-d",
+                    json.dumps(payload),
+                    expect_json=True,
+                )
+                idempotent_rerun["status"] = rerun_result.get("status")
+                idempotent_rerun["step_sequence"] = _extract_step_sequence(rerun_result)
+                idempotent_rerun["scope_totals"] = {
+                    "scope_total": rerun_result.get("scope_total"),
+                    "scope_succeeded": rerun_result.get("scope_succeeded"),
+                    "scope_failed": rerun_result.get("scope_failed"),
+                    "scope_blocked": rerun_result.get("scope_blocked"),
+                }
+                idempotent_rerun["result_payload"] = rerun_result
         except HarnessError as err:
             blockers.append({"category": err.category, "message": str(err), "details": err.details, "blocking": True})
     elif run_mode == "read-only":
         manual_run["attempted"] = False
 
     storage_gates = _build_storage_evidence_gates(result_payload or {})
-    backend_endpoint_readiness = _build_backend_endpoint_readiness(
-        backend_endpoint_url=backend_endpoint_url,
-        backend_endpoint_auth_token=backend_endpoint_auth_token,
+    if stale_drills:
+        by_mode = {item["requested_stale_status"]: item for item in stale_drills}
+        usable = by_mode.get("stale_but_usable")
+        blocked = by_mode.get("stale_blocked")
+        storage_gates["stale_drill_stale_but_usable"] = {
+            "status": "passed" if usable and usable.get("status") == "succeeded" else "failed",
+            "note": str(usable or {}),
+        }
+        blocked_pass = False
+        if blocked:
+            blocked_steps = blocked.get("step_sequence") or []
+            blocked_pass = "read_fetch" not in blocked_steps and "index" not in blocked_steps and "analyze" not in blocked_steps
+        storage_gates["stale_drill_stale_blocked"] = {
+            "status": "passed" if blocked_pass else "failed",
+            "note": str(blocked or {}),
+        }
+
+    if idempotent_rerun.get("attempted"):
+        rerun_payload = idempotent_rerun.get("result_payload") or {}
+        rerun_steps = rerun_payload.get("scope_results") or []
+        idempotent_reuse = False
+        if rerun_steps:
+            steps_map = rerun_steps[0].get("steps") or {}
+            search_details = (steps_map.get("search_materialize") or {}).get("details") or {}
+            summary_details = (steps_map.get("summarize_run") or {}).get("details") or {}
+            idempotent_reuse = bool(search_details.get("idempotent_reuse")) or bool(summary_details.get("idempotent_reuse"))
+        storage_gates["idempotent_rerun"] = {
+            "status": "passed" if idempotent_rerun.get("status") == "succeeded" and idempotent_reuse else "pending",
+            "note": f"rerun_status={idempotent_rerun.get('status')} idempotent_reuse={idempotent_reuse}",
+        }
+
+    search_provider_bakeoff, provider_secrets = _run_search_provider_bakeoff(
+        query=search_query,
+        searx_endpoints=searx_endpoints or DEFAULT_SEARX_ENDPOINTS,
     )
+    sensitive_values.extend(provider_secrets)
+
+    db_storage_probe = _derive_db_probe(
+        idempotency_key=manual_run.get("idempotency_key", idempotency_key or ""),
+        jurisdiction=jurisdiction,
+        source_family=source_family,
+        database_url=database_url or os.getenv("DATABASE_URL"),
+    )
+    if db_storage_probe.get("status") == "queried":
+        if db_storage_probe.get("search_snapshot_rows"):
+            storage_gates["postgres_rows_written"] = {"status": "passed", "note": "search_result_snapshots rows found"}
+        if db_storage_probe.get("content_artifact_rows"):
+            storage_gates["reader_output_ref"] = {"status": "passed", "note": "content_artifacts rows found"}
+            storage_gates["minio_object_refs"] = {"status": "passed", "note": "storage_uri refs present in content_artifacts"}
+        if db_storage_probe.get("document_chunks_count", 0) > 0:
+            storage_gates["pgvector_index_probe"] = {"status": "passed", "note": "document_chunks rows found"}
+        if db_storage_probe.get("pipeline_command_rows"):
+            storage_gates["analysis_provenance_chain"] = {"status": "passed", "note": "pipeline_command_results rows found"}
+    elif db_storage_probe.get("status") in {"not_configured", "probe_failed", "blocked"}:
+        blockers.append(
+            {
+                "category": "storage/runtime",
+                "message": "DB/storage probe unavailable",
+                "details": db_storage_probe,
+                "blocking": False,
+            }
+        )
     if result_payload and storage_gates.get("bridge_mode", {}).get("status") == "stub":
         blockers.append(
             {
@@ -719,7 +1317,7 @@ def run_harness(
             }
         )
 
-    if result_payload and run_mode == "stub-run":
+    if result_payload and run_mode in {"stub-run", "backend-endpoint-run"}:
         missing_storage = [name for name, gate in storage_gates.items() if gate["status"] == "pending" and name != "bridge_mode"]
         if missing_storage:
             blockers.append(
@@ -769,8 +1367,10 @@ def run_harness(
             "WINDMILL_BASE_URL": "derived as WINDMILL_DEV_LOGIN_URL without /user/login",
             "WINDMILL_WORKSPACE": workspace,
             "TMP_WMILL_CONFIG": "auto-created temporary profile directory",
-            "BACKEND_ENDPOINT_URL": "optional flow input; full backend command endpoint URL",
-            "BACKEND_ENDPOINT_AUTH_TOKEN": "optional flow input; endpoint bearer token",
+            "BACKEND_PUBLIC_URL_VAR": "f/affordabot/BACKEND_PUBLIC_URL",
+            "CRON_SECRET_VAR": "f/affordabot/CRON_SECRET",
+            "BACKEND_ENDPOINT_URL": "optional local readiness input only",
+            "BACKEND_ENDPOINT_AUTH_TOKEN": "optional local readiness input only",
         },
         "deployment_surface": {
             "flow_path": flow_path,
@@ -785,17 +1385,40 @@ def run_harness(
             "jobs_checked_count": len(jobs_before) if isinstance(jobs_before, list) else 0,
         },
         "manual_run": manual_run,
+        "stale_drills": stale_drills,
+        "idempotent_rerun": idempotent_rerun,
         "result_payload": result_payload,
         "storage_evidence_gates": storage_gates,
+        "db_storage_probe": db_storage_probe,
+        "search_provider_bakeoff": search_provider_bakeoff,
         "backend_endpoint_readiness": backend_endpoint_readiness,
+        "manual_audit_notes": {
+            "reader_output_excerpt": "",
+            "reader_quality_note": "",
+            "llm_analysis_excerpt": "",
+            "llm_quality_note": "",
+            "manual_verdict": "PENDING_MANUAL_AUDIT",
+        },
         "blockers": blockers,
     }
+    leaked = _assert_no_secret_leak(report, sensitive_values + [backend_endpoint_auth_token or ""])
+    if leaked:
+        report["classification"] = "blocked"
+        report["full_run_readiness"] = "blocked"
+        report["blockers"].append(
+            {
+                "category": "security",
+                "message": "secret leakage detected in report payload",
+                "details": {"matches": leaked},
+                "blocking": True,
+            }
+        )
     return report
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Verify Windmill San Jose live gate.")
-    parser.add_argument("--run-mode", choices=["read-only", "stub-run"], default="stub-run")
+    parser.add_argument("--run-mode", choices=["read-only", "stub-run", "backend-endpoint-run"], default="stub-run")
     parser.add_argument("--workspace", default=DEFAULT_WORKSPACE)
     parser.add_argument("--flow-path", default=DEFAULT_FLOW_PATH)
     parser.add_argument("--script-path", default=DEFAULT_SCRIPT_PATH)
@@ -807,13 +1430,28 @@ def main() -> int:
         default="Summarize housing-related signals from recent San Jose meeting minutes.",
     )
     parser.add_argument("--stale-status", default="fresh")
+    parser.add_argument(
+        "--stale-drill-statuses",
+        default="",
+        help="Comma-separated stale drills, e.g. stale_but_usable,stale_blocked",
+    )
     parser.add_argument("--scope-parallelism", type=int, default=1)
+    parser.add_argument("--idempotent-rerun", action="store_true")
+    parser.add_argument(
+        "--searx-endpoint",
+        action="append",
+        default=[],
+        help="Repeatable SearXNG endpoint; defaults to canonical public probe if omitted",
+    )
     parser.add_argument("--idempotency-key", default=None)
     parser.add_argument("--backend-endpoint-url", default=None)
     parser.add_argument("--backend-endpoint-auth-token", default=None)
+    parser.add_argument("--database-url", default=None)
     parser.add_argument("--out-json", type=Path, default=DEFAULT_JSON_ARTIFACT)
     parser.add_argument("--out-md", type=Path, default=DEFAULT_MD_ARTIFACT)
     args = parser.parse_args()
+    stale_drills = [item.strip() for item in args.stale_drill_statuses.split(",") if item.strip()]
+    searx_endpoints = args.searx_endpoint or DEFAULT_SEARX_ENDPOINTS
 
     report = run_harness(
         run_mode=args.run_mode,
@@ -827,8 +1465,12 @@ def main() -> int:
         stale_status=args.stale_status,
         scope_parallelism=args.scope_parallelism,
         idempotency_key=args.idempotency_key,
+        stale_drill_statuses=stale_drills,
+        run_idempotent_rerun=args.idempotent_rerun,
+        searx_endpoints=searx_endpoints,
         backend_endpoint_url=args.backend_endpoint_url,
         backend_endpoint_auth_token=args.backend_endpoint_auth_token,
+        database_url=args.database_url,
     )
 
     args.out_json.parent.mkdir(parents=True, exist_ok=True)

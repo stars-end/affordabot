@@ -34,13 +34,34 @@ Use the canonical live harness:
 ```bash
 cd backend
 poetry run python scripts/verification/verify_windmill_sanjose_live_gate.py \
-  --run-mode stub-run
+  --run-mode stub-run \
+  --stale-drill-statuses stale_but_usable,stale_blocked \
+  --idempotent-rerun
+```
+
+Backend endpoint mode (only when backend endpoint + auth are configured):
+
+```bash
+cd backend
+poetry run python scripts/verification/verify_windmill_sanjose_live_gate.py \
+  --run-mode backend-endpoint-run \
+  --stale-drill-statuses stale_but_usable,stale_blocked \
+  --idempotent-rerun \
+  --database-url "$DATABASE_URL"
+```
+
+Standalone provider bakeoff (read-only):
+
+```bash
+cd backend
+poetry run python scripts/verification/verify_search_provider_bakeoff.py
 ```
 
 Live gate artifacts:
 
 - `docs/poc/windmill-domain-boundary-integration/artifacts/sanjose_live_gate_report.json`
 - `docs/poc/windmill-domain-boundary-integration/artifacts/sanjose_live_gate_report.md`
+- `docs/poc/windmill-domain-boundary-integration/artifacts/search_provider_bakeoff_report.json`
 
 Live gate classification rules:
 
@@ -48,6 +69,7 @@ Live gate classification rules:
 - `backend_bridge_surface_ready`: backend endpoint configuration + local mock probe validated, but live storage-backed execution is still unproven.
 - `full_product_pass`: Windmill DAG validated and storage/runtime evidence gates are satisfied.
 - `read_only_surface_pass`: workspace/script/flow/job/schedule surfaces validated without triggering a flow run.
+- `blocked`: run requested a mode requiring unavailable auth/runtime inputs.
 
 `backend_endpoint` is now an explicit command-client mode in the Windmill flow
 and script, but it is opt-in and fail-closed. The live default remains `stub`.

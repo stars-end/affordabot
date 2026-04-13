@@ -192,3 +192,159 @@ def test_recent_flow_job_lookup_selects_latest_after_run_start():
     )
     assert matched is not None
     assert matched["id"] == "newest"
+
+
+def test_search_provider_bakeoff_marks_paid_providers_not_configured(monkeypatch):
+    monkeypatch.setattr(
+        module,
+        "_probe_searx",
+        lambda endpoint, query, timeout_seconds=20: {
+            "provider": "searxng",
+            "endpoint": endpoint,
+            "query": query,
+            "status": "succeeded",
+            "failure_classification": None,
+            "result_count": 1,
+            "latency_ms": 5,
+            "top_results": [{"url": "https://example.com", "title": "x", "snippet": "y"}],
+        },
+    )
+
+    def _missing_secret(_ref):
+        raise module.HarnessError("infra/auth", "missing")
+
+    monkeypatch.setattr(module, "_get_cached_secret", _missing_secret)
+    probes, sensitive = module._run_search_provider_bakeoff(
+        query="san jose housing",
+        searx_endpoints=["https://searx.example/search"],
+    )
+    assert sensitive == []
+    by_provider = {item["provider"]: item for item in probes}
+    assert by_provider["searxng"]["status"] == "succeeded"
+    assert by_provider["exa"]["status"] == "not_configured"
+    assert by_provider["tavily"]["status"] == "not_configured"
+
+
+def test_secret_leak_detector_flags_token_presence():
+    report = {"a": "ok", "b": "token-1234567890"}
+    leaked = module._assert_no_secret_leak(report, ["token-1234567890"])
+    assert leaked == ["token-...redacted"]
+
+
+def test_db_probe_not_configured_without_database_url(monkeypatch):
+    probe = module._derive_db_probe(
+        idempotency_key="run:1",
+        jurisdiction="San Jose CA",
+        source_family="meeting_minutes",
+        database_url=None,
+    )
+    assert probe["status"] == "not_configured"
+
+
+def test_render_markdown_includes_provider_and_manual_sections():
+    report = {
+        "generated_at": "2026-04-13T00:00:00Z",
+        "feature_key": "bd-9qjof.6",
+        "harness_version": "x",
+        "run_mode": "stub-run",
+        "classification": "stub_orchestration_pass",
+        "full_run_readiness": "partial",
+        "deployment_surface": {"flow_deployed": True, "script_deployed": True, "flow_unscheduled": True},
+        "manual_run": {"attempted": False},
+        "storage_evidence_gates": {"bridge_mode": {"status": "stub", "note": "stub"}},
+        "backend_endpoint_readiness": {"status": "not_configured", "note": "", "missing_inputs": [], "local_mock_probe": {}},
+        "search_provider_bakeoff": [
+            {"provider": "searxng", "status": "succeeded", "result_count": 2, "latency_ms": 12, "failure_classification": None, "top_results": [{"url": "https://example.com"}]}
+        ],
+        "db_storage_probe": {
+            "status": "queried",
+            "search_snapshot_rows": [],
+            "content_artifact_rows": [],
+            "raw_scrape_rows": [],
+            "document_chunks_count": 0,
+            "minio_object_checks": [],
+        },
+        "manual_audit_notes": {
+            "reader_output_excerpt": "",
+            "reader_quality_note": "",
+            "llm_analysis_excerpt": "",
+            "llm_quality_note": "",
+            "manual_verdict": "PENDING_MANUAL_AUDIT",
+        },
+        "blockers": [],
+    }
+    md = module._render_markdown(report)
+    assert "## Search Provider Bakeoff" in md
+    assert "## DB/Storage Evidence" in md
+    assert "## Manual Audit Notes" in md
+
+
+def test_run_harness_keeps_stub_path_and_skips_db_without_env(monkeypatch):
+    monkeypatch.setattr(module, "_build_context", lambda workspace: module.HarnessContext("tok", "https://wm/user/login", "https://wm", workspace, "/tmp/w"))
+    monkeypatch.setattr(module, "_setup_workspace_profile", lambda ctx: None)
+
+    run_calls = {"count": 0}
+
+    def fake_wmill(ctx, *args, expect_json=False):
+        key = " ".join(args[:2])
+        if key == "workspace list":
+            return "profile"
+        if key == "flow get":
+            return {"path": "flow"}
+        if key == "script get":
+            return {"path": "script"}
+        if key == "schedule list":
+            return []
+        if key == "job list":
+            return []
+        if key == "flow run":
+            run_calls["count"] += 1
+            if run_calls["count"] == 2:
+                blocked_payload = _stub_scope_result(module.STUB_SUMMARY_MARKER)
+                blocked_payload["scope_results"][0]["steps"] = {
+                    "search_materialize": blocked_payload["scope_results"][0]["steps"]["search_materialize"],
+                    "freshness_gate": blocked_payload["scope_results"][0]["steps"]["freshness_gate"],
+                    "summarize_run": blocked_payload["scope_results"][0]["steps"]["summarize_run"],
+                }
+                return blocked_payload | {
+                    "status": "failed",
+                    "scope_total": 1,
+                    "scope_succeeded": 0,
+                    "scope_failed": 0,
+                    "scope_blocked": 1,
+                }
+            return _stub_scope_result(module.STUB_SUMMARY_MARKER) | {
+                "status": "succeeded",
+                "scope_total": 1,
+                "scope_succeeded": 1,
+                "scope_failed": 0,
+                "scope_blocked": 0,
+            }
+        return ""
+
+    monkeypatch.setattr(module, "_wmill", fake_wmill)
+    monkeypatch.setattr(module, "_run_search_provider_bakeoff", lambda **kwargs: ([], []))
+    monkeypatch.setenv("DATABASE_URL", "")
+    report = module.run_harness(
+        run_mode="stub-run",
+        workspace="affordabot",
+        flow_path="f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+        script_path="f/affordabot/pipeline_daily_refresh_domain_boundary",
+        jurisdiction="San Jose CA",
+        source_family="meeting_minutes",
+        search_query="q",
+        analysis_question="a",
+        stale_status="fresh",
+        scope_parallelism=1,
+        idempotency_key="run:test",
+        stale_drill_statuses=["stale_blocked"],
+        run_idempotent_rerun=False,
+        searx_endpoints=["https://searx.example/search"],
+        backend_endpoint_url=None,
+        backend_endpoint_auth_token=None,
+        database_url=None,
+    )
+    assert report["run_mode"] == "stub-run"
+    assert report["manual_run"]["attempted"] is True
+    assert report["db_storage_probe"]["status"] == "not_configured"
+    assert report["storage_evidence_gates"]["stale_drill_stale_blocked"]["status"] == "passed"

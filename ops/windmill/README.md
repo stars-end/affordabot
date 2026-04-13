@@ -241,18 +241,22 @@ Canonical manual validation harness (Worker B):
 ```bash
 cd backend
 poetry run python scripts/verification/verify_windmill_sanjose_live_gate.py \
-  --run-mode stub-run
+  --run-mode stub-run \
+  --stale-drill-statuses stale_but_usable,stale_blocked \
+  --idempotent-rerun
 ```
 
 Harness artifacts:
 - `docs/poc/windmill-domain-boundary-integration/artifacts/sanjose_live_gate_report.json`
 - `docs/poc/windmill-domain-boundary-integration/artifacts/sanjose_live_gate_report.md`
+- `docs/poc/windmill-domain-boundary-integration/artifacts/search_provider_bakeoff_report.json`
 
 Harness classifications:
 - `stub_orchestration_pass`: Windmill orchestration succeeded, but run is still stub-backed.
 - `backend_bridge_surface_ready`: backend endpoint configuration + local mock probe passed, but storage/runtime evidence is still pending.
 - `full_product_pass`: orchestration plus storage/runtime evidence gates succeeded.
 - `read_only_surface_pass`: deployment/auth surface checks passed in `--run-mode read-only`.
+- `blocked`: required backend endpoint/runtime inputs were unavailable or security checks failed.
 
 Backend endpoint mode (`command_client=backend_endpoint`) is opt-in and fail-closed.
 The flow default remains `command_client=stub`. Do not switch live runs to
