@@ -18,6 +18,12 @@ from services.pipeline.domain.models import (
     WindmillMetadata,
 )
 from services.pipeline.domain.ports import SearchResultItem
+from services.pipeline.domain.storage import (
+    InMemoryArtifactBlobStore,
+    InMemoryChunkVectorStore,
+    InMemoryPipelineStateStore,
+    PipelineStorageCoordinator,
+)
 
 __all__ = [
     "CONTRACT_VERSION",
@@ -26,10 +32,14 @@ __all__ = [
     "FreshnessPolicy",
     "InMemoryAnalyzer",
     "InMemoryArtifactStore",
+    "InMemoryArtifactBlobStore",
     "InMemoryDomainState",
+    "InMemoryChunkVectorStore",
+    "InMemoryPipelineStateStore",
     "InMemoryReaderProvider",
     "InMemorySearchProvider",
     "InMemoryVectorStore",
+    "PipelineStorageCoordinator",
     "PipelineDomainCommands",
     "SearchResultItem",
     "WindmillMetadata",
