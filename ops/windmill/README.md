@@ -62,6 +62,21 @@ Auth source for CLI and automation:
 - `op://dev/Agent-Secrets-Production/WINDMILL_API_TOKEN`
 - `op://dev/Agent-Secrets-Production/WINDMILL_DEV_LOGIN_URL`
 
+Canonical shell variables for agent runs:
+
+- `WINDMILL_API_TOKEN`: resolved from the cached 1Password helper.
+- `WINDMILL_DEV_LOGIN_URL`: resolved from the cached 1Password helper. This is
+  the browser login URL and currently ends with `/user/login`.
+- `WINDMILL_BASE_URL`: derived by stripping `/user/login` from
+  `WINDMILL_DEV_LOGIN_URL`. Windmill CLI API calls need this instance root.
+- `WINDMILL_WORKSPACE`: `affordabot`.
+- `TMP_WMILL_CONFIG`: a temporary `wmill` config directory created per run.
+
+Do not depend on ambient `~/.config/windmill` state in agent workflows. Create a
+throwaway profile with `--config-dir` for each CLI smoke test, dry-run, or sync
+operation. Do not use raw `op read`, `op item get`, `op item list`, or GUI-backed
+1Password auth from agents.
+
 Slack webhook note:
 - `trigger_cron_job` now normalizes accidentally quoted webhook values (for example `"https://hooks.slack..."`) before posting.
 - Keep `SLACK_WEBHOOK_URL` as a plain URL string in Windmill to avoid ambiguity.
@@ -160,20 +175,109 @@ Safe auth pattern with cached 1Password helper (token never printed):
 
 ```bash
 source ~/agent-skills/scripts/lib/dx-auth.sh
-export WINDMILL_API_TOKEN="$(dx_auth_read_secret_cached "op://dev/Agent-Secrets-Production/WINDMILL_API_TOKEN")"
-export WINDMILL_BASE_URL="$(dx_auth_read_secret_cached "op://dev/Agent-Secrets-Production/WINDMILL_DEV_LOGIN_URL")"
+export WINDMILL_API_TOKEN="$(DX_AUTH_CACHE_ONLY=1 dx_auth_read_secret_cached "op://dev/Agent-Secrets-Production/WINDMILL_API_TOKEN")"
+WINDMILL_DEV_LOGIN_URL="$(DX_AUTH_CACHE_ONLY=1 dx_auth_read_secret_cached "op://dev/Agent-Secrets-Production/WINDMILL_DEV_LOGIN_URL")"
+WINDMILL_BASE_URL="${WINDMILL_DEV_LOGIN_URL%/user/login}"
+WINDMILL_WORKSPACE="affordabot"
+TMP_WMILL_CONFIG="$(mktemp -d)"
+trap 'rm -rf "$TMP_WMILL_CONFIG"' EXIT
+
+npx --yes windmill-cli workspace add "$WINDMILL_WORKSPACE" "$WINDMILL_WORKSPACE" "$WINDMILL_BASE_URL" \
+  --token "$WINDMILL_API_TOKEN" \
+  --config-dir "$TMP_WMILL_CONFIG"
 ```
 
-Safe live checks:
+Safe live checks for CLI version `1.682.0`:
 
 ```bash
-npx windmill-cli version -r "$WINDMILL_BASE_URL"
-npx windmill-cli workspace list-remote -r "$WINDMILL_BASE_URL"
+npx --yes windmill-cli workspace list \
+  --config-dir "$TMP_WMILL_CONFIG"
+
+npx --yes windmill-cli job list \
+  --workspace "$WINDMILL_WORKSPACE" \
+  --config-dir "$TMP_WMILL_CONFIG" \
+  --limit 5 \
+  --json
+
+npx --yes windmill-cli flow list \
+  --workspace "$WINDMILL_WORKSPACE" \
+  --config-dir "$TMP_WMILL_CONFIG"
+
+npx --yes windmill-cli flow get f/affordabot/manual_substrate_expansion \
+  --workspace "$WINDMILL_WORKSPACE" \
+  --config-dir "$TMP_WMILL_CONFIG" \
+  --json
+
+npx --yes windmill-cli script list \
+  --workspace "$WINDMILL_WORKSPACE" \
+  --config-dir "$TMP_WMILL_CONFIG"
+
+npx --yes windmill-cli script get f/affordabot/trigger_cron_job \
+  --workspace "$WINDMILL_WORKSPACE" \
+  --config-dir "$TMP_WMILL_CONFIG" \
+  --json
+```
+
+CLI notes:
+- `WINDMILL_DEV_LOGIN_URL` is intentionally a login URL in the current secret
+  cache; normalize it before API use.
+- Do not use `-r "$WINDMILL_BASE_URL"` with `windmill-cli` `1.682.0`; this
+  build rejects `-r`. Use the temporary-profile pattern above.
+- `wmill.yaml` currently emits a deprecation warning because it uses
+  `gitBranches`; this does not block read-only checks, but should be cleaned up
+  before relying on broad sync automation.
+
+Domain-boundary POC live gate:
+
+```bash
+npx --yes windmill-cli flow get f/affordabot/pipeline_daily_refresh_domain_boundary__flow \
+  --workspace "$WINDMILL_WORKSPACE" \
+  --config-dir "$TMP_WMILL_CONFIG" \
+  --json
+```
+
+Deploy only the unscheduled domain-boundary POC assets:
+
+```bash
+npx --yes windmill-cli script push f/affordabot/pipeline_daily_refresh_domain_boundary.py \
+  --workspace "$WINDMILL_WORKSPACE" \
+  --config-dir "$TMP_WMILL_CONFIG" \
+  --message "bd-9qjof.6 deploy domain-boundary POC script"
+
+# For flow push, pass the local flow directory, not the nested flow.yaml file.
+npx --yes windmill-cli flow push \
+  f/affordabot/pipeline_daily_refresh_domain_boundary__flow \
+  f/affordabot/pipeline_daily_refresh_domain_boundary__flow \
+  --workspace "$WINDMILL_WORKSPACE" \
+  --config-dir "$TMP_WMILL_CONFIG" \
+  --message "bd-9qjof.6 deploy domain-boundary POC flow"
+```
+
+Manual San Jose skeleton run:
+
+```bash
+npx --yes windmill-cli flow run f/affordabot/pipeline_daily_refresh_domain_boundary__flow \
+  --workspace "$WINDMILL_WORKSPACE" \
+  --config-dir "$TMP_WMILL_CONFIG" \
+  -d '{
+    "idempotency_key": "bd-9qjof.6-cli-smoke-YYYY-MM-DD",
+    "jurisdictions": ["San Jose CA"],
+    "source_families": ["meeting_minutes"],
+    "search_query": "San Jose CA city council meeting minutes housing",
+    "analysis_question": "Summarize housing-related signals from recent San Jose meeting minutes.",
+    "mode": "manual",
+    "scope_parallelism": 1,
+    "stale_status": "fresh"
+  }'
 ```
 
 Sync safety:
 - Always confirm target workspace is `affordabot` before `sync push`.
 - Do not run broad sync operations if schedule mutation intent is not explicit.
+- A missing domain-boundary POC flow means live dry-run is blocked on deployment,
+  not on CLI auth.
+- The domain-boundary POC flow is unscheduled and should remain unscheduled until
+  the backend domain commands replace the current skeleton stubs.
 
 ## Manual Operator Run (CLI-Safe)
 

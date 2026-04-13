@@ -108,6 +108,34 @@ def test_run_summary_aggregates_fanout_scope_results():
     assert "freshness_gate:stale_blocked" in summary["alerts"]
 
 
+def test_windmill_null_optional_inputs_coalesce_to_contract_defaults():
+    result = module.main(
+        step="run_scope_pipeline",
+        contract_version=None,
+        architecture_path=None,
+        windmill_workspace=None,
+        windmill_flow_path=None,
+        windmill_run_id=None,
+        windmill_job_id=None,
+        idempotency_key="run:null-coalesce",
+        mode=None,
+        scope_item={"jurisdiction": "San Jose CA", "source_family": "meeting_minutes"},
+        scope_index=0,
+        stale_status=None,
+        search_query="query",
+        analysis_question="question",
+    )
+
+    envelope = result["steps"]["search_materialize"]["envelope"]
+    assert envelope["contract_version"] == "2026-04-13.windmill-domain.v1"
+    assert envelope["architecture_path"] == "affordabot_domain_boundary"
+    assert envelope["windmill_workspace"] == "affordabot"
+    assert envelope["windmill_flow_path"] == "f/affordabot/pipeline_daily_refresh_domain_boundary__flow"
+    assert envelope["windmill_run_id"] == "run:null-coalesce"
+    assert envelope["windmill_job_id"] == "run_scope_pipeline:0:search_materialize"
+    assert envelope["mode"] == "scheduled"
+
+
 def test_windmill_assets_reference_coarse_command_stubs_not_storage_apis():
     text = SCRIPT_PATH.read_text(encoding="utf-8") + "\n" + FLOW_PATH.read_text(encoding="utf-8")
     forbidden_terms = [
