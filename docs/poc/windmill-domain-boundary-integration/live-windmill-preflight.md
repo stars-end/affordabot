@@ -233,5 +233,9 @@ with:
 
 - Z.ai direct web search is deprecated for this POC and is not the primary discovery path.
 - OSS/SearXNG search is primary for discovery.
+- Backend runtime search should be configured with `WEB_SEARCH_PROVIDER=oss_searxng`
+  and `SEARXNG_SEARCH_ENDPOINT=<endpoint>`. When a SearXNG endpoint is present
+  and `WEB_SEARCH_PROVIDER` is unset, the backend selects SearXNG to avoid
+  silently using the broken Z.ai search path.
 - Z.ai direct reader remains canonical for reader extraction.
 - Z.ai LLM analysis remains canonical for analysis generation.

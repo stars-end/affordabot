@@ -214,12 +214,17 @@ class FakeLLMClient:
         self.chat = SimpleNamespace(completions=_FakeCompletions(fail=fail))
 
 
-def _request(stale_status: str = "fresh", idempotency_key: str = "wm:run-scope:runtime") -> RunScopeRequest:
+def _request(
+    stale_status: str = "fresh",
+    idempotency_key: str = "wm:run-scope:runtime",
+    jurisdiction: str = "san-jose-ca",
+    source_family: str = "meeting_minutes",
+) -> RunScopeRequest:
     return RunScopeRequest(
         contract_version="2026-04-13.windmill-domain.v1",
         idempotency_key=idempotency_key,
-        jurisdiction="san-jose-ca",
-        source_family="meeting_minutes",
+        jurisdiction=jurisdiction,
+        source_family=source_family,
         stale_status=stale_status,
         windmill_workspace="affordabot",
         windmill_flow_path="f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
@@ -270,6 +275,30 @@ def test_runtime_bridge_rerun_reuses_idempotent_rows_without_duplicate_blob() ->
     assert second["steps"]["search_materialize"]["details"]["idempotent_reuse"] is True
     assert second["steps"]["index"]["details"]["idempotent_reuse"] is True
     assert len(storage.upload_calls) == 1
+
+
+def test_runtime_bridge_idempotency_is_scoped_to_jurisdiction_and_source_family() -> None:
+    db = FakeDB()
+    storage = FakeStorage()
+    runtime = RailwayRuntimeBridge(db=db, storage=storage)  # type: ignore[arg-type]
+    runtime.search_client = FakeSearchClient(
+        [{"url": "https://www.sanjoseca.gov/agenda/1", "title": "SJ Agenda", "snippet": "Housing"}]
+    )
+    runtime.reader_client = FakeReaderClient()
+    runtime._llm_client = FakeLLMClient()
+    runtime.zai_api_key = "x"
+
+    san_jose = asyncio.run(runtime.run_scope_pipeline(_request(idempotency_key="wm:fanout")))
+    santa_clara = asyncio.run(
+        runtime.run_scope_pipeline(
+            _request(idempotency_key="wm:fanout", jurisdiction="santa-clara-county-ca")
+        )
+    )
+
+    assert san_jose["scope_idempotency_key"] != santa_clara["scope_idempotency_key"]
+    assert santa_clara["steps"]["search_materialize"]["details"].get("idempotent_reuse") is not True
+    assert len(db.snapshots) == 2
+    assert len(storage.upload_calls) == 2
 
 
 def test_runtime_bridge_stale_paths() -> None:

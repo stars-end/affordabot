@@ -266,6 +266,18 @@ When enabled, the flow calls the backend-owned coarse command endpoint at
 `CRON_SECRET` from Windmill vars using the same pattern as the existing cron
 flows, rather than accepting a pasted auth token in manual run input.
 
+For live product discovery, configure backend search explicitly:
+
+```bash
+WEB_SEARCH_PROVIDER=oss_searxng
+SEARXNG_SEARCH_ENDPOINT=https://<private-or-paid-searxng-host>/search
+```
+
+If `SEARXNG_SEARCH_ENDPOINT` is present and `WEB_SEARCH_PROVIDER` is unset, the
+backend chooses SearXNG for this POC. Z.ai direct search remains available only
+as an explicit fallback (`WEB_SEARCH_PROVIDER=zai`) and should not be used as the
+primary discovery path.
+
 Harness blocker categories:
 - `infra/auth`
 - `windmill_cli`

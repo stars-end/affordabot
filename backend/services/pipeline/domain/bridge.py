@@ -74,6 +74,17 @@ def _stable_uuid(*parts: str) -> str:
     return str(uuid.uuid5(uuid.NAMESPACE_URL, "|".join(parts)))
 
 
+def _scope_idempotency_key(request: "RunScopeRequest") -> str:
+    """Scope fanout idempotency to the product identity boundary.
+
+    Windmill supplies a flow-level idempotency key. The backend persists command
+    results per jurisdiction/source-family scope so one flow fanout cannot
+    accidentally reuse another scope's search, reader, index, or analysis row.
+    """
+    scope = f"{request.jurisdiction.strip().lower()}::{request.source_family.strip().lower()}"
+    return f"{request.idempotency_key}::{_hash(scope)[:16]}"
+
+
 @dataclass(frozen=True)
 class RunScopeRequest:
     contract_version: str
@@ -192,6 +203,7 @@ class RailwayRuntimeBridge:
             "status": summary.status,
             "decision_reason": summary.decision_reason,
             "idempotency_key": request.idempotency_key,
+            "scope_idempotency_key": _scope_idempotency_key(request),
             "jurisdiction": request.jurisdiction,
             "source_family": request.source_family,
             "stale_status": freshness.decision_reason,
@@ -247,15 +259,16 @@ class RailwayRuntimeBridge:
             request.windmill_job_id,
             request.source_family,
             request.contract_version,
-            request.idempotency_key,
+            _scope_idempotency_key(request),
         )
         if not created:
             raise RuntimeError("pipeline_run_create_failed")
         return str(created["id"])
 
     async def _reuse_if_idempotent(
-        self, *, command: str, idempotency_key: str
+        self, *, command: str, request: RunScopeRequest
     ) -> CommandResponse | None:
+        idempotency_key = _scope_idempotency_key(request)
         row = await self.db._fetchrow(
             """
             SELECT status, decision_reason, retry_class, refs, counts, details, contract_version
@@ -304,7 +317,7 @@ class RailwayRuntimeBridge:
             """,
             run_id,
             response.command,
-            request.idempotency_key,
+            _scope_idempotency_key(request),
             response.status,
             response.decision_reason,
             response.retry_class,
@@ -343,6 +356,7 @@ class RailwayRuntimeBridge:
                 {
                     "contract_version": request.contract_version,
                     "idempotency_key": request.idempotency_key,
+                    "scope_idempotency_key": _scope_idempotency_key(request),
                     "jurisdiction": request.jurisdiction,
                     "source_family": request.source_family,
                 }
@@ -354,7 +368,7 @@ class RailwayRuntimeBridge:
             _json(response.alerts),
             _json(response.refs),
             request.windmill_job_id,
-            request.idempotency_key,
+            _scope_idempotency_key(request),
         )
         return response
 
@@ -363,7 +377,7 @@ class RailwayRuntimeBridge:
     ) -> CommandResponse:
         reused = await self._reuse_if_idempotent(
             command="search_materialize",
-            idempotency_key=request.idempotency_key,
+            request=request,
         )
         if reused:
             return reused
@@ -417,7 +431,7 @@ class RailwayRuntimeBridge:
             len(normalized),
             _json(normalized),
             request.contract_version,
-            request.idempotency_key,
+            _scope_idempotency_key(request),
         )
         snapshot_id = str(row["id"]) if row else ""
         status = "succeeded" if normalized else "succeeded_with_alerts"
@@ -450,7 +464,7 @@ class RailwayRuntimeBridge:
     ) -> CommandResponse:
         reused = await self._reuse_if_idempotent(
             command="freshness_gate",
-            idempotency_key=request.idempotency_key,
+            request=request,
         )
         if reused:
             return reused
@@ -519,7 +533,7 @@ class RailwayRuntimeBridge:
     ) -> CommandResponse:
         reused = await self._reuse_if_idempotent(
             command="read_fetch",
-            idempotency_key=request.idempotency_key,
+            request=request,
         )
         if reused:
             return reused
@@ -746,7 +760,7 @@ class RailwayRuntimeBridge:
         meta: WindmillMetadata,
         raw_scrape_ids: list[str],
     ) -> CommandResponse:
-        reused = await self._reuse_if_idempotent(command="index", idempotency_key=request.idempotency_key)
+        reused = await self._reuse_if_idempotent(command="index", request=request)
         if reused:
             return reused
         if not raw_scrape_ids:
@@ -852,7 +866,7 @@ class RailwayRuntimeBridge:
         meta: WindmillMetadata,
         document_id: str,
     ) -> CommandResponse:
-        reused = await self._reuse_if_idempotent(command="analyze", idempotency_key=request.idempotency_key)
+        reused = await self._reuse_if_idempotent(command="analyze", request=request)
         if reused:
             return reused
         if not document_id:
@@ -919,7 +933,7 @@ class RailwayRuntimeBridge:
             content = completion.choices[0].message.content or "{}"
             parsed = json.loads(content)
             analysis_id = _stable_uuid(
-                request.idempotency_key,
+                _scope_idempotency_key(request),
                 request.jurisdiction,
                 request.source_family,
                 _hash(content),
@@ -960,7 +974,7 @@ class RailwayRuntimeBridge:
     ) -> CommandResponse:
         reused = await self._reuse_if_idempotent(
             command="summarize_run",
-            idempotency_key=request.idempotency_key,
+            request=request,
         )
         if reused:
             return reused
@@ -1006,6 +1020,7 @@ class RailwayRuntimeBridge:
         payload["envelope"] = {
             "contract_version": request.contract_version,
             "idempotency_key": request.idempotency_key,
+            "scope_idempotency_key": _scope_idempotency_key(request),
             "jurisdiction": request.jurisdiction,
             "source_family": request.source_family,
             "stale_status": request.stale_status,
@@ -1218,7 +1233,7 @@ class PipelineDomainBridge:
             command=command,  # type: ignore[arg-type]
             jurisdiction_id=request.jurisdiction,
             source_family=request.source_family,
-            idempotency_key=request.idempotency_key,
+            idempotency_key=_scope_idempotency_key(request),
             windmill=windmill,
             contract_version=request.contract_version,
         )
