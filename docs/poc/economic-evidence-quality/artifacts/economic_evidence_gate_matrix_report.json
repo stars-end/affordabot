@@ -354,8 +354,8 @@
     }
   ],
   "feature_key": "bd-2agbe.4",
-  "fixture_path": "/private/tmp/agents/bd-2agbe.7/affordabot/backend/scripts/verification/fixtures/economic_evidence_gate_cases.json",
-  "generated_at": "2026-04-14T07:35:26.161022+00:00",
+  "fixture_path": "backend/scripts/verification/fixtures/economic_evidence_gate_cases.json",
+  "generated_at": "2026-04-14T07:39:59.832435+00:00",
   "integration_notes": [
     "Current verifier uses fixture-local contract.",
     "Integration point: swap fixture-local card fields with bd-2agbe.2 card models and bd-2agbe.3 assumption registry payloads."

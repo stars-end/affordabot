@@ -91,6 +91,13 @@ def _load_json(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def _repo_display_path(path: Path) -> str:
+    try:
+        return str(path.resolve().relative_to(REPO_ROOT))
+    except ValueError:
+        return str(path)
+
+
 def _safe_get(mapping: dict[str, Any], *path: str, default: Any = None) -> Any:
     current: Any = mapping
     for key in path:
@@ -504,9 +511,9 @@ def _run(config: VerifierConfig) -> dict[str, Any]:
         "verifier_version": VERIFIER_VERSION,
         "generated_at": _now_iso(),
         "inputs": {
-            "live_report_path": str(config.live_report_path),
-            "bakeoff_report_path": str(config.bakeoff_report_path),
-            "gate_fixture_path": str(config.gate_fixture_path),
+            "live_report_path": _repo_display_path(config.live_report_path),
+            "bakeoff_report_path": _repo_display_path(config.bakeoff_report_path),
+            "gate_fixture_path": _repo_display_path(config.gate_fixture_path),
         },
         "decision_grade_for_numeric_economic_analysis": decision_grade,
         "final_verdict": final_verdict,
@@ -558,4 +565,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

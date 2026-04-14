@@ -1,8 +1,8 @@
 # Economic Evidence Gate Matrix Report (bd-2agbe.4)
 
-- generated_at: `2026-04-14T07:35:26.161022+00:00`
+- generated_at: `2026-04-14T07:39:59.832435+00:00`
 - verifier_version: `2026-04-14.fixture-v1`
-- fixture_path: `/private/tmp/agents/bd-2agbe.7/affordabot/backend/scripts/verification/fixtures/economic_evidence_gate_cases.json`
+- fixture_path: `backend/scripts/verification/fixtures/economic_evidence_gate_cases.json`
 
 ## Summary
 

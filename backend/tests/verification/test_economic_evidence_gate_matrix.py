@@ -71,6 +71,7 @@ def test_run_strict_expected_has_no_failures():
     report = module._run(config)
     assert "expectation_failures" not in report
     assert report["summary"]["total_cases"] >= 5
+    assert report["fixture_path"] == "backend/scripts/verification/fixtures/economic_evidence_gate_cases.json"
 
 
 def test_pass_through_fixture_is_registry_aligned():

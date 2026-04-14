@@ -1,10 +1,10 @@
 # Economic Readiness Overlay Report (bd-2agbe.5)
 
-- generated_at: `2026-04-14T07:36:53.272349+00:00`
+- generated_at: `2026-04-14T07:39:59.752997+00:00`
 - verifier_version: `2026-04-14.overlay-v1`
-- live_report_path: `/private/tmp/agents/bd-2agbe.5/affordabot/docs/poc/windmill-domain-boundary-integration/artifacts/sanjose_live_gate_report.json`
-- bakeoff_report_path: `/private/tmp/agents/bd-2agbe.5/affordabot/docs/poc/search-source-quality-bakeoff/artifacts/search_source_quality_bakeoff_report.json`
-- gate_fixture_path: `/private/tmp/agents/bd-2agbe.5/affordabot/backend/scripts/verification/fixtures/economic_evidence_gate_cases.json`
+- live_report_path: `docs/poc/windmill-domain-boundary-integration/artifacts/sanjose_live_gate_report.json`
+- bakeoff_report_path: `docs/poc/search-source-quality-bakeoff/artifacts/search_source_quality_bakeoff_report.json`
+- gate_fixture_path: `backend/scripts/verification/fixtures/economic_evidence_gate_cases.json`
 
 ## Verdict
 

@@ -73,6 +73,13 @@ def _load_json(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def _repo_display_path(path: Path) -> str:
+    try:
+        return str(path.resolve().relative_to(REPO_ROOT))
+    except ValueError:
+        return str(path)
+
+
 def _stop_after_index(stop_after: str | None) -> int | None:
     if not stop_after:
         return None
@@ -357,7 +364,7 @@ def _run(config: VerifierConfig) -> dict[str, Any]:
         "feature_key": FEATURE_KEY,
         "verifier_version": VERIFIER_VERSION,
         "generated_at": _now_iso(),
-        "fixture_path": str(config.fixture_path),
+        "fixture_path": _repo_display_path(config.fixture_path),
         "stop_after": config.stop_after or "",
         "provider_filter": config.provider_filter or "",
         "cases": case_results,

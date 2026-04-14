@@ -28,6 +28,9 @@ def test_overlay_report_fails_closed_for_current_live_sanjose_artifact():
     assert report["gate_results"]["search_provider_source_quality"]["passed"] is True
     assert report["gate_results"]["reader_substrate_quality"]["passed"] is True
     assert report["gate_results"]["economic_evidence_card_sufficiency"]["passed"] is False
+    assert report["inputs"]["live_report_path"] == (
+        "docs/poc/windmill-domain-boundary-integration/artifacts/sanjose_live_gate_report.json"
+    )
 
 
 def test_overlay_report_gate_order_is_stable():
@@ -40,4 +43,3 @@ def test_overlay_report_gate_order_is_stable():
         "deterministic_quantification_readiness",
         "llm_explanation_support",
     )
-
