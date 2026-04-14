@@ -122,6 +122,60 @@ NUMERIC_PARAMETER_PATTERN = re.compile(
     flags=re.IGNORECASE,
 )
 
+ECONOMICS_PARAMETER_CONTEXT_TERMS = (
+    "appropriation",
+    "appropriated",
+    "agreement",
+    "grant",
+    "contract",
+    "fee",
+    "fees",
+    "tax",
+    "taxes",
+    "revenue",
+    "cost",
+    "costs",
+    "fiscal",
+    "budget",
+    "fund",
+    "funding",
+    "expenditure",
+    "subsidy",
+    "rent",
+    "assessment",
+    "rate",
+    "rates",
+    "charge",
+    "charges",
+    "payment",
+    "payments",
+)
+
+BOILERPLATE_NUMERIC_CONTEXT_TERMS = (
+    "levine act",
+    "campaign contribution",
+    "campaign contributions",
+    "ada",
+    "accommodation",
+    "accommodations",
+    "webinar",
+    "meeting id",
+    "meeting passcode",
+    "dial",
+    "join by phone",
+    "public comment",
+    "speaker card",
+    "agenda packet page",
+    "page ",
+    "temperature",
+    "degrees",
+)
+
+TIME_OR_DATE_NUMERIC_PATTERN = re.compile(
+    r"(?:\b\d{1,2}:\d{2}\s?(?:am|pm)\b)|(?:\b\d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?\b)",
+    flags=re.IGNORECASE,
+)
+
 
 @dataclass(frozen=True)
 class ProbeConfig:
@@ -189,16 +243,33 @@ def _economics_topic_signal(content: str) -> tuple[bool, list[str]]:
 
 
 def _numeric_parameter_signal(content: str) -> tuple[bool, list[str]]:
-    matches = NUMERIC_PARAMETER_PATTERN.findall(content)
-    normalized = []
-    for match in matches[:10]:
-        if isinstance(match, tuple):
-            joined = " ".join(part for part in match if part).strip()
-            if joined:
-                normalized.append(joined)
-        elif isinstance(match, str) and match.strip():
-            normalized.append(match.strip())
-    return (len(normalized) > 0, normalized)
+    accepted: list[str] = []
+    lower = content.lower()
+
+    for match in NUMERIC_PARAMETER_PATTERN.finditer(content):
+        value = match.group(0).strip()
+        if not value:
+            continue
+
+        window_start = max(0, match.start() - 140)
+        window_end = min(len(content), match.end() + 140)
+        window = lower[window_start:window_end]
+
+        # Skip logistics/date/time numbers that frequently appear in boilerplate.
+        if TIME_OR_DATE_NUMERIC_PATTERN.search(window):
+            continue
+        if any(term in window for term in BOILERPLATE_NUMERIC_CONTEXT_TERMS):
+            continue
+
+        # Keep only numeric mentions with nearby economics/action context.
+        if not any(term in window for term in ECONOMICS_PARAMETER_CONTEXT_TERMS):
+            continue
+
+        accepted.append(value)
+        if len(accepted) >= 10:
+            break
+
+    return (len(accepted) > 0, accepted)
 
 
 def classify_case(*, case_id: str, label: str, source_family: str, url: str, reader_payload: dict[str, Any], fetch_error: str = "") -> dict[str, Any]:
@@ -419,7 +490,7 @@ def _build_markdown(report: dict[str, Any]) -> str:
             ]
         )
 
-    return "\n".join(lines)
+    return "\n".join(line.rstrip() for line in lines)
 
 
 def _write_report(config: ProbeConfig, report: dict[str, Any]) -> None:

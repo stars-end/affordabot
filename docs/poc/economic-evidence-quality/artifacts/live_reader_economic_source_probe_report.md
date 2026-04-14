@@ -3,14 +3,14 @@
 - feature_key: `bd-2agbe.6`
 - probe_version: `2026-04-14.live-reader-probe-v1`
 - mode: `live`
-- generated_at: `2026-04-14T07:49:57.401975+00:00`
+- generated_at: `2026-04-14T07:59:46.681713+00:00`
 
 ## Summary
 
 - total_cases: 3
-- reader_success_cases: 1
-- substantive_text_cases: 0
-- economics_topic_signal_cases: 1
+- reader_success_cases: 2
+- substantive_text_cases: 1
+- economics_topic_signal_cases: 2
 - numeric_parameter_signal_cases: 0
 - decision_grade_candidate_cases: 0
 
@@ -18,7 +18,7 @@
 
 | case_id | reader_success | substantive_text | economics_topic_signal | numeric_parameter_signal | likely_portal_or_navigation | decision_grade_candidate | blocking_gate |
 |---|---:|---:|---:|---:|---:|---:|---|
-| sanjose_legistar_cost_of_residential_development | false | false | false | false | false | false | reader_source_quality |
+| sanjose_legistar_cost_of_residential_development | true | true | true | false | false | false | parameterization_sufficiency |
 | sanjose_records_contract_pdf_con667337_002 | true | false | true | false | true | false | reader_source_quality |
 | sanjose_housing_council_memos_portal | false | false | false | false | true | false | reader_source_quality |
 
@@ -30,15 +30,21 @@
 ### sanjose_legistar_cost_of_residential_development
 
 - url: https://sanjose.legistar.com/MeetingDetail.aspx?ID=1315729&GUID=3C17B03F-B014-43D5-B8DF-44024CDE065B&Options=info%7C&Search=
-- blocking_gate: reader_source_quality
-- chars: 0
+- blocking_gate: parameterization_sufficiency
+- chars: 6411
 - portal_reasons: -
-- economics_keywords: -
+- economics_keywords: contract, cost, development, economics, housing, residential
 - numeric_examples: -
-- fetch_error: http_error:500:{"error":{"code":"1234","message":"Network error, error id: 2026041415484660ded8d4fd354912, please contact customer service"}}
+- fetch_error: -
 
 ```text
-
+| File# | Ver. | Agenda# | Agenda Note | Type | Title | Action | Result | Action Details | Video |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| | | | | | Please scroll to the end for information about the City Council Agenda and for the Rules of Conduct of the meeting. | | | Not available | Not available |
+| | | | | | Public Comment in Person Only | | | Not available | Not available |
+| | | | | | For live translations in over 50 languages, please go to https://attend.wordly.ai/join/FAYU-7105 | | | Not available | Not available |
+| | | | | | American Disability Act | | | Not available | Not available |
+| | | | | | To request an alternative format agenda under the Americans
 ```
 
 ### sanjose_records_contract_pdf_con667337_002

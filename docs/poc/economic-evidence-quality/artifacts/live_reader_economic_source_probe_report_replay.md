@@ -3,7 +3,7 @@
 - feature_key: `bd-2agbe.6`
 - probe_version: `2026-04-14.live-reader-probe-v1`
 - mode: `replay`
-- generated_at: `2026-04-14T07:54:36.941673+00:00`
+- generated_at: `2026-04-14T07:59:54.560389+00:00`
 
 ## Summary
 
@@ -31,14 +31,14 @@
 
 - url: https://sanjose.legistar.com/MeetingDetail.aspx?ID=1315729&GUID=3C17B03F-B014-43D5-B8DF-44024CDE065B&Options=info%7C&Search=
 - blocking_gate: parameterization_sufficiency
-- chars: 613
+- chars: 766
 - portal_reasons: -
 - economics_keywords: budget, contract, cost, development, economic, fee, fiscal, housing, rent, residential, revenue, subsidy, tax
 - numeric_examples: -
 - fetch_error: -
 
 ```text
-Agenda item summary for cost of residential development policy update. The staff memo discusses housing affordability outcomes, fee and tax context, fiscal impact framing, budget tradeoffs, and contract delivery implications for development activity in San Jose. The discussion references economic development priorities, subsidy considerations, rent pressure, and expected revenue effects across implementation scenarios. The item explains that the analysis remains qualitative at this stage and does not publish numeric pass through rates, dollar estimates, percentages, or basis point assumptions for modeling.
+Agenda item summary for cost of residential development policy update. The staff memo discusses housing affordability outcomes, fee and tax context, fiscal impact framing, budget tradeoffs, and contract delivery implications for development activity in San Jose. This notice includes Levine Act boilerplate that bars officials from participating if campaign contributions exceed $500 from a party to the proceeding. The discussion references economic development priorities, subsidy considerations, rent pressure, and expected revenue effects across implementation scenarios. The item explains that the analysis remains qualitative at this stage and does not publish numeric pass through rates, dolla
 ```
 
 ### sanjose_records_contract_pdf_con667337_002

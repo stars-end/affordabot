@@ -74,3 +74,48 @@ def test_parser_default_does_not_write_live_replay_fixture():
     parser = module._build_parser()
     args = parser.parse_args([])
     assert args.save_live_replay is None
+
+
+def test_levine_act_500_boilerplate_is_not_numeric_parameter_signal():
+    payload = {
+        "reader_result": {
+            "content": (
+                "Cost of residential development policy memo for housing fee framework. "
+                "Levine Act notice: no officer shall participate if campaign contributions exceed $500. "
+                "The memo states analysis is qualitative and does not provide quantitative scenario estimates."
+            )
+        }
+    }
+    result = module.classify_case(
+        case_id="levine_boilerplate_case",
+        label="Levine boilerplate case",
+        source_family="official_meeting_detail",
+        url="https://sanjose.legistar.com/MeetingDetail.aspx?ID=1",
+        reader_payload=payload,
+        fetch_error="",
+    )
+    assert result["reader_success"] is True
+    assert result["economics_topic_signal"] is True
+    assert result["numeric_parameter_signal"] is False
+    assert result["decision_grade_candidate"] is False
+    assert result["blocking_gate"] == "parameterization_sufficiency"
+
+
+def test_real_economic_amount_with_context_still_counts_as_parameter_signal():
+    payload = {
+        "reader_result": {
+            "content": (
+                "Budget memo recommends appropriating $2.5 million from the housing fund. "
+                "Estimated annual cost is $400,000 and projected revenue impact is 3.2%."
+            )
+        }
+    }
+    result = module.classify_case(
+        case_id="economic_amount_case",
+        label="Economic amount case",
+        source_family="official_memo",
+        url="https://example.org/memo",
+        reader_payload=payload,
+        fetch_error="",
+    )
+    assert result["numeric_parameter_signal"] is True
