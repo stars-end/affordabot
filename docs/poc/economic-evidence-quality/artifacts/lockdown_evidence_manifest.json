@@ -43,6 +43,21 @@
       ]
     },
     {
+      "id": "live_reader_economic_source_probe",
+      "path": "docs/poc/economic-evidence-quality/artifacts/live_reader_economic_source_probe_report.json",
+      "kind": "live_reader_source_quality_probe",
+      "proves": [
+        "zai_reader_real_source_variability",
+        "san_jose_topic_text_without_numeric_parameterization",
+        "portal_and_records_pdf_reader_source_failures",
+        "boilerplate_numeric_false_positive_guard"
+      ],
+      "does_not_prove": [
+        "live_quantified_economic_analysis_quality",
+        "provider_independent_source_recall_quality"
+      ]
+    },
+    {
       "id": "boundary_adr",
       "path": "docs/architecture/2026-04-12-windmill-affordabot-boundary-adr.md",
       "kind": "architecture_decision_record",

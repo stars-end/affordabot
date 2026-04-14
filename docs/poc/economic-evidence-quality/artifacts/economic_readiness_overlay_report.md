@@ -1,6 +1,6 @@
 # Economic Readiness Overlay Report (bd-2agbe.5)
 
-- generated_at: `2026-04-14T07:39:59.752997+00:00`
+- generated_at: `2026-04-14T08:02:01.117711+00:00`
 - verifier_version: `2026-04-14.overlay-v1`
 - live_report_path: `docs/poc/windmill-domain-boundary-integration/artifacts/sanjose_live_gate_report.json`
 - bakeoff_report_path: `docs/poc/search-source-quality-bakeoff/artifacts/search_source_quality_bakeoff_report.json`

@@ -34,7 +34,12 @@ It separates failure attribution across six dependency classes:
 4. Strict fixture matrix verifier outputs (this run):
    - `docs/poc/economic-evidence-quality/artifacts/economic_evidence_gate_matrix_report.json`
    - `docs/poc/economic-evidence-quality/artifacts/economic_evidence_gate_matrix_report.md`
-5. Boundary decision artifacts:
+5. Live reader economic source probe:
+   - `docs/poc/economic-evidence-quality/artifacts/live_reader_economic_source_probe_report.json`
+   - `docs/poc/economic-evidence-quality/artifacts/live_reader_economic_source_probe_report.md`
+   - `docs/poc/economic-evidence-quality/artifacts/live_reader_economic_source_probe_report_replay.json`
+   - `docs/poc/economic-evidence-quality/artifacts/live_reader_economic_source_probe_report_replay.md`
+6. Boundary decision artifacts:
    - `docs/architecture/2026-04-12-windmill-affordabot-boundary-adr.md`
    - `docs/specs/2026-04-13-windmill-domain-brownfield-spec-lock.md`
    - `docs/poc/windmill-storage-bakeoff/ARCHITECTURE_RECOMMENDATION.md`
@@ -62,10 +67,19 @@ From strict economic gate matrix (fixture):
   - `qualitative_only_due_to_unsupported_claims`: 1
 - Blockers are explicit at the correct gate (`search_recall`, `parameterization`, `llm_explanation`).
 
+From live reader economic source probe:
+
+- 3 real San Jose source URLs were tested through the Z.ai reader path.
+- 0 of 3 were decision-grade candidates for numeric economic analysis.
+- The Legistar Cost of Residential Development page produced substantive topic text, but no non-boilerplate numeric economics parameter; it correctly blocks at `parameterization_sufficiency`.
+- The San Jose records PDF and housing memos portal block at `reader_source_quality` because the reader sees navigation/portal content or a not-found response.
+- A repaired regression guard now ignores boilerplate `$500` Levine Act/campaign-contribution text so generic meeting logistics cannot become a false economic parameter.
+
 ## What Current POCs Do Not Prove Yet
 
 - San Jose live gate proves retrieval, reader extraction, storage chain, and qualitative LLM output, but it does not yet prove live quantified economic analysis quality by itself.
 - Fixture gate matrix proves taxonomy and fail-closed behavior, but not live artifact extraction quality because inputs are fixture-declared.
+- Live reader source probing proves the current San Jose source set is not yet enough for numeric analysis. The blocker is now attributable: either `reader_source_quality` or `parameterization_sufficiency`, not Windmill orchestration.
 - There is no live end-to-end run yet where evidence cards, parameter cards, assumptions, quantification, and LLM explanation are all produced from real San Jose/Saratoga source artifacts in one audited path.
 
 ## Dependency-Chain Matrix (Final Product Quality)
@@ -94,6 +108,7 @@ Why this is the best-supported option now:
 - Live San Jose run already demonstrates operational viability of Windmill orchestration with backend domain command sequencing.
 - Existing ADR/specs and storage bakeoff showed direct-storage Path A tends to recreate backend logic inside orchestration scripts.
 - Economic gate contracts now provide explicit failure attribution needed for consultant review and production audits.
+- Live reader source probing shows the next blocker is data/extraction quality, which should remain a backend domain concern. Moving more logic into Windmill would not make the San Jose source text more quantitative; it would just move the false-positive and fail-closed rules out of the product boundary.
 
 This recommendation is falsifiable. It should be reversed only if one of these is demonstrated:
 
@@ -120,6 +135,6 @@ Before calling the architecture economically ready in Railway dev, collect missi
 
 ## Decision
 
-Current evidence is sufficient to lock the boundary direction (Windmill orchestration + affordabot domain ownership), but not sufficient to claim full decision-grade live economic analysis readiness.
+Current evidence is sufficient to lock the boundary direction (Windmill orchestration + affordabot domain ownership), but it is not sufficient to claim full decision-grade live economic analysis readiness.
 
 Proceed with this boundary and run one additional live quantified evidence round before Railway dev rollout signoff.
