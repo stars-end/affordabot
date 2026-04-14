@@ -322,6 +322,71 @@ class RailwayRuntimeBridge:
             contract_version=row["contract_version"] or CONTRACT_VERSION,
         )
 
+    async def _enforce_reader_substance_on_reuse(
+        self, *, reused: CommandResponse
+    ) -> CommandResponse:
+        if reused.status not in {"succeeded", "succeeded_with_alerts"}:
+            return reused
+
+        raw_scrape_ids = [str(raw_id).strip() for raw_id in reused.refs.get("raw_scrape_ids", [])]
+        raw_scrape_ids = [raw_id for raw_id in raw_scrape_ids if raw_id]
+        if not raw_scrape_ids:
+            return reused
+
+        failures: list[dict[str, Any]] = []
+        for raw_scrape_id in raw_scrape_ids:
+            row = await self.db._fetchrow(
+                """
+                SELECT id, url, COALESCE(data, '{}'::jsonb) AS data
+                FROM raw_scrapes
+                WHERE id = $1::uuid
+                LIMIT 1
+                """,
+                raw_scrape_id,
+            )
+            if not row:
+                continue
+            raw_data = dict(_db_json(row["data"], {}) or {})
+            markdown_body = str(raw_data.get("content", "")).strip()
+            is_substantive, quality_details = assess_reader_substance(markdown_body)
+            if is_substantive:
+                continue
+            url_value = ""
+            try:
+                url_value = str(row["url"] or "")
+            except Exception:
+                url_value = ""
+            failures.append(
+                {
+                    "raw_scrape_id": str(row["id"]),
+                    "url": url_value,
+                    "reason": str(quality_details["reason"]),
+                    "quality_details": quality_details,
+                }
+            )
+
+        if not failures:
+            return reused
+
+        details = dict(reused.details)
+        details["cached_reader_reuse_blocked"] = True
+        details["reader_quality_failures"] = failures
+        reason = str(failures[0]["reason"])
+        alerts = list(reused.alerts)
+        alerts.append(f"reader_output_insufficient_substance:{reason}")
+
+        return CommandResponse(
+            command="read_fetch",
+            status="blocked",
+            decision_reason="reader_output_insufficient_substance",
+            retry_class="insufficient_evidence",
+            alerts=list(dict.fromkeys(alerts)),
+            refs=dict(reused.refs),
+            counts=dict(reused.counts),
+            details=details,
+            contract_version=reused.contract_version,
+        )
+
     async def _persist_response(
         self, *, run_id: str, request: RunScopeRequest, response: CommandResponse
     ) -> CommandResponse:
@@ -565,7 +630,7 @@ class RailwayRuntimeBridge:
             request=request,
         )
         if reused:
-            return reused
+            return await self._enforce_reader_substance_on_reuse(reused=reused)
         snapshot = await self.db._fetchrow(
             "SELECT snapshot_payload FROM search_result_snapshots WHERE id = $1::uuid",
             snapshot_id,
@@ -1047,12 +1112,6 @@ class RailwayRuntimeBridge:
         meta: WindmillMetadata,
         command_responses: list[CommandResponse],
     ) -> CommandResponse:
-        reused = await self._reuse_if_idempotent(
-            command="summarize_run",
-            request=request,
-        )
-        if reused:
-            return reused
         counts: dict[str, int] = {}
         refs: dict[str, Any] = {"windmill_run_id": meta.run_id, "windmill_job_id": meta.job_id}
         alerts: list[str] = []

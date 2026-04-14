@@ -390,6 +390,52 @@ def test_navigation_table_of_contents_with_agenda_words_still_blocks() -> None:
     assert len(state.raw_scrapes) == 0
 
 
+def test_navigation_shell_with_images_and_bullets_blocks_despite_generic_meeting_terms() -> None:
+    state, service = _service(
+        search_results=[
+            SearchResultItem(
+                url="https://www.sanjoseca.gov/council-agendas",
+                title="Council Agendas",
+                snippet="agenda page",
+            )
+        ]
+    )
+    nav_shell_markdown = "\n".join(
+        [
+            "Council Agendas | City of San Jose",
+            "Home",
+            "Contact Us",
+            "Sitemap",
+            "Menu",
+            "Accessibility",
+            "Privacy Policy",
+            "Sign Up for Alerts",
+            "Meeting minutes agenda council housing budget policy hearing public comment resolution ordinance vote",
+            "Council approved the consent calendar.",
+            "Staff recommendation was posted.",
+            "Public hearing information is listed below.",
+            *[f"![Image {i}: Nav Icon](https://www.sanjoseca.gov/nav/{i}.gif)" for i in range(1, 22)],
+            *[f"- Council agendas and minutes archive link {i}" for i in range(1, 225)],
+        ]
+    )
+    service.reader_provider = _StaticReaderProvider(nav_shell_markdown)
+
+    search = service.search_materialize(envelope=_envelope("search_materialize", "nsx1"), query="q")
+    read = service.read_fetch(
+        envelope=_envelope("read_fetch", "nsx2"),
+        snapshot_id=str(search.refs["search_snapshot_id"]),
+    )
+
+    quality = read.details["reader_quality_failures"][0]["quality_details"]
+    assert read.status == "blocked"
+    assert read.decision_reason == "reader_output_insufficient_substance"
+    assert quality["navigation_marker_hits"] >= 4
+    assert quality["line_count"] >= 250
+    assert quality["markdown_image_count"] >= 21
+    assert quality["bullet_line_count"] >= 224
+    assert len(state.raw_scrapes) == 0
+
+
 def test_substantive_meeting_reader_output_is_allowed() -> None:
     _, service = _service(
         search_results=[

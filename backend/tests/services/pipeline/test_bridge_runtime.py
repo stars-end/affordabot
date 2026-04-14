@@ -414,6 +414,52 @@ def test_runtime_bridge_blocks_navigation_heavy_reader_output_before_persistence
     assert storage.upload_calls == []
 
 
+def test_runtime_bridge_blocks_navigation_heavy_cached_reader_output_reuse() -> None:
+    db = FakeDB()
+    storage = FakeStorage()
+    runtime = RailwayRuntimeBridge(db=db, storage=storage)  # type: ignore[arg-type]
+    runtime.search_client = FakeSearchClient(
+        [{"url": "https://www.sanjoseca.gov/agenda/1", "title": "SJ Agenda", "snippet": "Housing"}]
+    )
+    runtime.reader_client = FakeReaderClient()
+    runtime._llm_client = FakeLLMClient()
+    runtime.zai_api_key = "x"
+
+    first = asyncio.run(runtime.run_scope_pipeline(_request(idempotency_key="wm:run-scope:cached-nav")))
+    raw_scrape_id = str(first["steps"]["read_fetch"]["refs"]["raw_scrape_ids"][0])
+    nav_shell_markdown = "\n".join(
+        [
+            "Council Agendas | City of San Jose",
+            "Home",
+            "Contact Us",
+            "Sitemap",
+            "Menu",
+            "Accessibility",
+            "Privacy Policy",
+            "Sign Up for Alerts",
+            "Meeting minutes agenda council housing budget policy hearing public comment resolution ordinance vote",
+            "Council approved the consent calendar.",
+            "Staff recommendation was posted.",
+            "Public hearing information is listed below.",
+            *[f"![Image {i}: Nav Icon](https://www.sanjoseca.gov/nav/{i}.gif)" for i in range(1, 22)],
+            *[f"- Council agendas and minutes archive link {i}" for i in range(1, 225)],
+        ]
+    )
+    db.raw_scrapes[raw_scrape_id]["data"] = {"content": nav_shell_markdown}
+
+    second = asyncio.run(runtime.run_scope_pipeline(_request(idempotency_key="wm:run-scope:cached-nav")))
+
+    assert first["status"] in {"succeeded", "succeeded_with_alerts"}
+    assert second["status"] == "blocked"
+    assert second["steps"]["read_fetch"]["status"] == "blocked"
+    assert second["steps"]["read_fetch"]["decision_reason"] == "reader_output_insufficient_substance"
+    assert second["steps"]["read_fetch"]["details"]["cached_reader_reuse_blocked"] is True
+    assert second["steps"]["read_fetch"]["details"]["idempotent_reuse"] is True
+    assert "reader_output_insufficient_substance:navigation_heavy" in second["alerts"]
+    assert "index" not in second["steps"]
+    assert "analyze" not in second["steps"]
+
+
 def test_runtime_bridge_reader_and_llm_failures_classify() -> None:
     db = FakeDB()
     storage = FakeStorage()

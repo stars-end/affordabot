@@ -1,6 +1,7 @@
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 from datetime import UTC, datetime
+import json
 import sys
 
 
@@ -142,7 +143,7 @@ def test_backend_endpoint_readiness_marks_ready_when_local_probe_passes(monkeypa
     monkeypatch.setattr(
         module,
         "_run_backend_endpoint_local_probe",
-        lambda _: {"status": "passed", "note": "ok"},
+        lambda _token, *, feature_key=module.FEATURE_KEY: {"status": "passed", "note": f"ok:{feature_key}"},
     )
     readiness = module._build_backend_endpoint_readiness(
         backend_endpoint_url="https://backend.example/cron/pipeline/domain/run-scope",
@@ -150,6 +151,23 @@ def test_backend_endpoint_readiness_marks_ready_when_local_probe_passes(monkeypa
     )
     assert readiness["status"] == "ready_for_opt_in"
     assert readiness["local_mock_probe"]["status"] == "passed"
+
+
+def test_backend_endpoint_readiness_passes_runtime_feature_key_to_local_probe(monkeypatch):
+    observed: dict[str, str] = {}
+
+    def _fake_probe(_token, *, feature_key=module.FEATURE_KEY):
+        observed["feature_key"] = feature_key
+        return {"status": "passed", "note": "ok"}
+
+    monkeypatch.setattr(module, "_run_backend_endpoint_local_probe", _fake_probe)
+    readiness = module._build_backend_endpoint_readiness(
+        backend_endpoint_url="https://backend.example/cron/pipeline/domain/run-scope",
+        backend_endpoint_auth_token="token-123",
+        feature_key="bd-9qjof.8",
+    )
+    assert readiness["status"] == "ready_for_opt_in"
+    assert observed["feature_key"] == "bd-9qjof.8"
 
 
 def test_job_lookup_uses_idempotency_key():
@@ -348,3 +366,65 @@ def test_run_harness_keeps_stub_path_and_skips_db_without_env(monkeypatch):
     assert report["manual_run"]["attempted"] is True
     assert report["db_storage_probe"]["status"] == "not_configured"
     assert report["storage_evidence_gates"]["stale_drill_stale_blocked"]["status"] == "passed"
+
+
+def test_run_harness_uses_runtime_feature_key_for_report_and_idempotency_default(monkeypatch):
+    monkeypatch.setattr(
+        module,
+        "_build_context",
+        lambda workspace: module.HarnessContext("tok", "https://wm/user/login", "https://wm", workspace, "/tmp/w"),
+    )
+    monkeypatch.setattr(module, "_setup_workspace_profile", lambda ctx: None)
+    monkeypatch.setattr(module, "_run_search_provider_bakeoff", lambda **kwargs: ([], []))
+    monkeypatch.setenv("DATABASE_URL", "")
+
+    observed: dict[str, str] = {}
+
+    def fake_wmill(ctx, *args, expect_json=False):
+        key = " ".join(args[:2])
+        if key == "workspace list":
+            return "profile"
+        if key == "flow get":
+            return {"path": "flow"}
+        if key == "script get":
+            return {"path": "script"}
+        if key == "schedule list":
+            return []
+        if key == "job list":
+            return []
+        if key == "flow run":
+            payload = json.loads(args[5])
+            observed["idempotency_key"] = payload["idempotency_key"]
+            return _stub_scope_result(module.STUB_SUMMARY_MARKER) | {
+                "status": "succeeded",
+                "scope_total": 1,
+                "scope_succeeded": 1,
+                "scope_failed": 0,
+                "scope_blocked": 0,
+            }
+        return ""
+
+    monkeypatch.setattr(module, "_wmill", fake_wmill)
+    report = module.run_harness(
+        run_mode="stub-run",
+        workspace="affordabot",
+        flow_path="f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+        script_path="f/affordabot/pipeline_daily_refresh_domain_boundary",
+        jurisdiction="San Jose CA",
+        source_family="meeting_minutes",
+        search_query="q",
+        analysis_question="a",
+        stale_status="fresh",
+        scope_parallelism=1,
+        idempotency_key=None,
+        stale_drill_statuses=[],
+        run_idempotent_rerun=False,
+        searx_endpoints=["https://searx.example/search"],
+        backend_endpoint_url=None,
+        backend_endpoint_auth_token=None,
+        database_url=None,
+        feature_key="bd-9qjof.8",
+    )
+    assert report["feature_key"] == "bd-9qjof.8"
+    assert report["manual_run"]["idempotency_key"].startswith("bd-9qjof.8-live-gate-")
+    assert observed["idempotency_key"].startswith("bd-9qjof.8-live-gate-")

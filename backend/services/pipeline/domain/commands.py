@@ -131,6 +131,14 @@ def assess_reader_substance(text: str) -> tuple[bool, dict[str, Any]]:
     elif nav_marker_hits >= 8 and bullet_line_count >= 20 and action_hits <= 2:
         reason = "navigation_heavy"
         is_substantive = False
+    elif (
+        markdown_image_count >= 12
+        and bullet_line_count >= 80
+        and nav_marker_hits >= 4
+        and bullet_line_count >= max(120, int(line_count * 0.6))
+    ):
+        reason = "navigation_heavy"
+        is_substantive = False
     elif word_count < 25 and substantive_hits == 0:
         reason = "low_substantive_signal"
         is_substantive = False

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Live Windmill San Jose validation harness for bd-9qjof.6.
+"""Live Windmill San Jose validation harness.
 
 This harness validates Windmill CLI access, deployment surface, and optional
 manual flow execution for:
@@ -346,7 +346,7 @@ def _load_windmill_domain_script_module() -> Any:
     return module
 
 
-def _run_backend_endpoint_local_probe(backend_endpoint_auth_token: str) -> dict[str, Any]:
+def _run_backend_endpoint_local_probe(backend_endpoint_auth_token: str, *, feature_key: str = FEATURE_KEY) -> dict[str, Any]:
     module = _load_windmill_domain_script_module()
     expected_auth = f"Bearer {backend_endpoint_auth_token}"
 
@@ -401,7 +401,7 @@ def _run_backend_endpoint_local_probe(backend_endpoint_auth_token: str) -> dict[
     try:
         result = module.main(
             step="run_scope_pipeline",
-            idempotency_key=f"{FEATURE_KEY}-backend-probe",
+            idempotency_key=f"{feature_key}-backend-probe",
             scope_item={"jurisdiction": "San Jose CA", "source_family": "meeting_minutes"},
             scope_index=0,
             stale_status="fresh",
@@ -435,6 +435,7 @@ def _build_backend_endpoint_readiness(
     *,
     backend_endpoint_url: str | None,
     backend_endpoint_auth_token: str | None,
+    feature_key: str = FEATURE_KEY,
 ) -> dict[str, Any]:
     endpoint_url = (backend_endpoint_url or "").strip()
     auth_token = (backend_endpoint_auth_token or "").strip()
@@ -452,7 +453,7 @@ def _build_backend_endpoint_readiness(
             "local_mock_probe": {"status": "skipped", "note": "missing required backend endpoint inputs"},
         }
 
-    local_probe = _run_backend_endpoint_local_probe(auth_token)
+    local_probe = _run_backend_endpoint_local_probe(auth_token, feature_key=feature_key)
     if local_probe.get("status") == "passed":
         return {
             "status": "ready_for_opt_in",
@@ -1115,6 +1116,7 @@ def run_harness(
     backend_endpoint_auth_token: str | None,
     database_url: str | None,
     backend_endpoint_timeout_seconds: int = DEFAULT_BACKEND_ENDPOINT_TIMEOUT_SECONDS,
+    feature_key: str = FEATURE_KEY,
 ) -> dict[str, Any]:
     blockers: list[dict[str, Any]] = []
     result_payload: dict[str, Any] | None = None
@@ -1173,6 +1175,7 @@ def run_harness(
     backend_endpoint_readiness = _build_backend_endpoint_readiness(
         backend_endpoint_url=backend_endpoint_url,
         backend_endpoint_auth_token=backend_endpoint_auth_token,
+        feature_key=feature_key,
     )
 
     command_client = "stub" if run_mode == "stub-run" else "backend_endpoint"
@@ -1194,7 +1197,7 @@ def run_harness(
             manual_run["attempted"] = True
     if manual_run.get("attempted"):
         manual_run["attempted"] = True
-        idempotency = idempotency_key or f"{FEATURE_KEY}-live-gate-{datetime.now(UTC).strftime('%Y%m%d-%H%M%S')}"
+        idempotency = idempotency_key or f"{feature_key}-live-gate-{datetime.now(UTC).strftime('%Y%m%d-%H%M%S')}"
         manual_run["idempotency_key"] = idempotency
         payload = {
             "idempotency_key": idempotency,
@@ -1460,7 +1463,7 @@ def run_harness(
     )
     report: dict[str, Any] = {
         "generated_at": _now_iso(),
-        "feature_key": FEATURE_KEY,
+        "feature_key": feature_key,
         "harness_version": HARNESS_VERSION,
         "run_mode": run_mode,
         "classification": classification,
@@ -1545,6 +1548,11 @@ def main() -> int:
         help="Repeatable SearXNG endpoint; defaults to canonical public probe if omitted",
     )
     parser.add_argument("--idempotency-key", default=None)
+    parser.add_argument(
+        "--feature-key",
+        default=FEATURE_KEY,
+        help=f"Feature key to stamp into report + idempotency defaults (default: {FEATURE_KEY})",
+    )
     parser.add_argument("--backend-endpoint-url", default=None)
     parser.add_argument("--backend-endpoint-auth-token", default=None)
     parser.add_argument(
@@ -1578,6 +1586,7 @@ def main() -> int:
         backend_endpoint_auth_token=args.backend_endpoint_auth_token,
         backend_endpoint_timeout_seconds=args.backend_endpoint_timeout_seconds,
         database_url=args.database_url,
+        feature_key=args.feature_key,
     )
 
     args.out_json.parent.mkdir(parents=True, exist_ok=True)
