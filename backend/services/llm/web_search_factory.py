@@ -20,7 +20,10 @@ DDG_HTML_SEARCH_URL = "https://html.duckduckgo.com/html/"
 DEFAULT_USER_AGENT = "Mozilla/5.0"
 SEARXNG_PROVIDER_NAMES = {"oss_searxng", "searxng", "searx"}
 TAVILY_PROVIDER_NAMES = {"tavily"}
+EXA_PROVIDER_NAMES = {"exa"}
 DEFAULT_TAVILY_SEARCH_URL = "https://api.tavily.com/search"
+DEFAULT_EXA_SEARCH_URL = "https://api.exa.ai/search"
+DEFAULT_EXA_USER_AGENT = "affordabot-backend/1.0"
 
 
 class ZaiStructuredWebSearchClient:
@@ -380,6 +383,95 @@ class TavilyWebSearchClient:
         await self.client.aclose()
 
 
+class ExaWebSearchClient:
+    """Search client using Exa's search API."""
+
+    def __init__(
+        self,
+        api_key: str,
+        *,
+        endpoint: str = DEFAULT_EXA_SEARCH_URL,
+        timeout_s: float = 20.0,
+        user_agent: str = DEFAULT_EXA_USER_AGENT,
+    ) -> None:
+        self.api_key = api_key.strip()
+        self.endpoint = endpoint.strip() or DEFAULT_EXA_SEARCH_URL
+        self.timeout_s = max(0.1, timeout_s)
+        self.user_agent = user_agent.strip() or DEFAULT_EXA_USER_AGENT
+        self.client = httpx.AsyncClient(timeout=self.timeout_s)
+
+    async def search(
+        self,
+        query: str,
+        count: int = 5,
+        domains: list[str] | None = None,
+        recency: str | None = None,
+        **kwargs: Any,
+    ) -> list[dict[str, Any]]:
+        _ = domains
+        _ = recency
+        if not self.api_key:
+            logger.warning("Exa search requested without EXA_API_KEY")
+            return []
+
+        payload: dict[str, Any] = {
+            "query": query,
+            "numResults": max(1, count),
+            "type": "auto",
+            "contents": {"highlights": {"maxCharacters": 400}},
+        }
+        payload.update(kwargs)
+        headers = {
+            "x-api-key": self.api_key,
+            "Content-Type": "application/json",
+            "User-Agent": self.user_agent,
+        }
+        try:
+            response = await self.client.post(self.endpoint, json=payload, headers=headers)
+            response.raise_for_status()
+            return self._normalize_results(response.json(), count=count)
+        except Exception as e:
+            logger.warning("Exa search failed for %r: %s", query, e)
+            return []
+
+    @staticmethod
+    def _normalize_results(payload: dict[str, Any], count: int) -> list[dict[str, Any]]:
+        results: list[dict[str, Any]] = []
+        seen_urls: set[str] = set()
+        for item in payload.get("results") or []:
+            if not isinstance(item, dict):
+                continue
+            url = item.get("url") or item.get("link")
+            if not url:
+                continue
+            normalized_url = str(url)
+            if normalized_url in seen_urls:
+                continue
+            seen_urls.add(normalized_url)
+            highlights = item.get("highlights") or []
+            snippet = ""
+            if isinstance(highlights, list) and highlights:
+                snippet = str(highlights[0])
+            result_position = len(results) + 1
+            results.append(
+                {
+                    "title": item.get("title", ""),
+                    "url": normalized_url,
+                    "link": normalized_url,
+                    "snippet": snippet,
+                    "content": snippet,
+                    "provider": "exa",
+                    "position": result_position,
+                }
+            )
+            if len(results) >= count:
+                break
+        return results
+
+    async def close(self) -> None:
+        await self.client.aclose()
+
+
 def _configured_searxng_endpoint() -> str:
     return (
         os.getenv("SEARXNG_SEARCH_ENDPOINT")
@@ -391,7 +483,12 @@ def _configured_searxng_endpoint() -> str:
 
 def create_web_search_client(
     api_key: str | None,
-) -> ZaiStructuredWebSearchClient | OssSearxngWebSearchClient | TavilyWebSearchClient:
+) -> (
+    ZaiStructuredWebSearchClient
+    | OssSearxngWebSearchClient
+    | TavilyWebSearchClient
+    | ExaWebSearchClient
+):
     """Create the configured web-search client.
 
     Z.ai structured search is retained for backward compatibility, but the
@@ -421,6 +518,20 @@ def create_web_search_client(
             api_key=tavily_api_key,
             endpoint=tavily_endpoint,
             timeout_s=timeout_s,
+        )
+    if provider in EXA_PROVIDER_NAMES:
+        exa_api_key = (os.getenv("EXA_API_KEY", "") or api_key or "").strip()
+        if not exa_api_key:
+            raise ValueError("missing EXA_API_KEY for WEB_SEARCH_PROVIDER=exa")
+        exa_endpoint = os.getenv("EXA_SEARCH_ENDPOINT", DEFAULT_EXA_SEARCH_URL).strip()
+        timeout_s = float(os.getenv("WEB_SEARCH_EXA_TIMEOUT_S", "20"))
+        user_agent = os.getenv("WEB_SEARCH_EXA_USER_AGENT", DEFAULT_EXA_USER_AGENT).strip()
+        logger.info("Using Exa search endpoint: %s", exa_endpoint)
+        return ExaWebSearchClient(
+            api_key=exa_api_key,
+            endpoint=exa_endpoint,
+            timeout_s=timeout_s,
+            user_agent=user_agent,
         )
 
     if provider and provider not in {"zai", "zai_structured", "zai_web_search"}:
