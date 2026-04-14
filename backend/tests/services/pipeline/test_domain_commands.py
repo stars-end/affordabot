@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
 from services.pipeline.domain.commands import rank_reader_candidates
 from services.pipeline.domain import (
@@ -62,6 +63,23 @@ class _RoutingReaderProvider:
             document_type="meeting_minutes",
             published_date="2026-04-13",
         )
+
+
+class _RecordingAnalyzer:
+    def __init__(self) -> None:
+        self.last_question = ""
+        self.last_evidence_chunks: list[dict[str, Any]] = []
+
+    def analyze(
+        self, *, question: str, evidence_chunks: list[dict[str, Any]]
+    ) -> dict[str, Any]:
+        self.last_question = question
+        self.last_evidence_chunks = [dict(chunk) for chunk in evidence_chunks]
+        return {
+            "summary": "ok",
+            "key_points": ["ok"],
+            "sufficiency_state": "sufficient",
+        }
 
 
 def _envelope(command: str, key: str) -> CommandEnvelope:
@@ -735,6 +753,57 @@ def test_no_analysis_without_evidence_is_blocked() -> None:
     )
     assert result.status == "blocked"
     assert result.retry_class == "insufficient_evidence"
+
+
+def test_analyze_ranks_late_housing_action_chunks_over_early_headers() -> None:
+    state, service = _service()
+    recorder = _RecordingAnalyzer()
+    service.analyzer = recorder
+    canonical_key = "v2|jurisdiction=san-jose-ca|family=meeting_minutes|doctype=minutes|url=https://example.com"
+    artifact_ref = "artifacts/2026-04-13.windmill-domain.v1/san-jose-ca/meeting_minutes/reader_output/example.md"
+
+    state.chunks["chunk-early-0"] = {
+        "chunk_id": "chunk-early-0",
+        "canonical_document_key": canonical_key,
+        "artifact_ref": artifact_ref,
+        "jurisdiction_id": "san-jose-ca",
+        "source_family": "meeting_minutes",
+        "chunk_index": 0,
+        "content": "CITY COUNCIL MEETING AGENDA Tuesday 1:30 PM Council Chambers location and dial-in.",
+    }
+    state.chunks["chunk-early-1"] = {
+        "chunk_id": "chunk-early-1",
+        "canonical_document_key": canonical_key,
+        "artifact_ref": artifact_ref,
+        "jurisdiction_id": "san-jose-ca",
+        "source_family": "meeting_minutes",
+        "chunk_index": 1,
+        "content": "ROLL CALL, ANNOUNCEMENTS, ceremonial items, and public comment instructions.",
+    }
+    state.chunks["chunk-late-220"] = {
+        "chunk_id": "chunk-late-220",
+        "canonical_document_key": canonical_key,
+        "artifact_ref": artifact_ref,
+        "jurisdiction_id": "san-jose-ca",
+        "source_family": "meeting_minutes",
+        "chunk_index": 220,
+        "content": (
+            "Agenda Item 10.2. Ordinance No. 31303 was adopted and approved to create a temporary "
+            "multifamily housing incentive with affordability compliance options and mobilehome rent updates."
+        ),
+    }
+
+    result = service.analyze(
+        envelope=_envelope("analyze", "rank-a1"),
+        question="Summarize housing decisions and ordinance actions from this San Jose meeting.",
+        jurisdiction_id="san-jose-ca",
+        source_family="meeting_minutes",
+    )
+
+    assert result.status == "succeeded"
+    assert recorder.last_evidence_chunks[0]["chunk_id"] == "chunk-late-220"
+    assert result.details["evidence_selection"]["selected_chunks"][0]["chunk_id"] == "chunk-late-220"
+    assert result.details["evidence_selection"]["selected_chunks"][0]["score"] > 0
 
 
 def test_empty_blocked_flow_summarizes_and_stops() -> None:

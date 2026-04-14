@@ -143,6 +143,55 @@ ACTION_MARKERS = (
     "memorandum",
 )
 
+ANALYSIS_ACTION_SIGNALS = (
+    "housing",
+    "ordinance",
+    "approved",
+    "adopted",
+    "resolution",
+    "incentive",
+    "affordability",
+    "rent",
+    "multifamily",
+    "agenda item",
+    "item ",
+    "public hearing",
+    "compliance",
+    "mobilehome",
+    "tenant",
+    "zoning",
+)
+
+ANALYSIS_STOPWORDS = {
+    "a",
+    "an",
+    "and",
+    "are",
+    "as",
+    "at",
+    "be",
+    "by",
+    "for",
+    "from",
+    "how",
+    "in",
+    "is",
+    "it",
+    "made",
+    "of",
+    "on",
+    "or",
+    "the",
+    "these",
+    "this",
+    "to",
+    "was",
+    "were",
+    "what",
+    "which",
+    "with",
+}
+
 
 def _hash_text(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
@@ -304,6 +353,98 @@ def rank_reader_candidates(
     if max_candidates is not None:
         return ranked[: max(0, max_candidates)]
     return ranked
+
+
+def _tokenize_question_terms(question: str) -> list[str]:
+    tokens = re.findall(r"[a-z0-9]+", question.lower())
+    deduped: list[str] = []
+    for token in tokens:
+        if len(token) < 3 or token in ANALYSIS_STOPWORDS:
+            continue
+        if token not in deduped:
+            deduped.append(token)
+    return deduped
+
+
+def _normalize_chunk_content(chunk: dict[str, Any]) -> str:
+    content = chunk.get("content")
+    return str(content) if content is not None else ""
+
+
+def rank_evidence_chunks(
+    *,
+    question: str,
+    chunks: list[dict[str, Any]],
+    max_selected: int = 20,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    question_terms = _tokenize_question_terms(question)
+    ranked: list[dict[str, Any]] = []
+    for input_index, chunk in enumerate(chunks):
+        content = _normalize_chunk_content(chunk)
+        lowered = content.lower()
+        score = 0
+        matched_terms: list[str] = []
+        matched_action_signals: list[str] = []
+
+        for term in question_terms:
+            if re.search(rf"\b{re.escape(term)}\b", lowered):
+                score += 3
+                matched_terms.append(term)
+
+        for signal in ANALYSIS_ACTION_SIGNALS:
+            if signal in lowered:
+                score += 4
+                matched_action_signals.append(signal)
+
+        if re.search(r"\b(item|agenda item)\s+\d+(\.\d+)?\b", lowered):
+            score += 5
+        if re.search(r"\b(ordinance|resolution)\s+no\.?\s*[0-9]+\b", lowered):
+            score += 5
+
+        nav_hits = sum(1 for marker in NAVIGATION_MARKERS if marker in lowered)
+        if nav_hits >= 3 and len(matched_action_signals) == 0:
+            score -= 6
+
+        ranked.append(
+            {
+                "chunk": chunk,
+                "content": content,
+                "score": score,
+                "input_index": input_index,
+                "matched_question_terms": matched_terms,
+                "matched_action_signals": matched_action_signals,
+                "snippet": re.sub(r"\s+", " ", content.strip())[:200],
+            }
+        )
+
+    ranked.sort(
+        key=lambda item: (
+            -int(item["score"]),
+            -len(item["matched_action_signals"]),
+            -len(item["matched_question_terms"]),
+            int(item["chunk"].get("chunk_index", 0)),
+            int(item["input_index"]),
+            str(item["chunk"].get("chunk_id", "")),
+        )
+    )
+    selected_rows = ranked[: max(0, max_selected)]
+    selected_chunks = [dict(item["chunk"]) for item in selected_rows]
+
+    audit: list[dict[str, Any]] = []
+    for rank, row in enumerate(selected_rows, start=1):
+        audit.append(
+            {
+                "rank": rank,
+                "score": int(row["score"]),
+                "chunk_id": row["chunk"].get("chunk_id"),
+                "chunk_index": row["chunk"].get("chunk_index"),
+                "matched_question_terms": list(row["matched_question_terms"]),
+                "matched_action_signals": list(row["matched_action_signals"]),
+                "snippet": row["snippet"],
+            }
+        )
+
+    return selected_chunks, audit
 
 
 class PipelineDomainCommands:
@@ -828,7 +969,8 @@ class PipelineDomainCommands:
             for chunk in self.state.chunks.values()
             if chunk["jurisdiction_id"] == jurisdiction_id and chunk["source_family"] == source_family
         ]
-        if not evidence:
+        selected_evidence, evidence_audit = rank_evidence_chunks(question=question, chunks=evidence)
+        if not selected_evidence:
             return self._store_result(
                 envelope,
                 CommandResponse(
@@ -842,7 +984,7 @@ class PipelineDomainCommands:
             )
 
         try:
-            payload = self.analyzer.analyze(question=question, evidence_chunks=evidence)
+            payload = self.analyzer.analyze(question=question, evidence_chunks=selected_evidence)
         except Exception as exc:
             return self._store_result(
                 envelope,
@@ -873,9 +1015,16 @@ class PipelineDomainCommands:
                 status="succeeded",
                 decision_reason="analysis_completed",
                 retry_class="none",
-                counts={"analyses": 1, "evidence_chunks": len(evidence)},
+                counts={"analyses": 1, "evidence_chunks": len(selected_evidence)},
                 refs={**self._windmill_refs(envelope), "analysis_id": analysis_id},
-                details={"sufficiency_state": payload.get("sufficiency_state")},
+                details={
+                    "sufficiency_state": payload.get("sufficiency_state"),
+                    "evidence_selection": {
+                        "candidate_chunk_count": len(evidence),
+                        "selected_chunk_count": len(selected_evidence),
+                        "selected_chunks": evidence_audit,
+                    },
+                },
             ),
         )
 

@@ -109,7 +109,12 @@ class FakeDB:
             document_id = str(args[0])
             rows = [row for row in self.chunks.values() if row["document_id"] == document_id]
             rows = sorted(rows, key=lambda item: item["chunk_index"])
-            return [_Row({"content": row["content"]}) for row in rows]
+            if len(args) > 1:
+                rows = rows[: int(args[1])]
+            return [
+                _Row({"id": row["id"], "content": row["content"], "chunk_index": row["chunk_index"]})
+                for row in rows
+            ]
         return []
 
     async def _execute(self, query: str, *args: Any) -> str:
@@ -485,6 +490,33 @@ def test_runtime_bridge_blocks_navigation_heavy_cached_reader_output_reuse() -> 
     assert "reader_output_insufficient_substance:navigation_heavy" in second["alerts"]
     assert "index" not in second["steps"]
     assert "analyze" not in second["steps"]
+
+
+def test_runtime_bridge_analyze_ranks_late_policy_chunk_ahead_of_headers() -> None:
+    db = FakeDB()
+    storage = FakeStorage()
+    runtime = RailwayRuntimeBridge(db=db, storage=storage)  # type: ignore[arg-type]
+    runtime.search_client = FakeSearchClient(
+        [{"url": "https://sanjose.legistar.com/gateway.aspx?ID=abc.pdf&M=F", "title": "SJ PDF", "snippet": "minutes"}]
+    )
+    early_lines = [f"Meeting logistics line {i}: call to order and roll call." for i in range(1, 181)]
+    late_lines = [
+        "Agenda Item 10.2: Ordinance No. 31303 was adopted and approved.",
+        "Temporary multifamily housing incentive created with affordability compliance options.",
+        "Mobilehome rent ordinance amendments and implementation timeline were approved by vote.",
+    ]
+    runtime.reader_client = FakeReaderClient(content="\n".join(early_lines + late_lines))
+    runtime._llm_client = FakeLLMClient()
+    runtime.zai_api_key = "x"
+
+    response = asyncio.run(runtime.run_scope_pipeline(_request(idempotency_key="wm:run-scope:late-evidence")))
+    selection = response["steps"]["analyze"]["details"]["evidence_selection"]
+
+    assert response["steps"]["analyze"]["status"] in {"succeeded", "succeeded_with_alerts"}
+    assert selection["candidate_chunk_count"] >= 180
+    assert selection["selected_chunk_count"] > 0
+    assert selection["selected_chunks"][0]["chunk_index"] >= 180
+    assert any("housing" in chunk["snippet"].lower() for chunk in selection["selected_chunks"])
 
 
 def test_runtime_bridge_reader_and_llm_failures_classify() -> None:

@@ -18,6 +18,7 @@ from services.llm.web_search_factory import create_web_search_client
 from services.pipeline.domain.commands import (
     PipelineDomainCommands,
     assess_reader_substance,
+    rank_evidence_chunks,
     rank_reader_candidates,
 )
 from services.pipeline.domain.constants import CONTRACT_VERSION
@@ -64,6 +65,8 @@ STEP_NUMBER_BY_COMMAND = {
 }
 
 READ_FETCH_MAX_CANDIDATES = 5
+ANALYZE_CANDIDATE_CHUNK_LIMIT = 250
+ANALYZE_SELECTED_CHUNK_LIMIT = 20
 
 
 def _utc_now() -> datetime:
@@ -1113,15 +1116,30 @@ class RailwayRuntimeBridge:
 
         rows = await self.db._fetch(
             """
-            SELECT content
+            SELECT id, content, chunk_index
             FROM document_chunks
             WHERE document_id = $1::uuid
             ORDER BY chunk_index
-            LIMIT 20
+            LIMIT $2
             """,
             document_id,
+            ANALYZE_CANDIDATE_CHUNK_LIMIT,
         )
-        evidence_chunks = [str(row["content"]) for row in rows]
+        candidate_chunks = [
+            {
+                "chunk_id": str(row["id"]) if row["id"] is not None else None,
+                "chunk_index": int(row["chunk_index"]),
+                "content": str(row["content"]),
+                "document_id": str(document_id),
+            }
+            for row in rows
+        ]
+        selected_chunks, evidence_audit = rank_evidence_chunks(
+            question=request.analysis_question,
+            chunks=candidate_chunks,
+            max_selected=ANALYZE_SELECTED_CHUNK_LIMIT,
+        )
+        evidence_chunks = [str(chunk.get("content", "")) for chunk in selected_chunks]
         if not evidence_chunks:
             response = CommandResponse(
                 command="analyze",
@@ -1141,6 +1159,13 @@ class RailwayRuntimeBridge:
                 alerts=["analysis_error:missing_zai_api_key"],
                 counts={"evidence_chunks": len(evidence_chunks)},
                 refs={"windmill_run_id": meta.run_id, "windmill_job_id": meta.job_id},
+                details={
+                    "evidence_selection": {
+                        "candidate_chunk_count": len(candidate_chunks),
+                        "selected_chunk_count": len(evidence_chunks),
+                        "selected_chunks": evidence_audit,
+                    }
+                },
             )
             return await self._persist_response(run_id=run_id, request=request, response=response)
 
@@ -1180,7 +1205,14 @@ class RailwayRuntimeBridge:
                     "windmill_job_id": meta.job_id,
                     "analysis_id": analysis_id,
                 },
-                details={"analysis": parsed},
+                details={
+                    "analysis": parsed,
+                    "evidence_selection": {
+                        "candidate_chunk_count": len(candidate_chunks),
+                        "selected_chunk_count": len(evidence_chunks),
+                        "selected_chunks": evidence_audit,
+                    },
+                },
             )
             return await self._persist_response(run_id=run_id, request=request, response=response)
         except Exception as exc:
@@ -1192,6 +1224,13 @@ class RailwayRuntimeBridge:
                 alerts=[f"analysis_error:{exc}"],
                 counts={"evidence_chunks": len(evidence_chunks)},
                 refs={"windmill_run_id": meta.run_id, "windmill_job_id": meta.job_id},
+                details={
+                    "evidence_selection": {
+                        "candidate_chunk_count": len(candidate_chunks),
+                        "selected_chunk_count": len(evidence_chunks),
+                        "selected_chunks": evidence_audit,
+                    }
+                },
             )
             return await self._persist_response(run_id=run_id, request=request, response=response)
 
