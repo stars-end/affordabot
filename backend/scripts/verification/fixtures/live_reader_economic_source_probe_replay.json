@@ -1,0 +1,51 @@
+{
+  "version": "2026-04-14.live-reader-probe-v1",
+  "generated_at": "2026-04-14T07:49:57.401068+00:00",
+  "cases": [
+    {
+      "case_id": "sanjose_legistar_cost_of_residential_development",
+      "label": "San Jose Legistar meeting detail (Cost of Residential Development)",
+      "source_family": "official_meeting_detail",
+      "url": "https://sanjose.legistar.com/MeetingDetail.aspx?ID=1315729&GUID=3C17B03F-B014-43D5-B8DF-44024CDE065B&Options=info%7C&Search=",
+      "fetch_error": "http_error:500:{\"error\":{\"code\":\"1234\",\"message\":\"Network error, error id: 2026041415484660ded8d4fd354912, please contact customer service\"}}",
+      "reader_payload": {
+        "reader_result": {
+          "content": ""
+        }
+      }
+    },
+    {
+      "case_id": "sanjose_records_contract_pdf_con667337_002",
+      "label": "San Jose records PDF (CON667337-002)",
+      "source_family": "official_record_pdf",
+      "url": "https://records.sanjoseca.gov/Contracts/CON667337-002.pdf",
+      "fetch_error": "",
+      "reader_payload": {
+        "created": 1776152987,
+        "id": "20260414154946a295b1fe994145b4",
+        "model": "web-reader",
+        "reader_result": {
+          "content": "# Search Records (GILES) | City of San JoséSkip to Main Content# City of San JoséHome MenuAccessibilityActivate Search## Popular Searches* Browse City Jobs* Business License* Make a PaymentPowered by TranslateSmaller Default Larger68℉# City Clerk* Home* Residents* Homelessness Hub* Payments* Parks & Recreation* Building Permits* City Maps* Recycling & Garbage* Housing* Animals* Report Issues* Emergency Preparedness* Police* Fire* Volunteering* Library* Free Public Wi-Fi* Businesses* Check Zoning* Find Land Use Info* Apply for Sign Permit* Apply for Building Permit* Register Business or Rental* Pay Business Tax* Help for Small Business* Why Locate Here* Move Business to San Jose* Become a Preferred Vendor* Do Business with the City* Apply for City Grants* Jobs* Your Government* Mayor* City Council* City Manager* City Attorney* City Auditor* City Clerk* Independent Police Auditor* Departments & Offices* Admin, Policy, and Intergovernmental Relations* Airport* Budget* Communications* Economic Development and Cultural Affairs* Emergency Management* Employee Relations* Energy* Environmental Services* Finance* Fire Department* Housing* Human Resources* Information Technology* Library* Parks, Recreation & Neighborhood Services* Planning, Building & Code Enforcement* Police Department* Public Works* Racial and Social Equity* Retirement Services* Transportation* Agendas & Minutes* Participate & Watch Public Meetings* Boards & Commissions* Official City Records* Open Data* City Charter* Municipal Code* News & Stories* Media Contacts* Social Media Center* Our Story* News* Blog* eNotification Sign-Up* Logo Guidelines* City Calendar* COVID-19 Resources## Jump to subpage...\n* City Clerk-* Your City, Your Voice* Boards & Commissions+* Board and Commission Application* Boards & Commissions Links* Boards and Commissions Roster* Financial Need-Based Stipend* Teleconferencing Requirements* Notices of Public Hearings* City Clerk Biography* City Charter* City Council Agendas & Minutes+* Council Agendas* Council Committees* Council Policy Manual* Participate & Watch Public Meetings* Guide to Council Meetings* Rules of Conduct for Council Meeting* Open Government Provisions* City Officials List* City Policy Manual* Clerk's Calendar* Council Committees+* Community and Economic Development Committee* Neighborhood Services & Education Committee* Public Safety, Finance & Strategic Support* Rules & Open Government Committee (Rules)\n* Transportation & Environment Committee (T&E)\n* Inactive Council Committees* Council Policy Manual+* Section 0 - Administration & Gov't* Section 1 - Finance & Accounting* Section 2 - Maintenance & Operation* Section 3 - Personnel* Section 4 - Utilities* Section 5 - Public Safety & Law Enforcement* Section 6 - Planning & Zoning* Section 7 - Real Property* Section 8 - Engineering / Contracting / Construction* Section 9 - General* Elections+* 2026 Elections Primary and Runoff* District 3 Special Election 2024/2025* 2024 Elections* Campaign Advertising Disclosure Information for Candidates & Others* Campaign Reports* Title 12 Ethics Link* Fees and Charges* Form 700--CA Statement of Economic Interests* Forms & Filings+* Income & Time Disclosure and Disclosure of Fundraising* Form 801 Gift to Agency Report* Form 802 Tickets Provided by Agency Report* Form 803 Behested Payment Report* Form 806 Agency Report of Public Official Appointments* File Claim Against City Form* All Clerk's Office Forms* Information Memos+* Information Memo Archive* Language Access for City Council and Council Committee meetings* Levine Act+* Levine Act Filed Forms* Lobbyist Information+* Lobbyist Ordinance* Lobbyist Fees* List of Registered Lobbyists* Municipal Code* Requesting Records & Information* Search Records (GILES)-* Archived Council Ordinances 17101-25980* Archived Council Resolutions 55501-76525* Spotlight (Press Releases/Memos)\nYour Government » Appointees » City Clerk# Search Records (GILES)\n## Search Legislative History--Ordinances, Resolutions, & Contracts* Search City Clerk Records with GILES* Archived Council Resolutions #55501-76528* Archived Council Ordinances #17101-25980Scroll up## Contact usReport an issue200 E. Santa Clara St. San Jose, Ca 95113408 535-3500 - Main800 735-2922 - TTY## Need More Info?\nMeeting Agendas City Calendar Accessibility E-Government Policy Sitemap## EmployeesAccess eWay Access eWay w/MFA Code of Ethics👋 How may I help you?××Original textRate this translationYour feedback will be used to help improve Google TranslateLoading ...",
+          "description": "",
+          "external": {},
+          "metadata": {},
+          "title": "",
+          "url": "https://records.sanjoseca.gov/Contracts/CON667337-002.pdf"
+        },
+        "request_id": "20260414154946a295b1fe994145b4"
+      }
+    },
+    {
+      "case_id": "sanjose_housing_council_memos_portal",
+      "label": "San Jose housing council memos portal",
+      "source_family": "official_portal_listing",
+      "url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/policies-and-data/reports-and-memos/city-council-memos",
+      "fetch_error": "http_error:400:{\"error\":{\"code\":\"1214\",\"message\":\"The requested resource was not found\"}}",
+      "reader_payload": {
+        "reader_result": {
+          "content": ""
+        }
+      }
+    }
+  ]
+}
