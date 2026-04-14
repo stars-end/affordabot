@@ -469,8 +469,8 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--save-live-replay",
         type=Path,
-        default=DEFAULT_REPLAY_FIXTURE,
-        help="Path to write replay payload when running in live mode",
+        default=None,
+        help="Optional path to write replay payload when running in live mode",
     )
     return parser
 

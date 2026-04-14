@@ -68,3 +68,9 @@ def test_replay_mode_runs_and_produces_three_cases():
     assert report["mode"] == module.MODE_REPLAY
     assert report["summary"]["total_cases"] == 3
     assert report["summary"]["decision_grade_candidate_cases"] == 0
+
+
+def test_parser_default_does_not_write_live_replay_fixture():
+    parser = module._build_parser()
+    args = parser.parse_args([])
+    assert args.save_live_replay is None
