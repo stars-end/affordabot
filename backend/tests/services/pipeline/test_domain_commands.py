@@ -34,6 +34,35 @@ class _StaticReaderProvider:
         )
 
 
+class _RoutingReaderProvider:
+    def __init__(
+        self,
+        *,
+        by_url: dict[str, str],
+        fail_urls: set[str] | None = None,
+    ) -> None:
+        self.by_url = by_url
+        self.fail_urls = fail_urls or set()
+
+    def fetch(self, *, url: str) -> ReaderDocument:
+        if url in self.fail_urls:
+            raise RuntimeError(f"reader_unavailable_for:{url}")
+        return ReaderDocument(
+            url=url,
+            title="San Jose City Council",
+            text=self.by_url.get(
+                url,
+                (
+                    "San Jose City Council meeting minutes include agenda item 4.2 "
+                    "where housing policy recommendations were adopted by vote."
+                ),
+            ),
+            fetched_at=datetime.now(timezone.utc),
+            document_type="meeting_minutes",
+            published_date="2026-04-13",
+        )
+
+
 def _envelope(command: str, key: str) -> CommandEnvelope:
     return CommandEnvelope(
         command=command,  # type: ignore[arg-type]
@@ -271,6 +300,54 @@ def test_reader_failure_stops_before_index() -> None:
     assert len(state.raw_scrapes) == 0
 
 
+def test_read_fetch_tries_ranked_fallback_candidates_after_reader_error() -> None:
+    state, service = _service(
+        search_results=[
+            SearchResultItem(
+                url="https://www.sanjoseca.gov/home",
+                title="City Home",
+                snippet="departments and services",
+            ),
+            SearchResultItem(
+                url="https://sanjose.legistar.com/MeetingDetail.aspx?ID=123&GUID=abc",
+                title="City Council Meeting Detail",
+                snippet="agenda minutes housing item",
+            ),
+            SearchResultItem(
+                url="https://granicus.com/AgendaViewer.php?view_id=12",
+                title="Agenda Viewer",
+                snippet="council hearing and agenda packet",
+            ),
+        ]
+    )
+    service.reader_provider = _RoutingReaderProvider(
+        by_url={
+            "https://www.sanjoseca.gov/home": "Home Contact Sitemap Menu Departments Services",
+            "https://sanjose.legistar.com/MeetingDetail.aspx?ID=123&GUID=abc": (
+                "City Council meeting minutes for San Jose. "
+                "Agenda item 5.1 approved housing subsidy allocations after hearing."
+            )
+        },
+        fail_urls={"https://granicus.com/AgendaViewer.php?view_id=12"},
+    )
+
+    search = service.search_materialize(envelope=_envelope("search_materialize", "fb1"), query="q")
+    read = service.read_fetch(
+        envelope=_envelope("read_fetch", "fb2"),
+        snapshot_id=str(search.refs["search_snapshot_id"]),
+        max_reads=3,
+    )
+
+    assert read.status == "succeeded_with_alerts"
+    assert read.decision_reason == "raw_scrapes_materialized_with_reader_alerts"
+    assert any(alert.startswith("reader_error:") for alert in read.alerts)
+    assert read.counts["raw_scrapes"] == 1
+    assert len(read.details["candidate_audit"]) >= 2
+    assert read.details["candidate_audit"][0]["outcome"] == "reader_provider_error"
+    assert read.details["candidate_audit"][1]["outcome"] == "materialized_raw_scrape"
+    assert len(state.raw_scrapes) == 1
+
+
 def test_storage_failure_on_reader_artifact_is_terminal() -> None:
     _, service = _service(
         search_results=[
@@ -433,6 +510,51 @@ def test_navigation_shell_with_images_and_bullets_blocks_despite_generic_meeting
     assert quality["line_count"] >= 250
     assert quality["markdown_image_count"] >= 21
     assert quality["bullet_line_count"] >= 224
+    assert len(state.raw_scrapes) == 0
+
+
+def test_read_fetch_blocks_when_all_ranked_candidates_are_navigation_shells() -> None:
+    state, service = _service(
+        search_results=[
+            SearchResultItem(
+                url="https://www.sanjoseca.gov/home",
+                title="City of San Jose Home",
+                snippet="departments and services",
+            ),
+            SearchResultItem(
+                url="https://www.sanjoseca.gov/city-hall",
+                title="City Hall",
+                snippet="resource library and menu",
+            ),
+            SearchResultItem(
+                url="https://www.sanjoseca.gov/resources",
+                title="Resources",
+                snippet="navigation links",
+            ),
+        ]
+    )
+    service.reader_provider = _RoutingReaderProvider(
+        by_url={
+            "https://www.sanjoseca.gov/home": "Home Contact Sitemap Menu Departments",
+            "https://www.sanjoseca.gov/city-hall": "Home Menu Accessibility Privacy Sign Up",
+            "https://www.sanjoseca.gov/resources": "Navigation Resources Contact Sitemap",
+        }
+    )
+    search = service.search_materialize(envelope=_envelope("search_materialize", "allnav1"), query="q")
+    read = service.read_fetch(
+        envelope=_envelope("read_fetch", "allnav2"),
+        snapshot_id=str(search.refs["search_snapshot_id"]),
+        max_reads=3,
+    )
+
+    assert read.status == "blocked"
+    assert read.decision_reason == "reader_output_insufficient_substance"
+    assert read.retry_class == "insufficient_evidence"
+    assert len(read.details["reader_quality_failures"]) == 3
+    assert all(
+        item["outcome"] == "reader_output_insufficient_substance"
+        for item in read.details["candidate_audit"]
+    )
     assert len(state.raw_scrapes) == 0
 
 

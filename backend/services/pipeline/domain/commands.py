@@ -21,6 +21,41 @@ from services.pipeline.domain.ports import (
     VectorStore,
 )
 
+MEETING_ARTIFACT_URL_SIGNALS = (
+    "legistar.com",
+    "granicus.com",
+    "agendaviewer",
+    "meetingdetail",
+    "view.ashx",
+    "gateway.aspx",
+    "/agenda",
+    "/minutes",
+    ".pdf",
+)
+
+MEETING_ARTIFACT_TEXT_SIGNALS = (
+    "agenda",
+    "minutes",
+    "meeting",
+    "council",
+    "hearing",
+    "ordinance",
+    "resolution",
+    "public comment",
+    "housing",
+)
+
+GENERIC_NAVIGATION_PENALTIES = (
+    "home",
+    "homepage",
+    "resource library",
+    "resources",
+    "departments",
+    "services",
+    "city hall",
+    "about us",
+)
+
 NAVIGATION_MARKERS = (
     "home",
     "contact",
@@ -155,6 +190,58 @@ def assess_reader_substance(text: str) -> tuple[bool, dict[str, Any]]:
         "bullet_line_count": bullet_line_count,
     }
     return is_substantive, details
+
+
+def rank_reader_candidates(
+    candidates: list[SearchResultItem], *, max_candidates: int | None = None
+) -> list[dict[str, Any]]:
+    ranked: list[dict[str, Any]] = []
+    for index, candidate in enumerate(candidates):
+        url = candidate.url.strip()
+        title = candidate.title.strip()
+        snippet = candidate.snippet.strip()
+        lowered_url = url.lower()
+        lowered_text = f"{title} {snippet}".lower()
+        score = 0
+        reasons: list[str] = []
+
+        for signal in MEETING_ARTIFACT_URL_SIGNALS:
+            if signal in lowered_url:
+                score += 5 if signal in {"legistar.com", "granicus.com", ".pdf"} else 3
+                reasons.append(f"url_signal:{signal}")
+        for signal in MEETING_ARTIFACT_TEXT_SIGNALS:
+            if signal in lowered_text:
+                score += 1
+                reasons.append(f"text_signal:{signal}")
+        for penalty in GENERIC_NAVIGATION_PENALTIES:
+            if penalty in lowered_text or penalty in lowered_url:
+                score -= 2
+                reasons.append(f"penalty:{penalty}")
+
+        ranked.append(
+            {
+                "input_index": index,
+                "url": url,
+                "title": title,
+                "snippet": snippet,
+                "score": score,
+                "reasons": reasons,
+            }
+        )
+
+    ranked.sort(
+        key=lambda item: (
+            -int(item["score"]),
+            int(item["input_index"]),
+            str(item["url"]),
+        )
+    )
+    for rank, item in enumerate(ranked, start=1):
+        item["rank"] = rank
+
+    if max_candidates is not None:
+        return ranked[: max(0, max_candidates)]
+    return ranked
 
 
 class PipelineDomainCommands:
@@ -348,7 +435,7 @@ class PipelineDomainCommands:
         )
 
     def read_fetch(
-        self, *, envelope: CommandEnvelope, snapshot_id: str, max_reads: int = 1
+        self, *, envelope: CommandEnvelope, snapshot_id: str, max_reads: int = 5
     ) -> CommandResponse:
         envelope.validate()
         reused = self._reuse_if_idempotent(envelope)
@@ -368,14 +455,16 @@ class PipelineDomainCommands:
                 ),
             )
 
-        selected: list[SearchResultItem] = [
+        search_items: list[SearchResultItem] = [
             SearchResultItem(
                 url=item["url"],
                 title=item.get("title", ""),
                 snippet=item.get("snippet", ""),
             )
-            for item in snapshot["results"][:max_reads]
+            for item in snapshot["results"]
         ]
+        ranked_candidates = rank_reader_candidates(search_items)
+        selected = ranked_candidates[: max(0, max_reads)]
         if not selected:
             return self._store_result(
                 envelope,
@@ -392,21 +481,37 @@ class PipelineDomainCommands:
         artifact_refs: list[str] = []
         quality_alerts: list[str] = []
         reader_quality_failures: list[dict[str, Any]] = []
-        for candidate in selected:
+        reader_provider_errors: list[dict[str, Any]] = []
+        candidate_audit: list[dict[str, Any]] = []
+
+        for candidate_entry in selected:
+            candidate = SearchResultItem(
+                url=str(candidate_entry["url"]),
+                title=str(candidate_entry["title"]),
+                snippet=str(candidate_entry["snippet"]),
+            )
             try:
                 doc = self.reader_provider.fetch(url=candidate.url)
             except Exception as exc:
-                return self._store_result(
-                    envelope,
-                    CommandResponse(
-                        command="read_fetch",
-                        status="failed_retryable",
-                        decision_reason="reader_provider_error",
-                        retry_class="provider_unavailable",
-                        alerts=[f"reader_error:{exc}"],
-                        refs=self._windmill_refs(envelope),
-                    ),
+                err = str(exc)
+                reader_provider_errors.append(
+                    {
+                        "url": candidate.url,
+                        "rank": candidate_entry["rank"],
+                        "score": candidate_entry["score"],
+                        "error": err,
+                    }
                 )
+                candidate_audit.append(
+                    {
+                        "url": candidate.url,
+                        "rank": candidate_entry["rank"],
+                        "score": candidate_entry["score"],
+                        "outcome": "reader_provider_error",
+                        "error": err,
+                    }
+                )
+                continue
 
             is_substantive, quality_details = assess_reader_substance(doc.text)
             if not is_substantive:
@@ -415,8 +520,19 @@ class PipelineDomainCommands:
                 reader_quality_failures.append(
                     {
                         "url": candidate.url,
+                        "rank": candidate_entry["rank"],
+                        "score": candidate_entry["score"],
                         "reason": reason,
                         "quality_details": quality_details,
+                    }
+                )
+                candidate_audit.append(
+                    {
+                        "url": candidate.url,
+                        "rank": candidate_entry["rank"],
+                        "score": candidate_entry["score"],
+                        "outcome": "reader_output_insufficient_substance",
+                        "reason": reason,
                     }
                 )
                 continue
@@ -436,6 +552,15 @@ class PipelineDomainCommands:
                 existing["last_seen_at"] = self.state.now.isoformat()
                 raw_scrape_ids.append(scrape_id)
                 artifact_refs.append(existing["artifact_ref"])
+                candidate_audit.append(
+                    {
+                        "url": candidate.url,
+                        "rank": candidate_entry["rank"],
+                        "score": candidate_entry["score"],
+                        "outcome": "reused_existing_raw_scrape",
+                        "raw_scrape_id": scrape_id,
+                    }
+                )
                 continue
 
             try:
@@ -474,9 +599,37 @@ class PipelineDomainCommands:
             }
             raw_scrape_ids.append(scrape_id)
             artifact_refs.append(artifact.artifact_ref)
+            candidate_audit.append(
+                {
+                    "url": candidate.url,
+                    "rank": candidate_entry["rank"],
+                    "score": candidate_entry["score"],
+                    "outcome": "materialized_raw_scrape",
+                    "raw_scrape_id": scrape_id,
+                }
+            )
 
         if not raw_scrape_ids:
-            alerts = list(dict.fromkeys(quality_alerts)) or ["reader_output_insufficient_substance"]
+            provider_alerts = [f"reader_error:{item['error']}" for item in reader_provider_errors]
+            alerts = list(dict.fromkeys(provider_alerts + quality_alerts))
+            if reader_provider_errors:
+                return self._store_result(
+                    envelope,
+                    CommandResponse(
+                        command="read_fetch",
+                        status="failed_retryable",
+                        decision_reason="reader_provider_error",
+                        retry_class="provider_unavailable",
+                        alerts=alerts,
+                        refs=self._windmill_refs(envelope),
+                        details={
+                            "candidate_audit": candidate_audit,
+                            "ranked_candidates": selected,
+                            "reader_provider_errors": reader_provider_errors,
+                            "reader_quality_failures": reader_quality_failures,
+                        },
+                    ),
+                )
             return self._store_result(
                 envelope,
                 CommandResponse(
@@ -484,16 +637,22 @@ class PipelineDomainCommands:
                     status="blocked",
                     decision_reason="reader_output_insufficient_substance",
                     retry_class="insufficient_evidence",
-                    alerts=alerts,
+                    alerts=alerts or ["reader_output_insufficient_substance"],
                     refs=self._windmill_refs(envelope),
-                    details={"reader_quality_failures": reader_quality_failures},
+                    details={
+                        "candidate_audit": candidate_audit,
+                        "ranked_candidates": selected,
+                        "reader_quality_failures": reader_quality_failures,
+                    },
                 ),
             )
 
-        status = "succeeded_with_alerts" if quality_alerts else "succeeded"
+        provider_alerts = [f"reader_error:{item['error']}" for item in reader_provider_errors]
+        alerts = list(dict.fromkeys(quality_alerts + provider_alerts))
+        status = "succeeded_with_alerts" if alerts else "succeeded"
         decision_reason = (
             "raw_scrapes_materialized_with_reader_alerts"
-            if quality_alerts
+            if alerts
             else "raw_scrapes_materialized"
         )
         return self._store_result(
@@ -503,14 +662,19 @@ class PipelineDomainCommands:
                 status=status,
                 decision_reason=decision_reason,
                 retry_class="none",
-                alerts=list(dict.fromkeys(quality_alerts)),
+                alerts=alerts,
                 counts={"raw_scrapes": len(raw_scrape_ids), "artifacts": len(artifact_refs)},
                 refs={
                     **self._windmill_refs(envelope),
                     "raw_scrape_ids": raw_scrape_ids,
                     "artifact_refs": artifact_refs,
                 },
-                details={"reader_quality_failures": reader_quality_failures},
+                details={
+                    "candidate_audit": candidate_audit,
+                    "ranked_candidates": selected,
+                    "reader_provider_errors": reader_provider_errors,
+                    "reader_quality_failures": reader_quality_failures,
+                },
             ),
         )
 

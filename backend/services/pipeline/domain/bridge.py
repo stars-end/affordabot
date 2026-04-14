@@ -15,7 +15,11 @@ from openai import AsyncOpenAI
 
 from db.postgres_client import PostgresDB
 from services.llm.web_search_factory import create_web_search_client
-from services.pipeline.domain.commands import PipelineDomainCommands, assess_reader_substance
+from services.pipeline.domain.commands import (
+    PipelineDomainCommands,
+    assess_reader_substance,
+    rank_reader_candidates,
+)
 from services.pipeline.domain.constants import CONTRACT_VERSION
 from services.pipeline.domain.identity import build_v2_canonical_document_key
 from services.pipeline.domain.in_memory import (
@@ -58,6 +62,8 @@ STEP_NUMBER_BY_COMMAND = {
     "analyze": 5,
     "summarize_run": 6,
 }
+
+READ_FETCH_MAX_CANDIDATES = 5
 
 
 def _utc_now() -> datetime:
@@ -657,149 +663,234 @@ class RailwayRuntimeBridge:
             )
             return await self._persist_response(run_id=run_id, request=request, response=response)
 
-        url = str(payload[0].get("url", "")).strip()
-        try:
-            reader_payload = await self.reader_client.fetch_content(url, timeout=60)
-        except Exception as exc:
+        search_items = [
+            SearchResultItem(
+                url=str(item.get("url", item.get("link", ""))).strip(),
+                title=str(item.get("title", "")).strip(),
+                snippet=str(item.get("snippet", "")).strip(),
+            )
+            for item in payload
+            if str(item.get("url", item.get("link", ""))).strip()
+        ]
+        ranked_candidates = rank_reader_candidates(search_items, max_candidates=READ_FETCH_MAX_CANDIDATES)
+        if not ranked_candidates:
+            response = CommandResponse(
+                command="read_fetch",
+                status="blocked",
+                decision_reason="no_candidate_urls",
+                retry_class="insufficient_evidence",
+                refs={"windmill_run_id": meta.run_id, "windmill_job_id": meta.job_id},
+            )
+            return await self._persist_response(run_id=run_id, request=request, response=response)
+
+        reader_quality_failures: list[dict[str, Any]] = []
+        reader_provider_errors: list[dict[str, Any]] = []
+        candidate_audit: list[dict[str, Any]] = []
+
+        for candidate in ranked_candidates:
+            url = str(candidate["url"])
+            try:
+                reader_payload = await self.reader_client.fetch_content(url, timeout=60)
+            except Exception as exc:
+                err = str(exc)
+                reader_provider_errors.append(
+                    {
+                        "url": url,
+                        "rank": candidate["rank"],
+                        "score": candidate["score"],
+                        "error": err,
+                    }
+                )
+                candidate_audit.append(
+                    {
+                        "url": url,
+                        "rank": candidate["rank"],
+                        "score": candidate["score"],
+                        "outcome": "reader_provider_error",
+                        "error": err,
+                    }
+                )
+                continue
+
+            data_block = reader_payload.get("reader_result", reader_payload)
+            markdown_body = str(data_block.get("content", "")).strip()
+            title = str(data_block.get("title", "")).strip() or "Untitled"
+            canonical_url = str(data_block.get("url", url)).strip() or url
+
+            is_substantive, quality_details = assess_reader_substance(markdown_body)
+            if not is_substantive:
+                reason = str(quality_details["reason"])
+                reader_quality_failures.append(
+                    {
+                        "url": canonical_url,
+                        "rank": candidate["rank"],
+                        "score": candidate["score"],
+                        "reason": reason,
+                        "quality_details": quality_details,
+                    }
+                )
+                candidate_audit.append(
+                    {
+                        "url": canonical_url,
+                        "rank": candidate["rank"],
+                        "score": candidate["score"],
+                        "outcome": "reader_output_insufficient_substance",
+                        "reason": reason,
+                    }
+                )
+                continue
+
+            canonical_key = build_v2_canonical_document_key(
+                jurisdiction_id=request.jurisdiction,
+                source_family=request.source_family,
+                url=canonical_url,
+                metadata={"document_type": "meeting_minutes", "title": title},
+                data={},
+            )
+            content_hash = sha256_text(markdown_body)
+            artifact_ref = await self._store_artifact(
+                request=request,
+                content_hash=content_hash,
+                media_type="text/markdown",
+                body=markdown_body,
+            )
+            source_id = await self.db.get_or_create_source(
+                request.jurisdiction,
+                name=f"{request.jurisdiction}-{request.source_family}",
+                type=request.source_family,
+                url=canonical_url,
+            )
+            if not source_id:
+                raise RuntimeError("source_create_failed")
+
+            raw_row = await self.db._fetchrow(
+                """
+                SELECT id, document_id, COALESCE(metadata, '{}'::jsonb) AS metadata
+                FROM raw_scrapes
+                WHERE canonical_document_key = $1 AND content_hash = $2
+                ORDER BY created_at DESC
+                LIMIT 1
+                """,
+                canonical_key,
+                content_hash,
+            )
+            raw_scrape_id: str
+            document_id: str
+            if raw_row:
+                raw_scrape_id = str(raw_row["id"])
+                document_id = str(raw_row["document_id"]) if raw_row["document_id"] else _stable_uuid(
+                    canonical_key, content_hash, "document"
+                )
+                await self.db._execute(
+                    """
+                    UPDATE raw_scrapes
+                    SET document_id = $1::uuid,
+                        storage_uri = $2,
+                        processed = COALESCE(processed, false),
+                        metadata = COALESCE(metadata, '{}'::jsonb) || $3::jsonb,
+                        last_seen_at = NOW(),
+                        seen_count = COALESCE(seen_count, 0) + 1
+                    WHERE id = $4::uuid
+                    """,
+                    document_id,
+                    artifact_ref,
+                    _json({"bridge_kind": "reader_output", "title": title}),
+                    raw_scrape_id,
+                )
+            else:
+                raw_scrape_id = _stable_uuid(canonical_key, content_hash, "raw")
+                document_id = _stable_uuid(canonical_key, content_hash, "document")
+                await self.db._execute(
+                    """
+                    INSERT INTO raw_scrapes
+                      (id, source_id, content_hash, content_type, data, url, metadata, storage_uri,
+                       document_id, canonical_document_key, processed, created_at, last_seen_at, seen_count)
+                    VALUES
+                      ($1::uuid, $2::uuid, $3, $4, $5::jsonb, $6, $7::jsonb, $8,
+                       $9::uuid, $10, false, NOW(), NOW(), 1)
+                    """,
+                    raw_scrape_id,
+                    source_id,
+                    content_hash,
+                    "text/markdown",
+                    _json({"content": markdown_body}),
+                    canonical_url,
+                    _json({"bridge_kind": "reader_output", "title": title}),
+                    artifact_ref,
+                    document_id,
+                    canonical_key,
+                )
+
+            candidate_audit.append(
+                {
+                    "url": canonical_url,
+                    "rank": candidate["rank"],
+                    "score": candidate["score"],
+                    "outcome": "materialized_raw_scrape",
+                    "raw_scrape_id": raw_scrape_id,
+                }
+            )
+            alerts = [
+                *[f"reader_output_insufficient_substance:{item['reason']}" for item in reader_quality_failures],
+                *[f"reader_error:{item['error']}" for item in reader_provider_errors],
+            ]
+            response = CommandResponse(
+                command="read_fetch",
+                status="succeeded_with_alerts" if alerts else "succeeded",
+                decision_reason=(
+                    "raw_scrapes_materialized_with_reader_alerts" if alerts else "raw_scrapes_materialized"
+                ),
+                retry_class="none",
+                alerts=list(dict.fromkeys(alerts)),
+                counts={"raw_scrapes": 1, "artifacts": 1},
+                refs={
+                    "windmill_run_id": meta.run_id,
+                    "windmill_job_id": meta.job_id,
+                    "raw_scrape_ids": [raw_scrape_id],
+                    "artifact_refs": [artifact_ref],
+                    "document_id": document_id,
+                },
+                details={
+                    "candidate_audit": candidate_audit,
+                    "ranked_candidates": ranked_candidates,
+                    "reader_provider_errors": reader_provider_errors,
+                    "reader_quality_failures": reader_quality_failures,
+                },
+            )
+            return await self._persist_response(run_id=run_id, request=request, response=response)
+
+        alerts = [
+            *[f"reader_output_insufficient_substance:{item['reason']}" for item in reader_quality_failures],
+            *[f"reader_error:{item['error']}" for item in reader_provider_errors],
+        ]
+        if reader_provider_errors:
             response = CommandResponse(
                 command="read_fetch",
                 status="failed_retryable",
                 decision_reason="reader_provider_error",
                 retry_class="provider_unavailable",
-                alerts=[f"reader_error:{exc}"],
-                refs={"windmill_run_id": meta.run_id, "windmill_job_id": meta.job_id},
-            )
-            return await self._persist_response(run_id=run_id, request=request, response=response)
-
-        data_block = reader_payload.get("reader_result", reader_payload)
-        markdown_body = str(data_block.get("content", "")).strip()
-        title = str(data_block.get("title", "")).strip() or "Untitled"
-        if not markdown_body:
-            response = CommandResponse(
-                command="read_fetch",
-                status="failed_terminal",
-                decision_reason="reader_empty_content",
-                retry_class="insufficient_evidence",
-                alerts=["reader_error:empty_content"],
-                refs={"windmill_run_id": meta.run_id, "windmill_job_id": meta.job_id},
-            )
-            return await self._persist_response(run_id=run_id, request=request, response=response)
-
-        is_substantive, quality_details = assess_reader_substance(markdown_body)
-        if not is_substantive:
-            reason = str(quality_details["reason"])
-            response = CommandResponse(
-                command="read_fetch",
-                status="blocked",
-                decision_reason="reader_output_insufficient_substance",
-                retry_class="insufficient_evidence",
-                alerts=[f"reader_output_insufficient_substance:{reason}"],
+                alerts=list(dict.fromkeys(alerts)),
                 refs={"windmill_run_id": meta.run_id, "windmill_job_id": meta.job_id},
                 details={
-                    "reader_quality_failures": [
-                        {
-                            "url": url,
-                            "reason": reason,
-                            "quality_details": quality_details,
-                        }
-                    ]
+                    "candidate_audit": candidate_audit,
+                    "ranked_candidates": ranked_candidates,
+                    "reader_provider_errors": reader_provider_errors,
+                    "reader_quality_failures": reader_quality_failures,
                 },
             )
             return await self._persist_response(run_id=run_id, request=request, response=response)
 
-        canonical_key = build_v2_canonical_document_key(
-            jurisdiction_id=request.jurisdiction,
-            source_family=request.source_family,
-            url=url,
-            metadata={"document_type": "meeting_minutes", "title": title},
-            data={},
-        )
-        content_hash = sha256_text(markdown_body)
-        artifact_ref = await self._store_artifact(
-            request=request,
-            content_hash=content_hash,
-            media_type="text/markdown",
-            body=markdown_body,
-        )
-        source_id = await self.db.get_or_create_source(
-            request.jurisdiction,
-            name=f"{request.jurisdiction}-{request.source_family}",
-            type=request.source_family,
-            url=url,
-        )
-        if not source_id:
-            raise RuntimeError("source_create_failed")
-
-        raw_row = await self.db._fetchrow(
-            """
-            SELECT id, document_id, COALESCE(metadata, '{}'::jsonb) AS metadata
-            FROM raw_scrapes
-            WHERE canonical_document_key = $1 AND content_hash = $2
-            ORDER BY created_at DESC
-            LIMIT 1
-            """,
-            canonical_key,
-            content_hash,
-        )
-        raw_scrape_id: str
-        document_id: str
-        if raw_row:
-            raw_scrape_id = str(raw_row["id"])
-            document_id = str(raw_row["document_id"]) if raw_row["document_id"] else _stable_uuid(
-                canonical_key, content_hash, "document"
-            )
-            await self.db._execute(
-                """
-                UPDATE raw_scrapes
-                SET document_id = $1::uuid,
-                    storage_uri = $2,
-                    processed = COALESCE(processed, false),
-                    metadata = COALESCE(metadata, '{}'::jsonb) || $3::jsonb,
-                    last_seen_at = NOW(),
-                    seen_count = COALESCE(seen_count, 0) + 1
-                WHERE id = $4::uuid
-                """,
-                document_id,
-                artifact_ref,
-                _json({"bridge_kind": "reader_output", "title": title}),
-                raw_scrape_id,
-            )
-        else:
-            raw_scrape_id = _stable_uuid(canonical_key, content_hash, "raw")
-            document_id = _stable_uuid(canonical_key, content_hash, "document")
-            await self.db._execute(
-                """
-                INSERT INTO raw_scrapes
-                  (id, source_id, content_hash, content_type, data, url, metadata, storage_uri,
-                   document_id, canonical_document_key, processed, created_at, last_seen_at, seen_count)
-                VALUES
-                  ($1::uuid, $2::uuid, $3, $4, $5::jsonb, $6, $7::jsonb, $8,
-                   $9::uuid, $10, false, NOW(), NOW(), 1)
-                """,
-                raw_scrape_id,
-                source_id,
-                content_hash,
-                "text/markdown",
-                _json({"content": markdown_body}),
-                url,
-                _json({"bridge_kind": "reader_output", "title": title}),
-                artifact_ref,
-                document_id,
-                canonical_key,
-            )
-
         response = CommandResponse(
             command="read_fetch",
-            status="succeeded",
-            decision_reason="raw_scrapes_materialized",
-            retry_class="none",
-            counts={"raw_scrapes": 1, "artifacts": 1},
-            refs={
-                "windmill_run_id": meta.run_id,
-                "windmill_job_id": meta.job_id,
-                "raw_scrape_ids": [raw_scrape_id],
-                "artifact_refs": [artifact_ref],
-                "document_id": document_id,
+            status="blocked",
+            decision_reason="reader_output_insufficient_substance",
+            retry_class="insufficient_evidence",
+            alerts=list(dict.fromkeys(alerts)) or ["reader_output_insufficient_substance"],
+            refs={"windmill_run_id": meta.run_id, "windmill_job_id": meta.job_id},
+            details={
+                "candidate_audit": candidate_audit,
+                "ranked_candidates": ranked_candidates,
+                "reader_quality_failures": reader_quality_failures,
             },
         )
         return await self._persist_response(run_id=run_id, request=request, response=response)
