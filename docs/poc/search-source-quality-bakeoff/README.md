@@ -21,6 +21,31 @@ This bakeoff closes that gap.
 - `EXA_API_KEY`
 - Exa requests must use User-Agent `affordabot-dev-bakeoff/1.0` to avoid Cloudflare 1010 observed with default Python UA.
 
+SearXNG-only mode does not require `TAVILY_API_KEY` or `EXA_API_KEY`.
+
+## SearXNG-only run
+
+```bash
+cd backend
+poetry run python scripts/verification/verify_search_source_quality_bakeoff.py \
+  --searxng-only \
+  --query-file ../docs/poc/search-source-quality-bakeoff/query-corpus.json \
+  --searx-endpoint "https://searxng-railway-production-79aa.up.railway.app/search"
+```
+
+This mode emits the same report files and adds a `searxng_fanout_health` section with:
+
+- per-query result count and top result URL/title rows,
+- per-query `unresponsive_engines` metadata (when returned by SearXNG),
+- `health_verdict` (`healthy` / `degraded` / `unhealthy`),
+- `raw_candidate_count`, `deduped_candidate_count`,
+- deterministic class counts:
+  - `final_artifact`
+  - `portal_seed`
+  - `likely_navigation`
+  - `third_party_or_junk`,
+- deterministic shortlist guidance (`recommended_shortlist_size`, `selected_shortlist`).
+
 ## Expected harness behavior
 
 Implementation does:

@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 import hashlib
 import re
 from typing import Any
+from urllib.parse import parse_qs, urlsplit
 
 from services.pipeline.domain.constants import CONTRACT_VERSION
 from services.pipeline.domain.identity import build_v2_canonical_document_key
@@ -43,6 +44,33 @@ HIGH_VALUE_URL_SIGNALS = (
 LOW_VALUE_AGENDA_HEADER_URL_SIGNALS = (
     "granicus.com/agendaviewer",
     "agendaviewer.php",
+    "/your-government/agendas-minutes",
+    "/city-council/council-agendas-minutes",
+    "/city-council/council-agendas",
+    "calendar.aspx",
+    "departmentdetail.aspx",
+    "/resource-library/council-memos",
+    "/resource-library/",
+)
+
+LOW_VALUE_PORTAL_PREFETCH_SKIP_URL_SIGNALS = (
+    "/your-government/agendas-minutes",
+    "/city-council/council-agendas-minutes",
+    "/city-council/council-agendas",
+    "calendar.aspx",
+    "departmentdetail.aspx",
+    "/resource-library/council-memos",
+)
+
+LOW_VALUE_PORTAL_URL_PENALTY = 10
+
+CONCRETE_ARTIFACT_URL_SIGNALS = (
+    "meetingdetail.aspx?id=",
+    "meetingdetail.aspx?legid=",
+    "gateway.aspx?id=",
+    "agendaviewer.php?clip_id=",
+    "/agendacenter/viewfile/minutes/",
+    "/agendacenter/viewfile/agenda/",
 )
 
 MEETING_ARTIFACT_TEXT_SIGNALS = (
@@ -268,6 +296,12 @@ def assess_reader_substance(text: str) -> tuple[bool, dict[str, Any]]:
     elif logistics_marker_hits >= 1 and action_hits == 0 and word_count < 160:
         reason = "agenda_header_logistics_only"
         is_substantive = False
+    elif word_count < 6:
+        reason = "content_too_short"
+        is_substantive = False
+    elif line_count <= 2 and word_count < 24 and action_hits == 0:
+        reason = "content_too_short"
+        is_substantive = False
     elif word_count < 25 and substantive_hits == 0:
         reason = "low_substantive_signal"
         is_substantive = False
@@ -308,9 +342,16 @@ def rank_reader_candidates(
             if signal in lowered_url:
                 score += 6 if signal == ".pdf" else 5
                 reasons.append(f"url_high_value:{signal}")
+        for signal in CONCRETE_ARTIFACT_URL_SIGNALS:
+            if signal in lowered_url:
+                score += 7 if signal == ".pdf" else 6
+                reasons.append(f"url_concrete_artifact:{signal}")
+        if _is_concrete_artifact_url(url):
+            score += 8
+            reasons.append("url_concrete_artifact:parsed")
         for signal in LOW_VALUE_AGENDA_HEADER_URL_SIGNALS:
             if signal in lowered_url:
-                score -= 5
+                score -= LOW_VALUE_PORTAL_URL_PENALTY
                 reasons.append(f"url_penalty:{signal}")
         for signal in MEETING_ARTIFACT_TEXT_SIGNALS:
             if signal in lowered_text:
@@ -353,6 +394,71 @@ def rank_reader_candidates(
     if max_candidates is not None:
         return ranked[: max(0, max_candidates)]
     return ranked
+
+
+def prefetch_skip_reason(url: str) -> str | None:
+    lowered_url = url.strip().lower()
+    for signal in LOW_VALUE_PORTAL_PREFETCH_SKIP_URL_SIGNALS:
+        if signal in lowered_url:
+            return signal
+    return None
+
+
+def _parsed_query_params(url: str) -> dict[str, list[str]]:
+    return {key.lower(): values for key, values in parse_qs(urlsplit(url).query).items()}
+
+
+def _has_query_key(params: dict[str, list[str]], key: str) -> bool:
+    return key in params and any(str(value).strip() for value in params[key])
+
+
+def _has_query_value(params: dict[str, list[str]], key: str, expected_values: tuple[str, ...]) -> bool:
+    if key not in params:
+        return False
+    allowed = {value.lower() for value in expected_values}
+    return any(str(value).strip().lower() in allowed for value in params[key])
+
+
+def _has_query_suffix(params: dict[str, list[str]], key: str, suffix: str) -> bool:
+    if key not in params:
+        return False
+    target = suffix.lower()
+    return any(str(value).strip().lower().endswith(target) for value in params[key])
+
+
+def _is_concrete_artifact_url(url: str) -> bool:
+    lowered_url = url.lower().strip()
+    parsed = urlsplit(url)
+    path = parsed.path.lower()
+    host = parsed.netloc.lower()
+    params = _parsed_query_params(url)
+    is_official_host = host.endswith(".gov") or host.endswith(".ca.gov") or host.endswith(".us")
+    is_legistar_host = "legistar.com" in host
+    is_granicus_host = "granicus.com" in host
+    is_trusted_public_records_host = is_official_host or is_legistar_host or is_granicus_host
+
+    if lowered_url.endswith(".pdf") or "/pdf/" in lowered_url:
+        return is_trusted_public_records_host
+
+    if is_legistar_host and "meetingdetail.aspx" in path and (_has_query_key(params, "id") or _has_query_key(params, "legid")):
+        return True
+
+    if is_legistar_host and "view.ashx" in path and _has_query_key(params, "id") and _has_query_value(params, "m", ("a", "m", "f")):
+        return True
+
+    if is_legistar_host and "gateway.aspx" in path and _has_query_key(params, "id"):
+        if _has_query_suffix(params, "id", ".pdf") or _has_query_value(params, "m", ("a", "m", "f")):
+            return True
+
+    if is_granicus_host and "agendaviewer.php" in path and _has_query_key(params, "clip_id"):
+        return True
+
+    if is_official_host and "/agendacenter/viewfile/minutes/" in path:
+        return True
+    if is_official_host and "/agendacenter/viewfile/agenda/" in path:
+        return True
+
+    return False
 
 
 def _tokenize_question_terms(question: str) -> list[str]:
@@ -693,6 +799,28 @@ class PipelineDomainCommands:
                 title=str(candidate_entry["title"]),
                 snippet=str(candidate_entry["snippet"]),
             )
+            skip_reason = prefetch_skip_reason(candidate.url)
+            if skip_reason:
+                quality_alerts.append("reader_prefetch_skipped_low_value_portal")
+                reader_quality_failures.append(
+                    {
+                        "url": candidate.url,
+                        "rank": candidate_entry["rank"],
+                        "score": candidate_entry["score"],
+                        "reason": "prefetch_skipped_low_value_portal",
+                        "quality_details": {"skip_signal": skip_reason},
+                    }
+                )
+                candidate_audit.append(
+                    {
+                        "url": candidate.url,
+                        "rank": candidate_entry["rank"],
+                        "score": candidate_entry["score"],
+                        "outcome": "reader_prefetch_skipped_low_value_portal",
+                        "reason": skip_reason,
+                    }
+                )
+                continue
             try:
                 doc = self.reader_provider.fetch(url=candidate.url)
             except Exception as exc:
