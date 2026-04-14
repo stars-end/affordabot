@@ -81,7 +81,7 @@ def _split_chunks(text: str) -> list[str]:
     return lines
 
 
-def _reader_substance_assessment(text: str) -> tuple[bool, dict[str, Any]]:
+def assess_reader_substance(text: str) -> tuple[bool, dict[str, Any]]:
     normalized_lines = [line.strip().lower() for line in text.splitlines() if line.strip()]
     joined = " ".join(normalized_lines)
     word_count = len(re.findall(r"[a-z0-9$%.-]+", joined))
@@ -369,7 +369,7 @@ class PipelineDomainCommands:
                     ),
                 )
 
-            is_substantive, quality_details = _reader_substance_assessment(doc.text)
+            is_substantive, quality_details = assess_reader_substance(doc.text)
             if not is_substantive:
                 reason = str(quality_details["reason"])
                 quality_alerts.append(f"reader_output_insufficient_substance:{reason}")

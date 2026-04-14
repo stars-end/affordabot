@@ -15,7 +15,7 @@ from openai import AsyncOpenAI
 
 from db.postgres_client import PostgresDB
 from services.llm.web_search_factory import create_web_search_client
-from services.pipeline.domain.commands import PipelineDomainCommands
+from services.pipeline.domain.commands import PipelineDomainCommands, assess_reader_substance
 from services.pipeline.domain.constants import CONTRACT_VERSION
 from services.pipeline.domain.identity import build_v2_canonical_document_key
 from services.pipeline.domain.in_memory import (
@@ -617,6 +617,28 @@ class RailwayRuntimeBridge:
                 retry_class="insufficient_evidence",
                 alerts=["reader_error:empty_content"],
                 refs={"windmill_run_id": meta.run_id, "windmill_job_id": meta.job_id},
+            )
+            return await self._persist_response(run_id=run_id, request=request, response=response)
+
+        is_substantive, quality_details = assess_reader_substance(markdown_body)
+        if not is_substantive:
+            reason = str(quality_details["reason"])
+            response = CommandResponse(
+                command="read_fetch",
+                status="blocked",
+                decision_reason="reader_output_insufficient_substance",
+                retry_class="insufficient_evidence",
+                alerts=[f"reader_output_insufficient_substance:{reason}"],
+                refs={"windmill_run_id": meta.run_id, "windmill_job_id": meta.job_id},
+                details={
+                    "reader_quality_failures": [
+                        {
+                            "url": url,
+                            "reason": reason,
+                            "quality_details": quality_details,
+                        }
+                    ]
+                },
             )
             return await self._persist_response(run_id=run_id, request=request, response=response)
 

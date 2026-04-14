@@ -202,15 +202,16 @@ class FakeSearchClient:
 
 
 class FakeReaderClient:
-    def __init__(self, *, fail: str | None = None) -> None:
+    def __init__(self, *, fail: str | None = None, content: str | None = None) -> None:
         self.fail = fail
+        self.content = content or "# Meeting Minutes\nHousing item approved.\nFees moved to May.\n"
 
     async def fetch_content(self, url: str, **kwargs: Any) -> dict[str, Any]:
         _ = kwargs
         if self.fail:
             raise RuntimeError(self.fail)
         return {
-            "content": "# Meeting Minutes\nHousing item approved.\nFees moved to May.\n",
+            "content": self.content,
             "title": "San Jose Meeting Minutes",
             "url": url,
         }
@@ -374,6 +375,43 @@ def test_runtime_bridge_stale_paths() -> None:
     assert usable["steps"]["freshness_gate"]["status"] == "succeeded_with_alerts"
     assert blocked["steps"]["freshness_gate"]["status"] == "blocked"
     assert "read_fetch" not in blocked["steps"]
+
+
+def test_runtime_bridge_blocks_navigation_heavy_reader_output_before_persistence() -> None:
+    db = FakeDB()
+    storage = FakeStorage()
+    runtime = RailwayRuntimeBridge(db=db, storage=storage)  # type: ignore[arg-type]
+    runtime.search_client = FakeSearchClient(
+        [{"url": "https://www.sanjoseca.gov/agenda/1", "title": "SJ Agenda", "snippet": "Housing"}]
+    )
+    runtime.reader_client = FakeReaderClient(
+        content="\n".join(
+            [
+                "Home",
+                "Contact Us",
+                "Sitemap",
+                "Departments",
+                "Sign Up for Alerts",
+                "Accessibility",
+                "Privacy Policy",
+                "Menu",
+            ]
+        )
+    )
+    runtime._llm_client = FakeLLMClient()
+    runtime.zai_api_key = "x"
+
+    response = asyncio.run(runtime.run_scope_pipeline(_request(idempotency_key="wm:run-scope:nav-block")))
+
+    assert response["status"] == "blocked"
+    assert response["steps"]["read_fetch"]["status"] == "blocked"
+    assert response["steps"]["read_fetch"]["decision_reason"] == "reader_output_insufficient_substance"
+    assert "reader_output_insufficient_substance:navigation_heavy" in response["alerts"]
+    assert response["steps"]["read_fetch"]["details"]["reader_quality_failures"][0]["reason"] == "navigation_heavy"
+    assert "index" not in response["steps"]
+    assert "analyze" not in response["steps"]
+    assert db.raw_scrapes == {}
+    assert storage.upload_calls == []
 
 
 def test_runtime_bridge_reader_and_llm_failures_classify() -> None:
