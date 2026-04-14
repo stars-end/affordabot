@@ -18,6 +18,7 @@ from services.llm.web_search_factory import create_web_search_client
 from services.pipeline.domain.commands import (
     PipelineDomainCommands,
     assess_reader_substance,
+    prefetch_skip_reason,
     rank_evidence_chunks,
     rank_reader_candidates,
 )
@@ -690,8 +691,39 @@ class RailwayRuntimeBridge:
         reader_provider_errors: list[dict[str, Any]] = []
         candidate_audit: list[dict[str, Any]] = []
 
+        def _quality_alerts() -> list[str]:
+            alerts: list[str] = []
+            for item in reader_quality_failures:
+                reason = str(item.get("reason", "")).strip()
+                if reason == "prefetch_skipped_low_value_portal":
+                    alerts.append("reader_prefetch_skipped_low_value_portal")
+                elif reason:
+                    alerts.append(f"reader_output_insufficient_substance:{reason}")
+            return alerts
+
         for candidate in ranked_candidates:
             url = str(candidate["url"])
+            skip_reason = prefetch_skip_reason(url)
+            if skip_reason:
+                reader_quality_failures.append(
+                    {
+                        "url": url,
+                        "rank": candidate["rank"],
+                        "score": candidate["score"],
+                        "reason": "prefetch_skipped_low_value_portal",
+                        "quality_details": {"skip_signal": skip_reason},
+                    }
+                )
+                candidate_audit.append(
+                    {
+                        "url": url,
+                        "rank": candidate["rank"],
+                        "score": candidate["score"],
+                        "outcome": "reader_prefetch_skipped_low_value_portal",
+                        "reason": skip_reason,
+                    }
+                )
+                continue
             try:
                 reader_payload = await self.reader_client.fetch_content(url, timeout=60)
             except Exception as exc:
@@ -834,7 +866,7 @@ class RailwayRuntimeBridge:
                 }
             )
             alerts = [
-                *[f"reader_output_insufficient_substance:{item['reason']}" for item in reader_quality_failures],
+                *_quality_alerts(),
                 *[f"reader_error:{item['error']}" for item in reader_provider_errors],
             ]
             response = CommandResponse(
@@ -863,7 +895,7 @@ class RailwayRuntimeBridge:
             return await self._persist_response(run_id=run_id, request=request, response=response)
 
         alerts = [
-            *[f"reader_output_insufficient_substance:{item['reason']}" for item in reader_quality_failures],
+            *_quality_alerts(),
             *[f"reader_error:{item['error']}" for item in reader_provider_errors],
         ]
         if reader_provider_errors:

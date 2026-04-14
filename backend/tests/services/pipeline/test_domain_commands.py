@@ -3,7 +3,10 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from services.pipeline.domain.commands import rank_reader_candidates
+from services.pipeline.domain.commands import (
+    assess_reader_substance,
+    rank_reader_candidates,
+)
 from services.pipeline.domain import (
     CommandEnvelope,
     FreshnessPolicy,
@@ -59,6 +62,31 @@ class _RoutingReaderProvider:
                     "where housing policy recommendations were adopted by vote."
                 ),
             ),
+            fetched_at=datetime.now(timezone.utc),
+            document_type="meeting_minutes",
+            published_date="2026-04-13",
+        )
+
+
+class _TrackingReaderProvider:
+    def __init__(
+        self,
+        *,
+        by_url: dict[str, str],
+        forbidden_urls: set[str] | None = None,
+    ) -> None:
+        self.by_url = by_url
+        self.forbidden_urls = forbidden_urls or set()
+        self.fetch_calls: list[str] = []
+
+    def fetch(self, *, url: str) -> ReaderDocument:
+        self.fetch_calls.append(url)
+        if url in self.forbidden_urls:
+            raise AssertionError(f"forbidden_fetch:{url}")
+        return ReaderDocument(
+            url=url,
+            title="San Jose City Council",
+            text=self.by_url[url],
             fetched_at=datetime.now(timezone.utc),
             document_type="meeting_minutes",
             published_date="2026-04-13",
@@ -316,6 +344,106 @@ def test_rank_reader_candidates_prefers_legistar_gateway_pdf_with_action_snippet
     assert ranked[0]["url"].startswith("https://sanjose.legistar.com/gateway.aspx")
 
 
+def test_rank_reader_candidates_penalizes_portal_urls_below_artifact_urls() -> None:
+    ranked = rank_reader_candidates(
+        [
+            SearchResultItem(
+                url="https://www.sanjoseca.gov/your-government/agendas-minutes",
+                title="Agendas & Minutes | City of San Jose",
+                snippet="City council agendas and minutes",
+            ),
+            SearchResultItem(
+                url="https://sanjose.legistar.com/MeetingDetail.aspx?ID=12345&GUID=abc",
+                title="Meeting Detail",
+                snippet="Agenda item 4.2 housing ordinance",
+            ),
+            SearchResultItem(
+                url="https://www.sanjoseca.gov/Calendar.aspx?CID=114",
+                title="City Calendar",
+                snippet="meeting calendar",
+            ),
+            SearchResultItem(
+                url="https://sanjose.legistar.com/View.ashx?M=F&ID=12345&GUID=abc",
+                title="Final Agenda Packet",
+                snippet="ordinance no. 31303 approved",
+            ),
+        ]
+    )
+    ranked_urls = [item["url"] for item in ranked]
+    ranked_by_url = {item["url"]: item for item in ranked}
+    assert ranked_urls[0].startswith("https://sanjose.legistar.com/")
+    assert ranked_urls[1].startswith("https://sanjose.legistar.com/")
+    assert ranked_urls[-1].startswith("https://www.sanjoseca.gov/")
+    assert "/agendas-minutes" in ranked_urls[-1] or "calendar.aspx" in ranked_urls[-1].lower()
+    assert (
+        ranked_by_url["https://sanjose.legistar.com/View.ashx?M=F&ID=12345&GUID=abc"]["score"]
+        - ranked_by_url["https://www.sanjoseca.gov/your-government/agendas-minutes"]["score"]
+    ) >= 10
+
+
+def test_rank_reader_candidates_detects_concrete_artifacts_with_unordered_query_params() -> None:
+    ranked = rank_reader_candidates(
+        [
+            SearchResultItem(
+                url="https://www.sanjoseca.gov/your-government/agendas-minutes",
+                title="Agendas & Minutes | City of San Jose",
+                snippet="city council agendas and minutes",
+            ),
+            SearchResultItem(
+                url="https://sanjose.legistar.com/View.ashx?GUID=59FCFBBE-ACEB-4329-9C02-9548AFD46D2D&ID=1328259&M=M",
+                title="Minutes Packet",
+                snippet="city council minutes and housing item",
+            ),
+            SearchResultItem(
+                url="https://www.saratoga.ca.us/AgendaCenter/ViewFile/Minutes/_03182026-1422",
+                title="City Council Minutes",
+                snippet="minutes archive",
+            ),
+        ]
+    )
+    ranked_by_url = {item["url"]: item for item in ranked}
+    assert ranked[0]["url"] == "https://sanjose.legistar.com/View.ashx?GUID=59FCFBBE-ACEB-4329-9C02-9548AFD46D2D&ID=1328259&M=M"
+    assert (
+        ranked_by_url["https://www.saratoga.ca.us/AgendaCenter/ViewFile/Minutes/_03182026-1422"]["score"]
+        > ranked_by_url["https://www.sanjoseca.gov/your-government/agendas-minutes"]["score"]
+    )
+
+
+def test_rank_reader_candidates_does_not_apply_concrete_boost_to_third_party_pdf() -> None:
+    ranked = rank_reader_candidates(
+        [
+            SearchResultItem(
+                url="https://dig.abclocal.go.com/kgo/PDF/sjmemorandum.pdf",
+                title="sjmemorandum",
+                snippet="media mirror pdf",
+            ),
+            SearchResultItem(
+                url="https://www.sanjoseca.gov/your-government/agendas-minutes",
+                title="Agendas & Minutes | City of San Jose",
+                snippet="city council agendas and minutes",
+            ),
+            SearchResultItem(
+                url="https://sanjose.legistar.com/View.ashx?M=F&ID=12345&GUID=abc",
+                title="Final Agenda Packet",
+                snippet="ordinance no. 31303 approved",
+            ),
+        ]
+    )
+    ranked_by_url = {item["url"]: item for item in ranked}
+    assert "url_concrete_artifact:parsed" not in ranked_by_url["https://dig.abclocal.go.com/kgo/PDF/sjmemorandum.pdf"][
+        "reasons"
+    ]
+    assert "url_concrete_artifact:parsed" in ranked_by_url["https://sanjose.legistar.com/View.ashx?M=F&ID=12345&GUID=abc"][
+        "reasons"
+    ]
+
+
+def test_assess_reader_substance_rejects_title_only_agendas_minutes_output() -> None:
+    is_substantive, details = assess_reader_substance("Agendas & Minutes | City of San Jose")
+    assert is_substantive is False
+    assert details["reason"] == "content_too_short"
+
+
 def test_reader_failure_stops_before_index() -> None:
     state, service = _service(
         search_results=[
@@ -419,6 +547,49 @@ def test_read_fetch_falls_through_agenda_header_logistics_to_legistar_pdf() -> N
     assert read.details["candidate_audit"][0]["outcome"] == "reader_output_insufficient_substance"
     assert read.details["candidate_audit"][0]["reason"] == "agenda_header_logistics_only"
     assert read.details["candidate_audit"][1]["outcome"] == "materialized_raw_scrape"
+    assert len(state.raw_scrapes) == 1
+
+
+def test_read_fetch_prefetch_skips_obvious_portal_url_and_fetches_artifact() -> None:
+    state, service = _service(
+        search_results=[
+            SearchResultItem(
+                url="https://www.sanjoseca.gov/your-government/agendas-minutes",
+                title="Agendas & Minutes | City of San Jose",
+                snippet="agenda archive",
+            ),
+            SearchResultItem(
+                url="https://sanjose.legistar.com/MeetingDetail.aspx?ID=12345&GUID=abc",
+                title="Meeting Detail",
+                snippet="agenda item 4.2 housing ordinance adopted",
+            ),
+        ]
+    )
+    tracker = _TrackingReaderProvider(
+        by_url={
+            "https://sanjose.legistar.com/MeetingDetail.aspx?ID=12345&GUID=abc": (
+                "Agenda item 4.2 housing affordability ordinance was adopted by vote "
+                "after public hearing and staff recommendation."
+            )
+        },
+        forbidden_urls={"https://www.sanjoseca.gov/your-government/agendas-minutes"},
+    )
+    service.reader_provider = tracker
+
+    search = service.search_materialize(envelope=_envelope("search_materialize", "ps1"), query="q")
+    read = service.read_fetch(
+        envelope=_envelope("read_fetch", "ps2"),
+        snapshot_id=str(search.refs["search_snapshot_id"]),
+        max_reads=2,
+    )
+
+    assert read.status == "succeeded_with_alerts"
+    assert tracker.fetch_calls == ["https://sanjose.legistar.com/MeetingDetail.aspx?ID=12345&GUID=abc"]
+    assert any(
+        item["outcome"] == "reader_prefetch_skipped_low_value_portal"
+        for item in read.details["candidate_audit"]
+    )
+    assert any(item["outcome"] == "materialized_raw_scrape" for item in read.details["candidate_audit"])
     assert len(state.raw_scrapes) == 1
 
 

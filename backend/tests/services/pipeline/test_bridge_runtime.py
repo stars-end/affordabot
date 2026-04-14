@@ -231,9 +231,11 @@ class RoutingFakeReaderClient:
     ) -> None:
         self.by_url = by_url or {}
         self.fail_urls = fail_urls or set()
+        self.fetch_calls: list[str] = []
 
     async def fetch_content(self, url: str, **kwargs: Any) -> dict[str, Any]:
         _ = kwargs
+        self.fetch_calls.append(url)
         if url in self.fail_urls:
             raise RuntimeError(f"reader_down_for:{url}")
         return {
@@ -655,6 +657,52 @@ def test_runtime_bridge_falls_through_agenda_header_logistics_to_legistar_pdf() 
     assert response["steps"]["read_fetch"]["details"]["candidate_audit"][1]["outcome"] == "materialized_raw_scrape"
     assert response["steps"]["index"]["status"] in {"succeeded", "succeeded_with_alerts"}
     assert response["steps"]["analyze"]["status"] in {"succeeded", "succeeded_with_alerts"}
+
+
+def test_runtime_bridge_prefetch_skips_portal_url_and_fetches_artifact_candidate() -> None:
+    db = FakeDB()
+    storage = FakeStorage()
+    runtime = RailwayRuntimeBridge(db=db, storage=storage)  # type: ignore[arg-type]
+    runtime.search_client = FakeSearchClient(
+        [
+            {
+                "url": "https://www.sanjoseca.gov/your-government/agendas-minutes",
+                "title": "Agendas & Minutes | City of San Jose",
+                "snippet": "agenda archive and calendar",
+            },
+            {
+                "url": "https://records.sanjoseca.gov/documents/12345",
+                "title": "Home Resources Departments",
+                "snippet": "services menu",
+            },
+        ]
+    )
+    runtime.reader_client = RoutingFakeReaderClient(
+        by_url={
+            "https://records.sanjoseca.gov/documents/12345": (
+                "# Meeting Minutes\n"
+                "Agenda item 4.2 housing affordability ordinance was adopted by vote.\n"
+            )
+        }
+    )
+    runtime._llm_client = FakeLLMClient()
+    runtime.zai_api_key = "x"
+
+    response = asyncio.run(runtime.run_scope_pipeline(_request(idempotency_key="wm:run-scope:prefetch-skip")))
+
+    assert response["steps"]["read_fetch"]["status"] == "succeeded_with_alerts"
+    assert runtime.reader_client.fetch_calls == [
+        "https://records.sanjoseca.gov/documents/12345"
+    ]
+    assert any(
+        item["outcome"] == "reader_prefetch_skipped_low_value_portal"
+        for item in response["steps"]["read_fetch"]["details"]["candidate_audit"]
+    )
+    assert any(
+        item["outcome"] == "materialized_raw_scrape"
+        for item in response["steps"]["read_fetch"]["details"]["candidate_audit"]
+    )
+    assert "reader_prefetch_skipped_low_value_portal" in response["alerts"]
 
 
 def test_runtime_bridge_blocks_when_all_candidates_are_agenda_header_logistics() -> None:

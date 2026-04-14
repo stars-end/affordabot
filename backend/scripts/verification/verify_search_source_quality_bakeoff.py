@@ -96,6 +96,36 @@ NAV_ONLY_NEGATIVE_TERMS = (
     "site map",
 )
 
+FINAL_ARTIFACT_URL_PATTERNS = (
+    "meetingdetail.aspx?id=",
+    "meetingdetail.aspx?legid=",
+    "gateway.aspx?id=",
+    "agendaviewer.php?clip_id=",
+    "/agendacenter/viewfile/minutes/",
+    "/agendacenter/viewfile/agenda/",
+)
+PORTAL_SEED_URL_PATTERNS = (
+    "/agendas-minutes",
+    "/council-agendas-minutes",
+    "/council-agendas",
+    "/resource-library/council-memos",
+    "calendar.aspx",
+    "departmentdetail.aspx",
+)
+LIKELY_NAVIGATION_URL_PATTERNS = (
+    "/your-government/",
+    "/departments-offices/",
+    "/resource-library/",
+    "/city-council/",
+)
+CRITICAL_ENGINE_TERMS = ("suspended", "too many requests", "access denied", "captcha")
+CLASS_PRIORITY = {
+    "final_artifact": 0,
+    "portal_seed": 1,
+    "likely_navigation": 2,
+    "third_party_or_junk": 3,
+}
+
 
 @dataclass(frozen=True)
 class QuerySpec:
@@ -187,6 +217,15 @@ def _host_matches_jurisdiction(url: str, query: QuerySpec) -> bool:
 def _non_primary_source_domain(url: str) -> bool:
     host = urllib.parse.urlsplit(url).netloc.lower()
     return any(host == domain or host.endswith(f".{domain}") for domain in NON_PRIMARY_SOURCE_DOMAINS)
+
+
+def _host_has_public_records_platform(url: str) -> bool:
+    host = urllib.parse.urlsplit(url).netloc.lower()
+    return "legistar.com" in host or "granicus.com" in host
+
+
+def _is_trusted_public_records_host(url: str) -> bool:
+    return _official_domain(url) or _host_has_public_records_platform(url)
 
 
 def _preferred_url_pattern(url: str, query: QuerySpec) -> bool:
@@ -338,6 +377,217 @@ def _normalize_records(
     return normalized
 
 
+def _parse_unresponsive_engines(payload: dict[str, Any]) -> list[dict[str, str]]:
+    value = payload.get("unresponsive_engines")
+    items: list[dict[str, str]] = []
+    if isinstance(value, list):
+        for entry in value:
+            if isinstance(entry, str) and entry.strip():
+                items.append({"engine": entry.strip(), "reason": "unresponsive"})
+    elif isinstance(value, dict):
+        for engine, reason in value.items():
+            engine_name = str(engine).strip()
+            if not engine_name:
+                continue
+            reason_text = str(reason).strip() or "unresponsive"
+            items.append({"engine": engine_name, "reason": reason_text})
+    return items
+
+
+def _parsed_query_params(url: str) -> dict[str, list[str]]:
+    return {key.lower(): values for key, values in urllib.parse.parse_qs(urllib.parse.urlsplit(url).query).items()}
+
+
+def _has_query_key(params: dict[str, list[str]], key: str) -> bool:
+    return key in params and any(str(value).strip() for value in params[key])
+
+
+def _has_query_value(params: dict[str, list[str]], key: str, expected_values: tuple[str, ...]) -> bool:
+    if key not in params:
+        return False
+    allowed = {value.lower() for value in expected_values}
+    return any(str(value).strip().lower() in allowed for value in params[key])
+
+
+def _has_query_suffix(params: dict[str, list[str]], key: str, suffix: str) -> bool:
+    if key not in params:
+        return False
+    target = suffix.lower()
+    return any(str(value).strip().lower().endswith(target) for value in params[key])
+
+
+def _is_concrete_artifact_url(url: str) -> bool:
+    lowered_url = url.lower().strip()
+    parsed = urllib.parse.urlsplit(url)
+    path = parsed.path.lower()
+    host = parsed.netloc.lower()
+    params = _parsed_query_params(url)
+    is_official_host = _official_domain(url)
+    is_legistar_host = "legistar.com" in host
+    is_granicus_host = "granicus.com" in host
+
+    if lowered_url.endswith(".pdf") or "/pdf/" in lowered_url:
+        return _is_trusted_public_records_host(url)
+    if is_legistar_host and "meetingdetail.aspx" in path and (_has_query_key(params, "id") or _has_query_key(params, "legid")):
+        return True
+    if is_legistar_host and "view.ashx" in path and _has_query_key(params, "id") and _has_query_value(params, "m", ("a", "m", "f")):
+        return True
+    if is_legistar_host and "gateway.aspx" in path and _has_query_key(params, "id"):
+        if _has_query_suffix(params, "id", ".pdf") or _has_query_value(params, "m", ("a", "m", "f")):
+            return True
+    if is_granicus_host and "agendaviewer.php" in path and _has_query_key(params, "clip_id"):
+        return True
+    if is_official_host and "/agendacenter/viewfile/minutes/" in path:
+        return True
+    if is_official_host and "/agendacenter/viewfile/agenda/" in path:
+        return True
+    return False
+
+
+def _candidate_class(url: str, title: str = "", snippet: str = "") -> str:
+    lowered_url = url.lower()
+    lowered_text = f"{title} {snippet}".lower()
+    if _non_primary_source_domain(url):
+        return "third_party_or_junk"
+    if _is_concrete_artifact_url(url):
+        return "final_artifact"
+    if any(pattern in lowered_url for pattern in FINAL_ARTIFACT_URL_PATTERNS):
+        return "final_artifact"
+    if any(pattern in lowered_url for pattern in PORTAL_SEED_URL_PATTERNS):
+        return "portal_seed"
+    if any(pattern in lowered_url for pattern in LIKELY_NAVIGATION_URL_PATTERNS):
+        return "likely_navigation"
+    if _contains_any(lowered_text, ("home", "menu", "services", "departments", "residents", "businesses")):
+        return "likely_navigation"
+    if _official_domain(url) or _contains_any(lowered_text, ("legistar", "granicus", "agenda", "minutes")):
+        return "likely_navigation"
+    return "third_party_or_junk"
+
+
+def _recommended_shortlist_size(deduped_count: int) -> int:
+    if deduped_count <= 0:
+        return 0
+    if deduped_count <= 12:
+        return deduped_count
+    if deduped_count <= 36:
+        return 12
+    return 24
+
+
+def _build_searxng_fanout_health_summary(
+    *,
+    probes: list[dict[str, Any]],
+    shortlist_size: int | None = None,
+) -> dict[str, Any]:
+    searx_probes = [probe for probe in probes if probe.get("provider") == "searxng"]
+    per_query: list[dict[str, Any]] = []
+    all_candidates: list[dict[str, Any]] = []
+    critical_engines: set[str] = set()
+    queries_with_results = 0
+    for probe in searx_probes:
+        result_count = int(probe.get("result_count") or 0)
+        if result_count > 0:
+            queries_with_results += 1
+        unresponsive = list(probe.get("unresponsive_engines") or [])
+        for engine_info in unresponsive:
+            reason = str(engine_info.get("reason") or "").lower()
+            if any(term in reason for term in CRITICAL_ENGINE_TERMS):
+                engine_name = str(engine_info.get("engine") or "").strip().lower()
+                if engine_name:
+                    critical_engines.add(engine_name)
+        top_rows = []
+        for item in list(probe.get("top_results") or [])[:5]:
+            top_rows.append({"url": item.get("url"), "title": item.get("title"), "score": item.get("score")})
+        per_query.append(
+            {
+                "query": probe.get("query"),
+                "status": probe.get("status"),
+                "result_count": result_count,
+                "top_results": top_rows,
+                "unresponsive_engines": unresponsive,
+            }
+        )
+        for candidate in list(probe.get("raw_candidates") or []):
+            if not isinstance(candidate, dict):
+                continue
+            all_candidates.append(
+                {
+                    "query": probe.get("query"),
+                    "url": str(candidate.get("url") or ""),
+                    "title": str(candidate.get("title") or ""),
+                    "snippet": str(candidate.get("snippet") or ""),
+                    "score": float(candidate.get("score") or 0.0),
+                }
+            )
+
+    deduped_by_url: dict[str, dict[str, Any]] = {}
+    for candidate in all_candidates:
+        canonical = _canonicalize_url(candidate["url"]) if candidate["url"] else ""
+        if not canonical:
+            continue
+        existing = deduped_by_url.get(canonical)
+        if existing is None or candidate["score"] > existing["score"]:
+            deduped_by_url[canonical] = {
+                "canonical_url": canonical,
+                "url": candidate["url"],
+                "title": candidate["title"],
+                "snippet": candidate["snippet"],
+                "score": round(candidate["score"], 2),
+                "class": _candidate_class(candidate["url"], candidate["title"], candidate["snippet"]),
+                "query": candidate["query"],
+            }
+
+    deduped_candidates = sorted(
+        deduped_by_url.values(),
+        key=lambda item: (
+            CLASS_PRIORITY.get(item["class"], 9),
+            -float(item["score"]),
+            str(item["canonical_url"]),
+        ),
+    )
+    class_counts = {
+        "final_artifact": 0,
+        "portal_seed": 0,
+        "likely_navigation": 0,
+        "third_party_or_junk": 0,
+    }
+    for candidate in deduped_candidates:
+        class_counts[candidate["class"]] += 1
+
+    total_queries = len(searx_probes)
+    coverage = queries_with_results / total_queries if total_queries else 0.0
+    shortlist_limit = shortlist_size if shortlist_size is not None else _recommended_shortlist_size(len(deduped_candidates))
+    shortlist = [
+        candidate
+        for candidate in deduped_candidates
+        if candidate["class"] != "third_party_or_junk"
+    ][: max(0, shortlist_limit)]
+    if total_queries == 0:
+        verdict = "unhealthy"
+    elif coverage >= 0.80 and len(critical_engines) == 0:
+        verdict = "healthy"
+    elif coverage >= 0.50 and len(critical_engines) <= 2:
+        verdict = "degraded"
+    else:
+        verdict = "unhealthy"
+
+    return {
+        "provider": "searxng",
+        "query_count": total_queries,
+        "query_fanout_coverage_percent": round(coverage * 100, 1),
+        "queries_with_results": queries_with_results,
+        "critical_unresponsive_engine_count": len(critical_engines),
+        "critical_unresponsive_engines": sorted(critical_engines),
+        "health_verdict": verdict,
+        "raw_candidate_count": len(all_candidates),
+        "deduped_candidate_count": len(deduped_candidates),
+        "candidate_class_counts": class_counts,
+        "recommended_shortlist_size": shortlist_limit,
+        "selected_shortlist": shortlist,
+        "per_query": per_query,
+    }
+
+
 def _probe_searxng(
     *,
     query: QuerySpec | str,
@@ -358,6 +608,13 @@ def _probe_searxng(
             timeout_seconds=timeout_seconds,
         )
         raw_results = payload.get("results", [])
+        normalized_raw = _normalize_records(
+            provider="searxng",
+            query=query,
+            raw_results=[_searx_item(item) for item in raw_results if isinstance(item, dict)],
+            top_k=max(len(raw_results), top_k),
+            source_label="searxng",
+        )
         top_results = _normalize_records(
             provider="searxng",
             query=query,
@@ -366,7 +623,7 @@ def _probe_searxng(
             source_label="searxng",
         )
         elapsed = int((time.monotonic() - started) * 1000)
-        return _provider_probe(
+        probe = _provider_probe(
             provider="searxng",
             query=query.query,
             status="succeeded",
@@ -375,6 +632,9 @@ def _probe_searxng(
             top_results=top_results,
             endpoint=endpoint,
         )
+        probe["unresponsive_engines"] = _parse_unresponsive_engines(payload)
+        probe["raw_candidates"] = normalized_raw
+        return probe
     except urllib.error.HTTPError as exc:
         return _provider_error(
             provider="searxng",
@@ -605,6 +865,8 @@ def _provider_probe(
         "top_results": top_results,
         "top_score": top_score,
         "average_score": avg_score,
+        "raw_candidates": [],
+        "unresponsive_engines": [],
         "failure_classification": failure_classification,
         "error": error,
     }
@@ -819,6 +1081,22 @@ def _render_markdown(report: dict[str, Any]) -> str:
             f"| {query_summary['query']} | {query_summary['winner_provider']} | "
             f"{query_summary['winner_top_score']:.2f} | {query_summary['winner_url'] or '-'} |"
         )
+    searx_health = report.get("searxng_fanout_health")
+    if isinstance(searx_health, dict):
+        lines.append("")
+        lines.append("## SearXNG Fanout Health")
+        lines.append("")
+        lines.append(f"- Health verdict: `{searx_health.get('health_verdict')}`")
+        lines.append(f"- Query fanout coverage: `{searx_health.get('query_fanout_coverage_percent', 0):.1f}%`")
+        lines.append(f"- Raw candidates: `{searx_health.get('raw_candidate_count', 0)}`")
+        lines.append(f"- Deduped candidates: `{searx_health.get('deduped_candidate_count', 0)}`")
+        lines.append(
+            "- Candidate classes: "
+            f"`{json.dumps(searx_health.get('candidate_class_counts', {}), sort_keys=True)}`"
+        )
+        lines.append(f"- Recommended shortlist size: `{searx_health.get('recommended_shortlist_size', 0)}`")
+        critical = searx_health.get("critical_unresponsive_engines") or []
+        lines.append(f"- Critical unresponsive engines: `{', '.join(critical) if critical else '-'}`")
     lines.append("")
     return "\n".join(lines)
 
@@ -912,6 +1190,9 @@ def _run_bakeoff(config: BakeoffConfig) -> dict[str, Any]:
     summary = _summarize_by_provider(probes)
     query_summary = _summarize_queries(probes)
     recommendation = _recommend_provider(summary)
+    searxng_fanout_health = (
+        _build_searxng_fanout_health_summary(probes=probes) if "searxng" in config.providers else None
+    )
     return {
         "generated_at": datetime.now(UTC).isoformat(),
         "feature_key": FEATURE_KEY,
@@ -927,6 +1208,7 @@ def _run_bakeoff(config: BakeoffConfig) -> dict[str, Any]:
         "provider_summary": summary,
         "query_summary": query_summary,
         "recommendation": recommendation,
+        "searxng_fanout_health": searxng_fanout_health,
     }
 
 
@@ -1004,6 +1286,7 @@ def _parse_providers(args: argparse.Namespace) -> tuple[str, ...]:
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Search/source quality bakeoff harness.")
     parser.add_argument("--provider", action="append", default=[])
+    parser.add_argument("--searxng-only", action="store_true")
     parser.add_argument("--query", action="append", default=[])
     parser.add_argument("--query-file", type=Path, default=None)
     parser.add_argument("--top-k", type=int, default=DEFAULT_TOP_K)
@@ -1016,8 +1299,9 @@ def _parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = _parse_args()
+    providers = ("searxng",) if args.searxng_only else _parse_providers(args)
     config = BakeoffConfig(
-        providers=_parse_providers(args),
+        providers=providers,
         queries=_parse_queries(args),
         top_k=max(1, args.top_k),
         timeout_seconds=max(1, args.timeout_seconds),
