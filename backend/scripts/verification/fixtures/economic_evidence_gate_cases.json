@@ -194,7 +194,7 @@
       "jurisdiction": "Santa Clara County CA",
       "source_family": "fiscal_analysis",
       "provider": "fixture",
-      "manual_audit_notes": "County impact memo provides annual levy amount; pass-through assumption includes range, applicability, and source.",
+      "manual_audit_notes": "County impact memo provides annual levy amount; pass-through assumption is registry-aligned for housing rental local tax or fee incidence.",
       "gate_inputs": {
         "search_recall": {
           "artifact_candidates_found": 5,
@@ -242,10 +242,10 @@
             {
               "name": "pass_through_rate",
               "low": 0.5,
-              "central": 0.65,
+              "central": 0.68,
               "high": 0.89,
-              "source_url": "https://www.nber.org/papers/w24181",
-              "applicability": "rental_housing_tenant_incidence"
+              "source_url": "https://www.philadelphiafed.org/-/media/frbp/assets/consumer-finance/discussion-papers/dp24-01.pdf",
+              "applicability": "housing,rental_market,local_tax_or_fee"
             }
           ]
         },
