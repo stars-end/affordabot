@@ -62,6 +62,12 @@ EXPECTED_STEP_SEQUENCE = [
     "analyze",
     "summarize_run",
 ]
+EXPECTED_QUALITY_BLOCK_STEP_SEQUENCE = [
+    "search_materialize",
+    "freshness_gate",
+    "read_fetch",
+    "summarize_run",
+]
 WINDMILL_DOMAIN_SCRIPT_PATH = (
     REPO_ROOT / "ops" / "windmill" / "f" / "affordabot" / "pipeline_daily_refresh_domain_boundary.py"
 )
@@ -278,6 +284,45 @@ def _extract_step_sequence(result_payload: dict[str, Any]) -> list[str]:
     return ordered + extras
 
 
+def _first_scope_result(result_payload: dict[str, Any] | None) -> dict[str, Any]:
+    if not isinstance(result_payload, dict):
+        return {}
+    scope_results = result_payload.get("scope_results") or []
+    if not isinstance(scope_results, list) or not scope_results:
+        return {}
+    first = scope_results[0]
+    return first if isinstance(first, dict) else {}
+
+
+def _is_reader_quality_block(result_payload: dict[str, Any] | None) -> bool:
+    scope_result = _first_scope_result(result_payload)
+    steps = scope_result.get("steps") or {}
+    if not isinstance(steps, dict):
+        return False
+    read_fetch = steps.get("read_fetch") or {}
+    if not isinstance(read_fetch, dict):
+        return False
+    if str(read_fetch.get("status") or "") != "blocked":
+        return False
+    if str(read_fetch.get("decision_reason") or "") != "reader_output_insufficient_substance":
+        return False
+    return True
+
+
+def _any_step_idempotent_reuse(result_payload: dict[str, Any] | None) -> bool:
+    scope_result = _first_scope_result(result_payload)
+    steps = scope_result.get("steps") or {}
+    if not isinstance(steps, dict):
+        return False
+    for step_payload in steps.values():
+        if not isinstance(step_payload, dict):
+            continue
+        details = step_payload.get("details") or {}
+        if isinstance(details, dict) and bool(details.get("idempotent_reuse")):
+            return True
+    return False
+
+
 def _all_step_envelopes_have_contract(result_payload: dict[str, Any]) -> bool:
     scope_results = result_payload.get("scope_results") or []
     if not scope_results:
@@ -322,6 +367,7 @@ def _build_storage_evidence_gates(result_payload: dict[str, Any]) -> dict[str, d
         "minio_object_refs": {"status": "pending", "note": pending_note},
         "reader_output_ref": {"status": "pending", "note": pending_note},
         "analysis_provenance_chain": {"status": "pending", "note": pending_note},
+        "quality_gate_blocked_before_index_analyze": {"status": "pending", "note": pending_note},
         "idempotent_rerun": {"status": "pending", "note": pending_note},
         "stale_drill_stale_but_usable": {"status": "pending", "note": pending_note},
         "stale_drill_stale_blocked": {"status": "pending", "note": pending_note},
@@ -893,6 +939,12 @@ def _derive_classification(
             return "backend_bridge_surface_ready", "partial"
         return "read_only_surface_pass", "partial"
 
+    if _is_reader_quality_block(result_payload):
+        no_index_analyze_gate = storage_gates.get("quality_gate_blocked_before_index_analyze", {})
+        if no_index_analyze_gate.get("status") == "passed":
+            return "quality_gate_block_pass", "ready"
+        return "quality_gate_block_observed", "partial"
+
     run_status = result_payload.get("status")
     if run_status != "succeeded":
         return "failed_run", "partial"
@@ -953,8 +1005,18 @@ def _derive_manual_audit_notes(
     analysis_excerpt = str(analysis.get("summary") or analysis.get("answer") or "")[:700]
     sufficiency_state = str(analysis.get("sufficiency_state") or "").lower()
     insufficient = sufficiency_state == "insufficient" or "does not contain" in analysis_excerpt.lower()
+    quality_blocked = _is_reader_quality_block(result_payload)
 
-    if insufficient:
+    if quality_blocked:
+        reader_quality_note = (
+            "Selected San Jose source resolved to navigation/menu content and was blocked by reader quality gate "
+            "before persistence/index/analyze."
+        )
+        llm_quality_note = (
+            "Analysis was intentionally not run because the reader quality gate blocked insufficient source substance."
+        )
+        manual_verdict = "PASS_READER_QUALITY_GATE_BLOCKED_NAV_OUTPUT"
+    elif insufficient:
         reader_quality_note = (
             "Z.ai reader executed and persisted output, but the selected San Jose source resolved to navigation/menu content rather than actual meeting minutes."
         )
@@ -1268,7 +1330,11 @@ def run_harness(
                 "scope_blocked": result_payload.get("scope_blocked"),
             }
             manual_run["step_sequence"] = step_sequence
-            manual_run["step_sequence_matches_expected"] = step_sequence == EXPECTED_STEP_SEQUENCE
+            expected_sequence = (
+                EXPECTED_QUALITY_BLOCK_STEP_SEQUENCE if _is_reader_quality_block(result_payload) else EXPECTED_STEP_SEQUENCE
+            )
+            manual_run["expected_step_sequence"] = expected_sequence
+            manual_run["step_sequence_matches_expected"] = step_sequence == expected_sequence
             manual_run["contract_metadata_present"] = _all_step_envelopes_have_contract(result_payload)
 
             for drill_status in stale_drill_statuses:
@@ -1294,6 +1360,27 @@ def run_harness(
                         "scope_succeeded": drill_result.get("scope_succeeded"),
                         "scope_failed": drill_result.get("scope_failed"),
                         "step_sequence": _extract_step_sequence(drill_result),
+                        "freshness_gate_status": (
+                            (
+                                _first_scope_result(drill_result).get("steps", {}).get("freshness_gate", {}) or {}
+                            ).get("status")
+                        ),
+                        "freshness_gate_reason": (
+                            (
+                                _first_scope_result(drill_result).get("steps", {}).get("freshness_gate", {}) or {}
+                            ).get("decision_reason")
+                        ),
+                        "read_fetch_status": (
+                            (
+                                _first_scope_result(drill_result).get("steps", {}).get("read_fetch", {}) or {}
+                            ).get("status")
+                        ),
+                        "read_fetch_reason": (
+                            (
+                                _first_scope_result(drill_result).get("steps", {}).get("read_fetch", {}) or {}
+                            ).get("decision_reason")
+                        ),
+                        "quality_blocked": _is_reader_quality_block(drill_result),
                     }
                 )
 
@@ -1324,12 +1411,39 @@ def run_harness(
         manual_run["attempted"] = False
 
     storage_gates = _build_storage_evidence_gates(result_payload or {})
+    quality_blocked = _is_reader_quality_block(result_payload)
+    if quality_blocked:
+        scope_steps = (_first_scope_result(result_payload).get("steps") or {}) if result_payload else {}
+        missing_index_analyze = "index" not in scope_steps and "analyze" not in scope_steps
+        storage_gates["quality_gate_blocked_before_index_analyze"] = {
+            "status": "passed" if missing_index_analyze else "failed",
+            "note": "reader quality gate blocked at read_fetch; index/analyze were not executed",
+        }
+        for gate_name in [
+            "postgres_rows_written",
+            "reader_output_ref",
+            "minio_object_refs",
+            "pgvector_index_probe",
+            "analysis_provenance_chain",
+        ]:
+            storage_gates[gate_name] = {
+                "status": "not_applicable",
+                "note": "current run intentionally blocked at read_fetch before persistence/index/analyze",
+            }
+
     if stale_drills:
         by_mode = {item["requested_stale_status"]: item for item in stale_drills}
         usable = by_mode.get("stale_but_usable")
         blocked = by_mode.get("stale_blocked")
+        usable_pass = False
+        if usable:
+            freshness_ok = usable.get("freshness_gate_status") in {"succeeded", "succeeded_with_alerts"} and usable.get("freshness_gate_reason") in {
+                "fresh",
+                "stale_but_usable",
+            }
+            usable_pass = freshness_ok
         storage_gates["stale_drill_stale_but_usable"] = {
-            "status": "passed" if usable and usable.get("status") == "succeeded" else "failed",
+            "status": "passed" if usable_pass else "failed",
             "note": str(usable or {}),
         }
         blocked_pass = False
@@ -1343,16 +1457,19 @@ def run_harness(
 
     if idempotent_rerun.get("attempted"):
         rerun_payload = idempotent_rerun.get("result_payload") or {}
-        rerun_steps = rerun_payload.get("scope_results") or []
-        idempotent_reuse = False
-        if rerun_steps:
-            steps_map = rerun_steps[0].get("steps") or {}
-            search_details = (steps_map.get("search_materialize") or {}).get("details") or {}
-            summary_details = (steps_map.get("summarize_run") or {}).get("details") or {}
-            idempotent_reuse = bool(search_details.get("idempotent_reuse")) or bool(summary_details.get("idempotent_reuse"))
+        idempotent_reuse = _any_step_idempotent_reuse(rerun_payload)
+        rerun_quality_blocked = _is_reader_quality_block(rerun_payload)
+        if quality_blocked:
+            rerun_pass = rerun_quality_blocked and idempotent_reuse
+        else:
+            rerun_pass = idempotent_rerun.get("status") == "succeeded" and idempotent_reuse
         storage_gates["idempotent_rerun"] = {
-            "status": "passed" if idempotent_rerun.get("status") == "succeeded" and idempotent_reuse else "pending",
-            "note": f"rerun_status={idempotent_rerun.get('status')} idempotent_reuse={idempotent_reuse}",
+            "status": "passed" if rerun_pass else "pending",
+            "note": (
+                f"rerun_status={idempotent_rerun.get('status')} "
+                f"rerun_quality_blocked={rerun_quality_blocked} "
+                f"idempotent_reuse={idempotent_reuse}"
+            ),
         }
 
     search_provider_bakeoff, provider_secrets = _run_search_provider_bakeoff(
@@ -1367,7 +1484,7 @@ def run_harness(
         source_family=source_family,
         database_url=database_url or os.getenv("DATABASE_URL"),
     )
-    if db_storage_probe.get("status") == "queried":
+    if db_storage_probe.get("status") == "queried" and not quality_blocked:
         postgres_rows_written = any(
             [
                 db_storage_probe.get("search_snapshot_rows"),
@@ -1598,7 +1715,7 @@ def main() -> int:
     print(f"Wrote Markdown report: {args.out_md}")
     print(f"classification={report['classification']}")
     print(f"full_run_readiness={report['full_run_readiness']}")
-    return 0 if report["classification"] in {"read_only_surface_pass", "stub_orchestration_pass", "backend_bridge_surface_ready", "full_product_pass"} else 1
+    return 0 if report["classification"] in {"read_only_surface_pass", "stub_orchestration_pass", "backend_bridge_surface_ready", "quality_gate_block_pass", "full_product_pass"} else 1
 
 
 if __name__ == "__main__":
