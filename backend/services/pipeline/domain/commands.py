@@ -51,6 +51,25 @@ SUBSTANTIVE_MARKERS = (
     "policy",
 )
 
+ACTION_MARKERS = (
+    "approved",
+    "adopted",
+    "motion",
+    "vote",
+    "voted",
+    "resolution",
+    "ordinance",
+    "staff report",
+    "recommendation",
+    "recommended",
+    "public hearing",
+    "agenda item",
+    "item 8",
+    "item 10",
+    "directed staff",
+    "memorandum",
+)
+
 
 def _hash_text(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
@@ -90,6 +109,9 @@ def assess_reader_substance(text: str) -> tuple[bool, dict[str, Any]]:
     )
     nav_marker_hits = sum(1 for marker in NAVIGATION_MARKERS if marker in joined)
     substantive_hits = sum(1 for marker in SUBSTANTIVE_MARKERS if marker in joined)
+    action_hits = sum(1 for marker in ACTION_MARKERS if marker in joined)
+    markdown_image_count = joined.count("![image")
+    bullet_line_count = sum(1 for line in normalized_lines if line.startswith("- "))
     line_count = len(normalized_lines)
 
     reason = "ok"
@@ -103,6 +125,12 @@ def assess_reader_substance(text: str) -> tuple[bool, dict[str, Any]]:
     elif nav_marker_hits >= 6 and substantive_hits <= 1:
         reason = "navigation_heavy"
         is_substantive = False
+    elif markdown_image_count >= 8 and action_hits <= 1:
+        reason = "navigation_heavy"
+        is_substantive = False
+    elif nav_marker_hits >= 8 and bullet_line_count >= 20 and action_hits <= 2:
+        reason = "navigation_heavy"
+        is_substantive = False
     elif word_count < 25 and substantive_hits == 0:
         reason = "low_substantive_signal"
         is_substantive = False
@@ -114,6 +142,9 @@ def assess_reader_substance(text: str) -> tuple[bool, dict[str, Any]]:
         "navigation_line_hits": nav_line_hits,
         "navigation_marker_hits": nav_marker_hits,
         "substantive_marker_hits": substantive_hits,
+        "action_marker_hits": action_hits,
+        "markdown_image_count": markdown_image_count,
+        "bullet_line_count": bullet_line_count,
     }
     return is_substantive, details
 

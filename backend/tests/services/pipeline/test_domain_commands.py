@@ -330,6 +330,66 @@ def test_navigation_heavy_reader_output_blocks_with_alert_reason() -> None:
     assert len(state.raw_scrapes) == 0
 
 
+def test_navigation_table_of_contents_with_agenda_words_still_blocks() -> None:
+    state, service = _service(
+        search_results=[
+            SearchResultItem(
+                url="https://www.sanjoseca.gov/council-agendas",
+                title="Council Agendas",
+                snippet="agenda page",
+            )
+        ]
+    )
+    service.reader_provider = _StaticReaderProvider(
+        "\n".join(
+            [
+                "Council Agendas | City of San Jose",
+                "![Image 1: Skip to page body](https://www.sanjoseca.gov/spacer.gif)",
+                "![Image 2: Home](https://www.sanjoseca.gov/spacer.gif)",
+                "![Image 3: Residents](https://www.sanjoseca.gov/spacer.gif)",
+                "![Image 4: Businesses](https://www.sanjoseca.gov/spacer.gif)",
+                "![Image 5: Jobs](https://www.sanjoseca.gov/spacer.gif)",
+                "![Image 6: Your Government](https://www.sanjoseca.gov/spacer.gif)",
+                "![Image 7: News & Stories](https://www.sanjoseca.gov/spacer.gif)",
+                "![Image 8: facebook](https://www.sanjoseca.gov/social.gif)",
+                "Home",
+                "Menu",
+                "Accessibility",
+                "- Residents",
+                "- Housing",
+                "- Businesses",
+                "- Jobs",
+                "- Your Government",
+                "- Mayor",
+                "- City Council",
+                "- City Clerk",
+                "- Agendas & Minutes",
+                "- Council Agendas 2019 - Present",
+                "- Archived Council Minutes 1950-2011",
+                "- Participate & Watch Public Meetings",
+                "- Open Government Provisions",
+                "- Departments & Offices",
+                "- Planning, Building & Code Enforcement",
+                "- Transportation",
+                "- News",
+                "- Blog",
+                "- City Calendar",
+            ]
+        )
+    )
+
+    search = service.search_materialize(envelope=_envelope("search_materialize", "toc1"), query="q")
+    read = service.read_fetch(
+        envelope=_envelope("read_fetch", "toc2"),
+        snapshot_id=str(search.refs["search_snapshot_id"]),
+    )
+
+    assert read.status == "blocked"
+    assert read.decision_reason == "reader_output_insufficient_substance"
+    assert read.details["reader_quality_failures"][0]["quality_details"]["markdown_image_count"] >= 8
+    assert len(state.raw_scrapes) == 0
+
+
 def test_substantive_meeting_reader_output_is_allowed() -> None:
     _, service = _service(
         search_results=[
