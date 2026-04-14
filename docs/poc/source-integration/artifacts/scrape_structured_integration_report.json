@@ -2,7 +2,7 @@
   "feature_key": "bd-2agbe.11",
   "poc_version": "2026-04-14.scrape-structured-integration.v1",
   "mode": "replay",
-  "generated_at": "2026-04-14T17:48:47.411740+00:00",
+  "generated_at": "2026-04-14T17:52:45.616420+00:00",
   "impact_to_mechanism_mapping": [
     {
       "impact_mode": "direct_fiscal",
