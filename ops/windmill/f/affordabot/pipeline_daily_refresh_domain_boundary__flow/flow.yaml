@@ -293,5 +293,5 @@ schema:
     backend_endpoint_timeout_seconds:
       type: integer
       minimum: 1
-      default: 120
+      default: 600
 ws_error_handler_muted: false

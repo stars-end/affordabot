@@ -72,7 +72,7 @@ WINDMILL_DOMAIN_SCRIPT_PATH = (
     REPO_ROOT / "ops" / "windmill" / "f" / "affordabot" / "pipeline_daily_refresh_domain_boundary.py"
 )
 DEFAULT_SEARX_ENDPOINTS = ["https://searx.tiekoetter.com/search"]
-DEFAULT_BACKEND_ENDPOINT_TIMEOUT_SECONDS = 120
+DEFAULT_BACKEND_ENDPOINT_TIMEOUT_SECONDS = 600
 EXA_SECRET_REF = "op://dev/Agent-Secrets-Production/EXA_API_KEY"
 TAVILY_SECRET_REF = "op://dev/Agent-Secrets-Production/TAVILY_API_KEY"
 
@@ -307,6 +307,23 @@ def _is_reader_quality_block(result_payload: dict[str, Any] | None) -> bool:
     if str(read_fetch.get("decision_reason") or "") != "reader_output_insufficient_substance":
         return False
     return True
+
+
+def _read_fetch_raw_scrape_ids(result_payload: dict[str, Any] | None) -> list[str]:
+    scope_result = _first_scope_result(result_payload)
+    steps = scope_result.get("steps") or {}
+    if not isinstance(steps, dict):
+        return []
+    read_fetch = steps.get("read_fetch") or {}
+    if not isinstance(read_fetch, dict):
+        return []
+    refs = read_fetch.get("refs") or {}
+    if not isinstance(refs, dict):
+        return []
+    raw_scrape_ids = refs.get("raw_scrape_ids") or []
+    if not isinstance(raw_scrape_ids, list):
+        return []
+    return [str(raw_id) for raw_id in raw_scrape_ids if raw_id]
 
 
 def _any_step_idempotent_reuse(result_payload: dict[str, Any] | None) -> bool:
@@ -983,7 +1000,13 @@ def _derive_manual_audit_notes(
     raw_rows = db_storage_probe.get("raw_scrape_rows") or []
     reader_excerpt = ""
     if raw_rows:
-        first_raw = raw_rows[0]
+        current_raw_ids = set(_read_fetch_raw_scrape_ids(result_payload))
+        matching_rows = [
+            raw_row
+            for raw_row in raw_rows
+            if isinstance(raw_row, dict) and str(raw_row.get("id") or "") in current_raw_ids
+        ]
+        first_raw = matching_rows[0] if matching_rows else raw_rows[0]
         url = first_raw.get("url") or ""
         content_excerpt = " ".join(str(first_raw.get("content_excerpt") or "").split())
         reader_excerpt = f"{url}: {content_excerpt[:500]}".strip(": ")
@@ -1430,6 +1453,11 @@ def run_harness(
                 "status": "not_applicable",
                 "note": "current run intentionally blocked at read_fetch before persistence/index/analyze",
             }
+    else:
+        storage_gates["quality_gate_blocked_before_index_analyze"] = {
+            "status": "not_applicable",
+            "note": "current run completed past read_fetch; reader quality block was not expected in this success path",
+        }
 
     if stale_drills:
         by_mode = {item["requested_stale_status"]: item for item in stale_drills}

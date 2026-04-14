@@ -203,6 +203,38 @@ def test_classification_quality_block_is_first_class_pass():
     assert readiness == "ready"
 
 
+def test_classification_full_product_pass_when_storage_gates_are_complete():
+    payload = _stub_scope_result("completed")
+    payload["status"] = "succeeded"
+    payload["scope_results"][0]["backend_response"] = {"storage_mode": "railway_runtime"}
+    storage_gates = module._build_storage_evidence_gates(payload)
+    for gate_name in [
+        "postgres_rows_written",
+        "pgvector_index_probe",
+        "minio_object_refs",
+        "reader_output_ref",
+        "analysis_provenance_chain",
+        "idempotent_rerun",
+        "stale_drill_stale_but_usable",
+        "stale_drill_stale_blocked",
+    ]:
+        storage_gates[gate_name] = {"status": "passed", "note": "ok"}
+    storage_gates["quality_gate_blocked_before_index_analyze"] = {
+        "status": "not_applicable",
+        "note": "successful path",
+    }
+
+    classification, readiness = module._derive_classification(
+        result_payload=payload,
+        storage_gates=storage_gates,
+        backend_endpoint_readiness={"status": "ready_for_opt_in"},
+        blockers=[],
+    )
+
+    assert classification == "full_product_pass"
+    assert readiness == "ready"
+
+
 def test_classification_is_backend_bridge_surface_ready_when_probe_ready():
     result_payload = _stub_scope_result(module.STUB_SUMMARY_MARKER)
     result_payload["status"] = "succeeded"
@@ -344,6 +376,33 @@ def test_db_probe_not_configured_without_database_url(monkeypatch):
         database_url=None,
     )
     assert probe["status"] == "not_configured"
+
+
+def test_manual_audit_notes_prefer_current_run_raw_scrape_id():
+    payload = _stub_scope_result("completed")
+    payload["scope_results"][0]["steps"]["read_fetch"]["refs"] = {"raw_scrape_ids": ["current-raw"]}
+    payload["scope_results"][0]["steps"]["analyze"]["details"] = {
+        "analysis": {
+            "summary": "Council adopted housing ordinances.",
+            "sufficiency_state": "Sufficient",
+        }
+    }
+    notes = module._derive_manual_audit_notes(
+        result_payload=payload,
+        db_storage_probe={
+            "raw_scrape_rows": [
+                {"id": "old-raw", "url": "https://example.test/nav", "content_excerpt": "Navigation menu"},
+                {
+                    "id": "current-raw",
+                    "url": "https://sanjose.legistar.com/gateway.aspx?ID=minutes.pdf",
+                    "content_excerpt": "City Council Meeting Minutes housing ordinance",
+                },
+            ]
+        },
+    )
+
+    assert notes["reader_output_excerpt"].startswith("https://sanjose.legistar.com/gateway.aspx")
+    assert notes["manual_verdict"] == "PASS_MANUAL_AUDIT"
 
 
 def test_render_markdown_includes_provider_and_manual_sections():
