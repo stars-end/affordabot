@@ -1,0 +1,66 @@
+{
+  "generated_at": "2026-04-14T07:33:44Z",
+  "feature_key": "bd-2agbe.7",
+  "purpose": "architecture_lockdown_economic_quality_evidence",
+  "artifacts": [
+    {
+      "id": "sanjose_live_gate",
+      "path": "docs/poc/windmill-domain-boundary-integration/artifacts/sanjose_live_gate_report.json",
+      "kind": "live_run_report",
+      "proves": [
+        "windmill_backend_step_sequence",
+        "postgres_pgvector_minio_chain",
+        "idempotent_rerun_and_stale_gate_behavior",
+        "qualitative_manual_audit_pass"
+      ],
+      "does_not_prove": [
+        "live_quantified_economic_analysis_quality"
+      ]
+    },
+    {
+      "id": "search_source_bakeoff",
+      "path": "docs/poc/search-source-quality-bakeoff/artifacts/search_source_quality_bakeoff_report.json",
+      "kind": "provider_comparison_report",
+      "proves": [
+        "provider_quality_variance",
+        "no_provider_locked_mvp_in_that_run"
+      ],
+      "does_not_prove": [
+        "downstream_quantification_quality"
+      ]
+    },
+    {
+      "id": "economic_gate_matrix",
+      "path": "docs/poc/economic-evidence-quality/artifacts/economic_evidence_gate_matrix_report.json",
+      "kind": "strict_fixture_gate_verifier",
+      "proves": [
+        "deterministic_gate_taxonomy",
+        "fail_closed_attribution_by_gate",
+        "quantified_vs_qualitative_verdict_split"
+      ],
+      "does_not_prove": [
+        "live_extraction_parameterization_from_real_sources"
+      ]
+    },
+    {
+      "id": "boundary_adr",
+      "path": "docs/architecture/2026-04-12-windmill-affordabot-boundary-adr.md",
+      "kind": "architecture_decision_record",
+      "proves": [
+        "target_boundary_ownership_model"
+      ],
+      "does_not_prove": [
+        "runtime_live_quantification_pass"
+      ]
+    }
+  ],
+  "recommendation": {
+    "boundary": "windmill_orchestration_affordabot_domain_commands",
+    "status": "direction_locked_not_rollout_ready_for_full_economic_claims",
+    "falsifiable_conditions_to_reverse": [
+      "windmill_direct_storage_proves_equal_invariant_protection_with_lower_complexity",
+      "repeated_live_quant_failures_trace_to_boundary_transport_not_data_or_gate_causes",
+      "external_review_rejects_gate_attribution_independence"
+    ]
+  }
+}

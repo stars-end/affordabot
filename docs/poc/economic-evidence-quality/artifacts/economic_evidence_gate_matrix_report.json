@@ -1,0 +1,372 @@
+{
+  "cases": [
+    {
+      "assumption_card_count": 0,
+      "blocking_gate": "",
+      "case_id": "direct_fiscal_positive_city_staff_report",
+      "evidence_card_count": 2,
+      "final_verdict": "quantified_pass",
+      "formula_ids": [
+        "direct_fiscal_bounds_v1"
+      ],
+      "gate_results": {
+        "artifact_classification": {
+          "passed": true,
+          "reason": "artifact_classified_non_portal",
+          "status": "pass"
+        },
+        "assumption_selection": {
+          "passed": true,
+          "reason": "assumptions_declared_and_applicable",
+          "status": "pass"
+        },
+        "evidence_cards": {
+          "passed": true,
+          "reason": "evidence_cards_present_with_provenance",
+          "status": "pass"
+        },
+        "llm_explanation": {
+          "passed": true,
+          "reason": "llm_explanation_grounded",
+          "status": "pass"
+        },
+        "parameterization": {
+          "passed": true,
+          "reason": "required_parameters_resolved",
+          "status": "pass"
+        },
+        "quantification": {
+          "passed": true,
+          "reason": "deterministic_quantification_complete",
+          "status": "pass"
+        },
+        "reader_substance": {
+          "passed": true,
+          "reason": "reader_text_substantive",
+          "status": "pass"
+        },
+        "search_recall": {
+          "passed": true,
+          "reason": "artifact_candidates_present",
+          "status": "pass"
+        }
+      },
+      "integration_notes": "TODO integrate with bd-2agbe.2/.3 contract classes once merged.",
+      "jurisdiction": "San Jose CA",
+      "manual_audit_notes": "Official city staff report includes explicit annual appropriation amount and implementation horizon.",
+      "parameter_card_count": 2,
+      "provider": "fixture",
+      "source_family": "staff_report",
+      "unsupported_claim_count": 0
+    },
+    {
+      "assumption_card_count": 0,
+      "blocking_gate": "",
+      "case_id": "compliance_cost_positive_recurring_reporting",
+      "evidence_card_count": 2,
+      "final_verdict": "quantified_pass",
+      "formula_ids": [
+        "compliance_cost_labor_v1"
+      ],
+      "gate_results": {
+        "artifact_classification": {
+          "passed": true,
+          "reason": "artifact_classified_non_portal",
+          "status": "pass"
+        },
+        "assumption_selection": {
+          "passed": true,
+          "reason": "assumptions_declared_and_applicable",
+          "status": "pass"
+        },
+        "evidence_cards": {
+          "passed": true,
+          "reason": "evidence_cards_present_with_provenance",
+          "status": "pass"
+        },
+        "llm_explanation": {
+          "passed": true,
+          "reason": "llm_explanation_grounded",
+          "status": "pass"
+        },
+        "parameterization": {
+          "passed": true,
+          "reason": "required_parameters_resolved",
+          "status": "pass"
+        },
+        "quantification": {
+          "passed": true,
+          "reason": "deterministic_quantification_complete",
+          "status": "pass"
+        },
+        "reader_substance": {
+          "passed": true,
+          "reason": "reader_text_substantive",
+          "status": "pass"
+        },
+        "search_recall": {
+          "passed": true,
+          "reason": "artifact_candidates_present",
+          "status": "pass"
+        }
+      },
+      "integration_notes": "TODO integrate with bd-2agbe.2/.3 contract classes once merged.",
+      "jurisdiction": "Saratoga CA",
+      "manual_audit_notes": "Ordinance text and implementation memo define population, recurrence, labor burden, and wage rate assumptions.",
+      "parameter_card_count": 4,
+      "provider": "fixture",
+      "source_family": "ordinance_text",
+      "unsupported_claim_count": 0
+    },
+    {
+      "assumption_card_count": 1,
+      "blocking_gate": "",
+      "case_id": "pass_through_positive_declared_assumption",
+      "evidence_card_count": 1,
+      "final_verdict": "quantified_pass",
+      "formula_ids": [
+        "pass_through_incidence_v1"
+      ],
+      "gate_results": {
+        "artifact_classification": {
+          "passed": true,
+          "reason": "artifact_classified_non_portal",
+          "status": "pass"
+        },
+        "assumption_selection": {
+          "passed": true,
+          "reason": "assumptions_declared_and_applicable",
+          "status": "pass"
+        },
+        "evidence_cards": {
+          "passed": true,
+          "reason": "evidence_cards_present_with_provenance",
+          "status": "pass"
+        },
+        "llm_explanation": {
+          "passed": true,
+          "reason": "llm_explanation_grounded",
+          "status": "pass"
+        },
+        "parameterization": {
+          "passed": true,
+          "reason": "required_parameters_resolved",
+          "status": "pass"
+        },
+        "quantification": {
+          "passed": true,
+          "reason": "deterministic_quantification_complete",
+          "status": "pass"
+        },
+        "reader_substance": {
+          "passed": true,
+          "reason": "reader_text_substantive",
+          "status": "pass"
+        },
+        "search_recall": {
+          "passed": true,
+          "reason": "artifact_candidates_present",
+          "status": "pass"
+        }
+      },
+      "integration_notes": "TODO integrate with bd-2agbe.2/.3 contract classes once merged.",
+      "jurisdiction": "Santa Clara County CA",
+      "manual_audit_notes": "County impact memo provides annual levy amount; pass-through assumption is registry-aligned for housing rental local tax or fee incidence.",
+      "parameter_card_count": 1,
+      "provider": "fixture",
+      "source_family": "fiscal_analysis",
+      "unsupported_claim_count": 0
+    },
+    {
+      "assumption_card_count": 0,
+      "blocking_gate": "parameterization",
+      "case_id": "local_minutes_control_fail_closed_no_numeric_basis",
+      "evidence_card_count": 1,
+      "final_verdict": "fail_closed_qualitative_only",
+      "formula_ids": [
+        "direct_fiscal_bounds_v1"
+      ],
+      "gate_results": {
+        "artifact_classification": {
+          "passed": true,
+          "reason": "artifact_classified_non_portal",
+          "status": "pass"
+        },
+        "assumption_selection": {
+          "passed": false,
+          "reason": "upstream_gate_failed:parameterization",
+          "status": "skipped_due_to_blocking_gate"
+        },
+        "evidence_cards": {
+          "passed": true,
+          "reason": "evidence_cards_present_with_provenance",
+          "status": "pass"
+        },
+        "llm_explanation": {
+          "passed": false,
+          "reason": "upstream_gate_failed:parameterization",
+          "status": "skipped_due_to_blocking_gate"
+        },
+        "parameterization": {
+          "passed": false,
+          "reason": "missing_required_parameters:annual_fiscal_amount_usd",
+          "status": "fail"
+        },
+        "quantification": {
+          "passed": false,
+          "reason": "upstream_gate_failed:parameterization",
+          "status": "skipped_due_to_blocking_gate"
+        },
+        "reader_substance": {
+          "passed": true,
+          "reason": "reader_text_substantive",
+          "status": "pass"
+        },
+        "search_recall": {
+          "passed": true,
+          "reason": "artifact_candidates_present",
+          "status": "pass"
+        }
+      },
+      "integration_notes": "TODO integrate with bd-2agbe.2/.3 contract classes once merged.",
+      "jurisdiction": "San Jose CA",
+      "manual_audit_notes": "Official minutes confirm policy discussion and vote but provide no fiscal amount or numeric compliance basis.",
+      "parameter_card_count": 0,
+      "provider": "fixture",
+      "source_family": "meeting_minutes",
+      "unsupported_claim_count": 0
+    },
+    {
+      "assumption_card_count": 0,
+      "blocking_gate": "search_recall",
+      "case_id": "provider_failure_no_artifact_candidates",
+      "evidence_card_count": 0,
+      "final_verdict": "fail_closed_qualitative_only",
+      "formula_ids": [],
+      "gate_results": {
+        "artifact_classification": {
+          "passed": false,
+          "reason": "upstream_gate_failed:search_recall",
+          "status": "skipped_due_to_blocking_gate"
+        },
+        "assumption_selection": {
+          "passed": false,
+          "reason": "upstream_gate_failed:search_recall",
+          "status": "skipped_due_to_blocking_gate"
+        },
+        "evidence_cards": {
+          "passed": false,
+          "reason": "upstream_gate_failed:search_recall",
+          "status": "skipped_due_to_blocking_gate"
+        },
+        "llm_explanation": {
+          "passed": false,
+          "reason": "upstream_gate_failed:search_recall",
+          "status": "skipped_due_to_blocking_gate"
+        },
+        "parameterization": {
+          "passed": false,
+          "reason": "upstream_gate_failed:search_recall",
+          "status": "skipped_due_to_blocking_gate"
+        },
+        "quantification": {
+          "passed": false,
+          "reason": "upstream_gate_failed:search_recall",
+          "status": "skipped_due_to_blocking_gate"
+        },
+        "reader_substance": {
+          "passed": false,
+          "reason": "upstream_gate_failed:search_recall",
+          "status": "skipped_due_to_blocking_gate"
+        },
+        "search_recall": {
+          "passed": false,
+          "reason": "no_artifact_candidates",
+          "status": "fail"
+        }
+      },
+      "integration_notes": "TODO integrate with bd-2agbe.2/.3 contract classes once merged.",
+      "jurisdiction": "Mountain View CA",
+      "manual_audit_notes": "Provider returned no useful artifact URLs; attribution must stop at search gate.",
+      "parameter_card_count": 0,
+      "provider": "fixture",
+      "source_family": "city_council_minutes",
+      "unsupported_claim_count": 0
+    },
+    {
+      "assumption_card_count": 0,
+      "blocking_gate": "llm_explanation",
+      "case_id": "llm_explanation_failure_unsupported_claims",
+      "evidence_card_count": 1,
+      "final_verdict": "qualitative_only_due_to_unsupported_claims",
+      "formula_ids": [
+        "direct_fiscal_bounds_v1"
+      ],
+      "gate_results": {
+        "artifact_classification": {
+          "passed": true,
+          "reason": "artifact_classified_non_portal",
+          "status": "pass"
+        },
+        "assumption_selection": {
+          "passed": true,
+          "reason": "assumptions_declared_and_applicable",
+          "status": "pass"
+        },
+        "evidence_cards": {
+          "passed": true,
+          "reason": "evidence_cards_present_with_provenance",
+          "status": "pass"
+        },
+        "llm_explanation": {
+          "passed": false,
+          "reason": "unsupported_claims_or_novel_numbers",
+          "status": "fail"
+        },
+        "parameterization": {
+          "passed": true,
+          "reason": "required_parameters_resolved",
+          "status": "pass"
+        },
+        "quantification": {
+          "passed": true,
+          "reason": "deterministic_quantification_complete",
+          "status": "pass"
+        },
+        "reader_substance": {
+          "passed": true,
+          "reason": "reader_text_substantive",
+          "status": "pass"
+        },
+        "search_recall": {
+          "passed": true,
+          "reason": "artifact_candidates_present",
+          "status": "pass"
+        }
+      },
+      "integration_notes": "TODO integrate with bd-2agbe.2/.3 contract classes once merged.",
+      "jurisdiction": "Sunnyvale CA",
+      "manual_audit_notes": "Deterministic calculation succeeds, but the generated narrative introduces unsupported numeric claims.",
+      "parameter_card_count": 1,
+      "provider": "fixture",
+      "source_family": "staff_report",
+      "unsupported_claim_count": 2
+    }
+  ],
+  "feature_key": "bd-2agbe.4",
+  "fixture_path": "/private/tmp/agents/bd-2agbe.7/affordabot/backend/scripts/verification/fixtures/economic_evidence_gate_cases.json",
+  "generated_at": "2026-04-14T07:35:26.161022+00:00",
+  "integration_notes": [
+    "Current verifier uses fixture-local contract.",
+    "Integration point: swap fixture-local card fields with bd-2agbe.2 card models and bd-2agbe.3 assumption registry payloads."
+  ],
+  "provider_filter": "",
+  "stop_after": "",
+  "summary": {
+    "llm_blocked_count": 1,
+    "qualitative_fail_closed_count": 2,
+    "quantified_pass_count": 3,
+    "total_cases": 6
+  },
+  "verifier_version": "2026-04-14.fixture-v1"
+}
