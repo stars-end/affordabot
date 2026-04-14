@@ -102,3 +102,17 @@ def test_gate_report_rejects_blocking_gate_when_no_failed_stage():
             artifact_counts={"evidence_cards": 1},
             unsupported_claim_count=0,
         )
+
+
+def test_schema_supports_verifier_gate_and_verdict_vocab():
+    assert QualityGateStage.EVIDENCE_CARDS.value == "evidence_cards"
+    assert QualityGateStage.EVIDENCE_EXTRACTION.value == "evidence_extraction"
+    assert GateVerdict.QUANTIFIED_PASS.value == "quantified_pass"
+    assert (
+        GateVerdict.FAIL_CLOSED_QUALITATIVE_ONLY.value
+        == "fail_closed_qualitative_only"
+    )
+    assert (
+        GateVerdict.QUALITATIVE_ONLY_DUE_TO_UNSUPPORTED_CLAIMS.value
+        == "qualitative_only_due_to_unsupported_claims"
+    )

@@ -46,6 +46,7 @@ class QualityGateStage(str, Enum):
     SEARCH_RECALL = "search_recall"
     READER_SUBSTANCE = "reader_substance"
     ARTIFACT_CLASSIFICATION = "artifact_classification"
+    EVIDENCE_CARDS = "evidence_cards"
     EVIDENCE_EXTRACTION = "evidence_extraction"
     PARAMETERIZATION = "parameterization"
     ASSUMPTION_SELECTION = "assumption_selection"
@@ -57,6 +58,11 @@ class GateVerdict(str, Enum):
     PASS = "pass"
     FAIL_CLOSED = "fail_closed"
     QUALITATIVE_ONLY = "qualitative_only"
+    QUANTIFIED_PASS = "quantified_pass"
+    FAIL_CLOSED_QUALITATIVE_ONLY = "fail_closed_qualitative_only"
+    QUALITATIVE_ONLY_DUE_TO_UNSUPPORTED_CLAIMS = (
+        "qualitative_only_due_to_unsupported_claims"
+    )
 
 
 class EvidenceCard(BaseModel):

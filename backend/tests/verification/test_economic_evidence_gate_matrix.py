@@ -71,3 +71,18 @@ def test_run_strict_expected_has_no_failures():
     report = module._run(config)
     assert "expectation_failures" not in report
     assert report["summary"]["total_cases"] >= 5
+
+
+def test_pass_through_fixture_is_registry_aligned():
+    case = _fixture_case("pass_through_positive_declared_assumption")
+    cards = case["gate_inputs"]["assumption_selection"]["cards"]
+    assert len(cards) == 1
+    assumption = cards[0]
+    assert assumption["low"] == 0.5
+    assert assumption["central"] == 0.68
+    assert assumption["high"] == 0.89
+    assert (
+        assumption["source_url"]
+        == "https://www.philadelphiafed.org/-/media/frbp/assets/consumer-finance/discussion-papers/dp24-01.pdf"
+    )
+    assert assumption["applicability"] == "housing,rental_market,local_tax_or_fee"
