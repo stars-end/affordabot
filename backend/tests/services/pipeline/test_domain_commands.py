@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
+from services.pipeline.domain.commands import rank_reader_candidates
 from services.pipeline.domain import (
     CommandEnvelope,
     FreshnessPolicy,
@@ -279,6 +280,24 @@ def test_source_failure_returns_retryable_transport() -> None:
     assert result.retry_class == "transport"
 
 
+def test_rank_reader_candidates_prefers_legistar_gateway_pdf_with_action_snippet() -> None:
+    ranked = rank_reader_candidates(
+        [
+            SearchResultItem(
+                url="https://sanjose.granicus.com/AgendaViewer.php?clip_id=14442&view_id=60",
+                title="City Council Meeting Amended Agenda",
+                snippet="location council chambers interpretation is available",
+            ),
+            SearchResultItem(
+                url="https://sanjose.legistar.com/gateway.aspx?ID=30dfe51f-d23d-4480-a407-44e17ef4c0c3.pdf&M=F",
+                title="Ordinance No. 31303 Affordability Compliance",
+                snippet="approved ordinance no. 31303 housing compliance options",
+            ),
+        ]
+    )
+    assert ranked[0]["url"].startswith("https://sanjose.legistar.com/gateway.aspx")
+
+
 def test_reader_failure_stops_before_index() -> None:
     state, service = _service(
         search_results=[
@@ -304,31 +323,25 @@ def test_read_fetch_tries_ranked_fallback_candidates_after_reader_error() -> Non
     state, service = _service(
         search_results=[
             SearchResultItem(
-                url="https://www.sanjoseca.gov/home",
-                title="City Home",
-                snippet="departments and services",
-            ),
-            SearchResultItem(
                 url="https://sanjose.legistar.com/MeetingDetail.aspx?ID=123&GUID=abc",
                 title="City Council Meeting Detail",
                 snippet="agenda minutes housing item",
             ),
             SearchResultItem(
                 url="https://granicus.com/AgendaViewer.php?view_id=12",
-                title="Agenda Viewer",
-                snippet="council hearing and agenda packet",
+                title="City Council Agenda Viewer",
+                snippet="meeting agenda council",
             ),
         ]
     )
     service.reader_provider = _RoutingReaderProvider(
         by_url={
-            "https://www.sanjoseca.gov/home": "Home Contact Sitemap Menu Departments Services",
-            "https://sanjose.legistar.com/MeetingDetail.aspx?ID=123&GUID=abc": (
+            "https://granicus.com/AgendaViewer.php?view_id=12": (
                 "City Council meeting minutes for San Jose. "
                 "Agenda item 5.1 approved housing subsidy allocations after hearing."
             )
         },
-        fail_urls={"https://granicus.com/AgendaViewer.php?view_id=12"},
+        fail_urls={"https://sanjose.legistar.com/MeetingDetail.aspx?ID=123&GUID=abc"},
     )
 
     search = service.search_materialize(envelope=_envelope("search_materialize", "fb1"), query="q")
@@ -343,7 +356,50 @@ def test_read_fetch_tries_ranked_fallback_candidates_after_reader_error() -> Non
     assert any(alert.startswith("reader_error:") for alert in read.alerts)
     assert read.counts["raw_scrapes"] == 1
     assert len(read.details["candidate_audit"]) >= 2
-    assert read.details["candidate_audit"][0]["outcome"] == "reader_provider_error"
+    assert any(item["outcome"] == "reader_provider_error" for item in read.details["candidate_audit"])
+    assert any(item["outcome"] == "materialized_raw_scrape" for item in read.details["candidate_audit"])
+    assert len(state.raw_scrapes) == 1
+
+
+def test_read_fetch_falls_through_agenda_header_logistics_to_legistar_pdf() -> None:
+    state, service = _service(
+        search_results=[
+            SearchResultItem(
+                url="https://sanjose.granicus.com/AgendaViewer.php?clip_id=14442&view_id=60",
+                title="City Council Meeting Amended Agenda",
+                snippet="city council meeting agenda",
+            ),
+            SearchResultItem(
+                url="https://sanjose.legistar.com/LegislationDetail.aspx?ID=31303",
+                title="City Hall Resources",
+                snippet="home departments and services",
+            ),
+        ]
+    )
+    service.reader_provider = _RoutingReaderProvider(
+        by_url={
+            "https://sanjose.granicus.com/AgendaViewer.php?clip_id=14442&view_id=60": (
+                "CITY COUNCIL MEETING Amended Agenda Tuesday, June 11, 2024 1:30 PM "
+                "LOCATION: Council Chambers Interpretation is available via webinar controls."
+            ),
+            "https://sanjose.legistar.com/LegislationDetail.aspx?ID=31303": (
+                "Ordinance No. 31302 temporary multifamily housing incentive. "
+                "Ordinance No. 31303 affordability compliance options were approved by vote."
+            ),
+        }
+    )
+
+    search = service.search_materialize(envelope=_envelope("search_materialize", "lg1"), query="q")
+    read = service.read_fetch(
+        envelope=_envelope("read_fetch", "lg2"),
+        snapshot_id=str(search.refs["search_snapshot_id"]),
+        max_reads=2,
+    )
+
+    assert read.status == "succeeded_with_alerts"
+    assert read.decision_reason == "raw_scrapes_materialized_with_reader_alerts"
+    assert read.details["candidate_audit"][0]["outcome"] == "reader_output_insufficient_substance"
+    assert read.details["candidate_audit"][0]["reason"] == "agenda_header_logistics_only"
     assert read.details["candidate_audit"][1]["outcome"] == "materialized_raw_scrape"
     assert len(state.raw_scrapes) == 1
 
@@ -554,6 +610,50 @@ def test_read_fetch_blocks_when_all_ranked_candidates_are_navigation_shells() ->
     assert all(
         item["outcome"] == "reader_output_insufficient_substance"
         for item in read.details["candidate_audit"]
+    )
+    assert len(state.raw_scrapes) == 0
+
+
+def test_read_fetch_blocks_when_all_candidates_are_agenda_header_logistics() -> None:
+    state, service = _service(
+        search_results=[
+            SearchResultItem(
+                url="https://sanjose.granicus.com/AgendaViewer.php?clip_id=1&view_id=60",
+                title="City Council Amended Agenda",
+                snippet="LOCATION: Council Chambers Interpretation is available",
+            ),
+            SearchResultItem(
+                url="https://sanjose.granicus.com/AgendaViewer.php?clip_id=2&view_id=60",
+                title="Special Meeting Agenda",
+                snippet="webinar controls and teleconference logistics",
+            ),
+        ]
+    )
+    service.reader_provider = _RoutingReaderProvider(
+        by_url={
+            "https://sanjose.granicus.com/AgendaViewer.php?clip_id=1&view_id=60": (
+                "CITY COUNCIL MEETING Amended Agenda LOCATION: Council Chambers "
+                "Interpretation is available."
+            ),
+            "https://sanjose.granicus.com/AgendaViewer.php?clip_id=2&view_id=60": (
+                "SPECIAL MEETING AGENDA Webinar details Dial-in and teleconference "
+                "location information."
+            ),
+        }
+    )
+    search = service.search_materialize(envelope=_envelope("search_materialize", "ahl1"), query="q")
+    read = service.read_fetch(
+        envelope=_envelope("read_fetch", "ahl2"),
+        snapshot_id=str(search.refs["search_snapshot_id"]),
+        max_reads=2,
+    )
+
+    assert read.status == "blocked"
+    assert read.decision_reason == "reader_output_insufficient_substance"
+    assert len(read.details["reader_quality_failures"]) == 2
+    assert all(
+        item["reason"] == "agenda_header_logistics_only"
+        for item in read.details["reader_quality_failures"]
     )
     assert len(state.raw_scrapes) == 0
 

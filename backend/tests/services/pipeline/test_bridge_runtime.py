@@ -514,30 +514,24 @@ def test_runtime_bridge_read_fetch_falls_back_after_ranked_reader_error() -> Non
     runtime.search_client = FakeSearchClient(
         [
             {
-                "url": "https://www.sanjoseca.gov/home",
-                "title": "City Home",
-                "snippet": "services and resources",
-            },
-            {
-                "url": "https://granicus.com/AgendaViewer.php?view_id=12",
-                "title": "Agenda Viewer",
-                "snippet": "city council agenda packet",
-            },
-            {
                 "url": "https://sanjose.legistar.com/MeetingDetail.aspx?ID=123&GUID=abc",
                 "title": "Meeting Detail",
                 "snippet": "minutes and housing hearing",
+            },
+            {
+                "url": "https://granicus.com/AgendaViewer.php?view_id=12",
+                "title": "City Council Agenda Viewer",
+                "snippet": "meeting agenda council",
             },
         ]
     )
     runtime.reader_client = RoutingFakeReaderClient(
         by_url={
-            "https://www.sanjoseca.gov/home": "Home Contact Sitemap Menu Departments",
-            "https://sanjose.legistar.com/MeetingDetail.aspx?ID=123&GUID=abc": (
+            "https://granicus.com/AgendaViewer.php?view_id=12": (
                 "# Meeting Minutes\nCouncil approved housing recommendations after hearing."
             )
         },
-        fail_urls={"https://granicus.com/AgendaViewer.php?view_id=12"},
+        fail_urls={"https://sanjose.legistar.com/MeetingDetail.aspx?ID=123&GUID=abc"},
     )
     runtime._llm_client = FakeLLMClient()
     runtime.zai_api_key = "x"
@@ -547,8 +541,14 @@ def test_runtime_bridge_read_fetch_falls_back_after_ranked_reader_error() -> Non
     assert response["steps"]["read_fetch"]["status"] == "succeeded_with_alerts"
     assert response["steps"]["read_fetch"]["decision_reason"] == "raw_scrapes_materialized_with_reader_alerts"
     assert any(alert.startswith("reader_error:") for alert in response["alerts"])
-    assert response["steps"]["read_fetch"]["details"]["candidate_audit"][0]["outcome"] == "reader_provider_error"
-    assert response["steps"]["read_fetch"]["details"]["candidate_audit"][1]["outcome"] == "materialized_raw_scrape"
+    assert any(
+        item["outcome"] == "reader_provider_error"
+        for item in response["steps"]["read_fetch"]["details"]["candidate_audit"]
+    )
+    assert any(
+        item["outcome"] == "materialized_raw_scrape"
+        for item in response["steps"]["read_fetch"]["details"]["candidate_audit"]
+    )
     assert response["steps"]["index"]["status"] in {"succeeded", "succeeded_with_alerts"}
     assert response["steps"]["analyze"]["status"] in {"succeeded", "succeeded_with_alerts"}
 
@@ -579,5 +579,92 @@ def test_runtime_bridge_blocks_when_all_ranked_candidates_are_navigation_shells(
     assert response["steps"]["read_fetch"]["status"] == "blocked"
     assert response["steps"]["read_fetch"]["decision_reason"] == "reader_output_insufficient_substance"
     assert len(response["steps"]["read_fetch"]["details"]["reader_quality_failures"]) == 3
+    assert "index" not in response["steps"]
+    assert "analyze" not in response["steps"]
+
+
+def test_runtime_bridge_falls_through_agenda_header_logistics_to_legistar_pdf() -> None:
+    db = FakeDB()
+    storage = FakeStorage()
+    runtime = RailwayRuntimeBridge(db=db, storage=storage)  # type: ignore[arg-type]
+    runtime.search_client = FakeSearchClient(
+        [
+            {
+                "url": "https://sanjose.granicus.com/AgendaViewer.php?clip_id=14442&view_id=60",
+                "title": "City Council Meeting Amended Agenda",
+                "snippet": "city council meeting agenda",
+            },
+            {
+                "url": "https://sanjose.legistar.com/LegislationDetail.aspx?ID=31303",
+                "title": "City Hall Resources",
+                "snippet": "home departments and services",
+            },
+        ]
+    )
+    runtime.reader_client = RoutingFakeReaderClient(
+        by_url={
+            "https://sanjose.granicus.com/AgendaViewer.php?clip_id=14442&view_id=60": (
+                "CITY COUNCIL MEETING Amended Agenda Tuesday, June 11, 2024 1:30 PM "
+                "LOCATION: Council Chambers Interpretation is available via webinar controls."
+            ),
+            "https://sanjose.legistar.com/LegislationDetail.aspx?ID=31303": (
+                "Ordinance No. 31302 temporary multifamily housing incentive. "
+                "Ordinance No. 31303 affordability compliance options were approved by vote."
+            ),
+        }
+    )
+    runtime._llm_client = FakeLLMClient()
+    runtime.zai_api_key = "x"
+
+    response = asyncio.run(runtime.run_scope_pipeline(_request(idempotency_key="wm:run-scope:header-fallback")))
+
+    assert response["steps"]["read_fetch"]["status"] == "succeeded_with_alerts"
+    assert response["steps"]["read_fetch"]["details"]["candidate_audit"][0]["reason"] == "agenda_header_logistics_only"
+    assert response["steps"]["read_fetch"]["details"]["candidate_audit"][1]["outcome"] == "materialized_raw_scrape"
+    assert response["steps"]["index"]["status"] in {"succeeded", "succeeded_with_alerts"}
+    assert response["steps"]["analyze"]["status"] in {"succeeded", "succeeded_with_alerts"}
+
+
+def test_runtime_bridge_blocks_when_all_candidates_are_agenda_header_logistics() -> None:
+    db = FakeDB()
+    storage = FakeStorage()
+    runtime = RailwayRuntimeBridge(db=db, storage=storage)  # type: ignore[arg-type]
+    runtime.search_client = FakeSearchClient(
+        [
+            {
+                "url": "https://sanjose.granicus.com/AgendaViewer.php?clip_id=1&view_id=60",
+                "title": "Amended Agenda",
+                "snippet": "LOCATION: Council Chambers Interpretation is available",
+            },
+            {
+                "url": "https://sanjose.granicus.com/AgendaViewer.php?clip_id=2&view_id=60",
+                "title": "Special Meeting Agenda",
+                "snippet": "webinar teleconference dial-in logistics",
+            },
+        ]
+    )
+    runtime.reader_client = RoutingFakeReaderClient(
+        by_url={
+            "https://sanjose.granicus.com/AgendaViewer.php?clip_id=1&view_id=60": (
+                "CITY COUNCIL MEETING Amended Agenda LOCATION: Council Chambers "
+                "Interpretation is available."
+            ),
+            "https://sanjose.granicus.com/AgendaViewer.php?clip_id=2&view_id=60": (
+                "SPECIAL MEETING AGENDA Webinar details Dial-in and teleconference "
+                "location information."
+            ),
+        }
+    )
+    runtime._llm_client = FakeLLMClient()
+    runtime.zai_api_key = "x"
+
+    response = asyncio.run(runtime.run_scope_pipeline(_request(idempotency_key="wm:run-scope:all-header")))
+
+    assert response["steps"]["read_fetch"]["status"] == "blocked"
+    assert response["steps"]["read_fetch"]["decision_reason"] == "reader_output_insufficient_substance"
+    assert all(
+        item["reason"] == "agenda_header_logistics_only"
+        for item in response["steps"]["read_fetch"]["details"]["reader_quality_failures"]
+    )
     assert "index" not in response["steps"]
     assert "analyze" not in response["steps"]

@@ -33,6 +33,18 @@ MEETING_ARTIFACT_URL_SIGNALS = (
     ".pdf",
 )
 
+HIGH_VALUE_URL_SIGNALS = (
+    "legistar.com/gateway.aspx",
+    "legistar.com/meetingdetail.aspx",
+    ".pdf",
+    "view.ashx",
+)
+
+LOW_VALUE_AGENDA_HEADER_URL_SIGNALS = (
+    "granicus.com/agendaviewer",
+    "agendaviewer.php",
+)
+
 MEETING_ARTIFACT_TEXT_SIGNALS = (
     "agenda",
     "minutes",
@@ -43,6 +55,32 @@ MEETING_ARTIFACT_TEXT_SIGNALS = (
     "resolution",
     "public comment",
     "housing",
+)
+
+TEXT_ACTION_SIGNALS = (
+    "ordinance no.",
+    "approved",
+    "adopted",
+    "voted",
+    "motion",
+    "resolution",
+    "compliance",
+    "incentive",
+    "rent",
+    "affordability",
+    "multifamily",
+)
+
+HEADER_LOGISTICS_MARKERS = (
+    "location:",
+    "council chambers",
+    "interpretation is available",
+    "webinar",
+    "webcast",
+    "teleconference",
+    "dial-in",
+    "amended agenda",
+    "meeting starts at",
 )
 
 GENERIC_NAVIGATION_PENALTIES = (
@@ -145,6 +183,7 @@ def assess_reader_substance(text: str) -> tuple[bool, dict[str, Any]]:
     nav_marker_hits = sum(1 for marker in NAVIGATION_MARKERS if marker in joined)
     substantive_hits = sum(1 for marker in SUBSTANTIVE_MARKERS if marker in joined)
     action_hits = sum(1 for marker in ACTION_MARKERS if marker in joined)
+    logistics_marker_hits = sum(1 for marker in HEADER_LOGISTICS_MARKERS if marker in joined)
     markdown_image_count = joined.count("![image")
     bullet_line_count = sum(1 for line in normalized_lines if line.startswith("- "))
     line_count = len(normalized_lines)
@@ -174,6 +213,12 @@ def assess_reader_substance(text: str) -> tuple[bool, dict[str, Any]]:
     ):
         reason = "navigation_heavy"
         is_substantive = False
+    elif logistics_marker_hits >= 2 and action_hits <= 1 and substantive_hits <= 5:
+        reason = "agenda_header_logistics_only"
+        is_substantive = False
+    elif logistics_marker_hits >= 1 and action_hits == 0 and word_count < 160:
+        reason = "agenda_header_logistics_only"
+        is_substantive = False
     elif word_count < 25 and substantive_hits == 0:
         reason = "low_substantive_signal"
         is_substantive = False
@@ -186,6 +231,7 @@ def assess_reader_substance(text: str) -> tuple[bool, dict[str, Any]]:
         "navigation_marker_hits": nav_marker_hits,
         "substantive_marker_hits": substantive_hits,
         "action_marker_hits": action_hits,
+        "logistics_marker_hits": logistics_marker_hits,
         "markdown_image_count": markdown_image_count,
         "bullet_line_count": bullet_line_count,
     }
@@ -209,10 +255,26 @@ def rank_reader_candidates(
             if signal in lowered_url:
                 score += 5 if signal in {"legistar.com", "granicus.com", ".pdf"} else 3
                 reasons.append(f"url_signal:{signal}")
+        for signal in HIGH_VALUE_URL_SIGNALS:
+            if signal in lowered_url:
+                score += 6 if signal == ".pdf" else 5
+                reasons.append(f"url_high_value:{signal}")
+        for signal in LOW_VALUE_AGENDA_HEADER_URL_SIGNALS:
+            if signal in lowered_url:
+                score -= 5
+                reasons.append(f"url_penalty:{signal}")
         for signal in MEETING_ARTIFACT_TEXT_SIGNALS:
             if signal in lowered_text:
                 score += 1
                 reasons.append(f"text_signal:{signal}")
+        for signal in TEXT_ACTION_SIGNALS:
+            if signal in lowered_text:
+                score += 2
+                reasons.append(f"text_action:{signal}")
+        for signal in HEADER_LOGISTICS_MARKERS:
+            if signal in lowered_text:
+                score -= 3
+                reasons.append(f"text_penalty:{signal}")
         for penalty in GENERIC_NAVIGATION_PENALTIES:
             if penalty in lowered_text or penalty in lowered_url:
                 score -= 2
