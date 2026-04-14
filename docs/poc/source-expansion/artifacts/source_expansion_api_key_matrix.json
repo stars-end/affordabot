@@ -1,0 +1,215 @@
+{
+  "feature_key": "bd-2agbe.12",
+  "artifact_version": "2026-04-14.source-expansion-api-key-matrix.v1",
+  "generated_at": "2026-04-14T17:48:19.865384+00:00",
+  "matrix": [
+    {
+      "source_family": "legistar_public_api",
+      "lane": "structured",
+      "free_status": "free_public",
+      "signup_url": "none_required",
+      "api_key_required": "no",
+      "railway_variable_needed": "none",
+      "already_configured_assumption": "unknown",
+      "sample_endpoint": "https://webapi.legistar.com/v1/sanjose/matters?$top=5",
+      "api_or_raw_access": "api",
+      "economic_value": "high",
+      "wave": "wave1",
+      "reason": "Direct local legislative records; high utility for policy facts and linked artifact refs."
+    },
+    {
+      "source_family": "ca_leginfo_pubinfo_raw_files",
+      "lane": "structured",
+      "free_status": "free_public",
+      "signup_url": "none_required",
+      "api_key_required": "no",
+      "railway_variable_needed": "none",
+      "already_configured_assumption": "unknown",
+      "sample_endpoint": "https://downloads.leginfo.legislature.ca.gov/pubinfo_daily_Mon.zip",
+      "api_or_raw_access": "raw_file",
+      "economic_value": "high",
+      "wave": "wave1",
+      "reason": "Official state feed suitable for deterministic ingestion and canonical document identity."
+    },
+    {
+      "source_family": "ca_ckan_open_data_api",
+      "lane": "structured",
+      "free_status": "free_public",
+      "signup_url": "none_required",
+      "api_key_required": "no",
+      "railway_variable_needed": "none",
+      "already_configured_assumption": "unknown",
+      "sample_endpoint": "https://data.ca.gov/api/3/action/package_search?rows=3&q=housing+zoning+permit",
+      "api_or_raw_access": "api",
+      "economic_value": "medium",
+      "wave": "wave1",
+      "reason": "Free catalog for supplemental policy data; useful but requires dataset-level curation."
+    },
+    {
+      "source_family": "opendatasoft_public_catalog_api",
+      "lane": "structured",
+      "free_status": "free_public",
+      "signup_url": "none_required",
+      "api_key_required": "no",
+      "railway_variable_needed": "none",
+      "already_configured_assumption": "unknown",
+      "sample_endpoint": "https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets?limit=1",
+      "api_or_raw_access": "api",
+      "economic_value": "medium",
+      "wave": "wave2",
+      "reason": "API is easy, but policy relevance depends on dataset/jurisdiction bindings not yet curated."
+    },
+    {
+      "source_family": "official_static_csv_xlsx_raw",
+      "lane": "contextual",
+      "free_status": "free_public",
+      "signup_url": "none_required",
+      "api_key_required": "no",
+      "railway_variable_needed": "none",
+      "already_configured_assumption": "unknown",
+      "sample_endpoint": "https://www2.census.gov/programs-surveys/metro-micro/geographies/reference-files/2023/delineation-files/list1_2023.xlsx",
+      "api_or_raw_access": "raw_file",
+      "economic_value": "low",
+      "wave": "backlog",
+      "reason": "Good denominators/context; usually not primary evidence for local policy mechanism quantification."
+    },
+    {
+      "source_family": "arcgis_hub_rest_public",
+      "lane": "structured",
+      "free_status": "free_public",
+      "signup_url": "none_required",
+      "api_key_required": "no",
+      "railway_variable_needed": "none",
+      "already_configured_assumption": "unknown",
+      "sample_endpoint": "https://www.arcgis.com/sharing/rest/search?q=San+Jose+zoning+FeatureServer&f=json",
+      "api_or_raw_access": "api",
+      "economic_value": "medium",
+      "wave": "wave2",
+      "reason": "Mechanics proven, but requires policy-specific curation (zoning/parcel/permit) before production use."
+    },
+    {
+      "source_family": "openstates_plural_api",
+      "lane": "structured",
+      "free_status": "free_tier_available",
+      "signup_url": "https://open.pluralpolicy.com/signup",
+      "api_key_required": "yes",
+      "railway_variable_needed": "OPENSTATES_API_KEY",
+      "already_configured_assumption": "unknown",
+      "sample_endpoint": "https://open.pluralpolicy.com/graphql",
+      "api_or_raw_access": "api",
+      "economic_value": "medium",
+      "wave": "wave2",
+      "reason": "Useful structured legislative metadata; key needed for robust rate limits and stable operations."
+    },
+    {
+      "source_family": "socrata_open_data",
+      "lane": "structured",
+      "free_status": "free_tier_key_optional_limits",
+      "signup_url": "https://dev.socrata.com/",
+      "api_key_required": "deferred",
+      "railway_variable_needed": "SOCRATA_APP_TOKEN",
+      "already_configured_assumption": "unknown",
+      "sample_endpoint": "https://dev.socrata.com/foundry/data.sanjoseca.gov/example",
+      "api_or_raw_access": "api",
+      "economic_value": "high",
+      "wave": "backlog",
+      "reason": "Potentially high value where available, but explicitly deferred by user (no signup this wave)."
+    },
+    {
+      "source_family": "private_searxng",
+      "lane": "search_provider",
+      "free_status": "self_hosted_infra_cost_only",
+      "signup_url": "none_required",
+      "api_key_required": "no",
+      "railway_variable_needed": "SEARXNG_BASE_URL",
+      "already_configured_assumption": "unknown",
+      "sample_endpoint": "https://<private-searxng>/search?q=san+jose+meeting+minutes&format=json",
+      "api_or_raw_access": "api",
+      "economic_value": "high",
+      "wave": "wave1",
+      "reason": "Primary discovery lane for reader artifacts; not a structured source but critical complement."
+    },
+    {
+      "source_family": "tavily_search_api",
+      "lane": "search_provider",
+      "free_status": "free_tier_capped",
+      "signup_url": "https://app.tavily.com/sign-in",
+      "api_key_required": "yes",
+      "railway_variable_needed": "TAVILY_API_KEY",
+      "already_configured_assumption": "unknown",
+      "sample_endpoint": "https://api.tavily.com/search",
+      "api_or_raw_access": "api",
+      "economic_value": "medium",
+      "wave": "wave2",
+      "reason": "Useful fallback to mitigate SearXNG quality failures; reserve for targeted runs due to quota."
+    },
+    {
+      "source_family": "exa_search_api",
+      "lane": "search_provider",
+      "free_status": "free_tier_capped",
+      "signup_url": "https://dashboard.exa.ai/",
+      "api_key_required": "yes",
+      "railway_variable_needed": "EXA_API_KEY",
+      "already_configured_assumption": "unknown",
+      "sample_endpoint": "https://api.exa.ai/search",
+      "api_or_raw_access": "api",
+      "economic_value": "medium",
+      "wave": "wave2",
+      "reason": "Useful as bakeoff/eval fallback; avoid default routing due to monthly quota limits."
+    },
+    {
+      "source_family": "granicus_civicplus_boarddocs_portals",
+      "lane": "scrape_reader",
+      "free_status": "free_public",
+      "signup_url": "none_required",
+      "api_key_required": "no",
+      "railway_variable_needed": "none",
+      "already_configured_assumption": "unknown",
+      "sample_endpoint": "https://johnscreekga.granicus.com/ViewPublisher.php?view_id=1",
+      "api_or_raw_access": "html_pdf_scrape",
+      "economic_value": "high",
+      "wave": "wave1",
+      "reason": "Core local-government artifact lane; no easy structured API, requires scrape+reader pipeline."
+    }
+  ],
+  "actions": {
+    "required_now": [
+      {
+        "railway_variable": "SEARXNG_BASE_URL",
+        "source_family": "private_searxng",
+        "reason": "Primary discovery lane for reader artifacts; not a structured source but critical complement."
+      }
+    ],
+    "optional_soon": [
+      {
+        "railway_variable": "OPENSTATES_API_KEY",
+        "source_family": "openstates_plural_api",
+        "reason": "Useful structured legislative metadata; key needed for robust rate limits and stable operations."
+      },
+      {
+        "railway_variable": "TAVILY_API_KEY",
+        "source_family": "tavily_search_api",
+        "reason": "Useful fallback to mitigate SearXNG quality failures; reserve for targeted runs due to quota."
+      },
+      {
+        "railway_variable": "EXA_API_KEY",
+        "source_family": "exa_search_api",
+        "reason": "Useful as bakeoff/eval fallback; avoid default routing due to monthly quota limits."
+      }
+    ],
+    "defer": [
+      {
+        "railway_variable": "SOCRATA_APP_TOKEN",
+        "source_family": "socrata_open_data",
+        "reason": "Potentially high value where available, but explicitly deferred by user (no signup this wave)."
+      }
+    ],
+    "do_not_add": []
+  },
+  "mapping_notes": {
+    "mechanism_family_strategy": "Source expansion does not change canonical MechanismFamily or ImpactMode ownership. Those mappings stay backend-authored in economic analysis contracts.",
+    "impact_mode_strategy": "New sources broaden evidence availability but must map into existing deterministic parameterization and assumption gates, not introduce ad-hoc per-source impact logic.",
+    "key_strategy": "No new API key is required for wave1 structured/scrape baseline. Use OPENSTATES_API_KEY/TAVILY_API_KEY/EXA_API_KEY only when enabling wave2 lanes; keep SOCRATA_APP_TOKEN deferred."
+  },
+  "quality_honesty": "Breadth alone is insufficient. A source is wave-eligible only when it can provide policy facts or linked artifacts that improve evidence cards for deterministic economic quantification."
+}
