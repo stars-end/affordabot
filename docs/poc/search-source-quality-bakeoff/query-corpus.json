@@ -1,0 +1,177 @@
+{
+  "version": "2026-04-13",
+  "notes": "Municipal discovery corpus for provider bakeoff: private SearXNG vs Tavily vs Exa.",
+  "queries": [
+    {
+      "id": "sj-001",
+      "query": "San Jose CA city council meeting minutes housing",
+      "jurisdiction": "San Jose CA",
+      "source_family": "meeting_minutes",
+      "expected_signal_terms": ["meeting minutes", "city council", "housing", "agenda item", "public hearing"],
+      "preferred_domains": ["sanjoseca.gov", "sanjose.legistar.com"],
+      "preferred_url_patterns": ["/minutes", "/agendas", "/cityclerk", "MeetingDetail", ".pdf", ".ashx"]
+    },
+    {
+      "id": "sj-002",
+      "query": "San Jose city council agenda affordable housing",
+      "jurisdiction": "San Jose CA",
+      "source_family": "agendas",
+      "expected_signal_terms": ["agenda", "affordable housing", "item", "resolution", "staff report"],
+      "preferred_domains": ["sanjoseca.gov", "sanjose.legistar.com"],
+      "preferred_url_patterns": ["/agendas", "MeetingDetail", "agenda", ".pdf"]
+    },
+    {
+      "id": "sj-003",
+      "query": "San Jose planning commission minutes housing development",
+      "jurisdiction": "San Jose CA",
+      "source_family": "commission_minutes",
+      "expected_signal_terms": ["planning commission", "minutes", "housing development", "zoning", "conditional use"],
+      "preferred_domains": ["sanjoseca.gov", "sanjose.legistar.com"],
+      "preferred_url_patterns": ["/planning", "/minutes", ".pdf", "MeetingDetail"]
+    },
+    {
+      "id": "sj-004",
+      "query": "San Jose rent stabilization committee meeting minutes",
+      "jurisdiction": "San Jose CA",
+      "source_family": "committee_minutes",
+      "expected_signal_terms": ["rent stabilization", "committee", "meeting minutes", "tenant", "ordinance"],
+      "preferred_domains": ["sanjoseca.gov"],
+      "preferred_url_patterns": ["/housing", "/minutes", "/committees", ".pdf"]
+    },
+    {
+      "id": "sj-005",
+      "query": "San Jose city clerk council minutes PDF housing",
+      "jurisdiction": "San Jose CA",
+      "source_family": "minutes_pdf",
+      "expected_signal_terms": ["city clerk", "council minutes", "pdf", "housing", "vote"],
+      "preferred_domains": ["sanjoseca.gov", "sanjose.legistar.com"],
+      "preferred_url_patterns": ["/cityclerk", ".pdf", "MeetingDetail", "minutes"]
+    },
+    {
+      "id": "sj-006",
+      "query": "San Jose city council housing memorandum",
+      "jurisdiction": "San Jose CA",
+      "source_family": "memos",
+      "expected_signal_terms": ["memorandum", "city council", "housing", "analysis", "recommendation"],
+      "preferred_domains": ["sanjoseca.gov"],
+      "preferred_url_patterns": ["/council-memo", "/housing", ".pdf"]
+    },
+    {
+      "id": "sa-001",
+      "query": "Saratoga CA city council meeting minutes housing",
+      "jurisdiction": "Saratoga CA",
+      "source_family": "meeting_minutes",
+      "expected_signal_terms": ["city council", "minutes", "housing", "public hearing", "agenda item"],
+      "preferred_domains": ["saratoga.ca.us"],
+      "preferred_url_patterns": ["/minutes", "/agendas", "/city-council", ".pdf"]
+    },
+    {
+      "id": "sa-002",
+      "query": "Saratoga CA planning commission minutes ADU",
+      "jurisdiction": "Saratoga CA",
+      "source_family": "commission_minutes",
+      "expected_signal_terms": ["planning commission", "minutes", "ADU", "accessory dwelling", "permit"],
+      "preferred_domains": ["saratoga.ca.us"],
+      "preferred_url_patterns": ["/planning-commission", "/minutes", ".pdf"]
+    },
+    {
+      "id": "sa-003",
+      "query": "Saratoga CA housing element update public hearing minutes",
+      "jurisdiction": "Saratoga CA",
+      "source_family": "housing_element",
+      "expected_signal_terms": ["housing element", "public hearing", "minutes", "RHNA", "HCD"],
+      "preferred_domains": ["saratoga.ca.us"],
+      "preferred_url_patterns": ["/housing-element", "/minutes", ".pdf"]
+    },
+    {
+      "id": "sa-004",
+      "query": "Saratoga city council agenda affordable housing ordinance",
+      "jurisdiction": "Saratoga CA",
+      "source_family": "agendas",
+      "expected_signal_terms": ["agenda", "affordable housing", "ordinance", "introduction", "adoption"],
+      "preferred_domains": ["saratoga.ca.us"],
+      "preferred_url_patterns": ["/agenda", "/city-council", ".pdf"]
+    },
+    {
+      "id": "sc-001",
+      "query": "Santa Clara County Board of Supervisors meeting minutes housing",
+      "jurisdiction": "Santa Clara County CA",
+      "source_family": "bos_minutes",
+      "expected_signal_terms": ["board of supervisors", "minutes", "housing", "item", "motion"],
+      "preferred_domains": ["sccgov.org", "santaclara.legistar.com"],
+      "preferred_url_patterns": ["/bos", "/minutes", "MeetingDetail", ".pdf"]
+    },
+    {
+      "id": "sc-002",
+      "query": "Santa Clara County affordable housing committee minutes",
+      "jurisdiction": "Santa Clara County CA",
+      "source_family": "committee_minutes",
+      "expected_signal_terms": ["committee", "minutes", "affordable housing", "recommendation", "county"],
+      "preferred_domains": ["sccgov.org"],
+      "preferred_url_patterns": ["/housing", "/committees", "/minutes", ".pdf"]
+    },
+    {
+      "id": "sc-003",
+      "query": "Santa Clara County planning commission agenda housing development",
+      "jurisdiction": "Santa Clara County CA",
+      "source_family": "agendas",
+      "expected_signal_terms": ["planning", "agenda", "housing development", "zoning", "project"],
+      "preferred_domains": ["sccgov.org"],
+      "preferred_url_patterns": ["/planning", "/agenda", ".pdf"]
+    },
+    {
+      "id": "sc-004",
+      "query": "Santa Clara County housing element adoption meeting minutes",
+      "jurisdiction": "Santa Clara County CA",
+      "source_family": "housing_element",
+      "expected_signal_terms": ["housing element", "adoption", "meeting minutes", "county", "resolution"],
+      "preferred_domains": ["sccgov.org"],
+      "preferred_url_patterns": ["/housing-element", "/minutes", ".pdf"]
+    },
+    {
+      "id": "sc-005",
+      "query": "Santa Clara County board agenda homelessness housing item",
+      "jurisdiction": "Santa Clara County CA",
+      "source_family": "agendas",
+      "expected_signal_terms": ["board agenda", "homelessness", "housing", "item", "county executive"],
+      "preferred_domains": ["sccgov.org", "santaclara.legistar.com"],
+      "preferred_url_patterns": ["/agenda", "MeetingDetail", ".pdf"]
+    },
+    {
+      "id": "ctrl-001",
+      "query": "Mountain View CA city council meeting minutes housing",
+      "jurisdiction": "Mountain View CA",
+      "source_family": "control_city_minutes",
+      "expected_signal_terms": ["city council", "minutes", "housing", "agenda", "public hearing"],
+      "preferred_domains": ["mountainview.gov", "mountainview.legistar.com"],
+      "preferred_url_patterns": ["/minutes", "/agenda", "MeetingDetail", ".pdf"]
+    },
+    {
+      "id": "ctrl-002",
+      "query": "Sunnyvale CA city council housing agenda item minutes",
+      "jurisdiction": "Sunnyvale CA",
+      "source_family": "control_city_minutes",
+      "expected_signal_terms": ["city council", "housing", "agenda item", "minutes", "resolution"],
+      "preferred_domains": ["sunnyvale.ca.gov", "sunnyvale.legistar.com"],
+      "preferred_url_patterns": ["/agendas", "/minutes", "MeetingDetail", ".pdf"]
+    },
+    {
+      "id": "neg-001",
+      "query": "San Jose city jobs police permits parks events",
+      "jurisdiction": "San Jose CA",
+      "source_family": "negative_control_noise",
+      "expected_signal_terms": ["jobs", "permits", "parks", "events"],
+      "preferred_domains": ["sanjoseca.gov"],
+      "preferred_url_patterns": ["/home", "/departments", "/jobs"]
+    },
+    {
+      "id": "neg-002",
+      "query": "Santa Clara County tourism museums top attractions",
+      "jurisdiction": "Santa Clara County CA",
+      "source_family": "negative_control_noise",
+      "expected_signal_terms": ["tourism", "museums", "attractions"],
+      "preferred_domains": ["sccgov.org"],
+      "preferred_url_patterns": ["/visit", "/parks", "/events"]
+    }
+  ]
+}

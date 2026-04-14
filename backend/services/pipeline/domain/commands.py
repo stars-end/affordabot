@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import asdict
 from datetime import datetime, timezone
 import hashlib
+import re
 from typing import Any
 
 from services.pipeline.domain.constants import CONTRACT_VERSION
@@ -19,6 +20,177 @@ from services.pipeline.domain.ports import (
     SearchResultItem,
     VectorStore,
 )
+
+MEETING_ARTIFACT_URL_SIGNALS = (
+    "legistar.com",
+    "granicus.com",
+    "agendaviewer",
+    "meetingdetail",
+    "view.ashx",
+    "gateway.aspx",
+    "/agenda",
+    "/minutes",
+    ".pdf",
+)
+
+HIGH_VALUE_URL_SIGNALS = (
+    "legistar.com/gateway.aspx",
+    "legistar.com/meetingdetail.aspx",
+    ".pdf",
+    "view.ashx",
+)
+
+LOW_VALUE_AGENDA_HEADER_URL_SIGNALS = (
+    "granicus.com/agendaviewer",
+    "agendaviewer.php",
+)
+
+MEETING_ARTIFACT_TEXT_SIGNALS = (
+    "agenda",
+    "minutes",
+    "meeting",
+    "council",
+    "hearing",
+    "ordinance",
+    "resolution",
+    "public comment",
+    "housing",
+)
+
+TEXT_ACTION_SIGNALS = (
+    "ordinance no.",
+    "approved",
+    "adopted",
+    "voted",
+    "motion",
+    "resolution",
+    "compliance",
+    "incentive",
+    "rent",
+    "affordability",
+    "multifamily",
+)
+
+HEADER_LOGISTICS_MARKERS = (
+    "location:",
+    "council chambers",
+    "interpretation is available",
+    "webinar",
+    "webcast",
+    "teleconference",
+    "dial-in",
+    "amended agenda",
+    "meeting starts at",
+)
+
+GENERIC_NAVIGATION_PENALTIES = (
+    "home",
+    "homepage",
+    "resource library",
+    "resources",
+    "departments",
+    "services",
+    "city hall",
+    "about us",
+)
+
+NAVIGATION_MARKERS = (
+    "home",
+    "contact",
+    "sitemap",
+    "menu",
+    "navigation",
+    "skip to content",
+    "privacy",
+    "accessibility",
+    "subscribe",
+    "sign up",
+    "alerts",
+    "departments",
+)
+
+SUBSTANTIVE_MARKERS = (
+    "meeting",
+    "minutes",
+    "agenda",
+    "council",
+    "ordinance",
+    "resolution",
+    "vote",
+    "hearing",
+    "public comment",
+    "housing",
+    "budget",
+    "policy",
+)
+
+ACTION_MARKERS = (
+    "approved",
+    "adopted",
+    "motion",
+    "vote",
+    "voted",
+    "resolution",
+    "ordinance",
+    "staff report",
+    "recommendation",
+    "recommended",
+    "public hearing",
+    "agenda item",
+    "item 8",
+    "item 10",
+    "directed staff",
+    "memorandum",
+)
+
+ANALYSIS_ACTION_SIGNALS = (
+    "housing",
+    "ordinance",
+    "approved",
+    "adopted",
+    "resolution",
+    "incentive",
+    "affordability",
+    "rent",
+    "multifamily",
+    "agenda item",
+    "item ",
+    "public hearing",
+    "compliance",
+    "mobilehome",
+    "tenant",
+    "zoning",
+)
+
+ANALYSIS_STOPWORDS = {
+    "a",
+    "an",
+    "and",
+    "are",
+    "as",
+    "at",
+    "be",
+    "by",
+    "for",
+    "from",
+    "how",
+    "in",
+    "is",
+    "it",
+    "made",
+    "of",
+    "on",
+    "or",
+    "the",
+    "these",
+    "this",
+    "to",
+    "was",
+    "were",
+    "what",
+    "which",
+    "with",
+}
 
 
 def _hash_text(value: str) -> str:
@@ -48,6 +220,231 @@ def _split_chunks(text: str) -> list[str]:
     if not lines:
         return []
     return lines
+
+
+def assess_reader_substance(text: str) -> tuple[bool, dict[str, Any]]:
+    normalized_lines = [line.strip().lower() for line in text.splitlines() if line.strip()]
+    joined = " ".join(normalized_lines)
+    word_count = len(re.findall(r"[a-z0-9$%.-]+", joined))
+    nav_line_hits = sum(
+        1 for line in normalized_lines if any(marker in line for marker in NAVIGATION_MARKERS)
+    )
+    nav_marker_hits = sum(1 for marker in NAVIGATION_MARKERS if marker in joined)
+    substantive_hits = sum(1 for marker in SUBSTANTIVE_MARKERS if marker in joined)
+    action_hits = sum(1 for marker in ACTION_MARKERS if marker in joined)
+    logistics_marker_hits = sum(1 for marker in HEADER_LOGISTICS_MARKERS if marker in joined)
+    markdown_image_count = joined.count("![image")
+    bullet_line_count = sum(1 for line in normalized_lines if line.startswith("- "))
+    line_count = len(normalized_lines)
+
+    reason = "ok"
+    is_substantive = True
+    if not normalized_lines or word_count == 0:
+        reason = "empty_reader_output"
+        is_substantive = False
+    elif nav_line_hits >= max(2, line_count // 2) and substantive_hits == 0:
+        reason = "navigation_heavy"
+        is_substantive = False
+    elif nav_marker_hits >= 6 and substantive_hits <= 1:
+        reason = "navigation_heavy"
+        is_substantive = False
+    elif markdown_image_count >= 8 and action_hits <= 1:
+        reason = "navigation_heavy"
+        is_substantive = False
+    elif nav_marker_hits >= 8 and bullet_line_count >= 20 and action_hits <= 2:
+        reason = "navigation_heavy"
+        is_substantive = False
+    elif (
+        markdown_image_count >= 12
+        and bullet_line_count >= 80
+        and nav_marker_hits >= 4
+        and bullet_line_count >= max(120, int(line_count * 0.6))
+    ):
+        reason = "navigation_heavy"
+        is_substantive = False
+    elif logistics_marker_hits >= 2 and action_hits <= 1 and substantive_hits <= 5:
+        reason = "agenda_header_logistics_only"
+        is_substantive = False
+    elif logistics_marker_hits >= 1 and action_hits == 0 and word_count < 160:
+        reason = "agenda_header_logistics_only"
+        is_substantive = False
+    elif word_count < 25 and substantive_hits == 0:
+        reason = "low_substantive_signal"
+        is_substantive = False
+
+    details = {
+        "reason": reason,
+        "word_count": word_count,
+        "line_count": line_count,
+        "navigation_line_hits": nav_line_hits,
+        "navigation_marker_hits": nav_marker_hits,
+        "substantive_marker_hits": substantive_hits,
+        "action_marker_hits": action_hits,
+        "logistics_marker_hits": logistics_marker_hits,
+        "markdown_image_count": markdown_image_count,
+        "bullet_line_count": bullet_line_count,
+    }
+    return is_substantive, details
+
+
+def rank_reader_candidates(
+    candidates: list[SearchResultItem], *, max_candidates: int | None = None
+) -> list[dict[str, Any]]:
+    ranked: list[dict[str, Any]] = []
+    for index, candidate in enumerate(candidates):
+        url = candidate.url.strip()
+        title = candidate.title.strip()
+        snippet = candidate.snippet.strip()
+        lowered_url = url.lower()
+        lowered_text = f"{title} {snippet}".lower()
+        score = 0
+        reasons: list[str] = []
+
+        for signal in MEETING_ARTIFACT_URL_SIGNALS:
+            if signal in lowered_url:
+                score += 5 if signal in {"legistar.com", "granicus.com", ".pdf"} else 3
+                reasons.append(f"url_signal:{signal}")
+        for signal in HIGH_VALUE_URL_SIGNALS:
+            if signal in lowered_url:
+                score += 6 if signal == ".pdf" else 5
+                reasons.append(f"url_high_value:{signal}")
+        for signal in LOW_VALUE_AGENDA_HEADER_URL_SIGNALS:
+            if signal in lowered_url:
+                score -= 5
+                reasons.append(f"url_penalty:{signal}")
+        for signal in MEETING_ARTIFACT_TEXT_SIGNALS:
+            if signal in lowered_text:
+                score += 1
+                reasons.append(f"text_signal:{signal}")
+        for signal in TEXT_ACTION_SIGNALS:
+            if signal in lowered_text:
+                score += 2
+                reasons.append(f"text_action:{signal}")
+        for signal in HEADER_LOGISTICS_MARKERS:
+            if signal in lowered_text:
+                score -= 3
+                reasons.append(f"text_penalty:{signal}")
+        for penalty in GENERIC_NAVIGATION_PENALTIES:
+            if penalty in lowered_text or penalty in lowered_url:
+                score -= 2
+                reasons.append(f"penalty:{penalty}")
+
+        ranked.append(
+            {
+                "input_index": index,
+                "url": url,
+                "title": title,
+                "snippet": snippet,
+                "score": score,
+                "reasons": reasons,
+            }
+        )
+
+    ranked.sort(
+        key=lambda item: (
+            -int(item["score"]),
+            int(item["input_index"]),
+            str(item["url"]),
+        )
+    )
+    for rank, item in enumerate(ranked, start=1):
+        item["rank"] = rank
+
+    if max_candidates is not None:
+        return ranked[: max(0, max_candidates)]
+    return ranked
+
+
+def _tokenize_question_terms(question: str) -> list[str]:
+    tokens = re.findall(r"[a-z0-9]+", question.lower())
+    deduped: list[str] = []
+    for token in tokens:
+        if len(token) < 3 or token in ANALYSIS_STOPWORDS:
+            continue
+        if token not in deduped:
+            deduped.append(token)
+    return deduped
+
+
+def _normalize_chunk_content(chunk: dict[str, Any]) -> str:
+    content = chunk.get("content")
+    return str(content) if content is not None else ""
+
+
+def rank_evidence_chunks(
+    *,
+    question: str,
+    chunks: list[dict[str, Any]],
+    max_selected: int = 20,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    question_terms = _tokenize_question_terms(question)
+    ranked: list[dict[str, Any]] = []
+    for input_index, chunk in enumerate(chunks):
+        content = _normalize_chunk_content(chunk)
+        lowered = content.lower()
+        score = 0
+        matched_terms: list[str] = []
+        matched_action_signals: list[str] = []
+
+        for term in question_terms:
+            if re.search(rf"\b{re.escape(term)}\b", lowered):
+                score += 3
+                matched_terms.append(term)
+
+        for signal in ANALYSIS_ACTION_SIGNALS:
+            if signal in lowered:
+                score += 4
+                matched_action_signals.append(signal)
+
+        if re.search(r"\b(item|agenda item)\s+\d+(\.\d+)?\b", lowered):
+            score += 5
+        if re.search(r"\b(ordinance|resolution)\s+no\.?\s*[0-9]+\b", lowered):
+            score += 5
+
+        nav_hits = sum(1 for marker in NAVIGATION_MARKERS if marker in lowered)
+        if nav_hits >= 3 and len(matched_action_signals) == 0:
+            score -= 6
+
+        ranked.append(
+            {
+                "chunk": chunk,
+                "content": content,
+                "score": score,
+                "input_index": input_index,
+                "matched_question_terms": matched_terms,
+                "matched_action_signals": matched_action_signals,
+                "snippet": re.sub(r"\s+", " ", content.strip())[:200],
+            }
+        )
+
+    ranked.sort(
+        key=lambda item: (
+            -int(item["score"]),
+            -len(item["matched_action_signals"]),
+            -len(item["matched_question_terms"]),
+            int(item["chunk"].get("chunk_index", 0)),
+            int(item["input_index"]),
+            str(item["chunk"].get("chunk_id", "")),
+        )
+    )
+    selected_rows = ranked[: max(0, max_selected)]
+    selected_chunks = [dict(item["chunk"]) for item in selected_rows]
+
+    audit: list[dict[str, Any]] = []
+    for rank, row in enumerate(selected_rows, start=1):
+        audit.append(
+            {
+                "rank": rank,
+                "score": int(row["score"]),
+                "chunk_id": row["chunk"].get("chunk_id"),
+                "chunk_index": row["chunk"].get("chunk_index"),
+                "matched_question_terms": list(row["matched_question_terms"]),
+                "matched_action_signals": list(row["matched_action_signals"]),
+                "snippet": row["snippet"],
+            }
+        )
+
+    return selected_chunks, audit
 
 
 class PipelineDomainCommands:
@@ -241,7 +638,7 @@ class PipelineDomainCommands:
         )
 
     def read_fetch(
-        self, *, envelope: CommandEnvelope, snapshot_id: str, max_reads: int = 1
+        self, *, envelope: CommandEnvelope, snapshot_id: str, max_reads: int = 5
     ) -> CommandResponse:
         envelope.validate()
         reused = self._reuse_if_idempotent(envelope)
@@ -261,14 +658,16 @@ class PipelineDomainCommands:
                 ),
             )
 
-        selected: list[SearchResultItem] = [
+        search_items: list[SearchResultItem] = [
             SearchResultItem(
                 url=item["url"],
                 title=item.get("title", ""),
                 snippet=item.get("snippet", ""),
             )
-            for item in snapshot["results"][:max_reads]
+            for item in snapshot["results"]
         ]
+        ranked_candidates = rank_reader_candidates(search_items)
+        selected = ranked_candidates[: max(0, max_reads)]
         if not selected:
             return self._store_result(
                 envelope,
@@ -283,21 +682,63 @@ class PipelineDomainCommands:
 
         raw_scrape_ids: list[str] = []
         artifact_refs: list[str] = []
-        for candidate in selected:
+        quality_alerts: list[str] = []
+        reader_quality_failures: list[dict[str, Any]] = []
+        reader_provider_errors: list[dict[str, Any]] = []
+        candidate_audit: list[dict[str, Any]] = []
+
+        for candidate_entry in selected:
+            candidate = SearchResultItem(
+                url=str(candidate_entry["url"]),
+                title=str(candidate_entry["title"]),
+                snippet=str(candidate_entry["snippet"]),
+            )
             try:
                 doc = self.reader_provider.fetch(url=candidate.url)
             except Exception as exc:
-                return self._store_result(
-                    envelope,
-                    CommandResponse(
-                        command="read_fetch",
-                        status="failed_retryable",
-                        decision_reason="reader_provider_error",
-                        retry_class="provider_unavailable",
-                        alerts=[f"reader_error:{exc}"],
-                        refs=self._windmill_refs(envelope),
-                    ),
+                err = str(exc)
+                reader_provider_errors.append(
+                    {
+                        "url": candidate.url,
+                        "rank": candidate_entry["rank"],
+                        "score": candidate_entry["score"],
+                        "error": err,
+                    }
                 )
+                candidate_audit.append(
+                    {
+                        "url": candidate.url,
+                        "rank": candidate_entry["rank"],
+                        "score": candidate_entry["score"],
+                        "outcome": "reader_provider_error",
+                        "error": err,
+                    }
+                )
+                continue
+
+            is_substantive, quality_details = assess_reader_substance(doc.text)
+            if not is_substantive:
+                reason = str(quality_details["reason"])
+                quality_alerts.append(f"reader_output_insufficient_substance:{reason}")
+                reader_quality_failures.append(
+                    {
+                        "url": candidate.url,
+                        "rank": candidate_entry["rank"],
+                        "score": candidate_entry["score"],
+                        "reason": reason,
+                        "quality_details": quality_details,
+                    }
+                )
+                candidate_audit.append(
+                    {
+                        "url": candidate.url,
+                        "rank": candidate_entry["rank"],
+                        "score": candidate_entry["score"],
+                        "outcome": "reader_output_insufficient_substance",
+                        "reason": reason,
+                    }
+                )
+                continue
 
             canonical_key = build_v2_canonical_document_key(
                 jurisdiction_id=envelope.jurisdiction_id,
@@ -314,6 +755,15 @@ class PipelineDomainCommands:
                 existing["last_seen_at"] = self.state.now.isoformat()
                 raw_scrape_ids.append(scrape_id)
                 artifact_refs.append(existing["artifact_ref"])
+                candidate_audit.append(
+                    {
+                        "url": candidate.url,
+                        "rank": candidate_entry["rank"],
+                        "score": candidate_entry["score"],
+                        "outcome": "reused_existing_raw_scrape",
+                        "raw_scrape_id": scrape_id,
+                    }
+                )
                 continue
 
             try:
@@ -352,19 +802,81 @@ class PipelineDomainCommands:
             }
             raw_scrape_ids.append(scrape_id)
             artifact_refs.append(artifact.artifact_ref)
+            candidate_audit.append(
+                {
+                    "url": candidate.url,
+                    "rank": candidate_entry["rank"],
+                    "score": candidate_entry["score"],
+                    "outcome": "materialized_raw_scrape",
+                    "raw_scrape_id": scrape_id,
+                }
+            )
 
+        if not raw_scrape_ids:
+            provider_alerts = [f"reader_error:{item['error']}" for item in reader_provider_errors]
+            alerts = list(dict.fromkeys(provider_alerts + quality_alerts))
+            if reader_provider_errors:
+                return self._store_result(
+                    envelope,
+                    CommandResponse(
+                        command="read_fetch",
+                        status="failed_retryable",
+                        decision_reason="reader_provider_error",
+                        retry_class="provider_unavailable",
+                        alerts=alerts,
+                        refs=self._windmill_refs(envelope),
+                        details={
+                            "candidate_audit": candidate_audit,
+                            "ranked_candidates": selected,
+                            "reader_provider_errors": reader_provider_errors,
+                            "reader_quality_failures": reader_quality_failures,
+                        },
+                    ),
+                )
+            return self._store_result(
+                envelope,
+                CommandResponse(
+                    command="read_fetch",
+                    status="blocked",
+                    decision_reason="reader_output_insufficient_substance",
+                    retry_class="insufficient_evidence",
+                    alerts=alerts or ["reader_output_insufficient_substance"],
+                    refs=self._windmill_refs(envelope),
+                    details={
+                        "candidate_audit": candidate_audit,
+                        "ranked_candidates": selected,
+                        "reader_quality_failures": reader_quality_failures,
+                    },
+                ),
+            )
+
+        provider_alerts = [f"reader_error:{item['error']}" for item in reader_provider_errors]
+        alerts = list(dict.fromkeys(quality_alerts + provider_alerts))
+        status = "succeeded_with_alerts" if alerts else "succeeded"
+        decision_reason = (
+            "raw_scrapes_materialized_with_reader_alerts"
+            if alerts
+            else "raw_scrapes_materialized"
+        )
         return self._store_result(
             envelope,
             CommandResponse(
                 command="read_fetch",
-                status="succeeded",
-                decision_reason="raw_scrapes_materialized",
+                status=status,
+                decision_reason=decision_reason,
                 retry_class="none",
+                alerts=alerts,
                 counts={"raw_scrapes": len(raw_scrape_ids), "artifacts": len(artifact_refs)},
                 refs={
                     **self._windmill_refs(envelope),
                     "raw_scrape_ids": raw_scrape_ids,
                     "artifact_refs": artifact_refs,
+                },
+                details={
+                    "candidate_audit": candidate_audit,
+                    "ranked_candidates": selected,
+                    "reader_provider_errors": reader_provider_errors,
+                    "reader_quality_failures": reader_quality_failures,
                 },
             ),
         )
@@ -457,7 +969,8 @@ class PipelineDomainCommands:
             for chunk in self.state.chunks.values()
             if chunk["jurisdiction_id"] == jurisdiction_id and chunk["source_family"] == source_family
         ]
-        if not evidence:
+        selected_evidence, evidence_audit = rank_evidence_chunks(question=question, chunks=evidence)
+        if not selected_evidence:
             return self._store_result(
                 envelope,
                 CommandResponse(
@@ -471,7 +984,7 @@ class PipelineDomainCommands:
             )
 
         try:
-            payload = self.analyzer.analyze(question=question, evidence_chunks=evidence)
+            payload = self.analyzer.analyze(question=question, evidence_chunks=selected_evidence)
         except Exception as exc:
             return self._store_result(
                 envelope,
@@ -502,9 +1015,16 @@ class PipelineDomainCommands:
                 status="succeeded",
                 decision_reason="analysis_completed",
                 retry_class="none",
-                counts={"analyses": 1, "evidence_chunks": len(evidence)},
+                counts={"analyses": 1, "evidence_chunks": len(selected_evidence)},
                 refs={**self._windmill_refs(envelope), "analysis_id": analysis_id},
-                details={"sufficiency_state": payload.get("sufficiency_state")},
+                details={
+                    "sufficiency_state": payload.get("sufficiency_state"),
+                    "evidence_selection": {
+                        "candidate_chunk_count": len(evidence),
+                        "selected_chunk_count": len(selected_evidence),
+                        "selected_chunks": evidence_audit,
+                    },
+                },
             ),
         )
 

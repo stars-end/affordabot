@@ -33,7 +33,7 @@ USABLE_STATUSES = {"fresh", "stale_but_usable", "empty_but_usable"}
 BLOCKED_STATUSES = {"stale_blocked", "empty_blocked"}
 ALLOWED_COMMAND_CLIENTS = {"stub", "domain_package", "backend_endpoint"}
 BACKEND_ENDPOINT_CONNECT_TIMEOUT_SECONDS = 5
-BACKEND_ENDPOINT_READ_TIMEOUT_SECONDS = 120
+BACKEND_ENDPOINT_READ_TIMEOUT_SECONDS = 600
 BACKEND_RUN_SCOPE_PATH = "/cron/pipeline/domain/run-scope"
 
 

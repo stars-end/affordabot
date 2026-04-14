@@ -51,6 +51,14 @@ def test_scope_pipeline_happy_path_passes_windmill_envelope_between_steps():
         }
 
 
+def test_backend_endpoint_default_timeout_covers_live_reader_analysis_window():
+    flow_text = FLOW_PATH.read_text()
+
+    assert module.BACKEND_ENDPOINT_READ_TIMEOUT_SECONDS == 600
+    assert "backend_endpoint_timeout_seconds:" in flow_text
+    assert "default: 600" in flow_text
+
+
 def test_scope_pipeline_stale_blocked_short_circuits_to_summary():
     result = module.main(
         step="run_scope_pipeline",
