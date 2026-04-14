@@ -1,0 +1,94 @@
+{
+  "fixture_version": "2026-04-14.structured-source-lane.v1",
+  "saved_at": "2026-04-14T00:00:00+00:00",
+  "probes": {
+    "leginfo": {
+      "source_family": "ca_leginfo_pubinfo",
+      "probe_name": "California LegInfo PUBINFO official feed",
+      "sample_pull_without_browser": true,
+      "status": "pass",
+      "checks": [
+        {
+          "method": "HEAD",
+          "url": "https://downloads.leginfo.legislature.ca.gov/",
+          "status": 200,
+          "content_type": "text/html; charset=utf-8",
+          "content_length": "5226"
+        },
+        {
+          "method": "GET",
+          "url": "https://downloads.leginfo.legislature.ca.gov/pubinfo_Readme.pdf",
+          "status": 200,
+          "content_type": "application/pdf",
+          "content_length": "142350"
+        },
+        {
+          "method": "HEAD",
+          "url": "https://downloads.leginfo.legislature.ca.gov/pubinfo_daily_Mon.zip",
+          "status": 200,
+          "content_type": "application/zip",
+          "content_length": "1942032"
+        }
+      ],
+      "errors": [],
+      "evidence": {
+        "official_root_reachable": true,
+        "raw_artifact_endpoint_reachable": true,
+        "artifact_endpoints_checked": [
+          "https://downloads.leginfo.legislature.ca.gov/pubinfo_Readme.pdf",
+          "https://downloads.leginfo.legislature.ca.gov/pubinfo_daily_Mon.zip"
+        ]
+      }
+    },
+    "legistar": {
+      "source_family": "legistar_web_api",
+      "probe_name": "Legistar Web API public San Jose endpoint",
+      "endpoint": "https://webapi.legistar.com/v1/sanjose/matters?$top=5",
+      "sample_pull_without_browser": true,
+      "status": "pass",
+      "row_count": 5,
+      "schema_presence": {
+        "MatterId": true,
+        "MatterGuid": true,
+        "MatterFile": true,
+        "MatterLastModifiedUtc": true
+      },
+      "sample_row": {
+        "MatterId": 1,
+        "MatterGuid": "11111111-1111-1111-1111-111111111111",
+        "MatterFile": "CC 26-001",
+        "MatterLastModifiedUtc": "2026-04-13T18:00:00Z"
+      },
+      "errors": []
+    },
+    "arcgis": {
+      "source_family": "arcgis_rest_public",
+      "probe_name": "Public ArcGIS REST/Hub Bay Area endpoint",
+      "sample_pull_without_browser": true,
+      "status": "pass",
+      "search_url": "https://www.arcgis.com/sharing/rest/search?f=json&num=20&sortField=numviews&sortOrder=desc&q=%28%28%22San+Jose%22+OR+%22Santa+Clara%22%29+AND+%28%22FeatureServer%22+OR+%22MapServer%22%29+AND+%28%22planning%22+OR+%22zoning%22+OR+%22housing%22+OR+%22parcel%22+OR+%22permit%22%29%29+-type%3A%22Web+Mapping+Application%22+-type%3ACode",
+      "candidate_count": 8,
+      "selected": {
+        "source_item_title": "San Jose Planning Parcels",
+        "source_item_id": "abc12345",
+        "layer_url": "https://services9.arcgis.com/example/arcgis/rest/services/Planning_Parcels/FeatureServer/0",
+        "metadata_url": "https://services9.arcgis.com/example/arcgis/rest/services/Planning_Parcels/FeatureServer/0?f=json",
+        "query_url": "https://services9.arcgis.com/example/arcgis/rest/services/Planning_Parcels/FeatureServer/0/query?f=json&where=1%3D1&outFields=%2A&returnGeometry=false&resultRecordCount=3",
+        "row_count_sampled": 3,
+        "identity_fields": [
+          "OBJECTID",
+          "GlobalID"
+        ],
+        "date_fields": [
+          "LastEditDate"
+        ],
+        "sample_attributes": {
+          "OBJECTID": 1,
+          "GlobalID": "{AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE}",
+          "LastEditDate": 1713043200000
+        }
+      },
+      "errors": []
+    }
+  }
+}

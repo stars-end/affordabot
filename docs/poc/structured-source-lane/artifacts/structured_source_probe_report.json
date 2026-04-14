@@ -1,0 +1,62 @@
+{
+  "feature_key": "bd-2agbe.1",
+  "artifact_version": "2026-04-14.structured-source-probe-v1",
+  "generated_at": "2026-04-14T00:00:00Z",
+  "scope_note": "Worker-A structured-source probe consolidation for first no-key POC comparison.",
+  "sources": [
+    {
+      "source_family": "ca_pubinfo_leginfo",
+      "signup_or_key_link": "none_required",
+      "free_status": "free_public",
+      "api_or_raw_confirmed": "raw_official_file",
+      "sample_endpoint_or_file_url": "https://downloads.leginfo.legislature.ca.gov/pubinfo_daily_Mon.zip",
+      "auth_required": "no",
+      "recommendation": "structured_lane"
+    },
+    {
+      "source_family": "legistar_sanjose",
+      "signup_or_key_link": "none_required",
+      "free_status": "free_public",
+      "api_or_raw_confirmed": "api",
+      "sample_endpoint_or_file_url": "https://webapi.legistar.com/v1/sanjose/matters",
+      "auth_required": "no",
+      "recommendation": "structured_lane"
+    },
+    {
+      "source_family": "arcgis_public_gis_dataset",
+      "signup_or_key_link": "none_required",
+      "free_status": "free_public",
+      "api_or_raw_confirmed": "api_and_bulk",
+      "sample_endpoint_or_file_url": "https://services.arcgis.com/P3ePLMYs2RVChkJx/ArcGIS/rest/services/USA_Zoning/FeatureServer/0/query?where=1%3D1&outFields=*&f=json",
+      "auth_required": "no",
+      "recommendation": "structured_lane"
+    },
+    {
+      "source_family": "openstates_ca",
+      "signup_or_key_link": "https://open.pluralpolicy.com/",
+      "free_status": "free_key_required",
+      "api_or_raw_confirmed": "api_and_bulk",
+      "sample_endpoint_or_file_url": "https://v3.openstates.org/bills?jurisdiction=ca&session=20252026",
+      "auth_required": "yes",
+      "recommendation": "structured_lane"
+    },
+    {
+      "source_family": "granicus_public_pages",
+      "signup_or_key_link": "none_required",
+      "free_status": "free_public",
+      "api_or_raw_confirmed": "not_confirmed",
+      "sample_endpoint_or_file_url": "https://johnscreekga.granicus.com/ViewPublisher.php?view_id=1",
+      "auth_required": "no",
+      "recommendation": "scrape_reader_lane"
+    },
+    {
+      "source_family": "civicplus_agenda_center",
+      "signup_or_key_link": "none_required",
+      "free_status": "free_public",
+      "api_or_raw_confirmed": "raw_public_file",
+      "sample_endpoint_or_file_url": "https://www.saratoga.ca.us/AgendaCenter/ViewFile/Minutes/_05142025-1333",
+      "auth_required": "no",
+      "recommendation": "scrape_reader_lane"
+    }
+  ]
+}
