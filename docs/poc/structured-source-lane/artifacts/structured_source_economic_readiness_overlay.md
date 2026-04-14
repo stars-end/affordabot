@@ -2,7 +2,7 @@
 
 - feature_key: `bd-2agbe.1`
 - verifier_version: `2026-04-14.structured-source-overlay-v1`
-- generated_at: `2026-04-14T16:51:39.732610+00:00`
+- generated_at: `2026-04-14T17:17:55.509548+00:00`
 - probe_report: `docs/poc/structured-source-lane/artifacts/structured_source_lane_poc_report.json`
 
 ## No-Key Scope Verdict

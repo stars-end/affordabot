@@ -1,0 +1,293 @@
+{
+  "feature_key": "bd-2agbe.10",
+  "poc_version": "2026-04-14.structured-economic-handoff.v1",
+  "mode": "replay",
+  "generated_at": "2026-04-14T17:17:51.808794+00:00",
+  "cases": [
+    {
+      "case_id": "case_direct_fiscal_quantified_pass",
+      "description": "Structured fiscal note + ordinance packet support quantified direct-fiscal estimate.",
+      "mechanism_family": "direct_fiscal",
+      "expected_outcome": "quantified_pass",
+      "final_verdict": "quantified_pass",
+      "blocking_gate": null,
+      "gate_results": {
+        "source_access": {
+          "passed": true,
+          "reason": "official_structured_source_reachable",
+          "details": {
+            "provider": "legistar_sanjose",
+            "sample_pull_without_browser": true,
+            "official_domain": true
+          }
+        },
+        "reader_substance": {
+          "passed": true,
+          "reason": "artifact_has_substance",
+          "details": {
+            "artifact_kind": "staff_report_pdf",
+            "parsed_char_count": 4180,
+            "boilerplate_ratio": 0.11
+          }
+        },
+        "evidence_card_extraction": {
+          "passed": true,
+          "reason": "evidence_cards_linked_to_artifacts",
+          "details": {
+            "valid_card_ids": [
+              "ev-1",
+              "ev-2"
+            ],
+            "evidence_card_count": 2
+          }
+        },
+        "parameterization": {
+          "passed": true,
+          "reason": "required_parameters_resolved",
+          "details": {
+            "resolved_parameters": [
+              "affected_households",
+              "annual_cost_usd"
+            ],
+            "missing_parameters": []
+          }
+        },
+        "assumption_selection": {
+          "passed": true,
+          "reason": "no_assumption_needed_all_parameters_resolved",
+          "details": {
+            "assumption_id": null
+          }
+        },
+        "deterministic_quantification": {
+          "passed": true,
+          "reason": "deterministic_formula_executed",
+          "details": {
+            "formula_id": "direct_fiscal_per_household_v1",
+            "scenario_bounds": {
+              "p10": 270.0,
+              "p50": 300.0,
+              "p90": 330.0,
+              "unit": "usd_per_household_per_year"
+            },
+            "arithmetic_valid": true
+          }
+        },
+        "llm_explanation_guardrail": {
+          "passed": true,
+          "reason": "claims_bound_to_structured_evidence",
+          "details": {
+            "violations": [],
+            "claim_count": 1
+          }
+        },
+        "persistence_read_model": {
+          "passed": true,
+          "reason": "pipeline_write_and_read_model_contract_present",
+          "details": {
+            "pipeline_runs_write": true,
+            "pipeline_steps_write": true,
+            "read_model_endpoint": true,
+            "evidence_endpoint": true
+          }
+        },
+        "orchestration_boundary": {
+          "passed": true,
+          "reason": "boundary_preserved_backend_owns_business_logic",
+          "details": {
+            "windmill_role": "dag_control_only",
+            "backend_role": "domain_commands_and_gates",
+            "product_logic_in_windmill": false
+          }
+        }
+      }
+    },
+    {
+      "case_id": "case_local_control_fail_closed_insufficient",
+      "description": "Local control text is accessible but lacks numeric evidence for compliance-cost quantification.",
+      "mechanism_family": "compliance_cost",
+      "expected_outcome": "fail_closed",
+      "final_verdict": "fail_closed",
+      "blocking_gate": "parameterization",
+      "gate_results": {
+        "source_access": {
+          "passed": true,
+          "reason": "official_structured_source_reachable",
+          "details": {
+            "provider": "legistar_sanjose",
+            "sample_pull_without_browser": true,
+            "official_domain": true
+          }
+        },
+        "reader_substance": {
+          "passed": true,
+          "reason": "artifact_has_substance",
+          "details": {
+            "artifact_kind": "minutes_html",
+            "parsed_char_count": 2760,
+            "boilerplate_ratio": 0.18
+          }
+        },
+        "evidence_card_extraction": {
+          "passed": true,
+          "reason": "evidence_cards_linked_to_artifacts",
+          "details": {
+            "valid_card_ids": [
+              "ev-10"
+            ],
+            "evidence_card_count": 1
+          }
+        },
+        "parameterization": {
+          "passed": false,
+          "reason": "required_parameters_missing",
+          "details": {
+            "resolved_parameters": [],
+            "missing_parameters": [
+              "hours_per_case",
+              "loaded_hourly_wage_usd"
+            ]
+          }
+        },
+        "assumption_selection": {
+          "passed": false,
+          "reason": "no_assumption_profile_match_for_tags=['capital_project', 'one_time_buildout']",
+          "details": {
+            "missing_parameters": [
+              "hours_per_case",
+              "loaded_hourly_wage_usd"
+            ],
+            "assumption_id": null
+          }
+        },
+        "deterministic_quantification": {
+          "passed": false,
+          "reason": "quantification_blocked_by_parameter_and_assumption_gates",
+          "details": {
+            "scenario_bounds": null,
+            "formula_id": null
+          }
+        },
+        "llm_explanation_guardrail": {
+          "passed": false,
+          "reason": "llm_claim_guardrail_violation",
+          "details": {
+            "violations": [
+              "claim_1_missing_or_unbound_evidence_refs",
+              "claim_1_numeric_basis_not_declared"
+            ],
+            "claim_count": 1
+          }
+        },
+        "persistence_read_model": {
+          "passed": true,
+          "reason": "pipeline_write_and_read_model_contract_present",
+          "details": {
+            "pipeline_runs_write": true,
+            "pipeline_steps_write": true,
+            "read_model_endpoint": true,
+            "evidence_endpoint": true
+          }
+        },
+        "orchestration_boundary": {
+          "passed": true,
+          "reason": "boundary_preserved_backend_owns_business_logic",
+          "details": {
+            "windmill_role": "dag_control_only",
+            "backend_role": "domain_commands_and_gates",
+            "product_logic_in_windmill": false
+          }
+        }
+      }
+    }
+  ],
+  "summary": {
+    "total_cases": 2,
+    "quantified_pass_cases": 1,
+    "fail_closed_cases": 1,
+    "supports_decision_grade_handoff_in_replay": true,
+    "architecture_option_recommendation": "option_a",
+    "recommendation_reason": "Boundary proof supports Windmill DAG control with backend-owned domain gates/contracts; avoid Option C for core economics.",
+    "evidence_quality_note": "Replay-mode quantification is deterministic contract proof, not live production proof. Railway-dev rollout still requires live source/read/analysis runs with persisted artifact audits."
+  },
+  "code_path_citations": [
+    {
+      "topic": "Canonical pipeline orchestration and step execution",
+      "path": "backend/services/llm/orchestrator.py",
+      "lines": "205-211,256-268,633-658,666-676,1020-1049,2283-2373"
+    },
+    {
+      "topic": "Research service evidence envelopes + sufficiency",
+      "path": "backend/services/legislation_research.py",
+      "lines": "213-219,260-280,299-330,665-721,723-741"
+    },
+    {
+      "topic": "Deterministic evidence gate logic",
+      "path": "backend/services/llm/evidence_gates.py",
+      "lines": "1-5,211-247,249-260"
+    },
+    {
+      "topic": "Assumption registry applicability constraints",
+      "path": "backend/services/economic_assumptions.py",
+      "lines": "23-25,61-92,166-187"
+    },
+    {
+      "topic": "Structured economic artifact contracts",
+      "path": "backend/schemas/economic_evidence.py",
+      "lines": "45-55,68-83,84-112,114-134,136-164,173-195"
+    },
+    {
+      "topic": "Pipeline step persistence for audit/read-model",
+      "path": "backend/services/audit/logger.py",
+      "lines": "16-21,63-66,91-100"
+    },
+    {
+      "topic": "Pipeline run persistence table writes",
+      "path": "backend/db/postgres_client.py",
+      "lines": "253-267,278-289"
+    },
+    {
+      "topic": "Storage path raw_scrapes -> object -> chunks -> pgvector",
+      "path": "backend/services/ingestion_service.py",
+      "lines": "240-262,269-278,374-407"
+    },
+    {
+      "topic": "pgvector retrieval contract and filter semantics",
+      "path": "backend/services/retrieval/local_pgvector.py",
+      "lines": "20-28,64-73,84-91,169-176,214-220"
+    },
+    {
+      "topic": "Admin/glassbox read model + evidence endpoints",
+      "path": "backend/routers/admin.py",
+      "lines": "866-879,1268-1305,1346-1364,1373-1403"
+    },
+    {
+      "topic": "Frontend pipeline status/admin operator links",
+      "path": "frontend/src/components/admin/PipelineStatusPanel.tsx",
+      "lines": "32-38,58-66,107-115,199-215,219-230"
+    },
+    {
+      "topic": "Boundary options A/B/C source spec",
+      "path": "docs/specs/2026-04-14-economic-evidence-pipeline-lockdown.md",
+      "lines": "30-49"
+    }
+  ],
+  "recommended_extensions": [
+    {
+      "target": "backend/services/llm/orchestrator.py",
+      "change": "Emit structured artifact ids (EvidenceCard/ParameterCard/AssumptionCard/ModelCard) into pipeline step outputs and run result payload."
+    },
+    {
+      "target": "backend/routers/admin.py",
+      "change": "Extend /pipeline/runs/{run_id}/evidence to include parameter and assumption provenance, not only analysis citations."
+    },
+    {
+      "target": "backend/db/postgres_client.py",
+      "change": "Persist contract_version and artifact-count metrics on pipeline_runs for deterministic dashboard gating."
+    },
+    {
+      "target": "frontend/src/components/admin/PipelineStatusPanel.tsx",
+      "change": "Show gate-level blocking stage and structured artifact counts for operator audit decisions."
+    }
+  ]
+}

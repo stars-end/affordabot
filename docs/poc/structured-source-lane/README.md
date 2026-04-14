@@ -106,3 +106,22 @@ Proceed to implementation wave 1 only if:
 Current limitation: the live ArcGIS probe validates public ArcGIS REST mechanics and structured GIS attributes. It does not yet guarantee that the selected public layer is a zoning, parcel, or housing-capacity layer for San Jose. Treat that as adapter-catalog work before relying on ArcGIS for a specific policy mechanism.
 
 If any condition fails, do not expand adapters first. Fix boundary mapping and handoff contract first.
+
+## Breadth Audit Addendum (bd-2agbe.9)
+
+Structured breadth verifier:
+
+- [verify_structured_source_breadth_poc.py](/tmp/agents/bd-2agbe.1/affordabot/backend/scripts/verification/verify_structured_source_breadth_poc.py)
+
+Artifacts:
+
+- [structured_source_breadth_audit.json](/tmp/agents/bd-2agbe.1/affordabot/docs/poc/structured-source-lane/artifacts/structured_source_breadth_audit.json)
+- [structured_source_breadth_audit.md](/tmp/agents/bd-2agbe.1/affordabot/docs/poc/structured-source-lane/artifacts/structured_source_breadth_audit.md)
+
+Run:
+
+```bash
+cd /tmp/agents/bd-2agbe.1/affordabot
+python3 backend/scripts/verification/verify_structured_source_breadth_poc.py --mode replay --self-check
+python3 backend/scripts/verification/verify_structured_source_breadth_poc.py --mode live --self-check
+```

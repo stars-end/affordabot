@@ -1,0 +1,139 @@
+{
+  "feature_key": "bd-2agbe.9",
+  "artifact_version": "2026-04-14.structured-source-breadth.v1",
+  "mode": "live",
+  "generated_at": "2026-04-14T17:17:55.441749+00:00",
+  "candidates": [
+    {
+      "source_family": "legistar_sanjose",
+      "jurisdiction_scope": "city_san_jose",
+      "signup_or_key_link": "none_required",
+      "free_status": "free_public",
+      "api_or_raw_confirmed": "api",
+      "sample_endpoint_or_file_url": "https://webapi.legistar.com/v1/sanjose/matters?$top=3",
+      "auth_required": "no",
+      "recommendation": "structured_lane",
+      "policy_mechanism_relevance": "direct_fiscal",
+      "live_probe_status": "pass",
+      "evidence_summary": "rows=3, keys_present=True",
+      "downstream_economic_usefulness": "high"
+    },
+    {
+      "source_family": "ca_pubinfo_leginfo",
+      "jurisdiction_scope": "state_california",
+      "signup_or_key_link": "none_required",
+      "free_status": "free_public",
+      "api_or_raw_confirmed": "raw_official_file",
+      "sample_endpoint_or_file_url": "https://downloads.leginfo.legislature.ca.gov/pubinfo_daily_Mon.zip",
+      "auth_required": "no",
+      "recommendation": "structured_lane",
+      "policy_mechanism_relevance": "land_use_capacity",
+      "live_probe_status": "pass",
+      "evidence_summary": "root_head=200, daily_head=200",
+      "downstream_economic_usefulness": "high"
+    },
+    {
+      "source_family": "arcgis_public_gis_dataset",
+      "jurisdiction_scope": "regional_public_gis",
+      "signup_or_key_link": "none_required",
+      "free_status": "free_public",
+      "api_or_raw_confirmed": "api",
+      "sample_endpoint_or_file_url": "https://services2.arcgis.com/9KdAx8qBsHiGXOEw/arcgis/rest/services/NFHL_Flood_Hazard_Zones_Dissolve/FeatureServer",
+      "auth_required": "no",
+      "recommendation": "structured_lane",
+      "policy_mechanism_relevance": "contextual_only",
+      "live_probe_status": "pass",
+      "evidence_summary": "selected_title='NFHL Flood Hazard Zones'; policy_specific_match=False. ArcGIS probe confirms public GIS API mechanics; policy-specific San Jose zoning/parcel/housing may require tighter curation.",
+      "downstream_economic_usefulness": "medium"
+    },
+    {
+      "source_family": "ca_ckan_open_data_catalog",
+      "jurisdiction_scope": "state_california",
+      "signup_or_key_link": "none_required",
+      "free_status": "free_public",
+      "api_or_raw_confirmed": "api",
+      "sample_endpoint_or_file_url": "https://data.ca.gov/api/3/action/package_search?rows=3&q=housing+zoning+permit",
+      "auth_required": "no",
+      "recommendation": "structured_lane",
+      "policy_mechanism_relevance": "household_affordability",
+      "live_probe_status": "pass",
+      "evidence_summary": "package_count=20",
+      "downstream_economic_usefulness": "medium"
+    },
+    {
+      "source_family": "public_opendatasoft_catalog",
+      "jurisdiction_scope": "multi_jurisdiction",
+      "signup_or_key_link": "none_required",
+      "free_status": "free_public",
+      "api_or_raw_confirmed": "api",
+      "sample_endpoint_or_file_url": "https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets?limit=1",
+      "auth_required": "no",
+      "recommendation": "backlog",
+      "policy_mechanism_relevance": "unknown",
+      "live_probe_status": "pass",
+      "evidence_summary": "catalog_total_count=406; API reachable, but local policy-specific dataset binding not done.",
+      "downstream_economic_usefulness": "low"
+    },
+    {
+      "source_family": "official_static_xlsx_census",
+      "jurisdiction_scope": "national_context",
+      "signup_or_key_link": "none_required",
+      "free_status": "free_public",
+      "api_or_raw_confirmed": "raw_public_file",
+      "sample_endpoint_or_file_url": "https://www2.census.gov/programs-surveys/metro-micro/geographies/reference-files/2023/delineation-files/list1_2023.xlsx",
+      "auth_required": "no",
+      "recommendation": "backlog",
+      "policy_mechanism_relevance": "contextual_only",
+      "live_probe_status": "pass",
+      "evidence_summary": "http_status=206",
+      "downstream_economic_usefulness": "low"
+    },
+    {
+      "source_family": "socrata_open_data_portals",
+      "jurisdiction_scope": "city_county_varies",
+      "signup_or_key_link": "https://dev.socrata.com/",
+      "free_status": "free_tier_key_optional_limits",
+      "api_or_raw_confirmed": "api",
+      "sample_endpoint_or_file_url": "https://dev.socrata.com/foundry/data.sanjoseca.gov/example",
+      "auth_required": "no_key_for_small_queries_but_key_recommended",
+      "recommendation": "backlog",
+      "policy_mechanism_relevance": "direct_fiscal",
+      "live_probe_status": "not_run",
+      "evidence_summary": "Explicitly excluded from this POC by user decision: no Socrata signup at this time.",
+      "downstream_economic_usefulness": "high"
+    },
+    {
+      "source_family": "granicus_agenda_portals",
+      "jurisdiction_scope": "city_county_varies",
+      "signup_or_key_link": "none_required",
+      "free_status": "free_public",
+      "api_or_raw_confirmed": "not_confirmed",
+      "sample_endpoint_or_file_url": "https://johnscreekga.granicus.com/ViewPublisher.php?view_id=1",
+      "auth_required": "no",
+      "recommendation": "scrape_reader_lane",
+      "policy_mechanism_relevance": "compliance_cost",
+      "live_probe_status": "not_run",
+      "evidence_summary": "Portal-first HTML/PDF source; classify into scrape+reader lane.",
+      "downstream_economic_usefulness": "medium"
+    }
+  ],
+  "summary": {
+    "total_candidates": 8,
+    "by_recommendation": {
+      "structured_lane": 4,
+      "backlog": 3,
+      "scrape_reader_lane": 1
+    },
+    "by_live_probe_status": {
+      "pass": 6,
+      "not_run": 2
+    },
+    "wave1_structured_feeds": [
+      "legistar_sanjose",
+      "ca_pubinfo_leginfo",
+      "arcgis_public_gis_dataset",
+      "ca_ckan_open_data_catalog"
+    ],
+    "notes": "ArcGIS confirms public GIS API mechanics. Policy-specific zoning/parcel/housing coverage still needs catalog curation before production reliance."
+  }
+}

@@ -2,7 +2,7 @@
 
 - Feature key: `bd-2agbe.1`
 - Version: `2026-04-14.structured-source-lane.v1`
-- Generated at: `2026-04-14T16:51:39.643083+00:00`
+- Generated at: `2026-04-14T17:17:55.427476+00:00`
 
 ## Summary
 
