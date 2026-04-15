@@ -148,6 +148,7 @@ Acceptance:
 - Distinguishes source-bound assumptions from hard-coded or generic assumptions.
 - Identifies which assumptions can support direct costs, indirect mechanisms, and secondary-research analysis.
 - Produces a literature-to-`AssumptionCard`/`ModelCard` migration recommendation.
+- Reconciles existing `WAVE2_PASS_THROUGH_LITERATURE` and `WAVE2_ADOPTION_ANALOGS` values with new `AssumptionCard` profiles before downstream implementation.
 - Flags stale, unsupported, over-generalized, duplicated, or non-applicable assumptions.
 
 ### `bd-3wefe.1`: Spec: canonical PolicyEvidencePackage contract and quality taxonomy
@@ -160,6 +161,7 @@ Acceptance:
 
 - Defines `PolicyEvidencePackage`, source/evidence/parameter/assumption/model relationships, failure codes, source roles, freshness, schema/versioning, and what must be true before analysis runs.
 - Incorporates `bd-3wefe.9` findings so the contract extends existing code paths rather than inventing parallel schemas.
+- Explicitly declares whether `GateReport` replaces, wraps, or composes the existing `SufficiencyBreakdown` / `ImpactGateSummary` / `SufficiencyState` path; no dual authoritative gate taxonomy is allowed.
 
 ### `bd-3wefe.2`: POC: scraped/SearXNG evidence quality package samples
 
@@ -174,6 +176,7 @@ Acceptance:
 - Shows whether each sample can support economic parameters without LLM invention.
 - Reports metric-based quality by provider/query family: top-N artifact recall, official-domain hit rate, first-artifact rank, backend selected candidate, portal-skip decisions, reader-substance pass rate, numeric parameter signal rate, fallback trigger rate, latency, and failure class.
 - Treats "provider found a relevant-looking URL" as insufficient unless the selected/read artifact survives the reader and evidence-card gates.
+- Requires provider identity to survive into result/candidate artifacts so SearXNG, Tavily, Exa, and fallback behavior can be audited after ranking and reading.
 
 ### `bd-3wefe.3`: POC: structured source evidence quality package samples
 
@@ -199,6 +202,7 @@ Acceptance:
 - Produces versioned packages with canonical document identity, source provenance, dedupe groups, retrieval/read status, evidence cards, freshness, and explicit insufficiency reasons.
 - Handles both scraped and structured inputs through one backend-owned contract.
 - Validates package output against backend-owned schemas where available.
+- Reuses existing `ImpactMode`, `SourceTier`, sufficiency gate, and evidence adapter concepts unless `bd-3wefe.9` identifies a concrete replacement reason.
 - Emits storage references for raw provider responses, raw/read artifacts, derived chunks, cards, gate reports, and final analysis payloads, but does not claim storage correctness until `bd-3wefe.10` passes.
 
 ### `bd-3wefe.10`: POC: storage persistence and read-model proof for evidence packages
@@ -210,6 +214,7 @@ Prove that the unified evidence package is durably stored and auditable through 
 Acceptance:
 
 - Proves package rows, cards, gate reports, and run metadata persist in Postgres.
+- Proves `EvidenceCard`, `ParameterCard`, `AssumptionCard`, `ModelCard`, and `GateReport` either have explicit tables or a documented, queryable JSONB storage contract over existing tables.
 - Proves MinIO objects referenced by `storage_uri` and `content_hash` are readable through the actual storage client.
 - Proves pgvector chunks are derived from canonical artifacts and are not treated as source of truth.
 - Proves admin/read API output exposes package status, blocking gate, evidence/parameter/assumption/model cards, source provenance, and storage refs.
@@ -241,6 +246,7 @@ Acceptance:
 - Emits pass/fail and blocking gate for completeness, parameter readiness, assumption needs, source support, uncertainty, and unsupported-claim risk.
 - Includes positive and fail-closed examples.
 - Runs against persisted/read-back packages from `bd-3wefe.10`, not only in-memory fixtures.
+- Enforces assumption staleness metadata; stale assumptions must warn or fail closed according to the package contract.
 
 ### `bd-3wefe.6`: POC: direct and indirect economic mechanisms plus secondary research
 
