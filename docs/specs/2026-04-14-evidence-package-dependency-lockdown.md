@@ -117,6 +117,16 @@ scheduled end-to-end DAG:
 Therefore the next product implementation must focus on the evidence-package to
 canonical-economic-analysis handoff, not only on upstream search/source quality.
 
+Strategic quality-spine correction:
+
+The epic is not complete when the individual architecture pieces pass in
+isolation. The product claim is only tested when one real local policy artifact
+flows through scraped discovery, structured enrichment, package construction,
+persistence/read-back, sufficiency gating, canonical economic analysis, and
+admin/frontend-readable output. `bd-3wefe.13` is therefore the hard architecture
+lock blocker. It is the decisive proof that the data moat can drive the final
+economic-analysis product, not just that the pipeline components can run.
+
 ## Quality Questions Mapped To Beads
 
 | User question | Beads task | Required output |
@@ -133,6 +143,7 @@ canonical-economic-analysis handoff, not only on upstream search/source quality.
 | Can the economic engine handle direct and indirect costs? | `bd-3wefe.6` | Direct, indirect, and secondary-research-required cases with quantitative-analysis rubric |
 | Can the engine use a secondary web research package? | `bd-3wefe.6` | Secondary package contract and consumption evidence |
 | Are we duplicating existing code paths? | `bd-3wefe.7` | Brownfield map and duplication/consolidation recommendations |
+| Can the whole system produce decision-grade output from real data? | `bd-3wefe.13` | Real quality-spine proof from scraped+structured package to persisted economic analysis and admin/frontend-readable output |
 
 ## Dependency Graph
 
@@ -149,6 +160,7 @@ flowchart TD
     T5["bd-3wefe.5 POC: economic sufficiency gate"]
     T6["bd-3wefe.6 POC: mechanisms + secondary research"]
     T7["bd-3wefe.7 Audit: brownfield map"]
+    T13["bd-3wefe.13 POC: real quality spine"]
     T8["bd-3wefe.8 Review: architecture decision"]
 
     T9 --> T11
@@ -171,8 +183,15 @@ flowchart TD
     T12 --> T8
     T5 --> T6
     T5 --> T8
-    T6 --> T8
-    T7 --> T8
+    T2 --> T13
+    T3 --> T13
+    T4 --> T13
+    T10 --> T13
+    T12 --> T13
+    T5 --> T13
+    T6 --> T13
+    T7 --> T13
+    T13 --> T8
 ```
 
 ## Beads Epic
@@ -189,6 +208,9 @@ Acceptance:
 - Windmill orchestration proof exists for both scraped and structured lanes.
 - Economic handoff sufficiency is tested with positive and fail-closed examples.
 - Direct, indirect, and secondary-research cases are tested.
+- A real quality-spine POC proves or falsifies scraped+structured evidence
+  package quality against canonical economic analysis and admin/frontend-readable
+  output.
 - Existing stack usage and duplication are audited by dx-review and a brownfield map.
 - External review can evaluate a complete evidence-backed architecture recommendation.
 - Brownfield map and economic-literature inventory exist, include stale-if paths, and are treated as required reading for downstream pipeline/economic-analysis work.
@@ -368,6 +390,93 @@ Acceptance:
 - Every mapped row must include owner boundary, status (`canonical`, `canonical-new`, `POC`, `deprecated`, `duplicate`, or `unknown`), primary code paths, storage/read model, required tests/proofs, and stale-if paths.
 - Emits a final "new work routing rule" stating where future agents must look before changing scraped ingestion, structured ingestion, evidence package schemas, economic assumptions, Windmill flows, storage, admin APIs, or frontend display.
 
+### `bd-3wefe.13`: POC: real quality spine from local policy evidence to economic output
+
+Purpose:
+
+Prove or falsify the central product claim with one real local policy artifact:
+Affordabot can combine scraped evidence and structured data into a durable
+package that is good enough for source-grounded, economically useful
+cost-of-living analysis and human audit.
+
+Scope:
+
+- Use a real policy artifact, not an invented toy case. San Jose remains the
+  preferred jurisdiction because the prior work has search/provider evidence,
+  but the selected artifact must be real and must have an economically plausible
+  direct or indirect mechanism.
+- The package must include both scraped/reader evidence and structured metadata
+  where structured data is available. If structured enrichment is unavailable
+  for the selected artifact, the task must record the source-family failure and
+  either pick a better real artifact or fail the quality-spine gate.
+- The proof must traverse the production-intended boundary: Windmill
+  orchestrates, backend owns ranking/package/economic logic, Postgres stores
+  relational/read-model truth, MinIO stores raw/intermediate artifacts, pgvector
+  stores derived chunks, and frontend/admin reads without recomputing truth.
+
+Implementation-ready two-agent split:
+
+- Agent A owns data moat and runtime path:
+  select the real artifact, run scraped discovery/reader, attach structured
+  metadata, build the `PolicyEvidencePackage`, persist/read back storage refs,
+  prove idempotent replay, and capture Windmill/backend run ids.
+- Agent B owns economic product and audit output:
+  consume the persisted/read-back package, run or adapt the canonical
+  `AnalysisPipeline`/`LegislationResearchService` path, produce the sufficiency
+  gate report, mechanism graph, parameter/assumption/model cards, final
+  user-facing economic output, and admin/frontend-readable evidence output.
+- The orchestrator must reconcile Agent A and Agent B outputs into one scorecard
+  and one architecture recommendation. Agent B may start against Agent A's
+  checked-in fixture contract, but the final pass must use Agent A's persisted
+  package artifact.
+
+Acceptance:
+
+- End-to-end evidence:
+  one real artifact has a recorded source trace from search/structured inputs to
+  selected candidate, reader output, evidence cards, package id, storage refs,
+  sufficiency gate, economic analysis, and read-model/frontend/admin output.
+- Source support:
+  every factual claim in the final analysis traces to one or more evidence cards;
+  every economic claim traces to a parameter card, assumption card, model card,
+  or explicitly cited secondary-research package.
+- Data moat:
+  scraped and structured inputs are deduped under one canonical document identity
+  with jurisdiction, source family, provider, freshness, content hash, storage
+  uri, and provenance preserved through read-back.
+- Economic analysis:
+  output includes a mechanism graph, direct/indirect impact classification,
+  parameter table with units and ranges, source-bound assumptions,
+  low/base/high or sensitivity range, uncertainty notes, unsupported-claim
+  rejection, and a user-facing cost-of-living conclusion.
+- Fail-closed behavior:
+  if any required evidence, storage, structured enrichment, or economic parameter
+  is insufficient, the final output must decline quantitative claims and explain
+  the blocking gate rather than fill gaps with hidden LLM assumptions.
+- Storage/runtime:
+  the proof distinguishes deterministic/local fixture success from live
+  Railway/Windmill/storage success. Any private-network or credential blocker is
+  recorded as a blocker with exact command, environment, and remediation, not as
+  a pass.
+- Display/audit:
+  admin/frontend-readable output exposes package status, blocking gate, evidence
+  and parameter cards, assumptions, storage refs, uncertainty, and final analysis
+  without recomputing backend truth.
+- Scorecard:
+  produces a machine-readable and Markdown scorecard classifying each failure or
+  weakness as one of: scraped/search quality, reader quality, structured-source
+  coverage, identity/dedupe, storage/read-back, Windmill/orchestration,
+  sufficiency gate, economic reasoning, LLM narrative, or frontend/read-model
+  auditability.
+
+Required artifacts:
+
+- `docs/poc/policy-evidence-quality-spine/README.md`
+- `docs/poc/policy-evidence-quality-spine/artifacts/quality_spine_scorecard.json`
+- `docs/poc/policy-evidence-quality-spine/artifacts/quality_spine_report.md`
+- Updated brownfield map and economic-literature inventory if new canonical,
+  duplicate, stale, or unsupported paths are discovered.
+
 ### `bd-3wefe.8`: Review: architecture decision after package POCs
 
 Purpose:
@@ -376,7 +485,9 @@ Only after evidence exists, run internal/external review and lock the next imple
 
 Acceptance:
 
-- Review package includes this spec, POC outputs, brownfield audit, decision matrix, recommended architecture, unresolved risks, and reviewer feedback.
+- Review package includes this spec, POC outputs, the real quality-spine
+  scorecard, brownfield audit, decision matrix, recommended architecture,
+  unresolved risks, and reviewer feedback.
 - Requires two-provider `dx-review` quorum for architecture lock, or an explicit documented exception with failed-lane logs, failure class, and a re-run attempt after auth/tooling remediation.
 
 ## Blocking Edges
@@ -403,8 +514,15 @@ Hard blockers:
 - `bd-3wefe.12` blocks `bd-3wefe.8`
 - `bd-3wefe.5` blocks `bd-3wefe.6`
 - `bd-3wefe.5` blocks `bd-3wefe.8`
-- `bd-3wefe.6` blocks `bd-3wefe.8`
-- `bd-3wefe.7` blocks `bd-3wefe.8`
+- `bd-3wefe.2` blocks `bd-3wefe.13`
+- `bd-3wefe.3` blocks `bd-3wefe.13`
+- `bd-3wefe.4` blocks `bd-3wefe.13`
+- `bd-3wefe.10` blocks `bd-3wefe.13`
+- `bd-3wefe.12` blocks `bd-3wefe.13`
+- `bd-3wefe.5` blocks `bd-3wefe.13`
+- `bd-3wefe.6` blocks `bd-3wefe.13`
+- `bd-3wefe.7` blocks `bd-3wefe.13`
+- `bd-3wefe.13` blocks `bd-3wefe.8`
 
 Required first step:
 
@@ -423,6 +541,16 @@ For a two-agent wave after `bd-3wefe.9`, run:
 - Agent A: `bd-3wefe.11`, then `bd-3wefe.1` once literature findings are clear.
 - Agent B: `bd-3wefe.2` and `bd-3wefe.3` as source-quality evidence work.
 Then run `bd-3wefe.7` as the brownfield consolidation task informed by all review/source outputs.
+
+Final two-agent quality-spine wave:
+
+- Agent A: `bd-3wefe.13` data moat/runtime slice. Owns real artifact selection,
+  scraped plus structured evidence, package construction, storage/read-back,
+  idempotency, Windmill/backend ids, and source-quality failure classification.
+- Agent B: `bd-3wefe.13` economic product/display slice. Owns persisted-package
+  consumption, canonical economic-analysis handoff, sufficiency/mechanism output,
+  unsupported-claim behavior, final analysis, and admin/frontend-readable audit
+  proof.
 
 ## Validation Gates
 
@@ -444,6 +572,10 @@ Before `bd-3wefe.8` can recommend architecture lock:
 - Secondary research: research package is explicitly separate from first-pass policy artifact gathering.
 - Brownfield map: implementation plan extends existing code rather than duplicating POC scripts.
 - Final analysis: output includes mechanism graph, parameter table, source-bound assumptions, uncertainty/sensitivity, unsupported-claim checks, and cost-of-living conclusion.
+- Quality spine: one real local policy artifact traverses scraped plus
+  structured evidence, package build, persistence/read-back, Windmill/backend
+  orchestration evidence, sufficiency, canonical economic analysis, and
+  admin/frontend-readable output with a scorecard showing pass/fail by subsystem.
 - Review readiness: artifacts are sufficient for dx-review/external consultant evaluation with two-provider quorum or a documented exception.
 - Memory readiness: the brownfield map and economic-literature inventory have been updated from the latest audit/POC results and contain stale-if paths for every major pipeline subsystem.
 
@@ -461,6 +593,7 @@ Before `bd-3wefe.8` can recommend architecture lock:
 - Future `bd-3wefe.9` dx-review code-audit artifact
 - Future `bd-3wefe.11` economic-literature audit artifact
 - Future `bd-3wefe.12` Windmill orchestration proof artifact
+- Future `bd-3wefe.13` quality-spine scorecard and report
 
 ## Non-Goals
 
@@ -473,4 +606,4 @@ Before `bd-3wefe.8` can recommend architecture lock:
 
 Start with the current `bd-3wefe.9` audit artifacts and the manual fresh-eyes trace captured in the brownfield map, because they determine what already exists in the codebase and prevent the next contract from duplicating working pipeline pieces.
 
-After `bd-3wefe.9`, run `bd-3wefe.11` plus `bd-3wefe.2`/`bd-3wefe.3` evidence collection. Keep `bd-3wefe.1` aware of both code-review and literature findings, keep `bd-3wefe.4` blocked until source/spec inputs are complete, keep `bd-3wefe.5` blocked until `bd-3wefe.10` and `bd-3wefe.12` prove persisted/read-back package storage and Windmill orchestration, and keep `bd-3wefe.6` blocked until package sufficiency and literature audit both pass. The next implementation wave should prioritize `PolicyEvidencePackage` -> canonical economic-analysis handoff proof over additional isolated provider bakeoffs.
+After `bd-3wefe.9`, run `bd-3wefe.11` plus `bd-3wefe.2`/`bd-3wefe.3` evidence collection. Keep `bd-3wefe.1` aware of both code-review and literature findings, keep `bd-3wefe.4` blocked until source/spec inputs are complete, keep `bd-3wefe.5` blocked until `bd-3wefe.10` and `bd-3wefe.12` prove persisted/read-back package storage and Windmill orchestration, and keep `bd-3wefe.6` blocked until package sufficiency and literature audit both pass. Before `bd-3wefe.8`, run `bd-3wefe.13` as the decisive two-agent quality-spine proof. The next implementation wave should prioritize a real `PolicyEvidencePackage` -> canonical economic-analysis -> admin/frontend-readable output proof over additional isolated provider bakeoffs.
