@@ -1,16 +1,16 @@
 {
   "attempt_metadata": {
     "after_score": 75.33,
-    "attempt_id": "bd-3wefe.13-retry-1",
+    "attempt_id": "bd-3wefe.13-retry-3",
     "before_score": 75.33,
     "dominant_failure_class": "none",
     "quality_threshold": 75.0,
-    "retry_round": 1,
+    "retry_round": 3,
     "stop_continue_decision": "stop",
-    "targeted_tweak": "source_bound_model_card_projection"
+    "targeted_tweak": "strict_data_runtime_proof_fields"
   },
   "feature_key": "bd-3wefe.13",
-  "generated_at": "2026-04-15T18:20:09.738510+00:00",
+  "generated_at": "2026-04-15T18:37:54.895434+00:00",
   "live_probe": {
     "reason": "live_mode_off",
     "status": "skipped"
@@ -25,6 +25,36 @@
       "fail_closed": 1,
       "quantified_ready": 5
     }
+  },
+  "orchestration_proof": {
+    "backend_command_id": null,
+    "blocker": "windmill_proof_not_linked_to_current_vertical_package",
+    "historical_stub_flow_proof": {
+      "backend_endpoint_package_id": "pkg-local-backend-endpoint",
+      "feature_key": "bd-3wefe.12",
+      "generated_at": "2026-04-15T00:00:00+00:00",
+      "live_status": "passed_stub_flow_run",
+      "local_backend_endpoint_status": "passed",
+      "local_status": "passed",
+      "report_version": "2026-04-15.policy-evidence-package-windmill.v2",
+      "stub_run_result": {
+        "gate_status": "quantified",
+        "package_id": "pkg-bd-3wefe-verifier-stub",
+        "package_readiness_status": "ready",
+        "reason": "package_ready",
+        "retry_class": "none",
+        "status": "succeeded"
+      }
+    },
+    "linked_to_current_vertical_package": false,
+    "package_id": "pkg-sj-parking-minimum-amendment",
+    "proof_mode": "historical_stub_flow_proof",
+    "proof_status": "not_proven",
+    "source": "docs/poc/policy-evidence-package-windmill/artifacts/policy_evidence_package_windmill_orchestration_report.json",
+    "verifier_attempt": "not_attempted",
+    "windmill_flow_path": "f/affordabot/policy_evidence_package_orchestration__flow",
+    "windmill_job_id": null,
+    "windmill_run_id": null
   },
   "package_build": {
     "canonical_document_key": "san_jose_ca::sj-parking-minimum-amendment",
@@ -41,8 +71,8 @@
     "artifact_readback_status": "proven",
     "artifact_write_status": "succeeded",
     "canonical_document_key": "san_jose_ca::sj-parking-minimum-amendment",
-    "content_hash": "b9a4e9110b6c69fb9ec5a1196ae93919dfa2073420b5cebe7c91692c1564f280",
-    "created_at": "2026-04-15T18:20:09.738389+00:00",
+    "content_hash": "883c7cf900f1d307ebff004698afa0527556f146c5f51d84e70f1a5a3f9837b1",
+    "created_at": "2026-04-15T18:37:54.894980+00:00",
     "economic_handoff_ready": true,
     "fail_closed": false,
     "gate_state": "quantified",
@@ -107,7 +137,7 @@
         }
       ],
       "canonical_document_key": "san_jose_ca::sj-parking-minimum-amendment",
-      "created_at": "2026-04-15T18:20:09.735710Z",
+      "created_at": "2026-04-15T18:37:54.894054Z",
       "economic_handoff_ready": true,
       "evidence_cards": [
         {
@@ -322,15 +352,21 @@
         "uri": null
       }
     ],
-    "updated_at": "2026-04-15T18:20:09.738389+00:00"
+    "updated_at": "2026-04-15T18:37:54.894980+00:00"
   },
   "storage_readback": {
     "artifact_readback_status": "proven",
+    "artifact_store_mode": "in_memory_artifact_writer",
     "artifact_write_status": "succeeded",
     "fail_closed": false,
     "failure_class": null,
     "idempotent_reuse": false,
+    "proof_blocker": "real_postgres_minio_not_exercised_in_deterministic_harness",
+    "proof_status": "in_memory_only",
+    "real_postgres_minio_proven": false,
     "record_present": true,
+    "storage_backend": "in_memory_policy_evidence_store",
+    "storage_mode": "in_memory",
     "stored": true
   },
   "vertical_candidate": {
@@ -393,7 +429,7 @@
       }
     ],
     "canonical_document_key": "san_jose_ca::sj-parking-minimum-amendment",
-    "created_at": "2026-04-15T18:20:09.735710Z",
+    "created_at": "2026-04-15T18:37:54.894054Z",
     "economic_handoff_ready": true,
     "evidence_cards": [
       {
@@ -577,5 +613,18 @@
         "source_family": "legistar"
       }
     ]
+  },
+  "vertical_selected_artifact_quality": {
+    "metric_source": "fixture_selected_path",
+    "provider_quality_score": 100.0,
+    "provider_quality_status": "pass",
+    "provider_quality_threshold": 70.0,
+    "reader_substance_status": "passed",
+    "selected_artifact_artifact_grade": true,
+    "selected_artifact_is_portal": false,
+    "selected_artifact_official_domain": true,
+    "selected_artifact_provider": "tavily",
+    "selected_artifact_rank": 1,
+    "selected_artifact_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13050001&GUID=PK-1"
   }
 }

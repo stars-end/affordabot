@@ -4,7 +4,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
+import json
+import subprocess
+import sys
 from statistics import mean
+from pathlib import Path
 from typing import Any
 
 from schemas.analysis import ScenarioBounds
@@ -21,6 +25,17 @@ READINESS_QUANTIFIED = "quantified_ready"
 READINESS_SECONDARY = "secondary_research_needed"
 READINESS_QUAL = "qualitative_only"
 READINESS_FAIL = "fail_closed"
+
+REPO_ROOT = Path(__file__).resolve().parents[3]
+BACKEND_ROOT = REPO_ROOT / "backend"
+WINDMILL_ORCHESTRATION_REPORT = (
+    REPO_ROOT
+    / "docs"
+    / "poc"
+    / "policy-evidence-package-windmill"
+    / "artifacts"
+    / "policy_evidence_package_windmill_orchestration_report.json"
+)
 
 
 def _attach_quality_spine_model(package_payload: dict[str, Any], *, mechanism_family: str) -> dict[str, Any]:
@@ -66,6 +81,104 @@ def _attach_quality_spine_model(package_payload: dict[str, Any], *, mechanism_fa
         }
     ]
     return package_payload
+
+
+def _safe_load_json(path: Path) -> dict[str, Any] | None:
+    if not path.exists():
+        return None
+    try:
+        loaded = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return loaded if isinstance(loaded, dict) else None
+
+
+def _maybe_refresh_windmill_report(live_mode: str) -> tuple[str, str | None]:
+    if live_mode != "auto":
+        return "not_attempted", None
+
+    cmd = [
+        sys.executable,
+        "scripts/verification/verify_policy_evidence_package_windmill_orchestration.py",
+    ]
+    try:
+        proc = subprocess.run(
+            cmd,
+            cwd=str(BACKEND_ROOT),
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=30,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return "attempted", "windmill_verifier_execution_failed"
+    if proc.returncode == 0:
+        return "attempted", None
+    stderr_text = proc.stderr.strip()
+    if "live_windmill_auth_or_cli_unavailable_noninteractive" in stderr_text:
+        return "attempted", "live_windmill_auth_or_cli_unavailable_noninteractive"
+    if "Flow not found" in stderr_text:
+        return "attempted", "flow_not_deployed_in_windmill_workspace"
+    return "attempted", "windmill_verifier_execution_failed"
+
+
+def _build_orchestration_proof(*, package_id: str, live_mode: str) -> dict[str, Any]:
+    verifier_attempt, verifier_blocker = _maybe_refresh_windmill_report(live_mode)
+    report = _safe_load_json(WINDMILL_ORCHESTRATION_REPORT)
+
+    base = {
+        "windmill_flow_path": "f/affordabot/policy_evidence_package_orchestration__flow",
+        "windmill_run_id": None,
+        "windmill_job_id": None,
+        "backend_command_id": None,
+        "package_id": package_id,
+        "source": "quality_spine_runtime",
+        "proof_mode": "none",
+        "proof_status": "blocked",
+        "blocker": "windmill_orchestration_report_missing",
+        "historical_stub_flow_proof": None,
+        "linked_to_current_vertical_package": False,
+        "verifier_attempt": verifier_attempt,
+    }
+
+    if report is None:
+        if verifier_blocker:
+            base["blocker"] = verifier_blocker
+        return base
+
+    historical_stub = {
+        "feature_key": report.get("feature_key"),
+        "report_version": report.get("report_version"),
+        "generated_at": report.get("generated_at"),
+        "live_status": report.get("live_status"),
+        "local_status": report.get("local_status"),
+        "local_backend_endpoint_status": report.get("local_backend_endpoint_status"),
+        "backend_endpoint_package_id": (report.get("backend_endpoint_local_path") or {}).get("package_id"),
+        "stub_run_result": (report.get("live_surface_probe") or {}).get("stub_run_result"),
+    }
+
+    backend_package_id = (report.get("backend_endpoint_local_path") or {}).get("package_id")
+    stub_package_id = ((report.get("live_surface_probe") or {}).get("stub_run_result") or {}).get("package_id")
+    linked = package_id in {backend_package_id, stub_package_id}
+
+    base.update(
+        {
+            "source": str(WINDMILL_ORCHESTRATION_REPORT.relative_to(REPO_ROOT)),
+            "proof_mode": "historical_stub_flow_proof",
+            "proof_status": "not_proven",
+            "blocker": "windmill_proof_not_linked_to_current_vertical_package",
+            "historical_stub_flow_proof": historical_stub,
+            "linked_to_current_vertical_package": linked,
+        }
+    )
+
+    if linked:
+        base["proof_status"] = "not_proven"
+        base["blocker"] = "historical_stub_not_current_live_run"
+    elif verifier_blocker:
+        base["proof_status"] = "blocked"
+        base["blocker"] = verifier_blocker
+    return base
 
 
 @dataclass(frozen=True)
@@ -446,6 +559,92 @@ def _numeric_fact_count(facts: list[dict[str, Any]]) -> int:
     return sum(1 for fact in facts if isinstance(fact.get("value"), (int, float)))
 
 
+def _url_is_portal(url: str) -> bool:
+    lowered = url.lower()
+    portal_signals = (
+        "/agendas-minutes",
+        "/resource-library",
+        "/news-stories",
+        "planning-fees",
+        "impact-fee-memos",
+        "departmentdetail.aspx",
+        "calendar.aspx",
+    )
+    return any(signal in lowered for signal in portal_signals)
+
+
+def _url_artifact_grade(url: str) -> bool:
+    lowered = url.lower()
+    artifact_signals = (
+        "view.ashx?m=f",
+        "meetingdetail.aspx",
+        "billtextclient.xhtml",
+        "showdocument",
+        ".pdf",
+    )
+    return any(signal in lowered for signal in artifact_signals)
+
+
+def _url_official_domain(url: str) -> bool:
+    lowered = url.lower()
+    return any(
+        domain in lowered
+        for domain in (
+            "sanjose.legistar.com",
+            "sanjoseca.gov",
+            "leginfo.legislature.ca.gov",
+            "sccgov.org",
+        )
+    )
+
+
+def _selected_artifact_quality(case: dict[str, Any]) -> dict[str, Any]:
+    selected = case["selected_candidate"]
+    selected_url = str(selected["url"])
+    selected_rank = int(selected.get("rank") or 1)
+    candidate_list = case["provider_results"]["private_searxng"]["candidates"]
+
+    matched_candidate = next(
+        (
+            candidate
+            for candidate in candidate_list
+            if candidate.url == selected_url and int(candidate.rank) == selected_rank
+        ),
+        None,
+    )
+
+    official_domain = matched_candidate.official_domain if matched_candidate else _url_official_domain(selected_url)
+    artifact_grade = matched_candidate.artifact_grade if matched_candidate else _url_artifact_grade(selected_url)
+    portal_selected = _url_is_portal(selected_url)
+
+    searx_status = case["provider_results"]["private_searxng"]["status"]
+    searx_base = {"strong": 80.0, "ambiguous": 60.0, "weak": 45.0}.get(searx_status, 50.0)
+    score = searx_base
+    if artifact_grade:
+        score += 10.0
+    if official_domain:
+        score += 5.0
+    if portal_selected:
+        score -= 20.0
+    score += 5.0 if case["reader_status"]["status"] == "passed" else -20.0
+    score = max(0.0, min(100.0, score))
+    threshold = 70.0
+
+    return {
+        "selected_artifact_url": selected_url,
+        "selected_artifact_provider": str(selected["provider"]),
+        "selected_artifact_rank": selected_rank,
+        "selected_artifact_official_domain": official_domain,
+        "selected_artifact_artifact_grade": artifact_grade,
+        "selected_artifact_is_portal": portal_selected,
+        "reader_substance_status": str(case["reader_status"]["status"]),
+        "provider_quality_score": round(score, 2),
+        "provider_quality_threshold": threshold,
+        "provider_quality_status": "pass" if score >= threshold else "weak",
+        "metric_source": "fixture_selected_path",
+    }
+
+
 def _choose_readiness(case: dict[str, Any]) -> tuple[str, str]:
     selected_url = str(case["selected_candidate"]["url"]).strip()
     reader_status = case["reader_status"]["status"]
@@ -540,6 +739,7 @@ def build_horizontal_matrix(
     cases = _case_fixtures()
     for case in cases:
         readiness, dominant_failure_class = _choose_readiness(case)
+        selected_quality = _selected_artifact_quality(case)
         score = _quality_score(
             readiness=readiness,
             reader_status=case["reader_status"]["status"],
@@ -563,6 +763,7 @@ def build_horizontal_matrix(
                 "exa_eval": dict(case["provider_results"]["exa_eval"]),
             },
             "selected_candidate": dict(case["selected_candidate"]),
+            "selected_artifact_quality": selected_quality,
             "reader_status": dict(case["reader_status"]),
             "structured_enrichment_status": {
                 "status": case["structured_enrichment"]["status"],
@@ -644,6 +845,7 @@ def build_data_runtime_evidence(
     case = fixtures[vertical_case_id]
     scraped_candidate = _as_scraped_candidate(case)
     structured_candidate = _as_structured_candidate(case)
+    selected_quality = _selected_artifact_quality(case)
 
     package_payload = PolicyEvidencePackageBuilder().build(
         package_id=f"pkg-{vertical_case_id}",
@@ -708,6 +910,11 @@ def build_data_runtime_evidence(
                 "fail_closed": True,
             }
 
+    orchestration_proof = _build_orchestration_proof(
+        package_id=package_payload["package_id"],
+        live_mode=live_mode,
+    )
+
     return {
         "feature_key": "bd-3wefe.13",
         "generated_at": datetime.now(UTC).isoformat(),
@@ -729,6 +936,12 @@ def build_data_runtime_evidence(
         "vertical_package_payload": package_payload,
         "persisted_record": None if record is None else record.to_row_json(),
         "storage_readback": {
+            "storage_mode": "in_memory",
+            "storage_backend": "in_memory_policy_evidence_store",
+            "artifact_store_mode": "in_memory_artifact_writer",
+            "proof_status": "in_memory_only",
+            "proof_blocker": "real_postgres_minio_not_exercised_in_deterministic_harness",
+            "real_postgres_minio_proven": False,
             "stored": storage_result.stored,
             "idempotent_reuse": storage_result.idempotent_reuse,
             "fail_closed": storage_result.fail_closed,
@@ -737,6 +950,8 @@ def build_data_runtime_evidence(
             "artifact_readback_status": storage_result.artifact_readback_status,
             "record_present": record is not None,
         },
+        "vertical_selected_artifact_quality": selected_quality,
+        "orchestration_proof": orchestration_proof,
         "live_probe": live_probe,
         "matrix_score_snapshot": {
             "average_score": matrix["summary"]["average_score"],

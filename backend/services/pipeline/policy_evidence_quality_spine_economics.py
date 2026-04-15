@@ -186,6 +186,10 @@ class PolicyEvidenceQualitySpineEconomicsService:
                 f"- admin_requires_recomputation: "
                 f"`{audit['admin_contract']['requires_recomputation']}`",
                 f"- canonical_analysis_adapter: `{audit['analysis_handoff']['adapter_mode']}`",
+                f"- llm_narrative_proof_status: "
+                f"`{audit['analysis_handoff']['llm_narrative_proof']['proof_status']}`",
+                f"- llm_narrative_proof_blocker: "
+                f"`{audit['analysis_handoff']['llm_narrative_proof']['blocker']}`",
             ]
         )
         return "\n".join(lines) + "\n"
@@ -278,17 +282,24 @@ class PolicyEvidenceQualitySpineEconomicsService:
     ) -> dict[str, dict[str, str]]:
         storage_result = storage_eval["storage_result"]
         verdict = package.gate_report.verdict
+        runtime_evidence = self._extract_runtime_evidence(matrix_payload)
+        orchestration_eval = self._evaluate_orchestration_proof(runtime_evidence)
+        llm_eval = self._evaluate_llm_narrative_proof(
+            package=package,
+            runtime_evidence=runtime_evidence,
+            matrix_source_mode=matrix_source_mode,
+        )
+        scraped_eval = self._evaluate_scraped_search_proof(
+            package=package,
+            matrix_payload=matrix_payload,
+        )
+        storage_proof_eval = self._evaluate_storage_readback_proof(
+            runtime_evidence=runtime_evidence,
+            storage_result=storage_result,
+        )
         all_tags = set()
         for assumption in package.assumption_cards:
             all_tags.update(assumption.applicability_tags)
-
-        has_windmill_ids = self._matrix_contains_windmill_ids(matrix_payload)
-
-        llm_status = "not_proven"
-        llm_detail = "Deterministic lane only; live LLM narrative quality not executed."
-        if matrix_source_mode != "fallback_fixture" and package.gate_projection.canonical_pipeline_run_id:
-            llm_status = "pass"
-            llm_detail = "Canonical pipeline run id present for narrative audit."
 
         frontend_ready = (
             package.gate_projection.canonical_pipeline_run_id is not None
@@ -303,12 +314,8 @@ class PolicyEvidenceQualitySpineEconomicsService:
 
         taxonomy = {
             "scraped/search": {
-                "status": "pass" if package.scraped_sources else "fail",
-                "details": (
-                    "Scraped provenance present with provider/query/candidate rank."
-                    if package.scraped_sources
-                    else "No scraped provenance found."
-                ),
+                "status": scraped_eval["status"],
+                "details": scraped_eval["details"],
             },
             "reader": {
                 "status": (
@@ -347,20 +354,12 @@ class PolicyEvidenceQualitySpineEconomicsService:
                 ),
             },
             "storage/read-back": {
-                "status": "pass" if storage_result.artifact_readback_status == "proven" else "fail",
-                "details": (
-                    "Storage readback proven via MinIO probe and package row persistence."
-                    if storage_result.artifact_readback_status == "proven"
-                    else f"artifact_readback_status={storage_result.artifact_readback_status}"
-                ),
+                "status": storage_proof_eval["status"],
+                "details": storage_proof_eval["details"],
             },
             "Windmill/orchestration": {
-                "status": "pass" if has_windmill_ids else "not_proven",
-                "details": (
-                    "Windmill run/job identifiers present in matrix payload."
-                    if has_windmill_ids
-                    else "Windmill run identifiers not found in provided matrix payload."
-                ),
+                "status": orchestration_eval["status"],
+                "details": orchestration_eval["details"],
             },
             "sufficiency gate": {
                 "status": "pass" if sufficiency.readiness_level != PackageReadinessLevel.FAIL_CLOSED else "fail",
@@ -386,7 +385,7 @@ class PolicyEvidenceQualitySpineEconomicsService:
                     else "No model cards found."
                 ),
             },
-            "LLM narrative": {"status": llm_status, "details": llm_detail},
+            "LLM narrative": {"status": llm_eval["status"], "details": llm_eval["details"]},
             "frontend/read-model auditability": {
                 "status": frontend_status,
                 "details": frontend_detail,
@@ -401,19 +400,249 @@ class PolicyEvidenceQualitySpineEconomicsService:
         return taxonomy
 
     @staticmethod
-    def _matrix_contains_windmill_ids(payload: dict[str, Any]) -> bool:
-        stack: list[Any] = [payload]
-        keys = {"windmill_run_id", "windmill_job_id", "windmill_flow_run_id", "job_id", "run_id"}
-        while stack:
-            item = stack.pop()
-            if isinstance(item, dict):
-                for key, value in item.items():
-                    if key in keys and isinstance(value, str) and value.strip():
-                        return True
-                    stack.append(value)
-            elif isinstance(item, list):
-                stack.extend(item)
-        return False
+    def _evaluate_storage_readback_proof(
+        *,
+        runtime_evidence: dict[str, Any],
+        storage_result: Any,
+    ) -> dict[str, str]:
+        readback_status = str(storage_result.artifact_readback_status or "unknown")
+        if readback_status != "proven":
+            return {
+                "status": "fail",
+                "details": f"artifact_readback_status={readback_status}",
+            }
+
+        storage_proof = runtime_evidence.get("storage_proof")
+        if not isinstance(storage_proof, dict) or not storage_proof:
+            return {
+                "status": "not_proven",
+                "details": (
+                    "Deterministic in-memory readback is proven, but non-memory "
+                    "Postgres/MinIO storage proof is not provided."
+                ),
+            }
+
+        proof_status = str(storage_proof.get("proof_status") or "not_proven")
+        proof_mode = str(storage_proof.get("proof_mode") or "unknown")
+        store_backend = str(storage_proof.get("store_backend") or "unknown")
+        artifact_backend = str(storage_proof.get("artifact_probe_backend") or "unknown")
+        blocker = str(storage_proof.get("blocker") or "storage_proof_missing")
+        record_id = str(storage_proof.get("persisted_record_id") or "").strip()
+        minio_readback = bool(storage_proof.get("minio_readback_proven"))
+        non_memory_backend = store_backend not in {"in_memory", "unknown"}
+        non_memory_probe = artifact_backend not in {"in_memory", "unknown"}
+
+        if proof_status == "fail":
+            return {
+                "status": "fail",
+                "details": f"Storage proof failed: {blocker}.",
+            }
+
+        if (
+            proof_status == "pass"
+            and non_memory_backend
+            and non_memory_probe
+            and record_id
+            and minio_readback
+        ):
+            return {
+                "status": "pass",
+                "details": (
+                    "Non-memory storage proof present with persisted row id and MinIO readback "
+                    f"(mode={proof_mode}, record_id={record_id})."
+                ),
+            }
+
+        return {
+            "status": "not_proven",
+            "details": (
+                "Readback exists but non-memory storage proof is incomplete "
+                f"(mode={proof_mode}, blocker={blocker})."
+            ),
+        }
+
+    @staticmethod
+    def _evaluate_scraped_search_proof(
+        *,
+        package: PolicyEvidencePackage,
+        matrix_payload: dict[str, Any],
+    ) -> dict[str, str]:
+        if not package.scraped_sources:
+            return {"status": "fail", "details": "No scraped provenance found."}
+
+        rows = matrix_payload.get("rows")
+        if not isinstance(rows, list) or not rows:
+            return {
+                "status": "not_proven",
+                "details": (
+                    "Scraped provenance exists, but no selected-artifact provider-quality "
+                    "metrics were provided."
+                ),
+            }
+
+        selected_metrics = None
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            selected_candidate = row.get("selected_candidate")
+            provider_results = row.get("provider_results")
+            if not isinstance(selected_candidate, dict) or not isinstance(provider_results, dict):
+                continue
+
+            selected_url = str(selected_candidate.get("url") or "").strip()
+            selected_provider = str(selected_candidate.get("provider") or "").strip()
+            selected_rank = selected_candidate.get("rank")
+            selection_reason = str(selected_candidate.get("selection_reason") or "").strip()
+            if not selected_url or not selected_provider:
+                continue
+
+            provider_entry = provider_results.get(selected_provider)
+            if selected_provider == "tavily":
+                provider_entry = provider_entry or provider_results.get("tavily_fallback")
+            if not isinstance(provider_entry, dict):
+                selected_metrics = {
+                    "status": "not_proven",
+                    "details": (
+                        f"Selected provider={selected_provider} is missing provider_results entry."
+                    ),
+                }
+                continue
+
+            provider_status = str(provider_entry.get("status") or "")
+            reason_code = str(provider_entry.get("reason_code") or "")
+            candidates = provider_entry.get("candidates")
+            artifact_grade = False
+            official_domain = False
+            if isinstance(candidates, list):
+                for candidate in candidates:
+                    if not isinstance(candidate, dict):
+                        continue
+                    same_url = str(candidate.get("url") or "").strip() == selected_url
+                    same_rank = selected_rank is not None and candidate.get("rank") == selected_rank
+                    if same_url or same_rank:
+                        artifact_grade = bool(candidate.get("artifact_grade"))
+                        official_domain = bool(candidate.get("official_domain"))
+                        break
+
+            if artifact_grade and official_domain:
+                return {
+                    "status": "pass",
+                    "details": (
+                        "Selected artifact has provider-quality support "
+                        f"(provider={selected_provider}, status={provider_status or 'unknown'}, "
+                        f"reason={reason_code or selection_reason or 'none'})."
+                    ),
+                }
+
+            low_quality_reason = (
+                f"artifact_grade={artifact_grade}, official_domain={official_domain}, "
+                f"provider={selected_provider}, status={provider_status or 'unknown'}"
+            )
+            selected_metrics = {
+                "status": "fail" if artifact_grade is False else "not_proven",
+                "details": (
+                    "Selected candidate did not meet artifact-quality threshold "
+                    f"({low_quality_reason})."
+                ),
+            }
+
+        if selected_metrics is not None:
+            return selected_metrics
+
+        return {
+            "status": "not_proven",
+            "details": (
+                "Scraped provenance exists, but selected-artifact provider-quality metrics "
+                "are missing for the evaluated package."
+            ),
+        }
+
+    @staticmethod
+    def _extract_runtime_evidence(payload: dict[str, Any]) -> dict[str, Any]:
+        runtime = payload.get("agent_a_runtime_evidence")
+        if isinstance(runtime, dict):
+            return runtime
+        return {}
+
+    @staticmethod
+    def _evaluate_orchestration_proof(runtime_evidence: dict[str, Any]) -> dict[str, str]:
+        proof = runtime_evidence.get("orchestration_proof")
+        if not isinstance(proof, dict):
+            return {
+                "status": "not_proven",
+                "details": "No orchestration proof payload found in runtime evidence.",
+            }
+
+        proof_status = str(proof.get("proof_status") or "not_proven")
+        proof_mode = str(proof.get("proof_mode") or "unknown")
+        linked = bool(proof.get("linked_to_current_vertical_package"))
+        blocker = proof.get("blocker")
+        run_id = proof.get("windmill_run_id")
+        job_id = proof.get("windmill_job_id")
+        has_live_ids = bool(isinstance(run_id, str) and run_id.strip()) and bool(
+            isinstance(job_id, str) and job_id.strip()
+        )
+
+        if proof_mode == "historical_stub_flow_proof":
+            details = (
+                "Historical Windmill stub proof exists but is not valid for current vertical package."
+                if not linked
+                else "Historical Windmill stub proof is linked but does not count as current-run proof."
+            )
+            return {"status": "not_proven", "details": details}
+
+        if proof_status == "pass" and linked and has_live_ids:
+            return {
+                "status": "pass",
+                "details": f"Current-run Windmill ids present (run_id={run_id}, job_id={job_id}).",
+            }
+
+        blocker_text = str(blocker or "windmill_current_run_proof_missing")
+        if proof_status == "blocked":
+            return {
+                "status": "not_proven",
+                "details": f"Windmill proof blocked: {blocker_text}.",
+            }
+        return {
+            "status": "not_proven",
+            "details": f"Windmill proof not proven for current run ({blocker_text}).",
+        }
+
+    @staticmethod
+    def _evaluate_llm_narrative_proof(
+        *,
+        package: PolicyEvidencePackage,
+        runtime_evidence: dict[str, Any],
+        matrix_source_mode: str,
+    ) -> dict[str, str]:
+        proof = runtime_evidence.get("llm_narrative_proof")
+        if not isinstance(proof, dict):
+            proof = {
+                "proof_status": "not_proven",
+                "blocker": "canonical_llm_run_id_missing",
+                "source": "quality_spine_deterministic_lane",
+                "canonical_pipeline_run_id": package.gate_projection.canonical_pipeline_run_id,
+                "canonical_pipeline_step_id": package.gate_projection.canonical_pipeline_step_id,
+            }
+
+        run_id = proof.get("canonical_pipeline_run_id") or package.gate_projection.canonical_pipeline_run_id
+        step_id = proof.get("canonical_pipeline_step_id") or package.gate_projection.canonical_pipeline_step_id
+        source = str(proof.get("source") or "quality_spine_deterministic_lane")
+        blocker = str(proof.get("blocker") or "canonical_llm_run_id_missing")
+        proof_status = str(proof.get("proof_status") or "not_proven")
+
+        if matrix_source_mode != "fallback_fixture" and proof_status == "pass" and run_id:
+            return {
+                "status": "pass",
+                "details": (
+                    "Canonical LLM narrative run evidence present "
+                    f"(run_id={run_id}, step_id={step_id or 'none'}, source={source})."
+                ),
+            }
+        return {
+            "status": "not_proven",
+            "details": f"LLM narrative not proven ({blocker}; source={source}).",
+        }
 
     def _build_vertical_economic_output(
         self, *, package: PolicyEvidencePackage, sufficiency: Any
@@ -563,6 +792,19 @@ class PolicyEvidenceQualitySpineEconomicsService:
                 "adapter_mode": "policy_package_projection_into_canonical_analysis",
                 "canonical_engine": "AnalysisPipeline + LegislationResearchService",
                 "parallel_engine_created": False,
+                "llm_narrative_proof": {
+                    "proof_status": (
+                        "pass" if taxonomy["LLM narrative"]["status"] == "pass" else "not_proven"
+                    ),
+                    "canonical_pipeline_run_id": package.gate_projection.canonical_pipeline_run_id,
+                    "canonical_pipeline_step_id": package.gate_projection.canonical_pipeline_step_id,
+                    "blocker": (
+                        None
+                        if taxonomy["LLM narrative"]["status"] == "pass"
+                        else "canonical_llm_run_id_missing_or_not_executed"
+                    ),
+                    "source": "policy_evidence_quality_spine_economics",
+                },
             },
         }
 
@@ -573,19 +815,62 @@ class PolicyEvidenceQualitySpineEconomicsService:
         matrix_attempt = scorecard.get("matrix_attempt", {})
         current_round = int(matrix_attempt.get("retry_round") or 0)
         current_tweak = str(matrix_attempt.get("targeted_tweak") or "baseline_no_tweak")
-        previous_failure = self._previous_failure_for_tweak(current_tweak)
-        attempts = [
-            {
+        known_attempts = {
+            0: {
                 "attempt_id": "baseline",
-                "status": "completed_superseded" if current_round > 0 else "completed",
-                "result_verdict": "fail" if previous_failure else scorecard["overall_verdict"],
-                "failed_categories": previous_failure,
-                "not_proven_categories": not_proven if current_round == 0 else [],
+                "result_verdict": "fail",
+                "failed_categories": ["economic reasoning"],
+                "not_proven_categories": ["Windmill/orchestration", "LLM narrative"],
                 "tweaks_applied": [],
-            }
-        ]
+                "result_note": "Initial integrated run lacked source-bound model cards on the vertical package.",
+            },
+            1: {
+                "attempt_id": "retry_1",
+                "result_verdict": "partial",
+                "failed_categories": [],
+                "not_proven_categories": ["Windmill/orchestration", "LLM narrative"],
+                "tweaks_applied": ["source_bound_model_card_projection"],
+                "result_note": "Source-bound model card projection cleared the economic reasoning failure.",
+            },
+            2: {
+                "attempt_id": "retry_2",
+                "result_verdict": "partial",
+                "failed_categories": [],
+                "not_proven_categories": ["Windmill/orchestration", "LLM narrative"],
+                "tweaks_applied": ["windmill_orchestration_evidence_capture"],
+                "result_note": "Historical Windmill stub proof captured but not counted as current-run proof.",
+            },
+        }
+        attempts = []
+        for index in range(0, min(current_round, 3)):
+            known = known_attempts[index]
+            attempts.append(
+                {
+                    **known,
+                    "status": "completed_superseded",
+                    "score_delta": None,
+                }
+            )
+        if current_round == 0:
+            attempts.append(
+                {
+                    "attempt_id": "baseline",
+                    "status": "completed",
+                    "result_verdict": scorecard["overall_verdict"],
+                    "failed_categories": failed,
+                    "not_proven_categories": not_proven,
+                    "tweaks_applied": [],
+                    "result_note": None,
+                    "score_delta": {
+                        "before_score": matrix_attempt.get("before_score"),
+                        "after_score": matrix_attempt.get("after_score"),
+                    },
+                }
+            )
         for index in range(1, 6):
             executed = index == current_round
+            if index < current_round and index in known_attempts:
+                continue
             attempts.append(
                 {
                     "attempt_id": f"retry_{index}",
@@ -594,6 +879,11 @@ class PolicyEvidenceQualitySpineEconomicsService:
                     "failed_categories": failed if executed else [],
                     "not_proven_categories": not_proven if executed else [],
                     "tweaks_applied": [current_tweak] if executed else proposed_tweaks,
+                    "result_note": (
+                        "Strict proof fields captured; storage/Windmill/LLM remain not_proven until live current-run proof is present."
+                        if executed and not_proven
+                        else None
+                    ),
                     "score_delta": {
                         "before_score": matrix_attempt.get("before_score"),
                         "after_score": matrix_attempt.get("after_score"),
@@ -628,6 +918,8 @@ class PolicyEvidenceQualitySpineEconomicsService:
     def _previous_failure_for_tweak(tweak: str) -> list[str]:
         if tweak == "source_bound_model_card_projection":
             return ["economic reasoning"]
+        if tweak == "windmill_orchestration_evidence_capture":
+            return []
         return []
 
     @staticmethod

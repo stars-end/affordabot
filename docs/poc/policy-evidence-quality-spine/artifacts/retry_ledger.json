@@ -4,17 +4,21 @@
   "attempts": [
     {
       "attempt_id": "baseline",
-      "status": "completed_superseded",
       "result_verdict": "fail",
       "failed_categories": [
         "economic reasoning"
       ],
-      "not_proven_categories": [],
-      "tweaks_applied": []
+      "not_proven_categories": [
+        "Windmill/orchestration",
+        "LLM narrative"
+      ],
+      "tweaks_applied": [],
+      "result_note": "Initial integrated run lacked source-bound model cards on the vertical package.",
+      "status": "completed_superseded",
+      "score_delta": null
     },
     {
       "attempt_id": "retry_1",
-      "status": "completed",
       "result_verdict": "partial",
       "failed_categories": [],
       "not_proven_categories": [
@@ -24,34 +28,43 @@
       "tweaks_applied": [
         "source_bound_model_card_projection"
       ],
-      "score_delta": {
-        "before_score": 75.33,
-        "after_score": 75.33
-      }
+      "result_note": "Source-bound model card projection cleared the economic reasoning failure.",
+      "status": "completed_superseded",
+      "score_delta": null
     },
     {
       "attempt_id": "retry_2",
-      "status": "not_executed",
-      "result_verdict": null,
+      "result_verdict": "partial",
       "failed_categories": [],
-      "not_proven_categories": [],
-      "tweaks_applied": [
-        "Capture windmill job/run identifiers in matrix artifact.",
-        "Run canonical analysis narrative step and record run ids."
+      "not_proven_categories": [
+        "Windmill/orchestration",
+        "LLM narrative"
       ],
+      "tweaks_applied": [
+        "windmill_orchestration_evidence_capture"
+      ],
+      "result_note": "Historical Windmill stub proof captured but not counted as current-run proof.",
+      "status": "completed_superseded",
       "score_delta": null
     },
     {
       "attempt_id": "retry_3",
-      "status": "not_executed",
-      "result_verdict": null,
+      "status": "completed",
+      "result_verdict": "partial",
       "failed_categories": [],
-      "not_proven_categories": [],
-      "tweaks_applied": [
-        "Capture windmill job/run identifiers in matrix artifact.",
-        "Run canonical analysis narrative step and record run ids."
+      "not_proven_categories": [
+        "storage/read-back",
+        "Windmill/orchestration",
+        "LLM narrative"
       ],
-      "score_delta": null
+      "tweaks_applied": [
+        "strict_data_runtime_proof_fields"
+      ],
+      "result_note": "Strict proof fields captured; storage/Windmill/LLM remain not_proven until live current-run proof is present.",
+      "score_delta": {
+        "before_score": 75.33,
+        "after_score": 75.33
+      }
     },
     {
       "attempt_id": "retry_4",
@@ -60,9 +73,11 @@
       "failed_categories": [],
       "not_proven_categories": [],
       "tweaks_applied": [
+        "Repair MinIO probe/readback and content-hash linkage.",
         "Capture windmill job/run identifiers in matrix artifact.",
         "Run canonical analysis narrative step and record run ids."
       ],
+      "result_note": null,
       "score_delta": null
     },
     {
@@ -72,9 +87,11 @@
       "failed_categories": [],
       "not_proven_categories": [],
       "tweaks_applied": [
+        "Repair MinIO probe/readback and content-hash linkage.",
         "Capture windmill job/run identifiers in matrix artifact.",
         "Run canonical analysis narrative step and record run ids."
       ],
+      "result_note": null,
       "score_delta": null
     }
   ],

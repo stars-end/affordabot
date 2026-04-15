@@ -1,20 +1,20 @@
 {
   "attempt_metadata": {
     "after_score": 75.33,
-    "attempt_id": "bd-3wefe.13-retry-1",
+    "attempt_id": "bd-3wefe.13-retry-3",
     "before_score": 75.33,
     "dominant_failure_class": "none",
     "quality_threshold": 75.0,
-    "retry_round": 1,
+    "retry_round": 3,
     "stop_continue_decision": "stop",
-    "targeted_tweak": "source_bound_model_card_projection"
+    "targeted_tweak": "strict_data_runtime_proof_fields"
   },
   "feature_key": "bd-3wefe.13",
-  "generated_at": "2026-04-15T18:20:09.733804+00:00",
+  "generated_at": "2026-04-15T18:37:54.893232+00:00",
   "rows": [
     {
       "after_score": 90.0,
-      "attempt_id": "bd-3wefe.13-retry-1",
+      "attempt_id": "bd-3wefe.13-retry-3",
       "before_score": 75.33,
       "canonical_identity": {
         "canonical_document_key": "san_jose_ca::sj-parking-minimum-amendment",
@@ -81,8 +81,21 @@
         "reason_code": "substantive_minutes_actions_detected",
         "status": "passed"
       },
-      "retry_round": 1,
+      "retry_round": 3,
       "score": 90.0,
+      "selected_artifact_quality": {
+        "metric_source": "fixture_selected_path",
+        "provider_quality_score": 100.0,
+        "provider_quality_status": "pass",
+        "provider_quality_threshold": 70.0,
+        "reader_substance_status": "passed",
+        "selected_artifact_artifact_grade": true,
+        "selected_artifact_is_portal": false,
+        "selected_artifact_official_domain": true,
+        "selected_artifact_provider": "tavily",
+        "selected_artifact_rank": 1,
+        "selected_artifact_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13050001&GUID=PK-1"
+      },
       "selected_candidate": {
         "provider": "tavily",
         "rank": 1,
@@ -95,12 +108,12 @@
         "source_family": "legistar",
         "status": "enriched"
       },
-      "targeted_tweak": "source_bound_model_card_projection",
+      "targeted_tweak": "strict_data_runtime_proof_fields",
       "title": "San Jose multifamily parking minimum amendment"
     },
     {
       "after_score": 90.0,
-      "attempt_id": "bd-3wefe.13-retry-1",
+      "attempt_id": "bd-3wefe.13-retry-3",
       "before_score": 75.33,
       "canonical_identity": {
         "canonical_document_key": "san_jose_ca::sj-planning-fee-schedule",
@@ -160,8 +173,21 @@
         "reason_code": "contains_fee_tables_and_effective_date",
         "status": "passed"
       },
-      "retry_round": 1,
+      "retry_round": 3,
       "score": 90.0,
+      "selected_artifact_quality": {
+        "metric_source": "fixture_selected_path",
+        "provider_quality_score": 100.0,
+        "provider_quality_status": "pass",
+        "provider_quality_threshold": 70.0,
+        "reader_substance_status": "passed",
+        "selected_artifact_artifact_grade": true,
+        "selected_artifact_is_portal": false,
+        "selected_artifact_official_domain": true,
+        "selected_artifact_provider": "private_searxng",
+        "selected_artifact_rank": 2,
+        "selected_artifact_url": "https://www.sanjoseca.gov/home/showdocument?id=112345"
+      },
       "selected_candidate": {
         "provider": "private_searxng",
         "rank": 2,
@@ -174,12 +200,12 @@
         "source_family": "ckan",
         "status": "enriched"
       },
-      "targeted_tweak": "source_bound_model_card_projection",
+      "targeted_tweak": "strict_data_runtime_proof_fields",
       "title": "San Jose planning and permit fee schedule update"
     },
     {
       "after_score": 86.0,
-      "attempt_id": "bd-3wefe.13-retry-1",
+      "attempt_id": "bd-3wefe.13-retry-3",
       "before_score": 75.33,
       "canonical_identity": {
         "canonical_document_key": "san_jose_ca::sj-tenant-relocation-assistance",
@@ -238,8 +264,21 @@
         "reason_code": "contains eligibility and payout schedule",
         "status": "passed"
       },
-      "retry_round": 1,
+      "retry_round": 3,
       "score": 86.0,
+      "selected_artifact_quality": {
+        "metric_source": "fixture_selected_path",
+        "provider_quality_score": 80.0,
+        "provider_quality_status": "pass",
+        "provider_quality_threshold": 70.0,
+        "reader_substance_status": "passed",
+        "selected_artifact_artifact_grade": true,
+        "selected_artifact_is_portal": false,
+        "selected_artifact_official_domain": true,
+        "selected_artifact_provider": "tavily",
+        "selected_artifact_rank": 1,
+        "selected_artifact_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13052222&GUID=TR-1"
+      },
       "selected_candidate": {
         "provider": "tavily",
         "rank": 1,
@@ -252,12 +291,12 @@
         "source_family": "openstates",
         "status": "partial"
       },
-      "targeted_tweak": "source_bound_model_card_projection",
+      "targeted_tweak": "strict_data_runtime_proof_fields",
       "title": "San Jose tenant relocation assistance threshold revision"
     },
     {
       "after_score": 90.0,
-      "attempt_id": "bd-3wefe.13-retry-1",
+      "attempt_id": "bd-3wefe.13-retry-3",
       "before_score": 75.33,
       "canonical_identity": {
         "canonical_document_key": "california_state::ca-ab-2533-embodied-carbon",
@@ -309,8 +348,21 @@
         "reason_code": "bill sections parsed",
         "status": "passed"
       },
-      "retry_round": 1,
+      "retry_round": 3,
       "score": 90.0,
+      "selected_artifact_quality": {
+        "metric_source": "fixture_selected_path",
+        "provider_quality_score": 100.0,
+        "provider_quality_status": "pass",
+        "provider_quality_threshold": 70.0,
+        "reader_substance_status": "passed",
+        "selected_artifact_artifact_grade": true,
+        "selected_artifact_is_portal": false,
+        "selected_artifact_official_domain": true,
+        "selected_artifact_provider": "private_searxng",
+        "selected_artifact_rank": 1,
+        "selected_artifact_url": "https://leginfo.legislature.ca.gov/faces/billTextClient.xhtml?bill_id=202520260AB2533"
+      },
       "selected_candidate": {
         "provider": "private_searxng",
         "rank": 1,
@@ -323,12 +375,12 @@
         "source_family": "leginfo",
         "status": "enriched"
       },
-      "targeted_tweak": "source_bound_model_card_projection",
+      "targeted_tweak": "strict_data_runtime_proof_fields",
       "title": "California embodied carbon reporting requirement"
     },
     {
       "after_score": 86.0,
-      "attempt_id": "bd-3wefe.13-retry-1",
+      "attempt_id": "bd-3wefe.13-retry-3",
       "before_score": 75.33,
       "canonical_identity": {
         "canonical_document_key": "california_state::ca-sb-684-lot-split",
@@ -387,8 +439,21 @@
         "reason_code": "policy sections and eligibility parsed",
         "status": "passed"
       },
-      "retry_round": 1,
+      "retry_round": 3,
       "score": 86.0,
+      "selected_artifact_quality": {
+        "metric_source": "fixture_selected_path",
+        "provider_quality_score": 65.0,
+        "provider_quality_status": "weak",
+        "provider_quality_threshold": 70.0,
+        "reader_substance_status": "passed",
+        "selected_artifact_artifact_grade": true,
+        "selected_artifact_is_portal": false,
+        "selected_artifact_official_domain": true,
+        "selected_artifact_provider": "tavily",
+        "selected_artifact_rank": 1,
+        "selected_artifact_url": "https://leginfo.legislature.ca.gov/faces/billTextClient.xhtml?bill_id=202520260SB684"
+      },
       "selected_candidate": {
         "provider": "tavily",
         "rank": 1,
@@ -401,12 +466,12 @@
         "source_family": "arcgis",
         "status": "partial"
       },
-      "targeted_tweak": "source_bound_model_card_projection",
+      "targeted_tweak": "strict_data_runtime_proof_fields",
       "title": "California lot split streamlining bill"
     },
     {
       "after_score": 10.0,
-      "attempt_id": "bd-3wefe.13-retry-1",
+      "attempt_id": "bd-3wefe.13-retry-3",
       "before_score": 75.33,
       "canonical_identity": {
         "canonical_document_key": "santa_clara_county_ca::scc-impact-fee-adjustment",
@@ -455,8 +520,21 @@
         "reason_code": "prefetch_skipped_low_value_portal",
         "status": "failed"
       },
-      "retry_round": 1,
+      "retry_round": 3,
       "score": 10.0,
+      "selected_artifact_quality": {
+        "metric_source": "fixture_selected_path",
+        "provider_quality_score": 10.0,
+        "provider_quality_status": "weak",
+        "provider_quality_threshold": 70.0,
+        "reader_substance_status": "failed",
+        "selected_artifact_artifact_grade": false,
+        "selected_artifact_is_portal": true,
+        "selected_artifact_official_domain": true,
+        "selected_artifact_provider": "private_searxng",
+        "selected_artifact_rank": 1,
+        "selected_artifact_url": "https://sccgov.org/sites/ceo/impact-fee-memos"
+      },
       "selected_candidate": {
         "provider": "private_searxng",
         "rank": 1,
@@ -469,7 +547,7 @@
         "source_family": "none",
         "status": "none"
       },
-      "targeted_tweak": "source_bound_model_card_projection",
+      "targeted_tweak": "strict_data_runtime_proof_fields",
       "title": "Santa Clara County impact fee adjustment memo"
     }
   ],

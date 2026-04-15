@@ -1,16 +1,16 @@
 {
   "feature_key": "bd-3wefe.13",
-  "generated_at": "2026-04-15T18:22:26.108775+00:00",
+  "generated_at": "2026-04-15T18:40:13.796678+00:00",
   "report_version": "2026-04-15.policy-evidence-quality-spine-economics.v1",
   "matrix_attempt": {
     "after_score": 75.33,
-    "attempt_id": "bd-3wefe.13-retry-1",
+    "attempt_id": "bd-3wefe.13-retry-3",
     "before_score": 75.33,
     "dominant_failure_class": "none",
     "quality_threshold": 75.0,
-    "retry_round": 1,
+    "retry_round": 3,
     "stop_continue_decision": "stop",
-    "targeted_tweak": "source_bound_model_card_projection"
+    "targeted_tweak": "strict_data_runtime_proof_fields"
   },
   "matrix_source": {
     "mode": "agent_a_horizontal_matrix",
@@ -32,7 +32,7 @@
   "taxonomy": {
     "scraped/search": {
       "status": "pass",
-      "details": "Scraped provenance present with provider/query/candidate rank."
+      "details": "Selected artifact has provider-quality support (provider=private_searxng, status=strong, reason=artifact_top2)."
     },
     "reader": {
       "status": "pass",
@@ -47,12 +47,12 @@
       "details": "Canonical document key present for dedupe/identity join."
     },
     "storage/read-back": {
-      "status": "pass",
-      "details": "Storage readback proven via MinIO probe and package row persistence."
+      "status": "not_proven",
+      "details": "Deterministic in-memory readback is proven, but non-memory Postgres/MinIO storage proof is not provided."
     },
     "Windmill/orchestration": {
       "status": "not_proven",
-      "details": "Windmill run identifiers not found in provided matrix payload."
+      "details": "Historical Windmill stub proof exists but is not valid for current vertical package."
     },
     "sufficiency gate": {
       "status": "pass",
@@ -64,7 +64,7 @@
     },
     "LLM narrative": {
       "status": "not_proven",
-      "details": "Deterministic lane only; live LLM narrative quality not executed."
+      "details": "LLM narrative not proven (canonical_llm_run_id_missing; source=quality_spine_deterministic_lane)."
     },
     "frontend/read-model auditability": {
       "status": "pass",
@@ -81,6 +81,7 @@
   "failure_classification": {
     "failed_categories": [],
     "not_proven_categories": [
+      "storage/read-back",
       "Windmill/orchestration",
       "LLM narrative"
     ]

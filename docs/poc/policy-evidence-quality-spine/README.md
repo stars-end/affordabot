@@ -15,12 +15,20 @@ economic analysis and admin/frontend read models.
 
 - overall_verdict: `partial`
 - failed_categories: `0`
-- not_proven_categories: `Windmill/orchestration, LLM narrative`
+- not_proven_categories: `storage/read-back, Windmill/orchestration, LLM narrative`
+- storage_readback_status: `not_proven`
+- storage_readback_note: `Deterministic in-memory readback is proven, but non-memory Postgres/MinIO storage proof is not provided.`
+- windmill_orchestration_status: `not_proven`
+- windmill_orchestration_note: `Historical Windmill stub proof exists but is not valid for current vertical package.`
+- llm_narrative_status: `not_proven`
+- llm_narrative_note: `LLM narrative not proven (canonical_llm_run_id_missing; source=quality_spine_deterministic_lane).`
 
 The current deterministic quality-spine pass has no failed data/economic
-quality categories. Remaining `not_proven` categories are live
-Windmill/orchestration ids and live LLM narrative evidence, not data-quality
-failures.
+quality categories. Retry-3 adds strict category semantics: selected-artifact
+search quality can pass only with explicit artifact metrics, while storage
+remains `not_proven` until real Postgres/MinIO proof is available for the
+current vertical package. Windmill/LLM also remain `not_proven` when evidence
+is historical or lacks canonical run ids.
 
 ## Matrix source
 

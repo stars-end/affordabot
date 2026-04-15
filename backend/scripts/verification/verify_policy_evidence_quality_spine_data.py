@@ -64,6 +64,26 @@ def _gate(status: bool, note: str) -> dict[str, str]:
     return {"status": "passed" if status else "failed", "note": note}
 
 
+def _quality_fields_present(row: dict[str, object]) -> bool:
+    quality = row.get("selected_artifact_quality")
+    if not isinstance(quality, dict):
+        return False
+    required = {
+        "selected_artifact_url",
+        "selected_artifact_provider",
+        "selected_artifact_rank",
+        "selected_artifact_official_domain",
+        "selected_artifact_artifact_grade",
+        "selected_artifact_is_portal",
+        "reader_substance_status",
+        "provider_quality_score",
+        "provider_quality_threshold",
+        "provider_quality_status",
+        "metric_source",
+    }
+    return required.issubset(set(quality.keys()))
+
+
 def main() -> int:
     args = parse_args()
     matrix = build_horizontal_matrix(
@@ -87,6 +107,11 @@ def main() -> int:
     fail_closed_count = int(readiness_counts.get("fail_closed", 0))
     quantified_count = int(readiness_counts.get("quantified_ready", 0))
     score = float(matrix["summary"]["average_score"])
+    rows = matrix["rows"]
+    quality_fields_count = sum(1 for row in rows if _quality_fields_present(row))
+    storage = runtime["storage_readback"]
+    orchestration = runtime["orchestration_proof"]
+    vertical_quality = runtime.get("vertical_selected_artifact_quality") or {}
 
     gates = {
         "matrix_has_min_six_cases": _gate(
@@ -110,8 +135,37 @@ def main() -> int:
             f"stored={runtime['storage_readback']['stored']}",
         ),
         "vertical_readback_proven": _gate(
-            runtime["storage_readback"]["artifact_readback_status"] == "proven",
-            f"artifact_readback_status={runtime['storage_readback']['artifact_readback_status']}",
+            storage["artifact_readback_status"] == "proven",
+            f"artifact_readback_status={storage['artifact_readback_status']}",
+        ),
+        "storage_proof_mode_honest": _gate(
+            storage["storage_mode"] in {"in_memory", "real_postgres_minio", "blocked"}
+            and storage["proof_status"] in {"in_memory_only", "real_storage_proven", "blocked"}
+            and isinstance(storage["real_postgres_minio_proven"], bool)
+            and (
+                (storage["storage_mode"] == "in_memory" and not storage["real_postgres_minio_proven"])
+                or (storage["storage_mode"] != "in_memory")
+            ),
+            (
+                "storage_mode="
+                f"{storage['storage_mode']},proof_status={storage['proof_status']},"
+                f"real_postgres_minio_proven={storage['real_postgres_minio_proven']}"
+            ),
+        ),
+        "selected_artifact_quality_fields_present": _gate(
+            quality_fields_count == len(rows)
+            and bool(vertical_quality)
+            and str(vertical_quality.get("metric_source", "")).strip() != "",
+            f"rows_with_quality={quality_fields_count}/{len(rows)},vertical_quality={bool(vertical_quality)}",
+        ),
+        "orchestration_proof_honest": _gate(
+            orchestration["proof_status"] in {"pass", "blocked", "not_proven"}
+            and orchestration["proof_mode"] in {"none", "historical_stub_flow_proof"}
+            and not (
+                orchestration["proof_mode"] == "historical_stub_flow_proof"
+                and orchestration["proof_status"] == "pass"
+            ),
+            f"proof_status={orchestration['proof_status']},proof_mode={orchestration['proof_mode']}",
         ),
         "score_above_minimum_signal": _gate(score >= 70.0, f"average_score={score}"),
         "contains_both_quantified_and_fail_closed_examples": _gate(
@@ -138,4 +192,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
