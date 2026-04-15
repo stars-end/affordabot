@@ -185,3 +185,74 @@ Next work should be:
 3. `bd-3wefe.2/.3`: source quality POCs using provider identity, source catalog, and reader-substance gates.
 
 `bd-3wefe.9` is partially satisfied from a technical-audit standpoint, but not fully clean as a dx-review workflow because GLM/Gemini output quality was not usable.
+
+## Targeted High-Effort Audit Supplement
+
+After the mixed-quality `dx-review` run, two targeted `gpt-5.3-codex-high` read-only audits were dispatched to reduce the risk of missing already-built brownfield pipeline pieces.
+
+### Agent A: Data moat / ingestion / storage / Windmill
+
+Verdict:
+
+- The architecture has one production-used backend path, one intended domain-boundary path, and one POC duplication path.
+- `PipelineDomainBridge` and backend domain commands are the right Windmill boundary candidate.
+- Direct-storage Windmill should not become canonical architecture; keep it as a test harness only if useful.
+- Provider identity, ranking metadata, storage atomicity, and structured-source cataloging remain under-proven.
+
+Key mapped paths:
+
+- `backend/services/llm/web_search_factory.py`
+- `backend/services/pipeline/domain/commands.py`
+- `backend/clients/web_reader_client.py`
+- `backend/services/legislation_research.py`
+- `backend/services/llm/orchestrator.py`
+- `backend/services/pipeline/domain/bridge.py`
+- `backend/services/scraper/california_state.py`
+- `backend/services/scraper/san_jose.py`
+- `backend/services/scraper/registry.py`
+- `backend/services/discovery/municode_discovery.py`
+- `backend/db/postgres_client.py`
+- `backend/services/ingestion_service.py`
+- `backend/services/storage/s3_storage.py`
+- `backend/services/pipeline/domain/storage.py`
+- `backend/services/pipeline/domain/models.py`
+- `ops/windmill/f/affordabot/trigger_cron_job.py`
+- `ops/windmill/f/affordabot/pipeline_daily_refresh_domain_boundary.py`
+- `ops/windmill/f/affordabot/pipeline_daily_refresh_direct_storage.py`
+
+### Agent B: Economic evidence / gates / literature / frontend-admin
+
+Verdict:
+
+- Migrate and compose; do not replace.
+- `AnalysisPipeline`, `LegislationResearchService`, `SufficiencyBreakdown`, `ImpactGateSummary`, and `evidence_adapter` are the authoritative economic-analysis path.
+- `GateReport` and card schemas should initially project/wrap existing runtime outputs.
+- `AssumptionRegistry` is promising but not yet runtime-authoritative; `WAVE2_*` constants remain live and must be migrated.
+- Frontend/admin visibility exists but does not yet render card-level package contracts, and mock fallbacks can mask backend truth.
+
+Key mapped paths:
+
+- `backend/main.py`
+- `backend/services/llm/orchestrator.py`
+- `backend/services/llm/evidence_gates.py`
+- `backend/services/llm/evidence_adapter.py`
+- `backend/services/legislation_research.py`
+- `backend/services/llm/web_search_factory.py`
+- `backend/schemas/analysis.py`
+- `backend/schemas/economic_evidence.py`
+- `backend/services/economic_assumptions.py`
+- `backend/services/scraper/california_state.py`
+- `backend/services/pipeline/domain/bridge.py`
+- `backend/services/pipeline/domain/commands.py`
+- `backend/routers/admin.py`
+- `frontend/src/components/admin/PipelineStatusPanel.tsx`
+- `frontend/src/app/admin/audits/trace/[id]/page.tsx`
+- `frontend/src/app/api/admin/pipeline-runs/route.ts`
+- `frontend/src/app/api/admin/pipeline-runs/[id]/route.ts`
+
+### Durable map artifacts created from supplement
+
+- `docs/architecture/2026-04-15-affordabot-pipeline-brownfield-map.md`
+- `docs/architecture/2026-04-15-economic-literature-inventory.md`
+
+These are now required routing artifacts for future Affordabot pipeline/economic-analysis work. They include stale-if paths so future agents know when the map must be refreshed instead of trusted blindly.

@@ -35,6 +35,10 @@ Important sequencing correction:
 
 Before the package spec or new POCs proceed, run `bd-3wefe.9`, a code-review-style `dx-review` of the existing raw/structured-data-to-analysis pipeline. The repo already contains economic analysis, evidence gates, storage, admin, frontend, reader, search, and Windmill/domain-bridge code. New work must extend that system, not rediscover or duplicate it.
 
+Memory correction:
+
+The prior failure mode was not lack of memory surfaces. It was lack of one authoritative, source-grounded brownfield map. For this epic, `docs/architecture/2026-04-15-affordabot-pipeline-brownfield-map.md` and `docs/architecture/2026-04-15-economic-literature-inventory.md` are required routing artifacts. Every downstream task must either keep them fresh or explicitly mark why its work does not touch their stale-if paths.
+
 ## Quality Questions Mapped To Beads
 
 | User question | Beads task | Required output |
@@ -109,6 +113,7 @@ Acceptance:
 - Direct, indirect, and secondary-research cases are tested.
 - Existing stack usage and duplication are audited by dx-review and a brownfield map.
 - External review can evaluate a complete evidence-backed architecture recommendation.
+- Brownfield map and economic-literature inventory exist, include stale-if paths, and are treated as required reading for downstream pipeline/economic-analysis work.
 
 ## Child Tasks
 
@@ -134,6 +139,8 @@ Acceptance:
 - Produces a code-review artifact with findings first, exact file/path citations, existing raw-to-final-result pipeline map, already-built economic analysis capabilities, duplicate/obsolete POC paths, storage truth table, search/reader/data-quality gaps, and implementation recommendations.
 - Uses `dx-review` with explicit code-review framing.
 - Requires either two-provider review quorum or a documented failed lane with logs, failure class, and one retry or explicit exception.
+- Supplements broad `dx-review` with targeted code audits when broad reviewer output is incomplete or too shallow. Targeted audits must cover data moat/ingestion/storage/Windmill and economic-analysis/gates/literature/frontend-admin before `bd-3wefe.9` can unblock the next implementation wave.
+- Updates the brownfield map and economic-literature inventory with any code paths, stale-if paths, and canonical/POC/deprecated classifications discovered by reviewers.
 
 ### `bd-3wefe.11`: Audit: existing economic literature and assumption registry
 
@@ -144,6 +151,7 @@ Inventory and review the economic literature, constants, assumptions, elasticiti
 Acceptance:
 
 - Inventories existing economic literature, constants, assumptions, formulas, and mechanism mappings with exact code paths.
+- Starts from `docs/architecture/2026-04-15-economic-literature-inventory.md` and updates it as the durable routing index for future agents.
 - Records source citation where available, date, jurisdiction/scope, unit, range, applicability tags, mechanism family, confidence, and staleness.
 - Distinguishes source-bound assumptions from hard-coded or generic assumptions.
 - Identifies which assumptions can support direct costs, indirect mechanisms, and secondary-research analysis.
@@ -160,6 +168,7 @@ Define the canonical envelope and vocabulary before implementation expands.
 Acceptance:
 
 - Defines `PolicyEvidencePackage`, source/evidence/parameter/assumption/model relationships, failure codes, source roles, freshness, schema/versioning, and what must be true before analysis runs.
+- Starts from `docs/architecture/2026-04-15-affordabot-pipeline-brownfield-map.md`; any new schema must identify the exact canonical runtime path it wraps, extends, or replaces.
 - Incorporates `bd-3wefe.9` findings so the contract extends existing code paths rather than inventing parallel schemas.
 - Explicitly declares whether `GateReport` replaces, wraps, or composes the existing `SufficiencyBreakdown` / `ImpactGateSummary` / `SufficiencyState` path; no dual authoritative gate taxonomy is allowed.
 
@@ -275,6 +284,9 @@ Acceptance:
 - Identifies duplicated POC code to delete or consolidate.
 - Names canonical files/routes/jobs/storage tables to extend in the implementation wave.
 - Incorporates `bd-3wefe.9` review findings and turns them into concrete reuse/delete/extend recommendations.
+- Updates `docs/architecture/2026-04-15-affordabot-pipeline-brownfield-map.md` so it is deep enough to be used as the required starting artifact for future pipeline work.
+- Every mapped row must include owner boundary, status (`canonical`, `canonical-new`, `POC`, `deprecated`, `duplicate`, or `unknown`), primary code paths, storage/read model, required tests/proofs, and stale-if paths.
+- Emits a final "new work routing rule" stating where future agents must look before changing scraped ingestion, structured ingestion, evidence package schemas, economic assumptions, Windmill flows, storage, admin APIs, or frontend display.
 
 ### `bd-3wefe.8`: Review: architecture decision after package POCs
 
@@ -351,6 +363,7 @@ Before `bd-3wefe.8` can recommend architecture lock:
 - Brownfield map: implementation plan extends existing code rather than duplicating POC scripts.
 - Final analysis: output includes mechanism graph, parameter table, source-bound assumptions, uncertainty/sensitivity, unsupported-claim checks, and cost-of-living conclusion.
 - Review readiness: artifacts are sufficient for dx-review/external consultant evaluation with two-provider quorum or a documented exception.
+- Memory readiness: the brownfield map and economic-literature inventory have been updated from the latest audit/POC results and contain stale-if paths for every major pipeline subsystem.
 
 ## Evidence Artifacts To Carry Forward
 
@@ -360,6 +373,8 @@ Before `bd-3wefe.8` can recommend architecture lock:
 - `docs/poc/source-expansion/artifacts/source_expansion_api_key_matrix.json`
 - `docs/poc/economic-analysis-boundary/architecture_recommendation.md`
 - `docs/reviews/2026-04-14-dx-review-economic-pipeline-architecture.md`
+- `docs/architecture/2026-04-15-affordabot-pipeline-brownfield-map.md`
+- `docs/architecture/2026-04-15-economic-literature-inventory.md`
 - Future `bd-3wefe.9` dx-review code-audit artifact
 - Future `bd-3wefe.11` economic-literature audit artifact
 - Future `bd-3wefe.12` Windmill orchestration proof artifact
