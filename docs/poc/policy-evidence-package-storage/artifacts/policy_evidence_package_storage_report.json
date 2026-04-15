@@ -1,0 +1,90 @@
+{
+  "feature_key": "bd-3wefe.10",
+  "generated_at": "2026-04-15T00:00:00+00:00",
+  "report_version": "2026-04-15.policy-evidence-package-storage.v1",
+  "storage_gates": {
+    "postgres_row_written": {
+      "status": "passed",
+      "note": "record_id=c39d4c2d-bab8-5916-9b7a-1820b920f50b"
+    },
+    "idempotent_replay": {
+      "status": "passed",
+      "note": "replay_reuse=True"
+    },
+    "pgvector_derived_only": {
+      "status": "passed",
+      "note": "pgvector_truth_role=derived_index"
+    },
+    "minio_readback_proven": {
+      "status": "passed",
+      "note": "artifact_readback_status=proven"
+    },
+    "artifact_failure_fail_closed": {
+      "status": "passed",
+      "note": "failure_class=artifact_write_failed"
+    },
+    "db_failure_fail_closed": {
+      "status": "passed",
+      "note": "failure_class=db_upsert_failed"
+    }
+  },
+  "first_persist_result": {
+    "record_id": "c39d4c2d-bab8-5916-9b7a-1820b920f50b",
+    "package_id": "pkg-bd-3wefe-10",
+    "idempotency_key": "idem-bd-3wefe-10",
+    "stored": true,
+    "idempotent_reuse": false,
+    "fail_closed": false,
+    "failure_class": null,
+    "compensated_rollback": false,
+    "artifact_write_status": "succeeded",
+    "artifact_readback_status": "proven",
+    "pgvector_truth_role": "derived_index"
+  },
+  "replay_result": {
+    "record_id": "c39d4c2d-bab8-5916-9b7a-1820b920f50b",
+    "package_id": "pkg-bd-3wefe-10",
+    "idempotency_key": "idem-bd-3wefe-10",
+    "stored": true,
+    "idempotent_reuse": true,
+    "fail_closed": false,
+    "failure_class": null,
+    "compensated_rollback": false,
+    "artifact_write_status": "succeeded",
+    "artifact_readback_status": "proven",
+    "pgvector_truth_role": "derived_index"
+  },
+  "artifact_failure_drill": {
+    "record_id": null,
+    "package_id": "pkg-artifact-drill",
+    "idempotency_key": "idem-artifact-drill",
+    "stored": false,
+    "idempotent_reuse": false,
+    "fail_closed": true,
+    "failure_class": "artifact_write_failed",
+    "compensated_rollback": false,
+    "artifact_write_status": "failed",
+    "artifact_readback_status": "not_applicable",
+    "pgvector_truth_role": "derived_index"
+  },
+  "db_failure_drill": {
+    "record_id": null,
+    "package_id": "pkg-db-drill",
+    "idempotency_key": "idem-db-drill",
+    "stored": false,
+    "idempotent_reuse": false,
+    "fail_closed": true,
+    "failure_class": "db_upsert_failed",
+    "compensated_rollback": true,
+    "artifact_write_status": "succeeded",
+    "artifact_readback_status": "not_applicable",
+    "pgvector_truth_role": "derived_index"
+  },
+  "store_row_count": 1,
+  "storage_boundary_assertions": {
+    "postgres_truth": "policy_evidence_packages row stores package truth envelope",
+    "minio_truth": "artifact refs require explicit readback proof; unproven is fail_closed",
+    "pgvector_truth": "pgvector refs are derived_index only"
+  },
+  "live_runtime_note": "Offline deterministic proof only. Live Railway/Postgres/MinIO smoke is not attempted by this verifier."
+}
