@@ -110,6 +110,59 @@ def test_storage_replay_is_idempotent_and_reuses_same_record() -> None:
     assert len(store.by_idempotency) == 1
 
 
+def test_storage_replay_conflict_fails_closed_when_payload_changes() -> None:
+    store = InMemoryPolicyEvidencePackageStore()
+    service = PolicyEvidencePackageStorageService(
+        store=store,
+        artifact_writer=InMemoryArtifactWriter(),
+        artifact_probe=InMemoryArtifactProbe(
+            known_uris={
+                "minio://policy-evidence/packages/pkg-storage-proof.json",
+                "minio://policy-evidence/reader/private_searxng/sj-13000001.txt",
+            }
+        ),
+    )
+    payload = _sample_package()
+    first = service.persist(package_payload=payload, idempotency_key="idem-replay-conflict")
+    assert first.stored is True
+
+    conflict_payload = dict(payload)
+    conflict_payload["package_id"] = "pkg-storage-proof-conflict"
+    second = service.persist(
+        package_payload=conflict_payload,
+        idempotency_key="idem-replay-conflict",
+    )
+
+    assert second.stored is False
+    assert second.idempotent_reuse is False
+    assert second.fail_closed is True
+    assert second.failure_class == "idempotency_conflict"
+    assert len(store.by_idempotency) == 1
+
+
+def test_storage_probes_minio_reference_id_when_uri_missing() -> None:
+    payload = _sample_package(package_id="pkg-storage-refid-probe")
+    expected_uri = "minio://policy-evidence/packages/pkg-storage-refid-probe.json"
+    reader_uri = "minio://policy-evidence/reader/private_searxng/sj-13000001.txt"
+    for ref in payload["storage_refs"]:
+        if ref["storage_system"] == "minio":
+            ref.pop("uri", None)
+
+    service = PolicyEvidencePackageStorageService(
+        store=InMemoryPolicyEvidencePackageStore(),
+        artifact_writer=InMemoryArtifactWriter(),
+        artifact_probe=InMemoryArtifactProbe(known_uris={expected_uri, reader_uri}),
+    )
+    result = service.persist(
+        package_payload=payload,
+        idempotency_key="idem-refid-probe",
+    )
+
+    assert result.stored is True
+    assert result.artifact_readback_status == "proven"
+    assert result.fail_closed is False
+
+
 def test_storage_rejects_pgvector_source_of_truth() -> None:
     payload = _sample_package()
     for ref in payload["storage_refs"]:

@@ -4,9 +4,13 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import subprocess
 import sys
+import threading
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -50,6 +54,11 @@ FLOW_PATH = (
     / "policy_evidence_package_orchestration__flow"
     / "flow.yaml"
 )
+VERIFY_TS = "2026-04-15T00:00:00+00:00"
+
+
+def _hash(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
 
 
 def _load_module():
@@ -63,8 +72,148 @@ def _load_module():
     return module
 
 
+def _backend_response(payload: dict[str, Any]) -> dict[str, Any]:
+    command_name = payload.get("command_name", "")
+    refs = payload.get("refs") or {}
+    package_id = payload.get("package_id") or "pkg-backend-endpoint"
+    package_readiness_status = payload.get("package_readiness_status") or "ready"
+    gate_status = payload.get("gate_status") or "quantified"
+    previous = payload.get("previous_step_output") or {}
+
+    base = {
+        "status": "succeeded",
+        "command_name": command_name,
+        "command_id": f"cmd-{_hash(json.dumps({'name': command_name, **refs}, sort_keys=True))}",
+        "refs": refs,
+        "decision_reason": "backend_endpoint_passthrough",
+        "retry_class": "none",
+    }
+    if command_name == "fetch_scraped_candidates":
+        return {**base, "scraped_snapshot_id": f"snap-scraped-{_hash(package_id)}", "scraped_candidate_count": 3}
+    if command_name == "fetch_structured_candidates":
+        return {
+            **base,
+            "structured_snapshot_id": f"snap-structured-{_hash(package_id)}",
+            "structured_candidate_count": 2,
+        }
+    if command_name == "build_policy_evidence_package":
+        if not previous:
+            return {
+                **base,
+                "status": "failed",
+                "decision_reason": "missing_inputs",
+                "retry_class": "non_retryable_validation",
+            }
+        return {
+            **base,
+            "package_id": package_id,
+            "package_readiness_status": package_readiness_status,
+            "gate_status": gate_status,
+        }
+    if command_name == "persist_readback_boundary":
+        if not previous:
+            return {
+                **base,
+                "status": "failed",
+                "decision_reason": "missing_package",
+                "retry_class": "non_retryable_validation",
+            }
+        return {
+            **base,
+            "package_id": package_id,
+            "storage_refs": {
+                "postgres_package_row": f"policy_evidence_packages:{package_id}",
+                "minio_package_artifact": f"minio://policy-evidence/packages/{package_id}.json",
+                "pgvector_chunk_projection": f"pgvector://document_chunks/{_hash(package_id)}",
+            },
+            "decision_reason": "persist_boundary_called",
+        }
+    if command_name == "evaluate_package_readiness":
+        if package_readiness_status in {"blocked", "insufficient"}:
+            return {
+                **base,
+                "status": "blocked",
+                "package_id": package_id,
+                "package_readiness_status": package_readiness_status,
+                "gate_status": gate_status,
+                "decision_reason": "package_not_ready_for_economic_handoff",
+                "retry_class": "retry_after_new_evidence",
+            }
+        return {
+            **base,
+            "package_id": package_id,
+            "package_readiness_status": "ready",
+            "gate_status": gate_status,
+            "decision_reason": "package_ready_for_economic_handoff",
+        }
+    if command_name == "summarize_orchestration":
+        previous_status = previous.get("status", "failed") if isinstance(previous, dict) else "failed"
+        flow_status = "succeeded" if previous_status == "succeeded" else "blocked"
+        return {
+            **base,
+            "status": flow_status,
+            "package_id": package_id,
+            "package_readiness_status": package_readiness_status,
+            "gate_status": gate_status,
+            "decision_reason": (
+                "orchestration_completed" if flow_status == "succeeded" else "orchestration_blocked"
+            ),
+        }
+    return {
+        **base,
+        "status": "failed",
+        "decision_reason": "unsupported_command",
+        "retry_class": "non_retryable_validation",
+    }
+
+
+@contextmanager
+def _local_backend_command_endpoint(auth_token: str):
+    state: dict[str, Any] = {"events": []}
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self) -> None:  # noqa: N802
+            auth_header = self.headers.get("Authorization", "")
+            if auth_header != f"Bearer {auth_token}":
+                self.send_response(401)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(b'{"status":"failed","error":"unauthorized"}')
+                return
+            content_length = int(self.headers.get("Content-Length", "0"))
+            body = self.rfile.read(content_length) if content_length > 0 else b"{}"
+            payload = json.loads(body.decode("utf-8") or "{}")
+            response_payload = _backend_response(payload)
+            state["events"].append(
+                {
+                    "command_name": payload.get("command_name"),
+                    "jurisdiction": payload.get("jurisdiction"),
+                    "query_family": payload.get("query_family"),
+                    "idempotency_key": (payload.get("refs") or {}).get("idempotency_key"),
+                    "status": response_payload.get("status"),
+                }
+            )
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps(response_payload).encode("utf-8"))
+
+        def log_message(self, fmt: str, *args: Any) -> None:  # noqa: D401
+            return
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield f"http://127.0.0.1:{server.server_port}", state
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)
+
+
 def _run_local(module: Any) -> dict[str, Any]:
-    happy = module.main(
+    stub_happy = module.main(
         step="run_scope_pipeline",
         idempotency_key="run:bd-3wefe.12:local-happy",
         windmill_run_id="wm-local-policy-happy",
@@ -75,7 +224,7 @@ def _run_local(module: Any) -> dict[str, Any]:
         package_readiness_status="ready",
         gate_status="quantified",
     )
-    blocked = module.main(
+    stub_blocked = module.main(
         step="run_scope_pipeline",
         idempotency_key="run:bd-3wefe.12:local-blocked",
         windmill_run_id="wm-local-policy-blocked",
@@ -86,7 +235,30 @@ def _run_local(module: Any) -> dict[str, Any]:
         package_readiness_status="blocked",
         gate_status="insufficient_evidence",
     )
-    return {"happy": happy, "blocked": blocked}
+    auth_token = "local-backend-token"
+    with _local_backend_command_endpoint(auth_token) as (endpoint_url, state):
+        backend_endpoint_happy = module.main(
+            step="run_scope_pipeline",
+            idempotency_key="run:bd-3wefe.12:local-backend-endpoint",
+            windmill_run_id="wm-local-policy-backend-endpoint",
+            windmill_job_id="wm-local-job-backend-endpoint",
+            jurisdiction="San Jose CA",
+            query_family="meeting_minutes",
+            package_id="pkg-local-backend-endpoint",
+            package_readiness_status="ready",
+            gate_status="quantified",
+            command_client="backend_endpoint",
+            backend_endpoint_url=endpoint_url,
+            backend_endpoint_auth_token=auth_token,
+        )
+        backend_endpoint_events = list(state["events"])
+
+    return {
+        "stub_happy": stub_happy,
+        "stub_blocked": stub_blocked,
+        "backend_endpoint_happy": backend_endpoint_happy,
+        "backend_endpoint_events": backend_endpoint_events,
+    }
 
 
 def _run_live_smoke() -> dict[str, Any]:
@@ -100,6 +272,7 @@ TMP_WMILL_CONFIG="$(mktemp -d)"
 trap 'rm -rf "$TMP_WMILL_CONFIG"' EXIT
 npx --yes windmill-cli workspace add affordabot affordabot "$WINDMILL_BASE_URL" --token "$WINDMILL_API_TOKEN" --config-dir "$TMP_WMILL_CONFIG" >/dev/null
 npx --yes windmill-cli workspace list --config-dir "$TMP_WMILL_CONFIG"
+npx --yes windmill-cli flow get f/affordabot/policy_evidence_package_orchestration__flow --workspace affordabot --config-dir "$TMP_WMILL_CONFIG" --json
 """
     proc = subprocess.run(
         ["bash", "-lc", cmd],
@@ -110,32 +283,53 @@ npx --yes windmill-cli workspace list --config-dir "$TMP_WMILL_CONFIG"
     )
     if proc.returncode == 0:
         return {
-            "live_status": "passed_read_only_smoke",
-            "command": "windmill-cli workspace list (read-only)",
+            "live_status": "passed_read_only_surface",
+            "commands": [
+                "windmill-cli workspace list (read-only)",
+                "windmill-cli flow get f/affordabot/policy_evidence_package_orchestration__flow (read-only)",
+            ],
             "return_code": proc.returncode,
-            "stdout": proc.stdout.strip(),
-            "stderr": proc.stderr.strip(),
+            "stdout_redacted": bool(proc.stdout.strip()),
+            "stderr_redacted": bool(proc.stderr.strip()),
             "blocker": None,
         }
+    stderr = proc.stderr.strip()
+    blocker = "live_windmill_auth_or_cli_unavailable_noninteractive"
+    if "Flow not found" in stderr:
+        blocker = "flow_not_deployed_in_windmill_workspace"
     return {
         "live_status": "blocked",
-        "command": "windmill-cli workspace list (read-only)",
+        "commands": [
+            "windmill-cli workspace list (read-only)",
+            "windmill-cli flow get f/affordabot/policy_evidence_package_orchestration__flow (read-only)",
+        ],
         "return_code": proc.returncode,
-        "stdout": proc.stdout.strip(),
-        "stderr": proc.stderr.strip(),
-        "blocker": "live_windmill_auth_or_cli_unavailable_noninteractive",
+        "stdout_redacted": bool(proc.stdout.strip()),
+        "stderr_summary": "Flow not found" if "Flow not found" in stderr else "see verifier stderr",
+        "blocker": blocker,
     }
 
 
 def _build_report(local: dict[str, Any], live: dict[str, Any]) -> dict[str, Any]:
-    happy = local["happy"]
-    blocked = local["blocked"]
+    stub_happy = local["stub_happy"]
+    stub_blocked = local["stub_blocked"]
+    backend_endpoint_happy = local["backend_endpoint_happy"]
+    backend_endpoint_events = local["backend_endpoint_events"]
+    local_stub_status = (
+        "passed" if stub_happy.get("status") == "succeeded" and stub_blocked.get("status") == "blocked" else "failed"
+    )
+    local_backend_endpoint_status = (
+        "passed" if backend_endpoint_happy.get("status") == "succeeded" and bool(backend_endpoint_events) else "failed"
+    )
     return {
         "feature_key": "bd-3wefe.12",
-        "report_version": "2026-04-15.policy-evidence-package-windmill.v1",
+        "generated_at": VERIFY_TS,
+        "report_version": "2026-04-15.policy-evidence-package-windmill.v2",
         "local_status": "passed"
-        if happy.get("status") == "succeeded" and blocked.get("status") == "blocked"
+        if local_stub_status == "passed" and local_backend_endpoint_status == "passed"
         else "failed",
+        "local_stub_status": local_stub_status,
+        "local_backend_endpoint_status": local_backend_endpoint_status,
         "live_status": live["live_status"],
         "steps_proven": [
             "fetch_scraped_candidates",
@@ -152,28 +346,38 @@ def _build_report(local: dict[str, Any], live: dict[str, Any]) -> dict[str, Any]
             "package_id_storage_refs_gate_status_preserved",
             "branch_on_backend_authored_readiness_only",
         ],
-        "happy_path": {
-            "status": happy.get("status"),
-            "package_id": happy.get("package_id"),
-            "package_readiness_status": happy.get("package_readiness_status"),
-            "gate_status": happy.get("gate_status"),
-            "decision_reason": happy.get("decision_reason"),
-            "retry_class": happy.get("retry_class"),
-            "storage_refs": happy.get("storage_refs"),
+        "stub_happy_path": {
+            "status": stub_happy.get("status"),
+            "package_id": stub_happy.get("package_id"),
+            "package_readiness_status": stub_happy.get("package_readiness_status"),
+            "gate_status": stub_happy.get("gate_status"),
+            "decision_reason": stub_happy.get("decision_reason"),
+            "retry_class": stub_happy.get("retry_class"),
+            "storage_refs": stub_happy.get("storage_refs"),
         },
-        "blocked_path": {
-            "status": blocked.get("status"),
-            "package_id": blocked.get("package_id"),
-            "package_readiness_status": blocked.get("package_readiness_status"),
-            "gate_status": blocked.get("gate_status"),
-            "decision_reason": blocked.get("decision_reason"),
-            "retry_class": blocked.get("retry_class"),
+        "stub_blocked_path": {
+            "status": stub_blocked.get("status"),
+            "package_id": stub_blocked.get("package_id"),
+            "package_readiness_status": stub_blocked.get("package_readiness_status"),
+            "gate_status": stub_blocked.get("gate_status"),
+            "decision_reason": stub_blocked.get("decision_reason"),
+            "retry_class": stub_blocked.get("retry_class"),
         },
-        "live_smoke": live,
+        "backend_endpoint_local_path": {
+            "status": backend_endpoint_happy.get("status"),
+            "command_client": backend_endpoint_happy.get("command_client"),
+            "package_id": backend_endpoint_happy.get("package_id"),
+            "gate_status": backend_endpoint_happy.get("gate_status"),
+            "decision_reason": backend_endpoint_happy.get("decision_reason"),
+            "event_count": len(backend_endpoint_events),
+            "command_names_seen": [str(event.get("command_name") or "") for event in backend_endpoint_events],
+            "events": backend_endpoint_events,
+        },
+        "live_surface_probe": live,
         "open_gaps": [
-            "bd-3wefe.10: storage durability, readback atomicity, replay semantics",
-            "bd-3wefe.5: economic sufficiency gate over packaged evidence",
-            "bd-3wefe.6: direct/indirect/secondary research analysis quality cases",
+            "deploy policy evidence flow to Windmill dev workspace and run a real flow/job",
+            "run storage verifier in Railway dev with DATABASE_URL and MinIO env available",
+            "connect resulting package to canonical analysis output and admin/frontend read model",
         ],
     }
 
@@ -184,6 +388,8 @@ def _to_markdown(report: dict[str, Any]) -> str:
         "",
         "## Status",
         f"- local_status: `{report['local_status']}`",
+        f"- local_stub_status: `{report['local_stub_status']}`",
+        f"- local_backend_endpoint_status: `{report['local_backend_endpoint_status']}`",
         f"- live_status: `{report['live_status']}`",
         "",
         "## Steps Proven",
@@ -201,26 +407,32 @@ def _to_markdown(report: dict[str, Any]) -> str:
     lines.extend(
         [
             "",
-            "## Happy Path",
-            f"- status: `{report['happy_path']['status']}`",
-            f"- package_id: `{report['happy_path']['package_id']}`",
-            f"- readiness: `{report['happy_path']['package_readiness_status']}`",
-            f"- gate_status: `{report['happy_path']['gate_status']}`",
-            f"- decision_reason: `{report['happy_path']['decision_reason']}`",
-            f"- retry_class: `{report['happy_path']['retry_class']}`",
+            "## Stub Happy Path",
+            f"- status: `{report['stub_happy_path']['status']}`",
+            f"- package_id: `{report['stub_happy_path']['package_id']}`",
+            f"- readiness: `{report['stub_happy_path']['package_readiness_status']}`",
+            f"- gate_status: `{report['stub_happy_path']['gate_status']}`",
+            f"- decision_reason: `{report['stub_happy_path']['decision_reason']}`",
+            f"- retry_class: `{report['stub_happy_path']['retry_class']}`",
             "",
-            "## Blocked Path",
-            f"- status: `{report['blocked_path']['status']}`",
-            f"- package_id: `{report['blocked_path']['package_id']}`",
-            f"- readiness: `{report['blocked_path']['package_readiness_status']}`",
-            f"- gate_status: `{report['blocked_path']['gate_status']}`",
-            f"- decision_reason: `{report['blocked_path']['decision_reason']}`",
-            f"- retry_class: `{report['blocked_path']['retry_class']}`",
+            "## Stub Blocked Path",
+            f"- status: `{report['stub_blocked_path']['status']}`",
+            f"- package_id: `{report['stub_blocked_path']['package_id']}`",
+            f"- readiness: `{report['stub_blocked_path']['package_readiness_status']}`",
+            f"- gate_status: `{report['stub_blocked_path']['gate_status']}`",
+            f"- decision_reason: `{report['stub_blocked_path']['decision_reason']}`",
+            f"- retry_class: `{report['stub_blocked_path']['retry_class']}`",
             "",
-            "## Live Windmill Smoke",
-            f"- command: `{report['live_smoke']['command']}`",
-            f"- live_status: `{report['live_smoke']['live_status']}`",
-            f"- blocker: `{report['live_smoke']['blocker']}`",
+            "## Local Backend Endpoint Path",
+            f"- status: `{report['backend_endpoint_local_path']['status']}`",
+            f"- command_client: `{report['backend_endpoint_local_path']['command_client']}`",
+            f"- event_count: `{report['backend_endpoint_local_path']['event_count']}`",
+            f"- command_names_seen: `{','.join(report['backend_endpoint_local_path']['command_names_seen'])}`",
+            "",
+            "## Live Windmill Surface Probe",
+            f"- commands: `{', '.join(report['live_surface_probe']['commands'])}`",
+            f"- live_status: `{report['live_surface_probe']['live_status']}`",
+            f"- blocker: `{report['live_surface_probe']['blocker']}`",
             "",
             "## Open Gaps",
         ]
@@ -256,11 +468,11 @@ def main() -> int:
     report = run(args.out_json, args.out_md)
     print(
         "policy_evidence_package_windmill verification complete: "
-        f"local={report['local_status']} live={report['live_status']}"
+        f"local={report['local_status']} backend_endpoint_local={report['local_backend_endpoint_status']} "
+        f"live={report['live_status']}"
     )
     return 0 if report["local_status"] == "passed" else 1
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

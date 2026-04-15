@@ -151,7 +151,7 @@ def test_valid_package_scraped_and_structured_handoff_ready():
             )
         ],
         evidence_cards=[_evidence_card("ev-1")],
-        parameter_cards=[_resolved_parameter("param-1")],
+        parameter_cards=[_resolved_parameter("annual_direct_cost")],
         assumption_cards=[_assumption_card("assump-1")],
         model_cards=[_quant_model("model-1", "assump-1")],
         gate_report=_pass_gate_report(),

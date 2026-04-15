@@ -199,6 +199,38 @@ def run(out_path: Path) -> dict[str, Any]:
     qual_record = _with_payload(qual_base, qual_payload, gate_state="qualitative_only")
     qual_result = verifier.evaluate(record=qual_record)
 
+    unsupported_base = _persist_record(package_id="pkg-suff-unsupported", proven_readback=True)
+    unsupported_payload = dict(unsupported_base.package_payload)
+    unsupported_payload["economic_handoff_ready"] = False
+    unsupported_payload["parameter_cards"] = []
+    unsupported_payload["model_cards"] = []
+    unsupported_payload["gate_projection"] = {
+        **unsupported_payload["gate_projection"],
+        "runtime_sufficiency_state": "insufficient_evidence",
+        "runtime_failure_codes": ["parameter_unverifiable"],
+    }
+    unsupported_payload["gate_report"] = {
+        **unsupported_payload["gate_report"],
+        "verdict": "fail_closed",
+        "blocking_gate": "parameterization",
+        "unsupported_claim_count": 1,
+        "failure_codes": ["parameter_unverifiable"],
+        "stage_results": [
+            {
+                "stage": "parameterization",
+                "passed": False,
+                "failure_codes": ["parameter_unverifiable"],
+                "note": "unsupported quantitative claim",
+            }
+        ],
+    }
+    unsupported_record = _with_payload(
+        unsupported_base,
+        unsupported_payload,
+        gate_state="insufficient_evidence",
+    )
+    unsupported_result = verifier.evaluate(record=unsupported_record)
+
     gates = {
         "positive_quant_handoff": positive_result.passed
         and positive_result.readiness_level.value == "economic_handoff_ready",
@@ -213,6 +245,9 @@ def run(out_path: Path) -> dict[str, Any]:
         and missing_params_result.blocking_gate.value == "parameter_readiness",
         "qualitative_only_allowed": qual_result.passed
         and qual_result.readiness_level.value == "qualitative_only",
+        "unsupported_claim_fail_closed_compatible": (not unsupported_result.passed)
+        and unsupported_result.blocking_gate is not None
+        and unsupported_result.blocking_gate.value == "parameter_readiness",
     }
 
     payload = {
@@ -226,6 +261,7 @@ def run(out_path: Path) -> dict[str, Any]:
             "stale_assumption": _result_to_json(stale_result),
             "missing_parameter_support": _result_to_json(missing_params_result),
             "qualitative_only": _result_to_json(qual_result),
+            "unsupported_claim_fail_closed": _result_to_json(unsupported_result),
         },
         "recommendations_for_bd_3wefe_6": sorted(
             {
@@ -234,6 +270,7 @@ def run(out_path: Path) -> dict[str, Any]:
                 *stale_result.recommendations_for_bd_3wefe_6,
                 *missing_params_result.recommendations_for_bd_3wefe_6,
                 *qual_result.recommendations_for_bd_3wefe_6,
+                *unsupported_result.recommendations_for_bd_3wefe_6,
             }
         ),
     }

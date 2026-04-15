@@ -17,6 +17,9 @@
     },
     "qualitative_only_allowed": {
       "status": "passed"
+    },
+    "unsupported_claim_fail_closed_compatible": {
+      "status": "passed"
     }
   },
   "cases": {
@@ -76,6 +79,18 @@
       "recommendations_for_bd_3wefe_6": [
         "Treat this package as qualitative-only in canonical analysis.",
         "Resolve missing parameters before enabling quantified paths."
+      ]
+    },
+    "unsupported_claim_fail_closed": {
+      "passed": false,
+      "blocking_gate": "parameter_readiness",
+      "readiness_level": "fail_closed",
+      "failure_reasons": [
+        "No resolved parameters or quantification-eligible model support path."
+      ],
+      "recommendations_for_bd_3wefe_6": [
+        "Keep canonical analysis fail-closed until this gate is resolved.",
+        "Propagate insufficiency reason into admin/frontend read models."
       ]
     }
   },

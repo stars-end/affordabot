@@ -294,12 +294,12 @@ def classify_case(*, case_id: str, label: str, source_family: str, url: str, rea
     blocking_gate = ""
     if not reader_success or portal_like:
         blocking_gate = "reader_source_quality"
-    elif not substantive_text:
-        blocking_gate = "reader_substance"
     elif not econ_signal:
         blocking_gate = "economic_topic_signal"
     elif not numeric_signal:
         blocking_gate = "parameterization_sufficiency"
+    elif not substantive_text:
+        blocking_gate = "reader_substance"
 
     return {
         "case_id": case_id,

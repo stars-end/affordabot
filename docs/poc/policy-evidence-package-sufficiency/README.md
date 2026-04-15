@@ -22,10 +22,12 @@ proof input.
 3. package completeness (lanes, evidence cards, gate projection/stages)
 4. gate projection alignment with runtime handoff state
 5. parameter readiness for quantified paths
+   - quant model inputs must map to resolved parameter cards
+   - quant model assumptions must map to assumption cards plus governed assumption usage
 6. source-support hierarchy for resolved parameters
 7. assumption staleness/applicability for quantitative usage
 8. uncertainty/sensitivity support for quant-eligible models
-9. unsupported-claim handling with fail-closed posture
+9. unsupported-claim handling with fail-closed posture (`fail_closed` verdict is compatible)
 
 Readiness levels returned:
 

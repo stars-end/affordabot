@@ -54,6 +54,10 @@ cd backend && poetry run python scripts/verification/verify_policy_economic_mech
 The report includes per-case payloads, deterministic gate results, readiness
 summary, and remaining non-goals for this lane.
 
+Additional coverage in this lane:
+- canonical document keys are policy-identity stable (not package-id encoded)
+- scraped-source provenance fields are case-specific, not shared fixture placeholders
+
 ## Integration Note
 
 The verifier persists and reads back each mechanism package through the storage

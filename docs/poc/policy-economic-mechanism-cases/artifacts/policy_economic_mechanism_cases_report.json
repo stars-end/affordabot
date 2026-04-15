@@ -18,6 +18,14 @@
     "unsupported_claim_fail_closed": {
       "status": "passed",
       "note": "unsupported claim is rejected with explicit fail-closed reason"
+    },
+    "canonical_document_key_stable": {
+      "status": "passed",
+      "note": "canonical_document_key is policy-identity stable and package-version independent"
+    },
+    "scraped_provenance_case_specific": {
+      "status": "passed",
+      "note": "scraped provenance is case-specific (candidate URL, reader artifact URL, query text)"
     }
   },
   "architecture_readiness": {
@@ -82,9 +90,9 @@
       "artifact_readback_status": "proven",
       "sufficiency_passed": false,
       "readiness_level": "fail_closed",
-      "blocking_gate": "unsupported_claims",
+      "blocking_gate": "parameter_readiness",
       "failure_reasons": [
-        "Unsupported claims present but gate verdict is not qualitative/fail-closed."
+        "No resolved parameters or quantification-eligible model support path."
       ]
     }
   ],
@@ -97,7 +105,7 @@
         "schema_version": "1.0.0",
         "package_id": "pkg-direct-cost-001",
         "jurisdiction": "san_jose_ca",
-        "canonical_document_key": "san_jose_ca::SJ-PARKING-REQ-POC::pkg-direct-cost-001",
+        "canonical_document_key": "san_jose_ca::SJ-PARKING-REQ-POC",
         "policy_identifier": "SJ-PARKING-REQ-POC",
         "created_at": "2026-04-15T00:00:00Z",
         "source_lanes": [
@@ -109,11 +117,11 @@
             "search_provider": "private_searxng",
             "provider_run_id": "run::pkg-direct-cost-001",
             "query_family": "economic_mechanism_probe",
-            "query_text": "san_jose_ca SJ-PARKING-REQ-POC cost-of-living mechanism",
+            "query_text": "san jose parking requirement residential development cost burden",
             "search_snapshot_id": "snapshot::pkg-direct-cost-001",
             "candidate_rank": 1,
-            "selected_candidate_url": "https://records.sanjoseca.gov/agenda",
-            "reader_artifact_url": "https://minio.local/artifacts/reader.txt",
+            "selected_candidate_url": "https://records.sanjoseca.gov/agenda/parking-standard-update",
+            "reader_artifact_url": "https://minio.local/artifacts/pkg-direct-cost-001/reader-output.txt",
             "reader_substance_passed": true
           }
         ],
@@ -369,7 +377,7 @@
         "schema_version": "1.0.0",
         "package_id": "pkg-indirect-pass-through-001",
         "jurisdiction": "san_jose_ca",
-        "canonical_document_key": "san_jose_ca::SJ-FEE-PASS-THROUGH-POC::pkg-indirect-pass-through-001",
+        "canonical_document_key": "san_jose_ca::SJ-FEE-PASS-THROUGH-POC",
         "policy_identifier": "SJ-FEE-PASS-THROUGH-POC",
         "created_at": "2026-04-15T00:00:00Z",
         "source_lanes": [
@@ -381,11 +389,11 @@
             "search_provider": "private_searxng",
             "provider_run_id": "run::pkg-indirect-pass-through-001",
             "query_family": "economic_mechanism_probe",
-            "query_text": "san_jose_ca SJ-FEE-PASS-THROUGH-POC cost-of-living mechanism",
+            "query_text": "san jose multifamily fee increase rent pass-through",
             "search_snapshot_id": "snapshot::pkg-indirect-pass-through-001",
             "candidate_rank": 1,
-            "selected_candidate_url": "https://records.sanjoseca.gov/agenda",
-            "reader_artifact_url": "https://minio.local/artifacts/reader.txt",
+            "selected_candidate_url": "https://records.sanjoseca.gov/agenda/development-impact-fee",
+            "reader_artifact_url": "https://minio.local/artifacts/pkg-indirect-pass-through-001/reader-output.txt",
             "reader_substance_passed": true
           }
         ],
@@ -665,7 +673,7 @@
         "schema_version": "1.0.0",
         "package_id": "pkg-secondary-primary-001",
         "jurisdiction": "san_jose_ca",
-        "canonical_document_key": "san_jose_ca::SJ-TRANSIT-SUBSIDY-POC::pkg-secondary-primary-001",
+        "canonical_document_key": "san_jose_ca::SJ-TRANSIT-SUBSIDY-POC",
         "policy_identifier": "SJ-TRANSIT-SUBSIDY-POC",
         "created_at": "2026-04-15T00:00:00Z",
         "source_lanes": [
@@ -792,7 +800,7 @@
         "schema_version": "1.0.0",
         "package_id": "pkg-secondary-research-001",
         "jurisdiction": "san_jose_ca",
-        "canonical_document_key": "san_jose_ca::SJ-TRANSIT-SUBSIDY-POC:SECONDARY::pkg-secondary-research-001",
+        "canonical_document_key": "san_jose_ca::SJ-TRANSIT-SUBSIDY-POC:SECONDARY",
         "policy_identifier": "SJ-TRANSIT-SUBSIDY-POC:SECONDARY",
         "created_at": "2026-04-15T00:00:00Z",
         "source_lanes": [
@@ -802,12 +810,12 @@
           {
             "search_provider": "tavily",
             "provider_run_id": "run::pkg-secondary-research-001",
-            "query_family": "economic_mechanism_probe",
-            "query_text": "san_jose_ca SJ-TRANSIT-SUBSIDY-POC:SECONDARY cost-of-living mechanism",
+            "query_family": "secondary_research_probe",
+            "query_text": "means tested transit subsidy enrollment take-up elasticity evidence",
             "search_snapshot_id": "snapshot::pkg-secondary-research-001",
             "candidate_rank": 1,
-            "selected_candidate_url": "https://records.sanjoseca.gov/agenda",
-            "reader_artifact_url": "https://minio.local/artifacts/reader.txt",
+            "selected_candidate_url": "https://www.urban.org/urban-wire/automatic-enrollment-discounted-transit-fare-programs-can-support-higher-participation",
+            "reader_artifact_url": "https://minio.local/artifacts/pkg-secondary-research-001/reader-output.txt",
             "reader_substance_passed": true
           }
         ],
@@ -1086,7 +1094,7 @@
         "schema_version": "1.0.0",
         "package_id": "pkg-unsupported-control-001",
         "jurisdiction": "san_jose_ca",
-        "canonical_document_key": "san_jose_ca::SJ-CONTROL-UNSUPPORTED-POC::pkg-unsupported-control-001",
+        "canonical_document_key": "san_jose_ca::SJ-CONTROL-UNSUPPORTED-POC",
         "policy_identifier": "SJ-CONTROL-UNSUPPORTED-POC",
         "created_at": "2026-04-15T00:00:00Z",
         "source_lanes": [
@@ -1097,11 +1105,11 @@
             "search_provider": "private_searxng",
             "provider_run_id": "run::pkg-unsupported-control-001",
             "query_family": "economic_mechanism_probe",
-            "query_text": "san_jose_ca SJ-CONTROL-UNSUPPORTED-POC cost-of-living mechanism",
+            "query_text": "san jose study session overview household cost claim",
             "search_snapshot_id": "snapshot::pkg-unsupported-control-001",
             "candidate_rank": 1,
-            "selected_candidate_url": "https://records.sanjoseca.gov/agenda",
-            "reader_artifact_url": "https://minio.local/artifacts/reader.txt",
+            "selected_candidate_url": "https://records.sanjoseca.gov/agenda/study-session-overview",
+            "reader_artifact_url": "https://minio.local/artifacts/pkg-unsupported-control-001/reader-output.txt",
             "reader_substance_passed": true
           }
         ],

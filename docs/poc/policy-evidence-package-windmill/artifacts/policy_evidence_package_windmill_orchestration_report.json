@@ -1,11 +1,63 @@
 {
-  "blocked_path": {
-    "decision_reason": "package_not_ready_for_economic_handoff",
-    "gate_status": "insufficient_evidence",
-    "package_id": "pkg-local-blocked",
-    "package_readiness_status": "blocked",
-    "retry_class": "retry_after_new_evidence",
-    "status": "blocked"
+  "backend_endpoint_local_path": {
+    "command_client": "backend_endpoint",
+    "command_names_seen": [
+      "fetch_scraped_candidates",
+      "fetch_structured_candidates",
+      "build_policy_evidence_package",
+      "persist_readback_boundary",
+      "evaluate_package_readiness",
+      "summarize_orchestration"
+    ],
+    "decision_reason": "package_ready_for_economic_handoff",
+    "event_count": 6,
+    "events": [
+      {
+        "command_name": "fetch_scraped_candidates",
+        "idempotency_key": "run:bd-3wefe.12:local-backend-endpoint",
+        "jurisdiction": "San Jose CA",
+        "query_family": "meeting_minutes",
+        "status": "succeeded"
+      },
+      {
+        "command_name": "fetch_structured_candidates",
+        "idempotency_key": "run:bd-3wefe.12:local-backend-endpoint",
+        "jurisdiction": "San Jose CA",
+        "query_family": "meeting_minutes",
+        "status": "succeeded"
+      },
+      {
+        "command_name": "build_policy_evidence_package",
+        "idempotency_key": "run:bd-3wefe.12:local-backend-endpoint",
+        "jurisdiction": "San Jose CA",
+        "query_family": "meeting_minutes",
+        "status": "succeeded"
+      },
+      {
+        "command_name": "persist_readback_boundary",
+        "idempotency_key": "run:bd-3wefe.12:local-backend-endpoint",
+        "jurisdiction": "San Jose CA",
+        "query_family": "meeting_minutes",
+        "status": "succeeded"
+      },
+      {
+        "command_name": "evaluate_package_readiness",
+        "idempotency_key": "run:bd-3wefe.12:local-backend-endpoint",
+        "jurisdiction": "San Jose CA",
+        "query_family": "meeting_minutes",
+        "status": "succeeded"
+      },
+      {
+        "command_name": "summarize_orchestration",
+        "idempotency_key": "run:bd-3wefe.12:local-backend-endpoint",
+        "jurisdiction": "San Jose CA",
+        "query_family": "meeting_minutes",
+        "status": "succeeded"
+      }
+    ],
+    "gate_status": "quantified",
+    "package_id": "pkg-local-backend-endpoint",
+    "status": "succeeded"
   },
   "boundary_assertions": [
     "windmill_owns_orchestration_only",
@@ -15,7 +67,45 @@
     "branch_on_backend_authored_readiness_only"
   ],
   "feature_key": "bd-3wefe.12",
-  "happy_path": {
+  "generated_at": "2026-04-15T00:00:00+00:00",
+  "live_status": "blocked",
+  "live_surface_probe": {
+    "blocker": "flow_not_deployed_in_windmill_workspace",
+    "commands": [
+      "windmill-cli workspace list (read-only)",
+      "windmill-cli flow get f/affordabot/policy_evidence_package_orchestration__flow (read-only)"
+    ],
+    "live_status": "blocked",
+    "return_code": 1,
+    "stderr_summary": "Flow not found",
+    "stdout_redacted": true
+  },
+  "local_backend_endpoint_status": "passed",
+  "local_status": "passed",
+  "local_stub_status": "passed",
+  "open_gaps": [
+    "deploy policy evidence flow to Windmill dev workspace and run a real flow/job",
+    "run storage verifier in Railway dev with DATABASE_URL and MinIO env available",
+    "connect resulting package to canonical analysis output and admin/frontend read model"
+  ],
+  "report_version": "2026-04-15.policy-evidence-package-windmill.v2",
+  "steps_proven": [
+    "fetch_scraped_candidates",
+    "fetch_structured_candidates",
+    "build_policy_evidence_package",
+    "persist_readback_boundary",
+    "evaluate_package_readiness",
+    "summarize_orchestration"
+  ],
+  "stub_blocked_path": {
+    "decision_reason": "package_not_ready_for_economic_handoff",
+    "gate_status": "insufficient_evidence",
+    "package_id": "pkg-local-blocked",
+    "package_readiness_status": "blocked",
+    "retry_class": "retry_after_new_evidence",
+    "status": "blocked"
+  },
+  "stub_happy_path": {
     "decision_reason": "package_ready_for_economic_handoff",
     "gate_status": "quantified",
     "package_id": "pkg-local-happy",
@@ -27,29 +117,5 @@
       "pgvector_chunk_projection": "pgvector://document_chunks/20f1dd10081a740d",
       "postgres_package_row": "policy_evidence_packages:pkg-local-happy"
     }
-  },
-  "live_smoke": {
-    "blocker": null,
-    "command": "windmill-cli workspace list (read-only)",
-    "live_status": "passed_read_only_smoke",
-    "return_code": 0,
-    "stderr": "",
-    "stdout": "\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n\u2502  name        \u2502  remote                                   \u2502  workspace id  \u2502\n\u251c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u253c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u253c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2524\n\u2502  \u001b[4maffordabot\u001b[24m  \u2502  \u001b[4mhttps://server-dev-8d5b.up.railway.app/\u001b[24m  \u2502  \u001b[4maffordabot\u001b[24m    \u2502\n\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2534\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2534\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n\u001b[34mActive: \u001b[1m\u001b[32maffordabot\u001b[39m\u001b[22m\u001b[39m"
-  },
-  "live_status": "passed_read_only_smoke",
-  "local_status": "passed",
-  "open_gaps": [
-    "bd-3wefe.10: storage durability, readback atomicity, replay semantics",
-    "bd-3wefe.5: economic sufficiency gate over packaged evidence",
-    "bd-3wefe.6: direct/indirect/secondary research analysis quality cases"
-  ],
-  "report_version": "2026-04-15.policy-evidence-package-windmill.v1",
-  "steps_proven": [
-    "fetch_scraped_candidates",
-    "fetch_structured_candidates",
-    "build_policy_evidence_package",
-    "persist_readback_boundary",
-    "evaluate_package_readiness",
-    "summarize_orchestration"
-  ]
+  }
 }

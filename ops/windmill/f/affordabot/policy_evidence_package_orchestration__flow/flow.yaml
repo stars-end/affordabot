@@ -66,6 +66,15 @@ value:
         command_client:
           type: javascript
           expr: flow_input.command_client
+        backend_endpoint_url:
+          type: javascript
+          expr: flow_input.backend_endpoint_url
+        backend_endpoint_auth_token:
+          type: javascript
+          expr: flow_input.backend_endpoint_auth_token
+        backend_endpoint_timeout_seconds:
+          type: javascript
+          expr: flow_input.backend_endpoint_timeout_seconds
   - id: readiness_branch
     value:
       type: branchone
@@ -140,4 +149,14 @@ schema:
       type: string
       enum:
         - stub
+        - backend_endpoint
       default: stub
+    backend_endpoint_url:
+      type: string
+      default: ""
+    backend_endpoint_auth_token:
+      type: string
+      default: ""
+    backend_endpoint_timeout_seconds:
+      type: integer
+      default: 600

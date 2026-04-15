@@ -261,3 +261,124 @@ def test_qualitative_only_package_allowed_for_qualitative_handoff() -> None:
     assert result.passed is True
     assert result.blocking_gate == SufficiencyBlockingGate.PARAMETER_READINESS
     assert result.readiness_level == PackageReadinessLevel.QUALITATIVE_ONLY
+
+
+def test_unsupported_claim_with_fail_closed_verdict_is_treated_as_compatible() -> None:
+    package_id = "pkg-suff-unsupported-fail-closed"
+    artifact_uri = f"minio://policy-evidence/packages/{package_id}.json"
+    reader_uri = f"minio://policy-evidence/reader/private_searxng/{package_id}.txt"
+    record = _persisted_record(
+        package_id=package_id,
+        known_uris={artifact_uri, reader_uri},
+    )
+    payload = dict(record.package_payload)
+    payload["economic_handoff_ready"] = False
+    payload["gate_projection"] = {
+        **payload["gate_projection"],
+        "runtime_sufficiency_state": "insufficient_evidence",
+        "runtime_failure_codes": ["parameter_unverifiable"],
+    }
+    payload["gate_report"] = {
+        **payload["gate_report"],
+        "verdict": "fail_closed",
+        "blocking_gate": "parameterization",
+        "unsupported_claim_count": 1,
+        "failure_codes": ["parameter_unverifiable"],
+        "stage_results": [
+            {
+                "stage": "parameterization",
+                "passed": False,
+                "failure_codes": ["parameter_unverifiable"],
+                "note": "unsupported quantitative claim",
+            }
+        ],
+    }
+    payload["parameter_cards"] = []
+    payload["model_cards"] = []
+    fail_closed_record = PersistedPackageRecord(
+        record_id=record.record_id,
+        package_id=record.package_id,
+        idempotency_key=record.idempotency_key,
+        content_hash=record.content_hash,
+        schema_version=record.schema_version,
+        jurisdiction=record.jurisdiction,
+        canonical_document_key=record.canonical_document_key,
+        policy_identifier=record.policy_identifier,
+        package_status=record.package_status,
+        economic_handoff_ready=False,
+        fail_closed=record.fail_closed,
+        gate_state="insufficient_evidence",
+        insufficiency_reasons=record.insufficiency_reasons,
+        storage_refs=record.storage_refs,
+        package_payload=payload,
+        artifact_write_status=record.artifact_write_status,
+        artifact_readback_status=record.artifact_readback_status,
+        pgvector_truth_role=record.pgvector_truth_role,
+        created_at=record.created_at,
+        updated_at=record.updated_at,
+    )
+
+    result = PolicyEvidencePackageSufficiencyService().evaluate(record=fail_closed_record)
+
+    assert result.passed is False
+    assert result.blocking_gate == SufficiencyBlockingGate.PARAMETER_READINESS
+    assert result.readiness_level == PackageReadinessLevel.FAIL_CLOSED
+    assert "No resolved parameters or quantification-eligible model support path." in result.failure_reasons
+
+
+def test_quant_model_referential_integrity_violation_fails_schema_validation() -> None:
+    package_id = "pkg-suff-ref-integrity"
+    artifact_uri = f"minio://policy-evidence/packages/{package_id}.json"
+    reader_uri = f"minio://policy-evidence/reader/private_searxng/{package_id}.txt"
+    record = _persisted_record(
+        package_id=package_id,
+        known_uris={artifact_uri, reader_uri},
+    )
+    payload = dict(record.package_payload)
+    payload["parameter_cards"] = []
+    payload["model_cards"] = [
+        {
+            "id": "model-ref-integrity",
+            "mechanism_family": "direct_fiscal",
+            "formula_id": "broken.v1",
+            "input_parameter_ids": ["param-missing"],
+            "assumption_ids": [],
+            "scenario_bounds": {
+                "conservative": 1.0,
+                "central": 2.0,
+                "aggressive": 3.0,
+            },
+            "arithmetic_valid": True,
+            "unit_validation_status": "valid",
+            "quantification_eligible": True,
+            "failure_codes": [],
+        }
+    ]
+    broken_record = PersistedPackageRecord(
+        record_id=record.record_id,
+        package_id=record.package_id,
+        idempotency_key=record.idempotency_key,
+        content_hash=record.content_hash,
+        schema_version=record.schema_version,
+        jurisdiction=record.jurisdiction,
+        canonical_document_key=record.canonical_document_key,
+        policy_identifier=record.policy_identifier,
+        package_status=record.package_status,
+        economic_handoff_ready=False,
+        fail_closed=record.fail_closed,
+        gate_state=record.gate_state,
+        insufficiency_reasons=record.insufficiency_reasons,
+        storage_refs=record.storage_refs,
+        package_payload=payload,
+        artifact_write_status=record.artifact_write_status,
+        artifact_readback_status=record.artifact_readback_status,
+        pgvector_truth_role=record.pgvector_truth_role,
+        created_at=record.created_at,
+        updated_at=record.updated_at,
+    )
+
+    result = PolicyEvidencePackageSufficiencyService().evaluate(record=broken_record)
+
+    assert result.passed is False
+    assert result.blocking_gate == SufficiencyBlockingGate.SCHEMA_VALIDATION
+    assert result.readiness_level == PackageReadinessLevel.FAIL_CLOSED

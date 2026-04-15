@@ -2,7 +2,9 @@
 
 ## Status
 - local_status: `passed`
-- live_status: `passed_read_only_smoke`
+- local_stub_status: `passed`
+- local_backend_endpoint_status: `passed`
+- live_status: `blocked`
 
 ## Steps Proven
 - `fetch_scraped_candidates`
@@ -19,7 +21,7 @@
 - `package_id_storage_refs_gate_status_preserved`
 - `branch_on_backend_authored_readiness_only`
 
-## Happy Path
+## Stub Happy Path
 - status: `succeeded`
 - package_id: `pkg-local-happy`
 - readiness: `ready`
@@ -27,7 +29,7 @@
 - decision_reason: `package_ready_for_economic_handoff`
 - retry_class: `none`
 
-## Blocked Path
+## Stub Blocked Path
 - status: `blocked`
 - package_id: `pkg-local-blocked`
 - readiness: `blocked`
@@ -35,12 +37,18 @@
 - decision_reason: `package_not_ready_for_economic_handoff`
 - retry_class: `retry_after_new_evidence`
 
-## Live Windmill Smoke
-- command: `windmill-cli workspace list (read-only)`
-- live_status: `passed_read_only_smoke`
-- blocker: `None`
+## Local Backend Endpoint Path
+- status: `succeeded`
+- command_client: `backend_endpoint`
+- event_count: `6`
+- command_names_seen: `fetch_scraped_candidates,fetch_structured_candidates,build_policy_evidence_package,persist_readback_boundary,evaluate_package_readiness,summarize_orchestration`
+
+## Live Windmill Surface Probe
+- commands: `windmill-cli workspace list (read-only), windmill-cli flow get f/affordabot/policy_evidence_package_orchestration__flow (read-only)`
+- live_status: `blocked`
+- blocker: `flow_not_deployed_in_windmill_workspace`
 
 ## Open Gaps
-- bd-3wefe.10: storage durability, readback atomicity, replay semantics
-- bd-3wefe.5: economic sufficiency gate over packaged evidence
-- bd-3wefe.6: direct/indirect/secondary research analysis quality cases
+- deploy policy evidence flow to Windmill dev workspace and run a real flow/job
+- run storage verifier in Railway dev with DATABASE_URL and MinIO env available
+- connect resulting package to canonical analysis output and admin/frontend read model

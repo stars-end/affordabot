@@ -207,22 +207,6 @@ class PolicyEvidencePackageStorageService:
         package_payload: dict[str, Any],
         idempotency_key: str,
     ) -> StorageResult:
-        existing = self.store.get_by_idempotency(idempotency_key=idempotency_key)
-        if existing:
-            return StorageResult(
-                record_id=existing.record_id,
-                package_id=existing.package_id,
-                idempotency_key=idempotency_key,
-                stored=True,
-                idempotent_reuse=True,
-                fail_closed=existing.fail_closed,
-                failure_class=None,
-                compensated_rollback=False,
-                artifact_write_status=existing.artifact_write_status,
-                artifact_readback_status=existing.artifact_readback_status,
-                pgvector_truth_role=existing.pgvector_truth_role,
-            )
-
         try:
             package = PolicyEvidencePackage.model_validate(package_payload)
         except ValidationError:
@@ -240,6 +224,41 @@ class PolicyEvidencePackageStorageService:
                 pgvector_truth_role="unknown",
             )
         normalized = package.model_dump(mode="json")
+        content_hash = stable_payload_hash(normalized)
+
+        existing = self.store.get_by_idempotency(idempotency_key=idempotency_key)
+        if existing:
+            if (
+                existing.package_id != package.package_id
+                or existing.content_hash != content_hash
+            ):
+                return StorageResult(
+                    record_id=existing.record_id,
+                    package_id=package.package_id,
+                    idempotency_key=idempotency_key,
+                    stored=False,
+                    idempotent_reuse=False,
+                    fail_closed=True,
+                    failure_class="idempotency_conflict",
+                    compensated_rollback=False,
+                    artifact_write_status="not_started",
+                    artifact_readback_status="not_applicable",
+                    pgvector_truth_role=existing.pgvector_truth_role,
+                )
+
+            return StorageResult(
+                record_id=existing.record_id,
+                package_id=existing.package_id,
+                idempotency_key=idempotency_key,
+                stored=True,
+                idempotent_reuse=True,
+                fail_closed=existing.fail_closed,
+                failure_class=None,
+                compensated_rollback=False,
+                artifact_write_status=existing.artifact_write_status,
+                artifact_readback_status=existing.artifact_readback_status,
+                pgvector_truth_role=existing.pgvector_truth_role,
+            )
 
         pgvector_truth_role = "missing"
         minio_uris: list[str] = []
@@ -260,8 +279,12 @@ class PolicyEvidencePackageStorageService:
                         artifact_readback_status="not_applicable",
                         pgvector_truth_role=ref.truth_role.value,
                     )
-            if ref.storage_system == StorageSystem.MINIO and ref.uri:
-                minio_uris.append(ref.uri)
+            if ref.storage_system == StorageSystem.MINIO:
+                probe_uri = ref.uri or (
+                    ref.reference_id if "://" in ref.reference_id else None
+                )
+                if probe_uri:
+                    minio_uris.append(probe_uri)
 
         artifact_write_status = "not_configured"
         written_uri = None
@@ -301,7 +324,6 @@ class PolicyEvidencePackageStorageService:
         now = _utc_now().isoformat()
         fail_closed = (not package.economic_handoff_ready) or artifact_readback_status != "proven"
         gate_state = package.gate_projection.runtime_sufficiency_state.value
-        content_hash = stable_payload_hash(normalized)
         row = PersistedPackageRecord(
             record_id=str(uuid5(NAMESPACE_URL, f"policy-evidence-package:{idempotency_key}")),
             package_id=package.package_id,

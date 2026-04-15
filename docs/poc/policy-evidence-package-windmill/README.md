@@ -18,6 +18,13 @@ The flow models these backend command boundaries:
 
 Windmill branches only on backend-authored readiness status.
 
+This POC now proves two command-client lanes:
+
+1. `command_client=stub` for deterministic orchestration contract checks.
+2. `command_client=backend_endpoint` through a local backend-command HTTP surface
+   used by the verifier (non-stub boundary proof without embedding product logic
+   in Windmill).
+
 ## Files
 
 - Windmill script: `ops/windmill/f/affordabot/policy_evidence_package_orchestration.py`
@@ -51,3 +58,9 @@ poetry run python scripts/verification/verify_policy_evidence_package_windmill_o
 The verifier includes a read-only Windmill smoke check. If non-interactive auth
 or CLI is unavailable, it records a blocker and keeps the local deterministic
 proof as the primary evidence.
+
+Verifier output now distinguishes:
+
+- deterministic stub path
+- deterministic backend-endpoint path (local HTTP backend command surface)
+- live Windmill read-only surface (`workspace list` + `flow get`)

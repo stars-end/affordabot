@@ -74,10 +74,87 @@ def test_scope_pipeline_blocked_on_package_readiness_gate():
 def test_unsupported_command_client_fails_closed():
     result = module.main(
         step="run_scope_pipeline",
-        command_client="backend_endpoint",
+        command_client="unsupported",
     )
     assert result["status"] == "failed"
-    assert result["error"] == "unsupported_command_client:backend_endpoint"
+    assert result["error"] == "unsupported_command_client:unsupported"
+
+
+def test_flow_schema_defaults_to_stub_command_client_for_live_safety():
+    text = FLOW_PATH.read_text(encoding="utf-8")
+    assert "command_client:" in text
+    assert "default: stub" in text
+    assert "- backend_endpoint" in text
+
+
+def test_backend_endpoint_mode_fails_closed_when_url_missing():
+    result = module.main(
+        step="run_scope_pipeline",
+        command_client="backend_endpoint",
+        backend_endpoint_auth_token="token-123",
+    )
+
+    assert result["status"] == "failed"
+    run_step = result["steps"]["fetch_scraped_candidates"]
+    assert run_step["error"] == "backend_endpoint_missing_configuration"
+    assert run_step["error_details"]["missing"] == ["backend_endpoint_url"]
+
+
+def test_backend_endpoint_mode_fails_closed_when_auth_missing():
+    result = module.main(
+        step="run_scope_pipeline",
+        command_client="backend_endpoint",
+        backend_endpoint_url="https://backend.example",
+    )
+
+    assert result["status"] == "failed"
+    run_step = result["steps"]["fetch_scraped_candidates"]
+    assert run_step["error"] == "backend_endpoint_missing_configuration"
+    assert run_step["error_details"]["missing"] == ["backend_endpoint_auth_token"]
+
+
+def test_backend_endpoint_mode_passthrough_success_payload(monkeypatch):
+    captured: list[dict[str, object]] = []
+
+    class _FakeResponse:
+        status_code = 200
+
+        @staticmethod
+        def json():
+            return {"status": "succeeded", "decision_reason": "backend_scope_completed"}
+
+        text = '{"status":"succeeded"}'
+
+    def _fake_post(url, json, headers, timeout):  # noqa: ANN001
+        captured.append(
+            {
+                "url": url,
+                "json": json,
+                "headers": headers,
+                "timeout": timeout,
+            }
+        )
+        return _FakeResponse()
+
+    monkeypatch.setattr(module.requests, "post", _fake_post)
+    result = module.main(
+        step="run_scope_pipeline",
+        command_client="backend_endpoint",
+        backend_endpoint_url="https://backend.example",
+        backend_endpoint_auth_token="token-123",
+    )
+
+    assert result["status"] == "succeeded"
+    assert captured
+    first_call = captured[0]
+    assert first_call["url"] == "https://backend.example/cron/pipeline/policy-evidence/command"
+    request_body = first_call["json"]
+    assert isinstance(request_body, dict)
+    assert request_body["command_name"] == "fetch_scraped_candidates"
+    assert request_body["jurisdiction"] == "San Jose CA"
+    assert request_body["query_family"] == "meeting_minutes"
+    assert first_call["headers"]["Authorization"] == "Bearer token-123"
+    assert first_call["headers"]["X-PR-CRON-SOURCE"] == "f/affordabot/policy_evidence_package_orchestration__flow"
 
 
 def test_flow_contract_includes_required_modules_and_branch():

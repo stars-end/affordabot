@@ -211,12 +211,86 @@ class PolicyEvidencePackage(BaseModel):
         has_resolved_parameter = any(
             param.state == ParameterState.RESOLVED for param in self.parameter_cards
         )
-        has_quant_model_support = any(
-            model.quantification_eligible
-            and bool(model.input_parameter_ids)
-            and bool(model.assumption_ids)
-            for model in self.model_cards
-        )
+        resolved_parameter_ids = {
+            param.id for param in self.parameter_cards if param.state == ParameterState.RESOLVED
+        }
+        assumption_ids = {assumption.id for assumption in self.assumption_cards}
+        governed_quant_assumption_usage_ids = {
+            usage.assumption_id
+            for usage in self.assumption_usage
+            if usage.used_for_quantitative_claim and usage.applicable and not usage.stale
+        }
+        has_quant_model_support = False
+        for model in self.model_cards:
+            if not model.quantification_eligible:
+                continue
+            if any(
+                parameter_id not in resolved_parameter_ids
+                for parameter_id in model.input_parameter_ids
+            ):
+                continue
+            if any(
+                assumption_id not in assumption_ids
+                for assumption_id in model.assumption_ids
+            ):
+                continue
+            if any(
+                assumption_id not in governed_quant_assumption_usage_ids
+                for assumption_id in model.assumption_ids
+            ):
+                continue
+            has_quant_model_support = True
+            break
         if not has_resolved_parameter and not has_quant_model_support:
             raise ValueError(PackageFailureReason.NO_QUANT_SUPPORT_PATH.value)
+        return self
+
+    @model_validator(mode="after")
+    def validate_quant_model_referential_integrity(self) -> "PolicyEvidencePackage":
+        resolved_parameter_ids = {
+            param.id for param in self.parameter_cards if param.state == ParameterState.RESOLVED
+        }
+        assumption_ids = {assumption.id for assumption in self.assumption_cards}
+        governed_quant_assumption_usage_ids = {
+            usage.assumption_id
+            for usage in self.assumption_usage
+            if usage.used_for_quantitative_claim and usage.applicable and not usage.stale
+        }
+
+        for model in self.model_cards:
+            if not model.quantification_eligible:
+                continue
+
+            missing_input_parameter_ids = [
+                parameter_id
+                for parameter_id in model.input_parameter_ids
+                if parameter_id not in resolved_parameter_ids
+            ]
+            if missing_input_parameter_ids:
+                raise ValueError(
+                    "quant model input_parameter_ids must reference resolved ParameterCards: "
+                    f"{missing_input_parameter_ids}"
+                )
+
+            missing_assumption_ids = [
+                assumption_id
+                for assumption_id in model.assumption_ids
+                if assumption_id not in assumption_ids
+            ]
+            if missing_assumption_ids:
+                raise ValueError(
+                    "quant model assumption_ids must reference AssumptionCards: "
+                    f"{missing_assumption_ids}"
+                )
+
+            missing_assumption_usage_ids = [
+                assumption_id
+                for assumption_id in model.assumption_ids
+                if assumption_id not in governed_quant_assumption_usage_ids
+            ]
+            if missing_assumption_usage_ids:
+                raise ValueError(
+                    "quant model assumption_ids used for quantification require governed assumption_usage: "
+                    f"{missing_assumption_usage_ids}"
+                )
         return self

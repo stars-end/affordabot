@@ -86,6 +86,23 @@ def test_unsupported_control_fails_closed_with_rejection_reason() -> None:
     assert package["economic_handoff_ready"] is False
     assert package["gate_report"]["verdict"] == "fail_closed"
     assert package["gate_report"]["blocking_gate"] == "parameterization"
+    assert package["canonical_document_key"] == "san_jose_ca::SJ-CONTROL-UNSUPPORTED-POC"
+
+
+def test_scraped_provenance_is_case_specific_not_shared_fixture() -> None:
+    bundle = PolicyEconomicMechanismCaseService().build_case_bundle()
+    direct = _case(bundle, "direct_cost_case")
+    indirect = _case(bundle, "indirect_pass_through_case")
+    control = _case(bundle, "unsupported_fail_closed_control")
+
+    direct_scraped = direct["primary_package"]["scraped_sources"][0]
+    indirect_scraped = indirect["primary_package"]["scraped_sources"][0]
+    control_scraped = control["primary_package"]["scraped_sources"][0]
+
+    assert direct_scraped["selected_candidate_url"] != indirect_scraped["selected_candidate_url"]
+    assert control_scraped["selected_candidate_url"].endswith("study-session-overview")
+    assert direct_scraped["reader_artifact_url"] != indirect_scraped["reader_artifact_url"]
+    assert direct_scraped["query_text"] != indirect_scraped["query_text"]
 
 
 def test_mechanism_packages_roundtrip_through_storage_and_sufficiency() -> None:

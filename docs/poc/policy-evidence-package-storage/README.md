@@ -9,8 +9,10 @@ This POC proves the first persistence/readback boundary for `PolicyEvidencePacka
   - `proven` only when a probe confirms URI existence.
   - `unproven` when probe is unavailable.
   - never silently treated as proven.
+  - probes all declared MinIO refs using `uri`, or `reference_id` when URI-shaped.
 - pgvector refs constrained to `derived_index` role.
 - Idempotent replay via `idempotency_key` (no duplicate package truth rows).
+  - duplicate `idempotency_key` with changed payload now fails closed (`idempotency_conflict`).
 - Partial-failure drills:
   - artifact write failure -> fail-closed result.
   - db upsert failure -> fail-closed result with compensation rollback signal.
@@ -28,10 +30,16 @@ This POC proves the first persistence/readback boundary for `PolicyEvidencePacka
 ```bash
 git diff --check
 cd backend && poetry run pytest tests/services/pipeline/test_policy_evidence_package_storage.py
-cd backend && poetry run python scripts/verification/verify_policy_evidence_package_storage.py
+cd backend && poetry run python scripts/verification/verify_policy_evidence_package_storage.py --live-mode auto
 ```
 
 ## Notes
 
-- This is a deterministic local proof harness; it does not require live Railway auth.
-- Live Postgres/MinIO smoke can be layered later without changing the fail-closed storage contract.
+- Deterministic harness proof remains the default and is always produced.
+- Live probe mode is now integrated into the verifier:
+  - `--live-mode off`: skip live probe.
+  - `--live-mode auto`: attempt live probe and record blockers without failing.
+  - `--live-mode required`: fail the verifier unless live probe passes.
+- Live probe attempts real runtime adapters:
+  - Postgres row persistence/readback using `public.policy_evidence_packages`.
+  - MinIO artifact write/readback using repo `S3Storage` runtime env.

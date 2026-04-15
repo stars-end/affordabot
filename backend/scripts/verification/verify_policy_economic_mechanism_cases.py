@@ -118,6 +118,13 @@ def run(out_path: Path) -> dict[str, Any]:
     indirect = _find_case(cases, "indirect_pass_through_case")
     secondary = _find_case(cases, "secondary_research_required_case")
     control = _find_case(cases, "unsupported_fail_closed_control")
+    direct_package = direct["primary_package"]
+    indirect_package = indirect["primary_package"]
+    control_package = control["primary_package"]
+
+    direct_scraped = direct_package["scraped_sources"][0]
+    indirect_scraped = indirect_package["scraped_sources"][0]
+    control_scraped = control_package["scraped_sources"][0]
 
     gates = {
         "direct_case_quant_ready": _gate(
@@ -141,6 +148,25 @@ def run(out_path: Path) -> dict[str, Any]:
             and control["unsupported_claim_rejection"] is not None
             and control["primary_package"]["gate_report"]["verdict"] == "fail_closed",
             "unsupported claim is rejected with explicit fail-closed reason",
+        ),
+        "canonical_document_key_stable": _gate(
+            all(
+                package["package_id"] not in package["canonical_document_key"]
+                for package in (
+                    direct_package,
+                    indirect_package,
+                    secondary["primary_package"],
+                    secondary["secondary_package"],
+                    control_package,
+                )
+            ),
+            "canonical_document_key is policy-identity stable and package-version independent",
+        ),
+        "scraped_provenance_case_specific": _gate(
+            direct_scraped["selected_candidate_url"] != indirect_scraped["selected_candidate_url"]
+            and direct_scraped["reader_artifact_url"] != indirect_scraped["reader_artifact_url"]
+            and control_scraped["selected_candidate_url"].endswith("study-session-overview"),
+            "scraped provenance is case-specific (candidate URL, reader artifact URL, query text)",
         ),
     }
     sufficiency_integration = _sufficiency_integration(cases)

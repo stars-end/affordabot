@@ -154,6 +154,11 @@ class PolicyEconomicMechanismCaseService:
             gate_projection=self._quantified_projection(),
             insufficiency_reasons=[],
             economic_handoff_ready=True,
+            scraped_query_text="san jose parking requirement residential development cost burden",
+            scraped_selected_candidate_url=str(evidence.source_url),
+            scraped_reader_artifact_url=(
+                "https://minio.local/artifacts/pkg-direct-cost-001/reader-output.txt"
+            ),
         )
         return {
             "case_id": "direct_cost_case",
@@ -288,6 +293,11 @@ class PolicyEconomicMechanismCaseService:
             gate_projection=self._quantified_projection(),
             insufficiency_reasons=[],
             economic_handoff_ready=True,
+            scraped_query_text="san jose multifamily fee increase rent pass-through",
+            scraped_selected_candidate_url=str(evidence.source_url),
+            scraped_reader_artifact_url=(
+                "https://minio.local/artifacts/pkg-indirect-pass-through-001/reader-output.txt"
+            ),
         )
         return {
             "case_id": "indirect_pass_through_case",
@@ -467,6 +477,12 @@ class PolicyEconomicMechanismCaseService:
             insufficiency_reasons=[],
             economic_handoff_ready=True,
             search_provider=SearchProvider.TAVILY,
+            scraped_query_family="secondary_research_probe",
+            scraped_query_text="means tested transit subsidy enrollment take-up elasticity evidence",
+            scraped_selected_candidate_url=str(secondary_evidence.source_url),
+            scraped_reader_artifact_url=(
+                "https://minio.local/artifacts/pkg-secondary-research-001/reader-output.txt"
+            ),
         )
         return {
             "case_id": "secondary_research_required_case",
@@ -583,6 +599,11 @@ class PolicyEconomicMechanismCaseService:
                 PackageFailureReason.NO_QUANT_SUPPORT_PATH,
             ],
             economic_handoff_ready=False,
+            scraped_query_text="san jose study session overview household cost claim",
+            scraped_selected_candidate_url=str(evidence.source_url),
+            scraped_reader_artifact_url=(
+                "https://minio.local/artifacts/pkg-unsupported-control-001/reader-output.txt"
+            ),
         )
         return {
             "case_id": "unsupported_fail_closed_control",
@@ -648,12 +669,17 @@ class PolicyEconomicMechanismCaseService:
         insufficiency_reasons: list[PackageFailureReason],
         economic_handoff_ready: bool,
         search_provider: SearchProvider = SearchProvider.PRIVATE_SEARXNG,
+        scraped_query_family: str = "economic_mechanism_probe",
+        scraped_query_text: str | None = None,
+        scraped_selected_candidate_url: str | None = None,
+        scraped_reader_artifact_url: str | None = None,
+        scraped_candidate_rank: int = 1,
     ) -> PolicyEvidencePackage:
         created = datetime(2026, 4, 15, tzinfo=UTC)
         return PolicyEvidencePackage(
             package_id=package_id,
             jurisdiction=jurisdiction,
-            canonical_document_key=f"{jurisdiction}::{policy_identifier}::{package_id}",
+            canonical_document_key=f"{jurisdiction}::{policy_identifier}",
             policy_identifier=policy_identifier,
             created_at=created,
             source_lanes=source_lanes,
@@ -662,12 +688,21 @@ class PolicyEconomicMechanismCaseService:
                     ScrapedSourceProvenance(
                         search_provider=search_provider,
                         provider_run_id=f"run::{package_id}",
-                        query_family="economic_mechanism_probe",
-                        query_text=f"{jurisdiction} {policy_identifier} cost-of-living mechanism",
+                        query_family=scraped_query_family,
+                        query_text=(
+                            scraped_query_text
+                            or f"{jurisdiction} {policy_identifier} cost-of-living mechanism"
+                        ),
                         search_snapshot_id=f"snapshot::{package_id}",
-                        candidate_rank=1,
-                        selected_candidate_url="https://records.sanjoseca.gov/agenda",
-                        reader_artifact_url="https://minio.local/artifacts/reader.txt",
+                        candidate_rank=scraped_candidate_rank,
+                        selected_candidate_url=(
+                            scraped_selected_candidate_url
+                            or "https://records.sanjoseca.gov/agenda"
+                        ),
+                        reader_artifact_url=(
+                            scraped_reader_artifact_url
+                            or f"https://minio.local/artifacts/{package_id}/reader-output.txt"
+                        ),
                         reader_substance_passed=True,
                     )
                 ]

@@ -10,11 +10,16 @@ import hashlib
 import json
 from typing import Any, Dict, Optional
 
+import requests
+
 
 CONTRACT_VERSION = "2026-04-15.windmill-policy-evidence.v1"
-ALLOWED_COMMAND_CLIENTS = {"stub"}
+ALLOWED_COMMAND_CLIENTS = {"stub", "backend_endpoint"}
 READY_STATUSES = {"ready"}
 BLOCKED_STATUSES = {"blocked", "insufficient"}
+BACKEND_ENDPOINT_CONNECT_TIMEOUT_SECONDS = 5
+BACKEND_ENDPOINT_READ_TIMEOUT_SECONDS = 600
+BACKEND_COMMAND_ENDPOINT_PATH = "/cron/pipeline/policy-evidence/command"
 
 
 def _hash(text: str) -> str:
@@ -38,6 +43,15 @@ def _refs(
         "windmill_step_id": windmill_step_id,
         "idempotency_key": idempotency_key,
     }
+
+
+def _normalize_backend_endpoint_url(endpoint_url: str) -> str:
+    candidate = endpoint_url.rstrip("/")
+    if not candidate:
+        return ""
+    if candidate.endswith(BACKEND_COMMAND_ENDPOINT_PATH):
+        return candidate
+    return f"{candidate}{BACKEND_COMMAND_ENDPOINT_PATH}"
 
 
 def _stub_command(
@@ -156,6 +170,140 @@ def _stub_command(
     }
 
 
+def _backend_endpoint_command(
+    *,
+    command_name: str,
+    refs: dict[str, str],
+    jurisdiction: str,
+    query_family: str,
+    package_id: str,
+    package_readiness_status: str,
+    gate_status: str,
+    previous: Optional[dict[str, Any]],
+    backend_endpoint_url: Optional[str],
+    backend_endpoint_auth_token: Optional[str],
+    backend_endpoint_timeout_seconds: int,
+) -> dict[str, Any]:
+    endpoint_url = _normalize_backend_endpoint_url((backend_endpoint_url or "").strip())
+    auth_token = (backend_endpoint_auth_token or "").strip()
+    if not endpoint_url:
+        return {
+            "status": "failed",
+            "command_name": command_name,
+            "refs": refs,
+            "decision_reason": "backend_endpoint_missing_configuration",
+            "retry_class": "non_retryable_validation",
+            "error": "backend_endpoint_missing_configuration",
+            "error_details": {"missing": ["backend_endpoint_url"]},
+        }
+    if not auth_token:
+        return {
+            "status": "failed",
+            "command_name": command_name,
+            "refs": refs,
+            "decision_reason": "backend_endpoint_missing_configuration",
+            "retry_class": "non_retryable_validation",
+            "error": "backend_endpoint_missing_configuration",
+            "error_details": {"missing": ["backend_endpoint_auth_token"]},
+        }
+
+    timeout_seconds = max(1, int(backend_endpoint_timeout_seconds))
+    timeout_tuple = (BACKEND_ENDPOINT_CONNECT_TIMEOUT_SECONDS, timeout_seconds)
+    request_headers = {
+        "Authorization": f"Bearer {auth_token}",
+        "X-PR-CRON-SECRET": auth_token,
+        "X-PR-CRON-SOURCE": refs["windmill_flow_path"],
+        "Content-Type": "application/json",
+    }
+    request_payload = {
+        "command_name": command_name,
+        "refs": refs,
+        "jurisdiction": jurisdiction,
+        "query_family": query_family,
+        "package_id": package_id,
+        "package_readiness_status": package_readiness_status,
+        "gate_status": gate_status,
+        "previous_step_output": previous,
+    }
+
+    try:
+        response = requests.post(
+            endpoint_url,
+            json=request_payload,
+            headers=request_headers,
+            timeout=timeout_tuple,
+        )
+    except requests.RequestException as exc:
+        return {
+            "status": "failed",
+            "command_name": command_name,
+            "refs": refs,
+            "decision_reason": "backend_endpoint_request_error",
+            "retry_class": "retryable_transport_error",
+            "error": "backend_endpoint_request_error",
+            "error_details": {"detail": str(exc), "endpoint_url": endpoint_url},
+        }
+
+    try:
+        response_payload = response.json()
+    except ValueError:
+        response_payload = {"raw_text": response.text}
+
+    if response.status_code >= 400:
+        return {
+            "status": "failed",
+            "command_name": command_name,
+            "refs": refs,
+            "decision_reason": "backend_endpoint_http_error",
+            "retry_class": "retryable_http_error",
+            "error": "backend_endpoint_http_error",
+            "error_details": {
+                "http_status": response.status_code,
+                "endpoint_url": endpoint_url,
+                "response": response_payload,
+            },
+        }
+
+    if not isinstance(response_payload, dict):
+        return {
+            "status": "failed",
+            "command_name": command_name,
+            "refs": refs,
+            "decision_reason": "backend_endpoint_invalid_response",
+            "retry_class": "non_retryable_validation",
+            "error": "backend_endpoint_invalid_response",
+            "error_details": {
+                "detail": "response payload is not an object",
+                "endpoint_url": endpoint_url,
+            },
+        }
+
+    status = str(response_payload.get("status") or "").strip()
+    if not status:
+        return {
+            "status": "failed",
+            "command_name": command_name,
+            "refs": refs,
+            "decision_reason": "backend_endpoint_invalid_response",
+            "retry_class": "non_retryable_validation",
+            "error": "backend_endpoint_invalid_response",
+            "error_details": {
+                "detail": "missing status in response payload",
+                "endpoint_url": endpoint_url,
+                "response": response_payload,
+            },
+        }
+
+    passthrough = dict(response_payload)
+    passthrough.setdefault("command_name", command_name)
+    passthrough.setdefault("refs", refs)
+    passthrough.setdefault("jurisdiction", jurisdiction)
+    passthrough.setdefault("query_family", query_family)
+    passthrough.setdefault("decision_reason", "backend_endpoint_passthrough")
+    passthrough.setdefault("retry_class", "none")
+    return passthrough
+
+
 def _run_scope_pipeline(
     *,
     contract_version: str,
@@ -170,6 +318,9 @@ def _run_scope_pipeline(
     package_readiness_status: str,
     gate_status: str,
     command_client: str,
+    backend_endpoint_url: Optional[str],
+    backend_endpoint_auth_token: Optional[str],
+    backend_endpoint_timeout_seconds: int,
 ) -> dict[str, Any]:
     if command_client not in ALLOWED_COMMAND_CLIENTS:
         return {
@@ -189,16 +340,31 @@ def _run_scope_pipeline(
             windmill_step_id=step_name,
             idempotency_key=idempotency_key,
         )
-        output = _stub_command(
-            command_name=command_name,
-            refs=step_refs,
-            jurisdiction=jurisdiction,
-            query_family=query_family,
-            package_id=package_id,
-            package_readiness_status=package_readiness_status,
-            gate_status=gate_status,
-            previous=previous,
-        )
+        if command_client == "stub":
+            output = _stub_command(
+                command_name=command_name,
+                refs=step_refs,
+                jurisdiction=jurisdiction,
+                query_family=query_family,
+                package_id=package_id,
+                package_readiness_status=package_readiness_status,
+                gate_status=gate_status,
+                previous=previous,
+            )
+        else:
+            output = _backend_endpoint_command(
+                command_name=command_name,
+                refs=step_refs,
+                jurisdiction=jurisdiction,
+                query_family=query_family,
+                package_id=package_id,
+                package_readiness_status=package_readiness_status,
+                gate_status=gate_status,
+                previous=previous,
+                backend_endpoint_url=backend_endpoint_url,
+                backend_endpoint_auth_token=backend_endpoint_auth_token,
+                backend_endpoint_timeout_seconds=backend_endpoint_timeout_seconds,
+            )
         output["contract_version"] = contract_version
         steps[step_name] = output
         return output
@@ -245,6 +411,9 @@ def main(
     package_readiness_status: str = "ready",
     gate_status: str = "quantified",
     command_client: str = "stub",
+    backend_endpoint_url: Optional[str] = None,
+    backend_endpoint_auth_token: Optional[str] = None,
+    backend_endpoint_timeout_seconds: int = BACKEND_ENDPOINT_READ_TIMEOUT_SECONDS,
     previous_step_output: Optional[dict[str, Any]] = None,
 ) -> dict[str, Any]:
     if step == "run_scope_pipeline":
@@ -261,6 +430,9 @@ def main(
             package_readiness_status=package_readiness_status,
             gate_status=gate_status,
             command_client=command_client,
+            backend_endpoint_url=backend_endpoint_url,
+            backend_endpoint_auth_token=backend_endpoint_auth_token,
+            backend_endpoint_timeout_seconds=backend_endpoint_timeout_seconds,
         )
     if step == "failure_handler":
         return {
@@ -270,4 +442,3 @@ def main(
             "error": previous_step_output or {"error": "unknown"},
         }
     return {"status": "failed", "error": f"unsupported_step:{step}"}
-

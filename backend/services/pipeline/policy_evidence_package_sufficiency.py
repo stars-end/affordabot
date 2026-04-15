@@ -194,15 +194,58 @@ class PolicyEvidencePackageSufficiencyService:
         return None
 
     def _check_parameter_support(self, *, package: PolicyEvidencePackage) -> str | None:
-        has_resolved_parameters = any(
-            card.state == ParameterState.RESOLVED for card in package.parameter_cards
-        )
-        has_quant_model_support = any(
-            card.quantification_eligible
-            and bool(card.input_parameter_ids)
-            and bool(card.assumption_ids)
-            for card in package.model_cards
-        )
+        resolved_parameter_ids = {
+            card.id for card in package.parameter_cards if card.state == ParameterState.RESOLVED
+        }
+        assumption_ids = {card.id for card in package.assumption_cards}
+        governed_quant_assumption_usage_ids = {
+            usage.assumption_id
+            for usage in package.assumption_usage
+            if usage.used_for_quantitative_claim and usage.applicable and not usage.stale
+        }
+
+        has_resolved_parameters = bool(resolved_parameter_ids)
+        has_quant_model_support = False
+
+        for model in package.model_cards:
+            if not model.quantification_eligible:
+                continue
+
+            missing_input_parameter_ids = [
+                parameter_id
+                for parameter_id in model.input_parameter_ids
+                if parameter_id not in resolved_parameter_ids
+            ]
+            if missing_input_parameter_ids:
+                return (
+                    f"Quant model {model.id} references unresolved input_parameter_ids="
+                    f"{missing_input_parameter_ids}."
+                )
+
+            missing_assumption_cards = [
+                assumption_id
+                for assumption_id in model.assumption_ids
+                if assumption_id not in assumption_ids
+            ]
+            if missing_assumption_cards:
+                return (
+                    f"Quant model {model.id} references unknown assumption_ids="
+                    f"{missing_assumption_cards}."
+                )
+
+            missing_governed_assumption_usage = [
+                assumption_id
+                for assumption_id in model.assumption_ids
+                if assumption_id not in governed_quant_assumption_usage_ids
+            ]
+            if missing_governed_assumption_usage:
+                return (
+                    f"Quant model {model.id} is missing governed assumption_usage for "
+                    f"assumption_ids={missing_governed_assumption_usage}."
+                )
+
+            has_quant_model_support = True
+
         if not has_resolved_parameters and not has_quant_model_support:
             return "No resolved parameters or quantification-eligible model support path."
         return None
@@ -269,14 +312,15 @@ class PolicyEvidencePackageSufficiencyService:
     def _check_unsupported_claims(self, *, package: PolicyEvidencePackage) -> str | None:
         if package.gate_report.unsupported_claim_count <= 0:
             return None
-        qualitative_verdicts = {
+        compatible_verdicts = {
             GateVerdict.QUALITATIVE_ONLY,
             GateVerdict.QUALITATIVE_ONLY_DUE_TO_UNSUPPORTED_CLAIMS,
             GateVerdict.FAIL_CLOSED_QUALITATIVE_ONLY,
+            GateVerdict.FAIL_CLOSED,
         }
-        if package.gate_report.verdict not in qualitative_verdicts:
+        if package.gate_report.verdict not in compatible_verdicts:
             return (
-                "Unsupported claims present but gate verdict is not qualitative/fail-closed."
+                "Unsupported claims present but gate verdict is not fail-closed/qualitative compatible."
             )
         return None
 
