@@ -16,7 +16,7 @@
     }
   },
   "hooks": {
-    "session-start": {
+    "SessionStart": {
       "enabled": true,
       "loadBeads": true
     }
