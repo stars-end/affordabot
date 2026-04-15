@@ -1,0 +1,143 @@
+summary: Affordabot policy evidence package orchestration flow (boundary-only)
+description: >
+  Orchestrates backend command boundaries for scraped + structured evidence
+  package generation and readiness branching. No business logic in Windmill.
+value:
+  failure_module:
+    id: failure_handler
+    value:
+      type: script
+      path: f/affordabot/policy_evidence_package_orchestration
+      input_transforms:
+        step:
+          type: static
+          value: failure_handler
+        previous_step_output:
+          type: javascript
+          expr: error
+  modules:
+  - id: run_scope_pipeline
+    value:
+      type: script
+      path: f/affordabot/policy_evidence_package_orchestration
+      retry:
+        attempts: 2
+        backoff:
+          initial_interval: 30
+          max_interval: 300
+          multiplier: 2
+      input_transforms:
+        step:
+          type: static
+          value: run_scope_pipeline
+        contract_version:
+          type: static
+          value: 2026-04-15.windmill-policy-evidence.v1
+        windmill_workspace:
+          type: static
+          value: affordabot
+        windmill_flow_path:
+          type: static
+          value: f/affordabot/policy_evidence_package_orchestration__flow
+        windmill_run_id:
+          type: javascript
+          expr: "typeof flow_job_id !== 'undefined' ? flow_job_id : flow_input.idempotency_key"
+        windmill_job_id:
+          type: static
+          value: run_scope_pipeline
+        idempotency_key:
+          type: javascript
+          expr: flow_input.idempotency_key
+        jurisdiction:
+          type: javascript
+          expr: flow_input.jurisdiction
+        query_family:
+          type: javascript
+          expr: flow_input.query_family
+        package_id:
+          type: javascript
+          expr: flow_input.package_id
+        package_readiness_status:
+          type: javascript
+          expr: flow_input.package_readiness_status
+        gate_status:
+          type: javascript
+          expr: flow_input.gate_status
+        command_client:
+          type: javascript
+          expr: flow_input.command_client
+  - id: readiness_branch
+    value:
+      type: branchone
+      branches:
+      - expr: "results.run_scope_pipeline.package_readiness_status !== 'ready'"
+        modules:
+        - id: blocked_summary
+          value:
+            type: rawscript
+            language: bun
+            content: |
+              export async function main() {
+                return {
+                  status: "blocked",
+                  reason: "package_not_ready",
+                  package_id: results.run_scope_pipeline.package_id,
+                  package_readiness_status: results.run_scope_pipeline.package_readiness_status,
+                  gate_status: results.run_scope_pipeline.gate_status,
+                  retry_class: results.run_scope_pipeline.retry_class
+                };
+              }
+      default:
+      - id: ready_summary
+        value:
+          type: rawscript
+          language: bun
+          content: |
+            export async function main() {
+              return {
+                status: "succeeded",
+                reason: "package_ready",
+                package_id: results.run_scope_pipeline.package_id,
+                package_readiness_status: results.run_scope_pipeline.package_readiness_status,
+                gate_status: results.run_scope_pipeline.gate_status,
+                retry_class: results.run_scope_pipeline.retry_class
+              };
+            }
+concurrency:
+  limit: 2
+  key: affordabot-policy-evidence-package
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  required:
+    - idempotency_key
+    - jurisdiction
+    - query_family
+  properties:
+    idempotency_key:
+      type: string
+      default: run:bd-3wefe.12
+    jurisdiction:
+      type: string
+      default: San Jose CA
+    query_family:
+      type: string
+      default: meeting_minutes
+    package_id:
+      type: string
+      default: pkg-bd-3wefe.12-sample
+    package_readiness_status:
+      type: string
+      enum:
+        - ready
+        - blocked
+        - insufficient
+      default: ready
+    gate_status:
+      type: string
+      default: quantified
+    command_client:
+      type: string
+      enum:
+        - stub
+      default: stub

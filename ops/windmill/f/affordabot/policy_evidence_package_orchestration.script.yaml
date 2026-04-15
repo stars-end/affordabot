@@ -1,0 +1,62 @@
+summary: Affordabot policy evidence package orchestration boundary step
+description: >
+  Windmill orchestration-only script for scraped + structured evidence package
+  flow. Backend commands own product logic and storage semantics.
+lock: ""
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  properties:
+    step:
+      type: string
+      enum:
+        - run_scope_pipeline
+        - failure_handler
+    contract_version:
+      type: string
+      default: 2026-04-15.windmill-policy-evidence.v1
+    windmill_workspace:
+      type: string
+      default: affordabot
+    windmill_flow_path:
+      type: string
+      default: f/affordabot/policy_evidence_package_orchestration__flow
+    windmill_run_id:
+      type: string
+      default: windmill-run-id
+    windmill_job_id:
+      type: string
+      default: windmill-job-id
+    idempotency_key:
+      type: string
+      default: run:bd-3wefe.12
+    jurisdiction:
+      type: string
+      default: San Jose CA
+    query_family:
+      type: string
+      default: meeting_minutes
+    package_id:
+      type: string
+      default: pkg-bd-3wefe.12-sample
+    package_readiness_status:
+      type: string
+      enum:
+        - ready
+        - blocked
+        - insufficient
+      default: ready
+    gate_status:
+      type: string
+      default: quantified
+    command_client:
+      type: string
+      enum:
+        - stub
+      default: stub
+    previous_step_output:
+      type: object
+      default: null
+  required:
+    - step
