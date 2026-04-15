@@ -2,9 +2,9 @@
 
 ## Verdict
 
-`retry_3_completed_stop_local_loop`
+`retry_4_attempted_runtime_blocked`
 
-The local deterministic quality loop should stop after retry-3. The P1 false-pass risks identified before retry-3 are fixed in the generated artifacts:
+The local deterministic quality loop should stop after retry-3. Retry-4 attempted the next meaningful live runtime proof and hit a concrete Railway-dev storage blocker. The P1 false-pass risks identified before retry-3 are fixed in the generated artifacts:
 
 - `scraped/search` no longer passes on source presence alone.
 - `storage/read-back` no longer claims real Postgres/MinIO proof from an in-memory harness.
@@ -15,6 +15,14 @@ The remaining gaps are live current-run proof gaps, not local data-quality scori
 - `storage/read-back`: needs real Postgres + MinIO proof for the current vertical package.
 - `Windmill/orchestration`: needs current Windmill run/job ids linked to the current vertical package.
 - `LLM narrative`: needs canonical analysis/LLM run ids linked to the current vertical package.
+
+Retry-4 storage proof artifact:
+
+- path: `artifacts/quality_spine_live_storage_probe.json`
+- status: `blocked`
+- blocker: `minio_write_or_readback_failed`
+- error_class: `S3Error`
+- summarized cause: `AccessDenied` for the configured `affordabot-artifacts` bucket
 
 ## Current Artifact State
 
@@ -66,9 +74,9 @@ Required current-run proof:
 
 ## Retry Recommendation
 
-Do not run retry-4 as another local fixture tweak. The next retry should be a live runtime proof:
+Do not run another local fixture tweak. Retry-4 already confirmed that the next proof must fix or route around live runtime storage access. The next retry should be a live runtime proof after the MinIO dev runtime configuration is corrected:
 
-`retry_4 = railway_dev_current_run_storage_windmill_llm_proof`
+`retry_5 = railway_dev_current_run_storage_windmill_llm_proof`
 
 Acceptance should require real current-run ids/rows/objects. If live runtime cannot execute non-interactively, keep the categories as `not_proven` and treat the missing runtime path as the blocker for architecture lock.
 

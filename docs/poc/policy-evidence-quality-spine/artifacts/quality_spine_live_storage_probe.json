@@ -1,0 +1,12 @@
+{
+  "attempt_id": "bd-3wefe.13-retry-4",
+  "blocker": "minio_write_or_readback_failed",
+  "error_class": "S3Error",
+  "error_summary": "S3 operation failed; code: AccessDenied; bucket_name: affordabot-artifacts; request identifiers redacted",
+  "feature_key": "bd-3wefe.13",
+  "generated_at": "2026-04-15T18:54:01.458859+00:00",
+  "package_id": "pkg-sj-parking-minimum-amendment",
+  "probe_mode": "railway_ssh_backend_dev",
+  "secrets_redacted": true,
+  "status": "blocked"
+}

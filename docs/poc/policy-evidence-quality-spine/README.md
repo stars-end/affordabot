@@ -10,6 +10,8 @@ economic analysis and admin/frontend read models.
 - `artifacts/quality_spine_scorecard.json`
 - `artifacts/quality_spine_report.md`
 - `artifacts/retry_ledger.json`
+- `artifacts/quality_spine_gap_audit.md`
+- `artifacts/quality_spine_live_storage_probe.json`
 
 ## Current verdict
 
@@ -29,6 +31,13 @@ search quality can pass only with explicit artifact metrics, while storage
 remains `not_proven` until real Postgres/MinIO proof is available for the
 current vertical package. Windmill/LLM also remain `not_proven` when evidence
 is historical or lacks canonical run ids.
+
+Retry-4 attempted a live Railway-dev backend-network storage proof for the
+current vertical package. The probe reached the backend dev runtime and decoded
+the package, but MinIO returned `AccessDenied` for the configured bucket before
+Postgres/MinIO readback could be proven. This keeps storage `not_proven` and
+turns the next step into a runtime configuration gate, not another local fixture
+change.
 
 ## Matrix source
 

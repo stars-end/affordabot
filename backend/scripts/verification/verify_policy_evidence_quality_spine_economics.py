@@ -51,6 +51,7 @@ DEFAULT_README_PATH = (
     / "policy-evidence-quality-spine"
     / "README.md"
 )
+LIVE_STORAGE_PROBE_FILENAME = "quality_spine_live_storage_probe.json"
 
 
 def _load_json(path: Path) -> dict[str, Any] | None:
@@ -101,6 +102,8 @@ def _write_readme(path: Path, *, scorecard: dict[str, Any]) -> None:
         "- `artifacts/quality_spine_scorecard.json`",
         "- `artifacts/quality_spine_report.md`",
         "- `artifacts/retry_ledger.json`",
+        "- `artifacts/quality_spine_gap_audit.md`",
+        f"- `artifacts/{LIVE_STORAGE_PROBE_FILENAME}`",
         "",
         "## Current verdict",
         "",
@@ -121,6 +124,13 @@ def _write_readme(path: Path, *, scorecard: dict[str, Any]) -> None:
         "current vertical package. Windmill/LLM also remain `not_proven` when evidence",
         "is historical or lacks canonical run ids.",
         "",
+        "Retry-4 attempted a live Railway-dev backend-network storage proof for the",
+        "current vertical package. The probe reached the backend dev runtime and decoded",
+        "the package, but MinIO returned `AccessDenied` for the configured bucket before",
+        "Postgres/MinIO readback could be proven. This keeps storage `not_proven` and",
+        "turns the next step into a runtime configuration gate, not another local fixture",
+        "change.",
+        "",
         "## Matrix source",
         "",
         f"- mode: `{scorecard['matrix_source']['mode']}`",
@@ -137,6 +147,43 @@ def _write_readme(path: Path, *, scorecard: dict[str, Any]) -> None:
     ]
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def _merge_live_storage_probe(
+    retry_ledger: dict[str, Any], *, live_storage_probe_path: Path
+) -> dict[str, Any]:
+    probe = _load_json(live_storage_probe_path)
+    if not isinstance(probe, dict) or probe.get("attempt_id") != "bd-3wefe.13-retry-4":
+        return retry_ledger
+
+    attempts = retry_ledger.get("attempts")
+    if not isinstance(attempts, list):
+        return retry_ledger
+
+    probe_status = str(probe.get("status") or "blocked")
+    blocker = str(probe.get("blocker") or "unknown")
+    retry_4 = {
+        "attempt_id": "retry_4",
+        "status": "completed" if probe_status == "passed" else "blocked",
+        "result_verdict": "partial",
+        "failed_categories": [],
+        "not_proven_categories": ["storage/read-back", "Windmill/orchestration", "LLM narrative"],
+        "tweaks_applied": ["railway_dev_current_run_storage_probe"],
+        "result_note": (
+            "Railway-dev storage probe passed; scorecard still requires regenerated runtime proof linkage."
+            if probe_status == "passed"
+            else f"Railway-dev storage probe blocked at {blocker}; see {LIVE_STORAGE_PROBE_FILENAME}."
+        ),
+        "score_delta": None,
+    }
+
+    merged = dict(retry_ledger)
+    merged["attempts"] = [
+        retry_4 if item.get("attempt_id") == "retry_4" else item
+        for item in attempts
+        if isinstance(item, dict)
+    ]
+    return merged
 
 
 def run(
@@ -160,6 +207,11 @@ def run(
     scorecard_path = out_dir / "quality_spine_scorecard.json"
     report_path = out_dir / "quality_spine_report.md"
     retry_path = out_dir / "retry_ledger.json"
+    live_storage_probe_path = out_dir / LIVE_STORAGE_PROBE_FILENAME
+    retry_ledger = _merge_live_storage_probe(
+        evaluation["retry_ledger"],
+        live_storage_probe_path=live_storage_probe_path,
+    )
 
     scorecard_path.write_text(
         json.dumps(evaluation["scorecard"], indent=2, ensure_ascii=False) + "\n",
@@ -170,7 +222,7 @@ def run(
         encoding="utf-8",
     )
     retry_path.write_text(
-        json.dumps(evaluation["retry_ledger"], indent=2, ensure_ascii=False) + "\n",
+        json.dumps(retry_ledger, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
     )
     _write_readme(readme_path, scorecard=evaluation["scorecard"])

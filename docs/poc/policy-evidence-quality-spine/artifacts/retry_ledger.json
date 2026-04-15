@@ -68,16 +68,18 @@
     },
     {
       "attempt_id": "retry_4",
-      "status": "not_executed",
-      "result_verdict": null,
+      "status": "blocked",
+      "result_verdict": "partial",
       "failed_categories": [],
-      "not_proven_categories": [],
-      "tweaks_applied": [
-        "Repair MinIO probe/readback and content-hash linkage.",
-        "Capture windmill job/run identifiers in matrix artifact.",
-        "Run canonical analysis narrative step and record run ids."
+      "not_proven_categories": [
+        "storage/read-back",
+        "Windmill/orchestration",
+        "LLM narrative"
       ],
-      "result_note": null,
+      "tweaks_applied": [
+        "railway_dev_current_run_storage_probe"
+      ],
+      "result_note": "Railway-dev storage probe blocked at minio_write_or_readback_failed; see quality_spine_live_storage_probe.json.",
       "score_delta": null
     },
     {
