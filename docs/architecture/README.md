@@ -15,6 +15,10 @@ Read these in order before proposing or implementing pipeline changes:
 Then inspect the live code paths listed in each document's freshness contract.
 The docs are routing maps, not a substitute for source inspection.
 
+For the next implementation wave, the dependency-lockdown spec's
+`Locked MVP Architecture Constraints` section is authoritative. Treat those as
+the current working locks until `bd-3wefe.8` either confirms or revises them.
+
 ## Current Non-Obvious Truths
 
 - Scheduled Windmill cron jobs currently create substrate and chunks; they do

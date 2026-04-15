@@ -31,6 +31,64 @@ The current default remains:
 
 Do not lock this as final until `bd-3wefe.8` completes.
 
+## Locked MVP Architecture Constraints
+
+These constraints are locked for the next implementation and POC wave. They are
+not yet a permanent production architecture decision; `bd-3wefe.8` is still the
+formal architecture-lock review. Downstream tasks may only violate these
+constraints if they update this spec, update the brownfield map, and explain why
+new evidence invalidated the lock.
+
+### Hard locks
+
+1. Canonical economic engine:
+   `AnalysisPipeline` + `LegislationResearchService` + deterministic evidence
+   gates remain the MVP economic-analysis path. New package work must feed,
+   wrap, or intentionally adapt that path rather than create a parallel
+   analysis engine.
+2. Evidence package boundary:
+   `PolicyEvidencePackage` is an auditable handoff contract between discovery,
+   structured ingestion, storage, and economic analysis. It is not a substitute
+   for the economic engine.
+3. Windmill/backend boundary:
+   Windmill owns orchestration only: schedule, fanout, retry, branch routing,
+   run visibility, and calls to backend-owned commands. Windmill scripts must
+   not own source-ranking policy, evidence sufficiency rules, economic
+   mechanisms, formulas, assumption selection, or final narrative decisions.
+4. Storage truth:
+   Postgres owns relational/run/package/read-model truth, MinIO owns raw and
+   intermediate artifact truth, and pgvector owns derived retrieval indexes.
+   pgvector chunks are never source of truth for provenance or claims.
+5. Frontend boundary:
+   frontend/admin surfaces are visualization and read-model consumers. They may
+   expose package status, blockers, provenance, storage refs, assumptions, and
+   final analysis, but they must not recompute package or economic truth.
+6. Next POC objective:
+   the next implementation proof must connect persisted evidence packages to
+   canonical economic analysis and admin/frontend-readable output. Upstream
+   source-quality work alone is not sufficient.
+
+### Provisional provider lock
+
+Private SearXNG remains the primary candidate for free/low-cost scraped search.
+Tavily is the hot fallback candidate, and Exa is bakeoff/eval-only while free
+tier and access constraints remain tight. This is a scoring posture, not a final
+vendor commitment: provider choice must be judged by package-readiness metrics,
+not just search recall.
+
+### Not locked yet
+
+- Whether package quality is sufficient for decision-grade quantitative
+  economic analysis.
+- Exact physical storage shape for evidence cards, parameter cards, assumption
+  cards, model cards, and gate reports.
+- Whether `PipelineDomainBridge` invokes `AnalysisPipeline` directly, calls a
+  new backend command wrapper, or emits a package that a separate backend
+  analysis command consumes.
+- Final search-provider primary/fallback order.
+- Final public/admin UX for explaining insufficiency, assumptions, uncertainty,
+  and storage provenance.
+
 Important sequencing correction:
 
 Before the package spec or new POCs proceed, run `bd-3wefe.9`, a code-review-style `dx-review` of the existing raw/structured-data-to-analysis pipeline. The repo already contains economic analysis, evidence gates, storage, admin, frontend, reader, search, and Windmill/domain-bridge code. New work must extend that system, not rediscover or duplicate it.
