@@ -1,0 +1,86 @@
+{
+  "feature_key": "bd-3wefe.13",
+  "max_retry_rounds": 5,
+  "attempts": [
+    {
+      "attempt_id": "baseline",
+      "status": "completed_superseded",
+      "result_verdict": "fail",
+      "failed_categories": [
+        "economic reasoning"
+      ],
+      "not_proven_categories": [],
+      "tweaks_applied": []
+    },
+    {
+      "attempt_id": "retry_1",
+      "status": "completed",
+      "result_verdict": "partial",
+      "failed_categories": [],
+      "not_proven_categories": [
+        "Windmill/orchestration",
+        "LLM narrative"
+      ],
+      "tweaks_applied": [
+        "source_bound_model_card_projection"
+      ],
+      "score_delta": {
+        "before_score": 75.33,
+        "after_score": 75.33
+      }
+    },
+    {
+      "attempt_id": "retry_2",
+      "status": "not_executed",
+      "result_verdict": null,
+      "failed_categories": [],
+      "not_proven_categories": [],
+      "tweaks_applied": [
+        "Capture windmill job/run identifiers in matrix artifact.",
+        "Run canonical analysis narrative step and record run ids."
+      ],
+      "score_delta": null
+    },
+    {
+      "attempt_id": "retry_3",
+      "status": "not_executed",
+      "result_verdict": null,
+      "failed_categories": [],
+      "not_proven_categories": [],
+      "tweaks_applied": [
+        "Capture windmill job/run identifiers in matrix artifact.",
+        "Run canonical analysis narrative step and record run ids."
+      ],
+      "score_delta": null
+    },
+    {
+      "attempt_id": "retry_4",
+      "status": "not_executed",
+      "result_verdict": null,
+      "failed_categories": [],
+      "not_proven_categories": [],
+      "tweaks_applied": [
+        "Capture windmill job/run identifiers in matrix artifact.",
+        "Run canonical analysis narrative step and record run ids."
+      ],
+      "score_delta": null
+    },
+    {
+      "attempt_id": "retry_5",
+      "status": "not_executed",
+      "result_verdict": null,
+      "failed_categories": [],
+      "not_proven_categories": [],
+      "tweaks_applied": [
+        "Capture windmill job/run identifiers in matrix artifact.",
+        "Run canonical analysis narrative step and record run ids."
+      ],
+      "score_delta": null
+    }
+  ],
+  "retry_policy": {
+    "diagnosis_source": "quality_spine_scorecard.taxonomy",
+    "allowed_tweaks_only": true,
+    "strategic_hitl_required_for_boundary_changes": true
+  }
+}

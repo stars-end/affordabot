@@ -1,0 +1,581 @@
+{
+  "attempt_metadata": {
+    "after_score": 75.33,
+    "attempt_id": "bd-3wefe.13-retry-1",
+    "before_score": 75.33,
+    "dominant_failure_class": "none",
+    "quality_threshold": 75.0,
+    "retry_round": 1,
+    "stop_continue_decision": "stop",
+    "targeted_tweak": "source_bound_model_card_projection"
+  },
+  "feature_key": "bd-3wefe.13",
+  "generated_at": "2026-04-15T18:20:09.738510+00:00",
+  "live_probe": {
+    "reason": "live_mode_off",
+    "status": "skipped"
+  },
+  "matrix_score_snapshot": {
+    "average_score": 75.33,
+    "dominant_failure_counts": {
+      "none": 5,
+      "reader_quality": 1
+    },
+    "readiness_counts": {
+      "fail_closed": 1,
+      "quantified_ready": 5
+    }
+  },
+  "package_build": {
+    "canonical_document_key": "san_jose_ca::sj-parking-minimum-amendment",
+    "economic_handoff_ready": true,
+    "evidence_card_count": 2,
+    "package_id": "pkg-sj-parking-minimum-amendment",
+    "parameter_card_count": 2,
+    "source_lanes": [
+      "scraped",
+      "structured"
+    ]
+  },
+  "persisted_record": {
+    "artifact_readback_status": "proven",
+    "artifact_write_status": "succeeded",
+    "canonical_document_key": "san_jose_ca::sj-parking-minimum-amendment",
+    "content_hash": "b9a4e9110b6c69fb9ec5a1196ae93919dfa2073420b5cebe7c91692c1564f280",
+    "created_at": "2026-04-15T18:20:09.738389+00:00",
+    "economic_handoff_ready": true,
+    "fail_closed": false,
+    "gate_state": "quantified",
+    "id": "528d855a-331a-5298-8740-7f35d694200d",
+    "idempotency_key": "idem-sj-parking-minimum-amendment-baseline",
+    "insufficiency_reasons": [],
+    "jurisdiction": "san_jose_ca",
+    "package_id": "pkg-sj-parking-minimum-amendment",
+    "package_payload": {
+      "assumption_cards": [
+        {
+          "applicability_tags": [
+            "san_jose_ca",
+            "meeting_minutes"
+          ],
+          "central": 0.65,
+          "confidence": 0.5,
+          "external_validity_notes": "POC placeholder assumption; validate with literature in bd-3wefe.5/.6.",
+          "family": "compliance_cost",
+          "high": 0.8,
+          "id": "assump-1-compliance_cost",
+          "low": 0.5,
+          "source_excerpt": "Mapped mechanism assumption from source evidence and policy context.",
+          "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13050001&GUID=PK-1",
+          "stale_after_days": 365,
+          "unit": "share",
+          "version": "v1"
+        },
+        {
+          "applicability_tags": [
+            "san_jose_ca",
+            "legistar"
+          ],
+          "central": 0.65,
+          "confidence": 0.5,
+          "external_validity_notes": "POC placeholder assumption; validate with literature in bd-3wefe.5/.6.",
+          "family": "compliance_cost",
+          "high": 0.8,
+          "id": "assump-2-compliance_cost",
+          "low": 0.5,
+          "source_excerpt": "Mapped mechanism assumption from source evidence and policy context.",
+          "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13050001&GUID=PK-1",
+          "stale_after_days": 365,
+          "unit": "share",
+          "version": "v1"
+        }
+      ],
+      "assumption_usage": [
+        {
+          "applicable": true,
+          "assumption_id": "assump-1-compliance_cost",
+          "stale": false,
+          "stale_reason": null,
+          "used_for_quantitative_claim": true
+        },
+        {
+          "applicable": true,
+          "assumption_id": "assump-2-compliance_cost",
+          "stale": false,
+          "stale_reason": null,
+          "used_for_quantitative_claim": true
+        }
+      ],
+      "canonical_document_key": "san_jose_ca::sj-parking-minimum-amendment",
+      "created_at": "2026-04-15T18:20:09.735710Z",
+      "economic_handoff_ready": true,
+      "evidence_cards": [
+        {
+          "artifact_id": "san_jose_ca::sj-parking-minimum-amendment",
+          "content_hash": "fixture::sj-parking-minimum-amendment::scraped",
+          "excerpt": "Evidence extracted from meeting_minutes artifact for economic analysis.",
+          "id": "ev-1",
+          "provenance_label": "tavily_meeting_minutes",
+          "reader_run_id": null,
+          "retrieved_at": "2026-04-15T00:00:00Z",
+          "source_tier": "tier_a",
+          "source_type": "staff_report",
+          "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13050001&GUID=PK-1"
+        },
+        {
+          "artifact_id": "san_jose_ca::sj-parking-minimum-amendment",
+          "content_hash": "fixture::sj-parking-minimum-amendment::structured",
+          "excerpt": "Evidence extracted from legistar artifact for economic analysis.",
+          "id": "ev-2",
+          "provenance_label": "legistar_legistar",
+          "reader_run_id": null,
+          "retrieved_at": "2026-04-15T00:05:00Z",
+          "source_tier": "tier_a",
+          "source_type": "staff_report",
+          "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13050001&GUID=PK-1"
+        }
+      ],
+      "freshness_status": "fresh",
+      "gate_projection": {
+        "canonical_breakdown_ref": "",
+        "canonical_pipeline_run_id": "",
+        "canonical_pipeline_step_id": "",
+        "runtime_failure_codes": [],
+        "runtime_insufficiency_reason": null,
+        "runtime_sufficiency_state": "quantified"
+      },
+      "gate_report": {
+        "artifact_counts": {
+          "evidence_cards": 2
+        },
+        "blocking_gate": null,
+        "case_id": "pkg-sj-parking-minimum-amendment-gate",
+        "failure_codes": [],
+        "manual_audit_notes": "Builder POC payload; full durability/orchestration gates in bd-3wefe.10/.12.",
+        "provider": "tavily",
+        "stage_results": [
+          {
+            "failure_codes": [],
+            "note": null,
+            "passed": true,
+            "stage": "search_recall"
+          },
+          {
+            "failure_codes": [],
+            "note": null,
+            "passed": true,
+            "stage": "reader_substance"
+          },
+          {
+            "failure_codes": [],
+            "note": null,
+            "passed": true,
+            "stage": "parameterization"
+          },
+          {
+            "failure_codes": [],
+            "note": null,
+            "passed": true,
+            "stage": "quantification"
+          }
+        ],
+        "unsupported_claim_count": 0,
+        "verdict": "quantified_pass"
+      },
+      "insufficiency_reasons": [],
+      "jurisdiction": "san_jose_ca",
+      "model_cards": [
+        {
+          "arithmetic_valid": true,
+          "assumption_ids": [
+            "assump-1-compliance_cost",
+            "assump-2-compliance_cost"
+          ],
+          "failure_codes": [],
+          "formula_id": "compliance_cost.quality_spine_projection.v1",
+          "id": "model-quality-spine-vertical-1",
+          "input_parameter_ids": [
+            "param-1-required-parking-spaces-per-unit",
+            "param-2-affected-project-units"
+          ],
+          "mechanism_family": "compliance_cost",
+          "quantification_eligible": true,
+          "scenario_bounds": {
+            "aggressive": 2600.0,
+            "central": 1800.0,
+            "conservative": 1200.0
+          },
+          "unit_validation_status": "valid"
+        }
+      ],
+      "package_id": "pkg-sj-parking-minimum-amendment",
+      "parameter_cards": [
+        {
+          "ambiguity_reason": null,
+          "evidence_card_id": "ev-2",
+          "id": "param-1-required-parking-spaces-per-unit",
+          "parameter_name": "required_parking_spaces_per_unit",
+          "source_excerpt": "Structured fact required_parking_spaces_per_unit resolved from source payload.",
+          "source_hierarchy_status": "fiscal_or_reg_impact_analysis",
+          "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13050001&GUID=PK-1",
+          "state": "resolved",
+          "time_horizon": null,
+          "unit": "spaces_per_unit",
+          "value": 1.0
+        },
+        {
+          "ambiguity_reason": null,
+          "evidence_card_id": "ev-2",
+          "id": "param-2-affected-project-units",
+          "parameter_name": "affected_project_units",
+          "source_excerpt": "Structured fact affected_project_units resolved from source payload.",
+          "source_hierarchy_status": "fiscal_or_reg_impact_analysis",
+          "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13050001&GUID=PK-1",
+          "state": "resolved",
+          "time_horizon": null,
+          "unit": "units",
+          "value": 3200.0
+        }
+      ],
+      "policy_identifier": "san_jose_ca::sj-parking-minimum-amendment",
+      "schema_version": "1.0.0",
+      "scraped_sources": [
+        {
+          "candidate_rank": 1,
+          "provider_run_id": null,
+          "query_family": "meeting_minutes",
+          "query_text": "San Jose multifamily parking minimum amendment",
+          "reader_artifact_url": "https://backend.artifacts/scrape/sj-parking-minimum-reader.txt",
+          "reader_substance_passed": true,
+          "search_provider": "tavily",
+          "search_snapshot_id": "snapshot::sj-parking-minimum-amendment",
+          "selected_candidate_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13050001&GUID=PK-1"
+        }
+      ],
+      "source_lanes": [
+        "scraped",
+        "structured"
+      ],
+      "storage_refs": [
+        {
+          "content_hash": null,
+          "notes": null,
+          "reference_id": "policy_evidence_packages:sj-parking-minimum-amendment",
+          "storage_system": "postgres",
+          "truth_role": "source_of_truth",
+          "uri": null
+        },
+        {
+          "content_hash": null,
+          "notes": "readback proof pending bd-3wefe.10",
+          "reference_id": "https://backend.artifacts/scrape/sj-parking-minimum-reader.txt",
+          "storage_system": "minio",
+          "truth_role": "artifact_of_record",
+          "uri": "https://backend.artifacts/scrape/sj-parking-minimum-reader.txt"
+        },
+        {
+          "content_hash": null,
+          "notes": "derived index only",
+          "reference_id": "chunk:sj-parking-minimum-amendment:1",
+          "storage_system": "pgvector",
+          "truth_role": "derived_index",
+          "uri": null
+        }
+      ],
+      "structured_sources": [
+        {
+          "access_method": "public_api",
+          "endpoint_or_file_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13050001&GUID=PK-1",
+          "field_count": 2,
+          "provider_run_id": null,
+          "source_family": "legistar"
+        }
+      ]
+    },
+    "package_status": "stored",
+    "pgvector_truth_role": "derived_index",
+    "policy_identifier": "san_jose_ca::sj-parking-minimum-amendment",
+    "schema_version": "1.0.0",
+    "storage_refs": [
+      {
+        "content_hash": null,
+        "notes": null,
+        "reference_id": "policy_evidence_packages:sj-parking-minimum-amendment",
+        "storage_system": "postgres",
+        "truth_role": "source_of_truth",
+        "uri": null
+      },
+      {
+        "content_hash": null,
+        "notes": "readback proof pending bd-3wefe.10",
+        "reference_id": "https://backend.artifacts/scrape/sj-parking-minimum-reader.txt",
+        "storage_system": "minio",
+        "truth_role": "artifact_of_record",
+        "uri": "https://backend.artifacts/scrape/sj-parking-minimum-reader.txt"
+      },
+      {
+        "content_hash": null,
+        "notes": "derived index only",
+        "reference_id": "chunk:sj-parking-minimum-amendment:1",
+        "storage_system": "pgvector",
+        "truth_role": "derived_index",
+        "uri": null
+      }
+    ],
+    "updated_at": "2026-04-15T18:20:09.738389+00:00"
+  },
+  "storage_readback": {
+    "artifact_readback_status": "proven",
+    "artifact_write_status": "succeeded",
+    "fail_closed": false,
+    "failure_class": null,
+    "idempotent_reuse": false,
+    "record_present": true,
+    "stored": true
+  },
+  "vertical_candidate": {
+    "jurisdiction": "san_jose_ca",
+    "mechanism_family": "compliance_cost",
+    "title": "San Jose multifamily parking minimum amendment"
+  },
+  "vertical_candidate_case_id": "sj-parking-minimum-amendment",
+  "vertical_package_payload": {
+    "assumption_cards": [
+      {
+        "applicability_tags": [
+          "san_jose_ca",
+          "meeting_minutes"
+        ],
+        "central": 0.65,
+        "confidence": 0.5,
+        "external_validity_notes": "POC placeholder assumption; validate with literature in bd-3wefe.5/.6.",
+        "family": "compliance_cost",
+        "high": 0.8,
+        "id": "assump-1-compliance_cost",
+        "low": 0.5,
+        "source_excerpt": "Mapped mechanism assumption from source evidence and policy context.",
+        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13050001&GUID=PK-1",
+        "stale_after_days": 365,
+        "unit": "share",
+        "version": "v1"
+      },
+      {
+        "applicability_tags": [
+          "san_jose_ca",
+          "legistar"
+        ],
+        "central": 0.65,
+        "confidence": 0.5,
+        "external_validity_notes": "POC placeholder assumption; validate with literature in bd-3wefe.5/.6.",
+        "family": "compliance_cost",
+        "high": 0.8,
+        "id": "assump-2-compliance_cost",
+        "low": 0.5,
+        "source_excerpt": "Mapped mechanism assumption from source evidence and policy context.",
+        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13050001&GUID=PK-1",
+        "stale_after_days": 365,
+        "unit": "share",
+        "version": "v1"
+      }
+    ],
+    "assumption_usage": [
+      {
+        "applicable": true,
+        "assumption_id": "assump-1-compliance_cost",
+        "stale": false,
+        "used_for_quantitative_claim": true
+      },
+      {
+        "applicable": true,
+        "assumption_id": "assump-2-compliance_cost",
+        "stale": false,
+        "used_for_quantitative_claim": true
+      }
+    ],
+    "canonical_document_key": "san_jose_ca::sj-parking-minimum-amendment",
+    "created_at": "2026-04-15T18:20:09.735710Z",
+    "economic_handoff_ready": true,
+    "evidence_cards": [
+      {
+        "artifact_id": "san_jose_ca::sj-parking-minimum-amendment",
+        "content_hash": "fixture::sj-parking-minimum-amendment::scraped",
+        "excerpt": "Evidence extracted from meeting_minutes artifact for economic analysis.",
+        "id": "ev-1",
+        "provenance_label": "tavily_meeting_minutes",
+        "reader_run_id": null,
+        "retrieved_at": "2026-04-15T00:00:00Z",
+        "source_tier": "tier_a",
+        "source_type": "staff_report",
+        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13050001&GUID=PK-1"
+      },
+      {
+        "artifact_id": "san_jose_ca::sj-parking-minimum-amendment",
+        "content_hash": "fixture::sj-parking-minimum-amendment::structured",
+        "excerpt": "Evidence extracted from legistar artifact for economic analysis.",
+        "id": "ev-2",
+        "provenance_label": "legistar_legistar",
+        "reader_run_id": null,
+        "retrieved_at": "2026-04-15T00:05:00Z",
+        "source_tier": "tier_a",
+        "source_type": "staff_report",
+        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13050001&GUID=PK-1"
+      }
+    ],
+    "freshness_status": "fresh",
+    "gate_projection": {
+      "canonical_breakdown_ref": "",
+      "canonical_pipeline_run_id": "",
+      "canonical_pipeline_step_id": "",
+      "runtime_failure_codes": [],
+      "runtime_insufficiency_reason": null,
+      "runtime_sufficiency_state": "quantified"
+    },
+    "gate_report": {
+      "artifact_counts": {
+        "evidence_cards": 2
+      },
+      "blocking_gate": null,
+      "case_id": "pkg-sj-parking-minimum-amendment-gate",
+      "failure_codes": [],
+      "manual_audit_notes": "Builder POC payload; full durability/orchestration gates in bd-3wefe.10/.12.",
+      "provider": "tavily",
+      "stage_results": [
+        {
+          "failure_codes": [],
+          "note": null,
+          "passed": true,
+          "stage": "search_recall"
+        },
+        {
+          "failure_codes": [],
+          "note": null,
+          "passed": true,
+          "stage": "reader_substance"
+        },
+        {
+          "failure_codes": [],
+          "note": null,
+          "passed": true,
+          "stage": "parameterization"
+        },
+        {
+          "failure_codes": [],
+          "note": null,
+          "passed": true,
+          "stage": "quantification"
+        }
+      ],
+      "unsupported_claim_count": 0,
+      "verdict": "quantified_pass"
+    },
+    "insufficiency_reasons": [],
+    "jurisdiction": "san_jose_ca",
+    "model_cards": [
+      {
+        "arithmetic_valid": true,
+        "assumption_ids": [
+          "assump-1-compliance_cost",
+          "assump-2-compliance_cost"
+        ],
+        "failure_codes": [],
+        "formula_id": "compliance_cost.quality_spine_projection.v1",
+        "id": "model-quality-spine-vertical-1",
+        "input_parameter_ids": [
+          "param-1-required-parking-spaces-per-unit",
+          "param-2-affected-project-units"
+        ],
+        "mechanism_family": "compliance_cost",
+        "quantification_eligible": true,
+        "scenario_bounds": {
+          "aggressive": 2600.0,
+          "central": 1800.0,
+          "conservative": 1200.0
+        },
+        "unit_validation_status": "valid"
+      }
+    ],
+    "package_id": "pkg-sj-parking-minimum-amendment",
+    "parameter_cards": [
+      {
+        "ambiguity_reason": null,
+        "evidence_card_id": "ev-2",
+        "id": "param-1-required-parking-spaces-per-unit",
+        "parameter_name": "required_parking_spaces_per_unit",
+        "source_excerpt": "Structured fact required_parking_spaces_per_unit resolved from source payload.",
+        "source_hierarchy_status": "fiscal_or_reg_impact_analysis",
+        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13050001&GUID=PK-1",
+        "state": "resolved",
+        "time_horizon": null,
+        "unit": "spaces_per_unit",
+        "value": 1.0
+      },
+      {
+        "ambiguity_reason": null,
+        "evidence_card_id": "ev-2",
+        "id": "param-2-affected-project-units",
+        "parameter_name": "affected_project_units",
+        "source_excerpt": "Structured fact affected_project_units resolved from source payload.",
+        "source_hierarchy_status": "fiscal_or_reg_impact_analysis",
+        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13050001&GUID=PK-1",
+        "state": "resolved",
+        "time_horizon": null,
+        "unit": "units",
+        "value": 3200.0
+      }
+    ],
+    "policy_identifier": "san_jose_ca::sj-parking-minimum-amendment",
+    "schema_version": "1.0.0",
+    "scraped_sources": [
+      {
+        "candidate_rank": 1,
+        "provider_run_id": null,
+        "query_family": "meeting_minutes",
+        "query_text": "San Jose multifamily parking minimum amendment",
+        "reader_artifact_url": "https://backend.artifacts/scrape/sj-parking-minimum-reader.txt",
+        "reader_substance_passed": true,
+        "search_provider": "tavily",
+        "search_snapshot_id": "snapshot::sj-parking-minimum-amendment",
+        "selected_candidate_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13050001&GUID=PK-1"
+      }
+    ],
+    "source_lanes": [
+      "scraped",
+      "structured"
+    ],
+    "storage_refs": [
+      {
+        "content_hash": null,
+        "notes": null,
+        "reference_id": "policy_evidence_packages:sj-parking-minimum-amendment",
+        "storage_system": "postgres",
+        "truth_role": "source_of_truth",
+        "uri": null
+      },
+      {
+        "content_hash": null,
+        "notes": "readback proof pending bd-3wefe.10",
+        "reference_id": "https://backend.artifacts/scrape/sj-parking-minimum-reader.txt",
+        "storage_system": "minio",
+        "truth_role": "artifact_of_record",
+        "uri": "https://backend.artifacts/scrape/sj-parking-minimum-reader.txt"
+      },
+      {
+        "content_hash": null,
+        "notes": "derived index only",
+        "reference_id": "chunk:sj-parking-minimum-amendment:1",
+        "storage_system": "pgvector",
+        "truth_role": "derived_index",
+        "uri": null
+      }
+    ],
+    "structured_sources": [
+      {
+        "access_method": "public_api",
+        "endpoint_or_file_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13050001&GUID=PK-1",
+        "field_count": 2,
+        "provider_run_id": null,
+        "source_family": "legistar"
+      }
+    ]
+  }
+}

@@ -1,0 +1,88 @@
+{
+  "feature_key": "bd-3wefe.13",
+  "generated_at": "2026-04-15T18:22:26.108775+00:00",
+  "report_version": "2026-04-15.policy-evidence-quality-spine-economics.v1",
+  "matrix_attempt": {
+    "after_score": 75.33,
+    "attempt_id": "bd-3wefe.13-retry-1",
+    "before_score": 75.33,
+    "dominant_failure_class": "none",
+    "quality_threshold": 75.0,
+    "retry_round": 1,
+    "stop_continue_decision": "stop",
+    "targeted_tweak": "source_bound_model_card_projection"
+  },
+  "matrix_source": {
+    "mode": "agent_a_horizontal_matrix",
+    "path": "docs/poc/policy-evidence-quality-spine/artifacts/horizontal_matrix.json",
+    "fallback_note": null,
+    "candidate_package_count": 1,
+    "used_package_id": "pkg-sj-parking-minimum-amendment"
+  },
+  "vertical_package": {
+    "package_id": "pkg-sj-parking-minimum-amendment",
+    "canonical_document_key": "san_jose_ca::sj-parking-minimum-amendment",
+    "jurisdiction": "san_jose_ca",
+    "policy_identifier": "san_jose_ca::sj-parking-minimum-amendment",
+    "source_lanes": [
+      "scraped",
+      "structured"
+    ]
+  },
+  "taxonomy": {
+    "scraped/search": {
+      "status": "pass",
+      "details": "Scraped provenance present with provider/query/candidate rank."
+    },
+    "reader": {
+      "status": "pass",
+      "details": "Reader substance passed and reader artifact refs present."
+    },
+    "structured-source": {
+      "status": "pass",
+      "details": "Structured source provenance attached."
+    },
+    "identity/dedupe": {
+      "status": "pass",
+      "details": "Canonical document key present for dedupe/identity join."
+    },
+    "storage/read-back": {
+      "status": "pass",
+      "details": "Storage readback proven via MinIO probe and package row persistence."
+    },
+    "Windmill/orchestration": {
+      "status": "not_proven",
+      "details": "Windmill run identifiers not found in provided matrix payload."
+    },
+    "sufficiency gate": {
+      "status": "pass",
+      "details": "readiness=economic_handoff_ready"
+    },
+    "economic reasoning": {
+      "status": "pass",
+      "details": "Mechanism model cards and source-bound parameter/assumption inputs are present."
+    },
+    "LLM narrative": {
+      "status": "not_proven",
+      "details": "Deterministic lane only; live LLM narrative quality not executed."
+    },
+    "frontend/read-model auditability": {
+      "status": "pass",
+      "details": "Read-model payload is display-only and does not recompute economic truth."
+    }
+  },
+  "sufficiency_result": {
+    "passed": true,
+    "readiness_level": "economic_handoff_ready",
+    "blocking_gate": null,
+    "failure_reasons": []
+  },
+  "overall_verdict": "partial",
+  "failure_classification": {
+    "failed_categories": [],
+    "not_proven_categories": [
+      "Windmill/orchestration",
+      "LLM narrative"
+    ]
+  }
+}
