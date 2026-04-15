@@ -1,0 +1,90 @@
+{
+  "feature_key": "bd-3wefe.5",
+  "generated_at": "2026-04-15T00:00:00+00:00",
+  "report_version": "2026-04-15.policy-evidence-package-sufficiency.v1",
+  "gates": {
+    "positive_quant_handoff": {
+      "status": "passed"
+    },
+    "unproven_readback_fail_closed": {
+      "status": "passed"
+    },
+    "stale_assumption_blocks_quant": {
+      "status": "passed"
+    },
+    "missing_parameter_support_fail_closed": {
+      "status": "passed"
+    },
+    "qualitative_only_allowed": {
+      "status": "passed"
+    }
+  },
+  "cases": {
+    "positive": {
+      "passed": true,
+      "blocking_gate": null,
+      "readiness_level": "economic_handoff_ready",
+      "failure_reasons": [],
+      "recommendations_for_bd_3wefe_6": [
+        "Use this package as the quantitative handoff input for direct and indirect mechanism cases.",
+        "Record assumption ids and parameter ids used in final analysis output for audit traceability."
+      ]
+    },
+    "unproven_readback": {
+      "passed": false,
+      "blocking_gate": "storage_readback",
+      "readiness_level": "fail_closed",
+      "failure_reasons": [
+        "Artifact readback is not proven (artifact_readback_status=unproven)."
+      ],
+      "recommendations_for_bd_3wefe_6": [
+        "Keep canonical analysis fail-closed until this gate is resolved.",
+        "Propagate insufficiency reason into admin/frontend read models."
+      ]
+    },
+    "stale_assumption": {
+      "passed": false,
+      "blocking_gate": "assumption_staleness",
+      "readiness_level": "fail_closed",
+      "failure_reasons": [
+        "Package freshness is stale_blocked for quantitative assumption usage."
+      ],
+      "recommendations_for_bd_3wefe_6": [
+        "Keep canonical analysis fail-closed until this gate is resolved.",
+        "Propagate insufficiency reason into admin/frontend read models."
+      ]
+    },
+    "missing_parameter_support": {
+      "passed": false,
+      "blocking_gate": "parameter_readiness",
+      "readiness_level": "fail_closed",
+      "failure_reasons": [
+        "No resolved parameters or quantification-eligible model support path."
+      ],
+      "recommendations_for_bd_3wefe_6": [
+        "Keep canonical analysis fail-closed until this gate is resolved.",
+        "Propagate insufficiency reason into admin/frontend read models."
+      ]
+    },
+    "qualitative_only": {
+      "passed": true,
+      "blocking_gate": "parameter_readiness",
+      "readiness_level": "qualitative_only",
+      "failure_reasons": [
+        "No resolved parameters or quantification-eligible model support path."
+      ],
+      "recommendations_for_bd_3wefe_6": [
+        "Treat this package as qualitative-only in canonical analysis.",
+        "Resolve missing parameters before enabling quantified paths."
+      ]
+    }
+  },
+  "recommendations_for_bd_3wefe_6": [
+    "Keep canonical analysis fail-closed until this gate is resolved.",
+    "Propagate insufficiency reason into admin/frontend read models.",
+    "Record assumption ids and parameter ids used in final analysis output for audit traceability.",
+    "Resolve missing parameters before enabling quantified paths.",
+    "Treat this package as qualitative-only in canonical analysis.",
+    "Use this package as the quantitative handoff input for direct and indirect mechanism cases."
+  ]
+}
