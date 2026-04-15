@@ -39,6 +39,26 @@ Memory correction:
 
 The prior failure mode was not lack of memory surfaces. It was lack of one authoritative, source-grounded brownfield map. For this epic, `docs/architecture/2026-04-15-affordabot-pipeline-brownfield-map.md` and `docs/architecture/2026-04-15-economic-literature-inventory.md` are required routing artifacts. Every downstream task must either keep them fresh or explicitly mark why its work does not touch their stale-if paths.
 
+Manual trace correction:
+
+The current codebase has three partially overlapping paths, not one fully
+scheduled end-to-end DAG:
+
+- Windmill scheduled cron jobs create substrate (`sources`, `legislation`,
+  `raw_scrapes`, MinIO/S3 artifacts where configured, and `document_chunks`).
+  They do not automatically run the full economic `AnalysisPipeline`.
+- The canonical economic path exists in `AnalysisPipeline` and
+  `LegislationResearchService`. It is reached through `/scrape/{jurisdiction}`,
+  rerun scripts, and verification paths, and persists `pipeline_runs`,
+  `pipeline_steps`, `legislation`, and `impacts`.
+- `PipelineDomainBridge` is the target Windmill/backend boundary candidate, but
+  its current `analyze` command is a narrower chunk-summary JSON step. Before it
+  is treated as product-complete, it must hand off to or intentionally compose
+  with the canonical economic-analysis path.
+
+Therefore the next product implementation must focus on the evidence-package to
+canonical-economic-analysis handoff, not only on upstream search/source quality.
+
 ## Quality Questions Mapped To Beads
 
 | User question | Beads task | Required output |
@@ -212,6 +232,7 @@ Acceptance:
 - Handles both scraped and structured inputs through one backend-owned contract.
 - Validates package output against backend-owned schemas where available.
 - Reuses existing `ImpactMode`, `SourceTier`, sufficiency gate, and evidence adapter concepts unless `bd-3wefe.9` identifies a concrete replacement reason.
+- Defines how package output projects into existing `EvidenceEnvelope`, `ImpactEvidence`, `SufficiencyBreakdown`, `ImpactMode`, `ScenarioBounds`, and assumption concepts before invoking or adapting canonical economic analysis.
 - Emits storage references for raw provider responses, raw/read artifacts, derived chunks, cards, gate reports, and final analysis payloads, but does not claim storage correctness until `bd-3wefe.10` passes.
 
 ### `bd-3wefe.10`: POC: storage persistence and read-model proof for evidence packages
@@ -243,6 +264,7 @@ Acceptance:
 - Records Windmill job/run id, backend command id, retry/failure behavior, branch status, persisted package refs, storage refs, and admin/read API refs for every step.
 - Demonstrates Windmill branches on backend-authored statuses and does not implement economic, source-ranking, evidence-card, or assumption business logic in scripts.
 - Includes at least one failure-path drill showing Windmill retry/branch behavior and backend idempotency.
+- Distinguishes domain-bridge simple analysis from canonical `AnalysisPipeline` output; if the flow produces final product analysis, the run must show the explicit handoff to or composition with `AnalysisPipeline`.
 
 ### `bd-3wefe.5`: POC: economic engine package sufficiency gate
 
@@ -349,6 +371,7 @@ Then run `bd-3wefe.7` as the brownfield consolidation task informed by all revie
 Before `bd-3wefe.8` can recommend architecture lock:
 
 - Code audit: dx-review has mapped existing raw/structured-data-to-analysis code and identified already-built economic capabilities.
+- Code audit: manual trace corrections are incorporated, especially that scheduled cron substrate ingestion is not scheduled final economic analysis and `PipelineDomainBridge.analyze` is not yet canonical cost-of-living analysis.
 - Economic literature: existing assumptions/constants/formulas are inventoried, sourced, mapped to mechanism families, and classified for reuse or migration.
 - Scraped lane: search/ranking/reader/extraction failures are independently attributable.
 - Scraped lane: metric-based quality covers artifact recall, ranker selection, portal skip, reader substance, numeric signal, fallback behavior, latency, and failure classes.
@@ -357,6 +380,7 @@ Before `bd-3wefe.8` can recommend architecture lock:
 - Unified package: scraped and structured examples share one versioned backend-owned package shape.
 - Storage: Postgres/MinIO/pgvector/admin-read proof is based on persisted/read-back artifacts, not only generated JSON fixtures.
 - Windmill: both scraped and structured lanes run through Windmill as orchestration-only flows with backend command ids, storage refs, and failure/retry evidence.
+- Handoff: persisted/read-back package output is consumed by, projected into, or deliberately adapted around canonical `AnalysisPipeline` concepts before final product analysis is claimed.
 - Economic sufficiency: verifier distinguishes quantified-ready, secondary-research-needed, qualitative-only, and fail-closed packages.
 - Mechanism coverage: at least one direct and one indirect economic path are demonstrated.
 - Secondary research: research package is explicitly separate from first-pass policy artifact gathering.
@@ -367,6 +391,7 @@ Before `bd-3wefe.8` can recommend architecture lock:
 
 ## Evidence Artifacts To Carry Forward
 
+- `docs/architecture/README.md`
 - `docs/specs/2026-04-14-economic-evidence-pipeline-lockdown.md`
 - `docs/poc/source-integration/final_source_strategy_recommendation.md`
 - `docs/poc/source-integration/artifacts/scrape_structured_integration_report.json`
@@ -388,6 +413,6 @@ Before `bd-3wefe.8` can recommend architecture lock:
 
 ## First Task
 
-Start with `bd-3wefe.9`, because it determines what already exists in the codebase and prevents the next contract from duplicating working pipeline pieces.
+Start with the current `bd-3wefe.9` audit artifacts and the manual fresh-eyes trace captured in the brownfield map, because they determine what already exists in the codebase and prevent the next contract from duplicating working pipeline pieces.
 
-After `bd-3wefe.9`, run `bd-3wefe.11` plus `bd-3wefe.2`/`bd-3wefe.3` evidence collection. Keep `bd-3wefe.1` aware of both code-review and literature findings, keep `bd-3wefe.4` blocked until source/spec inputs are complete, keep `bd-3wefe.5` blocked until `bd-3wefe.10` and `bd-3wefe.12` prove persisted/read-back package storage and Windmill orchestration, and keep `bd-3wefe.6` blocked until package sufficiency and literature audit both pass.
+After `bd-3wefe.9`, run `bd-3wefe.11` plus `bd-3wefe.2`/`bd-3wefe.3` evidence collection. Keep `bd-3wefe.1` aware of both code-review and literature findings, keep `bd-3wefe.4` blocked until source/spec inputs are complete, keep `bd-3wefe.5` blocked until `bd-3wefe.10` and `bd-3wefe.12` prove persisted/read-back package storage and Windmill orchestration, and keep `bd-3wefe.6` blocked until package sufficiency and literature audit both pass. The next implementation wave should prioritize `PolicyEvidencePackage` -> canonical economic-analysis handoff proof over additional isolated provider bakeoffs.

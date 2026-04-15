@@ -256,3 +256,65 @@ Key mapped paths:
 - `docs/architecture/2026-04-15-economic-literature-inventory.md`
 
 These are now required routing artifacts for future Affordabot pipeline/economic-analysis work. They include stale-if paths so future agents know when the map must be refreshed instead of trusted blindly.
+
+## Manual Fresh-Eyes Trace Supplement
+
+After the reviewer and targeted-agent audits, the orchestrator manually traced
+the current code from raw/structured data to frontend output. This pass was
+added because the main architectural risk was missing an existing brownfield
+path and then designing a duplicate system.
+
+Trace method:
+
+- Started from FastAPI routes in `backend/main.py`.
+- Followed Windmill assets in `ops/windmill/`.
+- Followed cron scripts in `backend/scripts/cron/`.
+- Followed storage paths through `PostgresDB`, `IngestionService`,
+  `S3Storage`, and `LocalPgVectorBackend`.
+- Followed canonical analysis through `AnalysisPipeline`,
+  `LegislationResearchService`, `evidence_gates`, and `evidence_adapter`.
+- Followed domain-boundary candidate code through `PipelineDomainBridge` and
+  `PipelineDomainCommands`.
+- Followed read models through `backend/routers/admin.py`,
+  `GlassBoxService`, `frontend/src/lib/api.ts`, public dashboard/bill pages,
+  and admin pipeline components.
+
+Manual trace corrections:
+
+1. Scheduled Windmill cron jobs currently create substrate and chunks; they do
+   not automatically run final economic analysis.
+2. The canonical economic-analysis path exists and is substantial:
+   `AnalysisPipeline` uses `LegislationResearchService`, RAG, web research,
+   deterministic impact discovery, mode selection, parameter resolution,
+   sufficiency gates, LLM generate/review/refine, and persistence.
+3. The expected second-round economic research is already partially built in
+   `LegislationResearchService`: it does web research, derives Wave1 direct
+   fiscal/compliance candidates, and derives Wave2 pass-through/adoption
+   prerequisites from curated literature.
+4. `PipelineDomainBridge` is the right Windmill/backend boundary candidate, but
+   its current `_analyze` path is a smaller JSON summary over selected chunks,
+   not the canonical cost-of-living analysis engine.
+5. The product gap is the handoff from persisted scraped/structured evidence
+   packages into canonical economic-analysis concepts, not just upstream source
+   discovery.
+6. Final public frontend output reads `legislation` and `impacts` through
+   `/legislation/{jurisdiction}` and
+   `/legislation/{jurisdiction}/{bill_number}`. Admin/glassbox reads
+   `pipeline_runs`, `pipeline_steps`, and domain-bridge tables separately.
+7. Some frontend admin API routes still fall back to mock data when backend
+   calls fail. Those routes are useful for local development but cannot be used
+   as evidence-critical verification output.
+
+Artifacts updated from this trace:
+
+- `docs/architecture/README.md`
+- `docs/architecture/2026-04-15-affordabot-pipeline-brownfield-map.md`
+- `docs/specs/2026-04-14-evidence-package-dependency-lockdown.md`
+
+Resulting recommendation:
+
+The next product wave should prioritize a persisted/read-back
+`PolicyEvidencePackage` to canonical `AnalysisPipeline` handoff POC. Additional
+SearXNG/Tavily/Exa bakeoffs and structured-source breadth work remain useful,
+but only when scored against whether they improve the package handed to the
+economic-analysis engine.
