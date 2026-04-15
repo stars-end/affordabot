@@ -40,11 +40,13 @@ Before the package spec or new POCs proceed, run `bd-3wefe.9`, a code-review-sty
 | User question | Beads task | Required output |
 | --- | --- | --- |
 | What already exists in the raw/structured-data-to-analysis pipeline? | `bd-3wefe.9` | dx-review code audit with findings, exact code paths, existing economic capabilities, and duplication risks |
+| What economic literature and assumptions are already integrated? | `bd-3wefe.11` | Literature/assumption inventory with code paths, applicability, staleness, and card migration recommendations |
 | Can scraped/SearXNG sources produce high-quality evidence? | `bd-3wefe.2` | Metric-based scraped-source quality report with search/ranking/reader/evidence attribution |
 | Can multiple structured sources produce high-quality evidence? | `bd-3wefe.3` | Audited structured-source package samples and canonical source catalog |
 | Have we broadly expanded free, easily ingestible structured sources? | `bd-3wefe.3` | Source catalog with free/key/signup/cadence/coverage/relevance/storage fields |
 | Can scraped and structured results be unified cleanly? | `bd-3wefe.4` | Backend-owned `PolicyEvidencePackage` builder |
 | How is the combined package stored and audited? | `bd-3wefe.10` | Postgres/MinIO/pgvector/read-API persistence proof with replay and partial-write evidence |
+| Can Windmill orchestrate both lanes without owning product logic? | `bd-3wefe.12` | Windmill run proof for scraped and structured lanes with backend command ids and persisted refs |
 | Is the unified package sufficient for economic analysis? | `bd-3wefe.5` | Sufficiency verifier over persisted/read-back packages |
 | Can the economic engine handle direct and indirect costs? | `bd-3wefe.6` | Direct, indirect, and secondary-research-required cases with quantitative-analysis rubric |
 | Can the engine use a secondary web research package? | `bd-3wefe.6` | Secondary package contract and consumption evidence |
@@ -55,16 +57,22 @@ Before the package spec or new POCs proceed, run `bd-3wefe.9`, a code-review-sty
 ```mermaid
 flowchart TD
     T9["bd-3wefe.9 Review: full pipeline code audit"]
+    T11["bd-3wefe.11 Audit: economic literature + assumptions"]
     T1["bd-3wefe.1 Spec: canonical package contract"]
     T2["bd-3wefe.2 POC: scraped/SearXNG quality"]
     T3["bd-3wefe.3 POC: structured source quality"]
     T4["bd-3wefe.4 Impl/POC: unified package builder"]
     T10["bd-3wefe.10 POC: storage proof"]
+    T12["bd-3wefe.12 POC: Windmill orchestration proof"]
     T5["bd-3wefe.5 POC: economic sufficiency gate"]
     T6["bd-3wefe.6 POC: mechanisms + secondary research"]
     T7["bd-3wefe.7 Audit: brownfield map"]
     T8["bd-3wefe.8 Review: architecture decision"]
 
+    T9 --> T11
+    T11 --> T1
+    T11 --> T6
+    T11 --> T8
     T9 --> T1
     T9 --> T2
     T9 --> T3
@@ -73,8 +81,12 @@ flowchart TD
     T2 --> T4
     T3 --> T4
     T4 --> T10
+    T4 --> T12
     T10 --> T5
+    T10 --> T12
     T10 --> T8
+    T12 --> T5
+    T12 --> T8
     T5 --> T6
     T5 --> T8
     T6 --> T8
@@ -88,9 +100,11 @@ flowchart TD
 Acceptance:
 
 - Pre-spec dx-review code audit maps the existing raw/structured-data-to-analysis pipeline.
+- Existing economic literature, assumptions, constants, and mechanism mappings are inventoried and judged for reuse.
 - Source-quality evidence exists for scraped and structured lanes.
 - A unified backend-owned package contract exists.
 - Storage/persistence proof exists across Postgres, MinIO, pgvector, and admin/read APIs.
+- Windmill orchestration proof exists for both scraped and structured lanes.
 - Economic handoff sufficiency is tested with positive and fail-closed examples.
 - Direct, indirect, and secondary-research cases are tested.
 - Existing stack usage and duplication are audited by dx-review and a brownfield map.
@@ -120,6 +134,21 @@ Acceptance:
 - Produces a code-review artifact with findings first, exact file/path citations, existing raw-to-final-result pipeline map, already-built economic analysis capabilities, duplicate/obsolete POC paths, storage truth table, search/reader/data-quality gaps, and implementation recommendations.
 - Uses `dx-review` with explicit code-review framing.
 - Requires either two-provider review quorum or a documented failed lane with logs, failure class, and one retry or explicit exception.
+
+### `bd-3wefe.11`: Audit: existing economic literature and assumption registry
+
+Purpose:
+
+Inventory and review the economic literature, constants, assumptions, elasticities, pass-through/take-up/compliance-cost values, formulas, and mechanism mappings already integrated in Affordabot.
+
+Acceptance:
+
+- Inventories existing economic literature, constants, assumptions, formulas, and mechanism mappings with exact code paths.
+- Records source citation where available, date, jurisdiction/scope, unit, range, applicability tags, mechanism family, confidence, and staleness.
+- Distinguishes source-bound assumptions from hard-coded or generic assumptions.
+- Identifies which assumptions can support direct costs, indirect mechanisms, and secondary-research analysis.
+- Produces a literature-to-`AssumptionCard`/`ModelCard` migration recommendation.
+- Flags stale, unsupported, over-generalized, duplicated, or non-applicable assumptions.
 
 ### `bd-3wefe.1`: Spec: canonical PolicyEvidencePackage contract and quality taxonomy
 
@@ -187,6 +216,20 @@ Acceptance:
 - Includes idempotent replay and partial-write/rollback or compensation drills.
 - Treats any unprobeable storage layer as a blocking finding, not a pass.
 
+### `bd-3wefe.12`: POC: Windmill orchestration proof for scraped and structured lanes
+
+Purpose:
+
+Prove Windmill can orchestrate both scraped and structured source paths through backend-owned evidence-package commands without owning product logic.
+
+Acceptance:
+
+- Proves one scraped-lane flow and one structured-lane flow run through Windmill.
+- Covers schedules or trigger inputs, fanout, provider/structured ingestion, reader fetch when needed, package building, storage proof handoff, sufficiency gate invocation, and run visibility.
+- Records Windmill job/run id, backend command id, retry/failure behavior, branch status, persisted package refs, storage refs, and admin/read API refs for every step.
+- Demonstrates Windmill branches on backend-authored statuses and does not implement economic, source-ranking, evidence-card, or assumption business logic in scripts.
+- Includes at least one failure-path drill showing Windmill retry/branch behavior and backend idempotency.
+
 ### `bd-3wefe.5`: POC: economic engine package sufficiency gate
 
 Purpose:
@@ -246,12 +289,20 @@ Hard blockers:
 - `bd-3wefe.9` blocks `bd-3wefe.2`
 - `bd-3wefe.9` blocks `bd-3wefe.3`
 - `bd-3wefe.9` blocks `bd-3wefe.7`
+- `bd-3wefe.9` blocks `bd-3wefe.11`
+- `bd-3wefe.11` blocks `bd-3wefe.1`
+- `bd-3wefe.11` blocks `bd-3wefe.6`
+- `bd-3wefe.11` blocks `bd-3wefe.8`
 - `bd-3wefe.1` blocks `bd-3wefe.4`
 - `bd-3wefe.2` blocks `bd-3wefe.4`
 - `bd-3wefe.3` blocks `bd-3wefe.4`
 - `bd-3wefe.4` blocks `bd-3wefe.10`
+- `bd-3wefe.4` blocks `bd-3wefe.12`
 - `bd-3wefe.10` blocks `bd-3wefe.5`
+- `bd-3wefe.10` blocks `bd-3wefe.12`
 - `bd-3wefe.10` blocks `bd-3wefe.8`
+- `bd-3wefe.12` blocks `bd-3wefe.5`
+- `bd-3wefe.12` blocks `bd-3wefe.8`
 - `bd-3wefe.5` blocks `bd-3wefe.6`
 - `bd-3wefe.5` blocks `bd-3wefe.8`
 - `bd-3wefe.6` blocks `bd-3wefe.8`
@@ -263,6 +314,7 @@ Required first step:
 
 Parallelizable second wave:
 
+- `bd-3wefe.11`
 - `bd-3wefe.1`
 - `bd-3wefe.2`
 - `bd-3wefe.3`
@@ -270,20 +322,23 @@ Parallelizable second wave:
 
 For a two-agent wave after `bd-3wefe.9`, run:
 
-- Agent A: `bd-3wefe.1` plus `bd-3wefe.7` if time remains.
+- Agent A: `bd-3wefe.11`, then `bd-3wefe.1` once literature findings are clear.
 - Agent B: `bd-3wefe.2` and `bd-3wefe.3` as source-quality evidence work.
+Then run `bd-3wefe.7` as the brownfield consolidation task informed by all review/source outputs.
 
 ## Validation Gates
 
 Before `bd-3wefe.8` can recommend architecture lock:
 
 - Code audit: dx-review has mapped existing raw/structured-data-to-analysis code and identified already-built economic capabilities.
+- Economic literature: existing assumptions/constants/formulas are inventoried, sourced, mapped to mechanism families, and classified for reuse or migration.
 - Scraped lane: search/ranking/reader/extraction failures are independently attributable.
 - Scraped lane: metric-based quality covers artifact recall, ranker selection, portal skip, reader substance, numeric signal, fallback behavior, latency, and failure classes.
 - Structured lane: source breadth, access status, and economic usefulness are documented with machine-readable artifacts.
 - Structured lane: source catalog captures access method, cadence, jurisdiction coverage, curation state, storage target, and economic usefulness.
 - Unified package: scraped and structured examples share one versioned backend-owned package shape.
 - Storage: Postgres/MinIO/pgvector/admin-read proof is based on persisted/read-back artifacts, not only generated JSON fixtures.
+- Windmill: both scraped and structured lanes run through Windmill as orchestration-only flows with backend command ids, storage refs, and failure/retry evidence.
 - Economic sufficiency: verifier distinguishes quantified-ready, secondary-research-needed, qualitative-only, and fail-closed packages.
 - Mechanism coverage: at least one direct and one indirect economic path are demonstrated.
 - Secondary research: research package is explicitly separate from first-pass policy artifact gathering.
@@ -300,6 +355,8 @@ Before `bd-3wefe.8` can recommend architecture lock:
 - `docs/poc/economic-analysis-boundary/architecture_recommendation.md`
 - `docs/reviews/2026-04-14-dx-review-economic-pipeline-architecture.md`
 - Future `bd-3wefe.9` dx-review code-audit artifact
+- Future `bd-3wefe.11` economic-literature audit artifact
+- Future `bd-3wefe.12` Windmill orchestration proof artifact
 
 ## Non-Goals
 
@@ -312,4 +369,4 @@ Before `bd-3wefe.8` can recommend architecture lock:
 
 Start with `bd-3wefe.9`, because it determines what already exists in the codebase and prevents the next contract from duplicating working pipeline pieces.
 
-After `bd-3wefe.9`, run `bd-3wefe.1` in parallel with `bd-3wefe.2`/`bd-3wefe.3` evidence collection. Keep `bd-3wefe.4` blocked until all three inputs are complete, keep `bd-3wefe.5` blocked until `bd-3wefe.10` proves persisted/read-back package storage, and keep `bd-3wefe.6` blocked until package sufficiency passes.
+After `bd-3wefe.9`, run `bd-3wefe.11` plus `bd-3wefe.2`/`bd-3wefe.3` evidence collection. Keep `bd-3wefe.1` aware of both code-review and literature findings, keep `bd-3wefe.4` blocked until source/spec inputs are complete, keep `bd-3wefe.5` blocked until `bd-3wefe.10` and `bd-3wefe.12` prove persisted/read-back package storage and Windmill orchestration, and keep `bd-3wefe.6` blocked until package sufficiency and literature audit both pass.

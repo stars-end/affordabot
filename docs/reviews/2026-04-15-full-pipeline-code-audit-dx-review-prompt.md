@@ -22,6 +22,7 @@ Review the full path from source discovery to final user-facing analysis:
 - Z.ai reader usage, reader-substance gates, reader artifacts, and failure handling.
 - Postgres, pgvector, MinIO, content hashes, replay/idempotency, partial-write behavior, and read APIs.
 - `AnalysisPipeline`, `LegislationResearchService`, evidence/economic schemas, deterministic gates, assumption registry, formula/model-card logic, and LLM analysis.
+- Economic literature, constants, assumptions, elasticities, pass-through/take-up/compliance-cost values, formulas, and mechanism mappings already integrated in code or docs. Identify source citations where present and hard-coded/unsupported values where not.
 - Secondary research behavior during economic analysis, if present.
 - Admin endpoints, frontend/admin display, glassbox views, and whether frontend recomputes business logic.
 - Windmill/domain bridge paths versus canonical backend analysis paths.
@@ -69,8 +70,14 @@ Also include these sections:
 5. Implementation Guidance
    - What `bd-3wefe.1` should specify.
    - What `bd-3wefe.2/.3` should test.
-   - What `bd-3wefe.4/.5/.10` should build or avoid.
+   - What `bd-3wefe.4/.5/.10/.12` should build or avoid.
    - Whether any planned Beads tasks should be renamed, split, or reordered.
+
+6. Economic Literature Inventory
+   - Existing assumptions/constants/formulas by code path.
+   - Source citations, dates, units, ranges, and applicability tags where available.
+   - Which assumptions can support direct costs, indirect mechanisms, and secondary research.
+   - Which values must migrate into explicit `AssumptionCard` or `ModelCard` records.
 
 ## Verdict
 
@@ -91,6 +98,7 @@ dx-review run \
   --worktree /tmp/agents/bd-2agbe.1/affordabot \
   --pr https://github.com/stars-end/affordabot/pull/436 \
   --prompt-file docs/reviews/2026-04-15-full-pipeline-code-audit-dx-review-prompt.md \
+  --gemini \
   --read-only-shell \
   --wait \
   --timeout-sec 1800
