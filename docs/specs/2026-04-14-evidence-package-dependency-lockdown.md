@@ -430,6 +430,49 @@ Implementation-ready two-agent split:
   checked-in fixture contract, but the final pass must use Agent A's persisted
   package artifact.
 
+Quality-driven retry loop:
+
+- The POC may run one baseline attempt plus up to five retry rounds.
+- Each retry round must begin from the prior scorecard and name the dominant
+  failure class before changing anything.
+- Each retry round must apply targeted data-quality improvements only; it must
+  not change the locked Windmill/backend/storage/frontend boundary or reduce the
+  decision-grade analysis bar.
+- Every retry round must preserve before/after artifacts, commands, inputs,
+  changed code/config, scorecard deltas, and a stop/continue decision.
+- Stop early when the vertical spine and horizontal matrix meet the pass
+  criteria. Stop immediately for strategic HITL blockers listed below.
+
+Autonomous retry changes allowed:
+
+- Query templates, query expansion, and query-family selection.
+- SearXNG parameters such as engines, categories, language, result count, and
+  time range.
+- Artifact ranking boosts/penalties, portal-skip rules, and reader-substance
+  thresholds.
+- Fallback trigger thresholds for Tavily or Exa, within existing free/eval
+  provider posture.
+- Structured-source attachment heuristics and canonical identity/dedupe
+  normalization.
+- Evidence-card extraction prompts, deterministic extraction rules, and
+  package-readiness classification rules.
+- Sufficiency-gate calibration only when the change makes the gate stricter,
+  better sourced, or more transparent. It may not make unsupported quantitative
+  claims easier to pass.
+- Admin/report formatting that improves evidence-chain auditability.
+
+Strategic HITL blockers:
+
+- Moving product logic into Windmill.
+- Changing the architecture boundary.
+- Adding a paid provider as primary.
+- Lowering quality thresholds to manufacture a pass.
+- Treating hidden LLM assumptions as evidence.
+- Introducing a new storage model.
+- Changing the product definition of decision-grade analysis.
+- Skipping structured enrichment for the artifact family without scorecard
+  evidence that the structured source path is unavailable or irrelevant.
+
 Acceptance:
 
 - End-to-end evidence:
@@ -468,12 +511,18 @@ Acceptance:
   coverage, identity/dedupe, storage/read-back, Windmill/orchestration,
   sufficiency gate, economic reasoning, LLM narrative, or frontend/read-model
   auditability.
+- Retry evidence:
+  if the first attempt fails, each retry round records failure diagnosis,
+  targeted tweak, before/after scorecard delta, preserved artifacts, and whether
+  the loop stopped because it passed, exhausted five retries, or hit a strategic
+  HITL blocker.
 
 Required artifacts:
 
 - `docs/poc/policy-evidence-quality-spine/README.md`
 - `docs/poc/policy-evidence-quality-spine/artifacts/quality_spine_scorecard.json`
 - `docs/poc/policy-evidence-quality-spine/artifacts/quality_spine_report.md`
+- `docs/poc/policy-evidence-quality-spine/artifacts/retry_ledger.json`
 - Updated brownfield map and economic-literature inventory if new canonical,
   duplicate, stale, or unsupported paths are discovered.
 
