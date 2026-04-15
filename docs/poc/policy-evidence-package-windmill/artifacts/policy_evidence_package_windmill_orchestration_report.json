@@ -68,23 +68,32 @@
   ],
   "feature_key": "bd-3wefe.12",
   "generated_at": "2026-04-15T00:00:00+00:00",
-  "live_status": "blocked",
+  "live_status": "passed_stub_flow_run",
   "live_surface_probe": {
-    "blocker": "flow_not_deployed_in_windmill_workspace",
+    "blocker": null,
     "commands": [
       "windmill-cli workspace list (read-only)",
-      "windmill-cli flow get f/affordabot/policy_evidence_package_orchestration__flow (read-only)"
+      "windmill-cli flow get f/affordabot/policy_evidence_package_orchestration__flow (read-only)",
+      "windmill-cli flow run f/affordabot/policy_evidence_package_orchestration__flow (stub, synchronous)"
     ],
-    "live_status": "blocked",
-    "return_code": 1,
-    "stderr_summary": "Flow not found",
-    "stdout_redacted": true
+    "live_status": "passed_stub_flow_run",
+    "return_code": 0,
+    "stderr_redacted": false,
+    "stdout_redacted": true,
+    "stub_run_result": {
+      "gate_status": "quantified",
+      "package_id": "pkg-bd-3wefe-verifier-stub",
+      "package_readiness_status": "ready",
+      "reason": "package_ready",
+      "retry_class": "none",
+      "status": "succeeded"
+    }
   },
   "local_backend_endpoint_status": "passed",
   "local_status": "passed",
   "local_stub_status": "passed",
   "open_gaps": [
-    "deploy policy evidence flow to Windmill dev workspace and run a real flow/job",
+    "run Windmill dev flow with backend_endpoint against deployed backend command endpoint",
     "run storage verifier in Railway dev with DATABASE_URL and MinIO env available",
     "connect resulting package to canonical analysis output and admin/frontend read model"
   ],

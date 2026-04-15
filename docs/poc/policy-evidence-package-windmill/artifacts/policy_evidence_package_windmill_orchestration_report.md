@@ -4,7 +4,7 @@
 - local_status: `passed`
 - local_stub_status: `passed`
 - local_backend_endpoint_status: `passed`
-- live_status: `blocked`
+- live_status: `passed_stub_flow_run`
 
 ## Steps Proven
 - `fetch_scraped_candidates`
@@ -44,11 +44,11 @@
 - command_names_seen: `fetch_scraped_candidates,fetch_structured_candidates,build_policy_evidence_package,persist_readback_boundary,evaluate_package_readiness,summarize_orchestration`
 
 ## Live Windmill Surface Probe
-- commands: `windmill-cli workspace list (read-only), windmill-cli flow get f/affordabot/policy_evidence_package_orchestration__flow (read-only)`
-- live_status: `blocked`
-- blocker: `flow_not_deployed_in_windmill_workspace`
+- commands: `windmill-cli workspace list (read-only), windmill-cli flow get f/affordabot/policy_evidence_package_orchestration__flow (read-only), windmill-cli flow run f/affordabot/policy_evidence_package_orchestration__flow (stub, synchronous)`
+- live_status: `passed_stub_flow_run`
+- blocker: `None`
 
 ## Open Gaps
-- deploy policy evidence flow to Windmill dev workspace and run a real flow/job
+- run Windmill dev flow with backend_endpoint against deployed backend command endpoint
 - run storage verifier in Railway dev with DATABASE_URL and MinIO env available
 - connect resulting package to canonical analysis output and admin/frontend read model

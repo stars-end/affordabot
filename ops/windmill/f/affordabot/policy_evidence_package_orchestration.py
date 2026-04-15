@@ -397,7 +397,6 @@ def _run_scope_pipeline(
 
 
 def main(
-    *,
     step: str,
     contract_version: str = CONTRACT_VERSION,
     windmill_workspace: str = "affordabot",

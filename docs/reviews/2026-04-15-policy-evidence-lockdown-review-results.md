@@ -63,11 +63,12 @@ Local validation after repair:
 - Backend full test suite: `631 passed`.
 - Backend ruff: passed.
 - Focused policy evidence suite: `43 passed`.
-- Storage verifier: `gates_passed=7/7`, `live_status=blocked`.
+- Storage verifier: `gates_passed=7/7`, `live_status=blocked`
+  (`pgvector.railway.internal` is private-network-only from this runtime).
 - Sufficiency verifier: `gates_passed=6/6`.
 - Economic mechanism verifier: `gates_passed=6/6`.
 - Windmill verifier: `local=passed`, `backend_endpoint_local=passed`,
-  `live=blocked`.
+  `live=passed_stub_flow_run`.
 - `git diff --check`: passed.
 
 ## Remaining Architecture-Lock Conditions
@@ -84,10 +85,10 @@ This branch is strong enough to continue implementation on the chosen boundary:
 It is not yet enough for final architecture lock because live runtime evidence is
 still incomplete:
 
-1. Deploy the policy evidence flow to the Windmill dev workspace and run a real
-   flow/job using the `backend_endpoint` command client.
-2. Run storage verifier in Railway dev with real `DATABASE_URL` and MinIO runtime
-   env available.
+1. Run the deployed Windmill dev flow using the `backend_endpoint` command client
+   against a deployed backend command endpoint.
+2. Run storage verifier from a Railway/private-network-capable runtime with real
+   `DATABASE_URL` and MinIO env available.
 3. Verify admin/frontend read-model visibility for package status, evidence
    cards, storage refs, sufficiency state, and economic-analysis handoff state.
 4. Run one live end-to-end package path:

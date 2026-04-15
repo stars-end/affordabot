@@ -55,12 +55,13 @@ poetry run pytest tests/ops/test_policy_evidence_package_windmill_orchestration.
 poetry run python scripts/verification/verify_policy_evidence_package_windmill_orchestration.py
 ```
 
-The verifier includes a read-only Windmill smoke check. If non-interactive auth
-or CLI is unavailable, it records a blocker and keeps the local deterministic
-proof as the primary evidence.
+The verifier includes a live Windmill dev smoke check. If non-interactive auth,
+CLI access, or deployment is unavailable, it records a blocker and keeps the
+local deterministic proof as the primary evidence.
 
 Verifier output now distinguishes:
 
 - deterministic stub path
 - deterministic backend-endpoint path (local HTTP backend command surface)
-- live Windmill read-only surface (`workspace list` + `flow get`)
+- live Windmill dev surface (`workspace list`, `flow get`, and synchronous stub
+  `flow run`)

@@ -43,3 +43,6 @@ cd backend && poetry run python scripts/verification/verify_policy_evidence_pack
 - Live probe attempts real runtime adapters:
   - Postgres row persistence/readback using `public.policy_evidence_packages`.
   - MinIO artifact write/readback using repo `S3Storage` runtime env.
+- Current Railway-dev env-injected probe reaches app env but blocks locally
+  because `DATABASE_URL` resolves to the private Railway hostname
+  `pgvector.railway.internal`, which is not resolvable from this macOS runtime.

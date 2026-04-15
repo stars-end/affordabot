@@ -107,8 +107,7 @@
   "live_probe": {
     "status": "blocked",
     "blockers": [
-      "database_url_missing",
-      "minio_runtime_missing"
+      "live_storage_runtime_error"
     ],
     "railway_auth_probe": {
       "status": "passed",
@@ -116,13 +115,8 @@
       "stdout_redacted": true,
       "stderr_redacted": false
     },
-    "required_env_hints": [
-      "DATABASE_URL or POLICY_EVIDENCE_STORAGE_DATABASE_URL",
-      "MINIO_URL or S3_ENDPOINT",
-      "MINIO_ACCESS_KEY or AWS_ACCESS_KEY_ID",
-      "MINIO_SECRET_KEY or AWS_SECRET_ACCESS_KEY",
-      "MINIO_BUCKET or S3_BUCKET_NAME"
-    ]
+    "error_class": "OperationalError",
+    "error_summary": "could not translate host name \"pgvector.railway.internal\" to address: nodename nor servname provided, or not known"
   },
   "live_runtime_note": "Live probe attempts real Postgres+MinIO when runtime env is available; otherwise records exact blockers."
 }

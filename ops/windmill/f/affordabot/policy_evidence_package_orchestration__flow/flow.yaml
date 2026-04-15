@@ -85,33 +85,41 @@ value:
           value:
             type: rawscript
             language: bun
+            input_transforms:
+              run_scope_pipeline:
+                type: javascript
+                expr: results.run_scope_pipeline
             content: |
-              export async function main() {
+              export async function main(run_scope_pipeline) {
                 return {
                   status: "blocked",
                   reason: "package_not_ready",
-                  package_id: results.run_scope_pipeline.package_id,
-                  package_readiness_status: results.run_scope_pipeline.package_readiness_status,
-                  gate_status: results.run_scope_pipeline.gate_status,
-                  retry_class: results.run_scope_pipeline.retry_class
+                  package_id: run_scope_pipeline.package_id,
+                  package_readiness_status: run_scope_pipeline.package_readiness_status,
+                  gate_status: run_scope_pipeline.gate_status,
+                  retry_class: run_scope_pipeline.retry_class
                 };
               }
       default:
       - id: ready_summary
         value:
-          type: rawscript
-          language: bun
-          content: |
-            export async function main() {
-              return {
-                status: "succeeded",
-                reason: "package_ready",
-                package_id: results.run_scope_pipeline.package_id,
-                package_readiness_status: results.run_scope_pipeline.package_readiness_status,
-                gate_status: results.run_scope_pipeline.gate_status,
-                retry_class: results.run_scope_pipeline.retry_class
-              };
-            }
+            type: rawscript
+            language: bun
+            input_transforms:
+              run_scope_pipeline:
+                type: javascript
+                expr: results.run_scope_pipeline
+            content: |
+              export async function main(run_scope_pipeline) {
+                return {
+                  status: "succeeded",
+                  reason: "package_ready",
+                  package_id: run_scope_pipeline.package_id,
+                  package_readiness_status: run_scope_pipeline.package_readiness_status,
+                  gate_status: run_scope_pipeline.gate_status,
+                  retry_class: run_scope_pipeline.retry_class
+                };
+              }
 concurrency:
   limit: 2
   key: affordabot-policy-evidence-package

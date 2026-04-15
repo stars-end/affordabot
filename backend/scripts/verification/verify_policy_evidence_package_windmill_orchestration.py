@@ -61,6 +61,20 @@ def _hash(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
 
 
+def _extract_last_json_object(text: str) -> dict[str, Any]:
+    for line in reversed(text.splitlines()):
+        candidate = line.strip()
+        if not candidate.startswith("{"):
+            continue
+        try:
+            parsed = json.loads(candidate)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(parsed, dict):
+            return parsed
+    return {}
+
+
 def _load_module():
     spec = __import__("importlib.util").util.spec_from_file_location(
         "policy_evidence_windmill", WINDMILL_SCRIPT_PATH
@@ -273,6 +287,8 @@ trap 'rm -rf "$TMP_WMILL_CONFIG"' EXIT
 npx --yes windmill-cli workspace add affordabot affordabot "$WINDMILL_BASE_URL" --token "$WINDMILL_API_TOKEN" --config-dir "$TMP_WMILL_CONFIG" >/dev/null
 npx --yes windmill-cli workspace list --config-dir "$TMP_WMILL_CONFIG"
 npx --yes windmill-cli flow get f/affordabot/policy_evidence_package_orchestration__flow --workspace affordabot --config-dir "$TMP_WMILL_CONFIG" --json
+RUN_PAYLOAD='{"idempotency_key":"bd-3wefe-policy-evidence-verifier-stub","jurisdiction":"San Jose CA","query_family":"meeting_minutes","package_id":"pkg-bd-3wefe-verifier-stub","package_readiness_status":"ready","gate_status":"quantified","command_client":"stub","backend_endpoint_timeout_seconds":60}'
+npx --yes windmill-cli flow run f/affordabot/policy_evidence_package_orchestration__flow --workspace affordabot --config-dir "$TMP_WMILL_CONFIG" -s -d "$RUN_PAYLOAD"
 """
     proc = subprocess.run(
         ["bash", "-lc", cmd],
@@ -282,15 +298,18 @@ npx --yes windmill-cli flow get f/affordabot/policy_evidence_package_orchestrati
         check=False,
     )
     if proc.returncode == 0:
+        run_result = _extract_last_json_object(proc.stdout.strip())
         return {
-            "live_status": "passed_read_only_surface",
+            "live_status": "passed_stub_flow_run",
             "commands": [
                 "windmill-cli workspace list (read-only)",
                 "windmill-cli flow get f/affordabot/policy_evidence_package_orchestration__flow (read-only)",
+                "windmill-cli flow run f/affordabot/policy_evidence_package_orchestration__flow (stub, synchronous)",
             ],
             "return_code": proc.returncode,
             "stdout_redacted": bool(proc.stdout.strip()),
             "stderr_redacted": bool(proc.stderr.strip()),
+            "stub_run_result": run_result,
             "blocker": None,
         }
     stderr = proc.stderr.strip()
@@ -302,6 +321,7 @@ npx --yes windmill-cli flow get f/affordabot/policy_evidence_package_orchestrati
         "commands": [
             "windmill-cli workspace list (read-only)",
             "windmill-cli flow get f/affordabot/policy_evidence_package_orchestration__flow (read-only)",
+            "windmill-cli flow run f/affordabot/policy_evidence_package_orchestration__flow (stub, synchronous)",
         ],
         "return_code": proc.returncode,
         "stdout_redacted": bool(proc.stdout.strip()),
@@ -375,7 +395,7 @@ def _build_report(local: dict[str, Any], live: dict[str, Any]) -> dict[str, Any]
         },
         "live_surface_probe": live,
         "open_gaps": [
-            "deploy policy evidence flow to Windmill dev workspace and run a real flow/job",
+            "run Windmill dev flow with backend_endpoint against deployed backend command endpoint",
             "run storage verifier in Railway dev with DATABASE_URL and MinIO env available",
             "connect resulting package to canonical analysis output and admin/frontend read model",
         ],

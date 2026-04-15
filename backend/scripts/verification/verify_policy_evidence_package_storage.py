@@ -329,18 +329,27 @@ def _run_live_probe(*, live_mode: str) -> dict[str, Any]:
     live_package = _build_package(package_id=package_id, reader_artifact_uri=reader_artifact_uri)
     idempotency_key = "idem-bd-3wefe-10-live"
 
-    store = LivePostgresStore(database_url=str(database_url))
-    service = PolicyEvidencePackageStorageService(
-        store=store,
-        artifact_writer=LiveMinioArtifactWriter(storage=storage),
-        artifact_probe=LiveMinioArtifactProbe(storage=storage),
-    )
+    try:
+        store = LivePostgresStore(database_url=str(database_url))
+        service = PolicyEvidencePackageStorageService(
+            store=store,
+            artifact_writer=LiveMinioArtifactWriter(storage=storage),
+            artifact_probe=LiveMinioArtifactProbe(storage=storage),
+        )
 
-    result = service.persist(package_payload=live_package, idempotency_key=idempotency_key)
-    row = store.get_by_idempotency(idempotency_key=idempotency_key)
+        result = service.persist(package_payload=live_package, idempotency_key=idempotency_key)
+        row = store.get_by_idempotency(idempotency_key=idempotency_key)
 
-    # Best-effort cleanup for repeatable runs.
-    store.delete_by_idempotency(idempotency_key=idempotency_key)
+        # Best-effort cleanup for repeatable runs.
+        store.delete_by_idempotency(idempotency_key=idempotency_key)
+    except Exception as exc:  # noqa: BLE001
+        return {
+            "status": "blocked",
+            "blockers": ["live_storage_runtime_error"],
+            "railway_auth_probe": railway_auth,
+            "error_class": type(exc).__name__,
+            "error_summary": str(exc).splitlines()[0] if str(exc) else type(exc).__name__,
+        }
 
     passed = bool(
         result.stored
