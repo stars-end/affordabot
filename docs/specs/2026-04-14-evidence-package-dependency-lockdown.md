@@ -414,12 +414,37 @@ Scope:
   relational/read-model truth, MinIO stores raw/intermediate artifacts, pgvector
   stores derived chunks, and frontend/admin reads without recomputing truth.
 
+Proof shape:
+
+- Deep vertical spine:
+  run one real artifact through the full source -> package -> storage ->
+  sufficiency -> canonical economic analysis -> admin/frontend-readable output
+  path.
+- Thin horizontal matrix:
+  score at least six real policy artifacts across at least two jurisdictions and
+  three mechanism families. These artifacts do not all require final economic
+  narrative output, but they must run far enough to classify search, ranking,
+  reader, structured enrichment, identity/dedupe, evidence-card extraction,
+  package readiness, and likely economic-analysis sufficiency.
+- Mechanism-family coverage:
+  include direct fiscal/fee/cost change, compliance/construction/business cost,
+  and indirect household cost-of-living mechanism examples. If a family cannot
+  be found in the selected jurisdictions, record that as source-universe evidence
+  instead of silently substituting an easier case.
+- Provider/source coverage:
+  evaluate private SearXNG primary behavior for every horizontal artifact, run
+  Tavily fallback where SearXNG is weak or ambiguous, and use Exa only for a
+  capped evaluation subset. Include at least two structured source families
+  where available or explicit evidence that the selected artifact family lacks
+  free/easily-ingestible structured coverage.
+
 Implementation-ready two-agent split:
 
 - Agent A owns data moat and runtime path:
-  select the real artifact, run scraped discovery/reader, attach structured
-  metadata, build the `PolicyEvidencePackage`, persist/read back storage refs,
-  prove idempotent replay, and capture Windmill/backend run ids.
+  select the vertical artifact, assemble the horizontal matrix, run scraped
+  discovery/reader, attach structured metadata, build the
+  `PolicyEvidencePackage`, persist/read back storage refs, prove idempotent
+  replay, capture Windmill/backend run ids, and classify source/package failures.
 - Agent B owns economic product and audit output:
   consume the persisted/read-back package, run or adapt the canonical
   `AnalysisPipeline`/`LegislationResearchService` path, produce the sufficiency
@@ -479,6 +504,13 @@ Acceptance:
   one real artifact has a recorded source trace from search/structured inputs to
   selected candidate, reader output, evidence cards, package id, storage refs,
   sufficiency gate, economic analysis, and read-model/frontend/admin output.
+- Horizontal data quality:
+  at least six real artifacts are scored across at least two jurisdictions and
+  three mechanism families. Each matrix row records provider results, selected
+  candidate, reader status, structured enrichment status, canonical identity,
+  evidence-card extraction status, package-readiness classification
+  (`quantified_ready`, `secondary_research_needed`, `qualitative_only`, or
+  `fail_closed`), and dominant failure class.
 - Source support:
   every factual claim in the final analysis traces to one or more evidence cards;
   every economic claim traces to a parameter card, assumption card, model card,
@@ -521,6 +553,7 @@ Required artifacts:
 
 - `docs/poc/policy-evidence-quality-spine/README.md`
 - `docs/poc/policy-evidence-quality-spine/artifacts/quality_spine_scorecard.json`
+- `docs/poc/policy-evidence-quality-spine/artifacts/horizontal_matrix.json`
 - `docs/poc/policy-evidence-quality-spine/artifacts/quality_spine_report.md`
 - `docs/poc/policy-evidence-quality-spine/artifacts/retry_ledger.json`
 - Updated brownfield map and economic-literature inventory if new canonical,
