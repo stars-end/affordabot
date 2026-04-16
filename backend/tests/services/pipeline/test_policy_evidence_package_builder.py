@@ -116,6 +116,44 @@ def test_builder_allows_structured_only_package_when_fields_are_economic_relevan
     assert payload["structured_sources"][0]["source_family"] == "ckan"
 
 
+def test_builder_keeps_structured_secondary_search_out_of_scraped_provenance() -> None:
+    scraped = _find_envelope(source_lane="scrape_search", provider="private_searxng")
+    secondary = {
+        "source_lane": "structured_secondary_source",
+        "provider": "tavily_search",
+        "source_family": "tavily_secondary_search",
+        "access_method": "tavily_search_api",
+        "jurisdiction": "san_jose_ca",
+        "artifact_url": "https://www.sanjoseca.gov/Home/Components/News/News/1801",
+        "artifact_type": "secondary_search_rate_snippet",
+        "source_tier": "tier_c",
+        "retrieved_at": "2026-04-16T00:00:00+00:00",
+        "structured_policy_facts": [
+            {
+                "field": "commercial_linkage_fee_rate_usd_per_sqft",
+                "value": 3.0,
+                "unit": "usd_per_square_foot",
+                "source_url": "https://www.sanjoseca.gov/Home/Components/News/News/1801",
+                "source_excerpt": "San Jose adopted a $3.00 commercial linkage fee.",
+            }
+        ],
+    }
+
+    payload = PolicyEvidencePackageBuilder().build(
+        package_id="pkg-secondary-search",
+        jurisdiction="san_jose_ca",
+        scraped_candidates=[scraped],
+        structured_candidates=[secondary],
+        freshness_gate={"freshness_status": "fresh"},
+    )
+
+    assert len(payload["scraped_sources"]) == 1
+    assert payload["scraped_sources"][0]["search_provider"] == "private_searxng"
+    assert len(payload["structured_sources"]) == 1
+    assert payload["structured_sources"][0]["source_family"] == "tavily_secondary_search"
+    assert "scraped_provider_identity_missing" not in set(payload["insufficiency_reasons"])
+
+
 def test_builder_marks_storage_proof_unproven_when_refs_absent() -> None:
     structured = _find_envelope(source_lane="structured", provider="legistar")
     payload = PolicyEvidencePackageBuilder().build(

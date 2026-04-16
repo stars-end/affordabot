@@ -42,6 +42,9 @@
 - local_mock_probe: `{'status': 'passed', 'note': 'local mock backend endpoint probe passed'}`
 
 ## Search Provider Bakeoff
+
+Note: this table is a diagnostic bakeoff against standalone providers. Its `searxng` row used a public SearXNG instance and is separate from the backend product path. The Cycle 25 product path selected an official Legistar artifact through the configured backend search client; follow-up code records the active search client class, configured provider, and endpoint host so this is directly auditable in future package artifacts.
+
 | Provider | Status | Result Count | Latency (ms) | Failure Class | Top URL |
 |---|---:|---:|---:|---|---|
 | searxng | failed | 0 | 680 | http_error |  |
@@ -49,6 +52,9 @@
 | tavily | succeeded | 5 | 442 |  | https://www.sanjoseca.gov/Home/Components/News/News/1801/4699 |
 
 ## DB/Storage Evidence
+
+Note: this harness-level DB probe failed from the local probing context. Storage/read-back proof for Cycle 25 lives in the admin read model and backend storage-service proof, not in this table.
+
 - probe_status: `probe_failed`
 - search_snapshot_rows: `0`
 - content_artifact_rows: `0`
@@ -58,11 +64,11 @@
 - minio_object_checks: `[]`
 
 ## Manual Audit Notes
-- reader_output_excerpt: -
-- reader_quality_note: Z.ai reader executed and persisted output, but the selected San Jose source resolved to navigation/menu content rather than actual meeting minutes.
+- reader_output_excerpt: The actual Cycle 25 analyze step selected chunks from the official San Jose Legistar attachment, including the Commercial Linkage Fee resolution text and fee schedule snippets.
+- reader_quality_note: Reviewer correction: the previous note about navigation/menu content was stale from an earlier failed cycle. Cycle 25 selected and read the official Legistar attachment; the remaining quality issue was parameter-card binding depth, not discovery/source targeting.
 - llm_analysis_excerpt: The City of San Jose Resolution establishes Commercial Linkage Fees for various non-residential development categories based on gross square footage. The fees act as a direct cost on developers, ranging from $0.00 to $18.706.00 per square foot depending on use type and size, with credits available for demolished non-residential space. The provided text does not contain evidence or claims regarding household cost-of-living impacts or indirect cost pass-through.
-- llm_quality_note: Z.ai analysis correctly refused to infer housing signals from insufficient evidence; product mechanics passed, discovery/source targeting did not.
-- manual_verdict: PASS_MECHANICS_FAIL_DISCOVERY_QUALITY
+- llm_quality_note: Z.ai analysis correctly refused to infer household cost-of-living pass-through from insufficient evidence. The `$18.706.00` string is a parsing anomaly and must not support a decision-grade numeric claim without monetary-format validation.
+- manual_verdict: PASS_NARROW_DATA_MOAT__FINAL_ECONOMIC_ANALYSIS_FAIL_CLOSED
 
 ## Blockers
 - `storage/runtime`: DB/storage probe unavailable

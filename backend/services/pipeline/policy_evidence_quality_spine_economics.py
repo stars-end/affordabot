@@ -541,6 +541,10 @@ class PolicyEvidenceQualitySpineEconomicsService:
                     "status": taxonomy["storage/read-back"]["status"],
                     "reason": taxonomy["storage/read-back"]["details"],
                     "refs": storage_refs,
+                    "proof_mode": taxonomy["storage/read-back"].get("proof_mode"),
+                    "direct_probe_available": taxonomy["storage/read-back"].get(
+                        "direct_probe_available"
+                    ),
                 },
                 "Windmill/orchestration": {
                     "status": taxonomy["Windmill/orchestration"]["status"],
@@ -1123,6 +1127,10 @@ class PolicyEvidenceQualitySpineEconomicsService:
             "storage/read-back": {
                 "status": storage_proof_eval["status"],
                 "details": storage_proof_eval["details"],
+                "proof_mode": storage_proof_eval.get("proof_mode", "unknown"),
+                "direct_probe_available": storage_proof_eval.get(
+                    "direct_probe_available", False
+                ),
             },
             "Windmill/orchestration": {
                 "status": orchestration_eval["status"],
@@ -1524,6 +1532,8 @@ class PolicyEvidenceQualitySpineEconomicsService:
             return {
                 "status": "fail",
                 "details": f"artifact_readback_status={readback_status}",
+                "proof_mode": "storage_service",
+                "direct_probe_available": False,
             }
 
         storage_proof = runtime_evidence.get("storage_proof")
@@ -1534,6 +1544,8 @@ class PolicyEvidenceQualitySpineEconomicsService:
                     "Deterministic in-memory readback is proven, but non-memory "
                     "Postgres/MinIO storage proof is not provided."
                 ),
+                "proof_mode": "in_memory",
+                "direct_probe_available": False,
             }
 
         proof_status = str(storage_proof.get("proof_status") or "not_proven")
@@ -1543,6 +1555,7 @@ class PolicyEvidenceQualitySpineEconomicsService:
         blocker = str(storage_proof.get("blocker") or "storage_proof_missing")
         record_id = str(storage_proof.get("persisted_record_id") or "").strip()
         minio_readback = bool(storage_proof.get("minio_readback_proven"))
+        direct_probe_available = bool(storage_proof.get("direct_probe_available"))
         non_memory_backend = store_backend not in {"in_memory", "unknown"}
         non_memory_probe = artifact_backend not in {"in_memory", "unknown"}
 
@@ -1550,6 +1563,8 @@ class PolicyEvidenceQualitySpineEconomicsService:
             return {
                 "status": "fail",
                 "details": f"Storage proof failed: {blocker}.",
+                "proof_mode": proof_mode,
+                "direct_probe_available": direct_probe_available,
             }
 
         if (
@@ -1562,9 +1577,12 @@ class PolicyEvidenceQualitySpineEconomicsService:
             return {
                 "status": "pass",
                 "details": (
-                    "Non-memory storage proof present with persisted row id and MinIO readback "
-                    f"(mode={proof_mode}, record_id={record_id})."
+                    "Backend storage-service proof present with persisted row id and MinIO "
+                    f"readback (mode={proof_mode}, record_id={record_id}, "
+                    f"direct_probe_available={str(direct_probe_available).lower()})."
                 ),
+                "proof_mode": proof_mode,
+                "direct_probe_available": direct_probe_available,
             }
 
         return {
@@ -1573,6 +1591,8 @@ class PolicyEvidenceQualitySpineEconomicsService:
                 "Readback exists but non-memory storage proof is incomplete "
                 f"(mode={proof_mode}, blocker={blocker})."
             ),
+            "proof_mode": proof_mode,
+            "direct_probe_available": direct_probe_available,
         }
 
     @staticmethod

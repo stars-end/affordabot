@@ -126,13 +126,53 @@ class StructuredSourceEnricher:
         if not candidates and selected_url:
             alerts.append("structured_enrichment_no_candidates_for_selected_url_context")
         _ = source_family
+        source_catalog = self._annotate_source_catalog(
+            catalog=catalog,
+            candidates=candidates,
+            alerts=alerts,
+        )
 
         return StructuredEnrichmentResult(
             status=status,
             candidates=candidates,
             alerts=list(dict.fromkeys(alerts)),
-            source_catalog=catalog,
+            source_catalog=source_catalog,
         )
+
+    @staticmethod
+    def _annotate_source_catalog(
+        *,
+        catalog: list[dict[str, Any]],
+        candidates: list[dict[str, Any]],
+        alerts: list[str],
+    ) -> list[dict[str, Any]]:
+        live_families = {
+            str(candidate.get("source_family") or "").strip()
+            for candidate in candidates
+            if isinstance(candidate, dict)
+        }
+        unavailable_by_alert = {
+            "san_jose_open_data_ckan": "structured_enrichment_ckan_unavailable",
+            "legistar_web_api": "structured_enrichment_legistar_unavailable",
+        }
+        alert_set = set(alerts)
+        annotated: list[dict[str, Any]] = []
+        for entry in catalog:
+            item = dict(entry)
+            family = str(item.get("source_family") or "").strip()
+            live_proven = family in live_families
+            unavailable_alert = unavailable_by_alert.get(family)
+            if live_proven:
+                item["runtime_status"] = "integrated"
+                item["live_proven"] = True
+            elif unavailable_alert and unavailable_alert in alert_set:
+                item["runtime_status"] = "cataloged_unavailable"
+                item["live_proven"] = False
+            else:
+                item["runtime_status"] = item.get("runtime_status") or "cataloged"
+                item["live_proven"] = False
+            annotated.append(item)
+        return annotated
 
     def _should_probe_tavily_secondary(
         self,
@@ -295,7 +335,7 @@ class StructuredSourceEnricher:
             "jurisdiction": "san_jose_ca",
             "artifact_url": primary_url,
             "artifact_type": "secondary_search_rate_snippet",
-            "source_tier": "tier_b",
+            "source_tier": "tier_c",
             "retrieved_at": _utc_now_iso(),
             "query_text": query_text,
             "excerpt": (

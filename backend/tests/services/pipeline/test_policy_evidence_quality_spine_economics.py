@@ -282,7 +282,9 @@ def test_storage_readback_passes_with_non_memory_storage_proof() -> None:
 
     storage = result["scorecard"]["taxonomy"]["storage/read-back"]
     assert storage["status"] == "pass"
-    assert "Non-memory storage proof present" in storage["details"]
+    assert "Backend storage-service proof present" in storage["details"]
+    assert storage["direct_probe_available"] is False
+    assert storage["proof_mode"] == "postgres_minio_live"
 
 
 def test_scraped_search_is_not_proven_without_selected_artifact_metrics() -> None:

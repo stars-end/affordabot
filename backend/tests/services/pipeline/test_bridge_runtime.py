@@ -94,6 +94,13 @@ class FakeDB:
             raw = self.raw_scrapes.get(str(args[0]))
             if not raw:
                 return None
+            if "SELECT created_at, data" in query:
+                return _Row(
+                    {
+                        "created_at": raw["created_at"],
+                        "data": raw["data"],
+                    }
+                )
             return _Row(
                 {
                     "id": raw["id"],
@@ -150,6 +157,9 @@ class FakeDB:
                 "storage_uri": str(args[7]),
                 "metadata": __import__("json").loads(args[6]),
                 "processed": False,
+                "created_at": __import__("datetime").datetime.now(
+                    __import__("datetime").timezone.utc
+                ),
             }
             self.raw_by_identity[(str(args[9]), str(args[2]))] = raw_id
 
@@ -270,6 +280,8 @@ class JsonStringFakeDB(FakeDB):
 
 
 class FakeSearchClient:
+    provider_label = "private_searxng"
+
     def __init__(self, results: list[dict[str, Any]]) -> None:
         self.results = results
 
@@ -541,6 +553,37 @@ def test_runtime_bridge_materializes_structured_sources_when_enrichment_availabl
     assert run_context["structured_enrichment_status"] == "integrated"
     assert run_context["structured_sources"]
     assert run_context["structured_source_catalog"][0]["source_family"] == "legistar_web_api"
+
+
+def test_runtime_bridge_extracts_primary_fee_facts_from_analysis_chunks() -> None:
+    analyze = SimpleNamespace(
+        details={
+            "evidence_selection": {
+                "selected_chunks": [
+                    {
+                        "snippet": (
+                            "Office (<100,000 sq. ft.) $3.00 Retail (<100,000 sq. ft.) "
+                            "$0 Hotel $5.00 Residential Care $18.706.00"
+                        )
+                    }
+                ]
+            },
+            "analysis": {
+                "key_points": [
+                    "Industrial/Research and Development (>=100,000 sq. ft.) $3.00"
+                ]
+            },
+        }
+    )
+
+    facts, alerts = RailwayRuntimeBridge._extract_primary_fee_facts_from_analysis(
+        analyze=analyze,  # type: ignore[arg-type]
+        selected_url="https://sanjose.legistar.com/View.ashx?M=F&ID=8758120",
+    )
+
+    assert {fact["value"] for fact in facts} == {0.0, 3.0, 5.0}
+    assert all(fact["source_hierarchy_status"] == "bill_or_reg_text" for fact in facts)
+    assert "primary_parameter_money_format_anomaly" in alerts
 
 
 def test_runtime_bridge_idempotency_is_scoped_to_jurisdiction_and_source_family() -> None:

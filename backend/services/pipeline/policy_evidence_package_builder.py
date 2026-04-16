@@ -103,7 +103,8 @@ def _parse_datetime(value: str | None) -> datetime:
 
 
 def _map_source_lane(value: str) -> SourceLane:
-    if value == "structured":
+    normalized = str(value or "").strip().lower()
+    if normalized == "structured" or normalized.startswith("structured_"):
         return SourceLane.STRUCTURED
     return SourceLane.SCRAPED
 
@@ -239,6 +240,17 @@ def _build_parameter_cards(candidate: dict[str, Any], evidence_id: str) -> list[
         if not isinstance(value, (int, float)):
             continue
         name = str(fact.get("field") or "").strip() or "unknown_parameter"
+        source_url = str(fact.get("source_url") or candidate["artifact_url"] or "https://example.org/unknown")
+        source_excerpt = (
+            str(fact.get("source_excerpt") or "").strip()
+            or f"Structured fact {name} resolved from source payload."
+        )
+        hierarchy_raw = str(fact.get("source_hierarchy_status") or "").strip()
+        hierarchy = (
+            SourceHierarchyStatus.BILL_OR_REG_TEXT
+            if hierarchy_raw == SourceHierarchyStatus.BILL_OR_REG_TEXT.value
+            else SourceHierarchyStatus.FISCAL_OR_REG_IMPACT_ANALYSIS
+        )
         cards.append(
             ParameterCard(
                 id=f"param-{len(cards)+1}-{_slug(name)}",
@@ -246,9 +258,9 @@ def _build_parameter_cards(candidate: dict[str, Any], evidence_id: str) -> list[
                 state=ParameterState.RESOLVED,
                 value=float(value),
                 unit=str(fact.get("unit") or "unitless"),
-                source_url=candidate["artifact_url"] or "https://example.org/unknown",
-                source_excerpt=f"Structured fact {name} resolved from source payload.",
-                source_hierarchy_status=SourceHierarchyStatus.FISCAL_OR_REG_IMPACT_ANALYSIS,
+                source_url=source_url,
+                source_excerpt=source_excerpt,
+                source_hierarchy_status=hierarchy,
                 evidence_card_id=evidence_id,
             )
         )

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 import hashlib
@@ -482,6 +483,8 @@ class RailwayRuntimeBridge:
     def _build_source_quality_metrics(
         cls,
         *,
+        search_provider: str,
+        search_provider_runtime: dict[str, Any],
         selected_url: str,
         search_candidates: list[dict[str, Any]],
         ranked_candidates: list[dict[str, Any]],
@@ -523,7 +526,7 @@ class RailwayRuntimeBridge:
         selected_artifact_family = cls._classify_selected_artifact_family(selected_url)
         selected_candidate = {
             "url": selected_url,
-            "provider": "private_searxng",
+            "provider": search_provider,
             "rank": selected_rank,
             "selection_reason": cls._selection_reason_from_audit(candidate_audit, selected_url),
             "artifact_grade": selected_artifact_family == "artifact",
@@ -574,7 +577,7 @@ class RailwayRuntimeBridge:
             and secondary_numeric_parameter_count > 0,
             "secondary_numeric_parameter_count": secondary_numeric_parameter_count,
             "provider_summary": {
-                "primary_provider": "private_searxng",
+                "primary_provider": search_provider,
                 "provider_error_count": len(reader_provider_errors),
                 "quality_failure_count": len(reader_quality_failures),
                 "provider_error_urls": [
@@ -582,15 +585,107 @@ class RailwayRuntimeBridge:
                     for item in reader_provider_errors
                     if str(item.get("url") or "").strip()
                 ],
+                "runtime": search_provider_runtime,
             },
             "provider_results": {
-                "private_searxng": {
+                search_provider: {
                     "status": "succeeded" if provider_candidates else "empty",
                     "reason_code": selected_candidate["selection_reason"],
                     "candidates": provider_candidates,
                 }
             },
         }
+
+    def _active_search_provider_provenance(self) -> dict[str, Any]:
+        client = self.search_client
+        explicit_label = str(getattr(client, "provider_label", "") or "").strip()
+        class_name = client.__class__.__name__
+        class_key = class_name.lower()
+        configured_provider = os.getenv("WEB_SEARCH_PROVIDER", "").strip().lower()
+
+        if explicit_label:
+            provider = explicit_label
+        elif "searxng" in class_key or "searx" in class_key:
+            provider = "private_searxng"
+        elif "tavily" in class_key:
+            provider = "tavily"
+        elif "exa" in class_key:
+            provider = "exa"
+        elif "zai" in class_key:
+            provider = "zai_search"
+        else:
+            provider = configured_provider or "other"
+
+        endpoint = str(getattr(client, "endpoint", "") or "").strip()
+        endpoint_host = urlsplit(endpoint).netloc if endpoint else ""
+        return {
+            "provider": provider,
+            "client_class": class_name,
+            "configured_provider": configured_provider or None,
+            "endpoint_host": endpoint_host or None,
+            "endpoint_configured": bool(endpoint),
+        }
+
+    @staticmethod
+    def _analysis_text_parts(analyze: CommandResponse | None) -> list[str]:
+        if analyze is None:
+            return []
+        details = analyze.details if isinstance(analyze.details, dict) else {}
+        parts: list[str] = []
+        evidence_selection = details.get("evidence_selection")
+        if isinstance(evidence_selection, dict):
+            selected_chunks = evidence_selection.get("selected_chunks")
+            if isinstance(selected_chunks, list):
+                for chunk in selected_chunks:
+                    if not isinstance(chunk, dict):
+                        continue
+                    snippet = str(chunk.get("snippet") or "").strip()
+                    if snippet:
+                        parts.append(snippet)
+        analysis = details.get("analysis")
+        if isinstance(analysis, dict):
+            for item in analysis.get("key_points") or []:
+                text = str(item or "").strip()
+                if text:
+                    parts.append(text)
+            summary = str(analysis.get("summary") or "").strip()
+            if summary:
+                parts.append(summary)
+        return parts
+
+    @classmethod
+    def _extract_primary_fee_facts_from_analysis(
+        cls,
+        *,
+        analyze: CommandResponse | None,
+        selected_url: str,
+    ) -> tuple[list[dict[str, Any]], list[str]]:
+        facts: list[dict[str, Any]] = []
+        alerts: list[str] = []
+        seen: set[float] = set()
+        for text in cls._analysis_text_parts(analyze):
+            lowered = text.lower()
+            if not any(signal in lowered for signal in ("fee", "fees", "per sq", "square foot", "sq. ft")):
+                continue
+            if re.search(r"\$[0-9]+(?:\.[0-9]+){2,}", text):
+                alerts.append("primary_parameter_money_format_anomaly")
+            for match in re.finditer(r"\$([0-9]+(?:\.[0-9]{1,2})?)(?![\d.])", text):
+                value = float(match.group(1))
+                if value in seen:
+                    continue
+                seen.add(value)
+                facts.append(
+                    {
+                        "field": "commercial_linkage_fee_rate_usd_per_sqft",
+                        "value": value,
+                        "unit": "usd_per_square_foot",
+                        "source_url": selected_url,
+                        "source_excerpt": text[:600],
+                        "provenance_lane": "primary_scraped_document",
+                        "source_hierarchy_status": "bill_or_reg_text",
+                    }
+                )
+        return facts, sorted(set(alerts))
 
     @staticmethod
     def _infer_mechanism_hint(
@@ -771,7 +866,11 @@ class RailwayRuntimeBridge:
             if isinstance(read_fetch_details.get("reader_quality_failures", []), list)
             else []
         )
+        search_provider_runtime = self._active_search_provider_provenance()
+        search_provider = str(search_provider_runtime["provider"])
         source_quality_metrics = self._build_source_quality_metrics(
+            search_provider=search_provider,
+            search_provider_runtime=search_provider_runtime,
             selected_url=selected_url,
             search_candidates=search_candidates,
             ranked_candidates=ranked_candidates,
@@ -779,6 +878,10 @@ class RailwayRuntimeBridge:
             reader_provider_errors=reader_provider_errors,
             reader_quality_failures=reader_quality_failures,
             structured_candidates=structured_enrichment.candidates,
+        )
+        primary_fee_facts, primary_parameter_alerts = self._extract_primary_fee_facts_from_analysis(
+            analyze=analyze,
+            selected_url=selected_url,
         )
         if (
             mechanism_hint.secondary_research_needed
@@ -798,6 +901,37 @@ class RailwayRuntimeBridge:
                 canonical_pipeline_run_id = run_id
                 canonical_pipeline_step_id = analysis_id_value
                 canonical_breakdown_ref = f"analysis:{analysis_id_value}"
+        raw_scrape_retrieved_at = _utc_now().isoformat()
+        raw_scrape_excerpt = ""
+        if raw_scrape_id:
+            raw_row_for_excerpt = await self.db._fetchrow(
+                """
+                SELECT created_at, data
+                FROM raw_scrapes
+                WHERE id = $1::uuid
+                LIMIT 1
+                """,
+                raw_scrape_id,
+            )
+            if raw_row_for_excerpt:
+                created_at_value = raw_row_for_excerpt["created_at"]
+                if hasattr(created_at_value, "isoformat"):
+                    raw_scrape_retrieved_at = created_at_value.isoformat()
+                elif created_at_value:
+                    raw_scrape_retrieved_at = str(created_at_value)
+                raw_data = _db_json(raw_row_for_excerpt["data"], {})
+                if isinstance(raw_data, dict):
+                    raw_content = str(raw_data.get("content") or "").strip()
+                    raw_scrape_excerpt = raw_content[:600]
+        if not raw_scrape_excerpt:
+            text_parts = self._analysis_text_parts(analyze)
+            raw_scrape_excerpt = text_parts[0][:600] if text_parts else ""
+        scraped_evidence_ready = bool(raw_scrape_id and reader_artifact_uri and selected_url)
+        reader_substance_reason = ""
+        if read_fetch and read_fetch.status not in {"succeeded", "succeeded_with_alerts"}:
+            reader_substance_reason = "reader_output_insufficient_substance"
+        elif not scraped_evidence_ready:
+            reader_substance_reason = "empty_reader_output"
         package_artifact_uri = self._package_artifact_uri(package_id)
         package_payload = PolicyEvidencePackageBuilder().build(
             package_id=package_id,
@@ -805,7 +939,7 @@ class RailwayRuntimeBridge:
             scraped_candidates=[
                 {
                     "source_lane": "scrape_search",
-                    "provider": "private_searxng",
+                    "provider": search_provider,
                     "provider_run_id": request.windmill_run_id,
                     "source_family": request.source_family,
                     "jurisdiction": request.jurisdiction,
@@ -821,14 +955,14 @@ class RailwayRuntimeBridge:
                     "content_hash": content_hash,
                     "canonical_document_key": canonical_document_key,
                     "reader_artifact_refs": [reader_artifact_uri] if reader_artifact_uri else [],
-                    "reader_substance_reason": (
-                        str(fail_closed_reasons[0]).split(":", 1)[-1]
-                        if fail_closed_reasons
-                        else ""
-                    ),
-                    "evidence_readiness": "insufficient" if fail_closed_reasons else "ready",
-                    "retrieved_at": "1970-01-01T00:00:00+00:00",
-                    "alerts": list(dict.fromkeys(fail_closed_reasons)),
+                    "reader_substance_reason": reader_substance_reason,
+                    "evidence_readiness": "ready" if scraped_evidence_ready else "insufficient",
+                    "retrieved_at": raw_scrape_retrieved_at,
+                    "excerpt": raw_scrape_excerpt,
+                    "evidence_source_type": "ordinance_text",
+                    "source_tier": "tier_a",
+                    "structured_policy_facts": primary_fee_facts,
+                    "alerts": list(dict.fromkeys([*fail_closed_reasons, *primary_parameter_alerts])),
                     "selected_impact_mode": mechanism_hint.impact_mode,
                     "mechanism_family": mechanism_hint.mechanism_family,
                 }
@@ -883,6 +1017,12 @@ class RailwayRuntimeBridge:
             "secondary_research_needed": mechanism_hint.secondary_research_needed,
             "secondary_research_reason": mechanism_hint.secondary_research_reason,
             "source_quality_metrics": source_quality_metrics,
+            "search_provider_runtime": search_provider_runtime,
+            "primary_parameter_extraction": {
+                "source": "analyze.evidence_selection.selected_chunks",
+                "parameter_count": len(primary_fee_facts),
+                "alerts": primary_parameter_alerts,
+            },
             "canonical_analysis_id": canonical_analysis_id,
             "canonical_pipeline_run_id": canonical_pipeline_run_id,
             "canonical_pipeline_step_id": canonical_pipeline_step_id,
