@@ -56,6 +56,10 @@ from services.pipeline.policy_evidence_package_storage import (
     PolicyEvidencePackageStore,
     PostgresPolicyEvidencePackageStore,
 )
+from services.pipeline.structured_source_enrichment import (
+    StructuredEnrichmentResult,
+    StructuredSourceEnricher,
+)
 from services.storage import S3Storage
 from schemas.analysis import ImpactMode
 from schemas.economic_evidence import MechanismFamily
@@ -130,6 +134,24 @@ class _EconomicMechanismHint:
     secondary_research_reason: str | None = None
 
 
+class _NoopStructuredSourceEnricher:
+    async def enrich(
+        self,
+        *,
+        jurisdiction: str,
+        source_family: str,
+        search_query: str,
+        selected_url: str,
+    ) -> StructuredEnrichmentResult:
+        _ = (jurisdiction, source_family, search_query, selected_url)
+        return StructuredEnrichmentResult(
+            status="not_configured",
+            candidates=[],
+            alerts=["structured_enrichment_not_configured"],
+            source_catalog=[],
+        )
+
+
 class _S3PolicyEvidenceArtifactWriter(ArtifactWriter):
     def __init__(self, *, storage: S3Storage) -> None:
         self._storage = storage
@@ -197,10 +219,17 @@ class RailwayRuntimeBridge:
         db: PostgresDB,
         storage: S3Storage,
         package_store: PolicyEvidencePackageStore | None = None,
+        structured_enricher: StructuredSourceEnricher | None = None,
     ) -> None:
         self.db = db
         self.storage = storage
         self._package_store_override = package_store
+        if structured_enricher is not None:
+            self.structured_enricher = structured_enricher
+        elif isinstance(db, PostgresDB):
+            self.structured_enricher = StructuredSourceEnricher()
+        else:
+            self.structured_enricher = _NoopStructuredSourceEnricher()
         self.search_client = create_web_search_client(api_key=os.getenv("ZAI_API_KEY"))
         self.reader_client: Any | None = None
         try:
@@ -546,6 +575,12 @@ class RailwayRuntimeBridge:
 
         package_id = f"pkg-{_hash(f'{_scope_idempotency_key(request)}|{canonical_document_key}|{selected_url}')[:24]}"
         mechanism_hint = self._infer_mechanism_hint(request=request, selected_url=selected_url)
+        structured_enrichment = await self.structured_enricher.enrich(
+            jurisdiction=request.jurisdiction,
+            source_family=request.source_family,
+            search_query=request.search_query,
+            selected_url=selected_url,
+        )
         if (
             mechanism_hint.secondary_research_needed
             and mechanism_hint.secondary_research_reason
@@ -588,7 +623,7 @@ class RailwayRuntimeBridge:
                     "mechanism_family": mechanism_hint.mechanism_family,
                 }
             ],
-            structured_candidates=[],
+            structured_candidates=structured_enrichment.candidates,
             freshness_gate={"freshness_status": request.stale_status},
             economic_hints={
                 "impact_mode": mechanism_hint.impact_mode,
@@ -626,14 +661,17 @@ class RailwayRuntimeBridge:
             "reader_artifact_uri": reader_artifact_uri,
             "raw_scrape_id": raw_scrape_id,
             "document_id": document_id,
-            "structured_enrichment_status": "not_configured",
+            "structured_enrichment_status": structured_enrichment.status,
+            "structured_sources": structured_enrichment.candidates,
+            "structured_source_catalog": structured_enrichment.source_catalog,
+            "structured_enrichment_alerts": structured_enrichment.alerts,
             "mechanism_family_hint": mechanism_hint.mechanism_family,
             "impact_mode_hint": mechanism_hint.impact_mode,
             "secondary_research_needed": mechanism_hint.secondary_research_needed,
             "secondary_research_reason": mechanism_hint.secondary_research_reason,
             "fail_closed_reasons": list(dict.fromkeys(fail_closed_reasons)),
         }
-        package_payload["structured_enrichment_status"] = "not_configured"
+        package_payload["structured_enrichment_status"] = structured_enrichment.status
 
         idempotency_key = f"{_scope_idempotency_key(request)}::policy_evidence_package"
         store = self._resolve_package_store()

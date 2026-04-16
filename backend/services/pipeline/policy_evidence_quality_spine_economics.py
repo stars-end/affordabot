@@ -241,7 +241,7 @@ class PolicyEvidenceQualitySpineEconomicsService:
         llm_proof = handoff.get("llm_narrative_proof", {})
         runtime_llm_proof = runtime.get("llm_narrative_proof")
         if isinstance(runtime_llm_proof, dict):
-            llm_proof = {**runtime_llm_proof, **llm_proof}
+            llm_proof = {**llm_proof, **runtime_llm_proof}
         reader_provenance = self._derive_reader_provenance_evidence(
             package=package,
             runtime_evidence=runtime,
@@ -311,6 +311,11 @@ class PolicyEvidenceQualitySpineEconomicsService:
         required_evidence_gaps = self._extract_evidence_gap_categories(
             missing_evidence=decision_grade["missing_evidence"]
         )
+        canonical_analysis_binding = self._derive_canonical_analysis_binding(
+            package=package,
+            llm_proof=llm_proof,
+            run_context=run_context or {},
+        )
         analysis_status = self._derive_analysis_status(
             readiness_level=readiness_level,
             decision_grade_verdict=decision_grade["verdict"],
@@ -344,6 +349,51 @@ class PolicyEvidenceQualitySpineEconomicsService:
                 "unsupported_claim_rejection": vertical["unsupported_claim_rejection"],
                 "user_facing_conclusion": None,
             }
+        secondary_research = self._build_secondary_research_contract(
+            package=package,
+            analysis_status=analysis_status,
+            required_evidence_gaps=required_evidence_gaps,
+            sufficiency=sufficiency,
+            canonical_binding=canonical_analysis_binding,
+        )
+        quant_model_payload = [
+            {
+                "model_id": card.id,
+                "mechanism_family": card.mechanism_family.value,
+                "formula_id": card.formula_id,
+                "quantification_eligible": card.quantification_eligible,
+                "arithmetic_valid": card.arithmetic_valid,
+                "unit_validation_status": card.unit_validation_status.value,
+                "input_parameter_ids": card.input_parameter_ids,
+                "assumption_ids": card.assumption_ids,
+                "scenario_bounds": (
+                    None
+                    if card.scenario_bounds is None
+                    else {
+                        "low": card.scenario_bounds.conservative,
+                        "base": card.scenario_bounds.central,
+                        "high": card.scenario_bounds.aggressive,
+                    }
+                ),
+            }
+            for card in package.model_cards
+        ]
+        assumption_payload = [
+            {
+                "assumption_id": card.id,
+                "family": card.family.value,
+                "low": card.low,
+                "central": card.central,
+                "high": card.high,
+                "unit": card.unit,
+                "source_url": str(card.source_url),
+                "source_excerpt": card.source_excerpt,
+                "applicability_tags": card.applicability_tags,
+                "stale_after_days": card.stale_after_days,
+                "version": card.version,
+            }
+            for card in package.assumption_cards
+        ]
 
         return {
             "package_id": package.package_id,
@@ -449,6 +499,22 @@ class PolicyEvidenceQualitySpineEconomicsService:
                 },
                 "unsupported_claim_rejection": vertical["unsupported_claim_rejection"],
             },
+            "economic_trace": {
+                "mechanism_type": vertical["mechanism_type"],
+                "direct_indirect_classification": vertical["direct_indirect_classification"],
+                "mechanism_graph": vertical["mechanism_graph"],
+                "parameter_table": vertical["parameter_table"],
+                "assumption_cards": assumption_payload,
+                "model_cards": quant_model_payload,
+                "arithmetic_integrity": {
+                    "status": rubric["arithmetic_integrity"]["status"],
+                    "reason": rubric["arithmetic_integrity"]["details"],
+                },
+                "sensitivity_range": vertical["sensitivity_range"],
+                "uncertainty_notes": vertical["uncertainty_notes"],
+            },
+            "secondary_research": secondary_research,
+            "canonical_analysis_binding": canonical_analysis_binding,
             "economic_output": economic_output,
         }
 
@@ -505,6 +571,139 @@ class PolicyEvidenceQualitySpineEconomicsService:
         return {
             "status": "qualitative_only",
             "reason": "package supports qualitative reasoning only",
+        }
+
+    @staticmethod
+    def _derive_canonical_analysis_binding(
+        *,
+        package: PolicyEvidencePackage,
+        llm_proof: dict[str, Any],
+        run_context: dict[str, Any],
+    ) -> dict[str, Any]:
+        package_run_id = package.gate_projection.canonical_pipeline_run_id
+        package_step_id = package.gate_projection.canonical_pipeline_step_id
+        observed_run_id = llm_proof.get("canonical_pipeline_run_id")
+        observed_step_id = llm_proof.get("canonical_pipeline_step_id")
+        blocker = str(llm_proof.get("blocker") or "canonical_llm_run_id_missing")
+        proof_status = str(llm_proof.get("proof_status") or "not_proven")
+        route_run_id = str(run_context.get("run_id") or "").strip() or None
+        source_artifact_refs = [
+            {
+                "evidence_card_id": card.id,
+                "source_url": str(card.source_url),
+                "artifact_id": card.artifact_id,
+                "content_hash": card.content_hash,
+            }
+            for card in package.evidence_cards
+        ]
+        if proof_status == "pass" and observed_run_id:
+            return {
+                "status": "bound",
+                "reason": "canonical analysis run/step ids are linked to this package",
+                "package_projection": {
+                    "canonical_pipeline_run_id": package_run_id,
+                    "canonical_pipeline_step_id": package_step_id,
+                },
+                "observed": {
+                    "canonical_pipeline_run_id": observed_run_id,
+                    "canonical_pipeline_step_id": observed_step_id,
+                    "source": llm_proof.get("source"),
+                },
+                "route_run_id": route_run_id,
+                "source_artifact_refs": source_artifact_refs,
+            }
+        return {
+            "status": "not_proven",
+            "reason": (
+                "canonical analysis binding missing; package can be evaluated but not "
+                "claimed as canonical LLM narrative output"
+            ),
+            "blocker": blocker,
+            "missing_code_path": "analysis_history/package_id linkage in canonical AnalysisPipeline persistence path",
+            "package_projection": {
+                "canonical_pipeline_run_id": package_run_id,
+                "canonical_pipeline_step_id": package_step_id,
+            },
+            "observed": {
+                "canonical_pipeline_run_id": observed_run_id,
+                "canonical_pipeline_step_id": observed_step_id,
+                "source": llm_proof.get("source"),
+            },
+            "route_run_id": route_run_id,
+            "source_artifact_refs": source_artifact_refs,
+        }
+
+    def _build_secondary_research_contract(
+        self,
+        *,
+        package: PolicyEvidencePackage,
+        analysis_status: dict[str, str],
+        required_evidence_gaps: list[str],
+        sufficiency: dict[str, Any],
+        canonical_binding: dict[str, Any],
+    ) -> dict[str, Any]:
+        blocking_gate = str(sufficiency.get("blocking_gate") or "").strip() or None
+        readiness_level = str(sufficiency.get("readiness_level") or "").strip()
+        requires_secondary = analysis_status.get("status") == "secondary_research_needed"
+        mechanism_families = sorted({model.mechanism_family.value for model in package.model_cards})
+        unresolved_parameters = [
+            {
+                "parameter_id": card.id,
+                "name": card.parameter_name,
+                "unit": card.unit,
+                "state": card.state.value,
+                "resolution_hint": card.ambiguity_reason,
+            }
+            for card in package.parameter_cards
+            if card.state.value != "resolved"
+        ]
+        evidence_inputs = [
+            {
+                "evidence_card_id": card.id,
+                "source_url": str(card.source_url),
+                "source_type": card.source_type.value,
+                "content_hash": card.content_hash,
+            }
+            for card in package.evidence_cards
+        ]
+        request_id = f"sec-research::{package.package_id}"
+        request_contract = {
+            "request_id": request_id,
+            "package_id": package.package_id,
+            "jurisdiction": package.jurisdiction,
+            "canonical_document_key": package.canonical_document_key,
+            "policy_identifier": package.policy_identifier,
+            "mechanism_families": mechanism_families,
+            "blocking_gate": blocking_gate,
+            "required_evidence_gaps": required_evidence_gaps,
+            "target_parameters": unresolved_parameters,
+            "source_artifact_refs": evidence_inputs,
+        }
+        if not requires_secondary:
+            return {
+                "status": "not_required",
+                "reason": "package is already decision-grade or qualitative-only without secondary trigger",
+                "request_contract": None,
+                "output_contract": None,
+            }
+        return {
+            "status": "required",
+            "reason": (
+                "indirect or under-parameterized analysis path requires auditable secondary research package"
+            ),
+            "request_contract": request_contract,
+            "output_contract": {
+                "request_id": request_id,
+                "must_link_package_id": package.package_id,
+                "must_include_source_artifacts": True,
+                "must_include_parameter_provenance": True,
+                "must_include_assumption_updates": True,
+                "must_include_model_card_updates": True,
+                "must_emit_fail_closed_if_missing": True,
+                "canonical_analysis_binding_required": canonical_binding["status"] == "bound",
+                "readiness_target": PackageReadinessLevel.ECONOMIC_HANDOFF_READY.value,
+                "current_readiness": readiness_level,
+            },
         }
 
     @staticmethod
@@ -1413,12 +1612,7 @@ class PolicyEvidenceQualitySpineEconomicsService:
             if card.state.value == "resolved"
         ]
         mechanism_family = package.model_cards[0].mechanism_family if package.model_cards else None
-        mechanism_type = "direct"
-        if mechanism_family in {
-            MechanismFamily.FEE_OR_TAX_PASS_THROUGH,
-            MechanismFamily.ADOPTION_TAKE_UP,
-        }:
-            mechanism_type = "indirect"
+        mechanism_type = self._classify_mechanism_type(package=package, mechanism_family=mechanism_family)
 
         graph_nodes = [
             {"id": "policy_change", "label": package.policy_identifier},
@@ -1501,6 +1695,29 @@ class PolicyEvidenceQualitySpineEconomicsService:
             "sufficiency_state": package.gate_projection.runtime_sufficiency_state.value,
             "sufficiency_readiness_level": sufficiency.readiness_level.value,
         }
+
+    @staticmethod
+    def _classify_mechanism_type(
+        *, package: PolicyEvidencePackage, mechanism_family: MechanismFamily | None
+    ) -> str:
+        if mechanism_family in {
+            MechanismFamily.FEE_OR_TAX_PASS_THROUGH,
+            MechanismFamily.ADOPTION_TAKE_UP,
+        }:
+            return "indirect"
+        if mechanism_family in {MechanismFamily.DIRECT_FISCAL, MechanismFamily.COMPLIANCE_COST}:
+            return "direct"
+        for assumption in package.assumption_cards:
+            if assumption.family in {
+                MechanismFamily.FEE_OR_TAX_PASS_THROUGH,
+                MechanismFamily.ADOPTION_TAKE_UP,
+            }:
+                return "indirect"
+        for parameter in package.parameter_cards:
+            name = str(parameter.parameter_name or "").lower()
+            if any(token in name for token in ("pass_through", "incidence", "take_up", "adoption")):
+                return "indirect"
+        return "direct"
 
     def _build_read_model_output(
         self,

@@ -16,6 +16,35 @@ economic analysis and admin/frontend read models.
 - `artifacts/quality_spine_live_storage_probe.json`
 - `artifacts/live_cycle_01_windmill_domain_run.json`
 - `artifacts/live_cycle_01_windmill_domain_run.md`
+- `artifacts/live_cycle_08_economic_bridge.md`
+- `cycle_08_gate_controller_upgrade.md`
+- `cycle_09_metadata_and_manual_audit_hooks.md`
+
+## Gate Contract v2
+
+The evaluator now uses explicit gate domains:
+
+- Data moat: `D1..D6`
+- Economic analysis: `E1..E6`
+- Manual audit: `M1..M3`
+
+Status enum: `pass|partial|not_proven|fail`.
+
+Cycle policy:
+
+- adaptive cycle budget up to `25`
+- completion guard blocks diagnosis-only cycles unless there is:
+  - implementation/fix attempt evidence, or
+  - concrete external blocker proof, or
+  - all blocking gates passed.
+
+Key CLI helpers:
+
+- `--cycle-metadata`
+- `--manual-data-audit-md`
+- `--manual-economic-audit-md`
+- `--manual-gate-decision-md`
+- `--current-package-status`
 
 ## Current verdict
 
@@ -62,17 +91,12 @@ The eval-cycle harness now records per-cycle ledger rows with:
 - economic status endpoint (if captured)
 - verdict and next tweak
 
-Gate taxonomy is strict pass/fail/not_proven for:
-- scraped_quality
-- structured_quality
-- unified_package
-- postgres
-- minio
-- pgvector
-- windmill
-- llm_narrative
-- economic_analysis
-- admin_read_model
+Gate taxonomy is now explicit and severity-aware:
+- `D1..D6` data moat
+- `E1..E6` economic analysis
+- `M1..M3` manual audits
+- status: `pass|partial|not_proven|fail`
+- severity: `blocking|nonblocking`
 
 Cycle 1 (`live_cycle_01_windmill_domain_run.json`) is explicitly marked
 `partial`, not product-proof.
@@ -89,7 +113,7 @@ Cycle 1 (`live_cycle_01_windmill_domain_run.json`) is explicitly marked
 cd backend
 poetry run pytest tests/services/pipeline/test_policy_evidence_quality_spine_economics.py tests/services/pipeline/test_policy_evidence_quality_spine_eval_cycles.py
 poetry run pytest tests/verification/test_policy_evidence_quality_spine_live_storage.py
-poetry run python scripts/verification/verify_policy_evidence_quality_spine_economics.py --max-cycles 10
+poetry run python scripts/verification/verify_policy_evidence_quality_spine_economics.py --max-cycles 25
 poetry run python scripts/verification/verify_policy_evidence_quality_spine_live_storage.py --windmill ../docs/poc/policy-evidence-quality-spine/artifacts/live_cycle_01_windmill_domain_run.json --runtime ../docs/poc/policy-evidence-quality-spine/artifacts/data_runtime_evidence.json --live-mode off
-poetry run python scripts/verification/verify_policy_evidence_quality_spine_eval_cycles.py --max-cycles 10 --live-cycle-artifact ../docs/poc/policy-evidence-quality-spine/artifacts/live_cycle_01_windmill_domain_run.json
+poetry run python scripts/verification/verify_policy_evidence_quality_spine_eval_cycles.py --max-cycles 25 --live-cycle-artifact '../docs/poc/policy-evidence-quality-spine/artifacts/live_cycle_*_windmill_domain_run.json' --economic-status ../docs/poc/policy-evidence-quality-spine/artifacts/live_cycle_07_admin_analysis_status.json
 ```

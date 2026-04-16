@@ -620,6 +620,141 @@ def test_endpoint_reader_provenance_hydrates_when_storage_is_proven() -> None:
     assert "windmill_scope_job_id" in windmill_refs
 
 
+def test_endpoint_includes_economic_trace_and_canonical_binding_diagnostics() -> None:
+    bundle = PolicyEconomicMechanismCaseService().build_case_bundle()
+    direct = _case(bundle, "direct_cost_case")
+    package = direct["primary_package"]
+    matrix = _matrix_with_runtime_evidence(
+        package,
+        llm_narrative_proof={
+            "proof_status": "not_proven",
+            "canonical_pipeline_run_id": "",
+            "canonical_pipeline_step_id": "",
+            "analysis_step_executed": True,
+            "analysis_payload_present": True,
+            "blocker": "analysis_step_succeeded_but_no_canonical_analysis_history",
+            "source": "pipeline_runs.result.analysis",
+        },
+    )
+
+    service = PolicyEvidenceQualitySpineEconomicsService()
+    endpoint = service.build_endpoint_read_model(
+        matrix_input=MatrixInput(
+            payload=matrix,
+            source_path="horizontal_matrix.json",
+            source_mode="agent_a_horizontal_matrix",
+        ),
+        package_id=package["package_id"],
+        source_family="meeting_minutes",
+    )
+
+    trace = endpoint["economic_trace"]
+    assert trace["direct_indirect_classification"] == "direct"
+    assert trace["mechanism_graph"]["nodes"]
+    assert trace["parameter_table"]
+    assert "arithmetic_integrity" in trace
+    binding = endpoint["canonical_analysis_binding"]
+    assert binding["status"] == "not_proven"
+    assert binding["blocker"] == "analysis_step_succeeded_but_no_canonical_analysis_history"
+    assert "missing_code_path" in binding
+
+
+def test_secondary_research_contract_is_required_for_indirect_secondary_case() -> None:
+    bundle = PolicyEconomicMechanismCaseService().build_case_bundle()
+    secondary = _case(bundle, "secondary_research_required_case")
+    package = secondary["primary_package"]
+    matrix = _matrix_with_runtime_evidence(package)
+
+    service = PolicyEvidenceQualitySpineEconomicsService()
+    endpoint = service.build_endpoint_read_model(
+        matrix_input=MatrixInput(
+            payload=matrix,
+            source_path="horizontal_matrix.json",
+            source_mode="agent_a_horizontal_matrix",
+        ),
+        package_id=package["package_id"],
+        source_family="economic_literature",
+    )
+
+    secondary_contract = endpoint["secondary_research"]
+    assert secondary_contract["status"] == "required"
+    assert secondary_contract["request_contract"]["package_id"] == package["package_id"]
+    assert secondary_contract["request_contract"]["target_parameters"]
+    assert secondary_contract["output_contract"]["must_include_parameter_provenance"] is True
+    assert endpoint["economic_trace"]["direct_indirect_classification"] == "indirect"
+
+
+def test_secondary_research_not_required_when_decision_grade_ready() -> None:
+    bundle = PolicyEconomicMechanismCaseService().build_case_bundle()
+    direct = _case(bundle, "direct_cost_case")
+    package = direct["primary_package"]
+    selected_url = package["scraped_sources"][0]["selected_candidate_url"]
+    provider = package["scraped_sources"][0]["search_provider"]
+    matrix = _matrix_with_runtime_evidence(
+        package,
+        orchestration_proof={
+            "proof_status": "pass",
+            "proof_mode": "windmill_live_current_run",
+            "linked_to_current_vertical_package": True,
+            "windmill_run_id": "wm-run-live-ready",
+            "windmill_job_id": "wm-job-live-ready",
+        },
+        llm_narrative_proof={
+            "proof_status": "pass",
+            "canonical_pipeline_run_id": "pipe-run-live-ready",
+            "canonical_pipeline_step_id": "step-llm-live-ready",
+            "source": "canonical_pipeline_live",
+        },
+        storage_proof={
+            "proof_status": "pass",
+            "proof_mode": "postgres_minio_live",
+            "store_backend": "postgres",
+            "artifact_probe_backend": "minio",
+            "persisted_record_id": "row-live-ready",
+            "minio_readback_proven": True,
+        },
+    )
+    matrix["rows"] = [
+        {
+            "selected_candidate": {
+                "provider": provider,
+                "rank": 1,
+                "url": selected_url,
+                "selection_reason": "artifact_grade_top_rank",
+            },
+            "provider_results": {
+                provider: {
+                    "status": "ok",
+                    "reason_code": "artifact_grade_selected",
+                    "candidates": [
+                        {
+                            "rank": 1,
+                            "url": selected_url,
+                            "artifact_grade": True,
+                            "official_domain": True,
+                        }
+                    ],
+                }
+            },
+        }
+    ]
+
+    service = PolicyEvidenceQualitySpineEconomicsService()
+    endpoint = service.build_endpoint_read_model(
+        matrix_input=MatrixInput(
+            payload=matrix,
+            source_path="horizontal_matrix.json",
+            source_mode="agent_a_horizontal_matrix",
+        ),
+        package_id=package["package_id"],
+        source_family="meeting_minutes",
+    )
+
+    assert endpoint["decision_grade_verdict"] == "decision_grade"
+    assert endpoint["secondary_research"]["status"] == "not_required"
+    assert endpoint["canonical_analysis_binding"]["status"] == "bound"
+
+
 def test_fixture_case_coverage_tracks_direct_indirect_secondary() -> None:
     service = PolicyEvidenceQualitySpineEconomicsService()
     result = service.evaluate(

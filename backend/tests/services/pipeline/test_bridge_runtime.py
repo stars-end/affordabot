@@ -8,6 +8,7 @@ import json
 
 from services.pipeline.domain.bridge import RailwayRuntimeBridge, RunScopeRequest
 from services.pipeline.policy_evidence_package_storage import InMemoryPolicyEvidencePackageStore
+from services.pipeline.structured_source_enrichment import StructuredEnrichmentResult
 
 
 @dataclass
@@ -216,6 +217,37 @@ class FakeS3Storage(FakeStorage):
         result = await super().upload(path, content, content_type)
         self.client.objects[(self.bucket, path)] = content
         return result
+
+
+class FakeStructuredEnricher:
+    def __init__(
+        self,
+        *,
+        status: str = "integrated",
+        candidates: list[dict[str, Any]] | None = None,
+        alerts: list[str] | None = None,
+        source_catalog: list[dict[str, Any]] | None = None,
+    ) -> None:
+        self.status = status
+        self.candidates = list(candidates or [])
+        self.alerts = list(alerts or [])
+        self.source_catalog = list(source_catalog or [])
+
+    async def enrich(
+        self,
+        *,
+        jurisdiction: str,
+        source_family: str,
+        search_query: str,
+        selected_url: str,
+    ) -> StructuredEnrichmentResult:
+        _ = (jurisdiction, source_family, search_query, selected_url)
+        return StructuredEnrichmentResult(
+            status=self.status,
+            candidates=self.candidates,
+            alerts=self.alerts,
+            source_catalog=self.source_catalog,
+        )
 
 
 class JsonStringFakeDB(FakeDB):
@@ -435,6 +467,66 @@ def test_runtime_bridge_persists_policy_evidence_package_refs() -> None:
     assert run_context["backend_run_id"] == refs["backend_run_id"]
     assert run_context["windmill_run_id"] == "wm-run-1"
     assert run_context["windmill_job_id"] == "wm-job-1"
+
+
+def test_runtime_bridge_materializes_structured_sources_when_enrichment_available() -> None:
+    db = FakeDB()
+    storage = FakeStorage()
+    package_store = InMemoryPolicyEvidencePackageStore()
+    structured_candidate = {
+        "source_lane": "structured",
+        "provider": "legistar_web_api",
+        "source_family": "legistar_web_api",
+        "access_method": "public_api_json",
+        "jurisdiction": "san_jose_ca",
+        "artifact_url": "https://webapi.legistar.com/v1/sanjose/Events/13001",
+        "artifact_type": "meeting_metadata",
+        "source_tier": "tier_b",
+        "retrieved_at": "2026-04-16T00:00:00+00:00",
+        "structured_policy_facts": [
+            {"field": "event_id", "value": 13001.0, "unit": "count"},
+            {"field": "event_item_count", "value": 16.0, "unit": "count"},
+        ],
+        "excerpt": "Structured event metadata for San Jose agenda cycle.",
+    }
+    runtime = RailwayRuntimeBridge(
+        db=db,
+        storage=storage,
+        package_store=package_store,
+        structured_enricher=FakeStructuredEnricher(
+            status="integrated",
+            candidates=[structured_candidate],
+            alerts=["structured_enrichment_source_family_context:meeting_minutes"],
+            source_catalog=[
+                {
+                    "source_family": "legistar_web_api",
+                    "access_method": "public_api_json",
+                    "jurisdiction_coverage": "san_jose_ca",
+                }
+            ],
+        ),
+    )  # type: ignore[arg-type]
+    runtime.search_client = FakeSearchClient(
+        [{"url": "https://www.sanjoseca.gov/agenda/1", "title": "SJ Agenda", "snippet": "Housing"}]
+    )
+    runtime.reader_client = FakeReaderClient()
+    runtime._llm_client = FakeLLMClient()
+    runtime.embedding_service = FakeEmbeddingService()
+    runtime.zai_api_key = "x"
+
+    response = asyncio.run(runtime.run_scope_pipeline(_request(idempotency_key="wm:run-scope:structured")))
+    refs = response["refs"]
+    persisted = next(iter(package_store.by_idempotency.values()))
+    package_payload = persisted.package_payload
+    run_context = package_payload["run_context"]
+
+    assert refs["storage_status"] in {"stored", "stored_reused"}
+    assert set(package_payload["source_lanes"]) == {"scraped", "structured"}
+    assert package_payload["structured_sources"]
+    assert package_payload["structured_sources"][0]["source_family"] == "legistar_web_api"
+    assert run_context["structured_enrichment_status"] == "integrated"
+    assert run_context["structured_sources"]
+    assert run_context["structured_source_catalog"][0]["source_family"] == "legistar_web_api"
 
 
 def test_runtime_bridge_idempotency_is_scoped_to_jurisdiction_and_source_family() -> None:
