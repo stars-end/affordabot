@@ -636,6 +636,8 @@ Final two-agent quality-spine wave:
 
 ## Validation Gates
 
+All validation gates must comply with the hard pass/fail/not_proven criteria defined in [2026-04-16-data-moat-quality-gates.md](2026-04-16-data-moat-quality-gates.md). The overarching constraint is that data moat success requires proven economic substance, not just architecture mechanics.
+
 Before `bd-3wefe.8` can recommend architecture lock:
 
 - Code audit: dx-review has mapped existing raw/structured-data-to-analysis code and identified already-built economic capabilities.
@@ -665,6 +667,7 @@ Before `bd-3wefe.8` can recommend architecture lock:
 
 - `docs/architecture/README.md`
 - `docs/specs/2026-04-14-economic-evidence-pipeline-lockdown.md`
+- `docs/specs/2026-04-16-data-moat-quality-gates.md`
 - `docs/poc/source-integration/final_source_strategy_recommendation.md`
 - `docs/poc/source-integration/artifacts/scrape_structured_integration_report.json`
 - `docs/poc/source-expansion/artifacts/source_expansion_api_key_matrix.json`

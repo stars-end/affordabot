@@ -20,7 +20,11 @@ economic analysis and admin/frontend read models.
 - `cycle_08_gate_controller_upgrade.md`
 - `cycle_09_metadata_and_manual_audit_hooks.md`
 
-## Gate Contract v2
+## Future Agent Start Here
+
+**STOP:** Do not launch another POC cycle before reading the [2026-04-16 data moat quality gates](../../specs/2026-04-16-data-moat-quality-gates.md). The original product gates (v2, described below) were passed mechanically but failed the economic-depth substance bar (see `Current verdict` below for details). All future cycles must adhere to the hardened D0-D7 and E1-E5 gates in the new contract.
+
+## Gate Contract v2 (Superseded by 2026-04-16 Gates)
 
 The evaluator now uses explicit gate domains:
 

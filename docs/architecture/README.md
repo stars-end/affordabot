@@ -10,14 +10,15 @@ Read these in order before proposing or implementing pipeline changes:
 1. `docs/architecture/2026-04-15-affordabot-pipeline-brownfield-map.md`
 2. `docs/architecture/2026-04-15-economic-literature-inventory.md`
 3. `docs/specs/2026-04-14-evidence-package-dependency-lockdown.md`
-4. `docs/reviews/2026-04-15-full-pipeline-code-audit-results.md`
+4. `docs/specs/2026-04-16-data-moat-quality-gates.md`
+5. `docs/reviews/2026-04-15-full-pipeline-code-audit-results.md`
 
 Then inspect the live code paths listed in each document's freshness contract.
 The docs are routing maps, not a substitute for source inspection.
 
-For the next implementation wave, the dependency-lockdown spec's
-`Locked MVP Architecture Constraints` section is authoritative. Treat those as
-the current working locks until `bd-3wefe.8` either confirms or revises them.
+## Future Agent Start Here
+
+For the next implementation wave, the dependency-lockdown spec and the [data moat quality gates](../specs/2026-04-16-data-moat-quality-gates.md) are authoritative. Treat those as the current working locks until `bd-3wefe.8` either confirms or revises them. Do not claim pass/done on any architecture validation without completing the new quality gates.
 
 ## Current Non-Obvious Truths
 
