@@ -25,7 +25,7 @@ The parameter table contains two source-bound fee parameters:
 - `commercial_linkage_fee_rate_usd_per_sqft = 3.00`
 - `commercial_linkage_fee_rate_usd_per_sqft = 3.58`
 
-Both come from official San Jose source evidence surfaced through the secondary structured-search lane.
+Crucially, **neither** of these came from the primary scraped source (the Legistar PDF) or the primary structured Web API integration. The Legistar PDF yielded text summaries but failed to emit structured parameter cards. The Legistar structured Web API returned only diagnostic metadata (indicating no attachments) and zero economic values. Both parameters were rescued exclusively via the Tavily secondary search lane mapping to a press release.
 
 ## Correct Fail-Closed Behavior
 

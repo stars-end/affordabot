@@ -15,13 +15,12 @@ Cycle 25 reran the San Jose Commercial Linkage Fee vertical after source-quality
 
 The live package now proves:
 
-- Windmill executed the six-step backend flow.
-- Backend selected an official artifact-grade Legistar attachment.
-- Source-quality metrics were persisted into the package and surfaced by the admin endpoint.
-- Scraped/search gate passed for selected-artifact quality.
-- Structured evidence was unified with scraped evidence in the same package.
-- Secondary search-derived evidence rescued numeric fee parameters.
-- Canonical LLM binding passed for the package.
+- Windmill executed the six-step backend flow without interruption.
+- The `private_searxng` provider successfully bypassed the public SearXNG HTTP 429 block, locating the official PDF fee schedule attachment.
+- Source-quality metrics correctly observed and materialized the raw scrape content, overriding stale test claims that it hit navigation/menu content.
+- However, the LLM analysis of the primary PDF **failed to extract numeric parameters** into structured cards, despite accurately summarizing the fee rates in plain text.
+- Additionally, the Legistar Web API structured endpoint retrieved event metadata but yielded **zero actual economic parameters** (no attachments found).
+- The entire economic parameterization was **rescued exclusively** by the Tavily secondary search, which mapped press-release snippets to required structured fee values.
 
 ## Selected Artifact Quality
 
@@ -40,18 +39,13 @@ Manual judgment: this is the strongest scraped-data result in the San Jose CLF l
 
 ## Structured + Secondary Evidence
 
-The package contains:
+The package contains three distinct sources, but exposes significant depth limitations:
 
-- scraped official Legistar attachment evidence,
-- structured Legistar Web API metadata,
-- Tavily secondary search-derived evidence from an official San Jose news page.
+1. **Scraped Official Document (SearXNG)**: Successfully captured and summarized, but failed to yield structured parameter cards.
+2. **Structured Metadata (Legistar Web API)**: Successfully called, but failed to surface actual attachments or economic data, yielding only diagnostic facts (e.g. `event_attachment_hint_count: 0`).
+3. **Secondary Search (Tavily)**: Completely rescued the parameter ingestion phase, extracting the only two source-bound fee parameters (`$3.00` and `$3.58` per square foot).
 
-The secondary search lane extracted two source-bound fee parameters:
-
-- `$3.00` per square foot,
-- `$3.58` per square foot.
-
-Manual judgment: this is enough to prove the unified scraped + structured package path for the narrow CLF vertical. It is still not broad moat proof across source families or jurisdictions.
+Manual judgment: The data moat successfully unifies the sources physically, but the semantic depth is brittle. The primary pipeline failed to parameterize the principal document and the structured API lacked the required depth. Without the secondary search rescue strategy, the entire parameter extraction phase would have failed. This proves the *value* of the moat (unification), but highlights a critical vulnerability in primary document parameterization depth.
 
 ## Remaining Gate A Limits
 
