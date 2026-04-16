@@ -86,3 +86,15 @@ Additional focused validation:
 
 - `poetry run pytest tests/services/pipeline/test_policy_evidence_quality_spine_economics.py tests/routers/test_admin_pipeline_read_model.py -q` -> 39 passed
 - `poetry run ruff check services/pipeline/policy_evidence_quality_spine_economics.py routers/admin.py tests/routers/test_admin_pipeline_read_model.py tests/services/pipeline/test_policy_evidence_quality_spine_economics.py` -> passed
+
+## Live Verification
+
+After deployment, refetching the stored Cycle 20 package produced:
+
+- `canonical_analysis_binding.status=bound`
+- `gates["LLM narrative"].status=pass`
+- `economic_output.status=not_proven`
+
+Artifact:
+
+- `docs/poc/policy-evidence-quality-spine/artifacts/live_cycle_24_admin_analysis_status_after_service_binding_fix.json`
