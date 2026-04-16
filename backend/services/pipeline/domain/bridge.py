@@ -10,6 +10,7 @@ import hashlib
 from io import BytesIO
 from threading import Lock
 from typing import Any
+from urllib.parse import urlsplit
 import uuid
 
 from openai import AsyncOpenAI
@@ -437,6 +438,161 @@ class RailwayRuntimeBridge:
         return f"minio://{bucket}/policy-evidence/packages/{package_id}.json"
 
     @staticmethod
+    def _is_official_domain_url(url: str) -> bool:
+        host = urlsplit(url).netloc.lower()
+        if not host:
+            return False
+        if host.endswith(".gov") or ".gov." in host:
+            return True
+        return any(
+            signal in host
+            for signal in (
+                "legistar.com",
+                "granicus.com",
+                "records.",
+                "cityof",
+                "countyof",
+            )
+        )
+
+    @classmethod
+    def _classify_selected_artifact_family(cls, url: str) -> str:
+        normalized = str(url or "").strip()
+        if not normalized:
+            return "missing"
+        if _is_concrete_artifact_url(normalized):
+            return "artifact"
+        if prefetch_skip_reason(normalized):
+            return "portal"
+        if cls._is_official_domain_url(normalized):
+            return "official_page"
+        return "external_page"
+
+    @staticmethod
+    def _selection_reason_from_audit(candidate_audit: list[dict[str, Any]], selected_url: str) -> str:
+        for item in candidate_audit:
+            if str(item.get("url") or "").strip() != selected_url:
+                continue
+            outcome = str(item.get("outcome") or "").strip()
+            if outcome:
+                return outcome
+        return "selected_candidate_recorded"
+
+    @classmethod
+    def _build_source_quality_metrics(
+        cls,
+        *,
+        selected_url: str,
+        search_candidates: list[dict[str, Any]],
+        ranked_candidates: list[dict[str, Any]],
+        candidate_audit: list[dict[str, Any]],
+        reader_provider_errors: list[dict[str, Any]],
+        reader_quality_failures: list[dict[str, Any]],
+        structured_candidates: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        top_n_window = min(
+            5,
+            len(ranked_candidates) if ranked_candidates else len(search_candidates),
+        )
+        candidate_pool = ranked_candidates[:top_n_window] if ranked_candidates else [
+            {
+                "url": str(item.get("url") or "").strip(),
+                "rank": index + 1,
+                "score": 0,
+            }
+            for index, item in enumerate(search_candidates[:top_n_window])
+        ]
+        candidate_pool = [item for item in candidate_pool if str(item.get("url") or "").strip()]
+
+        official_recall = sum(
+            1 for item in candidate_pool if cls._is_official_domain_url(str(item.get("url") or ""))
+        )
+        artifact_recall = sum(
+            1 for item in candidate_pool if _is_concrete_artifact_url(str(item.get("url") or ""))
+        )
+        selected_rank = None
+        for item in candidate_pool:
+            if str(item.get("url") or "").strip() == selected_url:
+                selected_rank = item.get("rank")
+                break
+        if selected_rank is None:
+            for item in candidate_audit:
+                if str(item.get("url") or "").strip() == selected_url:
+                    selected_rank = item.get("rank")
+                    break
+        selected_artifact_family = cls._classify_selected_artifact_family(selected_url)
+        selected_candidate = {
+            "url": selected_url,
+            "provider": "private_searxng",
+            "rank": selected_rank,
+            "selection_reason": cls._selection_reason_from_audit(candidate_audit, selected_url),
+            "artifact_grade": selected_artifact_family == "artifact",
+            "official_domain": cls._is_official_domain_url(selected_url),
+            "artifact_family": selected_artifact_family,
+        }
+        selected_outcome = cls._selection_reason_from_audit(candidate_audit, selected_url)
+        reader_substance_observed = selected_outcome in {
+            "materialized_raw_scrape",
+            "reused_existing_raw_scrape",
+        }
+        secondary_lane_used = any(
+            str(item.get("source_family") or "").strip().lower() in {"tavily_secondary_search", "exa_secondary_search"}
+            for item in structured_candidates
+            if isinstance(item, dict)
+        )
+        secondary_numeric_parameter_count = 0
+        for item in structured_candidates:
+            if not isinstance(item, dict):
+                continue
+            facts = item.get("structured_policy_facts")
+            if not isinstance(facts, list):
+                continue
+            for fact in facts:
+                if not isinstance(fact, dict):
+                    continue
+                value = fact.get("value")
+                if isinstance(value, (int, float)):
+                    secondary_numeric_parameter_count += 1
+        provider_candidates = [
+            {
+                "url": str(item.get("url") or "").strip(),
+                "rank": item.get("rank"),
+                "artifact_grade": _is_concrete_artifact_url(str(item.get("url") or "")),
+                "official_domain": cls._is_official_domain_url(str(item.get("url") or "")),
+            }
+            for item in candidate_pool
+        ]
+        return {
+            "top_n_window": top_n_window,
+            "top_n_official_recall_count": official_recall,
+            "top_n_artifact_recall_count": artifact_recall,
+            "selected_candidate": selected_candidate,
+            "selected_artifact_family": selected_artifact_family,
+            "reader_substance_observed": reader_substance_observed,
+            "reader_substance_selection_outcome": selected_outcome,
+            "secondary_numeric_rescue_detected": secondary_lane_used
+            and secondary_numeric_parameter_count > 0,
+            "secondary_numeric_parameter_count": secondary_numeric_parameter_count,
+            "provider_summary": {
+                "primary_provider": "private_searxng",
+                "provider_error_count": len(reader_provider_errors),
+                "quality_failure_count": len(reader_quality_failures),
+                "provider_error_urls": [
+                    str(item.get("url") or "")
+                    for item in reader_provider_errors
+                    if str(item.get("url") or "").strip()
+                ],
+            },
+            "provider_results": {
+                "private_searxng": {
+                    "status": "succeeded" if provider_candidates else "empty",
+                    "reason_code": selected_candidate["selection_reason"],
+                    "candidates": provider_candidates,
+                }
+            },
+        }
+
+    @staticmethod
     def _infer_mechanism_hint(
         *,
         request: RunScopeRequest,
@@ -581,6 +737,49 @@ class RailwayRuntimeBridge:
             search_query=request.search_query,
             selected_url=selected_url,
         )
+        search_snapshot_id = ""
+        if search:
+            search_snapshot_id = str(search.refs.get("search_snapshot_id") or "").strip()
+        search_candidates: list[dict[str, Any]] = []
+        if search_snapshot_id:
+            snapshot_row = await self.db._fetchrow(
+                "SELECT snapshot_payload FROM search_result_snapshots WHERE id = $1::uuid",
+                search_snapshot_id,
+            )
+            if snapshot_row:
+                payload = _db_json(snapshot_row["snapshot_payload"], [])
+                if isinstance(payload, list):
+                    search_candidates = [item for item in payload if isinstance(item, dict)]
+        read_fetch_details = read_fetch.details if read_fetch else {}
+        ranked_candidates = (
+            list(read_fetch_details.get("ranked_candidates", []))
+            if isinstance(read_fetch_details.get("ranked_candidates", []), list)
+            else []
+        )
+        candidate_audit = (
+            list(read_fetch_details.get("candidate_audit", []))
+            if isinstance(read_fetch_details.get("candidate_audit", []), list)
+            else []
+        )
+        reader_provider_errors = (
+            list(read_fetch_details.get("reader_provider_errors", []))
+            if isinstance(read_fetch_details.get("reader_provider_errors", []), list)
+            else []
+        )
+        reader_quality_failures = (
+            list(read_fetch_details.get("reader_quality_failures", []))
+            if isinstance(read_fetch_details.get("reader_quality_failures", []), list)
+            else []
+        )
+        source_quality_metrics = self._build_source_quality_metrics(
+            selected_url=selected_url,
+            search_candidates=search_candidates,
+            ranked_candidates=ranked_candidates,
+            candidate_audit=candidate_audit,
+            reader_provider_errors=reader_provider_errors,
+            reader_quality_failures=reader_quality_failures,
+            structured_candidates=structured_enrichment.candidates,
+        )
         if (
             mechanism_hint.secondary_research_needed
             and mechanism_hint.secondary_research_reason
@@ -683,6 +882,7 @@ class RailwayRuntimeBridge:
             "impact_mode_hint": mechanism_hint.impact_mode,
             "secondary_research_needed": mechanism_hint.secondary_research_needed,
             "secondary_research_reason": mechanism_hint.secondary_research_reason,
+            "source_quality_metrics": source_quality_metrics,
             "canonical_analysis_id": canonical_analysis_id,
             "canonical_pipeline_run_id": canonical_pipeline_run_id,
             "canonical_pipeline_step_id": canonical_pipeline_step_id,
@@ -690,6 +890,7 @@ class RailwayRuntimeBridge:
             "fail_closed_reasons": list(dict.fromkeys(fail_closed_reasons)),
         }
         package_payload["structured_enrichment_status"] = structured_enrichment.status
+        package_payload["source_quality_metrics"] = source_quality_metrics
 
         idempotency_key = f"{_scope_idempotency_key(request)}::policy_evidence_package"
         store = self._resolve_package_store()

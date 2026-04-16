@@ -323,6 +323,9 @@ def test_policy_evidence_analysis_status_surfaces_provenance_and_not_proven_gate
     assert data["gates"]["storage/read-back"]["status"] == "pass"
     assert data["gates"]["Windmill/orchestration"]["status"] == "not_proven"
     assert data["gates"]["LLM narrative"]["status"] == "not_proven"
+    assert data["source_quality"]["status"] == "not_proven"
+    assert data["source_quality"]["reason"] == "source_quality_metrics_missing"
+    assert data["source_quality"]["selection_quality_status"] == "not_proven"
     assert data["economic_analysis_status"]["status"] in {
         "secondary_research_needed",
         "qualitative_only",
@@ -493,3 +496,94 @@ def test_policy_evidence_analysis_status_hydrates_live_run_context_proofs(client
             not str(item).startswith("reader:")
             for item in data["economic_output"]["missing_evidence"]
         )
+
+
+def test_policy_evidence_analysis_status_surfaces_selected_artifact_quality_metrics(client, mock_db):
+    package = _case_package("direct_cost_case")
+    source_quality_metrics = {
+        "top_n_window": 5,
+        "top_n_official_recall_count": 5,
+        "top_n_artifact_recall_count": 2,
+        "selected_artifact_family": "official_page",
+        "reader_substance_observed": True,
+        "secondary_numeric_rescue_detected": True,
+        "secondary_numeric_parameter_count": 2,
+        "selected_candidate": {
+            "url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee",
+            "provider": "private_searxng",
+            "rank": 1,
+            "selection_reason": "materialized_raw_scrape",
+            "artifact_grade": False,
+            "official_domain": True,
+            "artifact_family": "official_page",
+        },
+        "provider_summary": {
+            "primary_provider": "private_searxng",
+            "provider_error_count": 1,
+            "quality_failure_count": 0,
+        },
+        "provider_results": {
+            "private_searxng": {
+                "status": "succeeded",
+                "reason_code": "materialized_raw_scrape",
+                "candidates": [
+                    {
+                        "url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee",
+                        "rank": 1,
+                        "artifact_grade": False,
+                        "official_domain": True,
+                    },
+                    {
+                        "url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+                        "rank": 2,
+                        "artifact_grade": True,
+                        "official_domain": True,
+                    },
+                ],
+            }
+        },
+    }
+    mock_db._fetchrow.side_effect = [
+        {
+            "id": "run-q5",
+            "bill_id": "SJ-2026-CLF",
+            "jurisdiction": "San Jose CA",
+            "status": "completed",
+            "error": None,
+            "models": {},
+            "trigger_source": "windmill",
+            "windmill_run_id": "wm-run-q5",
+            "started_at": "2026-04-16T05:00:00Z",
+            "completed_at": "2026-04-16T05:05:00Z",
+            "result": {"policy_evidence_package": package, "rows": []},
+        },
+        {
+            "id": "pkg-row-q5",
+            "package_id": package["package_id"],
+            "package_payload": {
+                **package,
+                "run_context": {
+                    "backend_run_id": "run-q5",
+                    "source_quality_metrics": source_quality_metrics,
+                },
+            },
+            "artifact_readback_status": "proven",
+            "fail_closed": False,
+            "gate_state": "qualitative_only",
+            "created_at": "2026-04-16T05:00:00Z",
+            "updated_at": "2026-04-16T05:05:00Z",
+        },
+    ]
+
+    client.set_auth("admin")
+    response = client.get(
+        f"/api/admin/pipeline/policy-evidence/packages/{package['package_id']}/analysis-status?run_id=run-q5"
+    )
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data["source_quality"]["status"] == "captured"
+    assert data["source_quality"]["selected_artifact_family"] == "official_page"
+    assert data["source_quality"]["top_n_artifact_recall_count"] == 2
+    assert data["source_quality"]["secondary_numeric_rescue_detected"] is True
+    assert data["source_quality"]["selected_candidate_rank"] == 1
+    assert data["source_quality"]["selection_quality_status"] == "fail"

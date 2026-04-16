@@ -480,6 +480,22 @@ def _coerce_policy_package_runtime_matrix(
             else f"artifact_readback_status={artifact_readback or 'unknown'}",
         }
 
+    rows = run_result.get("rows")
+    if not isinstance(rows, list):
+        rows = []
+    if not rows:
+        metrics = _extract_source_quality_metrics(package_payload=package_payload)
+        selected_candidate = _to_json_dict(metrics.get("selected_candidate"))
+        provider_results = _to_json_dict(metrics.get("provider_results"))
+        if selected_candidate and provider_results:
+            rows = [
+                {
+                    "source": "policy_evidence_packages.package_payload.run_context.source_quality_metrics",
+                    "selected_candidate": selected_candidate,
+                    "provider_results": provider_results,
+                }
+            ]
+
     return {
         "agent_a_runtime_evidence": {
             "vertical_package_payload": package_payload,
@@ -487,7 +503,80 @@ def _coerce_policy_package_runtime_matrix(
             "llm_narrative_proof": llm_narrative_proof,
             "storage_proof": storage_proof,
         },
-        "rows": run_result.get("rows", []) if isinstance(run_result.get("rows"), list) else [],
+        "rows": rows,
+    }
+
+
+def _extract_source_quality_metrics(*, package_payload: dict[str, Any]) -> dict[str, Any]:
+    direct = _to_json_dict(package_payload.get("source_quality_metrics"))
+    if direct:
+        return direct
+    run_context = _to_json_dict(package_payload.get("run_context"))
+    nested = _to_json_dict(run_context.get("source_quality_metrics"))
+    if nested:
+        return nested
+    return {}
+
+
+def _source_quality_read_model(*, matrix_payload: dict[str, Any]) -> dict[str, Any]:
+    runtime = _to_json_dict(matrix_payload.get("agent_a_runtime_evidence"))
+    package_payload = _to_json_dict(runtime.get("vertical_package_payload"))
+    metrics = _extract_source_quality_metrics(package_payload=package_payload)
+    if not metrics:
+        return {
+            "status": "not_proven",
+            "reason": "source_quality_metrics_missing",
+            "selected_artifact_family": "unknown",
+            "top_n_window": 0,
+            "top_n_official_recall_count": 0,
+            "top_n_artifact_recall_count": 0,
+            "reader_substance_observed": False,
+            "secondary_numeric_rescue_detected": False,
+            "provider_summary": {},
+            "selection_quality_status": "not_proven",
+            "selection_quality_reason": "selected_artifact_quality_metrics_missing",
+        }
+
+    provider_summary = _to_json_dict(metrics.get("provider_summary"))
+    selected_candidate = _to_json_dict(metrics.get("selected_candidate"))
+    selected_artifact_family = _to_text(
+        metrics.get("selected_artifact_family")
+        or selected_candidate.get("artifact_family")
+    ) or "unknown"
+    top_n_artifact_recall_count = _coerce_int(metrics.get("top_n_artifact_recall_count"))
+    if selected_artifact_family == "artifact":
+        selection_quality_status = "pass"
+        selection_quality_reason = "selected_candidate_is_artifact_grade"
+    elif top_n_artifact_recall_count > 0:
+        selection_quality_status = "fail"
+        selection_quality_reason = "artifact_candidates_present_but_non_artifact_selected"
+    else:
+        selection_quality_status = "not_proven"
+        selection_quality_reason = "artifact_candidates_not_observed_in_top_n"
+
+    return {
+        "status": "captured",
+        "reason": "source_quality_metrics_present",
+        "selected_artifact_family": selected_artifact_family,
+        "selected_candidate_url": _to_text(selected_candidate.get("url")) or None,
+        "selected_candidate_rank": selected_candidate.get("rank"),
+        "top_n_window": _coerce_int(metrics.get("top_n_window")),
+        "top_n_official_recall_count": _coerce_int(metrics.get("top_n_official_recall_count")),
+        "top_n_artifact_recall_count": top_n_artifact_recall_count,
+        "reader_substance_observed": _to_bool(metrics.get("reader_substance_observed")),
+        "reader_substance_selection_outcome": _to_text(
+            metrics.get("reader_substance_selection_outcome")
+        )
+        or None,
+        "secondary_numeric_rescue_detected": _to_bool(
+            metrics.get("secondary_numeric_rescue_detected")
+        ),
+        "secondary_numeric_parameter_count": _coerce_int(
+            metrics.get("secondary_numeric_parameter_count")
+        ),
+        "provider_summary": provider_summary,
+        "selection_quality_status": selection_quality_status,
+        "selection_quality_reason": selection_quality_reason,
     }
 
 
@@ -1674,9 +1763,11 @@ async def get_policy_evidence_analysis_status(
                 "completed_at": _to_text(run.get("completed_at")) or None,
             },
         )
+        source_quality = _source_quality_read_model(matrix_payload=matrix_payload)
         return {
             "contract_version": CONTRACT_VERSION,
             **read_model,
+            "source_quality": source_quality,
         }
     except HTTPException:
         raise

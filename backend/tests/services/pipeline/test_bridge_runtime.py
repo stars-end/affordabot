@@ -474,6 +474,10 @@ def test_runtime_bridge_persists_policy_evidence_package_refs() -> None:
     assert run_context["canonical_pipeline_run_id"] == refs["backend_run_id"]
     assert run_context["canonical_pipeline_step_id"] == analysis_id
     assert run_context["canonical_breakdown_ref"] == f"analysis:{analysis_id}"
+    source_quality = run_context["source_quality_metrics"]
+    assert source_quality["top_n_window"] >= 1
+    assert source_quality["selected_candidate"]["url"] == refs["selected_url"]
+    assert source_quality["provider_results"]["private_searxng"]["candidates"]
     assert gate_projection["canonical_pipeline_run_id"] == refs["backend_run_id"]
     assert gate_projection["canonical_pipeline_step_id"] == analysis_id
     assert gate_projection["canonical_breakdown_ref"] == f"analysis:{analysis_id}"
@@ -885,6 +889,69 @@ def test_runtime_bridge_read_fetch_falls_back_after_ranked_reader_error() -> Non
     )
     assert response["steps"]["index"]["status"] in {"succeeded", "succeeded_with_alerts"}
     assert response["steps"]["analyze"]["status"] in {"succeeded", "succeeded_with_alerts"}
+
+
+def test_runtime_bridge_records_selected_quality_when_artifact_exists_but_official_page_selected() -> None:
+    db = FakeDB()
+    storage = FakeStorage()
+    package_store = InMemoryPolicyEvidencePackageStore()
+    runtime = RailwayRuntimeBridge(
+        db=db, storage=storage, package_store=package_store
+    )  # type: ignore[arg-type]
+    runtime.search_client = FakeSearchClient(
+        [
+            {
+                "url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+                "title": "CLF Fee Schedule",
+                "snippet": "Commercial Linkage Fee schedule attachment",
+            },
+            {
+                "url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee",
+                "title": "Commercial Linkage Fee | City of San Jose",
+                "snippet": "Official CLF page and references",
+            },
+        ]
+    )
+    runtime.reader_client = RoutingFakeReaderClient(
+        by_url={
+            "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee": (
+                "# Commercial Linkage Fee\n"
+                "Agenda item 4.2 was approved by vote after public hearing.\n"
+                "Office and retail fee details were adopted by council resolution.\n"
+                "Staff recommendation and implementation timeline were accepted.\n"
+                "The program applies to qualifying non-residential development "
+                "projects and supports affordable housing production. The page "
+                "describes fee categories, payment timing, exemptions, annual "
+                "adjustments, nexus study background, and implementation rules "
+                "for applicants seeking building permits in San Jose.\n"
+            )
+        },
+        fail_urls={
+            "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6"
+        },
+    )
+    runtime._llm_client = FakeLLMClient()
+    runtime.embedding_service = FakeEmbeddingService()
+    runtime.zai_api_key = "x"
+
+    response = asyncio.run(
+        runtime.run_scope_pipeline(
+            _request(
+                idempotency_key="wm:run-scope:selected-official-page",
+                source_family="agenda_packet",
+                search_query="San Jose Commercial Linkage Fee schedule",
+            )
+        )
+    )
+    persisted = next(iter(package_store.by_idempotency.values()))
+    source_quality = persisted.package_payload["run_context"]["source_quality_metrics"]
+
+    assert response["status"] in {"succeeded", "succeeded_with_alerts"}
+    assert source_quality["top_n_artifact_recall_count"] >= 1
+    assert source_quality["selected_artifact_family"] == "official_page"
+    assert source_quality["selected_candidate"]["artifact_grade"] is False
+    assert source_quality["selected_candidate"]["official_domain"] is True
+    assert source_quality["provider_summary"]["provider_error_count"] >= 1
 
 
 def test_runtime_bridge_blocks_weak_video_fallback_after_official_reader_error() -> None:
