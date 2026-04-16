@@ -386,12 +386,66 @@ def _coerce_policy_package_runtime_matrix(
     if not package_payload:
         return {}
 
+    package_run_context = _json_payload(package_payload.get("run_context"))
+
     runtime = _json_payload(run_result.get("agent_a_runtime_evidence"))
     if not runtime:
         runtime = {
             "orchestration_proof": _json_payload(run_result.get("orchestration_proof")),
             "llm_narrative_proof": _json_payload(run_result.get("llm_narrative_proof")),
             "storage_proof": _json_payload(run_result.get("storage_proof")),
+        }
+
+    orchestration_proof = _json_payload(runtime.get("orchestration_proof"))
+    if not orchestration_proof:
+        context_run_id = _to_text(
+            package_run_context.get("windmill_run_id") or run_result.get("windmill_run_id")
+        )
+        context_scope_job_id = _to_text(package_run_context.get("windmill_job_id"))
+        context_platform_job_id = _to_text(
+            package_run_context.get("windmill_platform_job_id")
+            or package_run_context.get("windmill_job_id_platform")
+        )
+        context_workspace = _to_text(package_run_context.get("windmill_workspace"))
+        context_flow_path = _to_text(package_run_context.get("windmill_flow_path"))
+
+        if context_run_id or context_scope_job_id or context_platform_job_id:
+            proof_status = "pass" if context_run_id and (context_scope_job_id or context_platform_job_id) else "not_proven"
+            orchestration_proof = {
+                "proof_status": proof_status,
+                "proof_mode": "package_run_context",
+                "linked_to_current_vertical_package": True,
+                "windmill_run_id": context_run_id,
+                "windmill_job_id": context_scope_job_id,
+                "windmill_platform_job_id": context_platform_job_id,
+                "windmill_workspace": context_workspace,
+                "windmill_flow_path": context_flow_path,
+                "source": "policy_evidence_packages.package_payload.run_context",
+                "blocker": None
+                if proof_status == "pass"
+                else "windmill_current_run_proof_missing",
+            }
+
+    llm_narrative_proof = _json_payload(runtime.get("llm_narrative_proof"))
+    if not llm_narrative_proof:
+        gate_projection = _json_payload(package_payload.get("gate_projection"))
+        canonical_run_id = _to_text(gate_projection.get("canonical_pipeline_run_id"))
+        canonical_step_id = _to_text(gate_projection.get("canonical_pipeline_step_id"))
+        analysis_payload = _json_payload(run_result.get("analysis"))
+        analysis_step_executed = bool(analysis_payload)
+        blocker = "canonical_llm_run_id_missing"
+        if analysis_step_executed:
+            blocker = "analysis_step_succeeded_but_no_canonical_analysis_history"
+        elif canonical_run_id:
+            blocker = "canonical_llm_run_id_unverified_from_package_payload"
+        llm_narrative_proof = {
+            "proof_status": "not_proven",
+            "canonical_pipeline_run_id": canonical_run_id,
+            "canonical_pipeline_step_id": canonical_step_id,
+            "analysis_step_executed": analysis_step_executed,
+            "analysis_payload_present": analysis_step_executed,
+            "source": "policy_evidence_packages.package_payload + pipeline_runs.result.analysis",
+            "blocker": blocker,
         }
 
     storage_proof = _json_payload(runtime.get("storage_proof"))
@@ -415,8 +469,8 @@ def _coerce_policy_package_runtime_matrix(
     return {
         "agent_a_runtime_evidence": {
             "vertical_package_payload": package_payload,
-            "orchestration_proof": _json_payload(runtime.get("orchestration_proof")),
-            "llm_narrative_proof": _json_payload(runtime.get("llm_narrative_proof")),
+            "orchestration_proof": orchestration_proof,
+            "llm_narrative_proof": llm_narrative_proof,
             "storage_proof": storage_proof,
         },
         "rows": run_result.get("rows", []) if isinstance(run_result.get("rows"), list) else [],

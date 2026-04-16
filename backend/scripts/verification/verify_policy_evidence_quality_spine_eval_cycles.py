@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+import re
 from typing import Any
 
 
@@ -67,6 +68,12 @@ def _gate_entry(status: str, details: str) -> dict[str, str]:
 def _extract_backend_run_id(live_cycle: dict[str, Any] | None) -> str | None:
     if not isinstance(live_cycle, dict):
         return None
+    refs = _extract_summarize_refs(live_cycle)
+    if isinstance(refs, dict):
+        for key in ("backend_run_id", "run_id"):
+            run_id = refs.get(key)
+            if isinstance(run_id, str) and run_id.strip():
+                return run_id.strip()
     result_payload = live_cycle.get("result_payload")
     if not isinstance(result_payload, dict):
         return None
@@ -101,6 +108,155 @@ def _extract_scope_result(live_cycle: dict[str, Any] | None) -> dict[str, Any] |
         if isinstance(scope, dict):
             return scope
     return None
+
+
+def _extract_summarize_run_step(live_cycle: dict[str, Any] | None) -> dict[str, Any] | None:
+    scope = _extract_scope_result(live_cycle)
+    if not isinstance(scope, dict):
+        return None
+    steps = scope.get("steps")
+    if not isinstance(steps, dict):
+        return None
+    summarize_run = steps.get("summarize_run")
+    return summarize_run if isinstance(summarize_run, dict) else None
+
+
+def _extract_summarize_refs(live_cycle: dict[str, Any] | None) -> dict[str, Any]:
+    summarize_run = _extract_summarize_run_step(live_cycle)
+    if not isinstance(summarize_run, dict):
+        return {}
+    refs = summarize_run.get("refs")
+    if isinstance(refs, dict):
+        return refs
+    return {}
+
+
+def _extract_policy_package(live_cycle: dict[str, Any] | None) -> dict[str, Any]:
+    summarize_run = _extract_summarize_run_step(live_cycle)
+    if not isinstance(summarize_run, dict):
+        return {}
+    details = summarize_run.get("details")
+    if not isinstance(details, dict):
+        return {}
+    package = details.get("policy_evidence_package")
+    return package if isinstance(package, dict) else {}
+
+
+def _extract_package_run_context(live_cycle: dict[str, Any] | None) -> dict[str, Any]:
+    package = _extract_policy_package(live_cycle)
+    payload = package.get("package_payload")
+    if not isinstance(payload, dict):
+        return {}
+    run_context = payload.get("run_context")
+    return run_context if isinstance(run_context, dict) else {}
+
+
+def _extract_package_artifact_uri(live_cycle: dict[str, Any] | None) -> str | None:
+    refs = _extract_summarize_refs(live_cycle)
+    value = refs.get("package_artifact_uri")
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    package = _extract_policy_package(live_cycle)
+    package_refs = package.get("refs")
+    if isinstance(package_refs, dict):
+        nested = package_refs.get("package_artifact_uri")
+        if isinstance(nested, str) and nested.strip():
+            return nested.strip()
+    return None
+
+
+def _extract_package_id(live_cycle: dict[str, Any] | None) -> str | None:
+    refs = _extract_summarize_refs(live_cycle)
+    value = refs.get("package_id")
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    package = _extract_policy_package(live_cycle)
+    package_refs = package.get("refs")
+    if isinstance(package_refs, dict):
+        nested = package_refs.get("package_id")
+        if isinstance(nested, str) and nested.strip():
+            return nested.strip()
+    return None
+
+
+def _extract_provider_status(live_cycle: dict[str, Any] | None) -> str | None:
+    if not isinstance(live_cycle, dict):
+        return None
+    bakeoff = live_cycle.get("search_provider_bakeoff")
+    if isinstance(bakeoff, dict):
+        for key in ("status", "verdict", "selected_provider", "provider"):
+            value = bakeoff.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+    scope = _extract_scope_result(live_cycle)
+    if not isinstance(scope, dict):
+        return None
+    steps = scope.get("steps")
+    if not isinstance(steps, dict):
+        return None
+    search_materialize = steps.get("search_materialize")
+    if not isinstance(search_materialize, dict):
+        return None
+    details = search_materialize.get("details")
+    if not isinstance(details, dict):
+        return None
+    for key in ("search_provider_status", "provider_status", "provider"):
+        value = details.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return None
+
+
+def _extract_quality_conclusion(live_cycle: dict[str, Any] | None) -> str:
+    run_context = _extract_package_run_context(live_cycle)
+    if run_context:
+        if bool(run_context.get("secondary_research_needed")):
+            return "secondary_research_needed"
+    package = _extract_policy_package(live_cycle)
+    storage_result = package.get("storage_result")
+    if isinstance(storage_result, dict):
+        if bool(storage_result.get("fail_closed")):
+            return "fail_closed"
+    if not isinstance(live_cycle, dict):
+        return "not_proven"
+    value = live_cycle.get("full_run_readiness")
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    value = live_cycle.get("classification")
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    return "not_proven"
+
+
+def _extract_cycle_number(path: Path) -> int | None:
+    match = re.search(r"live_cycle_(\d+)", path.name)
+    if not match:
+        return None
+    return int(match.group(1))
+
+
+def _resolve_live_cycle_artifacts(paths: list[Path]) -> list[Path]:
+    resolved: list[Path] = []
+    seen: set[str] = set()
+    for item in paths:
+        path_str = str(item)
+        matches: list[Path] = []
+        if any(char in path_str for char in ("*", "?", "[")):
+            if item.is_absolute():
+                parent = item.parent
+                if parent.exists():
+                    matches = sorted(parent.glob(item.name))
+            else:
+                matches = sorted(REPO_ROOT.glob(path_str))
+        if not matches:
+            matches = [item]
+        for match in matches:
+            key = str(match.resolve()) if match.exists() else str(match)
+            if key in seen:
+                continue
+            seen.add(key)
+            resolved.append(match)
+    return resolved
 
 
 def _extract_read_fetch_step(live_cycle: dict[str, Any] | None) -> dict[str, Any] | None:
@@ -146,6 +302,11 @@ def _extract_cycle_selected_url(live_cycle: dict[str, Any] | None) -> str | None
 
 
 def _extract_cycle_reader_artifact_uri(live_cycle: dict[str, Any] | None) -> str | None:
+    refs = _extract_summarize_refs(live_cycle)
+    if isinstance(refs, dict):
+        direct = refs.get("reader_artifact_uri")
+        if isinstance(direct, str) and direct.strip():
+            return direct.strip()
     read_fetch = _extract_read_fetch_step(live_cycle)
     if not isinstance(read_fetch, dict):
         return None
@@ -194,6 +355,13 @@ def _build_gate_statuses(
     live_cycle: dict[str, Any] | None,
     economic_status: dict[str, Any] | None,
 ) -> dict[str, dict[str, str]]:
+    cycle_storage_result: dict[str, Any] = {}
+    package = _extract_policy_package(live_cycle)
+    if package:
+        storage_result = package.get("storage_result")
+        if isinstance(storage_result, dict):
+            cycle_storage_result = storage_result
+
     scraped_quality = _taxonomy_gate(
         scorecard,
         "scraped/search",
@@ -234,16 +402,54 @@ def _build_gate_statuses(
         "postgres_package_row",
         "live storage probe missing postgres package linkage evidence",
     )
+    if (
+        postgres_gate["status"] == "not_proven"
+        and postgres_gate["details"] == "live storage probe missing postgres package linkage evidence"
+    ):
+        package_id = _extract_package_id(live_cycle)
+        backend_run_id = _extract_backend_run_id(live_cycle)
+        if package_id and backend_run_id:
+            postgres_gate = _gate_entry(
+                "not_proven",
+                "cycle artifact includes package_id and backend_run_id; db storage probe still missing",
+            )
+
     minio_gate = _storage_gate(
         live_storage_probe,
         "minio_object_readback",
         "live storage probe missing MinIO readback evidence",
     )
+    if (
+        minio_gate["status"] == "not_proven"
+        and minio_gate["details"] == "live storage probe missing MinIO readback evidence"
+        and cycle_storage_result
+    ):
+        status = str(cycle_storage_result.get("artifact_readback_status") or "").strip()
+        write_status = str(cycle_storage_result.get("artifact_write_status") or "").strip()
+        if status == "proven":
+            minio_gate = _gate_entry("pass", "cycle artifact reports artifact_readback_status=proven")
+        elif status:
+            minio_gate = _gate_entry(
+                "not_proven",
+                f"cycle artifact reports artifact_readback_status={status} (artifact_write_status={write_status or 'unknown'})",
+            )
+
     pgvector_gate = _storage_gate(
         live_storage_probe,
         "pgvector_derivation",
         "live storage probe missing pgvector derivation evidence",
     )
+    if (
+        pgvector_gate["status"] == "not_proven"
+        and pgvector_gate["details"] == "live storage probe missing pgvector derivation evidence"
+        and cycle_storage_result
+    ):
+        truth_role = str(cycle_storage_result.get("pgvector_truth_role") or "").strip()
+        if truth_role == "derived_index":
+            pgvector_gate = _gate_entry(
+                "not_proven",
+                "cycle artifact reports pgvector_truth_role=derived_index; chunk-level live probe is still missing",
+            )
 
     windmill_status = "not_proven"
     windmill_details = "windmill run evidence missing from cycle artifact"
@@ -372,7 +578,7 @@ def _build_cycle_ledger(
     scorecard: dict[str, Any],
     gates: dict[str, dict[str, str]],
     recommendations: dict[str, list[str]],
-    live_cycle: dict[str, Any] | None,
+    live_cycles: list[dict[str, Any]],
     live_storage_probe: dict[str, Any] | None,
     economic_status: dict[str, Any] | None,
     deploy_sha: str | None,
@@ -384,25 +590,14 @@ def _build_cycle_ledger(
     current_retry_round = int(matrix_attempt.get("retry_round") or 0)
     current_retry_round = max(0, min(current_retry_round, max_cycles - 1))
 
-    windmill_job_id = None
-    if isinstance(live_cycle, dict):
-        manual_run = live_cycle.get("manual_run")
-        if isinstance(manual_run, dict):
-            raw_job = manual_run.get("windmill_job_id")
-            if isinstance(raw_job, str) and raw_job.strip():
-                windmill_job_id = raw_job.strip()
-    backend_run_id = _extract_backend_run_id(live_cycle)
-    selected_url = _extract_cycle_selected_url(live_cycle)
-    artifact_uri = _extract_cycle_reader_artifact_uri(live_cycle)
-
-    package_id = ""
+    default_package_id = ""
     vertical_package = scorecard.get("vertical_package")
     if isinstance(vertical_package, dict):
-        package_id = str(vertical_package.get("package_id") or "")
-    if not package_id and isinstance(live_storage_probe, dict):
+        default_package_id = str(vertical_package.get("package_id") or "")
+    if not default_package_id and isinstance(live_storage_probe, dict):
         inputs = live_storage_probe.get("inputs")
         if isinstance(inputs, dict):
-            package_id = str(inputs.get("package_id") or "")
+            default_package_id = str(inputs.get("package_id") or "")
 
     minio_gate = gates["minio"]
     pgvector_gate = gates["pgvector"]
@@ -421,15 +616,47 @@ def _build_cycle_ledger(
         economic_endpoint = str(economic_status.get("analysis_status") or "") or None
 
     cycle_rows: list[dict[str, Any]] = []
-    has_live_cycle = isinstance(live_cycle, dict)
+    cycle_map: dict[int, dict[str, Any]] = {}
+    for payload in live_cycles:
+        cycle_num_raw = payload.get("cycle_number")
+        if not isinstance(cycle_num_raw, int) or cycle_num_raw <= 0:
+            continue
+        cycle_map[cycle_num_raw] = payload
+
     for idx in range(max_cycles):
         cycle_num = idx + 1
-        is_cycle_1_live = has_live_cycle and idx == 0
-        is_current = is_cycle_1_live or (not has_live_cycle and idx == current_retry_round)
+        cycle_payload = cycle_map.get(cycle_num)
+        live_cycle = cycle_payload.get("artifact") if isinstance(cycle_payload, dict) else None
+        has_cycle_artifact = isinstance(live_cycle, dict)
+        is_current = has_cycle_artifact or (not cycle_map and idx == current_retry_round)
         status = "not_executed"
         verdict = None
         next_tweak = recommendations["next_tweaks"][0] if recommendations["next_tweaks"] else ""
         targeted_tweak = str(matrix_attempt.get("targeted_tweak") or "unspecified")
+
+        windmill_job_id = None
+        if isinstance(live_cycle, dict):
+            manual_run = live_cycle.get("manual_run")
+            if isinstance(manual_run, dict):
+                raw_job = manual_run.get("windmill_job_id")
+                if isinstance(raw_job, str) and raw_job.strip():
+                    windmill_job_id = raw_job.strip()
+        backend_run_id = _extract_backend_run_id(live_cycle)
+        selected_url = _extract_cycle_selected_url(live_cycle)
+        artifact_uri = _extract_cycle_reader_artifact_uri(live_cycle)
+        package_id = _extract_package_id(live_cycle) or default_package_id or None
+        package_artifact_uri = _extract_package_artifact_uri(live_cycle)
+        run_context = _extract_package_run_context(live_cycle)
+        mechanism_family_hint = str(run_context.get("mechanism_family_hint") or "") or None
+        impact_mode_hint = str(run_context.get("impact_mode_hint") or "") or None
+        secondary_research_needed = (
+            bool(run_context.get("secondary_research_needed"))
+            if run_context
+            else None
+        )
+        provider_status = _extract_provider_status(live_cycle)
+        quality_conclusion = _extract_quality_conclusion(live_cycle) if has_cycle_artifact else None
+
         if is_current:
             status = "completed"
             verdict = "fail" if recommendations["failed_gates"] else ("partial" if recommendations["not_proven_gates"] else "pass")
@@ -442,8 +669,14 @@ def _build_cycle_ledger(
             "windmill_job_id": windmill_job_id if is_current else None,
             "backend_run_id": backend_run_id if is_current else None,
             "package_id": package_id if is_current else None,
+            "package_artifact_uri": package_artifact_uri if is_current else None,
             "selected_url": selected_url if is_current else None,
             "reader_artifact_uri": artifact_uri if is_current else None,
+            "provider_status": provider_status if is_current else None,
+            "mechanism_family_hint": mechanism_family_hint if is_current else None,
+            "impact_mode_hint": impact_mode_hint if is_current else None,
+            "secondary_research_needed": secondary_research_needed if is_current else None,
+            "quality_conclusion": quality_conclusion if is_current else None,
             "minio_readback": minio_gate["status"] if is_current else "not_proven",
             "pgvector_chunk_stats": (
                 {"total_chunks": pgvector_chunks, "with_embedding": pgvector_embedded}
@@ -468,12 +701,21 @@ def build_eval_cycles_report(
     economic_status: dict[str, Any] | None,
     max_cycles: int,
     deploy_sha: str | None,
+    live_cycles: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     bounded_max_cycles = max(1, min(int(max_cycles), 10))
+    all_live_cycles = live_cycles if live_cycles else []
+    primary_live_cycle = live_cycle
+    if all_live_cycles and primary_live_cycle is None:
+        first = all_live_cycles[0].get("artifact")
+        primary_live_cycle = first if isinstance(first, dict) else None
+    if not all_live_cycles and primary_live_cycle is not None:
+        all_live_cycles = [{"cycle_number": 1, "artifact": primary_live_cycle}]
+
     gates = _build_gate_statuses(
         scorecard=scorecard,
         live_storage_probe=live_storage_probe,
-        live_cycle=live_cycle,
+        live_cycle=primary_live_cycle,
         economic_status=economic_status,
     )
     recommendations = _build_recommendations(gates)
@@ -486,7 +728,7 @@ def build_eval_cycles_report(
         scorecard=scorecard,
         gates=gates,
         recommendations=recommendations,
-        live_cycle=live_cycle,
+        live_cycles=all_live_cycles,
         live_storage_probe=live_storage_probe,
         economic_status=economic_status,
         deploy_sha=deploy_sha,
@@ -518,7 +760,8 @@ def build_eval_cycles_report(
             "scorecard_present": True,
             "retry_ledger_present": retry_ledger is not None,
             "live_storage_probe_present": live_storage_probe is not None,
-            "live_cycle_present": live_cycle is not None,
+            "live_cycle_present": primary_live_cycle is not None,
+            "live_cycle_artifact_count": len(all_live_cycles),
             "economic_status_present": economic_status is not None,
         },
     }
@@ -573,8 +816,8 @@ def render_markdown(report: dict[str, Any]) -> str:
             "",
             "## Cycle ledger",
             "",
-            "| Cycle | Status | Deploy SHA | Windmill Job | Backend Run | Package | Selected URL | Artifact URI | Verdict | Next tweak |",
-            "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+            "| Cycle | Status | Deploy SHA | Windmill Job | Backend Run | Package | Package Artifact | Selected URL | Reader Artifact | Provider | Mechanism | Impact Mode | Secondary Research | Quality Conclusion | Verdict | Next tweak |",
+            "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
         ]
     )
     for cycle in report["cycle_ledger"]:
@@ -582,7 +825,11 @@ def render_markdown(report: dict[str, Any]) -> str:
             f"| {cycle.get('cycle_number')} | {cycle.get('status')} | "
             f"{cycle.get('deploy_sha') or '-'} | {cycle.get('windmill_job_id') or '-'} | "
             f"{cycle.get('backend_run_id') or '-'} | {cycle.get('package_id') or '-'} | "
-            f"{cycle.get('selected_url') or '-'} | {cycle.get('reader_artifact_uri') or '-'} | "
+            f"{cycle.get('package_artifact_uri') or '-'} | {cycle.get('selected_url') or '-'} | "
+            f"{cycle.get('reader_artifact_uri') or '-'} | {cycle.get('provider_status') or '-'} | "
+            f"{cycle.get('mechanism_family_hint') or '-'} | {cycle.get('impact_mode_hint') or '-'} | "
+            f"{cycle.get('secondary_research_needed') if cycle.get('secondary_research_needed') is not None else '-'} | "
+            f"{cycle.get('quality_conclusion') or '-'} | "
             f"{cycle.get('verdict') or '-'} | {cycle.get('next_tweak') or '-'} |"
         )
     lines.append("")
@@ -594,7 +841,13 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--scorecard", type=Path, default=DEFAULT_SCORECARD_PATH)
     parser.add_argument("--retry-ledger", type=Path, default=DEFAULT_RETRY_LEDGER_PATH)
     parser.add_argument("--live-storage-probe", type=Path, default=DEFAULT_LIVE_STORAGE_PATH)
-    parser.add_argument("--live-cycle-artifact", type=Path, default=DEFAULT_LIVE_CYCLE_PATH)
+    parser.add_argument(
+        "--live-cycle-artifact",
+        type=Path,
+        action="append",
+        default=None,
+        help="Cycle artifact path. Repeat flag to include multiple cycles.",
+    )
     parser.add_argument("--economic-status", type=Path, default=None)
     parser.add_argument("--deploy-sha", default=None)
     parser.add_argument("--out-json", type=Path, default=DEFAULT_OUTPUT_JSON)
@@ -610,13 +863,37 @@ def main() -> int:
         raise SystemExit(f"missing scorecard artifact: {args.scorecard}")
     retry_ledger = _load_json(args.retry_ledger)
     live_storage_probe = _load_json(args.live_storage_probe)
-    live_cycle = _load_json(args.live_cycle_artifact)
+    raw_live_cycle_paths = args.live_cycle_artifact or [DEFAULT_LIVE_CYCLE_PATH]
+    live_cycle_paths = _resolve_live_cycle_artifacts(raw_live_cycle_paths)
+    live_cycle_entries: list[dict[str, Any]] = []
+    fallback_cycle_number = 1
+    for path in live_cycle_paths:
+        payload = _load_json(path)
+        if payload is None:
+            continue
+        cycle_number = _extract_cycle_number(path) or fallback_cycle_number
+        fallback_cycle_number = max(fallback_cycle_number, cycle_number + 1)
+        live_cycle_entries.append(
+            {
+                "cycle_number": cycle_number,
+                "artifact": payload,
+                "artifact_path": str(path),
+            }
+        )
+    live_cycle_entries.sort(key=lambda item: int(item.get("cycle_number") or 0))
+    live_cycle = None
+    if live_cycle_entries:
+        first_cycle = live_cycle_entries[0]
+        maybe_payload = first_cycle.get("artifact")
+        if isinstance(maybe_payload, dict):
+            live_cycle = maybe_payload
     economic_status = _load_json(args.economic_status) if args.economic_status else None
     report = build_eval_cycles_report(
         scorecard=scorecard,
         retry_ledger=retry_ledger,
         live_storage_probe=live_storage_probe,
         live_cycle=live_cycle,
+        live_cycles=live_cycle_entries,
         economic_status=economic_status,
         max_cycles=args.max_cycles,
         deploy_sha=args.deploy_sha,

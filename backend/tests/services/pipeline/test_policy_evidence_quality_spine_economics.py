@@ -207,6 +207,36 @@ def test_llm_narrative_requires_canonical_run_id() -> None:
     assert "canonical_llm_run_id_missing" in llm["details"]
 
 
+def test_llm_narrative_distinguishes_analysis_step_without_canonical_history() -> None:
+    bundle = PolicyEconomicMechanismCaseService().build_case_bundle()
+    direct = _case(bundle, "direct_cost_case")
+    matrix = _matrix_with_runtime_evidence(
+        direct["primary_package"],
+        llm_narrative_proof={
+            "proof_status": "not_proven",
+            "canonical_pipeline_run_id": "",
+            "canonical_pipeline_step_id": "",
+            "analysis_step_executed": True,
+            "analysis_payload_present": True,
+            "blocker": "analysis_step_succeeded_but_no_canonical_analysis_history",
+            "source": "pipeline_runs.result.analysis",
+        },
+    )
+
+    service = PolicyEvidenceQualitySpineEconomicsService()
+    result = service.evaluate(
+        matrix_input=MatrixInput(
+            payload=matrix,
+            source_path="horizontal_matrix.json",
+            source_mode="agent_a_horizontal_matrix",
+        )
+    )
+
+    llm = result["scorecard"]["taxonomy"]["LLM narrative"]
+    assert llm["status"] == "not_proven"
+    assert "analysis step appears to have succeeded" in llm["details"]
+
+
 def test_storage_readback_requires_non_memory_storage_proof() -> None:
     bundle = PolicyEconomicMechanismCaseService().build_case_bundle()
     direct = _case(bundle, "direct_cost_case")
@@ -528,6 +558,66 @@ def test_endpoint_uses_backend_run_id_from_selected_payload_context() -> None:
         run_context={},
     )
     assert endpoint["backend_run_id"] == "run-ctx-42"
+
+
+def test_endpoint_reader_provenance_hydrates_when_storage_is_proven() -> None:
+    bundle = PolicyEconomicMechanismCaseService().build_case_bundle()
+    direct = _case(bundle, "direct_cost_case")
+    package = direct["primary_package"]
+    source = dict(package["scraped_sources"][0])
+    source["reader_substance_passed"] = False
+    package = {
+        **package,
+        "scraped_sources": [source],
+        "run_context": {
+            "backend_run_id": "run-live-hydration",
+            "windmill_run_id": "wm-run-live-hydration",
+            "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+            "reader_artifact_uri": "minio://affordabot-artifacts/artifacts/live/reader_output.md",
+        },
+    }
+
+    matrix = _matrix_with_runtime_evidence(
+        package,
+        orchestration_proof={},
+        llm_narrative_proof={
+            "proof_status": "not_proven",
+            "analysis_step_executed": True,
+            "analysis_payload_present": True,
+            "blocker": "analysis_step_succeeded_but_no_canonical_analysis_history",
+            "source": "pipeline_runs.result.analysis",
+        },
+        storage_proof={
+            "proof_status": "pass",
+            "proof_mode": "postgres_minio_live",
+            "store_backend": "postgres",
+            "artifact_probe_backend": "minio",
+            "persisted_record_id": "row-live-002",
+            "minio_readback_proven": True,
+            "blocker": None,
+        },
+    )
+
+    service = PolicyEvidenceQualitySpineEconomicsService()
+    endpoint = service.build_endpoint_read_model(
+        matrix_input=MatrixInput(
+            payload=matrix,
+            source_path="horizontal_matrix.json",
+            source_mode="agent_a_horizontal_matrix",
+        ),
+        package_id=package["package_id"],
+        source_family="meeting_minutes",
+        run_context={"run_id": "run-live-hydration"},
+    )
+
+    scraped = endpoint["provenance"]["scraped_sources"][0]
+    assert scraped["reader_substance_observed"] is False
+    assert scraped["reader_substance_passed"] is True
+    assert scraped["reader_provenance_hydrated"] is True
+    assert endpoint["gates"]["Windmill/orchestration"]["status"] == "pass"
+    assert "scope job id only" in endpoint["gates"]["Windmill/orchestration"]["reason"]
+    windmill_refs = {item["key"] for item in endpoint["gates"]["Windmill/orchestration"]["refs"]}
+    assert "windmill_scope_job_id" in windmill_refs
 
 
 def test_fixture_case_coverage_tracks_direct_indirect_secondary() -> None:

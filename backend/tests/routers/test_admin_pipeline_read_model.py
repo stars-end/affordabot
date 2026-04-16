@@ -406,3 +406,82 @@ def test_policy_evidence_analysis_status_rejects_missing_package_in_run(client, 
         "/api/admin/pipeline/policy-evidence/packages/pkg-does-not-exist/analysis-status?run_id=run-q2"
     )
     assert response.status_code == 404
+
+
+def test_policy_evidence_analysis_status_hydrates_live_run_context_proofs(client, mock_db):
+    package = _case_package("indirect_pass_through_case")
+    scraped = dict(package["scraped_sources"][0])
+    scraped["reader_substance_passed"] = False
+    package = {
+        **package,
+        "scraped_sources": [scraped],
+    }
+    mock_db._fetchrow.side_effect = [
+        {
+            "id": "run-live-q4",
+            "bill_id": "SJ-2026-AHIF",
+            "jurisdiction": "San Jose CA",
+            "status": "completed",
+            "error": None,
+            "models": {},
+            "trigger_source": "windmill",
+            "windmill_run_id": "wm-live-q4",
+            "started_at": "2026-04-16T01:00:00Z",
+            "completed_at": "2026-04-16T01:03:00Z",
+            "result": {
+                "policy_evidence_package": package,
+                "analysis": {
+                    "summary": "Narrative generated from selected artifact.",
+                },
+                "rows": [],
+                "orchestration_proof": {},
+                "llm_narrative_proof": {},
+                "storage_proof": {},
+            },
+        },
+        {
+            "id": "pkg-row-live-q4",
+            "package_id": package["package_id"],
+            "package_payload": {
+                **package,
+                "run_context": {
+                    "backend_run_id": "run-live-q4",
+                    "windmill_run_id": "wm-live-q4",
+                    "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+                    "windmill_workspace": "affordabot",
+                    "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+                    "reader_artifact_uri": "minio://affordabot-artifacts/artifacts/live/reader_output.md",
+                },
+            },
+            "artifact_readback_status": "proven",
+            "fail_closed": False,
+            "gate_state": "qualitative_only",
+            "created_at": "2026-04-16T01:00:00Z",
+            "updated_at": "2026-04-16T01:03:00Z",
+        },
+    ]
+
+    client.set_auth("admin")
+    response = client.get(
+        f"/api/admin/pipeline/policy-evidence/packages/{package['package_id']}/analysis-status?run_id=run-live-q4"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    scraped_row = data["provenance"]["scraped_sources"][0]
+    assert scraped_row["reader_substance_observed"] is False
+    assert scraped_row["reader_substance_passed"] is True
+    assert scraped_row["reader_provenance_hydrated"] is True
+    assert data["gates"]["storage/read-back"]["status"] == "pass"
+    assert data["gates"]["Windmill/orchestration"]["status"] == "pass"
+    assert "scope job id only" in data["gates"]["Windmill/orchestration"]["reason"]
+    windmill_ref_keys = {ref["key"] for ref in data["gates"]["Windmill/orchestration"]["refs"]}
+    assert "windmill_scope_job_id" in windmill_ref_keys
+    assert data["gates"]["LLM narrative"]["status"] == "not_proven"
+    assert "analysis step appears to have succeeded" in data["gates"]["LLM narrative"]["reason"]
+    llm_ref_keys = {ref["key"] for ref in data["gates"]["LLM narrative"]["refs"]}
+    assert "analysis_step_executed" in llm_ref_keys
+    if "missing_evidence" in data["economic_output"]:
+        assert all(
+            not str(item).startswith("reader:")
+            for item in data["economic_output"]["missing_evidence"]
+        )

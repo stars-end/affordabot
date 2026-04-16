@@ -117,6 +117,20 @@ def _extract_artifact_refs(payload: dict[str, Any]) -> list[str]:
     def _from_steps(steps: Any) -> None:
         if not isinstance(steps, dict):
             return
+        summarize_run = steps.get("summarize_run")
+        if isinstance(summarize_run, dict):
+            summarize_refs = summarize_run.get("refs")
+            if isinstance(summarize_refs, dict):
+                _push(summarize_refs.get("reader_artifact_uri"))
+                _push(summarize_refs.get("package_artifact_uri"))
+            summarize_details = summarize_run.get("details")
+            if isinstance(summarize_details, dict):
+                policy_pkg = summarize_details.get("policy_evidence_package")
+                if isinstance(policy_pkg, dict):
+                    pkg_refs = policy_pkg.get("refs")
+                    if isinstance(pkg_refs, dict):
+                        _push(pkg_refs.get("reader_artifact_uri"))
+                        _push(pkg_refs.get("package_artifact_uri"))
         read_fetch = steps.get("read_fetch")
         if not isinstance(read_fetch, dict):
             return
@@ -148,6 +162,17 @@ def _extract_artifact_refs(payload: dict[str, Any]) -> list[str]:
 
 
 def _extract_backend_run_id(payload: dict[str, Any]) -> str | None:
+    scope = _extract_scope_result(payload)
+    if isinstance(scope, dict):
+        summarize_run = (scope.get("steps") or {}).get("summarize_run")
+        if isinstance(summarize_run, dict):
+            refs = summarize_run.get("refs")
+            if isinstance(refs, dict):
+                for key in ("backend_run_id", "run_id"):
+                    run_id = refs.get(key)
+                    if isinstance(run_id, str) and run_id.strip():
+                        return run_id.strip()
+
     direct = payload.get("backend_run_id")
     if isinstance(direct, str) and direct.strip():
         return direct.strip()
@@ -173,45 +198,136 @@ def _extract_backend_run_id(payload: dict[str, Any]) -> str | None:
     return None
 
 
-def _extract_pgvector_truth_role(runtime_payload: dict[str, Any]) -> str:
-    package = runtime_payload.get("vertical_package_payload")
+def _extract_scope_result(payload: dict[str, Any]) -> dict[str, Any] | None:
+    result_payload = payload.get("result_payload")
+    if not isinstance(result_payload, dict):
+        return None
+    scope_results = result_payload.get("scope_results")
+    if not isinstance(scope_results, list):
+        return None
+    for scope in scope_results:
+        if isinstance(scope, dict):
+            return scope
+    return None
+
+
+def _extract_policy_refs(payload: dict[str, Any]) -> dict[str, Any]:
+    scope = _extract_scope_result(payload)
+    if not isinstance(scope, dict):
+        return {}
+    steps = scope.get("steps")
+    if not isinstance(steps, dict):
+        return {}
+    summarize_run = steps.get("summarize_run")
+    if not isinstance(summarize_run, dict):
+        return {}
+    refs = summarize_run.get("refs")
+    if isinstance(refs, dict):
+        return refs
+    details = summarize_run.get("details")
+    if not isinstance(details, dict):
+        return {}
+    package = details.get("policy_evidence_package")
     if not isinstance(package, dict):
-        return "unknown"
-    refs = package.get("storage_refs")
-    if not isinstance(refs, list):
-        return "unknown"
-    for item in refs:
-        if not isinstance(item, dict):
-            continue
-        if str(item.get("storage_system") or "") == "pgvector":
-            role = str(item.get("truth_role") or "").strip()
-            if role:
-                return role
+        return {}
+    package_refs = package.get("refs")
+    return package_refs if isinstance(package_refs, dict) else {}
+
+
+def _extract_idempotency_key(payload: dict[str, Any]) -> str | None:
+    direct = payload.get("idempotency_key")
+    if isinstance(direct, str) and direct.strip():
+        return direct.strip()
+    manual_run = payload.get("manual_run")
+    if isinstance(manual_run, dict):
+        value = manual_run.get("idempotency_key")
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return None
+
+
+def _extract_windmill_job_id(payload: dict[str, Any]) -> str | None:
+    manual_run = payload.get("manual_run")
+    if isinstance(manual_run, dict):
+        value = manual_run.get("windmill_job_id")
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    refs = _extract_policy_refs(payload)
+    value = refs.get("windmill_job_id") if isinstance(refs, dict) else None
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    return None
+
+
+def _extract_pgvector_truth_role(runtime_payload: dict[str, Any] | None, windmill_payload: dict[str, Any]) -> str:
+    if isinstance(runtime_payload, dict):
+        package = runtime_payload.get("vertical_package_payload")
+        if isinstance(package, dict):
+            refs = package.get("storage_refs")
+            if isinstance(refs, list):
+                for item in refs:
+                    if not isinstance(item, dict):
+                        continue
+                    if str(item.get("storage_system") or "") == "pgvector":
+                        role = str(item.get("truth_role") or "").strip()
+                        if role:
+                            return role
+
+    scope = _extract_scope_result(windmill_payload)
+    if isinstance(scope, dict):
+        steps = scope.get("steps")
+        if isinstance(steps, dict):
+            summarize_run = steps.get("summarize_run")
+            if isinstance(summarize_run, dict):
+                details = summarize_run.get("details")
+                if isinstance(details, dict):
+                    package = details.get("policy_evidence_package")
+                    if isinstance(package, dict):
+                        storage_result = package.get("storage_result")
+                        if isinstance(storage_result, dict):
+                            role = str(storage_result.get("pgvector_truth_role") or "").strip()
+                            if role:
+                                return role
+
     return "unknown"
 
 
-def load_inputs(*, runtime_path: Path, windmill_path: Path) -> StorageProbeInputs:
-    runtime_payload = _load_json(runtime_path)
+def _extract_package_id_and_document_key(
+    runtime_payload: dict[str, Any] | None, windmill_payload: dict[str, Any]
+) -> tuple[str, str]:
+    if isinstance(runtime_payload, dict):
+        package = runtime_payload.get("vertical_package_payload")
+        if isinstance(package, dict):
+            package_id = str(package.get("package_id") or "")
+            canonical_document_key = str(package.get("canonical_document_key") or "")
+            if package_id or canonical_document_key:
+                return package_id, canonical_document_key
+
+    refs = _extract_policy_refs(windmill_payload)
+    if isinstance(refs, dict):
+        return (
+            str(refs.get("package_id") or ""),
+            str(refs.get("canonical_document_key") or ""),
+        )
+
+    return "", ""
+
+
+def load_inputs(*, runtime_path: Path | None, windmill_path: Path) -> StorageProbeInputs:
+    runtime_payload = _load_json(runtime_path) if runtime_path and runtime_path.exists() else None
     windmill_payload = _load_json(windmill_path)
-    package = runtime_payload.get("vertical_package_payload") or {}
-    package_id = str(package.get("package_id") or "")
-    canonical_document_key = str(package.get("canonical_document_key") or "")
+    package_id, canonical_document_key = _extract_package_id_and_document_key(
+        runtime_payload=runtime_payload,
+        windmill_payload=windmill_payload,
+    )
     return StorageProbeInputs(
         package_id=package_id,
         canonical_document_key=canonical_document_key,
         backend_run_id=_extract_backend_run_id(windmill_payload),
-        windmill_job_id=(
-            str(windmill_payload.get("windmill_job_id"))
-            if windmill_payload.get("windmill_job_id")
-            else None
-        ),
-        idempotency_key=(
-            str(windmill_payload.get("idempotency_key"))
-            if windmill_payload.get("idempotency_key")
-            else None
-        ),
+        windmill_job_id=_extract_windmill_job_id(windmill_payload),
+        idempotency_key=_extract_idempotency_key(windmill_payload),
         artifact_refs=_extract_artifact_refs(windmill_payload),
-        pgvector_truth_role=_extract_pgvector_truth_role(runtime_payload),
+        pgvector_truth_role=_extract_pgvector_truth_role(runtime_payload, windmill_payload),
     )
 
 
@@ -625,6 +741,35 @@ def _env_present(name: str) -> bool:
     return bool(str(os.getenv(name, "")).strip())
 
 
+def _is_local_live_auto_mode(*, live_mode: str) -> bool:
+    return live_mode == "auto" and not _env_present("RAILWAY_ENVIRONMENT_ID")
+
+
+def _database_url_for_live_probe(*, live_mode: str) -> str | None:
+    # `railway run` executes locally with Railway metadata/env injected, so the
+    # private DATABASE_URL host is still not resolvable from the agent machine.
+    # Prefer the public URL whenever Railway exposes it; in-container probes can
+    # also use the public URL safely.
+    if live_mode == "auto" and _env_present("DATABASE_URL_PUBLIC"):
+        return str(os.environ["DATABASE_URL_PUBLIC"])
+    if _env_present("DATABASE_URL"):
+        return str(os.environ["DATABASE_URL"])
+    return None
+
+
+def _normalize_minio_endpoint_for_sdk(raw: str) -> str:
+    candidate = str(raw or "").strip()
+    if not candidate:
+        return ""
+    parsed = urlparse(candidate)
+    if parsed.scheme:
+        host = parsed.netloc.strip()
+        return host
+    if "/" in candidate:
+        return candidate.split("/", 1)[0].strip()
+    return candidate
+
+
 def _build_live_probes(*, live_mode: str) -> tuple[DbProbe | None, ArtifactReadbackProbe | None]:
     if live_mode == "off":
         return None, None
@@ -632,27 +777,42 @@ def _build_live_probes(*, live_mode: str) -> tuple[DbProbe | None, ArtifactReadb
     db_probe: DbProbe | None = None
     artifact_probe: ArtifactReadbackProbe | None = None
 
-    if _env_present("DATABASE_URL"):
+    database_url = _database_url_for_live_probe(live_mode=live_mode)
+    if database_url:
         try:
-            db_probe = PsycopgDbProbe(database_url=str(os.environ["DATABASE_URL"]))
+            db_probe = PsycopgDbProbe(database_url=database_url)
         except Exception:  # noqa: BLE001
             db_probe = None
 
-    minio_vars = (
+    minio_auth_and_bucket = (
         _env_present("MINIO_URL"),
         _env_present("MINIO_ACCESS_KEY"),
         _env_present("MINIO_SECRET_KEY"),
         _env_present("MINIO_BUCKET"),
     )
-    if all(minio_vars):
+    has_any_endpoint = any(
+        (
+            _env_present("MINIO_URL"),
+            _env_present("MINIO_URL_PUBLIC"),
+            _env_present("RAILWAY_SERVICE_BUCKET_URL"),
+            _env_present("S3_ENDPOINT"),
+        )
+    )
+    if all(minio_auth_and_bucket[1:]) and has_any_endpoint:
         try:
-            storage = S3Storage(
-                endpoint=str(os.environ["MINIO_URL"]),
+            endpoint = _normalize_minio_endpoint_for_sdk(str(os.getenv("MINIO_URL", "")))
+            storage_kwargs: dict[str, Any] = dict(
                 access_key=str(os.environ["MINIO_ACCESS_KEY"]),
                 secret_key=str(os.environ["MINIO_SECRET_KEY"]),
                 bucket=str(os.environ["MINIO_BUCKET"]),
                 secure=str(os.getenv("MINIO_SECURE", "false")).lower() == "true",
             )
+            # When Railway exposes a public bucket URL, let S3Storage choose it
+            # via its env-based resolver instead of forcing the private
+            # bucket.railway.internal endpoint into a local probe.
+            if endpoint and not _env_present("RAILWAY_SERVICE_BUCKET_URL"):
+                storage_kwargs["endpoint"] = endpoint
+            storage = S3Storage(**storage_kwargs)
             if storage.client is not None:
                 artifact_probe = MinioReadbackProbe(storage=storage)
         except Exception:  # noqa: BLE001
@@ -662,7 +822,7 @@ def _build_live_probes(*, live_mode: str) -> tuple[DbProbe | None, ArtifactReadb
 
 def run(
     *,
-    runtime_path: Path,
+    runtime_path: Path | None,
     windmill_path: Path,
     out_path: Path,
     live_mode: str,
@@ -677,7 +837,7 @@ def run(
     )
     report["probe_mode"] = "live" if live_mode != "off" else "offline"
     report["inputs_artifacts"] = {
-        "runtime": _repo_rel(runtime_path),
+        "runtime": _repo_rel(runtime_path) if runtime_path else None,
         "windmill": _repo_rel(windmill_path),
     }
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -687,8 +847,14 @@ def run(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--runtime", type=Path, default=DEFAULT_RUNTIME_EVIDENCE)
+    parser.add_argument("--runtime", type=Path, default=None)
     parser.add_argument("--windmill", type=Path, default=DEFAULT_WINDMILL_EVIDENCE)
+    parser.add_argument(
+        "--live-cycle-artifact",
+        type=Path,
+        default=None,
+        help="Use live cycle JSON as the primary evidence source for package/run/artifact refs.",
+    )
     parser.add_argument("--out", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument(
         "--live-mode",
@@ -701,9 +867,16 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
+    runtime_path = args.runtime
+    windmill_path = args.windmill
+    if args.live_cycle_artifact:
+        windmill_path = args.live_cycle_artifact
+    elif runtime_path is None and DEFAULT_RUNTIME_EVIDENCE.exists():
+        runtime_path = DEFAULT_RUNTIME_EVIDENCE
+
     report = run(
-        runtime_path=args.runtime,
-        windmill_path=args.windmill,
+        runtime_path=runtime_path,
+        windmill_path=windmill_path,
         out_path=args.out,
         live_mode=args.live_mode,
     )

@@ -1,56 +1,65 @@
 {
-  "generated_at": "2026-04-16T05:55:19.710302+00:00",
+  "generated_at": "2026-04-16T06:34:02.523300+00:00",
   "feature_key": "bd-3wefe.13",
-  "status": "not_proven",
-  "blocker": "missing_exact_policy_package_linkage_or_live_readback",
-  "details": "one_or_more_storage_gates_not_proven",
+  "status": "pass",
+  "blocker": null,
+  "details": "all_storage_gates_passed",
   "inputs": {
-    "package_id": "pkg-sj-parking-minimum-amendment",
-    "canonical_document_key": "san_jose_ca::sj-parking-minimum-amendment",
-    "backend_run_id": "6695fe26-eaaf-47d1-9100-7eb861a7aa2f",
-    "windmill_job_id": null,
-    "idempotency_key": null,
+    "package_id": "pkg-10adcd7b63e6262425240b5b",
+    "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=economic_literature|doctype=meeting_minutes|url=https://www.huduser.gov/periodicals/cityscpe/vol8num1/ch4.pdf",
+    "backend_run_id": "e1826ad9-cda9-4737-9c1d-316852460029",
+    "windmill_job_id": "019d94fb-dfaa-7681-7d6b-c1fb39f6ab49",
+    "idempotency_key": "bd-3wefe.13-live-cycle-07-20260416",
     "artifact_refs": [
-      "artifacts/2026-04-13.windmill-domain.v1/San Jose CA/meeting_minutes/reader_output/ae11ddffb6292d654ab990cddc9f169ce23868654ee623d07261ec553c81ed77.md"
+      "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/economic_literature/reader_output/4dbf81f3a67ad8e4c8782b5ba6c2291992c16c2e0e480d1a78adaa441db8bd80.md",
+      "minio://affordabot-artifacts/policy-evidence/packages/pkg-10adcd7b63e6262425240b5b.json",
+      "artifacts/2026-04-13.windmill-domain.v1/San Jose CA/economic_literature/reader_output/4dbf81f3a67ad8e4c8782b5ba6c2291992c16c2e0e480d1a78adaa441db8bd80.md"
     ],
     "pgvector_truth_role": "derived_index"
   },
   "gates": {
     "postgres_package_row": {
-      "status": "not_proven",
-      "details": "offline_mode_no_live_postgres_probe",
-      "missing": "exact_policy_evidence_package_row_linked_to_backend_run"
+      "status": "pass",
+      "details": "package_row_linked_to_backend_run_id",
+      "evidence": {
+        "table_exists": true,
+        "record_id": "037af4b3-c36c-530d-bcff-fcb63c6dee0f"
+      }
     },
     "minio_object_readback": {
-      "status": "not_proven",
-      "details": "offline_mode_no_live_minio_probe",
-      "missing": "live_minio_readback_for_current_refs"
+      "status": "pass",
+      "details": "all_artifact_refs_read_back",
+      "passed": 3
     },
     "pgvector_derivation": {
-      "status": "not_proven",
-      "details": "offline_mode_no_live_document_chunks_probe",
+      "status": "pass",
+      "details": "document_chunks_and_embeddings_present_with_derived_index_truth_role",
+      "document_id": "ddda14c9-c2b2-5920-9857-00a995429731",
+      "total_chunks": 386,
+      "with_embedding": 386,
       "truth_role": "derived_index"
     },
     "atomicity_or_replay": {
-      "status": "not_proven",
-      "details": "offline_mode_no_live_replay_probe",
-      "missing": "pipeline_runs_idempotency_observation"
+      "status": "pass",
+      "details": "pipeline_run_is_terminal_without_failed_steps",
+      "runs_for_idempotency": 0,
+      "idempotent_replay_observed": false
     },
     "storage/read-back": {
-      "status": "not_proven",
-      "details": "one_or_more_storage_gates_not_proven"
+      "status": "pass",
+      "details": "all_storage_gates_passed"
     }
   },
   "supporting_signals": {
-    "artifact_refs_count": 1,
-    "package_id": "pkg-sj-parking-minimum-amendment",
-    "backend_run_id": "6695fe26-eaaf-47d1-9100-7eb861a7aa2f",
-    "windmill_job_id": null
+    "artifact_refs_count": 3,
+    "package_id": "pkg-10adcd7b63e6262425240b5b",
+    "backend_run_id": "e1826ad9-cda9-4737-9c1d-316852460029",
+    "windmill_job_id": "019d94fb-dfaa-7681-7d6b-c1fb39f6ab49"
   },
   "missing_or_failed_signals": [],
-  "probe_mode": "offline",
+  "probe_mode": "live",
   "inputs_artifacts": {
-    "runtime": "docs/poc/policy-evidence-quality-spine/artifacts/data_runtime_evidence.json",
-    "windmill": "docs/poc/policy-evidence-quality-spine/artifacts/live_cycle_01_windmill_domain_run.json"
+    "runtime": null,
+    "windmill": "docs/poc/policy-evidence-quality-spine/artifacts/live_cycle_07_windmill_domain_run.json"
   }
 }

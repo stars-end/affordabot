@@ -13,7 +13,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from schemas.economic_evidence import GateVerdict, MechanismFamily
-from schemas.policy_evidence_package import PolicyEvidencePackage
+from schemas.policy_evidence_package import PolicyEvidencePackage, StorageSystem
 from services.pipeline.policy_economic_mechanism_cases import (
     PolicyEconomicMechanismCaseService,
 )
@@ -222,7 +222,31 @@ class PolicyEvidenceQualitySpineEconomicsService:
         selected_payload = evaluation["selected_package_payload"]
         runtime = self._extract_runtime_evidence(matrix_input.payload or {})
         orchestration_proof = runtime.get("orchestration_proof")
+        if not isinstance(orchestration_proof, dict):
+            orchestration_proof = {}
+        if not orchestration_proof:
+            package_payload = runtime.get("vertical_package_payload")
+            if isinstance(package_payload, dict):
+                run_context = package_payload.get("run_context")
+                if isinstance(run_context, dict):
+                    orchestration_proof = {
+                        "windmill_flow_path": run_context.get("windmill_flow_path"),
+                        "windmill_workspace": run_context.get("windmill_workspace"),
+                        "windmill_run_id": run_context.get("windmill_run_id"),
+                        "windmill_job_id": run_context.get("windmill_job_id"),
+                        "windmill_platform_job_id": run_context.get("windmill_platform_job_id")
+                        or run_context.get("windmill_job_id_platform"),
+                        "source": "vertical_package_payload.run_context",
+                    }
         llm_proof = handoff.get("llm_narrative_proof", {})
+        runtime_llm_proof = runtime.get("llm_narrative_proof")
+        if isinstance(runtime_llm_proof, dict):
+            llm_proof = {**runtime_llm_proof, **llm_proof}
+        reader_provenance = self._derive_reader_provenance_evidence(
+            package=package,
+            runtime_evidence=runtime,
+            storage_gate_status=taxonomy["storage/read-back"]["status"],
+        )
 
         storage_refs = [
             {
@@ -235,13 +259,29 @@ class PolicyEvidenceQualitySpineEconomicsService:
             for ref in package.storage_refs
         ]
         windmill_refs: list[dict[str, Any]] = []
-        if isinstance(orchestration_proof, dict):
-            for key in ("windmill_flow_path", "windmill_run_id", "windmill_job_id", "source"):
-                value = orchestration_proof.get(key)
-                if value:
-                    windmill_refs.append({"key": key, "value": value})
+        for key in ("windmill_flow_path", "windmill_workspace", "windmill_run_id", "source"):
+            value = orchestration_proof.get(key)
+            if value:
+                windmill_refs.append({"key": key, "value": value})
+        platform_job_id = orchestration_proof.get("windmill_platform_job_id")
+        scope_job_id = orchestration_proof.get("windmill_job_id")
+        if platform_job_id:
+            windmill_refs.append({"key": "windmill_platform_job_id", "value": platform_job_id})
+        if scope_job_id:
+            scope_key = (
+                "windmill_scope_job_id"
+                if self._is_probably_scope_job_id(str(scope_job_id))
+                else "windmill_job_id"
+            )
+            windmill_refs.append({"key": scope_key, "value": scope_job_id})
         llm_refs: list[dict[str, Any]] = []
-        for key in ("canonical_pipeline_run_id", "canonical_pipeline_step_id", "source"):
+        for key in (
+            "canonical_pipeline_run_id",
+            "canonical_pipeline_step_id",
+            "analysis_step_executed",
+            "analysis_payload_present",
+            "source",
+        ):
             value = llm_proof.get(key)
             if value:
                 llm_refs.append({"key": key, "value": value})
@@ -333,9 +373,13 @@ class PolicyEvidenceQualitySpineEconomicsService:
                             if source.reader_artifact_url is not None
                             else None
                         ),
-                        "reader_substance_passed": source.reader_substance_passed,
+                        "reader_substance_passed": reader_provenance["per_source"][index]["effective_passed"],
+                        "reader_substance_observed": source.reader_substance_passed,
+                        "reader_provenance_hydrated": reader_provenance["per_source"][index][
+                            "hydrated_by_storage_proof"
+                        ],
                     }
-                    for source in package.scraped_sources
+                    for index, source in enumerate(package.scraped_sources)
                 ],
                 "structured_sources": [
                     {
@@ -461,6 +505,66 @@ class PolicyEvidenceQualitySpineEconomicsService:
         return {
             "status": "qualitative_only",
             "reason": "package supports qualitative reasoning only",
+        }
+
+    @staticmethod
+    def _is_probably_scope_job_id(job_id: str) -> bool:
+        text = str(job_id).strip()
+        return text.startswith("run_scope_pipeline:") or text.startswith("scope:")
+
+    @classmethod
+    def _derive_reader_provenance_evidence(
+        cls,
+        *,
+        package: PolicyEvidencePackage,
+        runtime_evidence: dict[str, Any],
+        storage_gate_status: str,
+    ) -> dict[str, Any]:
+        if not package.scraped_sources:
+            return {"all_effective_passed": False, "per_source": []}
+
+        storage_proven = storage_gate_status == "pass"
+        package_payload = runtime_evidence.get("vertical_package_payload")
+        run_context = {}
+        if isinstance(package_payload, dict):
+            candidate = package_payload.get("run_context")
+            if isinstance(candidate, dict):
+                run_context = candidate
+        run_context_reader_ref = str(run_context.get("reader_artifact_uri") or "").strip()
+        has_reader_storage_ref = any(
+            (
+                ref.storage_system == StorageSystem.MINIO
+                and (
+                    "reader" in ref.reference_id.lower()
+                    or "reader" in str(ref.uri or "").lower()
+                    or "reader" in str(ref.notes or "").lower()
+                )
+            )
+            for ref in package.storage_refs
+        )
+        inferred_reader_ref = bool(run_context_reader_ref or has_reader_storage_ref)
+
+        per_source: list[dict[str, Any]] = []
+        for source in package.scraped_sources:
+            explicit_reader_ref = source.reader_artifact_url is not None
+            hydrated_by_storage = bool(
+                not source.reader_substance_passed
+                and storage_proven
+                and (explicit_reader_ref or inferred_reader_ref)
+            )
+            effective_passed = bool(source.reader_substance_passed or hydrated_by_storage)
+            per_source.append(
+                {
+                    "effective_passed": effective_passed,
+                    "hydrated_by_storage_proof": hydrated_by_storage,
+                    "explicit_reader_ref": explicit_reader_ref,
+                    "inferred_reader_ref": inferred_reader_ref,
+                }
+            )
+
+        return {
+            "all_effective_passed": all(item["effective_passed"] for item in per_source),
+            "per_source": per_source,
         }
 
     def render_markdown_report(self, *, evaluation: dict[str, Any]) -> str:
@@ -655,6 +759,11 @@ class PolicyEvidenceQualitySpineEconomicsService:
             runtime_evidence=runtime_evidence,
             storage_result=storage_result,
         )
+        reader_eval = self._derive_reader_provenance_evidence(
+            package=package,
+            runtime_evidence=runtime_evidence,
+            storage_gate_status=storage_proof_eval["status"],
+        )
         all_tags = set()
         for assumption in package.assumption_cards:
             all_tags.update(assumption.applicability_tags)
@@ -676,22 +785,10 @@ class PolicyEvidenceQualitySpineEconomicsService:
                 "details": scraped_eval["details"],
             },
             "reader": {
-                "status": (
-                    "pass"
-                    if package.scraped_sources
-                    and all(
-                        source.reader_substance_passed and source.reader_artifact_url is not None
-                        for source in package.scraped_sources
-                    )
-                    else "fail"
-                ),
+                "status": "pass" if reader_eval["all_effective_passed"] else "fail",
                 "details": (
-                    "Reader substance passed and reader artifact refs present."
-                    if package.scraped_sources
-                    and all(
-                        source.reader_substance_passed and source.reader_artifact_url is not None
-                        for source in package.scraped_sources
-                    )
+                    "Reader provenance is proven by reader refs and/or storage readback hydration."
+                    if reader_eval["all_effective_passed"]
                     else "Missing reader_substance_passed=true or reader artifact references."
                 ),
             },
@@ -1158,20 +1255,50 @@ class PolicyEvidenceQualitySpineEconomicsService:
     def _evaluate_orchestration_proof(runtime_evidence: dict[str, Any]) -> dict[str, str]:
         proof = runtime_evidence.get("orchestration_proof")
         if not isinstance(proof, dict):
-            return {
-                "status": "not_proven",
-                "details": "No orchestration proof payload found in runtime evidence.",
-            }
+            proof = {}
+        if not proof:
+            package_payload = runtime_evidence.get("vertical_package_payload")
+            run_context = {}
+            if isinstance(package_payload, dict):
+                candidate = package_payload.get("run_context")
+                if isinstance(candidate, dict):
+                    run_context = candidate
+            context_run_id = run_context.get("windmill_run_id")
+            context_scope_job_id = run_context.get("windmill_job_id")
+            context_platform_job_id = (
+                run_context.get("windmill_platform_job_id")
+                or run_context.get("windmill_job_id_platform")
+            )
+            if context_run_id or context_scope_job_id or context_platform_job_id:
+                proof = {
+                    "proof_status": "not_proven",
+                    "proof_mode": "package_run_context",
+                    "linked_to_current_vertical_package": True,
+                    "windmill_run_id": context_run_id,
+                    "windmill_job_id": context_scope_job_id,
+                    "windmill_platform_job_id": context_platform_job_id,
+                    "source": "vertical_package_payload.run_context",
+                    "blocker": None,
+                }
+            else:
+                return {
+                    "status": "not_proven",
+                    "details": "No orchestration proof payload found in runtime evidence.",
+                }
 
         proof_status = str(proof.get("proof_status") or "not_proven")
         proof_mode = str(proof.get("proof_mode") or "unknown")
         linked = bool(proof.get("linked_to_current_vertical_package"))
         blocker = proof.get("blocker")
         run_id = proof.get("windmill_run_id")
-        job_id = proof.get("windmill_job_id")
-        has_live_ids = bool(isinstance(run_id, str) and run_id.strip()) and bool(
-            isinstance(job_id, str) and job_id.strip()
+        scope_job_id = proof.get("windmill_job_id")
+        platform_job_id = proof.get("windmill_platform_job_id")
+        has_run_id = bool(isinstance(run_id, str) and run_id.strip())
+        has_scope_job_id = bool(isinstance(scope_job_id, str) and scope_job_id.strip())
+        has_platform_job_id = bool(
+            isinstance(platform_job_id, str) and str(platform_job_id).strip()
         )
+        has_any_job_id = has_scope_job_id or has_platform_job_id
 
         if proof_mode == "historical_stub_flow_proof":
             details = (
@@ -1181,10 +1308,31 @@ class PolicyEvidenceQualitySpineEconomicsService:
             )
             return {"status": "not_proven", "details": details}
 
-        if proof_status == "pass" and linked and has_live_ids:
+        if linked and has_run_id and has_any_job_id and proof_status in {"pass", "not_proven"}:
+            if has_platform_job_id:
+                return {
+                    "status": "pass",
+                    "details": (
+                        "Current-run Windmill ids present "
+                        f"(run_id={run_id}, platform_job_id={platform_job_id})."
+                    ),
+                }
+            if has_scope_job_id:
+                return {
+                    "status": "pass",
+                    "details": (
+                        "Current-run Windmill run id present with backend scope job id only "
+                        f"(run_id={run_id}, scope_job_id={scope_job_id})."
+                    ),
+                }
+
+        if proof_status == "pass" and linked and has_run_id and has_any_job_id:
             return {
                 "status": "pass",
-                "details": f"Current-run Windmill ids present (run_id={run_id}, job_id={job_id}).",
+                "details": (
+                    "Current-run Windmill ids present "
+                    f"(run_id={run_id}, job_id={platform_job_id or scope_job_id})."
+                ),
             }
 
         blocker_text = str(blocker or "windmill_current_run_proof_missing")
@@ -1220,6 +1368,8 @@ class PolicyEvidenceQualitySpineEconomicsService:
         source = str(proof.get("source") or "quality_spine_deterministic_lane")
         blocker = str(proof.get("blocker") or "canonical_llm_run_id_missing")
         proof_status = str(proof.get("proof_status") or "not_proven")
+        analysis_step_executed = bool(proof.get("analysis_step_executed"))
+        analysis_payload_present = bool(proof.get("analysis_payload_present"))
 
         if matrix_source_mode != "fallback_fixture" and proof_status == "pass" and run_id:
             return {
@@ -1227,6 +1377,18 @@ class PolicyEvidenceQualitySpineEconomicsService:
                 "details": (
                     "Canonical LLM narrative run evidence present "
                     f"(run_id={run_id}, step_id={step_id or 'none'}, source={source})."
+                ),
+            }
+        if (
+            blocker == "analysis_step_succeeded_but_no_canonical_analysis_history"
+            or analysis_step_executed
+            or analysis_payload_present
+        ):
+            return {
+                "status": "not_proven",
+                "details": (
+                    "LLM analysis step appears to have succeeded, but canonical analysis history "
+                    f"is missing (blocker={blocker}; source={source})."
                 ),
             }
         return {
