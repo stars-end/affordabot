@@ -323,7 +323,11 @@ def test_postgres_store_roundtrip_includes_backend_run_context() -> None:
         ),
     )
     payload = _sample_package()
-    payload["run_context"] = {"backend_run_id": "run-live-001"}
+    payload["run_context"] = {
+        "backend_run_id": "run-live-001",
+        "windmill_run_id": "wm-run-123",
+        "windmill_job_id": "wm-job-123",
+    }
 
     persisted = service.persist(
         package_payload=payload,
@@ -334,6 +338,8 @@ def test_postgres_store_roundtrip_includes_backend_run_context() -> None:
     fetched = store.get_by_idempotency(idempotency_key="idem-postgres-roundtrip")
     assert fetched is not None
     assert fetched.package_payload["run_context"]["backend_run_id"] == "run-live-001"
+    assert fetched.package_payload["run_context"]["windmill_run_id"] == "wm-run-123"
+    assert fetched.package_payload["run_context"]["windmill_job_id"] == "wm-job-123"
 
 
 def test_postgres_store_idempotent_upsert_reuses_idempotency_key() -> None:

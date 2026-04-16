@@ -418,9 +418,14 @@ class PolicyEvidencePackageStorageService:
         normalized = package.model_dump(mode="json")
         raw_run_context = package_payload.get("run_context")
         if isinstance(raw_run_context, dict):
-            backend_run_id = raw_run_context.get("backend_run_id")
+            normalized_run_context = {
+                str(key): value for key, value in raw_run_context.items() if str(key).strip()
+            }
+            backend_run_id = normalized_run_context.get("backend_run_id")
             if backend_run_id is not None:
-                normalized["run_context"] = {"backend_run_id": str(backend_run_id)}
+                normalized_run_context["backend_run_id"] = str(backend_run_id)
+            if normalized_run_context:
+                normalized["run_context"] = normalized_run_context
         content_hash = stable_payload_hash(normalized)
 
         existing = self.store.get_by_idempotency(idempotency_key=idempotency_key)

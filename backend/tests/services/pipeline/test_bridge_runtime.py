@@ -7,6 +7,7 @@ import asyncio
 import json
 
 from services.pipeline.domain.bridge import RailwayRuntimeBridge, RunScopeRequest
+from services.pipeline.policy_evidence_package_storage import InMemoryPolicyEvidencePackageStore
 
 
 @dataclass
@@ -358,6 +359,42 @@ def test_runtime_bridge_rerun_reuses_idempotent_rows_without_duplicate_blob() ->
     assert second["steps"]["search_materialize"]["details"]["idempotent_reuse"] is True
     assert second["steps"]["index"]["details"]["idempotent_reuse"] is True
     assert len(storage.upload_calls) == 1
+
+
+def test_runtime_bridge_persists_policy_evidence_package_refs() -> None:
+    db = FakeDB()
+    storage = FakeStorage()
+    package_store = InMemoryPolicyEvidencePackageStore()
+    runtime = RailwayRuntimeBridge(
+        db=db, storage=storage, package_store=package_store
+    )  # type: ignore[arg-type]
+    runtime.search_client = FakeSearchClient(
+        [{"url": "https://www.sanjoseca.gov/agenda/1", "title": "SJ Agenda", "snippet": "Housing"}]
+    )
+    runtime.reader_client = FakeReaderClient()
+    runtime._llm_client = FakeLLMClient()
+    runtime.embedding_service = FakeEmbeddingService()
+    runtime.zai_api_key = "x"
+
+    first = asyncio.run(runtime.run_scope_pipeline(_request(idempotency_key="wm:run-scope:package")))
+    second = asyncio.run(runtime.run_scope_pipeline(_request(idempotency_key="wm:run-scope:package")))
+
+    refs = second["refs"]
+    assert refs["backend_run_id"] == first["refs"]["backend_run_id"]
+    assert refs["package_id"] == first["refs"]["package_id"]
+    assert refs["storage_status"] in {"stored", "stored_reused"}
+    assert refs["raw_scrape_id"]
+    assert refs["document_id"]
+    assert refs["selected_url"] == "https://www.sanjoseca.gov/agenda/1"
+    assert refs["reader_artifact_uri"]
+    assert refs["canonical_document_key"]
+    assert refs["fail_closed_reasons"]
+    assert len(package_store.by_idempotency) == 1
+    persisted = next(iter(package_store.by_idempotency.values()))
+    run_context = persisted.package_payload["run_context"]
+    assert run_context["backend_run_id"] == refs["backend_run_id"]
+    assert run_context["windmill_run_id"] == "wm-run-1"
+    assert run_context["windmill_job_id"] == "wm-job-1"
 
 
 def test_runtime_bridge_idempotency_is_scoped_to_jurisdiction_and_source_family() -> None:

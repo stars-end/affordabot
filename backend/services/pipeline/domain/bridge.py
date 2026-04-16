@@ -46,6 +46,13 @@ from services.pipeline.domain.storage import (
     chunk_markdown_lines,
     sha256_text,
 )
+from services.pipeline.policy_evidence_package_builder import PolicyEvidencePackageBuilder
+from services.pipeline.policy_evidence_package_storage import (
+    InMemoryPolicyEvidencePackageStore,
+    PolicyEvidencePackageStorageService,
+    PolicyEvidencePackageStore,
+    PostgresPolicyEvidencePackageStore,
+)
 from services.storage import S3Storage
 
 EMBEDDING_DIMENSIONS = 4096
@@ -128,9 +135,16 @@ class RunScopeRequest:
 class RailwayRuntimeBridge:
     """Railway-compatible runtime for persisted bridge execution."""
 
-    def __init__(self, *, db: PostgresDB, storage: S3Storage) -> None:
+    def __init__(
+        self,
+        *,
+        db: PostgresDB,
+        storage: S3Storage,
+        package_store: PolicyEvidencePackageStore | None = None,
+    ) -> None:
         self.db = db
         self.storage = storage
+        self._package_store_override = package_store
         self.search_client = create_web_search_client(api_key=os.getenv("ZAI_API_KEY"))
         self.reader_client: Any | None = None
         try:
@@ -222,6 +236,17 @@ class RailwayRuntimeBridge:
             meta=meta,
             command_responses=responses,
         )
+        package_materialization = await self._materialize_policy_evidence_package(
+            request=request,
+            run_id=run_id,
+            command_responses=responses,
+        )
+        summary.refs.update(package_materialization["refs"])
+        summary.alerts = list(
+            dict.fromkeys([*summary.alerts, *package_materialization.get("alerts", [])])
+        )
+        summary.details["policy_evidence_package"] = package_materialization
+        summary = await self._persist_response(run_id=run_id, request=request, response=summary)
         responses.append(summary)
 
         await self.db._execute(
@@ -259,6 +284,218 @@ class RailwayRuntimeBridge:
             "steps": steps,
             "storage_mode": "railway_runtime",
             "missing_runtime_adapters": [],
+        }
+
+    @staticmethod
+    def _response_by_command(
+        command_responses: list[CommandResponse], command: str
+    ) -> CommandResponse | None:
+        for response in command_responses:
+            if response.command == command:
+                return response
+        return None
+
+    @staticmethod
+    def _selected_url_from_read_fetch(read_fetch: CommandResponse | None) -> str:
+        if not read_fetch:
+            return ""
+        audit = read_fetch.details.get("candidate_audit", [])
+        if not isinstance(audit, list):
+            return ""
+        for entry in audit:
+            if not isinstance(entry, dict):
+                continue
+            if entry.get("outcome") in {"materialized_raw_scrape", "reused_existing_raw_scrape"}:
+                return str(entry.get("url") or "").strip()
+        return ""
+
+    def _resolve_package_store(self) -> PolicyEvidencePackageStore:
+        if self._package_store_override is not None:
+            return self._package_store_override
+        database_url = (
+            os.getenv("DATABASE_URL_PUBLIC", "").strip()
+            or os.getenv("DATABASE_URL", "").strip()
+        )
+        if database_url:
+            return PostgresPolicyEvidencePackageStore(database_url=database_url)
+        return InMemoryPolicyEvidencePackageStore()
+
+    async def _materialize_policy_evidence_package(
+        self,
+        *,
+        request: RunScopeRequest,
+        run_id: str,
+        command_responses: list[CommandResponse],
+    ) -> dict[str, Any]:
+        search = self._response_by_command(command_responses, "search_materialize")
+        read_fetch = self._response_by_command(command_responses, "read_fetch")
+        index = self._response_by_command(command_responses, "index")
+        analyze = self._response_by_command(command_responses, "analyze")
+
+        raw_scrape_id = ""
+        reader_artifact_uri = ""
+        if read_fetch:
+            raw_ids = read_fetch.refs.get("raw_scrape_ids", [])
+            if isinstance(raw_ids, list) and raw_ids:
+                raw_scrape_id = str(raw_ids[0])
+            artifact_refs = read_fetch.refs.get("artifact_refs", [])
+            if isinstance(artifact_refs, list) and artifact_refs:
+                reader_artifact_uri = str(artifact_refs[0])
+        document_id = str(index.refs.get("document_id", "")) if index else ""
+        selected_url = self._selected_url_from_read_fetch(read_fetch)
+
+        canonical_document_key = ""
+        content_hash = ""
+        if raw_scrape_id:
+            raw_row = await self.db._fetchrow(
+                """
+                SELECT canonical_document_key, content_hash
+                FROM raw_scrapes
+                WHERE id = $1::uuid
+                LIMIT 1
+                """,
+                raw_scrape_id,
+            )
+            if raw_row:
+                canonical_document_key = str(raw_row["canonical_document_key"] or "")
+                content_hash = str(raw_row["content_hash"] or "")
+
+        fail_closed_reasons: list[str] = []
+        if read_fetch and read_fetch.status not in {"succeeded", "succeeded_with_alerts"}:
+            fail_closed_reasons.append(f"read_fetch:{read_fetch.decision_reason}")
+        if not raw_scrape_id:
+            fail_closed_reasons.append("raw_scrape_missing")
+        if not document_id:
+            fail_closed_reasons.append("document_id_missing")
+        analyze_sufficiency = ""
+        if analyze:
+            analysis_payload = analyze.details.get("analysis", {})
+            if isinstance(analysis_payload, dict):
+                analyze_sufficiency = str(analysis_payload.get("sufficiency_state") or "").strip()
+            if analyze.status != "succeeded":
+                fail_closed_reasons.append(f"analyze:{analyze.decision_reason}")
+            elif analyze_sufficiency and analyze_sufficiency not in {"sufficient", "quantified"}:
+                fail_closed_reasons.append(f"analysis_sufficiency:{analyze_sufficiency}")
+        else:
+            fail_closed_reasons.append("analysis_missing")
+
+        package_id = f"pkg-{_hash(f'{_scope_idempotency_key(request)}|{canonical_document_key}|{selected_url}')[:24]}"
+        package_payload = PolicyEvidencePackageBuilder().build(
+            package_id=package_id,
+            jurisdiction=request.jurisdiction,
+            scraped_candidates=[
+                {
+                    "source_lane": "scrape_search",
+                    "provider": "private_searxng",
+                    "provider_run_id": request.windmill_run_id,
+                    "source_family": request.source_family,
+                    "jurisdiction": request.jurisdiction,
+                    "query_text": request.search_query,
+                    "search_snapshot_id": (
+                        str(search.refs.get("search_snapshot_id", ""))
+                        if search
+                        else f"{package_id}-snapshot"
+                    ),
+                    "candidate_rank": 1,
+                    "artifact_url": selected_url,
+                    "artifact_type": request.source_family,
+                    "content_hash": content_hash,
+                    "canonical_document_key": canonical_document_key,
+                    "reader_artifact_refs": [reader_artifact_uri] if reader_artifact_uri else [],
+                    "reader_substance_reason": (
+                        str(fail_closed_reasons[0]).split(":", 1)[-1]
+                        if fail_closed_reasons
+                        else ""
+                    ),
+                    "evidence_readiness": "insufficient" if fail_closed_reasons else "ready",
+                    "retrieved_at": "1970-01-01T00:00:00+00:00",
+                    "alerts": list(dict.fromkeys(fail_closed_reasons)),
+                    "selected_impact_mode": "qualitative_only",
+                }
+            ],
+            structured_candidates=[],
+            freshness_gate={"freshness_status": request.stale_status},
+            economic_hints={"impact_mode": "qualitative_only"},
+            storage_refs={
+                "postgres_package_row": f"policy_evidence_packages:{package_id}",
+                "reader_artifact": reader_artifact_uri or "minio://policy-evidence/unproven/pending",
+                "pgvector_chunk_ref": f"document:{document_id or 'pending'}",
+            },
+        )
+        # Keep idempotent content-hash semantics stable for reruns of the same scope key.
+        package_payload["created_at"] = "1970-01-01T00:00:00+00:00"
+        package_payload["run_context"] = {
+            "backend_run_id": run_id,
+            "windmill_run_id": request.windmill_run_id,
+            "windmill_job_id": request.windmill_job_id,
+            "windmill_workspace": request.windmill_workspace,
+            "windmill_flow_path": request.windmill_flow_path,
+            "canonical_document_key": canonical_document_key,
+            "selected_url": selected_url,
+            "reader_artifact_uri": reader_artifact_uri,
+            "raw_scrape_id": raw_scrape_id,
+            "document_id": document_id,
+            "structured_enrichment_status": "not_configured",
+            "fail_closed_reasons": list(dict.fromkeys(fail_closed_reasons)),
+        }
+        package_payload["structured_enrichment_status"] = "not_configured"
+
+        idempotency_key = f"{_scope_idempotency_key(request)}::policy_evidence_package"
+        store = self._resolve_package_store()
+        storage = PolicyEvidencePackageStorageService(store=store)
+        try:
+            storage_result = storage.persist(
+                package_payload=package_payload,
+                idempotency_key=idempotency_key,
+            )
+        except RuntimeError as exc:
+            if isinstance(store, PostgresPolicyEvidencePackageStore):
+                fallback = PolicyEvidencePackageStorageService(
+                    store=InMemoryPolicyEvidencePackageStore()
+                )
+                storage_result = fallback.persist(
+                    package_payload=package_payload,
+                    idempotency_key=idempotency_key,
+                )
+                fail_closed_reasons.append(f"postgres_store_unavailable:{exc}")
+            else:
+                raise
+        storage_status = "stored" if storage_result.stored else "store_failed"
+        if storage_result.idempotent_reuse:
+            storage_status = "stored_reused"
+
+        if storage_result.failure_class:
+            fail_closed_reasons.append(storage_result.failure_class)
+        fail_closed_reasons.extend(package_payload.get("insufficiency_reasons", []))
+        refs = {
+            "backend_run_id": run_id,
+            "package_id": storage_result.package_id if storage_result.stored else None,
+            "canonical_document_key": canonical_document_key,
+            "selected_url": selected_url,
+            "reader_artifact_uri": reader_artifact_uri,
+            "raw_scrape_id": raw_scrape_id,
+            "document_id": document_id,
+            "storage_status": storage_status,
+            "fail_closed_reasons": sorted(set(str(item) for item in fail_closed_reasons if str(item).strip())),
+        }
+        alerts = []
+        if storage_result.failure_class:
+            alerts.append(f"policy_evidence_storage:{storage_result.failure_class}")
+        if storage_result.fail_closed:
+            alerts.append("policy_evidence_fail_closed")
+        return {
+            "refs": refs,
+            "alerts": alerts,
+            "storage_result": {
+                "stored": storage_result.stored,
+                "idempotent_reuse": storage_result.idempotent_reuse,
+                "fail_closed": storage_result.fail_closed,
+                "failure_class": storage_result.failure_class,
+                "artifact_write_status": storage_result.artifact_write_status,
+                "artifact_readback_status": storage_result.artifact_readback_status,
+                "pgvector_truth_role": storage_result.pgvector_truth_role,
+            },
+            "package_payload": package_payload,
         }
 
     async def _get_or_create_run_id(self, request: RunScopeRequest) -> str:
