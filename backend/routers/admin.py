@@ -431,15 +431,24 @@ def _coerce_policy_package_runtime_matrix(
         gate_projection = _json_payload(package_payload.get("gate_projection"))
         canonical_run_id = _to_text(gate_projection.get("canonical_pipeline_run_id"))
         canonical_step_id = _to_text(gate_projection.get("canonical_pipeline_step_id"))
+        context_backend_run_id = _to_text(package_run_context.get("backend_run_id"))
         analysis_payload = _json_payload(run_result.get("analysis"))
         analysis_step_executed = bool(analysis_payload)
+        projection_matches_route = bool(
+            canonical_run_id
+            and canonical_step_id
+            and analysis_step_executed
+            and canonical_run_id == context_backend_run_id
+        )
         blocker = "canonical_llm_run_id_missing"
-        if analysis_step_executed:
+        if projection_matches_route:
+            blocker = None
+        elif analysis_step_executed:
             blocker = "analysis_step_succeeded_but_no_canonical_analysis_history"
         elif canonical_run_id:
             blocker = "canonical_llm_run_id_unverified_from_package_payload"
         llm_narrative_proof = {
-            "proof_status": "not_proven",
+            "proof_status": "pass" if projection_matches_route else "not_proven",
             "canonical_pipeline_run_id": canonical_run_id,
             "canonical_pipeline_step_id": canonical_step_id,
             "analysis_step_executed": analysis_step_executed,

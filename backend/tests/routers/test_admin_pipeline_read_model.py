@@ -107,7 +107,7 @@ def test_get_pipeline_jurisdiction_status_shape(client, mock_db):
     ]
     client.set_auth("admin")
     response = client.get("/api/admin/pipeline/jurisdictions/jur-1/status")
-    assert response.status_code == 200
+    assert response.status_code == 200, response.text
     data = response.json()
     assert data["contract_version"] == CONTRACT_VERSION
     assert data["jurisdiction_id"] == "jur-1"
@@ -147,7 +147,7 @@ def test_get_pipeline_run_detail_shape(client, mock_db):
     }
     client.set_auth("admin")
     response = client.get("/api/admin/pipeline/runs/run-2")
-    assert response.status_code == 200
+    assert response.status_code == 200, response.text
     data = response.json()
     assert data["contract_version"] == CONTRACT_VERSION
     assert data["run_id"] == "run-2"
@@ -444,6 +444,12 @@ def test_policy_evidence_analysis_status_hydrates_live_run_context_proofs(client
             "package_id": package["package_id"],
             "package_payload": {
                 **package,
+                "gate_projection": {
+                    **package["gate_projection"],
+                    "canonical_pipeline_run_id": "run-live-q4",
+                    "canonical_pipeline_step_id": "analysis-q4",
+                    "canonical_breakdown_ref": "analysis:analysis-q4",
+                },
                 "run_context": {
                     "backend_run_id": "run-live-q4",
                     "windmill_run_id": "wm-live-q4",
@@ -465,7 +471,7 @@ def test_policy_evidence_analysis_status_hydrates_live_run_context_proofs(client
     response = client.get(
         f"/api/admin/pipeline/policy-evidence/packages/{package['package_id']}/analysis-status?run_id=run-live-q4"
     )
-    assert response.status_code == 200
+    assert response.status_code == 200, response.text
     data = response.json()
     scraped_row = data["provenance"]["scraped_sources"][0]
     assert scraped_row["reader_substance_observed"] is False
@@ -476,10 +482,12 @@ def test_policy_evidence_analysis_status_hydrates_live_run_context_proofs(client
     assert "scope job id only" in data["gates"]["Windmill/orchestration"]["reason"]
     windmill_ref_keys = {ref["key"] for ref in data["gates"]["Windmill/orchestration"]["refs"]}
     assert "windmill_scope_job_id" in windmill_ref_keys
-    assert data["gates"]["LLM narrative"]["status"] == "not_proven"
-    assert "analysis step appears to have succeeded" in data["gates"]["LLM narrative"]["reason"]
-    llm_ref_keys = {ref["key"] for ref in data["gates"]["LLM narrative"]["refs"]}
-    assert "analysis_step_executed" in llm_ref_keys
+    assert data["gates"]["LLM narrative"]["status"] == "pass"
+    assert data["canonical_analysis_binding"]["status"] == "bound"
+    assert data["canonical_analysis_binding"]["package_projection"] == {
+        "canonical_pipeline_run_id": "run-live-q4",
+        "canonical_pipeline_step_id": "analysis-q4",
+    }
     if "missing_evidence" in data["economic_output"]:
         assert all(
             not str(item).startswith("reader:")
