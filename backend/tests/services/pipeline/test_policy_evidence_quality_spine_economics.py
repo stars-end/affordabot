@@ -124,6 +124,58 @@ def test_read_model_output_is_display_only_no_recompute() -> None:
     assert read_model["analysis_handoff"]["parallel_engine_created"] is False
 
 
+def test_endpoint_read_model_exposes_economic_handoff_contract_fields() -> None:
+    bundle = PolicyEconomicMechanismCaseService().build_case_bundle()
+    direct = _case(bundle, "direct_cost_case")
+    package = direct["primary_package"]
+    matrix = _matrix_with_runtime_evidence(
+        package,
+        orchestration_proof={
+            "proof_status": "pass",
+            "proof_mode": "current_run",
+            "linked_to_current_vertical_package": True,
+            "windmill_run_id": "wm-run-live",
+            "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+            "windmill_platform_job_id": "wm-platform-job-live",
+        },
+        llm_narrative_proof={
+            "proof_status": "pass",
+            "canonical_pipeline_run_id": package["gate_projection"]["canonical_pipeline_run_id"],
+            "canonical_pipeline_step_id": package["gate_projection"]["canonical_pipeline_step_id"],
+            "source": "unit_test",
+        },
+        storage_proof={
+            "proof_status": "pass",
+            "proof_mode": "postgres_minio_live",
+            "store_backend": "postgres",
+            "artifact_probe_backend": "minio",
+            "persisted_record_id": "pkg-row-1",
+            "minio_readback_proven": True,
+        },
+    )
+    read_model = PolicyEvidenceQualitySpineEconomicsService().build_endpoint_read_model(
+        matrix_input=MatrixInput(
+            payload=matrix,
+            source_path="horizontal_matrix.json",
+            source_mode="agent_a_horizontal_matrix",
+        ),
+        package_id=package["package_id"],
+        source_family="meeting_minutes",
+        run_context={"run_id": package["gate_projection"]["canonical_pipeline_run_id"]},
+    )
+
+    assert "economic_handoff_quality" in read_model
+    assert "mechanism_candidates" in read_model
+    assert "parameter_inventory" in read_model
+    assert "missing_parameters" in read_model
+    assert "assumption_needs" in read_model
+    assert "secondary_research_needs" in read_model
+    assert "unsupported_claim_risks" in read_model
+    assert "recommended_next_action" in read_model
+    assert read_model["manual_audit_scaffold"]["status"] == "required"
+    assert read_model["economic_handoff_quality"]["status"] in {"ready", "not_ready"}
+
+
 def test_fallback_vs_real_matrix_labeling() -> None:
     bundle = PolicyEconomicMechanismCaseService().build_case_bundle()
     direct = _case(bundle, "direct_cost_case")

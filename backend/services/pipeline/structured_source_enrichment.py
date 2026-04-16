@@ -23,6 +23,18 @@ def _is_san_jose_jurisdiction(value: str) -> bool:
     return "san_jose" in normalized or "san-jose" in normalized
 
 
+def _policy_match_key_for_url(value: str) -> str:
+    raw = str(value or "").strip().lower()
+    if not raw:
+        return ""
+    if "legistar.com" in raw:
+        for token in ("guid=", "id=", "key=", "legid="):
+            if token in raw:
+                return f"legistar::{token.rstrip('=')}::{raw.split(token, 1)[1].split('&', 1)[0]}"
+        return f"legistar::{raw}"
+    return raw
+
+
 _ECONOMIC_DATASET_TOKENS = {
     "housing",
     "rent",
@@ -170,6 +182,9 @@ class StructuredSourceEnricher:
                 item["live_proven"] = False
             else:
                 item["runtime_status"] = item.get("runtime_status") or "cataloged"
+                item["live_proven"] = False
+            if str(item.get("lane_classification") or "").strip() == "secondary_search_derived":
+                item["runtime_status"] = "cataloged"
                 item["live_proven"] = False
             annotated.append(item)
         return annotated
@@ -359,6 +374,10 @@ class StructuredSourceEnricher:
             "secondary_search": True,
             "secondary_search_scope": "bounded_max_results_5",
             "secondary_search_parent_source_family": str(source_family or "").strip() or "unknown",
+            "true_structured": False,
+            "policy_match_key": _policy_match_key_for_url(primary_url),
+            "policy_match_confidence": 0.25,
+            "reconciliation_status": "secondary_search_derived_not_authoritative",
         }
 
     @staticmethod
@@ -499,6 +518,17 @@ class StructuredSourceEnricher:
             "provider_run_id": str(matter_id),
             "linked_artifact_refs": file_refs,
             "reader_artifact_refs": [],
+            "true_structured": True,
+            "policy_match_key": _policy_match_key_for_url(selected_url or matter_url),
+            "policy_match_confidence": 0.95,
+            "reconciliation_status": "pending_primary_reconciliation",
+            "lineage_metadata": {
+                "jurisdiction": "san_jose_ca",
+                "matter_id": str(matter_id),
+                "event_date": None,
+                "event_body_id": None,
+                "source_identity": "legistar_web_api",
+            },
         }
 
     async def _fetch_legistar_event_metadata(
@@ -551,6 +581,17 @@ class StructuredSourceEnricher:
             "structured_policy_facts": facts,
             "diagnostic_facts": diagnostic_facts,
             "provider_run_id": str(event_id),
+            "true_structured": True,
+            "policy_match_key": _policy_match_key_for_url(event_url),
+            "policy_match_confidence": 0.6,
+            "reconciliation_status": "latest_event_fallback_unreconciled",
+            "lineage_metadata": {
+                "jurisdiction": "san_jose_ca",
+                "matter_id": None,
+                "event_date": event_date or None,
+                "event_body_id": str(event_body_id) if isinstance(event_body_id, int) else None,
+                "source_identity": "legistar_web_api",
+            },
         }
 
     async def _fetch_san_jose_ckan_metadata(
@@ -636,4 +677,15 @@ class StructuredSourceEnricher:
             ],
             "provider_run_id": str(total_count),
             "linked_artifact_refs": top_dataset_urls,
+            "true_structured": True,
+            "policy_match_key": _policy_match_key_for_url(selected_url),
+            "policy_match_confidence": 0.45,
+            "reconciliation_status": "contextual_metadata_linked_to_policy_query",
+            "lineage_metadata": {
+                "jurisdiction": "san_jose_ca",
+                "matter_id": None,
+                "event_date": None,
+                "event_body_id": None,
+                "source_identity": "san_jose_open_data_ckan",
+            },
         }

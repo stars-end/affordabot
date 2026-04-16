@@ -339,6 +339,15 @@ def test_policy_evidence_analysis_status_surfaces_provenance_and_not_proven_gate
         assert data["economic_output"]["user_facing_conclusion"] is None
     assert "parameter_readiness" in data["economic_readiness"]
     assert "unsupported_claim_rejection" in data["economic_readiness"]
+    assert "economic_handoff_quality" in data
+    assert "mechanism_candidates" in data
+    assert "parameter_inventory" in data
+    assert "missing_parameters" in data
+    assert "assumption_needs" in data
+    assert "secondary_research_needs" in data
+    assert "unsupported_claim_risks" in data
+    assert "recommended_next_action" in data
+    assert data["manual_audit_scaffold"]["status"] == "required"
 
 
 def test_policy_evidence_analysis_status_fail_closed_case_blocks_quantified_conclusion(

@@ -445,6 +445,50 @@ class PolicyEvidenceQualitySpineEconomicsService:
             sufficiency=sufficiency,
             canonical_binding=canonical_analysis_binding,
         )
+        mechanism_candidates = self._build_mechanism_candidates(
+            package=package,
+            vertical=vertical,
+            rubric=rubric,
+        )
+        parameter_inventory = self._build_parameter_inventory(package=package)
+        assumption_needs = self._build_assumption_needs(
+            package=package,
+            mechanism_type=str(vertical.get("mechanism_type") or "direct"),
+        )
+        unsupported_claim_risks = self._build_unsupported_claim_risks(
+            package=package,
+            vertical=vertical,
+        )
+        secondary_research_needs = self._build_secondary_research_needs(
+            secondary_research=secondary_research,
+            required_evidence_gaps=required_evidence_gaps,
+            canonical_binding=canonical_analysis_binding,
+        )
+        recommended_next_action = self._recommend_next_action(
+            analysis_status=analysis_status,
+            taxonomy=taxonomy,
+            secondary_research=secondary_research,
+            canonical_binding=canonical_analysis_binding,
+        )
+        economic_handoff_quality = {
+            "status": (
+                "ready"
+                if analysis_status["status"] == "decision_grade"
+                and canonical_analysis_binding["status"] == "bound"
+                else "not_ready"
+            ),
+            "decision_grade_verdict": decision_grade["verdict"],
+            "readiness_level": readiness_level,
+            "analysis_status": analysis_status["status"],
+            "canonical_binding_status": canonical_analysis_binding["status"],
+            "mechanism_candidates": mechanism_candidates,
+            "parameter_inventory": parameter_inventory,
+            "missing_parameters": parameter_inventory["missing_parameters"],
+            "assumption_needs": assumption_needs,
+            "secondary_research_needs": secondary_research_needs,
+            "unsupported_claim_risks": unsupported_claim_risks,
+            "recommended_next_action": recommended_next_action,
+        }
         quant_model_payload = [
             {
                 "model_id": card.id,
@@ -624,6 +668,21 @@ class PolicyEvidenceQualitySpineEconomicsService:
                 "uncertainty_notes": vertical["uncertainty_notes"],
             },
             "secondary_research": secondary_research,
+            "economic_handoff_quality": economic_handoff_quality,
+            "mechanism_candidates": mechanism_candidates,
+            "parameter_inventory": parameter_inventory,
+            "missing_parameters": parameter_inventory["missing_parameters"],
+            "assumption_needs": assumption_needs,
+            "secondary_research_needs": secondary_research_needs,
+            "unsupported_claim_risks": unsupported_claim_risks,
+            "recommended_next_action": recommended_next_action,
+            "manual_audit_scaffold": self._build_manual_audit_scaffold(
+                package=package,
+                taxonomy=taxonomy,
+                analysis_status=analysis_status,
+                canonical_binding=canonical_analysis_binding,
+                secondary_research=secondary_research,
+            ),
             "canonical_analysis_binding": canonical_analysis_binding,
             "economic_output": economic_output,
         }
@@ -821,6 +880,206 @@ class PolicyEvidenceQualitySpineEconomicsService:
                 "readiness_target": PackageReadinessLevel.ECONOMIC_HANDOFF_READY.value,
                 "current_readiness": readiness_level,
             },
+        }
+
+    @staticmethod
+    def _build_mechanism_candidates(
+        *,
+        package: PolicyEvidencePackage,
+        vertical: dict[str, Any],
+        rubric: dict[str, Any],
+    ) -> list[dict[str, Any]]:
+        mechanism_type = str(vertical.get("mechanism_type") or "direct")
+        direct_status = (
+            "pass"
+            if mechanism_type == "direct"
+            and str(((vertical.get("direct_fee_model_card") or {}).get("status") or "")) == "pass"
+            else "not_proven"
+        )
+        indirect_assumptions = [
+            card
+            for card in package.assumption_cards
+            if card.family in {MechanismFamily.FEE_OR_TAX_PASS_THROUGH, MechanismFamily.ADOPTION_TAKE_UP}
+        ]
+        indirect_status = "pass" if indirect_assumptions else "not_proven"
+        return [
+            {
+                "mechanism_type": "direct",
+                "status": direct_status,
+                "reason": str(
+                    ((vertical.get("direct_fee_model_card") or {}).get("reason") or "direct model card not proven")
+                ),
+                "supported_model_card_ids": [
+                    card.id for card in package.model_cards if card.mechanism_family == MechanismFamily.DIRECT_FISCAL
+                ],
+            },
+            {
+                "mechanism_type": "indirect",
+                "status": indirect_status,
+                "reason": (
+                    "source-bound pass-through/adoption assumptions present"
+                    if indirect_status == "pass"
+                    else "pass-through/adoption assumptions missing"
+                ),
+                "supported_assumption_ids": [card.id for card in indirect_assumptions],
+            },
+            {
+                "mechanism_type": mechanism_type,
+                "status": str(rubric.get("mechanism_graph_validity", {}).get("status") or "not_proven"),
+                "reason": str(rubric.get("mechanism_graph_validity", {}).get("details") or "mechanism graph not proven"),
+            },
+        ]
+
+    @staticmethod
+    def _build_parameter_inventory(*, package: PolicyEvidencePackage) -> dict[str, Any]:
+        resolved: list[dict[str, Any]] = []
+        missing: list[dict[str, Any]] = []
+        for card in package.parameter_cards:
+            payload = {
+                "parameter_id": card.id,
+                "name": card.parameter_name,
+                "state": card.state.value,
+                "unit": card.unit,
+                "source_url": None if card.source_url is None else str(card.source_url),
+                "evidence_card_id": card.evidence_card_id,
+                "ambiguity_reason": card.ambiguity_reason,
+            }
+            if card.state.value == "resolved":
+                resolved.append(payload)
+            else:
+                missing.append(payload)
+        return {
+            "resolved_count": len(resolved),
+            "missing_count": len(missing),
+            "resolved_parameters": resolved,
+            "missing_parameters": missing,
+        }
+
+    @staticmethod
+    def _build_assumption_needs(*, package: PolicyEvidencePackage, mechanism_type: str) -> dict[str, Any]:
+        required_families = (
+            [MechanismFamily.FEE_OR_TAX_PASS_THROUGH, MechanismFamily.ADOPTION_TAKE_UP]
+            if mechanism_type == "indirect"
+            else [MechanismFamily.DIRECT_FISCAL]
+        )
+        assumption_by_family = {card.family: card for card in package.assumption_cards}
+        missing_families = [
+            family.value for family in required_families if family not in assumption_by_family
+        ]
+        return {
+            "status": "pass" if not missing_families else "not_proven",
+            "required_families": [family.value for family in required_families],
+            "missing_families": missing_families,
+            "assumption_count": len(package.assumption_cards),
+            "assumption_ids": [card.id for card in package.assumption_cards],
+        }
+
+    @staticmethod
+    def _build_secondary_research_needs(
+        *,
+        secondary_research: dict[str, Any],
+        required_evidence_gaps: list[str],
+        canonical_binding: dict[str, Any],
+    ) -> dict[str, Any]:
+        status = str(secondary_research.get("status") or "not_required")
+        request_contract = secondary_research.get("request_contract")
+        return {
+            "status": "required" if status == "required" else "not_required",
+            "reason": str(secondary_research.get("reason") or "secondary research not required"),
+            "required_evidence_gaps": required_evidence_gaps,
+            "request_contract_id": (
+                request_contract.get("request_id")
+                if isinstance(request_contract, dict)
+                else None
+            ),
+            "canonical_binding_required": canonical_binding.get("status") == "bound",
+        }
+
+    @staticmethod
+    def _build_unsupported_claim_risks(
+        *,
+        package: PolicyEvidencePackage,
+        vertical: dict[str, Any],
+    ) -> dict[str, Any]:
+        unsupported = vertical.get("unsupported_claim_rejection") or {}
+        status = str(unsupported.get("status") or "none")
+        risk_level = "high" if status == "rejected" else "low"
+        return {
+            "status": status,
+            "risk_level": risk_level,
+            "reason": str(unsupported.get("reason") or "none"),
+            "unsupported_claim_count": package.gate_report.unsupported_claim_count,
+        }
+
+    @staticmethod
+    def _recommend_next_action(
+        *,
+        analysis_status: dict[str, str],
+        taxonomy: dict[str, dict[str, str]],
+        secondary_research: dict[str, Any],
+        canonical_binding: dict[str, Any],
+    ) -> str:
+        if analysis_status.get("status") == "decision_grade":
+            return "proceed_with_canonical_economic_analysis"
+        if taxonomy.get("storage/read-back", {}).get("status") != "pass":
+            return "resolve_storage_readback_and_replay_proof"
+        if taxonomy.get("Windmill/orchestration", {}).get("status") != "pass":
+            return "bind_current_windmill_run_ids_to_package_and_run_state"
+        if canonical_binding.get("status") != "bound":
+            return "bind_package_to_canonical_analysis_run_and_step"
+        if secondary_research.get("status") == "required":
+            return "execute_secondary_research_request_contract"
+        return "complete_manual_audit_and_recheck_gates"
+
+    @staticmethod
+    def _build_manual_audit_scaffold(
+        *,
+        package: PolicyEvidencePackage,
+        taxonomy: dict[str, dict[str, str]],
+        analysis_status: dict[str, str],
+        canonical_binding: dict[str, Any],
+        secondary_research: dict[str, Any],
+    ) -> dict[str, Any]:
+        return {
+            "status": "required",
+            "checklist": [
+                {
+                    "id": "audit_identity_and_provenance",
+                    "description": "Verify canonical_document_key and every evidence/parameter card trace to source artifacts or rows.",
+                    "gate": "D6",
+                },
+                {
+                    "id": "audit_storage_readback_replay",
+                    "description": "Verify Postgres row, MinIO readback, pgvector refs, and replay/idempotent proof mode.",
+                    "gate": "D7",
+                },
+                {
+                    "id": "audit_windmill_binding",
+                    "description": "Verify current windmill run/job ids are linked to package and backend run state.",
+                    "gate": "D9",
+                },
+                {
+                    "id": "audit_economic_handoff_contract",
+                    "description": "Verify mechanism candidates, parameter inventory, assumptions, unsupported-claim risks, and next action are machine-actionable.",
+                    "gate": "D11",
+                },
+            ],
+            "current_gate_status": {
+                "D6": taxonomy.get("identity/dedupe", {}).get("status"),
+                "D7": taxonomy.get("storage/read-back", {}).get("status"),
+                "D9": taxonomy.get("Windmill/orchestration", {}).get("status"),
+                "D11": analysis_status.get("status"),
+            },
+            "canonical_binding_status": canonical_binding.get("status"),
+            "secondary_research_status": secondary_research.get("status"),
+            "evidence_refs": [
+                {
+                    "evidence_card_id": card.id,
+                    "source_url": str(card.source_url),
+                    "artifact_id": card.artifact_id,
+                }
+                for card in package.evidence_cards
+            ],
         }
 
     @staticmethod

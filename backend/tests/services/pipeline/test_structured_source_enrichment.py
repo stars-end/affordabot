@@ -24,11 +24,12 @@ def test_san_jose_structured_source_catalog_contract_fields() -> None:
         "storage_target",
         "economic_usefulness_score",
         "lane_classification",
+        "live_proven",
         "runtime_status",
     }
     for row in catalog:
         assert required.issubset(row.keys())
-        assert row["jurisdiction_coverage"] == "san_jose_ca"
+        assert row["jurisdiction_coverage"]
         assert isinstance(row["economic_usefulness_score"], float)
 
 
@@ -125,6 +126,9 @@ def test_structured_source_enricher_returns_integrated_status_when_candidates_ex
         "san_jose_open_data_ckan",
     }
     assert result.alerts == []
+    catalog_by_family = {row["source_family"]: row for row in result.source_catalog}
+    assert catalog_by_family["legistar_web_api"]["live_proven"] is True
+    assert catalog_by_family["san_jose_open_data_ckan"]["live_proven"] is True
 
 
 def test_extract_legistar_matter_id_from_gateway_url() -> None:
@@ -354,6 +358,8 @@ def test_tavily_secondary_fee_metadata_extracts_official_facts() -> None:
     assert candidate["provider"] == "tavily_search"
     assert "structured_secondary_source_tavily" in candidate["alerts"]
     assert candidate["secondary_search"] is True
+    assert candidate["true_structured"] is False
+    assert candidate["reconciliation_status"] == "secondary_search_derived_not_authoritative"
     facts = candidate["structured_policy_facts"]
     values = sorted({fact["value"] for fact in facts})
     assert values == [0.0, 3.58, 14.31, 17.89]

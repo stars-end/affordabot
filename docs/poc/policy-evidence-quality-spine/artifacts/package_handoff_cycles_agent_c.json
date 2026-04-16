@@ -1,0 +1,96 @@
+{
+  "feature_key": "bd-3wefe.13",
+  "worker_role": "Agent C - Unified Package + Economic Handoff",
+  "cycles": [
+    {
+      "cycle_id": "C1",
+      "gate_targeted": "D6",
+      "tweak": "Canonical dedupe by (canonical_document_key, content_hash) with stable precedence in package builder.",
+      "validation_command": "poetry run pytest backend/tests/services/pipeline/test_policy_evidence_package_builder.py::test_builder_dedupes_duplicate_candidates_without_double_counting_cards",
+      "before_after_or_blocker": "Before duplicate candidates could inflate evidence counts; after one card is emitted per canonical artifact hash.",
+      "impact_on_package_quality": "Prevents double-counting and hardens unified package identity.",
+      "next_tweak": "Propagate provenance hash to storage refs."
+    },
+    {
+      "cycle_id": "C2",
+      "gate_targeted": "D6,D7",
+      "tweak": "Added content_hash propagation for Postgres/MinIO/pgvector storage refs.",
+      "validation_command": "poetry run pytest backend/tests/services/pipeline/test_policy_evidence_package_builder.py::test_builder_storage_refs_propagate_content_hash_for_provenance",
+      "before_after_or_blocker": "Before storage refs were hash-light; after each ref carries canonical content hash when available.",
+      "impact_on_package_quality": "Improves row/artifact/index provenance linkage.",
+      "next_tweak": "Add manual audit dedupe note."
+    },
+    {
+      "cycle_id": "C3",
+      "gate_targeted": "D10",
+      "tweak": "Builder manual audit note now includes dedupe count and provenance intent.",
+      "validation_command": "poetry run pytest backend/tests/services/pipeline/test_policy_evidence_package_builder.py",
+      "before_after_or_blocker": "Before note was generic; after note includes canonical dedupe evidence.",
+      "impact_on_package_quality": "Improves deterministic manual audit quality.",
+      "next_tweak": "Bind package identity in bridge run_context."
+    },
+    {
+      "cycle_id": "C4",
+      "gate_targeted": "D9",
+      "tweak": "Bridge run_context now includes scope idempotency and package_identity block.",
+      "validation_command": "poetry run pytest backend/tests/services/pipeline/test_bridge_runtime.py -k policy_evidence_package",
+      "before_after_or_blocker": "Before package identity was fragmented; after run-context has a canonical identity object.",
+      "impact_on_package_quality": "Strengthens Windmill/job/package binding.",
+      "next_tweak": "Add explicit proof mode flags."
+    },
+    {
+      "cycle_id": "C5",
+      "gate_targeted": "D7,D9",
+      "tweak": "Bridge emits storage proof mode and idempotent replay refs plus run_context proof_modes.",
+      "validation_command": "poetry run pytest backend/tests/services/pipeline/test_bridge_runtime.py -k idempotent",
+      "before_after_or_blocker": "Before direct vs indirect proof mode was implicit; after proof mode is machine-readable.",
+      "impact_on_package_quality": "Improves replay/readback interpretability in downstream read models.",
+      "next_tweak": "Add unified economic_handoff_quality contract."
+    },
+    {
+      "cycle_id": "C6",
+      "gate_targeted": "D11",
+      "tweak": "Economics read model emits top-level economic_handoff_quality object.",
+      "validation_command": "poetry run pytest backend/tests/services/pipeline/test_policy_evidence_quality_spine_economics.py::test_endpoint_read_model_exposes_economic_handoff_contract_fields",
+      "before_after_or_blocker": "Before handoff state was scattered; after one object summarizes readiness and binding.",
+      "impact_on_package_quality": "Creates clear decision surface for downstream consumers.",
+      "next_tweak": "Emit mechanism and parameter inventories."
+    },
+    {
+      "cycle_id": "C7",
+      "gate_targeted": "D11",
+      "tweak": "Added mechanism_candidates, parameter_inventory, missing_parameters, assumption_needs, unsupported_claim_risks, recommended_next_action.",
+      "validation_command": "poetry run pytest backend/tests/services/pipeline/test_policy_evidence_quality_spine_economics.py",
+      "before_after_or_blocker": "Before direct/indirect readiness and missing-data contracts were implicit; after they are explicit.",
+      "impact_on_package_quality": "Improves mechanism readiness and assumption governance traceability.",
+      "next_tweak": "Project secondary research needs explicitly."
+    },
+    {
+      "cycle_id": "C8",
+      "gate_targeted": "D11,E-gate bridge",
+      "tweak": "Added secondary_research_needs projection tied to request_contract and canonical binding requirement.",
+      "validation_command": "poetry run pytest backend/tests/services/pipeline/test_policy_evidence_quality_spine_economics.py -k secondary_research",
+      "before_after_or_blocker": "Before secondary research existed as raw contract only; after readiness projection is explicit.",
+      "impact_on_package_quality": "Improves fail-closed but actionable handoff behavior.",
+      "next_tweak": "Add manual audit scaffold contract."
+    },
+    {
+      "cycle_id": "C9",
+      "gate_targeted": "D10",
+      "tweak": "Added manual_audit_scaffold checklist mapped to D6/D7/D9/D11 with evidence refs.",
+      "validation_command": "poetry run pytest backend/tests/services/pipeline/test_policy_evidence_quality_spine_economics.py::test_endpoint_read_model_exposes_economic_handoff_contract_fields",
+      "before_after_or_blocker": "Before manual review was free-form; after checklist is deterministic and gate-mapped.",
+      "impact_on_package_quality": "Forces human-auditable handoff inspection discipline.",
+      "next_tweak": "Lock endpoint contract assertions in admin tests."
+    },
+    {
+      "cycle_id": "C10",
+      "gate_targeted": "D10,D11",
+      "tweak": "Admin read-model tests now assert new economic handoff and manual audit contract fields.",
+      "validation_command": "poetry run pytest backend/tests/routers/test_admin_pipeline_read_model.py::test_policy_evidence_analysis_status_surfaces_provenance_and_not_proven_gates",
+      "before_after_or_blocker": "Before endpoint contract could regress silently; after tests enforce required fields.",
+      "impact_on_package_quality": "Hardens admin/read-model truth for package handoff.",
+      "next_tweak": "Run targeted regression and git diff check."
+    }
+  ]
+}

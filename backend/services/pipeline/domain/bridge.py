@@ -565,6 +565,23 @@ class RailwayRuntimeBridge:
             }
             for item in candidate_pool
         ]
+        portal_skip_count = sum(
+            1
+            for item in candidate_audit
+            if str(item.get("outcome") or "").strip() == "reader_prefetch_skipped_low_value_portal"
+        )
+        official_reader_error_count = sum(
+            1
+            for item in candidate_audit
+            if str(item.get("outcome") or "").strip() == "reader_provider_error"
+            and bool(item.get("candidate_is_official_artifact"))
+        )
+        fallback_materialization_count = sum(
+            1
+            for item in candidate_audit
+            if str(item.get("outcome") or "").strip() == "materialized_raw_scrape"
+            and int(item.get("rank") or 0) > 1
+        )
         return {
             "top_n_window": top_n_window,
             "top_n_official_recall_count": official_recall,
@@ -576,6 +593,9 @@ class RailwayRuntimeBridge:
             "secondary_numeric_rescue_detected": secondary_lane_used
             and secondary_numeric_parameter_count > 0,
             "secondary_numeric_parameter_count": secondary_numeric_parameter_count,
+            "portal_skip_count": portal_skip_count,
+            "official_reader_error_count": official_reader_error_count,
+            "fallback_materialization_count": fallback_materialization_count,
             "provider_summary": {
                 "primary_provider": search_provider,
                 "provider_error_count": len(reader_provider_errors),
@@ -605,21 +625,28 @@ class RailwayRuntimeBridge:
 
         if explicit_label:
             provider = explicit_label
+            provider_source = "client_label"
         elif "searxng" in class_key or "searx" in class_key:
             provider = "private_searxng"
+            provider_source = "class_inference"
         elif "tavily" in class_key:
             provider = "tavily"
+            provider_source = "class_inference"
         elif "exa" in class_key:
             provider = "exa"
+            provider_source = "class_inference"
         elif "zai" in class_key:
             provider = "zai_search"
+            provider_source = "class_inference"
         else:
             provider = configured_provider or "other"
+            provider_source = "env_fallback" if configured_provider else "unknown"
 
         endpoint = str(getattr(client, "endpoint", "") or "").strip()
         endpoint_host = urlsplit(endpoint).netloc if endpoint else ""
         return {
             "provider": provider,
+            "provider_source": provider_source,
             "client_class": class_name,
             "configured_provider": configured_provider or None,
             "endpoint_host": endpoint_host or None,
@@ -662,30 +689,264 @@ class RailwayRuntimeBridge:
     ) -> tuple[list[dict[str, Any]], list[str]]:
         facts: list[dict[str, Any]] = []
         alerts: list[str] = []
-        seen: set[float] = set()
-        for text in cls._analysis_text_parts(analyze):
+        seen: set[tuple[float, str]] = set()
+        for chunk_index, text in enumerate(cls._analysis_text_parts(analyze), start=1):
             lowered = text.lower()
             if not any(signal in lowered for signal in ("fee", "fees", "per sq", "square foot", "sq. ft")):
                 continue
             if re.search(r"\$[0-9]+(?:\.[0-9]+){2,}", text):
                 alerts.append("primary_parameter_money_format_anomaly")
+                malformed_match = re.search(r"\$[0-9]+(?:\.[0-9]+){2,}", text)
+                if malformed_match is not None:
+                    facts.append(
+                        {
+                            "field": "commercial_linkage_fee_rate_usd_per_sqft",
+                            "raw_value": malformed_match.group(0),
+                            "normalized_value": None,
+                            "unit": "usd_per_square_foot",
+                            "denominator": "per_square_foot",
+                            "category": "unknown",
+                            "source_url": selected_url,
+                            "source_excerpt": text[:600],
+                            "source_locator": f"analysis_chunk:{chunk_index}",
+                            "provenance_lane": "primary_scraped_document",
+                            "source_hierarchy_status": "bill_or_reg_text",
+                            "confidence": 0.35,
+                            "ambiguity_flag": True,
+                            "ambiguity_reason": "currency_format_anomaly",
+                            "currency_sanity": "invalid",
+                            "unit_sanity": "valid",
+                            "effective_date": None,
+                        }
+                    )
             for match in re.finditer(r"\$([0-9]+(?:\.[0-9]{1,2})?)(?![\d.])", text):
+                raw_token = match.group(0)
                 value = float(match.group(1))
-                if value in seen:
+                category = "unknown"
+                context_window = lowered[max(0, match.start() - 80) : match.end() + 80]
+                if "office" in context_window:
+                    category = "office"
+                elif "retail" in context_window:
+                    category = "retail"
+                elif "hotel" in context_window:
+                    category = "hotel"
+                elif "industrial" in context_window:
+                    category = "industrial"
+                dedupe_key = (value, category)
+                if dedupe_key in seen:
                     continue
-                seen.add(value)
+                seen.add(dedupe_key)
+                effective_date = None
+                date_match = re.search(
+                    r"(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{1,2},\s+\d{4}",
+                    lowered,
+                )
+                if date_match:
+                    effective_date = date_match.group(0)
                 facts.append(
                     {
                         "field": "commercial_linkage_fee_rate_usd_per_sqft",
+                        "raw_value": raw_token,
                         "value": value,
+                        "normalized_value": value,
                         "unit": "usd_per_square_foot",
+                        "denominator": "per_square_foot",
+                        "category": category,
                         "source_url": selected_url,
                         "source_excerpt": text[:600],
+                        "source_locator": f"analysis_chunk:{chunk_index}",
                         "provenance_lane": "primary_scraped_document",
                         "source_hierarchy_status": "bill_or_reg_text",
+                        "confidence": 0.82,
+                        "ambiguity_flag": False,
+                        "ambiguity_reason": None,
+                        "currency_sanity": "valid",
+                        "unit_sanity": "valid",
+                        "effective_date": effective_date,
                     }
                 )
         return facts, sorted(set(alerts))
+
+    @staticmethod
+    def _detect_source_shape_drift(search_candidates: list[dict[str, Any]]) -> dict[str, Any]:
+        missing_url = 0
+        missing_snippet = 0
+        for item in search_candidates:
+            if not isinstance(item, dict):
+                continue
+            if not str(item.get("url") or item.get("link") or "").strip():
+                missing_url += 1
+            snippet = str(item.get("snippet") or item.get("content") or "").strip()
+            if not snippet:
+                missing_snippet += 1
+        drift_detected = missing_url > 0 or missing_snippet > 0
+        return {
+            "drift_detected": drift_detected,
+            "missing_url_count": missing_url,
+            "missing_snippet_count": missing_snippet,
+            "candidate_count": len(search_candidates),
+        }
+
+    @classmethod
+    def _build_policy_lineage(
+        cls,
+        *,
+        selected_url: str,
+        source_family: str,
+        candidate_audit: list[dict[str, Any]],
+        structured_candidates: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        selected_family = cls._classify_selected_artifact_family(selected_url)
+        expected_source_families = [
+            "authoritative_policy_text",
+            "meeting_context",
+            "staff_fiscal_context",
+            "related_attachments",
+        ]
+        has_authoritative_text = selected_family == "artifact"
+        has_meeting_context = "meeting" in source_family.lower() or any(
+            isinstance(item, dict)
+            and (
+                "meeting" in str(item.get("url") or "").lower()
+                or "agenda" in str(item.get("url") or "").lower()
+            )
+            for item in candidate_audit
+        )
+        has_staff_fiscal_context = any(
+            "fiscal" in str(item).lower() or "fee" in str(item).lower() or "budget" in str(item).lower()
+            for item in structured_candidates
+        )
+        related_artifacts = [
+            str(item.get("url") or "").strip()
+            for item in candidate_audit
+            if isinstance(item, dict)
+            and str(item.get("url") or "").strip()
+            and str(item.get("url") or "").strip() != selected_url
+            and _is_concrete_artifact_url(str(item.get("url") or ""))
+        ]
+        has_related_artifacts = bool(related_artifacts)
+
+        found_flags = {
+            "authoritative_policy_text": has_authoritative_text,
+            "meeting_context": has_meeting_context,
+            "staff_fiscal_context": has_staff_fiscal_context,
+            "related_attachments": has_related_artifacts,
+        }
+        negative_evidence = [
+            {
+                "source_family": family,
+                "status": "not_found",
+                "reason": "lineage_search_missing_in_current_package",
+            }
+            for family, found in found_flags.items()
+            if not found
+        ]
+        return {
+            "selected_artifact_family": selected_family,
+            "expected_source_families": expected_source_families,
+            "lineage_presence": found_flags,
+            "related_artifacts": related_artifacts[:5],
+            "negative_evidence": negative_evidence,
+            "lineage_completeness_score": sum(1 for found in found_flags.values() if found) / len(found_flags),
+        }
+
+    @staticmethod
+    def _collect_secondary_numeric_facts(structured_candidates: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        collected: list[dict[str, Any]] = []
+        for candidate in structured_candidates:
+            if not isinstance(candidate, dict):
+                continue
+            source_family = str(candidate.get("source_family") or "").strip().lower()
+            facts = candidate.get("structured_policy_facts")
+            if not isinstance(facts, list):
+                continue
+            for fact in facts:
+                if not isinstance(fact, dict):
+                    continue
+                value = fact.get("normalized_value", fact.get("value"))
+                if isinstance(value, str):
+                    try:
+                        value = float(value.replace(",", "").strip())
+                    except ValueError:
+                        value = None
+                if not isinstance(value, (int, float)):
+                    continue
+                collected.append(
+                    {
+                        "field": str(fact.get("field") or "unknown_parameter"),
+                        "normalized_value": float(value),
+                        "source_family": source_family or "unknown",
+                        "source_url": str(fact.get("source_url") or candidate.get("artifact_url") or "").strip(),
+                        "source_excerpt": str(fact.get("source_excerpt") or "").strip(),
+                    }
+                )
+        return collected
+
+    @staticmethod
+    def _reconcile_parameter_sources(
+        *,
+        primary_facts: list[dict[str, Any]],
+        secondary_facts: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        primary_index: dict[str, float] = {}
+        for fact in primary_facts:
+            field = str(fact.get("field") or "unknown_parameter")
+            value = fact.get("normalized_value", fact.get("value"))
+            if isinstance(value, (int, float)):
+                primary_index[field] = float(value)
+        reconciliation: list[dict[str, Any]] = []
+        for secondary in secondary_facts:
+            field = str(secondary.get("field") or "unknown_parameter")
+            secondary_value = float(secondary.get("normalized_value"))
+            if field in primary_index:
+                primary_value = primary_index[field]
+                if abs(primary_value - secondary_value) < 1e-6:
+                    reconciliation.append(
+                        {
+                            "field": field,
+                            "status": "confirmed",
+                            "source_of_truth": "primary_scraped_document",
+                            "primary_value": primary_value,
+                            "secondary_value": secondary_value,
+                        }
+                    )
+                else:
+                    reconciliation.append(
+                        {
+                            "field": field,
+                            "status": "source_of_truth_selected",
+                            "source_of_truth": "primary_scraped_document",
+                            "primary_value": primary_value,
+                            "secondary_value": secondary_value,
+                            "decision_reason": "primary_artifact_precedence_over_secondary",
+                        }
+                    )
+            else:
+                reconciliation.append(
+                    {
+                        "field": field,
+                        "status": "source_of_truth_selected",
+                        "source_of_truth": "secondary_search_derived",
+                        "primary_value": None,
+                        "secondary_value": secondary_value,
+                        "decision_reason": "primary_value_missing_secondary_used_with_label",
+                    }
+                )
+        unresolved = [
+            item
+            for item in reconciliation
+            if str(item.get("status") or "") == "conflict_unresolved"
+        ]
+        return {
+            "records": reconciliation,
+            "unresolved_count": len(unresolved),
+            "source_of_truth_policy": "primary_artifact_precedence_then_labeled_secondary",
+            "secondary_override_blocked": all(
+                str(item.get("source_of_truth") or "") != "secondary_search_derived"
+                or item.get("primary_value") is None
+                for item in reconciliation
+            ),
+        }
 
     @staticmethod
     def _infer_mechanism_hint(
@@ -868,6 +1129,7 @@ class RailwayRuntimeBridge:
         )
         search_provider_runtime = self._active_search_provider_provenance()
         search_provider = str(search_provider_runtime["provider"])
+        source_shape_drift = self._detect_source_shape_drift(search_candidates)
         source_quality_metrics = self._build_source_quality_metrics(
             search_provider=search_provider,
             search_provider_runtime=search_provider_runtime,
@@ -879,9 +1141,21 @@ class RailwayRuntimeBridge:
             reader_quality_failures=reader_quality_failures,
             structured_candidates=structured_enrichment.candidates,
         )
+        source_quality_metrics["source_shape_drift"] = source_shape_drift
         primary_fee_facts, primary_parameter_alerts = self._extract_primary_fee_facts_from_analysis(
             analyze=analyze,
             selected_url=selected_url,
+        )
+        secondary_numeric_facts = self._collect_secondary_numeric_facts(structured_enrichment.candidates)
+        source_reconciliation = self._reconcile_parameter_sources(
+            primary_facts=primary_fee_facts,
+            secondary_facts=secondary_numeric_facts,
+        )
+        policy_lineage = self._build_policy_lineage(
+            selected_url=selected_url,
+            source_family=request.source_family,
+            candidate_audit=candidate_audit,
+            structured_candidates=structured_enrichment.candidates,
         )
         if (
             mechanism_hint.secondary_research_needed
@@ -890,6 +1164,8 @@ class RailwayRuntimeBridge:
             fail_closed_reasons.append(
                 f"secondary_research_needed:{mechanism_hint.secondary_research_reason}"
             )
+        if source_shape_drift["drift_detected"]:
+            fail_closed_reasons.append("search_source_shape_drift_detected")
         canonical_analysis_id = ""
         canonical_pipeline_run_id = ""
         canonical_pipeline_step_id = ""
@@ -999,6 +1275,7 @@ class RailwayRuntimeBridge:
         package_payload["created_at"] = "1970-01-01T00:00:00+00:00"
         package_payload["run_context"] = {
             "backend_run_id": run_id,
+            "scope_idempotency_key": _scope_idempotency_key(request),
             "windmill_run_id": request.windmill_run_id,
             "windmill_job_id": request.windmill_job_id,
             "windmill_workspace": request.windmill_workspace,
@@ -1017,20 +1294,41 @@ class RailwayRuntimeBridge:
             "secondary_research_needed": mechanism_hint.secondary_research_needed,
             "secondary_research_reason": mechanism_hint.secondary_research_reason,
             "source_quality_metrics": source_quality_metrics,
+            "policy_lineage": policy_lineage,
+            "source_reconciliation": source_reconciliation,
             "search_provider_runtime": search_provider_runtime,
+            "source_shape_drift": source_shape_drift,
             "primary_parameter_extraction": {
                 "source": "analyze.evidence_selection.selected_chunks",
                 "parameter_count": len(primary_fee_facts),
                 "alerts": primary_parameter_alerts,
+                "facts": primary_fee_facts,
             },
             "canonical_analysis_id": canonical_analysis_id,
             "canonical_pipeline_run_id": canonical_pipeline_run_id,
             "canonical_pipeline_step_id": canonical_pipeline_step_id,
             "canonical_breakdown_ref": canonical_breakdown_ref,
             "fail_closed_reasons": list(dict.fromkeys(fail_closed_reasons)),
+            "package_identity": {
+                "package_id": package_id,
+                "canonical_document_key": canonical_document_key,
+                "selected_url": selected_url,
+                "idempotency_scope": _scope_idempotency_key(request),
+            },
+            "proof_modes": {
+                "orchestration": "windmill_runtime_ids",
+                "storage": "pending_storage_probe",
+                "analysis_binding": (
+                    "canonical_projection_bound"
+                    if canonical_pipeline_run_id and canonical_pipeline_step_id
+                    else "canonical_projection_missing"
+                ),
+            },
         }
         package_payload["structured_enrichment_status"] = structured_enrichment.status
         package_payload["source_quality_metrics"] = source_quality_metrics
+        package_payload["policy_lineage"] = policy_lineage
+        package_payload["source_reconciliation"] = source_reconciliation
 
         idempotency_key = f"{_scope_idempotency_key(request)}::policy_evidence_package"
         store = self._resolve_package_store()
@@ -1080,6 +1378,12 @@ class RailwayRuntimeBridge:
             "raw_scrape_id": raw_scrape_id,
             "document_id": document_id,
             "storage_status": storage_status,
+            "storage_proof_mode": (
+                "direct_live_probe"
+                if storage_result.artifact_readback_status == "proven"
+                else "indirect_or_unproven"
+            ),
+            "idempotent_replay": bool(storage_result.idempotent_reuse),
             "fail_closed_reasons": sorted(set(str(item) for item in fail_closed_reasons if str(item).strip())),
         }
         alerts = []

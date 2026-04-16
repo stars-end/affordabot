@@ -83,6 +83,13 @@ class StructuredSourceProvenance(BaseModel):
     endpoint_or_file_url: HttpUrl
     provider_run_id: Optional[str] = None
     field_count: int = Field(default=0, ge=0)
+    true_structured: bool = True
+    policy_match_key: Optional[str] = None
+    policy_match_confidence: Optional[float] = Field(default=None, ge=0.0, le=1.0)
+    reconciliation_status: Optional[str] = None
+    event_date: Optional[str] = None
+    event_body_id: Optional[str] = None
+    matter_id: Optional[str] = None
 
 
 class StorageRef(BaseModel):

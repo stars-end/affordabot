@@ -490,6 +490,13 @@ def test_runtime_bridge_persists_policy_evidence_package_refs() -> None:
     assert source_quality["top_n_window"] >= 1
     assert source_quality["selected_candidate"]["url"] == refs["selected_url"]
     assert source_quality["provider_results"]["private_searxng"]["candidates"]
+    assert source_quality["portal_skip_count"] >= 0
+    assert source_quality["official_reader_error_count"] >= 0
+    assert source_quality["fallback_materialization_count"] >= 0
+    assert source_quality["source_shape_drift"]["drift_detected"] is False
+    assert run_context["search_provider_runtime"]["provider_source"] == "client_label"
+    assert "authoritative_policy_text" in run_context["policy_lineage"]["lineage_presence"]
+    assert isinstance(run_context["source_reconciliation"]["records"], list)
     assert gate_projection["canonical_pipeline_run_id"] == refs["backend_run_id"]
     assert gate_projection["canonical_pipeline_step_id"] == analysis_id
     assert gate_projection["canonical_breakdown_ref"] == f"analysis:{analysis_id}"
@@ -581,7 +588,15 @@ def test_runtime_bridge_extracts_primary_fee_facts_from_analysis_chunks() -> Non
         selected_url="https://sanjose.legistar.com/View.ashx?M=F&ID=8758120",
     )
 
-    assert {fact["value"] for fact in facts} == {0.0, 3.0, 5.0}
+    resolved_values = {fact["value"] for fact in facts if isinstance(fact.get("value"), float)}
+    assert resolved_values == {0.0, 3.0, 5.0}
+    assert any(fact.get("raw_value") == "$3.00" for fact in facts)
+    assert any(fact.get("denominator") == "per_square_foot" for fact in facts)
+    assert any(fact.get("category") == "office" for fact in facts)
+    assert any(
+        fact.get("ambiguity_flag") is True and fact.get("ambiguity_reason") == "currency_format_anomaly"
+        for fact in facts
+    )
     assert all(fact["source_hierarchy_status"] == "bill_or_reg_text" for fact in facts)
     assert "primary_parameter_money_format_anomaly" in alerts
 
@@ -995,6 +1010,8 @@ def test_runtime_bridge_records_selected_quality_when_artifact_exists_but_offici
     assert source_quality["selected_candidate"]["artifact_grade"] is False
     assert source_quality["selected_candidate"]["official_domain"] is True
     assert source_quality["provider_summary"]["provider_error_count"] >= 1
+    assert source_quality["official_reader_error_count"] >= 1
+    assert source_quality["fallback_materialization_count"] >= 1
 
 
 def test_runtime_bridge_blocks_weak_video_fallback_after_official_reader_error() -> None:
@@ -1164,6 +1181,87 @@ def test_runtime_bridge_prefetch_skips_portal_url_and_fetches_artifact_candidate
         for item in response["steps"]["read_fetch"]["details"]["candidate_audit"]
     )
     assert "reader_prefetch_skipped_low_value_portal" in response["alerts"]
+
+
+def test_runtime_bridge_records_lineage_negative_evidence_and_reconciliation_policy() -> None:
+    db = FakeDB()
+    storage = FakeStorage()
+    package_store = InMemoryPolicyEvidencePackageStore()
+    runtime = RailwayRuntimeBridge(
+        db=db,
+        storage=storage,
+        package_store=package_store,
+        structured_enricher=FakeStructuredEnricher(
+            status="integrated",
+            candidates=[
+                {
+                    "source_lane": "structured_secondary_source",
+                    "provider": "tavily_search",
+                    "source_family": "tavily_secondary_search",
+                    "access_method": "tavily_search_api",
+                    "jurisdiction": "san_jose_ca",
+                    "artifact_url": "https://www.sanjoseca.gov/Home/Components/News/News/1801",
+                    "artifact_type": "secondary_search_rate_snippet",
+                    "source_tier": "tier_c",
+                    "retrieved_at": "2026-04-16T00:00:00+00:00",
+                    "structured_policy_facts": [
+                        {
+                            "field": "commercial_linkage_fee_rate_usd_per_sqft",
+                            "value": 3.58,
+                            "source_url": "https://www.sanjoseca.gov/Home/Components/News/News/1801",
+                            "source_excerpt": "Updated fee of $3.58 per square foot.",
+                        }
+                    ],
+                }
+            ],
+        ),
+    )  # type: ignore[arg-type]
+    runtime.search_client = FakeSearchClient(
+        [
+            {
+                "url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+                "title": "CLF Fee Schedule",
+                "snippet": "Commercial Linkage Fee schedule attachment",
+            }
+        ]
+    )
+    runtime.reader_client = FakeReaderClient(
+        content=(
+            "# Fee Schedule\n"
+            "Office uses a $3.00 per square foot commercial linkage fee.\n"
+        )
+    )
+    runtime._llm_client = FakeLLMClient()
+    runtime.embedding_service = FakeEmbeddingService()
+    runtime.zai_api_key = "x"
+
+    asyncio.run(runtime.run_scope_pipeline(_request(idempotency_key="wm:run-scope:lineage-reconcile")))
+    persisted = next(iter(package_store.by_idempotency.values()))
+    run_context = persisted.package_payload["run_context"]
+
+    lineage = run_context["policy_lineage"]
+    assert "authoritative_policy_text" in lineage["lineage_presence"]
+    assert isinstance(lineage["negative_evidence"], list)
+    assert len(lineage["negative_evidence"]) >= 1
+
+    reconciliation = run_context["source_reconciliation"]
+    assert reconciliation["source_of_truth_policy"] == "primary_artifact_precedence_then_labeled_secondary"
+    assert reconciliation["secondary_override_blocked"] is True
+    assert any(record["status"] == "source_of_truth_selected" for record in reconciliation["records"])
+
+
+def test_runtime_bridge_detects_source_shape_drift() -> None:
+    drift = RailwayRuntimeBridge._detect_source_shape_drift(
+        [
+            {"title": "No URL Candidate", "snippet": "candidate missing URL"},
+            {"url": "https://example.gov/1", "title": "No Snippet"},
+        ]
+    )
+
+    assert drift["drift_detected"] is True
+    assert drift["missing_url_count"] == 1
+    assert drift["missing_snippet_count"] == 1
+    assert drift["candidate_count"] == 2
 
 
 def test_runtime_bridge_blocks_when_all_candidates_are_agenda_header_logistics() -> None:

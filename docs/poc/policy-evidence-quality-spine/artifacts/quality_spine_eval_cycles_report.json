@@ -1,7 +1,7 @@
 {
   "artifact_sources": {
     "economic_status_present": true,
-    "live_cycle_artifact_count": 1,
+    "live_cycle_artifact_count": 17,
     "live_cycle_present": true,
     "live_storage_probe_present": true,
     "retry_ledger_present": true,
@@ -20,15 +20,17 @@
   },
   "cycle_1_assessment": {
     "artifact": "docs/poc/policy-evidence-quality-spine/artifacts/live_cycle_01_windmill_domain_run.json",
-    "backend_run_id": null,
+    "backend_run_id": "6695fe26-eaaf-47d1-9100-7eb861a7aa2f",
     "reason": "Cycle 1 is partial: selected evidence was economically insufficient, structured lane is not proven in this run, and admin/economic endpoint proof is missing.",
     "status": "partial",
-    "windmill_job_id": null
+    "windmill_job_id": "019d94d2-81ef-1117-0353-4c40719876ed"
   },
   "cycle_ledger": [
     {
-      "artifacts": [],
-      "backend_run_id": null,
+      "artifacts": [
+        "/private/tmp/agents/bd-3wefe.13/affordabot/backend/../docs/poc/policy-evidence-quality-spine/artifacts/live_cycle_01_windmill_domain_run.json"
+      ],
+      "backend_run_id": "6695fe26-eaaf-47d1-9100-7eb861a7aa2f",
       "code_config_tweaks": [],
       "commands_executed": [],
       "cycle_number": 1,
@@ -36,31 +38,157 @@
       "economic_status_endpoint": null,
       "external_blocker_proof": [],
       "gate_deltas": {},
-      "gate_snapshot": {},
+      "gate_snapshot": {
+        "D1": {
+          "code": "D1",
+          "details": "catalog_families=['legistar_web_api', 'san_jose_open_data_ckan'], complete_families=['legistar_web_api', 'san_jose_open_data_ckan'], free_ingestible=['legistar_web_api', 'san_jose_open_data_ckan']",
+          "domain": "data_moat",
+          "name": "source_catalog",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D2": {
+          "code": "D2",
+          "details": "selected_url=present",
+          "domain": "data_moat",
+          "name": "scraped_evidence_quality",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D3": {
+          "code": "D3",
+          "details": "scorecard indicates structured pass, but live cycle lacks structured source-family evidence",
+          "domain": "data_moat",
+          "name": "structured_evidence_quality",
+          "severity": "blocking",
+          "status": "partial"
+        },
+        "D4": {
+          "code": "D4",
+          "details": "package_id=missing, package_artifact=missing",
+          "domain": "data_moat",
+          "name": "unified_package_identity",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "D5": {
+          "code": "D5",
+          "details": "postgres=pass (package_row_linked_to_backend_run_id), minio=pass (all_artifact_refs_read_back), pgvector=pass (document_chunks_and_embeddings_present_with_derived_index_truth_role)",
+          "domain": "data_moat",
+          "name": "storage_readback",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D6": {
+          "code": "D6",
+          "details": "windmill_job_id=019d94d2-81ef-1117-0353-4c40719876ed, backend_run_id=present",
+          "domain": "data_moat",
+          "name": "windmill_integration",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "E1": {
+          "code": "E1",
+          "details": "mechanism=missing impact_mode=missing",
+          "domain": "economic_analysis",
+          "name": "mechanism_coverage",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "E2": {
+          "code": "E2",
+          "details": "sufficiency=pass, economic_reasoning=pass",
+          "domain": "economic_analysis",
+          "name": "sufficiency_gate",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "E3": {
+          "code": "E3",
+          "details": "secondary research signal missing from run_context",
+          "domain": "economic_analysis",
+          "name": "secondary_research_loop",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "E4": {
+          "code": "E4",
+          "details": "LLM narrative not proven (canonical_llm_run_id_missing; source=quality_spine_deterministic_lane).",
+          "domain": "economic_analysis",
+          "name": "canonical_llm_binding",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "E5": {
+          "code": "E5",
+          "details": "decision_grade_verdict=not_decision_grade",
+          "domain": "economic_analysis",
+          "name": "decision_grade_quality",
+          "severity": "blocking",
+          "status": "partial"
+        },
+        "E6": {
+          "code": "E6",
+          "details": "analysis-status endpoint returned error",
+          "domain": "economic_analysis",
+          "name": "admin_read_model",
+          "severity": "nonblocking",
+          "status": "fail"
+        },
+        "M1": {
+          "code": "M1",
+          "details": "manual data audit markdown path missing",
+          "domain": "manual_audit",
+          "name": "manual_data_audit",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "M2": {
+          "code": "M2",
+          "details": "manual economic audit markdown path missing",
+          "domain": "manual_audit",
+          "name": "manual_economic_audit",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "M3": {
+          "code": "M3",
+          "details": "manual gate decision markdown path missing",
+          "domain": "manual_audit",
+          "name": "manual_gate_decision",
+          "severity": "blocking",
+          "status": "not_proven"
+        }
+      },
       "impact_mode_hint": null,
       "inputs": null,
       "mechanism_family_hint": null,
-      "minio_readback": "not_proven",
+      "minio_readback": "pass",
       "next_tweak": "Capture and store /analysis-status endpoint response artifact for the cycle.",
       "package_artifact_uri": null,
-      "package_id": null,
-      "package_row_linkage": "not_proven",
-      "pgvector_chunk_stats": null,
+      "package_id": "pkg-sj-parking-minimum-amendment",
+      "package_row_linkage": "pass",
+      "pgvector_chunk_stats": {
+        "total_chunks": 386,
+        "with_embedding": 386
+      },
       "provider_status": null,
-      "quality_conclusion": null,
-      "reader_artifact_uri": null,
+      "quality_conclusion": "partial",
+      "reader_artifact_uri": "artifacts/2026-04-13.windmill-domain.v1/San Jose CA/meeting_minutes/reader_output/ae11ddffb6292d654ab990cddc9f169ce23868654ee623d07261ec553c81ed77.md",
       "secondary_research_needed": null,
-      "selected_url": null,
-      "status": "not_executed",
-      "stop_continue_decision": "continue",
-      "storage_readback": "not_proven",
-      "targeted_tweak": "",
-      "verdict": null,
-      "windmill_job_id": null
+      "selected_url": "https://sanjose.legistar.com/View.ashx?M=A&ID=1345653&GUID=CF0F61B5-1467-4299-B504-21A4ADD6FCFF",
+      "status": "completed",
+      "stop_continue_decision": "continue_prove_remaining",
+      "storage_readback": "pass",
+      "targeted_tweak": "strict_data_runtime_proof_fields",
+      "verdict": "partial",
+      "windmill_job_id": "019d94d2-81ef-1117-0353-4c40719876ed"
     },
     {
-      "artifacts": [],
-      "backend_run_id": null,
+      "artifacts": [
+        "/private/tmp/agents/bd-3wefe.13/affordabot/backend/../docs/poc/policy-evidence-quality-spine/artifacts/live_cycle_02_windmill_domain_run.json"
+      ],
+      "backend_run_id": "2a6944e1-4c18-4265-b22e-4faa16d7c08b",
       "code_config_tweaks": [],
       "commands_executed": [],
       "cycle_number": 2,
@@ -68,31 +196,157 @@
       "economic_status_endpoint": null,
       "external_blocker_proof": [],
       "gate_deltas": {},
-      "gate_snapshot": {},
+      "gate_snapshot": {
+        "D1": {
+          "code": "D1",
+          "details": "catalog_families=['legistar_web_api', 'san_jose_open_data_ckan'], complete_families=['legistar_web_api', 'san_jose_open_data_ckan'], free_ingestible=['legistar_web_api', 'san_jose_open_data_ckan']",
+          "domain": "data_moat",
+          "name": "source_catalog",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D2": {
+          "code": "D2",
+          "details": "selected_url=present",
+          "domain": "data_moat",
+          "name": "scraped_evidence_quality",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D3": {
+          "code": "D3",
+          "details": "scorecard indicates structured pass, but live cycle lacks structured source-family evidence",
+          "domain": "data_moat",
+          "name": "structured_evidence_quality",
+          "severity": "blocking",
+          "status": "partial"
+        },
+        "D4": {
+          "code": "D4",
+          "details": "package_id=missing, package_artifact=missing",
+          "domain": "data_moat",
+          "name": "unified_package_identity",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "D5": {
+          "code": "D5",
+          "details": "postgres=pass (package_row_linked_to_backend_run_id), minio=pass (all_artifact_refs_read_back), pgvector=pass (document_chunks_and_embeddings_present_with_derived_index_truth_role)",
+          "domain": "data_moat",
+          "name": "storage_readback",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D6": {
+          "code": "D6",
+          "details": "windmill_job_id=019d94d7-1f8a-2755-6d12-4b8c20565081, backend_run_id=present",
+          "domain": "data_moat",
+          "name": "windmill_integration",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "E1": {
+          "code": "E1",
+          "details": "mechanism=missing impact_mode=missing",
+          "domain": "economic_analysis",
+          "name": "mechanism_coverage",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "E2": {
+          "code": "E2",
+          "details": "sufficiency=pass, economic_reasoning=pass",
+          "domain": "economic_analysis",
+          "name": "sufficiency_gate",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "E3": {
+          "code": "E3",
+          "details": "secondary research signal missing from run_context",
+          "domain": "economic_analysis",
+          "name": "secondary_research_loop",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "E4": {
+          "code": "E4",
+          "details": "LLM narrative not proven (canonical_llm_run_id_missing; source=quality_spine_deterministic_lane).",
+          "domain": "economic_analysis",
+          "name": "canonical_llm_binding",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "E5": {
+          "code": "E5",
+          "details": "decision_grade_verdict=not_decision_grade",
+          "domain": "economic_analysis",
+          "name": "decision_grade_quality",
+          "severity": "blocking",
+          "status": "partial"
+        },
+        "E6": {
+          "code": "E6",
+          "details": "analysis-status endpoint returned error",
+          "domain": "economic_analysis",
+          "name": "admin_read_model",
+          "severity": "nonblocking",
+          "status": "fail"
+        },
+        "M1": {
+          "code": "M1",
+          "details": "manual data audit markdown path missing",
+          "domain": "manual_audit",
+          "name": "manual_data_audit",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "M2": {
+          "code": "M2",
+          "details": "manual economic audit markdown path missing",
+          "domain": "manual_audit",
+          "name": "manual_economic_audit",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "M3": {
+          "code": "M3",
+          "details": "manual gate decision markdown path missing",
+          "domain": "manual_audit",
+          "name": "manual_gate_decision",
+          "severity": "blocking",
+          "status": "not_proven"
+        }
+      },
       "impact_mode_hint": null,
       "inputs": null,
       "mechanism_family_hint": null,
-      "minio_readback": "not_proven",
+      "minio_readback": "pass",
       "next_tweak": "Capture and store /analysis-status endpoint response artifact for the cycle.",
       "package_artifact_uri": null,
-      "package_id": null,
-      "package_row_linkage": "not_proven",
-      "pgvector_chunk_stats": null,
+      "package_id": "pkg-sj-parking-minimum-amendment",
+      "package_row_linkage": "pass",
+      "pgvector_chunk_stats": {
+        "total_chunks": 386,
+        "with_embedding": 386
+      },
       "provider_status": null,
-      "quality_conclusion": null,
-      "reader_artifact_uri": null,
+      "quality_conclusion": "partial",
+      "reader_artifact_uri": "artifacts/2026-04-13.windmill-domain.v1/San Jose CA/meeting_minutes/reader_output/92e7e2d4aa29bfe9d552a09849d7d836cf167b0377a5f409c90519b299e7e76f.md",
       "secondary_research_needed": null,
-      "selected_url": null,
-      "status": "not_executed",
-      "stop_continue_decision": "continue",
-      "storage_readback": "not_proven",
-      "targeted_tweak": "",
-      "verdict": null,
-      "windmill_job_id": null
+      "selected_url": "https://sanjose.legistar.com/View.ashx?GUID=DEBFA654-8B86-447A-997C-5ED36892BE3C&ID=7810086&M=F",
+      "status": "completed",
+      "stop_continue_decision": "continue_prove_remaining",
+      "storage_readback": "pass",
+      "targeted_tweak": "strict_data_runtime_proof_fields",
+      "verdict": "partial",
+      "windmill_job_id": "019d94d7-1f8a-2755-6d12-4b8c20565081"
     },
     {
-      "artifacts": [],
-      "backend_run_id": null,
+      "artifacts": [
+        "/private/tmp/agents/bd-3wefe.13/affordabot/backend/../docs/poc/policy-evidence-quality-spine/artifacts/live_cycle_03_windmill_domain_run.json"
+      ],
+      "backend_run_id": "498aff1e-3af9-4a28-9895-5058ffc92e21",
       "code_config_tweaks": [],
       "commands_executed": [],
       "cycle_number": 3,
@@ -100,63 +354,328 @@
       "economic_status_endpoint": null,
       "external_blocker_proof": [],
       "gate_deltas": {},
-      "gate_snapshot": {},
+      "gate_snapshot": {
+        "D1": {
+          "code": "D1",
+          "details": "catalog_families=['legistar_web_api', 'san_jose_open_data_ckan'], complete_families=['legistar_web_api', 'san_jose_open_data_ckan'], free_ingestible=['legistar_web_api', 'san_jose_open_data_ckan']",
+          "domain": "data_moat",
+          "name": "source_catalog",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D2": {
+          "code": "D2",
+          "details": "selected_url=present",
+          "domain": "data_moat",
+          "name": "scraped_evidence_quality",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D3": {
+          "code": "D3",
+          "details": "scorecard indicates structured pass, but live cycle lacks structured source-family evidence",
+          "domain": "data_moat",
+          "name": "structured_evidence_quality",
+          "severity": "blocking",
+          "status": "partial"
+        },
+        "D4": {
+          "code": "D4",
+          "details": "package_id=missing, package_artifact=missing",
+          "domain": "data_moat",
+          "name": "unified_package_identity",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "D5": {
+          "code": "D5",
+          "details": "postgres=pass (package_row_linked_to_backend_run_id), minio=pass (all_artifact_refs_read_back), pgvector=pass (document_chunks_and_embeddings_present_with_derived_index_truth_role)",
+          "domain": "data_moat",
+          "name": "storage_readback",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D6": {
+          "code": "D6",
+          "details": "windmill_job_id=019d94da-1547-48ec-9185-11b91651f5be, backend_run_id=present",
+          "domain": "data_moat",
+          "name": "windmill_integration",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "E1": {
+          "code": "E1",
+          "details": "mechanism=missing impact_mode=missing",
+          "domain": "economic_analysis",
+          "name": "mechanism_coverage",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "E2": {
+          "code": "E2",
+          "details": "sufficiency=pass, economic_reasoning=pass",
+          "domain": "economic_analysis",
+          "name": "sufficiency_gate",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "E3": {
+          "code": "E3",
+          "details": "secondary research signal missing from run_context",
+          "domain": "economic_analysis",
+          "name": "secondary_research_loop",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "E4": {
+          "code": "E4",
+          "details": "LLM narrative not proven (canonical_llm_run_id_missing; source=quality_spine_deterministic_lane).",
+          "domain": "economic_analysis",
+          "name": "canonical_llm_binding",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "E5": {
+          "code": "E5",
+          "details": "decision_grade_verdict=not_decision_grade",
+          "domain": "economic_analysis",
+          "name": "decision_grade_quality",
+          "severity": "blocking",
+          "status": "partial"
+        },
+        "E6": {
+          "code": "E6",
+          "details": "analysis-status endpoint returned error",
+          "domain": "economic_analysis",
+          "name": "admin_read_model",
+          "severity": "nonblocking",
+          "status": "fail"
+        },
+        "M1": {
+          "code": "M1",
+          "details": "manual data audit markdown path missing",
+          "domain": "manual_audit",
+          "name": "manual_data_audit",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "M2": {
+          "code": "M2",
+          "details": "manual economic audit markdown path missing",
+          "domain": "manual_audit",
+          "name": "manual_economic_audit",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "M3": {
+          "code": "M3",
+          "details": "manual gate decision markdown path missing",
+          "domain": "manual_audit",
+          "name": "manual_gate_decision",
+          "severity": "blocking",
+          "status": "not_proven"
+        }
+      },
       "impact_mode_hint": null,
       "inputs": null,
       "mechanism_family_hint": null,
-      "minio_readback": "not_proven",
+      "minio_readback": "pass",
       "next_tweak": "Capture and store /analysis-status endpoint response artifact for the cycle.",
       "package_artifact_uri": null,
-      "package_id": null,
-      "package_row_linkage": "not_proven",
-      "pgvector_chunk_stats": null,
+      "package_id": "pkg-sj-parking-minimum-amendment",
+      "package_row_linkage": "pass",
+      "pgvector_chunk_stats": {
+        "total_chunks": 386,
+        "with_embedding": 386
+      },
       "provider_status": null,
-      "quality_conclusion": null,
-      "reader_artifact_uri": null,
+      "quality_conclusion": "partial",
+      "reader_artifact_uri": "artifacts/2026-04-13.windmill-domain.v1/San Jose CA/meeting_minutes/reader_output/ebadafaceba9d9d13d15d661559000beba0056f129d8e79e233c8c0f5f0ddca4.md",
       "secondary_research_needed": null,
-      "selected_url": null,
-      "status": "not_executed",
-      "stop_continue_decision": "continue",
-      "storage_readback": "not_proven",
-      "targeted_tweak": "",
-      "verdict": null,
-      "windmill_job_id": null
+      "selected_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=7810086&GUID=DEBFA654-8B86-447A-997C-5ED36892BE3C",
+      "status": "completed",
+      "stop_continue_decision": "continue_prove_remaining",
+      "storage_readback": "pass",
+      "targeted_tweak": "strict_data_runtime_proof_fields",
+      "verdict": "partial",
+      "windmill_job_id": "019d94da-1547-48ec-9185-11b91651f5be"
     },
     {
-      "artifacts": [],
-      "backend_run_id": null,
+      "artifacts": [
+        "/private/tmp/agents/bd-3wefe.13/affordabot/backend/../docs/poc/policy-evidence-quality-spine/artifacts/live_cycle_04_windmill_domain_run.json"
+      ],
+      "backend_run_id": "f208078b-64af-4ef6-89b5-caaf5b0b8322",
       "code_config_tweaks": [],
       "commands_executed": [],
       "cycle_number": 4,
       "deploy_sha": null,
       "economic_status_endpoint": null,
       "external_blocker_proof": [],
-      "gate_deltas": {},
-      "gate_snapshot": {},
-      "impact_mode_hint": null,
+      "gate_deltas": {
+        "D4": {
+          "from": "not_proven",
+          "to": "pass"
+        },
+        "E1": {
+          "from": "not_proven",
+          "to": "pass"
+        },
+        "E3": {
+          "from": "not_proven",
+          "to": "partial"
+        }
+      },
+      "gate_snapshot": {
+        "D1": {
+          "code": "D1",
+          "details": "catalog_families=['legistar_web_api', 'san_jose_open_data_ckan'], complete_families=['legistar_web_api', 'san_jose_open_data_ckan'], free_ingestible=['legistar_web_api', 'san_jose_open_data_ckan']",
+          "domain": "data_moat",
+          "name": "source_catalog",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D2": {
+          "code": "D2",
+          "details": "selected_url=present",
+          "domain": "data_moat",
+          "name": "scraped_evidence_quality",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D3": {
+          "code": "D3",
+          "details": "scorecard indicates structured pass, but live cycle lacks structured source-family evidence",
+          "domain": "data_moat",
+          "name": "structured_evidence_quality",
+          "severity": "blocking",
+          "status": "partial"
+        },
+        "D4": {
+          "code": "D4",
+          "details": "package_id=present, package_artifact=present",
+          "domain": "data_moat",
+          "name": "unified_package_identity",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D5": {
+          "code": "D5",
+          "details": "postgres=pass (package_row_linked_to_backend_run_id), minio=pass (all_artifact_refs_read_back), pgvector=pass (document_chunks_and_embeddings_present_with_derived_index_truth_role)",
+          "domain": "data_moat",
+          "name": "storage_readback",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D6": {
+          "code": "D6",
+          "details": "windmill_job_id=019d94ec-e80e-0daf-3bb2-fdee2c6dce6a, backend_run_id=present",
+          "domain": "data_moat",
+          "name": "windmill_integration",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "E1": {
+          "code": "E1",
+          "details": "mechanism=fee_or_tax_pass_through impact_mode=pass_through_incidence",
+          "domain": "economic_analysis",
+          "name": "mechanism_coverage",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "E2": {
+          "code": "E2",
+          "details": "sufficiency=pass, economic_reasoning=pass",
+          "domain": "economic_analysis",
+          "name": "sufficiency_gate",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "E3": {
+          "code": "E3",
+          "details": "secondary_research_needed=True",
+          "domain": "economic_analysis",
+          "name": "secondary_research_loop",
+          "severity": "blocking",
+          "status": "partial"
+        },
+        "E4": {
+          "code": "E4",
+          "details": "LLM narrative not proven (canonical_llm_run_id_missing; source=quality_spine_deterministic_lane).",
+          "domain": "economic_analysis",
+          "name": "canonical_llm_binding",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "E5": {
+          "code": "E5",
+          "details": "decision_grade_verdict=not_decision_grade",
+          "domain": "economic_analysis",
+          "name": "decision_grade_quality",
+          "severity": "blocking",
+          "status": "partial"
+        },
+        "E6": {
+          "code": "E6",
+          "details": "analysis-status endpoint returned error",
+          "domain": "economic_analysis",
+          "name": "admin_read_model",
+          "severity": "nonblocking",
+          "status": "fail"
+        },
+        "M1": {
+          "code": "M1",
+          "details": "manual data audit markdown path missing",
+          "domain": "manual_audit",
+          "name": "manual_data_audit",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "M2": {
+          "code": "M2",
+          "details": "manual economic audit markdown path missing",
+          "domain": "manual_audit",
+          "name": "manual_economic_audit",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "M3": {
+          "code": "M3",
+          "details": "manual gate decision markdown path missing",
+          "domain": "manual_audit",
+          "name": "manual_gate_decision",
+          "severity": "blocking",
+          "status": "not_proven"
+        }
+      },
+      "impact_mode_hint": "pass_through_incidence",
       "inputs": null,
-      "mechanism_family_hint": null,
-      "minio_readback": "not_proven",
+      "mechanism_family_hint": "fee_or_tax_pass_through",
+      "minio_readback": "pass",
       "next_tweak": "Capture and store /analysis-status endpoint response artifact for the cycle.",
-      "package_artifact_uri": null,
-      "package_id": null,
-      "package_row_linkage": "not_proven",
-      "pgvector_chunk_stats": null,
+      "package_artifact_uri": "minio://affordabot-artifacts/policy-evidence/packages/pkg-ba380f24f5478f2590380e46.json",
+      "package_id": "pkg-ba380f24f5478f2590380e46",
+      "package_row_linkage": "pass",
+      "pgvector_chunk_stats": {
+        "total_chunks": 386,
+        "with_embedding": 386
+      },
       "provider_status": null,
-      "quality_conclusion": null,
-      "reader_artifact_uri": null,
-      "secondary_research_needed": null,
-      "selected_url": null,
-      "status": "not_executed",
-      "stop_continue_decision": "continue",
-      "storage_readback": "not_proven",
-      "targeted_tweak": "",
-      "verdict": null,
-      "windmill_job_id": null
+      "quality_conclusion": "secondary_research_needed",
+      "reader_artifact_uri": "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/meeting_minutes/reader_output/92e7e2d4aa29bfe9d552a09849d7d836cf167b0377a5f409c90519b299e7e76f.md",
+      "secondary_research_needed": true,
+      "selected_url": "https://sanjose.legistar.com/View.ashx?GUID=DEBFA654-8B86-447A-997C-5ED36892BE3C&ID=7810086&M=F",
+      "status": "completed",
+      "stop_continue_decision": "continue_prove_remaining",
+      "storage_readback": "pass",
+      "targeted_tweak": "strict_data_runtime_proof_fields",
+      "verdict": "partial",
+      "windmill_job_id": "019d94ec-e80e-0daf-3bb2-fdee2c6dce6a"
     },
     {
-      "artifacts": [],
-      "backend_run_id": null,
+      "artifacts": [
+        "/private/tmp/agents/bd-3wefe.13/affordabot/backend/../docs/poc/policy-evidence-quality-spine/artifacts/live_cycle_05_windmill_domain_run.json"
+      ],
+      "backend_run_id": "d611af15-4464-4eae-9e86-04b5dd438d27",
       "code_config_tweaks": [],
       "commands_executed": [],
       "cycle_number": 5,
@@ -164,31 +683,157 @@
       "economic_status_endpoint": null,
       "external_blocker_proof": [],
       "gate_deltas": {},
-      "gate_snapshot": {},
-      "impact_mode_hint": null,
+      "gate_snapshot": {
+        "D1": {
+          "code": "D1",
+          "details": "catalog_families=['legistar_web_api', 'san_jose_open_data_ckan'], complete_families=['legistar_web_api', 'san_jose_open_data_ckan'], free_ingestible=['legistar_web_api', 'san_jose_open_data_ckan']",
+          "domain": "data_moat",
+          "name": "source_catalog",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D2": {
+          "code": "D2",
+          "details": "selected_url=present",
+          "domain": "data_moat",
+          "name": "scraped_evidence_quality",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D3": {
+          "code": "D3",
+          "details": "scorecard indicates structured pass, but live cycle lacks structured source-family evidence",
+          "domain": "data_moat",
+          "name": "structured_evidence_quality",
+          "severity": "blocking",
+          "status": "partial"
+        },
+        "D4": {
+          "code": "D4",
+          "details": "package_id=present, package_artifact=present",
+          "domain": "data_moat",
+          "name": "unified_package_identity",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D5": {
+          "code": "D5",
+          "details": "postgres=pass (package_row_linked_to_backend_run_id), minio=pass (all_artifact_refs_read_back), pgvector=pass (document_chunks_and_embeddings_present_with_derived_index_truth_role)",
+          "domain": "data_moat",
+          "name": "storage_readback",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D6": {
+          "code": "D6",
+          "details": "windmill_job_id=019d94f5-27d3-0de0-4f82-4d554d74234e, backend_run_id=present",
+          "domain": "data_moat",
+          "name": "windmill_integration",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "E1": {
+          "code": "E1",
+          "details": "mechanism=fee_or_tax_pass_through impact_mode=pass_through_incidence",
+          "domain": "economic_analysis",
+          "name": "mechanism_coverage",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "E2": {
+          "code": "E2",
+          "details": "sufficiency=pass, economic_reasoning=pass",
+          "domain": "economic_analysis",
+          "name": "sufficiency_gate",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "E3": {
+          "code": "E3",
+          "details": "secondary_research_needed=True",
+          "domain": "economic_analysis",
+          "name": "secondary_research_loop",
+          "severity": "blocking",
+          "status": "partial"
+        },
+        "E4": {
+          "code": "E4",
+          "details": "LLM narrative not proven (canonical_llm_run_id_missing; source=quality_spine_deterministic_lane).",
+          "domain": "economic_analysis",
+          "name": "canonical_llm_binding",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "E5": {
+          "code": "E5",
+          "details": "decision_grade_verdict=not_decision_grade",
+          "domain": "economic_analysis",
+          "name": "decision_grade_quality",
+          "severity": "blocking",
+          "status": "partial"
+        },
+        "E6": {
+          "code": "E6",
+          "details": "analysis-status endpoint returned error",
+          "domain": "economic_analysis",
+          "name": "admin_read_model",
+          "severity": "nonblocking",
+          "status": "fail"
+        },
+        "M1": {
+          "code": "M1",
+          "details": "manual data audit markdown path missing",
+          "domain": "manual_audit",
+          "name": "manual_data_audit",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "M2": {
+          "code": "M2",
+          "details": "manual economic audit markdown path missing",
+          "domain": "manual_audit",
+          "name": "manual_economic_audit",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "M3": {
+          "code": "M3",
+          "details": "manual gate decision markdown path missing",
+          "domain": "manual_audit",
+          "name": "manual_gate_decision",
+          "severity": "blocking",
+          "status": "not_proven"
+        }
+      },
+      "impact_mode_hint": "pass_through_incidence",
       "inputs": null,
-      "mechanism_family_hint": null,
-      "minio_readback": "not_proven",
+      "mechanism_family_hint": "fee_or_tax_pass_through",
+      "minio_readback": "pass",
       "next_tweak": "Capture and store /analysis-status endpoint response artifact for the cycle.",
-      "package_artifact_uri": null,
-      "package_id": null,
-      "package_row_linkage": "not_proven",
-      "pgvector_chunk_stats": null,
+      "package_artifact_uri": "minio://affordabot-artifacts/policy-evidence/packages/pkg-d90d67f6703d5e3d18593814.json",
+      "package_id": "pkg-d90d67f6703d5e3d18593814",
+      "package_row_linkage": "pass",
+      "pgvector_chunk_stats": {
+        "total_chunks": 386,
+        "with_embedding": 386
+      },
       "provider_status": null,
-      "quality_conclusion": null,
-      "reader_artifact_uri": null,
-      "secondary_research_needed": null,
-      "selected_url": null,
-      "status": "not_executed",
-      "stop_continue_decision": "continue",
-      "storage_readback": "not_proven",
-      "targeted_tweak": "",
-      "verdict": null,
-      "windmill_job_id": null
+      "quality_conclusion": "secondary_research_needed",
+      "reader_artifact_uri": "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/meeting_minutes/reader_output/71524d4b161bbf71c6145f0549351b0c4a9603630c5e8e7794fb77c552468dd3.md",
+      "secondary_research_needed": true,
+      "selected_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+      "status": "completed",
+      "stop_continue_decision": "continue_prove_remaining",
+      "storage_readback": "pass",
+      "targeted_tweak": "strict_data_runtime_proof_fields",
+      "verdict": "partial",
+      "windmill_job_id": "019d94f5-27d3-0de0-4f82-4d554d74234e"
     },
     {
-      "artifacts": [],
-      "backend_run_id": null,
+      "artifacts": [
+        "/private/tmp/agents/bd-3wefe.13/affordabot/backend/../docs/poc/policy-evidence-quality-spine/artifacts/live_cycle_06_windmill_domain_run.json"
+      ],
+      "backend_run_id": "f917d334-9dbc-4628-a6de-13a298c46692",
       "code_config_tweaks": [],
       "commands_executed": [],
       "cycle_number": 6,
@@ -196,31 +841,157 @@
       "economic_status_endpoint": null,
       "external_blocker_proof": [],
       "gate_deltas": {},
-      "gate_snapshot": {},
-      "impact_mode_hint": null,
+      "gate_snapshot": {
+        "D1": {
+          "code": "D1",
+          "details": "catalog_families=['legistar_web_api', 'san_jose_open_data_ckan'], complete_families=['legistar_web_api', 'san_jose_open_data_ckan'], free_ingestible=['legistar_web_api', 'san_jose_open_data_ckan']",
+          "domain": "data_moat",
+          "name": "source_catalog",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D2": {
+          "code": "D2",
+          "details": "selected_url=present",
+          "domain": "data_moat",
+          "name": "scraped_evidence_quality",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D3": {
+          "code": "D3",
+          "details": "scorecard indicates structured pass, but live cycle lacks structured source-family evidence",
+          "domain": "data_moat",
+          "name": "structured_evidence_quality",
+          "severity": "blocking",
+          "status": "partial"
+        },
+        "D4": {
+          "code": "D4",
+          "details": "package_id=present, package_artifact=present",
+          "domain": "data_moat",
+          "name": "unified_package_identity",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D5": {
+          "code": "D5",
+          "details": "postgres=pass (package_row_linked_to_backend_run_id), minio=pass (all_artifact_refs_read_back), pgvector=pass (document_chunks_and_embeddings_present_with_derived_index_truth_role)",
+          "domain": "data_moat",
+          "name": "storage_readback",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D6": {
+          "code": "D6",
+          "details": "windmill_job_id=019d94f9-c6fa-9aab-f6e7-eca32b5b951f, backend_run_id=present",
+          "domain": "data_moat",
+          "name": "windmill_integration",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "E1": {
+          "code": "E1",
+          "details": "mechanism=fee_or_tax_pass_through impact_mode=pass_through_incidence",
+          "domain": "economic_analysis",
+          "name": "mechanism_coverage",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "E2": {
+          "code": "E2",
+          "details": "sufficiency=pass, economic_reasoning=pass",
+          "domain": "economic_analysis",
+          "name": "sufficiency_gate",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "E3": {
+          "code": "E3",
+          "details": "secondary_research_needed=True",
+          "domain": "economic_analysis",
+          "name": "secondary_research_loop",
+          "severity": "blocking",
+          "status": "partial"
+        },
+        "E4": {
+          "code": "E4",
+          "details": "LLM narrative not proven (canonical_llm_run_id_missing; source=quality_spine_deterministic_lane).",
+          "domain": "economic_analysis",
+          "name": "canonical_llm_binding",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "E5": {
+          "code": "E5",
+          "details": "decision_grade_verdict=not_decision_grade",
+          "domain": "economic_analysis",
+          "name": "decision_grade_quality",
+          "severity": "blocking",
+          "status": "partial"
+        },
+        "E6": {
+          "code": "E6",
+          "details": "analysis-status endpoint returned error",
+          "domain": "economic_analysis",
+          "name": "admin_read_model",
+          "severity": "nonblocking",
+          "status": "fail"
+        },
+        "M1": {
+          "code": "M1",
+          "details": "manual data audit markdown path missing",
+          "domain": "manual_audit",
+          "name": "manual_data_audit",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "M2": {
+          "code": "M2",
+          "details": "manual economic audit markdown path missing",
+          "domain": "manual_audit",
+          "name": "manual_economic_audit",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "M3": {
+          "code": "M3",
+          "details": "manual gate decision markdown path missing",
+          "domain": "manual_audit",
+          "name": "manual_gate_decision",
+          "severity": "blocking",
+          "status": "not_proven"
+        }
+      },
+      "impact_mode_hint": "pass_through_incidence",
       "inputs": null,
-      "mechanism_family_hint": null,
-      "minio_readback": "not_proven",
+      "mechanism_family_hint": "fee_or_tax_pass_through",
+      "minio_readback": "pass",
       "next_tweak": "Capture and store /analysis-status endpoint response artifact for the cycle.",
-      "package_artifact_uri": null,
-      "package_id": null,
-      "package_row_linkage": "not_proven",
-      "pgvector_chunk_stats": null,
+      "package_artifact_uri": "minio://affordabot-artifacts/policy-evidence/packages/pkg-6f4ae5c23acc5ad4a09b686c.json",
+      "package_id": "pkg-6f4ae5c23acc5ad4a09b686c",
+      "package_row_linkage": "pass",
+      "pgvector_chunk_stats": {
+        "total_chunks": 386,
+        "with_embedding": 386
+      },
       "provider_status": null,
-      "quality_conclusion": null,
-      "reader_artifact_uri": null,
-      "secondary_research_needed": null,
-      "selected_url": null,
-      "status": "not_executed",
-      "stop_continue_decision": "continue",
-      "storage_readback": "not_proven",
-      "targeted_tweak": "",
-      "verdict": null,
-      "windmill_job_id": null
+      "quality_conclusion": "secondary_research_needed",
+      "reader_artifact_uri": "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/economic_literature/reader_output/4dbf81f3a67ad8e4c8782b5ba6c2291992c16c2e0e480d1a78adaa441db8bd80.md",
+      "secondary_research_needed": true,
+      "selected_url": "https://www.huduser.gov/periodicals/cityscpe/vol8num1/ch4.pdf",
+      "status": "completed",
+      "stop_continue_decision": "continue_prove_remaining",
+      "storage_readback": "pass",
+      "targeted_tweak": "strict_data_runtime_proof_fields",
+      "verdict": "partial",
+      "windmill_job_id": "019d94f9-c6fa-9aab-f6e7-eca32b5b951f"
     },
     {
-      "artifacts": [],
-      "backend_run_id": null,
+      "artifacts": [
+        "/private/tmp/agents/bd-3wefe.13/affordabot/backend/../docs/poc/policy-evidence-quality-spine/artifacts/live_cycle_07_windmill_domain_run.json"
+      ],
+      "backend_run_id": "e1826ad9-cda9-4737-9c1d-316852460029",
       "code_config_tweaks": [],
       "commands_executed": [],
       "cycle_number": 7,
@@ -228,27 +999,151 @@
       "economic_status_endpoint": null,
       "external_blocker_proof": [],
       "gate_deltas": {},
-      "gate_snapshot": {},
-      "impact_mode_hint": null,
+      "gate_snapshot": {
+        "D1": {
+          "code": "D1",
+          "details": "catalog_families=['legistar_web_api', 'san_jose_open_data_ckan'], complete_families=['legistar_web_api', 'san_jose_open_data_ckan'], free_ingestible=['legistar_web_api', 'san_jose_open_data_ckan']",
+          "domain": "data_moat",
+          "name": "source_catalog",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D2": {
+          "code": "D2",
+          "details": "selected_url=present",
+          "domain": "data_moat",
+          "name": "scraped_evidence_quality",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D3": {
+          "code": "D3",
+          "details": "scorecard indicates structured pass, but live cycle lacks structured source-family evidence",
+          "domain": "data_moat",
+          "name": "structured_evidence_quality",
+          "severity": "blocking",
+          "status": "partial"
+        },
+        "D4": {
+          "code": "D4",
+          "details": "package_id=present, package_artifact=present",
+          "domain": "data_moat",
+          "name": "unified_package_identity",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D5": {
+          "code": "D5",
+          "details": "postgres=pass (package_row_linked_to_backend_run_id), minio=pass (all_artifact_refs_read_back), pgvector=pass (document_chunks_and_embeddings_present_with_derived_index_truth_role)",
+          "domain": "data_moat",
+          "name": "storage_readback",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D6": {
+          "code": "D6",
+          "details": "windmill_job_id=019d94fb-dfaa-7681-7d6b-c1fb39f6ab49, backend_run_id=present",
+          "domain": "data_moat",
+          "name": "windmill_integration",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "E1": {
+          "code": "E1",
+          "details": "mechanism=fee_or_tax_pass_through impact_mode=pass_through_incidence",
+          "domain": "economic_analysis",
+          "name": "mechanism_coverage",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "E2": {
+          "code": "E2",
+          "details": "sufficiency=pass, economic_reasoning=pass",
+          "domain": "economic_analysis",
+          "name": "sufficiency_gate",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "E3": {
+          "code": "E3",
+          "details": "secondary_research_needed=True",
+          "domain": "economic_analysis",
+          "name": "secondary_research_loop",
+          "severity": "blocking",
+          "status": "partial"
+        },
+        "E4": {
+          "code": "E4",
+          "details": "LLM narrative not proven (canonical_llm_run_id_missing; source=quality_spine_deterministic_lane).",
+          "domain": "economic_analysis",
+          "name": "canonical_llm_binding",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "E5": {
+          "code": "E5",
+          "details": "decision_grade_verdict=not_decision_grade",
+          "domain": "economic_analysis",
+          "name": "decision_grade_quality",
+          "severity": "blocking",
+          "status": "partial"
+        },
+        "E6": {
+          "code": "E6",
+          "details": "analysis-status endpoint returned error",
+          "domain": "economic_analysis",
+          "name": "admin_read_model",
+          "severity": "nonblocking",
+          "status": "fail"
+        },
+        "M1": {
+          "code": "M1",
+          "details": "manual data audit markdown path missing",
+          "domain": "manual_audit",
+          "name": "manual_data_audit",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "M2": {
+          "code": "M2",
+          "details": "manual economic audit markdown path missing",
+          "domain": "manual_audit",
+          "name": "manual_economic_audit",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "M3": {
+          "code": "M3",
+          "details": "manual gate decision markdown path missing",
+          "domain": "manual_audit",
+          "name": "manual_gate_decision",
+          "severity": "blocking",
+          "status": "not_proven"
+        }
+      },
+      "impact_mode_hint": "pass_through_incidence",
       "inputs": null,
-      "mechanism_family_hint": null,
-      "minio_readback": "not_proven",
+      "mechanism_family_hint": "fee_or_tax_pass_through",
+      "minio_readback": "pass",
       "next_tweak": "Capture and store /analysis-status endpoint response artifact for the cycle.",
-      "package_artifact_uri": null,
-      "package_id": null,
-      "package_row_linkage": "not_proven",
-      "pgvector_chunk_stats": null,
+      "package_artifact_uri": "minio://affordabot-artifacts/policy-evidence/packages/pkg-10adcd7b63e6262425240b5b.json",
+      "package_id": "pkg-10adcd7b63e6262425240b5b",
+      "package_row_linkage": "pass",
+      "pgvector_chunk_stats": {
+        "total_chunks": 386,
+        "with_embedding": 386
+      },
       "provider_status": null,
-      "quality_conclusion": null,
-      "reader_artifact_uri": null,
-      "secondary_research_needed": null,
-      "selected_url": null,
-      "status": "not_executed",
-      "stop_continue_decision": "continue",
-      "storage_readback": "not_proven",
-      "targeted_tweak": "",
-      "verdict": null,
-      "windmill_job_id": null
+      "quality_conclusion": "secondary_research_needed",
+      "reader_artifact_uri": "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/economic_literature/reader_output/4dbf81f3a67ad8e4c8782b5ba6c2291992c16c2e0e480d1a78adaa441db8bd80.md",
+      "secondary_research_needed": true,
+      "selected_url": "https://www.huduser.gov/periodicals/cityscpe/vol8num1/ch4.pdf",
+      "status": "completed",
+      "stop_continue_decision": "continue_prove_remaining",
+      "storage_readback": "pass",
+      "targeted_tweak": "strict_data_runtime_proof_fields",
+      "verdict": "partial",
+      "windmill_job_id": "019d94fb-dfaa-7681-7d6b-c1fb39f6ab49"
     },
     {
       "artifacts": [],
@@ -315,7 +1210,9 @@
       "windmill_job_id": null
     },
     {
-      "artifacts": [],
+      "artifacts": [
+        "/private/tmp/agents/bd-3wefe.13/affordabot/backend/../docs/poc/policy-evidence-quality-spine/artifacts/live_cycle_10_windmill_domain_run.json"
+      ],
       "backend_run_id": null,
       "code_config_tweaks": [],
       "commands_executed": [],
@@ -323,63 +1220,349 @@
       "deploy_sha": null,
       "economic_status_endpoint": null,
       "external_blocker_proof": [],
-      "gate_deltas": {},
-      "gate_snapshot": {},
+      "gate_deltas": {
+        "D2": {
+          "from": "pass",
+          "to": "partial"
+        },
+        "D4": {
+          "from": "pass",
+          "to": "not_proven"
+        },
+        "E1": {
+          "from": "pass",
+          "to": "not_proven"
+        },
+        "E3": {
+          "from": "partial",
+          "to": "not_proven"
+        }
+      },
+      "gate_snapshot": {
+        "D1": {
+          "code": "D1",
+          "details": "catalog_families=['legistar_web_api', 'san_jose_open_data_ckan'], complete_families=['legistar_web_api', 'san_jose_open_data_ckan'], free_ingestible=['legistar_web_api', 'san_jose_open_data_ckan']",
+          "domain": "data_moat",
+          "name": "source_catalog",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D2": {
+          "code": "D2",
+          "details": "selected_url=missing",
+          "domain": "data_moat",
+          "name": "scraped_evidence_quality",
+          "severity": "blocking",
+          "status": "partial"
+        },
+        "D3": {
+          "code": "D3",
+          "details": "scorecard indicates structured pass, but live cycle lacks structured source-family evidence",
+          "domain": "data_moat",
+          "name": "structured_evidence_quality",
+          "severity": "blocking",
+          "status": "partial"
+        },
+        "D4": {
+          "code": "D4",
+          "details": "package_id=missing, package_artifact=missing",
+          "domain": "data_moat",
+          "name": "unified_package_identity",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "D5": {
+          "code": "D5",
+          "details": "postgres=pass (package_row_linked_to_backend_run_id), minio=pass (all_artifact_refs_read_back), pgvector=pass (document_chunks_and_embeddings_present_with_derived_index_truth_role)",
+          "domain": "data_moat",
+          "name": "storage_readback",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D6": {
+          "code": "D6",
+          "details": "live windmill flow run succeeded with concrete windmill_job_id, backend_run_id linked",
+          "domain": "data_moat",
+          "name": "windmill_integration",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "E1": {
+          "code": "E1",
+          "details": "mechanism=missing impact_mode=missing",
+          "domain": "economic_analysis",
+          "name": "mechanism_coverage",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "E2": {
+          "code": "E2",
+          "details": "sufficiency=pass, economic_reasoning=pass",
+          "domain": "economic_analysis",
+          "name": "sufficiency_gate",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "E3": {
+          "code": "E3",
+          "details": "secondary research signal missing from run_context",
+          "domain": "economic_analysis",
+          "name": "secondary_research_loop",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "E4": {
+          "code": "E4",
+          "details": "LLM narrative not proven (canonical_llm_run_id_missing; source=quality_spine_deterministic_lane).",
+          "domain": "economic_analysis",
+          "name": "canonical_llm_binding",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "E5": {
+          "code": "E5",
+          "details": "decision_grade_verdict=not_decision_grade",
+          "domain": "economic_analysis",
+          "name": "decision_grade_quality",
+          "severity": "blocking",
+          "status": "partial"
+        },
+        "E6": {
+          "code": "E6",
+          "details": "analysis-status endpoint returned error",
+          "domain": "economic_analysis",
+          "name": "admin_read_model",
+          "severity": "nonblocking",
+          "status": "fail"
+        },
+        "M1": {
+          "code": "M1",
+          "details": "manual data audit markdown path missing",
+          "domain": "manual_audit",
+          "name": "manual_data_audit",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "M2": {
+          "code": "M2",
+          "details": "manual economic audit markdown path missing",
+          "domain": "manual_audit",
+          "name": "manual_economic_audit",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "M3": {
+          "code": "M3",
+          "details": "manual gate decision markdown path missing",
+          "domain": "manual_audit",
+          "name": "manual_gate_decision",
+          "severity": "blocking",
+          "status": "not_proven"
+        }
+      },
       "impact_mode_hint": null,
       "inputs": null,
       "mechanism_family_hint": null,
-      "minio_readback": "not_proven",
+      "minio_readback": "pass",
       "next_tweak": "Capture and store /analysis-status endpoint response artifact for the cycle.",
       "package_artifact_uri": null,
-      "package_id": null,
-      "package_row_linkage": "not_proven",
-      "pgvector_chunk_stats": null,
+      "package_id": "pkg-sj-parking-minimum-amendment",
+      "package_row_linkage": "pass",
+      "pgvector_chunk_stats": {
+        "total_chunks": 386,
+        "with_embedding": 386
+      },
       "provider_status": null,
-      "quality_conclusion": null,
+      "quality_conclusion": "partial",
       "reader_artifact_uri": null,
       "secondary_research_needed": null,
       "selected_url": null,
-      "status": "not_executed",
-      "stop_continue_decision": "continue",
-      "storage_readback": "not_proven",
-      "targeted_tweak": "",
-      "verdict": null,
-      "windmill_job_id": null
+      "status": "completed",
+      "stop_continue_decision": "continue_prove_remaining",
+      "storage_readback": "pass",
+      "targeted_tweak": "strict_data_runtime_proof_fields",
+      "verdict": "partial",
+      "windmill_job_id": "019d9557-11b4-9cea-38fa-818cd959f02e"
     },
     {
-      "artifacts": [],
-      "backend_run_id": null,
+      "artifacts": [
+        "/private/tmp/agents/bd-3wefe.13/affordabot/backend/../docs/poc/policy-evidence-quality-spine/artifacts/live_cycle_11_windmill_domain_run.json"
+      ],
+      "backend_run_id": "085ff7ce-eb4d-4df6-9df2-7ba488c904ae",
       "code_config_tweaks": [],
       "commands_executed": [],
       "cycle_number": 11,
       "deploy_sha": null,
       "economic_status_endpoint": null,
       "external_blocker_proof": [],
-      "gate_deltas": {},
-      "gate_snapshot": {},
-      "impact_mode_hint": null,
+      "gate_deltas": {
+        "D2": {
+          "from": "partial",
+          "to": "pass"
+        },
+        "D4": {
+          "from": "not_proven",
+          "to": "pass"
+        },
+        "E1": {
+          "from": "not_proven",
+          "to": "pass"
+        },
+        "E3": {
+          "from": "not_proven",
+          "to": "partial"
+        }
+      },
+      "gate_snapshot": {
+        "D1": {
+          "code": "D1",
+          "details": "catalog_families=['legistar_web_api', 'san_jose_open_data_ckan'], complete_families=['legistar_web_api', 'san_jose_open_data_ckan'], free_ingestible=['legistar_web_api', 'san_jose_open_data_ckan']",
+          "domain": "data_moat",
+          "name": "source_catalog",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D2": {
+          "code": "D2",
+          "details": "selected_url=present",
+          "domain": "data_moat",
+          "name": "scraped_evidence_quality",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D3": {
+          "code": "D3",
+          "details": "structured_sources present count=2; manual quality audit pending",
+          "domain": "data_moat",
+          "name": "structured_evidence_quality",
+          "severity": "blocking",
+          "status": "partial"
+        },
+        "D4": {
+          "code": "D4",
+          "details": "package_id=present, package_artifact=present",
+          "domain": "data_moat",
+          "name": "unified_package_identity",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D5": {
+          "code": "D5",
+          "details": "postgres=pass (package_row_linked_to_backend_run_id), minio=pass (all_artifact_refs_read_back), pgvector=pass (document_chunks_and_embeddings_present_with_derived_index_truth_role)",
+          "domain": "data_moat",
+          "name": "storage_readback",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D6": {
+          "code": "D6",
+          "details": "windmill_job_id=019d955c-74e6-353f-705c-c21c6bca4366, backend_run_id=present",
+          "domain": "data_moat",
+          "name": "windmill_integration",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "E1": {
+          "code": "E1",
+          "details": "mechanism=fee_or_tax_pass_through impact_mode=pass_through_incidence",
+          "domain": "economic_analysis",
+          "name": "mechanism_coverage",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "E2": {
+          "code": "E2",
+          "details": "sufficiency=pass, economic_reasoning=pass",
+          "domain": "economic_analysis",
+          "name": "sufficiency_gate",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "E3": {
+          "code": "E3",
+          "details": "secondary_research_needed=True",
+          "domain": "economic_analysis",
+          "name": "secondary_research_loop",
+          "severity": "blocking",
+          "status": "partial"
+        },
+        "E4": {
+          "code": "E4",
+          "details": "LLM narrative not proven (canonical_llm_run_id_missing; source=quality_spine_deterministic_lane).",
+          "domain": "economic_analysis",
+          "name": "canonical_llm_binding",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "E5": {
+          "code": "E5",
+          "details": "decision_grade_verdict=not_decision_grade",
+          "domain": "economic_analysis",
+          "name": "decision_grade_quality",
+          "severity": "blocking",
+          "status": "partial"
+        },
+        "E6": {
+          "code": "E6",
+          "details": "analysis-status endpoint returned error",
+          "domain": "economic_analysis",
+          "name": "admin_read_model",
+          "severity": "nonblocking",
+          "status": "fail"
+        },
+        "M1": {
+          "code": "M1",
+          "details": "manual data audit markdown path missing",
+          "domain": "manual_audit",
+          "name": "manual_data_audit",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "M2": {
+          "code": "M2",
+          "details": "manual economic audit markdown path missing",
+          "domain": "manual_audit",
+          "name": "manual_economic_audit",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "M3": {
+          "code": "M3",
+          "details": "manual gate decision markdown path missing",
+          "domain": "manual_audit",
+          "name": "manual_gate_decision",
+          "severity": "blocking",
+          "status": "not_proven"
+        }
+      },
+      "impact_mode_hint": "pass_through_incidence",
       "inputs": null,
-      "mechanism_family_hint": null,
-      "minio_readback": "not_proven",
+      "mechanism_family_hint": "fee_or_tax_pass_through",
+      "minio_readback": "pass",
       "next_tweak": "Capture and store /analysis-status endpoint response artifact for the cycle.",
-      "package_artifact_uri": null,
-      "package_id": null,
-      "package_row_linkage": "not_proven",
-      "pgvector_chunk_stats": null,
+      "package_artifact_uri": "minio://affordabot-artifacts/policy-evidence/packages/pkg-d04e8a67cc9bb4eac46e4d9a.json",
+      "package_id": "pkg-d04e8a67cc9bb4eac46e4d9a",
+      "package_row_linkage": "pass",
+      "pgvector_chunk_stats": {
+        "total_chunks": 386,
+        "with_embedding": 386
+      },
       "provider_status": null,
-      "quality_conclusion": null,
-      "reader_artifact_uri": null,
-      "secondary_research_needed": null,
-      "selected_url": null,
-      "status": "not_executed",
-      "stop_continue_decision": "continue",
-      "storage_readback": "not_proven",
-      "targeted_tweak": "",
-      "verdict": null,
-      "windmill_job_id": null
+      "quality_conclusion": "secondary_research_needed",
+      "reader_artifact_uri": "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/meeting_minutes/reader_output/2bb766eacf62bf205c992a8414b71603b4b6514f328d7b5ff9e2279aef4fb36f.md",
+      "secondary_research_needed": true,
+      "selected_url": "https://sanjose.legistar.com/gateway.aspx?m=l&id=/matter.aspx?key=15360",
+      "status": "completed",
+      "stop_continue_decision": "continue_prove_remaining",
+      "storage_readback": "pass",
+      "targeted_tweak": "strict_data_runtime_proof_fields",
+      "verdict": "partial",
+      "windmill_job_id": "019d955c-74e6-353f-705c-c21c6bca4366"
     },
     {
-      "artifacts": [],
+      "artifacts": [
+        "/private/tmp/agents/bd-3wefe.13/affordabot/backend/../docs/poc/policy-evidence-quality-spine/artifacts/live_cycle_12_windmill_domain_run.json"
+      ],
       "backend_run_id": null,
       "code_config_tweaks": [],
       "commands_executed": [],
@@ -387,64 +1570,350 @@
       "deploy_sha": null,
       "economic_status_endpoint": null,
       "external_blocker_proof": [],
-      "gate_deltas": {},
-      "gate_snapshot": {},
+      "gate_deltas": {
+        "D2": {
+          "from": "pass",
+          "to": "partial"
+        },
+        "D4": {
+          "from": "pass",
+          "to": "not_proven"
+        },
+        "E1": {
+          "from": "pass",
+          "to": "not_proven"
+        },
+        "E3": {
+          "from": "partial",
+          "to": "not_proven"
+        }
+      },
+      "gate_snapshot": {
+        "D1": {
+          "code": "D1",
+          "details": "catalog_families=['legistar_web_api', 'san_jose_open_data_ckan'], complete_families=['legistar_web_api', 'san_jose_open_data_ckan'], free_ingestible=['legistar_web_api', 'san_jose_open_data_ckan']",
+          "domain": "data_moat",
+          "name": "source_catalog",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D2": {
+          "code": "D2",
+          "details": "selected_url=missing",
+          "domain": "data_moat",
+          "name": "scraped_evidence_quality",
+          "severity": "blocking",
+          "status": "partial"
+        },
+        "D3": {
+          "code": "D3",
+          "details": "scorecard indicates structured pass, but live cycle lacks structured source-family evidence",
+          "domain": "data_moat",
+          "name": "structured_evidence_quality",
+          "severity": "blocking",
+          "status": "partial"
+        },
+        "D4": {
+          "code": "D4",
+          "details": "package_id=missing, package_artifact=missing",
+          "domain": "data_moat",
+          "name": "unified_package_identity",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "D5": {
+          "code": "D5",
+          "details": "postgres=pass (package_row_linked_to_backend_run_id), minio=pass (all_artifact_refs_read_back), pgvector=pass (document_chunks_and_embeddings_present_with_derived_index_truth_role)",
+          "domain": "data_moat",
+          "name": "storage_readback",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D6": {
+          "code": "D6",
+          "details": "live windmill flow run succeeded with concrete windmill_job_id, backend_run_id linked",
+          "domain": "data_moat",
+          "name": "windmill_integration",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "E1": {
+          "code": "E1",
+          "details": "mechanism=missing impact_mode=missing",
+          "domain": "economic_analysis",
+          "name": "mechanism_coverage",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "E2": {
+          "code": "E2",
+          "details": "sufficiency=pass, economic_reasoning=pass",
+          "domain": "economic_analysis",
+          "name": "sufficiency_gate",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "E3": {
+          "code": "E3",
+          "details": "secondary research signal missing from run_context",
+          "domain": "economic_analysis",
+          "name": "secondary_research_loop",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "E4": {
+          "code": "E4",
+          "details": "LLM narrative not proven (canonical_llm_run_id_missing; source=quality_spine_deterministic_lane).",
+          "domain": "economic_analysis",
+          "name": "canonical_llm_binding",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "E5": {
+          "code": "E5",
+          "details": "decision_grade_verdict=not_decision_grade",
+          "domain": "economic_analysis",
+          "name": "decision_grade_quality",
+          "severity": "blocking",
+          "status": "partial"
+        },
+        "E6": {
+          "code": "E6",
+          "details": "analysis-status endpoint returned error",
+          "domain": "economic_analysis",
+          "name": "admin_read_model",
+          "severity": "nonblocking",
+          "status": "fail"
+        },
+        "M1": {
+          "code": "M1",
+          "details": "manual data audit markdown path missing",
+          "domain": "manual_audit",
+          "name": "manual_data_audit",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "M2": {
+          "code": "M2",
+          "details": "manual economic audit markdown path missing",
+          "domain": "manual_audit",
+          "name": "manual_economic_audit",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "M3": {
+          "code": "M3",
+          "details": "manual gate decision markdown path missing",
+          "domain": "manual_audit",
+          "name": "manual_gate_decision",
+          "severity": "blocking",
+          "status": "not_proven"
+        }
+      },
       "impact_mode_hint": null,
       "inputs": null,
       "mechanism_family_hint": null,
-      "minio_readback": "not_proven",
+      "minio_readback": "pass",
       "next_tweak": "Capture and store /analysis-status endpoint response artifact for the cycle.",
       "package_artifact_uri": null,
-      "package_id": null,
-      "package_row_linkage": "not_proven",
-      "pgvector_chunk_stats": null,
+      "package_id": "pkg-sj-parking-minimum-amendment",
+      "package_row_linkage": "pass",
+      "pgvector_chunk_stats": {
+        "total_chunks": 386,
+        "with_embedding": 386
+      },
       "provider_status": null,
-      "quality_conclusion": null,
+      "quality_conclusion": "partial",
       "reader_artifact_uri": null,
       "secondary_research_needed": null,
       "selected_url": null,
-      "status": "not_executed",
-      "stop_continue_decision": "continue",
-      "storage_readback": "not_proven",
-      "targeted_tweak": "",
-      "verdict": null,
-      "windmill_job_id": null
+      "status": "completed",
+      "stop_continue_decision": "continue_prove_remaining",
+      "storage_readback": "pass",
+      "targeted_tweak": "strict_data_runtime_proof_fields",
+      "verdict": "partial",
+      "windmill_job_id": "019d956c-95d7-449c-3fb9-1fdbe2f00613"
     },
     {
-      "artifacts": [],
-      "backend_run_id": null,
+      "artifacts": [
+        "/private/tmp/agents/bd-3wefe.13/affordabot/backend/../docs/poc/policy-evidence-quality-spine/artifacts/live_cycle_13_windmill_domain_run.json"
+      ],
+      "backend_run_id": "848c36e6-54e2-49c2-9906-9206ede90787",
       "code_config_tweaks": [],
       "commands_executed": [],
       "cycle_number": 13,
       "deploy_sha": null,
       "economic_status_endpoint": null,
       "external_blocker_proof": [],
-      "gate_deltas": {},
-      "gate_snapshot": {},
-      "impact_mode_hint": null,
+      "gate_deltas": {
+        "D2": {
+          "from": "partial",
+          "to": "pass"
+        },
+        "D4": {
+          "from": "not_proven",
+          "to": "pass"
+        },
+        "E1": {
+          "from": "not_proven",
+          "to": "pass"
+        },
+        "E3": {
+          "from": "not_proven",
+          "to": "partial"
+        }
+      },
+      "gate_snapshot": {
+        "D1": {
+          "code": "D1",
+          "details": "catalog_families=['legistar_web_api', 'san_jose_open_data_ckan'], complete_families=['legistar_web_api', 'san_jose_open_data_ckan'], free_ingestible=['legistar_web_api', 'san_jose_open_data_ckan']",
+          "domain": "data_moat",
+          "name": "source_catalog",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D2": {
+          "code": "D2",
+          "details": "selected_url=present",
+          "domain": "data_moat",
+          "name": "scraped_evidence_quality",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D3": {
+          "code": "D3",
+          "details": "structured_sources present count=1; manual quality audit pending",
+          "domain": "data_moat",
+          "name": "structured_evidence_quality",
+          "severity": "blocking",
+          "status": "partial"
+        },
+        "D4": {
+          "code": "D4",
+          "details": "package_id=present, package_artifact=present",
+          "domain": "data_moat",
+          "name": "unified_package_identity",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D5": {
+          "code": "D5",
+          "details": "postgres=pass (package_row_linked_to_backend_run_id), minio=pass (all_artifact_refs_read_back), pgvector=pass (document_chunks_and_embeddings_present_with_derived_index_truth_role)",
+          "domain": "data_moat",
+          "name": "storage_readback",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D6": {
+          "code": "D6",
+          "details": "live windmill flow run succeeded with concrete windmill_job_id, backend_run_id linked",
+          "domain": "data_moat",
+          "name": "windmill_integration",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "E1": {
+          "code": "E1",
+          "details": "mechanism=fee_or_tax_pass_through impact_mode=pass_through_incidence",
+          "domain": "economic_analysis",
+          "name": "mechanism_coverage",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "E2": {
+          "code": "E2",
+          "details": "sufficiency=pass, economic_reasoning=pass",
+          "domain": "economic_analysis",
+          "name": "sufficiency_gate",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "E3": {
+          "code": "E3",
+          "details": "secondary_research_needed=True",
+          "domain": "economic_analysis",
+          "name": "secondary_research_loop",
+          "severity": "blocking",
+          "status": "partial"
+        },
+        "E4": {
+          "code": "E4",
+          "details": "LLM narrative not proven (canonical_llm_run_id_missing; source=quality_spine_deterministic_lane).",
+          "domain": "economic_analysis",
+          "name": "canonical_llm_binding",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "E5": {
+          "code": "E5",
+          "details": "decision_grade_verdict=not_decision_grade",
+          "domain": "economic_analysis",
+          "name": "decision_grade_quality",
+          "severity": "blocking",
+          "status": "partial"
+        },
+        "E6": {
+          "code": "E6",
+          "details": "analysis-status endpoint returned error",
+          "domain": "economic_analysis",
+          "name": "admin_read_model",
+          "severity": "nonblocking",
+          "status": "fail"
+        },
+        "M1": {
+          "code": "M1",
+          "details": "manual data audit markdown path missing",
+          "domain": "manual_audit",
+          "name": "manual_data_audit",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "M2": {
+          "code": "M2",
+          "details": "manual economic audit markdown path missing",
+          "domain": "manual_audit",
+          "name": "manual_economic_audit",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "M3": {
+          "code": "M3",
+          "details": "manual gate decision markdown path missing",
+          "domain": "manual_audit",
+          "name": "manual_gate_decision",
+          "severity": "blocking",
+          "status": "not_proven"
+        }
+      },
+      "impact_mode_hint": "pass_through_incidence",
       "inputs": null,
-      "mechanism_family_hint": null,
-      "minio_readback": "not_proven",
+      "mechanism_family_hint": "fee_or_tax_pass_through",
+      "minio_readback": "pass",
       "next_tweak": "Capture and store /analysis-status endpoint response artifact for the cycle.",
-      "package_artifact_uri": null,
-      "package_id": null,
-      "package_row_linkage": "not_proven",
-      "pgvector_chunk_stats": null,
+      "package_artifact_uri": "minio://affordabot-artifacts/policy-evidence/packages/pkg-02457f6abdab43aaa78cdc44.json",
+      "package_id": "pkg-02457f6abdab43aaa78cdc44",
+      "package_row_linkage": "pass",
+      "pgvector_chunk_stats": {
+        "total_chunks": 386,
+        "with_embedding": 386
+      },
       "provider_status": null,
-      "quality_conclusion": null,
-      "reader_artifact_uri": null,
-      "secondary_research_needed": null,
-      "selected_url": null,
-      "status": "not_executed",
-      "stop_continue_decision": "continue",
-      "storage_readback": "not_proven",
-      "targeted_tweak": "",
-      "verdict": null,
-      "windmill_job_id": null
+      "quality_conclusion": "secondary_research_needed",
+      "reader_artifact_uri": "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/policy_documents/reader_output/107a066718d26348a7a15e23038bd44a9f2daf227b2e068b92f75dee9d2a06ce.md",
+      "secondary_research_needed": true,
+      "selected_url": "https://siliconvalleyathome.org/resources/commercial-linkage-fees-2/",
+      "status": "completed",
+      "stop_continue_decision": "continue_prove_remaining",
+      "storage_readback": "pass",
+      "targeted_tweak": "strict_data_runtime_proof_fields",
+      "verdict": "partial",
+      "windmill_job_id": "019d9571-ba10-6e09-4355-3cc297c83d5a"
     },
     {
-      "artifacts": [],
-      "backend_run_id": null,
+      "artifacts": [
+        "/private/tmp/agents/bd-3wefe.13/affordabot/backend/../docs/poc/policy-evidence-quality-spine/artifacts/live_cycle_14_windmill_domain_run.json"
+      ],
+      "backend_run_id": "651818df-05d7-4a98-ab5a-b5047ce7fe47",
       "code_config_tweaks": [],
       "commands_executed": [],
       "cycle_number": 14,
@@ -452,31 +1921,157 @@
       "economic_status_endpoint": null,
       "external_blocker_proof": [],
       "gate_deltas": {},
-      "gate_snapshot": {},
-      "impact_mode_hint": null,
+      "gate_snapshot": {
+        "D1": {
+          "code": "D1",
+          "details": "catalog_families=['legistar_web_api', 'san_jose_open_data_ckan'], complete_families=['legistar_web_api', 'san_jose_open_data_ckan'], free_ingestible=['legistar_web_api', 'san_jose_open_data_ckan']",
+          "domain": "data_moat",
+          "name": "source_catalog",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D2": {
+          "code": "D2",
+          "details": "selected_url=present",
+          "domain": "data_moat",
+          "name": "scraped_evidence_quality",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D3": {
+          "code": "D3",
+          "details": "structured_sources present count=1; manual quality audit pending",
+          "domain": "data_moat",
+          "name": "structured_evidence_quality",
+          "severity": "blocking",
+          "status": "partial"
+        },
+        "D4": {
+          "code": "D4",
+          "details": "package_id=present, package_artifact=present",
+          "domain": "data_moat",
+          "name": "unified_package_identity",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D5": {
+          "code": "D5",
+          "details": "postgres=pass (package_row_linked_to_backend_run_id), minio=pass (all_artifact_refs_read_back), pgvector=pass (document_chunks_and_embeddings_present_with_derived_index_truth_role)",
+          "domain": "data_moat",
+          "name": "storage_readback",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D6": {
+          "code": "D6",
+          "details": "windmill_job_id=019d957d-b9c3-9ebc-5db4-32ef156b4e47, backend_run_id=present",
+          "domain": "data_moat",
+          "name": "windmill_integration",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "E1": {
+          "code": "E1",
+          "details": "mechanism=fee_or_tax_pass_through impact_mode=pass_through_incidence",
+          "domain": "economic_analysis",
+          "name": "mechanism_coverage",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "E2": {
+          "code": "E2",
+          "details": "sufficiency=pass, economic_reasoning=pass",
+          "domain": "economic_analysis",
+          "name": "sufficiency_gate",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "E3": {
+          "code": "E3",
+          "details": "secondary_research_needed=True",
+          "domain": "economic_analysis",
+          "name": "secondary_research_loop",
+          "severity": "blocking",
+          "status": "partial"
+        },
+        "E4": {
+          "code": "E4",
+          "details": "LLM narrative not proven (canonical_llm_run_id_missing; source=quality_spine_deterministic_lane).",
+          "domain": "economic_analysis",
+          "name": "canonical_llm_binding",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "E5": {
+          "code": "E5",
+          "details": "decision_grade_verdict=not_decision_grade",
+          "domain": "economic_analysis",
+          "name": "decision_grade_quality",
+          "severity": "blocking",
+          "status": "partial"
+        },
+        "E6": {
+          "code": "E6",
+          "details": "analysis-status endpoint returned error",
+          "domain": "economic_analysis",
+          "name": "admin_read_model",
+          "severity": "nonblocking",
+          "status": "fail"
+        },
+        "M1": {
+          "code": "M1",
+          "details": "manual data audit markdown path missing",
+          "domain": "manual_audit",
+          "name": "manual_data_audit",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "M2": {
+          "code": "M2",
+          "details": "manual economic audit markdown path missing",
+          "domain": "manual_audit",
+          "name": "manual_economic_audit",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "M3": {
+          "code": "M3",
+          "details": "manual gate decision markdown path missing",
+          "domain": "manual_audit",
+          "name": "manual_gate_decision",
+          "severity": "blocking",
+          "status": "not_proven"
+        }
+      },
+      "impact_mode_hint": "pass_through_incidence",
       "inputs": null,
-      "mechanism_family_hint": null,
-      "minio_readback": "not_proven",
+      "mechanism_family_hint": "fee_or_tax_pass_through",
+      "minio_readback": "pass",
       "next_tweak": "Capture and store /analysis-status endpoint response artifact for the cycle.",
-      "package_artifact_uri": null,
-      "package_id": null,
-      "package_row_linkage": "not_proven",
-      "pgvector_chunk_stats": null,
+      "package_artifact_uri": "minio://affordabot-artifacts/policy-evidence/packages/pkg-3da784731acec1a985cc33cd.json",
+      "package_id": "pkg-3da784731acec1a985cc33cd",
+      "package_row_linkage": "pass",
+      "pgvector_chunk_stats": {
+        "total_chunks": 386,
+        "with_embedding": 386
+      },
       "provider_status": null,
-      "quality_conclusion": null,
-      "reader_artifact_uri": null,
-      "secondary_research_needed": null,
-      "selected_url": null,
-      "status": "not_executed",
-      "stop_continue_decision": "continue",
-      "storage_readback": "not_proven",
-      "targeted_tweak": "",
-      "verdict": null,
-      "windmill_job_id": null
+      "quality_conclusion": "secondary_research_needed",
+      "reader_artifact_uri": "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/policy_documents/reader_output/fa41fad8e08bfc60fa8a3dba43212d67ec16a38829d9e7869d261fc830ab4161.md",
+      "secondary_research_needed": true,
+      "selected_url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee",
+      "status": "completed",
+      "stop_continue_decision": "continue_prove_remaining",
+      "storage_readback": "pass",
+      "targeted_tweak": "strict_data_runtime_proof_fields",
+      "verdict": "partial",
+      "windmill_job_id": "019d957d-b9c3-9ebc-5db4-32ef156b4e47"
     },
     {
-      "artifacts": [],
-      "backend_run_id": null,
+      "artifacts": [
+        "/private/tmp/agents/bd-3wefe.13/affordabot/backend/../docs/poc/policy-evidence-quality-spine/artifacts/live_cycle_15_windmill_domain_run.json"
+      ],
+      "backend_run_id": "24e1de76-9661-41fd-a966-ce57ae258fe1",
       "code_config_tweaks": [],
       "commands_executed": [],
       "cycle_number": 15,
@@ -484,31 +2079,157 @@
       "economic_status_endpoint": null,
       "external_blocker_proof": [],
       "gate_deltas": {},
-      "gate_snapshot": {},
-      "impact_mode_hint": null,
+      "gate_snapshot": {
+        "D1": {
+          "code": "D1",
+          "details": "catalog_families=['legistar_web_api', 'san_jose_open_data_ckan'], complete_families=['legistar_web_api', 'san_jose_open_data_ckan'], free_ingestible=['legistar_web_api', 'san_jose_open_data_ckan']",
+          "domain": "data_moat",
+          "name": "source_catalog",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D2": {
+          "code": "D2",
+          "details": "selected_url=present",
+          "domain": "data_moat",
+          "name": "scraped_evidence_quality",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D3": {
+          "code": "D3",
+          "details": "structured_sources present count=1; manual quality audit pending",
+          "domain": "data_moat",
+          "name": "structured_evidence_quality",
+          "severity": "blocking",
+          "status": "partial"
+        },
+        "D4": {
+          "code": "D4",
+          "details": "package_id=present, package_artifact=present",
+          "domain": "data_moat",
+          "name": "unified_package_identity",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D5": {
+          "code": "D5",
+          "details": "postgres=pass (package_row_linked_to_backend_run_id), minio=pass (all_artifact_refs_read_back), pgvector=pass (document_chunks_and_embeddings_present_with_derived_index_truth_role)",
+          "domain": "data_moat",
+          "name": "storage_readback",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D6": {
+          "code": "D6",
+          "details": "windmill_job_id=019d9580-63c1-d7d9-cf9e-ffc9b86f05d0, backend_run_id=present",
+          "domain": "data_moat",
+          "name": "windmill_integration",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "E1": {
+          "code": "E1",
+          "details": "mechanism=fee_or_tax_pass_through impact_mode=pass_through_incidence",
+          "domain": "economic_analysis",
+          "name": "mechanism_coverage",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "E2": {
+          "code": "E2",
+          "details": "sufficiency=pass, economic_reasoning=pass",
+          "domain": "economic_analysis",
+          "name": "sufficiency_gate",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "E3": {
+          "code": "E3",
+          "details": "secondary_research_needed=True",
+          "domain": "economic_analysis",
+          "name": "secondary_research_loop",
+          "severity": "blocking",
+          "status": "partial"
+        },
+        "E4": {
+          "code": "E4",
+          "details": "LLM narrative not proven (canonical_llm_run_id_missing; source=quality_spine_deterministic_lane).",
+          "domain": "economic_analysis",
+          "name": "canonical_llm_binding",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "E5": {
+          "code": "E5",
+          "details": "decision_grade_verdict=not_decision_grade",
+          "domain": "economic_analysis",
+          "name": "decision_grade_quality",
+          "severity": "blocking",
+          "status": "partial"
+        },
+        "E6": {
+          "code": "E6",
+          "details": "analysis-status endpoint returned error",
+          "domain": "economic_analysis",
+          "name": "admin_read_model",
+          "severity": "nonblocking",
+          "status": "fail"
+        },
+        "M1": {
+          "code": "M1",
+          "details": "manual data audit markdown path missing",
+          "domain": "manual_audit",
+          "name": "manual_data_audit",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "M2": {
+          "code": "M2",
+          "details": "manual economic audit markdown path missing",
+          "domain": "manual_audit",
+          "name": "manual_economic_audit",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "M3": {
+          "code": "M3",
+          "details": "manual gate decision markdown path missing",
+          "domain": "manual_audit",
+          "name": "manual_gate_decision",
+          "severity": "blocking",
+          "status": "not_proven"
+        }
+      },
+      "impact_mode_hint": "pass_through_incidence",
       "inputs": null,
-      "mechanism_family_hint": null,
-      "minio_readback": "not_proven",
+      "mechanism_family_hint": "fee_or_tax_pass_through",
+      "minio_readback": "pass",
       "next_tweak": "Capture and store /analysis-status endpoint response artifact for the cycle.",
-      "package_artifact_uri": null,
-      "package_id": null,
-      "package_row_linkage": "not_proven",
-      "pgvector_chunk_stats": null,
+      "package_artifact_uri": "minio://affordabot-artifacts/policy-evidence/packages/pkg-0a7f8f1524ffb9e56b8cb209.json",
+      "package_id": "pkg-0a7f8f1524ffb9e56b8cb209",
+      "package_row_linkage": "pass",
+      "pgvector_chunk_stats": {
+        "total_chunks": 386,
+        "with_embedding": 386
+      },
       "provider_status": null,
-      "quality_conclusion": null,
-      "reader_artifact_uri": null,
-      "secondary_research_needed": null,
-      "selected_url": null,
-      "status": "not_executed",
-      "stop_continue_decision": "continue",
-      "storage_readback": "not_proven",
-      "targeted_tweak": "",
-      "verdict": null,
-      "windmill_job_id": null
+      "quality_conclusion": "secondary_research_needed",
+      "reader_artifact_uri": "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/policy_documents/reader_output/fa41fad8e08bfc60fa8a3dba43212d67ec16a38829d9e7869d261fc830ab4161.md",
+      "secondary_research_needed": true,
+      "selected_url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee",
+      "status": "completed",
+      "stop_continue_decision": "continue_prove_remaining",
+      "storage_readback": "pass",
+      "targeted_tweak": "strict_data_runtime_proof_fields",
+      "verdict": "partial",
+      "windmill_job_id": "019d9580-63c1-d7d9-cf9e-ffc9b86f05d0"
     },
     {
-      "artifacts": [],
-      "backend_run_id": null,
+      "artifacts": [
+        "/private/tmp/agents/bd-3wefe.13/affordabot/backend/../docs/poc/policy-evidence-quality-spine/artifacts/live_cycle_16_windmill_domain_run.json"
+      ],
+      "backend_run_id": "b84123ad-8169-43aa-ae7d-c7791d492be4",
       "code_config_tweaks": [],
       "commands_executed": [],
       "cycle_number": 16,
@@ -516,27 +2237,151 @@
       "economic_status_endpoint": null,
       "external_blocker_proof": [],
       "gate_deltas": {},
-      "gate_snapshot": {},
-      "impact_mode_hint": null,
+      "gate_snapshot": {
+        "D1": {
+          "code": "D1",
+          "details": "catalog_families=['legistar_web_api', 'san_jose_open_data_ckan'], complete_families=['legistar_web_api', 'san_jose_open_data_ckan'], free_ingestible=['legistar_web_api', 'san_jose_open_data_ckan']",
+          "domain": "data_moat",
+          "name": "source_catalog",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D2": {
+          "code": "D2",
+          "details": "selected_url=present",
+          "domain": "data_moat",
+          "name": "scraped_evidence_quality",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D3": {
+          "code": "D3",
+          "details": "structured_sources present count=1; manual quality audit pending",
+          "domain": "data_moat",
+          "name": "structured_evidence_quality",
+          "severity": "blocking",
+          "status": "partial"
+        },
+        "D4": {
+          "code": "D4",
+          "details": "package_id=present, package_artifact=present",
+          "domain": "data_moat",
+          "name": "unified_package_identity",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D5": {
+          "code": "D5",
+          "details": "postgres=pass (package_row_linked_to_backend_run_id), minio=pass (all_artifact_refs_read_back), pgvector=pass (document_chunks_and_embeddings_present_with_derived_index_truth_role)",
+          "domain": "data_moat",
+          "name": "storage_readback",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D6": {
+          "code": "D6",
+          "details": "windmill_job_id=019d9582-79a1-3eae-3a58-6421b3d023cd, backend_run_id=present",
+          "domain": "data_moat",
+          "name": "windmill_integration",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "E1": {
+          "code": "E1",
+          "details": "mechanism=fee_or_tax_pass_through impact_mode=pass_through_incidence",
+          "domain": "economic_analysis",
+          "name": "mechanism_coverage",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "E2": {
+          "code": "E2",
+          "details": "sufficiency=pass, economic_reasoning=pass",
+          "domain": "economic_analysis",
+          "name": "sufficiency_gate",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "E3": {
+          "code": "E3",
+          "details": "secondary_research_needed=True",
+          "domain": "economic_analysis",
+          "name": "secondary_research_loop",
+          "severity": "blocking",
+          "status": "partial"
+        },
+        "E4": {
+          "code": "E4",
+          "details": "LLM narrative not proven (canonical_llm_run_id_missing; source=quality_spine_deterministic_lane).",
+          "domain": "economic_analysis",
+          "name": "canonical_llm_binding",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "E5": {
+          "code": "E5",
+          "details": "decision_grade_verdict=not_decision_grade",
+          "domain": "economic_analysis",
+          "name": "decision_grade_quality",
+          "severity": "blocking",
+          "status": "partial"
+        },
+        "E6": {
+          "code": "E6",
+          "details": "analysis-status endpoint returned error",
+          "domain": "economic_analysis",
+          "name": "admin_read_model",
+          "severity": "nonblocking",
+          "status": "fail"
+        },
+        "M1": {
+          "code": "M1",
+          "details": "manual data audit markdown path missing",
+          "domain": "manual_audit",
+          "name": "manual_data_audit",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "M2": {
+          "code": "M2",
+          "details": "manual economic audit markdown path missing",
+          "domain": "manual_audit",
+          "name": "manual_economic_audit",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "M3": {
+          "code": "M3",
+          "details": "manual gate decision markdown path missing",
+          "domain": "manual_audit",
+          "name": "manual_gate_decision",
+          "severity": "blocking",
+          "status": "not_proven"
+        }
+      },
+      "impact_mode_hint": "pass_through_incidence",
       "inputs": null,
-      "mechanism_family_hint": null,
-      "minio_readback": "not_proven",
+      "mechanism_family_hint": "fee_or_tax_pass_through",
+      "minio_readback": "pass",
       "next_tweak": "Capture and store /analysis-status endpoint response artifact for the cycle.",
-      "package_artifact_uri": null,
-      "package_id": null,
-      "package_row_linkage": "not_proven",
-      "pgvector_chunk_stats": null,
+      "package_artifact_uri": "minio://affordabot-artifacts/policy-evidence/packages/pkg-bcb4c43d8dd83845f1b6dc3a.json",
+      "package_id": "pkg-bcb4c43d8dd83845f1b6dc3a",
+      "package_row_linkage": "pass",
+      "pgvector_chunk_stats": {
+        "total_chunks": 386,
+        "with_embedding": 386
+      },
       "provider_status": null,
-      "quality_conclusion": null,
-      "reader_artifact_uri": null,
-      "secondary_research_needed": null,
-      "selected_url": null,
-      "status": "not_executed",
-      "stop_continue_decision": "continue",
-      "storage_readback": "not_proven",
-      "targeted_tweak": "",
-      "verdict": null,
-      "windmill_job_id": null
+      "quality_conclusion": "secondary_research_needed",
+      "reader_artifact_uri": "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/policy_documents/reader_output/fa41fad8e08bfc60fa8a3dba43212d67ec16a38829d9e7869d261fc830ab4161.md",
+      "secondary_research_needed": true,
+      "selected_url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee",
+      "status": "completed",
+      "stop_continue_decision": "continue_prove_remaining",
+      "storage_readback": "pass",
+      "targeted_tweak": "strict_data_runtime_proof_fields",
+      "verdict": "partial",
+      "windmill_job_id": "019d9582-79a1-3eae-3a58-6421b3d023cd"
     },
     {
       "artifacts": [],
@@ -572,13 +2417,13 @@
     },
     {
       "artifacts": [
-        "../docs/poc/policy-evidence-quality-spine/artifacts/live_cycle_18_windmill_domain_run.json"
+        "/private/tmp/agents/bd-3wefe.13/affordabot/backend/../docs/poc/policy-evidence-quality-spine/artifacts/live_cycle_18_windmill_domain_run.json"
       ],
       "backend_run_id": "82bc5cc6-c666-400f-84e9-feb7351065cc",
       "code_config_tweaks": [],
       "commands_executed": [],
       "cycle_number": 18,
-      "deploy_sha": "8eaea7b",
+      "deploy_sha": null,
       "economic_status_endpoint": null,
       "external_blocker_proof": [],
       "gate_deltas": {},
@@ -681,27 +2526,27 @@
         },
         "M1": {
           "code": "M1",
-          "details": "manual_data_audit_path=../docs/poc/policy-evidence-quality-spine/manual_audit_cycle_18_data_moat.md",
+          "details": "manual data audit markdown path missing",
           "domain": "manual_audit",
           "name": "manual_data_audit",
           "severity": "blocking",
-          "status": "pass"
+          "status": "not_proven"
         },
         "M2": {
           "code": "M2",
-          "details": "manual_economic_audit_path=../docs/poc/policy-evidence-quality-spine/manual_audit_cycle_18_economic_analysis.md",
+          "details": "manual economic audit markdown path missing",
           "domain": "manual_audit",
           "name": "manual_economic_audit",
           "severity": "blocking",
-          "status": "pass"
+          "status": "not_proven"
         },
         "M3": {
           "code": "M3",
-          "details": "manual_gate_decision_path=../docs/poc/policy-evidence-quality-spine/manual_gate_decision_cycle_18.md",
+          "details": "manual gate decision markdown path missing",
           "domain": "manual_audit",
           "name": "manual_gate_decision",
           "severity": "blocking",
-          "status": "pass"
+          "status": "not_proven"
         }
       },
       "impact_mode_hint": "pass_through_incidence",
@@ -713,8 +2558,8 @@
       "package_id": "pkg-efa6e50f77c3b9690dc3d2a8",
       "package_row_linkage": "pass",
       "pgvector_chunk_stats": {
-        "total_chunks": 19,
-        "with_embedding": 19
+        "total_chunks": 386,
+        "with_embedding": 386
       },
       "provider_status": null,
       "quality_conclusion": "secondary_research_needed",
@@ -761,8 +2606,10 @@
       "windmill_job_id": null
     },
     {
-      "artifacts": [],
-      "backend_run_id": null,
+      "artifacts": [
+        "/private/tmp/agents/bd-3wefe.13/affordabot/backend/../docs/poc/policy-evidence-quality-spine/artifacts/live_cycle_20_windmill_domain_run.json"
+      ],
+      "backend_run_id": "a599344a-ca06-4d4b-85cf-4e1f47cf15d8",
       "code_config_tweaks": [],
       "commands_executed": [],
       "cycle_number": 20,
@@ -770,27 +2617,151 @@
       "economic_status_endpoint": null,
       "external_blocker_proof": [],
       "gate_deltas": {},
-      "gate_snapshot": {},
-      "impact_mode_hint": null,
+      "gate_snapshot": {
+        "D1": {
+          "code": "D1",
+          "details": "catalog_families=['legistar_web_api', 'san_jose_open_data_ckan'], complete_families=['legistar_web_api', 'san_jose_open_data_ckan'], free_ingestible=['legistar_web_api', 'san_jose_open_data_ckan']",
+          "domain": "data_moat",
+          "name": "source_catalog",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D2": {
+          "code": "D2",
+          "details": "selected_url=present",
+          "domain": "data_moat",
+          "name": "scraped_evidence_quality",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D3": {
+          "code": "D3",
+          "details": "structured_sources present count=2; manual quality audit pending",
+          "domain": "data_moat",
+          "name": "structured_evidence_quality",
+          "severity": "blocking",
+          "status": "partial"
+        },
+        "D4": {
+          "code": "D4",
+          "details": "package_id=present, package_artifact=present",
+          "domain": "data_moat",
+          "name": "unified_package_identity",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D5": {
+          "code": "D5",
+          "details": "postgres=pass (package_row_linked_to_backend_run_id), minio=pass (all_artifact_refs_read_back), pgvector=pass (document_chunks_and_embeddings_present_with_derived_index_truth_role)",
+          "domain": "data_moat",
+          "name": "storage_readback",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D6": {
+          "code": "D6",
+          "details": "windmill_job_id=019d9595-fd9c-b4b8-7030-6262102a228a, backend_run_id=present",
+          "domain": "data_moat",
+          "name": "windmill_integration",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "E1": {
+          "code": "E1",
+          "details": "mechanism=fee_or_tax_pass_through impact_mode=pass_through_incidence",
+          "domain": "economic_analysis",
+          "name": "mechanism_coverage",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "E2": {
+          "code": "E2",
+          "details": "sufficiency=pass, economic_reasoning=pass",
+          "domain": "economic_analysis",
+          "name": "sufficiency_gate",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "E3": {
+          "code": "E3",
+          "details": "secondary_research_needed=True",
+          "domain": "economic_analysis",
+          "name": "secondary_research_loop",
+          "severity": "blocking",
+          "status": "partial"
+        },
+        "E4": {
+          "code": "E4",
+          "details": "LLM narrative not proven (canonical_llm_run_id_missing; source=quality_spine_deterministic_lane).",
+          "domain": "economic_analysis",
+          "name": "canonical_llm_binding",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "E5": {
+          "code": "E5",
+          "details": "decision_grade_verdict=not_decision_grade",
+          "domain": "economic_analysis",
+          "name": "decision_grade_quality",
+          "severity": "blocking",
+          "status": "partial"
+        },
+        "E6": {
+          "code": "E6",
+          "details": "analysis-status endpoint returned error",
+          "domain": "economic_analysis",
+          "name": "admin_read_model",
+          "severity": "nonblocking",
+          "status": "fail"
+        },
+        "M1": {
+          "code": "M1",
+          "details": "manual data audit markdown path missing",
+          "domain": "manual_audit",
+          "name": "manual_data_audit",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "M2": {
+          "code": "M2",
+          "details": "manual economic audit markdown path missing",
+          "domain": "manual_audit",
+          "name": "manual_economic_audit",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "M3": {
+          "code": "M3",
+          "details": "manual gate decision markdown path missing",
+          "domain": "manual_audit",
+          "name": "manual_gate_decision",
+          "severity": "blocking",
+          "status": "not_proven"
+        }
+      },
+      "impact_mode_hint": "pass_through_incidence",
       "inputs": null,
-      "mechanism_family_hint": null,
-      "minio_readback": "not_proven",
+      "mechanism_family_hint": "fee_or_tax_pass_through",
+      "minio_readback": "pass",
       "next_tweak": "Capture and store /analysis-status endpoint response artifact for the cycle.",
-      "package_artifact_uri": null,
-      "package_id": null,
-      "package_row_linkage": "not_proven",
-      "pgvector_chunk_stats": null,
+      "package_artifact_uri": "minio://affordabot-artifacts/policy-evidence/packages/pkg-189ea06455b12e96370c5ebd.json",
+      "package_id": "pkg-189ea06455b12e96370c5ebd",
+      "package_row_linkage": "pass",
+      "pgvector_chunk_stats": {
+        "total_chunks": 386,
+        "with_embedding": 386
+      },
       "provider_status": null,
-      "quality_conclusion": null,
-      "reader_artifact_uri": null,
-      "secondary_research_needed": null,
-      "selected_url": null,
-      "status": "not_executed",
-      "stop_continue_decision": "continue",
-      "storage_readback": "not_proven",
-      "targeted_tweak": "",
-      "verdict": null,
-      "windmill_job_id": null
+      "quality_conclusion": "secondary_research_needed",
+      "reader_artifact_uri": "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/policy_documents/reader_output/fa41fad8e08bfc60fa8a3dba43212d67ec16a38829d9e7869d261fc830ab4161.md",
+      "secondary_research_needed": true,
+      "selected_url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee",
+      "status": "completed",
+      "stop_continue_decision": "continue_prove_remaining",
+      "storage_readback": "pass",
+      "targeted_tweak": "strict_data_runtime_proof_fields",
+      "verdict": "partial",
+      "windmill_job_id": "019d9595-fd9c-b4b8-7030-6262102a228a"
     },
     {
       "artifacts": [],
@@ -921,11 +2892,297 @@
       "windmill_job_id": null
     },
     {
+      "artifacts": [
+        "/private/tmp/agents/bd-3wefe.13/affordabot/backend/../docs/poc/policy-evidence-quality-spine/artifacts/live_cycle_25_windmill_domain_run.json"
+      ],
+      "backend_run_id": "f6a83207-80e4-4783-b749-ceafe7900a33",
+      "code_config_tweaks": [],
+      "commands_executed": [],
+      "cycle_number": 25,
+      "deploy_sha": null,
+      "economic_status_endpoint": null,
+      "external_blocker_proof": [],
+      "gate_deltas": {},
+      "gate_snapshot": {
+        "D1": {
+          "code": "D1",
+          "details": "catalog_families=['legistar_web_api', 'san_jose_open_data_ckan'], complete_families=['legistar_web_api', 'san_jose_open_data_ckan'], free_ingestible=['legistar_web_api', 'san_jose_open_data_ckan']",
+          "domain": "data_moat",
+          "name": "source_catalog",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D2": {
+          "code": "D2",
+          "details": "selected_url=present",
+          "domain": "data_moat",
+          "name": "scraped_evidence_quality",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D3": {
+          "code": "D3",
+          "details": "structured_sources present count=2; manual quality audit pending",
+          "domain": "data_moat",
+          "name": "structured_evidence_quality",
+          "severity": "blocking",
+          "status": "partial"
+        },
+        "D4": {
+          "code": "D4",
+          "details": "package_id=present, package_artifact=present",
+          "domain": "data_moat",
+          "name": "unified_package_identity",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D5": {
+          "code": "D5",
+          "details": "postgres=pass (package_row_linked_to_backend_run_id), minio=pass (all_artifact_refs_read_back), pgvector=pass (document_chunks_and_embeddings_present_with_derived_index_truth_role)",
+          "domain": "data_moat",
+          "name": "storage_readback",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D6": {
+          "code": "D6",
+          "details": "windmill_job_id=019d95b8-d449-8788-17de-731d14e99b4f, backend_run_id=present",
+          "domain": "data_moat",
+          "name": "windmill_integration",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "E1": {
+          "code": "E1",
+          "details": "mechanism=fee_or_tax_pass_through impact_mode=pass_through_incidence",
+          "domain": "economic_analysis",
+          "name": "mechanism_coverage",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "E2": {
+          "code": "E2",
+          "details": "sufficiency=pass, economic_reasoning=pass",
+          "domain": "economic_analysis",
+          "name": "sufficiency_gate",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "E3": {
+          "code": "E3",
+          "details": "secondary_research_needed=True",
+          "domain": "economic_analysis",
+          "name": "secondary_research_loop",
+          "severity": "blocking",
+          "status": "partial"
+        },
+        "E4": {
+          "code": "E4",
+          "details": "LLM narrative not proven (canonical_llm_run_id_missing; source=quality_spine_deterministic_lane).",
+          "domain": "economic_analysis",
+          "name": "canonical_llm_binding",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "E5": {
+          "code": "E5",
+          "details": "decision_grade_verdict=not_decision_grade",
+          "domain": "economic_analysis",
+          "name": "decision_grade_quality",
+          "severity": "blocking",
+          "status": "partial"
+        },
+        "E6": {
+          "code": "E6",
+          "details": "analysis-status endpoint returned error",
+          "domain": "economic_analysis",
+          "name": "admin_read_model",
+          "severity": "nonblocking",
+          "status": "fail"
+        },
+        "M1": {
+          "code": "M1",
+          "details": "manual data audit markdown path missing",
+          "domain": "manual_audit",
+          "name": "manual_data_audit",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "M2": {
+          "code": "M2",
+          "details": "manual economic audit markdown path missing",
+          "domain": "manual_audit",
+          "name": "manual_economic_audit",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "M3": {
+          "code": "M3",
+          "details": "manual gate decision markdown path missing",
+          "domain": "manual_audit",
+          "name": "manual_gate_decision",
+          "severity": "blocking",
+          "status": "not_proven"
+        }
+      },
+      "impact_mode_hint": "pass_through_incidence",
+      "inputs": null,
+      "mechanism_family_hint": "fee_or_tax_pass_through",
+      "minio_readback": "pass",
+      "next_tweak": "Capture and store /analysis-status endpoint response artifact for the cycle.",
+      "package_artifact_uri": "minio://affordabot-artifacts/policy-evidence/packages/pkg-eff1f08d25da562b87954c2a.json",
+      "package_id": "pkg-eff1f08d25da562b87954c2a",
+      "package_row_linkage": "pass",
+      "pgvector_chunk_stats": {
+        "total_chunks": 386,
+        "with_embedding": 386
+      },
+      "provider_status": null,
+      "quality_conclusion": "secondary_research_needed",
+      "reader_artifact_uri": "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/policy_documents/reader_output/71524d4b161bbf71c6145f0549351b0c4a9603630c5e8e7794fb77c552468dd3.md",
+      "secondary_research_needed": true,
+      "selected_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+      "status": "completed",
+      "stop_continue_decision": "continue_prove_remaining",
+      "storage_readback": "pass",
+      "targeted_tweak": "strict_data_runtime_proof_fields",
+      "verdict": "partial",
+      "windmill_job_id": "019d95b8-d449-8788-17de-731d14e99b4f"
+    },
+    {
       "artifacts": [],
       "backend_run_id": null,
       "code_config_tweaks": [],
       "commands_executed": [],
-      "cycle_number": 25,
+      "cycle_number": 26,
+      "deploy_sha": null,
+      "economic_status_endpoint": null,
+      "external_blocker_proof": [],
+      "gate_deltas": {},
+      "gate_snapshot": {},
+      "impact_mode_hint": null,
+      "inputs": null,
+      "mechanism_family_hint": null,
+      "minio_readback": "not_proven",
+      "next_tweak": "Capture and store /analysis-status endpoint response artifact for the cycle.",
+      "package_artifact_uri": null,
+      "package_id": null,
+      "package_row_linkage": "not_proven",
+      "pgvector_chunk_stats": null,
+      "provider_status": null,
+      "quality_conclusion": null,
+      "reader_artifact_uri": null,
+      "secondary_research_needed": null,
+      "selected_url": null,
+      "status": "not_executed",
+      "stop_continue_decision": "continue",
+      "storage_readback": "not_proven",
+      "targeted_tweak": "",
+      "verdict": null,
+      "windmill_job_id": null
+    },
+    {
+      "artifacts": [],
+      "backend_run_id": null,
+      "code_config_tweaks": [],
+      "commands_executed": [],
+      "cycle_number": 27,
+      "deploy_sha": null,
+      "economic_status_endpoint": null,
+      "external_blocker_proof": [],
+      "gate_deltas": {},
+      "gate_snapshot": {},
+      "impact_mode_hint": null,
+      "inputs": null,
+      "mechanism_family_hint": null,
+      "minio_readback": "not_proven",
+      "next_tweak": "Capture and store /analysis-status endpoint response artifact for the cycle.",
+      "package_artifact_uri": null,
+      "package_id": null,
+      "package_row_linkage": "not_proven",
+      "pgvector_chunk_stats": null,
+      "provider_status": null,
+      "quality_conclusion": null,
+      "reader_artifact_uri": null,
+      "secondary_research_needed": null,
+      "selected_url": null,
+      "status": "not_executed",
+      "stop_continue_decision": "continue",
+      "storage_readback": "not_proven",
+      "targeted_tweak": "",
+      "verdict": null,
+      "windmill_job_id": null
+    },
+    {
+      "artifacts": [],
+      "backend_run_id": null,
+      "code_config_tweaks": [],
+      "commands_executed": [],
+      "cycle_number": 28,
+      "deploy_sha": null,
+      "economic_status_endpoint": null,
+      "external_blocker_proof": [],
+      "gate_deltas": {},
+      "gate_snapshot": {},
+      "impact_mode_hint": null,
+      "inputs": null,
+      "mechanism_family_hint": null,
+      "minio_readback": "not_proven",
+      "next_tweak": "Capture and store /analysis-status endpoint response artifact for the cycle.",
+      "package_artifact_uri": null,
+      "package_id": null,
+      "package_row_linkage": "not_proven",
+      "pgvector_chunk_stats": null,
+      "provider_status": null,
+      "quality_conclusion": null,
+      "reader_artifact_uri": null,
+      "secondary_research_needed": null,
+      "selected_url": null,
+      "status": "not_executed",
+      "stop_continue_decision": "continue",
+      "storage_readback": "not_proven",
+      "targeted_tweak": "",
+      "verdict": null,
+      "windmill_job_id": null
+    },
+    {
+      "artifacts": [],
+      "backend_run_id": null,
+      "code_config_tweaks": [],
+      "commands_executed": [],
+      "cycle_number": 29,
+      "deploy_sha": null,
+      "economic_status_endpoint": null,
+      "external_blocker_proof": [],
+      "gate_deltas": {},
+      "gate_snapshot": {},
+      "impact_mode_hint": null,
+      "inputs": null,
+      "mechanism_family_hint": null,
+      "minio_readback": "not_proven",
+      "next_tweak": "Capture and store /analysis-status endpoint response artifact for the cycle.",
+      "package_artifact_uri": null,
+      "package_id": null,
+      "package_row_linkage": "not_proven",
+      "pgvector_chunk_stats": null,
+      "provider_status": null,
+      "quality_conclusion": null,
+      "reader_artifact_uri": null,
+      "secondary_research_needed": null,
+      "selected_url": null,
+      "status": "not_executed",
+      "stop_continue_decision": "continue",
+      "storage_readback": "not_proven",
+      "targeted_tweak": "",
+      "verdict": null,
+      "windmill_job_id": null
+    },
+    {
+      "artifacts": [],
+      "backend_run_id": null,
+      "code_config_tweaks": [],
+      "commands_executed": [],
+      "cycle_number": 30,
       "deploy_sha": null,
       "economic_status_endpoint": null,
       "external_blocker_proof": [],
@@ -956,23 +3213,23 @@
   "domain_progress": {
     "data_moat": {
       "fail": 0,
-      "not_proven": 0,
-      "partial": 2,
+      "not_proven": 1,
+      "partial": 1,
       "pass": 4,
       "total": 6
     },
     "economic_analysis": {
       "fail": 1,
-      "not_proven": 1,
-      "partial": 2,
-      "pass": 2,
+      "not_proven": 3,
+      "partial": 1,
+      "pass": 1,
       "total": 6
     },
     "manual_audit": {
       "fail": 0,
-      "not_proven": 0,
+      "not_proven": 3,
       "partial": 0,
-      "pass": 3,
+      "pass": 0,
       "total": 3
     }
   },
@@ -1006,11 +3263,11 @@
     },
     "D4": {
       "code": "D4",
-      "details": "scraped=pass, structured=partial, package_id=present, package_artifact=present, canonical_document_key=present, structured_sources=2",
+      "details": "scraped=pass, structured=partial, package_id=missing, package_artifact=missing, canonical_document_key=missing, structured_sources=0",
       "domain": "data_moat",
       "name": "unified_package_identity",
       "severity": "blocking",
-      "status": "partial"
+      "status": "not_proven"
     },
     "D5": {
       "code": "D5",
@@ -1030,11 +3287,11 @@
     },
     "E1": {
       "code": "E1",
-      "details": "mechanism_family_hint=fee_or_tax_pass_through, impact_mode_hint=pass_through_incidence",
+      "details": "mechanism_family_hint=missing, impact_mode_hint=missing",
       "domain": "economic_analysis",
       "name": "mechanism_coverage",
       "severity": "blocking",
-      "status": "pass"
+      "status": "not_proven"
     },
     "E2": {
       "code": "E2",
@@ -1046,11 +3303,11 @@
     },
     "E3": {
       "code": "E3",
-      "details": "secondary_research_needed=true",
+      "details": "secondary research signal missing from run_context",
       "domain": "economic_analysis",
       "name": "secondary_research_loop",
       "severity": "blocking",
-      "status": "partial"
+      "status": "not_proven"
     },
     "E4": {
       "code": "E4",
@@ -1078,30 +3335,30 @@
     },
     "M1": {
       "code": "M1",
-      "details": "manual_data_audit_path=../docs/poc/policy-evidence-quality-spine/manual_audit_cycle_18_data_moat.md",
+      "details": "manual data audit markdown path missing",
       "domain": "manual_audit",
       "name": "manual_data_audit",
       "severity": "blocking",
-      "status": "pass"
+      "status": "not_proven"
     },
     "M2": {
       "code": "M2",
-      "details": "manual_economic_audit_path=../docs/poc/policy-evidence-quality-spine/manual_audit_cycle_18_economic_analysis.md",
+      "details": "manual economic audit markdown path missing",
       "domain": "manual_audit",
       "name": "manual_economic_audit",
       "severity": "blocking",
-      "status": "pass"
+      "status": "not_proven"
     },
     "M3": {
       "code": "M3",
-      "details": "manual_gate_decision_path=../docs/poc/policy-evidence-quality-spine/manual_gate_decision_cycle_18.md",
+      "details": "manual gate decision markdown path missing",
       "domain": "manual_audit",
       "name": "manual_gate_decision",
       "severity": "blocking",
-      "status": "pass"
+      "status": "not_proven"
     }
   },
-  "max_cycles": 25,
+  "max_cycles": 30,
   "recommendations": {
     "failed_gates": [
       "E6"
@@ -1110,39 +3367,47 @@
       "Capture and store /analysis-status endpoint response artifact for the cycle.",
       "Run structured-source enrichment in the live cycle and verify source-family provenance.",
       "Ensure scraped+structured inputs dedupe into the same package_id with canonical identity.",
+      "Strengthen mechanism coverage to include both direct and indirect cost pathways in run_context.",
       "Productize secondary-research loop and bind returned artifacts to the same package_id.",
       "Persist canonical LLM analysis run+step ids and bind to package_id.",
-      "Meet decision-grade rubric with explicit assumptions, uncertainty, and bounded conclusion."
+      "Meet decision-grade rubric with explicit assumptions, uncertainty, and bounded conclusion.",
+      "Write manual San Jose data moat audit markdown for this cycle.",
+      "Write manual San Jose economic-analysis audit markdown for this cycle.",
+      "Write explicit manual stop/continue gate decision markdown for this cycle."
     ],
     "progress": {
       "data_moat": {
         "fail": 0,
-        "not_proven": 0,
-        "partial": 2,
+        "not_proven": 1,
+        "partial": 1,
         "pass": 4,
         "total": 6
       },
       "economic_analysis": {
         "fail": 1,
-        "not_proven": 1,
-        "partial": 2,
-        "pass": 2,
+        "not_proven": 3,
+        "partial": 1,
+        "pass": 1,
         "total": 6
       },
       "manual_audit": {
         "fail": 0,
-        "not_proven": 0,
+        "not_proven": 3,
         "partial": 0,
-        "pass": 3,
+        "pass": 0,
         "total": 3
       }
     },
     "unresolved_gates": [
       "D3",
       "D4",
+      "E1",
       "E3",
       "E4",
-      "E5"
+      "E5",
+      "M1",
+      "M2",
+      "M3"
     ]
   }
 }

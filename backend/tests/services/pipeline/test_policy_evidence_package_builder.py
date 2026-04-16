@@ -151,7 +151,64 @@ def test_builder_keeps_structured_secondary_search_out_of_scraped_provenance() -
     assert payload["scraped_sources"][0]["search_provider"] == "private_searxng"
     assert len(payload["structured_sources"]) == 1
     assert payload["structured_sources"][0]["source_family"] == "tavily_secondary_search"
+    assert payload["structured_sources"][0]["true_structured"] is False
     assert "scraped_provider_identity_missing" not in set(payload["insufficiency_reasons"])
+    assert payload["economic_handoff_ready"] is False
+
+
+def test_builder_does_not_let_secondary_search_rescue_true_structured_depth() -> None:
+    scraped = _find_envelope(source_lane="scrape_search", provider="private_searxng")
+    shallow_structured = {
+        "source_lane": "structured",
+        "provider": "legistar_web_api",
+        "source_family": "legistar_web_api",
+        "jurisdiction": "san_jose_ca",
+        "artifact_url": scraped["artifact_url"],
+        "artifact_type": "meeting_metadata",
+        "source_tier": "tier_b",
+        "retrieved_at": "2026-04-16T00:00:00+00:00",
+        "structured_policy_facts": [{"field": "event_attachment_hint_count", "value": 0.0, "unit": "count"}],
+        "policy_match_key": scraped["canonical_document_key"],
+        "policy_match_confidence": 0.9,
+        "reconciliation_status": "confirmed",
+        "lineage_metadata": {"event_date": "2026-04-16", "event_body_id": "258", "matter_id": "14575"},
+    }
+    secondary = {
+        "source_lane": "structured_secondary_source",
+        "provider": "tavily",
+        "source_family": "tavily_secondary_search",
+        "access_method": "tavily_search_api",
+        "jurisdiction": "san_jose_ca",
+        "artifact_url": "https://www.sanjoseca.gov/Home/Components/News/News/1801",
+        "artifact_type": "secondary_search_rate_snippet",
+        "source_tier": "tier_c",
+        "retrieved_at": "2026-04-16T00:00:00+00:00",
+        "structured_policy_facts": [
+            {
+                "field": "commercial_linkage_fee_rate_usd_per_sqft",
+                "value": 3.0,
+                "unit": "usd_per_square_foot",
+                "source_url": "https://www.sanjoseca.gov/Home/Components/News/News/1801",
+                "source_excerpt": "San Jose adopted a $3.00 commercial linkage fee.",
+            }
+        ],
+        "true_structured": False,
+        "policy_match_key": scraped["canonical_document_key"],
+        "reconciliation_status": "secondary_search_derived_not_authoritative",
+    }
+
+    payload = PolicyEvidencePackageBuilder().build(
+        package_id="pkg-secondary-not-structured-depth",
+        jurisdiction="san_jose_ca",
+        scraped_candidates=[scraped],
+        structured_candidates=[shallow_structured, secondary],
+        freshness_gate={"freshness_status": "fresh"},
+    )
+
+    assert payload["parameter_cards"]
+    assert payload["structured_sources"][1]["true_structured"] is False
+    assert payload["economic_handoff_ready"] is False
+    assert "blocking_gate_present" in set(payload["insufficiency_reasons"])
 
 
 def test_builder_marks_storage_proof_unproven_when_refs_absent() -> None:
@@ -167,6 +224,69 @@ def test_builder_marks_storage_proof_unproven_when_refs_absent() -> None:
         ref["storage_system"] == "pgvector" and ref["truth_role"] == "derived_index"
         for ref in refs
     )
+
+
+def test_builder_blocks_unreconciled_structured_latest_event_fallback() -> None:
+    scraped = _find_envelope(source_lane="scrape_search", provider="private_searxng")
+    structured_unreconciled = {
+        "source_lane": "structured",
+        "provider": "legistar_web_api",
+        "source_family": "legistar_web_api",
+        "jurisdiction": "san_jose_ca",
+        "artifact_url": "https://webapi.legistar.com/v1/sanjose/Events/99999",
+        "artifact_type": "meeting_metadata",
+        "source_tier": "tier_b",
+        "retrieved_at": "2026-04-16T00:00:00+00:00",
+        "structured_policy_facts": [{"field": "event_attachment_hint_count", "value": 0.0, "unit": "count"}],
+        "policy_match_key": "legistar::event::99999",
+        "policy_match_confidence": 0.2,
+        "reconciliation_status": "latest_event_fallback_unreconciled",
+        "lineage_metadata": {"event_date": "2026-04-16", "event_body_id": "258", "matter_id": None},
+    }
+
+    payload = PolicyEvidencePackageBuilder().build(
+        package_id="pkg-unreconciled-structured",
+        jurisdiction="san_jose_ca",
+        scraped_candidates=[scraped],
+        structured_candidates=[structured_unreconciled],
+        freshness_gate={"freshness_status": "fresh"},
+    )
+
+    assert payload["economic_handoff_ready"] is False
+    assert "blocking_gate_present" in set(payload["insufficiency_reasons"])
+    assert payload["structured_sources"][0]["reconciliation_status"] in {
+        "conflict_unresolved",
+        "latest_event_fallback_unreconciled",
+    }
+
+
+def test_builder_fails_closed_when_structured_shape_drifts() -> None:
+    """D8: malformed structured payloads should fail closed instead of crashing/pass-through."""
+    payload = PolicyEvidencePackageBuilder().build(
+        package_id="pkg-structured-shape-drift",
+        jurisdiction="san_jose_ca",
+        structured_candidates=[
+            {
+                "source_lane": "structured",
+                "provider": "legistar_web_api",
+                "source_family": "legistar_web_api",
+                "jurisdiction": "san_jose_ca",
+                "artifact_url": "https://webapi.legistar.com/v1/sanjose/Matters/14575",
+                "artifact_type": "matter_metadata",
+                "source_tier": "tier_b",
+                "retrieved_at": "2026-04-16T00:00:00+00:00",
+                "structured_policy_facts": {"unexpected": "dict_instead_of_list"},
+                "policy_match_key": "legistar::matter::14575",
+                "policy_match_confidence": 0.8,
+                "reconciliation_status": "source_shape_changed",
+                "lineage_metadata": {"matter_id": "14575"},
+            }
+        ],
+        freshness_gate={"freshness_status": "fresh"},
+    )
+
+    assert payload["economic_handoff_ready"] is False
+    assert "blocking_gate_present" in set(payload["insufficiency_reasons"])
 
 
 def test_builder_output_is_json_serializable() -> None:
@@ -186,3 +306,66 @@ def test_builder_output_is_json_serializable() -> None:
     assert "schema_validation" not in roundtrip
     validated = PolicyEvidencePackage.model_validate(roundtrip)
     assert validated.package_id == "pkg-json-serializable"
+
+
+def test_builder_dedupes_duplicate_candidates_without_double_counting_cards() -> None:
+    scraped = _find_envelope(source_lane="scrape_search", provider="private_searxng")
+    duplicate_scraped = dict(scraped)
+    payload = PolicyEvidencePackageBuilder().build(
+        package_id="pkg-dedupe",
+        jurisdiction="san_jose_ca",
+        scraped_candidates=[scraped, duplicate_scraped],
+        structured_candidates=[],
+    )
+    assert len(payload["evidence_cards"]) == 1
+    assert payload["gate_report"]["artifact_counts"]["evidence_cards"] == 1
+    assert "deduped_candidates=" in payload["gate_report"]["manual_audit_notes"]
+
+
+def test_builder_storage_refs_propagate_content_hash_for_provenance() -> None:
+    structured = _find_envelope(source_lane="structured", provider="legistar")
+    payload = PolicyEvidencePackageBuilder().build(
+        package_id="pkg-storage-hash",
+        jurisdiction="san_jose_ca",
+        structured_candidates=[structured],
+    )
+    refs = payload["storage_refs"]
+    assert all(ref.get("content_hash") for ref in refs)
+
+
+def test_builder_marks_ambiguous_parameter_when_citation_sanity_fails() -> None:
+    scraped = _find_envelope(source_lane="scrape_search", provider="private_searxng")
+    scraped["structured_policy_facts"] = [
+        {
+            "field": "commercial_linkage_fee_rate_usd_per_sqft",
+            "raw_value": "$18.706.00",
+            "normalized_value": None,
+            "unit": "usd_per_square_foot",
+            "denominator": "per_square_foot",
+            "category": "retail",
+            "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120",
+            "source_excerpt": "Commercial Linkage Fee table excerpt",
+            "source_hierarchy_status": "bill_or_reg_text",
+            "currency_sanity": "invalid",
+            "unit_sanity": "valid",
+            "ambiguity_flag": True,
+            "ambiguity_reason": "currency_format_anomaly",
+            "effective_date": "2026-01-01",
+            "confidence": 0.33,
+        }
+    ]
+
+    payload = PolicyEvidencePackageBuilder().build(
+        package_id="pkg-ambiguous-citation",
+        jurisdiction="san_jose_ca",
+        scraped_candidates=[scraped],
+        structured_candidates=[],
+        freshness_gate={"freshness_status": "fresh"},
+    )
+
+    cards = payload["parameter_cards"]
+    assert len(cards) == 1
+    assert cards[0]["state"] == "ambiguous"
+    assert cards[0]["ambiguity_reason"] == "currency_format_anomaly"
+    assert cards[0]["value"] is None
+    assert "raw=$18.706.00" in cards[0]["source_excerpt"]
