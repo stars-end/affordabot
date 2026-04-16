@@ -1,6 +1,6 @@
 {
   "artifact_sources": {
-    "economic_status_present": false,
+    "economic_status_present": true,
     "live_cycle_artifact_count": 7,
     "live_cycle_present": true,
     "live_storage_probe_present": true,
@@ -28,8 +28,8 @@
     {
       "backend_run_id": "6695fe26-eaaf-47d1-9100-7eb861a7aa2f",
       "cycle_number": 1,
-      "deploy_sha": "fe28196ee7612ef81ed9991eb96ef213eeda6e77",
-      "economic_status_endpoint": null,
+      "deploy_sha": "1f46d33f0ab5c03f90223dfd5d39a74eb6034eee",
+      "economic_status_endpoint": "secondary_research_needed",
       "impact_mode_hint": null,
       "mechanism_family_hint": null,
       "minio_readback": "pass",
@@ -54,8 +54,8 @@
     {
       "backend_run_id": "2a6944e1-4c18-4265-b22e-4faa16d7c08b",
       "cycle_number": 2,
-      "deploy_sha": "fe28196ee7612ef81ed9991eb96ef213eeda6e77",
-      "economic_status_endpoint": null,
+      "deploy_sha": "1f46d33f0ab5c03f90223dfd5d39a74eb6034eee",
+      "economic_status_endpoint": "secondary_research_needed",
       "impact_mode_hint": null,
       "mechanism_family_hint": null,
       "minio_readback": "pass",
@@ -80,8 +80,8 @@
     {
       "backend_run_id": "498aff1e-3af9-4a28-9895-5058ffc92e21",
       "cycle_number": 3,
-      "deploy_sha": "fe28196ee7612ef81ed9991eb96ef213eeda6e77",
-      "economic_status_endpoint": null,
+      "deploy_sha": "1f46d33f0ab5c03f90223dfd5d39a74eb6034eee",
+      "economic_status_endpoint": "secondary_research_needed",
       "impact_mode_hint": null,
       "mechanism_family_hint": null,
       "minio_readback": "pass",
@@ -106,8 +106,8 @@
     {
       "backend_run_id": "f208078b-64af-4ef6-89b5-caaf5b0b8322",
       "cycle_number": 4,
-      "deploy_sha": "fe28196ee7612ef81ed9991eb96ef213eeda6e77",
-      "economic_status_endpoint": null,
+      "deploy_sha": "1f46d33f0ab5c03f90223dfd5d39a74eb6034eee",
+      "economic_status_endpoint": "secondary_research_needed",
       "impact_mode_hint": "pass_through_incidence",
       "mechanism_family_hint": "fee_or_tax_pass_through",
       "minio_readback": "pass",
@@ -132,8 +132,8 @@
     {
       "backend_run_id": "d611af15-4464-4eae-9e86-04b5dd438d27",
       "cycle_number": 5,
-      "deploy_sha": "fe28196ee7612ef81ed9991eb96ef213eeda6e77",
-      "economic_status_endpoint": null,
+      "deploy_sha": "1f46d33f0ab5c03f90223dfd5d39a74eb6034eee",
+      "economic_status_endpoint": "secondary_research_needed",
       "impact_mode_hint": "pass_through_incidence",
       "mechanism_family_hint": "fee_or_tax_pass_through",
       "minio_readback": "pass",
@@ -158,8 +158,8 @@
     {
       "backend_run_id": "f917d334-9dbc-4628-a6de-13a298c46692",
       "cycle_number": 6,
-      "deploy_sha": "fe28196ee7612ef81ed9991eb96ef213eeda6e77",
-      "economic_status_endpoint": null,
+      "deploy_sha": "1f46d33f0ab5c03f90223dfd5d39a74eb6034eee",
+      "economic_status_endpoint": "secondary_research_needed",
       "impact_mode_hint": "pass_through_incidence",
       "mechanism_family_hint": "fee_or_tax_pass_through",
       "minio_readback": "pass",
@@ -184,8 +184,8 @@
     {
       "backend_run_id": "e1826ad9-cda9-4737-9c1d-316852460029",
       "cycle_number": 7,
-      "deploy_sha": "fe28196ee7612ef81ed9991eb96ef213eeda6e77",
-      "economic_status_endpoint": null,
+      "deploy_sha": "1f46d33f0ab5c03f90223dfd5d39a74eb6034eee",
+      "economic_status_endpoint": "secondary_research_needed",
       "impact_mode_hint": "pass_through_incidence",
       "mechanism_family_hint": "fee_or_tax_pass_through",
       "minio_readback": "pass",
@@ -281,12 +281,12 @@
   "final_verdict": "partial",
   "gate_categories": {
     "admin_read_model": {
-      "details": "economic analysis status endpoint artifact missing",
-      "status": "not_proven"
+      "details": "analysis-status endpoint response captured",
+      "status": "pass"
     },
     "economic_analysis": {
-      "details": "sufficiency=pass, economic_reasoning=pass",
-      "status": "pass"
+      "details": "analysis_status_endpoint=secondary_research_needed",
+      "status": "not_proven"
     },
     "llm_narrative": {
       "details": "LLM narrative not proven (canonical_llm_run_id_missing; source=quality_spine_deterministic_lane).",
@@ -328,13 +328,13 @@
       "Run a structured-source family in live cycle and verify provenance/storage joins.",
       "Ensure scraped+structured+storage gates pass in the same run with one package_id.",
       "Persist canonical LLM analysis run+step ids and bind to package_id.",
-      "Capture and store /analysis-status endpoint response artifact for the cycle."
+      "Improve quantitative evidence to pass economic analysis status endpoint."
     ],
     "not_proven_gates": [
       "structured_quality",
       "unified_package",
       "llm_narrative",
-      "admin_read_model"
+      "economic_analysis"
     ]
   }
 }

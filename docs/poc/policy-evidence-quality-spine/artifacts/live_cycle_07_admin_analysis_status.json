@@ -1,0 +1,182 @@
+{
+  "endpoint_ok": true,
+  "analysis_status": "secondary_research_needed",
+  "decision_grade_verdict": "not_decision_grade",
+  "evidence_package_status": "fail",
+  "sufficiency_readiness_level": "qualitative_only",
+  "canonical_pipeline_run_id": null,
+  "canonical_pipeline_step_id": null,
+  "response": {
+    "evidence_package_status": "fail",
+    "decision_grade_verdict": "not_decision_grade",
+    "sufficiency_readiness_level": "qualitative_only",
+    "economic_analysis_status": {
+      "status": "secondary_research_needed",
+      "reason": "additional evidence is required before quantitative conclusion",
+      "required_evidence_gaps": [
+        "scraped/search",
+        "structured-source",
+        "economic reasoning",
+        "llm narrative",
+        "rubric/parameter_provenance",
+        "rubric/assumption_governance",
+        "rubric/arithmetic_integrity",
+        "rubric/uncertainty_sensitivity",
+        "sufficiency_readiness"
+      ]
+    },
+    "economic_readiness": {
+      "mechanism_readiness": {
+        "status": "pass",
+        "reason": "nodes=3 edges=2"
+      },
+      "evidence_readiness": {
+        "status": "pass",
+        "reason": "evidence_cards=1"
+      },
+      "parameter_readiness": {
+        "status": "fail",
+        "reason": "Resolved parameters are missing source_url/source_excerpt/evidence_card_id."
+      },
+      "assumption_readiness": {
+        "status": "fail",
+        "reason": "Assumption governance incomplete: missing applicability/provenance/usage validity."
+      },
+      "model_readiness": {
+        "status": "fail",
+        "reason": "Quantified model cards are missing arithmetic/unit validity or ordered scenario bounds."
+      },
+      "uncertainty_readiness": {
+        "status": "fail",
+        "reason": "Missing/invalid sensitivity range or uncertainty notes."
+      },
+      "unsupported_claim_rejection": {
+        "status": "rejected",
+        "reason": "Unsupported quantitative claim blocked by gate_report verdict fail_closed."
+      }
+    },
+    "economic_output": {
+      "status": "not_proven",
+      "decision_grade_verdict": "not_decision_grade",
+      "reason": "economic quality rubric not decision-grade",
+      "missing_evidence": [
+        "scraped/search: Scraped provenance exists, but no selected-artifact provider-quality metrics were provided.",
+        "structured-source: No structured source provenance attached.",
+        "economic reasoning: No model cards found.",
+        "LLM narrative: LLM narrative not proven (canonical_llm_run_id_missing; source=policy_evidence_packages.package_payload + pipeline_runs.result.analysis).",
+        "rubric/parameter_provenance: Resolved parameters are missing source_url/source_excerpt/evidence_card_id.",
+        "rubric/assumption_governance: Assumption governance incomplete: missing applicability/provenance/usage validity.",
+        "rubric/arithmetic_integrity: Quantified model cards are missing arithmetic/unit validity or ordered scenario bounds.",
+        "rubric/uncertainty_sensitivity: Missing/invalid sensitivity range or uncertainty notes.",
+        "sufficiency_readiness: blocking_gate=parameter_readiness"
+      ],
+      "unsupported_claim_rejection": {
+        "status": "rejected",
+        "reason": "Unsupported quantitative claim blocked by gate_report verdict fail_closed."
+      },
+      "user_facing_conclusion": null
+    },
+    "gates": {
+      "storage/read-back": {
+        "status": "pass",
+        "reason": "Non-memory storage proof present with persisted row id and MinIO readback (mode=postgres_minio_live, record_id=037af4b3-c36c-530d-bcff-fcb63c6dee0f).",
+        "refs": [
+          {
+            "storage_system": "postgres",
+            "truth_role": "source_of_truth",
+            "reference_id": "policy_evidence_packages:pkg-10adcd7b63e6262425240b5b",
+            "uri": null,
+            "content_hash": null
+          },
+          {
+            "storage_system": "minio",
+            "truth_role": "artifact_of_record",
+            "reference_id": "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/economic_literature/reader_output/4dbf81f3a67ad8e4c8782b5ba6c2291992c16c2e0e480d1a78adaa441db8bd80.md",
+            "uri": "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/economic_literature/reader_output/4dbf81f3a67ad8e4c8782b5ba6c2291992c16c2e0e480d1a78adaa441db8bd80.md",
+            "content_hash": null
+          },
+          {
+            "storage_system": "pgvector",
+            "truth_role": "derived_index",
+            "reference_id": "document:ddda14c9-c2b2-5920-9857-00a995429731",
+            "uri": null,
+            "content_hash": null
+          },
+          {
+            "storage_system": "minio",
+            "truth_role": "artifact_of_record",
+            "reference_id": "minio://affordabot-artifacts/policy-evidence/packages/pkg-10adcd7b63e6262425240b5b.json",
+            "uri": "minio://affordabot-artifacts/policy-evidence/packages/pkg-10adcd7b63e6262425240b5b.json",
+            "content_hash": null
+          }
+        ]
+      },
+      "Windmill/orchestration": {
+        "status": "pass",
+        "reason": "Current-run Windmill run id present with backend scope job id only (run_id=bd-3wefe.13-live-cycle-07-20260416, scope_job_id=run_scope_pipeline:0:run_scope_pipeline).",
+        "refs": [
+          {
+            "key": "windmill_flow_path",
+            "value": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow"
+          },
+          {
+            "key": "windmill_workspace",
+            "value": "affordabot"
+          },
+          {
+            "key": "windmill_run_id",
+            "value": "bd-3wefe.13-live-cycle-07-20260416"
+          },
+          {
+            "key": "source",
+            "value": "policy_evidence_packages.package_payload.run_context"
+          },
+          {
+            "key": "windmill_scope_job_id",
+            "value": "run_scope_pipeline:0:run_scope_pipeline"
+          }
+        ]
+      },
+      "LLM narrative": {
+        "status": "not_proven",
+        "reason": "LLM narrative not proven (canonical_llm_run_id_missing; source=policy_evidence_packages.package_payload + pipeline_runs.result.analysis).",
+        "refs": [
+          {
+            "key": "source",
+            "value": "policy_evidence_quality_spine_economics"
+          }
+        ]
+      },
+      "economic_analysis_readiness": {
+        "status": "not_proven",
+        "reason": "readiness=qualitative_only",
+        "refs": [
+          {
+            "key": "blocking_gate",
+            "value": "parameter_readiness"
+          }
+        ]
+      }
+    },
+    "provenance": {
+      "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=economic_literature|doctype=meeting_minutes|url=https://www.huduser.gov/periodicals/cityscpe/vol8num1/ch4.pdf",
+      "policy_identifier": "v2|jurisdiction=san-jose-ca|family=economic_literature|doctype=meeting_minutes|url=https://www.huduser.gov/periodicals/cityscpe/vol8num1/ch4.pdf",
+      "source_lanes": [
+        "scraped"
+      ],
+      "scraped_sources": [
+        {
+          "search_provider": "private_searxng",
+          "query_family": "economic_literature",
+          "search_snapshot_id": "0d6de592-ea23-496c-98ce-241a586db7b1",
+          "selected_candidate_url": "https://www.huduser.gov/periodicals/cityscpe/vol8num1/ch4.pdf",
+          "reader_artifact_url": null,
+          "reader_substance_passed": true,
+          "reader_substance_observed": false,
+          "reader_provenance_hydrated": true
+        }
+      ],
+      "structured_sources": []
+    }
+  }
+}

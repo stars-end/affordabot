@@ -9,6 +9,7 @@
 
 - Windmill/backend mechanics work for live cycles: each executed `search_materialize -> freshness_gate -> read_fetch -> index -> analyze -> summarize_run`.
 - Storage is now proven on the latest live cycle: Postgres package row linked to backend run, MinIO reader/package artifacts read back, and pgvector chunks/embeddings are present.
+- The admin read model is now captured for cycle 7: storage and Windmill gates pass, reader provenance is hydrated from storage proof, and economic output remains `not_decision_grade`.
 - The direct economic lane can extract concrete fee parameters when the selected artifact contains them, as cycle 5 did for San Jose Commercial Linkage Fee rates.
 - The indirect economic lane is correctly fail-closed: cycles 4-7 recognize pass-through/incidence mechanisms but refuse San Jose quantitative household-cost claims without transferable incidence evidence.
 - The biggest remaining data-moat gap is not storage. It is source targeting/ranking and package composition: the pipeline needs a unified package that joins local legislative artifacts, structured source metadata, and secondary economic literature with assumption governance.
@@ -27,6 +28,7 @@
 - pgvector_derivation: `pass` - document_chunks_and_embeddings_present_with_derived_index_truth_role
 - atomicity_or_replay: `pass` - pipeline_run_is_terminal_without_failed_steps
 - storage/read-back: `pass` - all_storage_gates_passed
+- admin/read-model: `pass` - `/api/admin/pipeline/policy-evidence/packages/{package_id}/analysis-status` response captured in `live_cycle_07_admin_analysis_status.json`
 
 ## Cycle Details
 
