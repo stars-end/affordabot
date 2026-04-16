@@ -132,6 +132,15 @@ PAYMENT_TIMING_PATTERNS = (
     "at occupancy",
 )
 
+SQFT_UNIT_ALIASES = {
+    "usd_per_sqft",
+    "usd_per_square_foot",
+    "dollars_per_sqft",
+    "dollars_per_square_foot",
+    "$/sqft",
+    "usd/sqft",
+}
+
 
 @dataclass(frozen=True)
 class MatrixInput:
@@ -573,6 +582,16 @@ class PolicyEvidenceQualitySpineEconomicsService:
                     "status": rubric["arithmetic_integrity"]["status"],
                     "reason": rubric["arithmetic_integrity"]["details"],
                 },
+                "direct_model_card_readiness": {
+                    "status": str(
+                        (vertical.get("direct_fee_model_card") or {}).get("status")
+                        or "not_proven"
+                    ),
+                    "reason": str(
+                        (vertical.get("direct_fee_model_card") or {}).get("reason")
+                        or "direct fee model card unavailable"
+                    ),
+                },
                 "uncertainty_readiness": {
                     "status": rubric["uncertainty_sensitivity"]["status"],
                     "reason": rubric["uncertainty_sensitivity"]["details"],
@@ -585,6 +604,7 @@ class PolicyEvidenceQualitySpineEconomicsService:
                 "mechanism_graph": vertical["mechanism_graph"],
                 "parameter_table": vertical["parameter_table"],
                 "diagnostic_parameter_table": vertical.get("diagnostic_parameter_table", []),
+                "direct_fee_model_card": vertical.get("direct_fee_model_card"),
                 "assumption_cards": assumption_payload,
                 "model_cards": quant_model_payload,
                 "arithmetic_integrity": {
@@ -1226,6 +1246,10 @@ class PolicyEvidenceQualitySpineEconomicsService:
             "details": assumption_detail,
         }
 
+        direct_fee_model_card = vertical_output.get("direct_fee_model_card") or {}
+        direct_fee_model_ready = (
+            mechanism_type == "direct" and direct_fee_model_card.get("status") == "pass"
+        )
         quant_models = [model for model in package.model_cards if model.quantification_eligible]
         arithmetic_ok = bool(quant_models) and all(
             model.arithmetic_valid and model.unit_validation_status.value == "valid"
@@ -1240,10 +1264,24 @@ class PolicyEvidenceQualitySpineEconomicsService:
                 if not (bounds.conservative <= bounds.central <= bounds.aggressive):
                     arithmetic_ok = False
                     break
+        if not arithmetic_ok and direct_fee_model_ready:
+            totals = (
+                direct_fee_model_card.get("arithmetic", {})
+                .get("total_direct_fee_usd", {})
+            )
+            arithmetic_ok = (
+                isinstance(totals, dict)
+                and all(isinstance(totals.get(k), (int, float)) for k in ("low", "base", "high"))
+                and totals["low"] <= totals["base"] <= totals["high"]
+            )
         dimensions["arithmetic_integrity"] = {
             "status": "pass" if arithmetic_ok else "fail",
             "details": (
-                "Quantified model arithmetic/unit checks are valid with ordered scenario bounds."
+                (
+                    "Direct fee model-card arithmetic is valid with ordered sensitivity range."
+                    if direct_fee_model_ready
+                    else "Quantified model arithmetic/unit checks are valid with ordered scenario bounds."
+                )
                 if arithmetic_ok
                 else "Quantified model cards are missing arithmetic/unit validity or ordered scenario bounds."
             ),
@@ -1804,6 +1842,11 @@ class PolicyEvidenceQualitySpineEconomicsService:
             )
         mechanism_family = package.model_cards[0].mechanism_family if package.model_cards else None
         mechanism_type = self._classify_mechanism_type(package=package, mechanism_family=mechanism_family)
+        direct_fee_model_card = self._build_direct_fee_model_card(
+            package=package,
+            parameter_table=parameter_table,
+            mechanism_type=mechanism_type,
+        )
 
         graph_nodes = [
             {"id": "policy_change", "label": package.policy_identifier},
@@ -1862,6 +1905,7 @@ class PolicyEvidenceQualitySpineEconomicsService:
             "direct_indirect_classification": mechanism_type,
             "parameter_table": parameter_table,
             "diagnostic_parameter_table": diagnostic_parameter_table,
+            "direct_fee_model_card": direct_fee_model_card,
             "source_bound_assumptions": [
                 {
                     "assumption_id": card.id,
@@ -1910,6 +1954,124 @@ class PolicyEvidenceQualitySpineEconomicsService:
             if any(token in name for token in ("pass_through", "incidence", "take_up", "adoption")):
                 return "indirect"
         return "direct"
+
+    def _build_direct_fee_model_card(
+        self,
+        *,
+        package: PolicyEvidencePackage,
+        parameter_table: list[dict[str, Any]],
+        mechanism_type: str,
+    ) -> dict[str, Any]:
+        if mechanism_type != "direct":
+            return {
+                "status": "not_applicable",
+                "reason": "mechanism_type is not direct",
+            }
+
+        sqft_parameters = [
+            row
+            for row in parameter_table
+            if str(row.get("unit") or "").strip().lower() in SQFT_UNIT_ALIASES
+            and isinstance(row.get("value"), (int, float))
+        ]
+        if not sqft_parameters:
+            return {
+                "status": "not_proven",
+                "reason": "no source-bound direct fee/tax parameters with sqft units",
+            }
+
+        scenario_bounds = {"low": 75000.0, "base": 100000.0, "high": 125000.0}
+        scenario_assumptions = {
+            "project_size_source": "defaulted_for_model_card",
+            "project_size_unit": "sqft",
+            "bounds": scenario_bounds,
+            "note": (
+                "Project size not supplied by package run context; "
+                "used deterministic conservative/base/aggressive defaults."
+            ),
+        }
+        rate_values = [float(row["value"]) for row in sqft_parameters]
+        min_rate = min(rate_values)
+        max_rate = max(rate_values)
+        avg_rate = sum(rate_values) / len(rate_values)
+        total_low = scenario_bounds["low"] * min_rate
+        total_base = scenario_bounds["base"] * avg_rate
+        total_high = scenario_bounds["high"] * max_rate
+        per_parameter_base = [
+            {
+                "parameter_id": row["parameter_id"],
+                "name": row["name"],
+                "rate_per_sqft": float(row["value"]),
+                "project_size_sqft": scenario_bounds["base"],
+                "estimated_direct_fee_usd": scenario_bounds["base"] * float(row["value"]),
+                "unit": "usd",
+                "source_url": row.get("source_url"),
+                "evidence_card_id": row.get("evidence_card_id"),
+            }
+            for row in sqft_parameters
+        ]
+        source_refs = [
+            {
+                "parameter_id": row["parameter_id"],
+                "source_url": row.get("source_url"),
+                "source_excerpt": row.get("source_excerpt"),
+                "evidence_card_id": row.get("evidence_card_id"),
+            }
+            for row in sqft_parameters
+        ]
+
+        has_pass_through_assumption = any(
+            card.family
+            in {MechanismFamily.FEE_OR_TAX_PASS_THROUGH, MechanismFamily.ADOPTION_TAKE_UP}
+            and not self._looks_placeholder_assumption_text(card.source_excerpt)
+            for card in package.assumption_cards
+        )
+        household_readiness = {
+            "status": "not_proven" if not has_pass_through_assumption else "pass",
+            "reason": (
+                "household cost-of-living incidence is not decision-grade without "
+                "source-bound pass-through/incidence assumptions"
+                if not has_pass_through_assumption
+                else "source-bound pass-through/incidence assumptions present"
+            ),
+        }
+
+        return {
+            "status": "pass",
+            "reason": "source-bound per-square-foot fee parameters available for direct model card",
+            "scope": "direct_developer_fee",
+            "formula": "direct_fee_usd = project_size_sqft * fee_rate_usd_per_sqft",
+            "inputs": {
+                "project_size_sqft": scenario_bounds,
+                "fee_rate_usd_per_sqft": {
+                    "low": min_rate,
+                    "base": avg_rate,
+                    "high": max_rate,
+                },
+            },
+            "assumptions": scenario_assumptions,
+            "arithmetic": {
+                "per_parameter_base_project": per_parameter_base,
+                "total_direct_fee_usd": {
+                    "low": total_low,
+                    "base": total_base,
+                    "high": total_high,
+                },
+                "units": {
+                    "project_size": "sqft",
+                    "rate": "usd_per_sqft",
+                    "output": "usd",
+                },
+            },
+            "sensitivity_range": {
+                "low": total_low,
+                "base": total_base,
+                "high": total_high,
+                "reason": "multiple rate rows and bounded project-size assumptions",
+            },
+            "source_refs": source_refs,
+            "household_impact_readiness": household_readiness,
+        }
 
     def _build_read_model_output(
         self,

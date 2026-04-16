@@ -915,8 +915,122 @@ def test_structured_fee_rows_populate_parameter_table_with_metadata_but_remain_n
 
     assert endpoint["economic_readiness"]["parameter_readiness"]["status"] == "pass"
     assert endpoint["economic_readiness"]["assumption_readiness"]["status"] in {"pass", "fail"}
-    assert endpoint["economic_readiness"]["model_readiness"]["status"] == "fail"
+    assert endpoint["economic_readiness"]["model_readiness"]["status"] == "pass"
     assert endpoint["economic_readiness"]["uncertainty_readiness"]["status"] == "fail"
+    assert endpoint["decision_grade_verdict"] == "not_decision_grade"
+    assert endpoint["economic_output"]["status"] == "not_proven"
+    assert endpoint["economic_output"]["user_facing_conclusion"] is None
+
+
+def test_direct_sqft_fee_parameters_generate_source_bound_model_card() -> None:
+    bundle = PolicyEconomicMechanismCaseService().build_case_bundle()
+    direct = _case(bundle, "direct_cost_case")
+    model_card = dict(direct["primary_package"]["model_cards"][0])
+    package = {
+        **direct["primary_package"],
+        "assumption_cards": [],
+        "assumption_usage": [],
+        "model_cards": [
+            {
+                **model_card,
+                "input_parameter_ids": ["param-fee-office-small", "param-fee-office-large"],
+            }
+        ],
+        "parameter_cards": [
+            {
+                "id": "param-fee-office-small",
+                "parameter_name": "commercial_linkage_fee_office_small",
+                "state": "resolved",
+                "value": 3.58,
+                "unit": "usd_per_sqft",
+                "source_url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers-multifamily-rental-commercial-linkage-fee",
+                "source_excerpt": (
+                    "Structured fact commercial_linkage_fee_office_small resolved from source payload. "
+                    "Payment due prior to building permit issuance."
+                ),
+                "evidence_card_id": "ev-direct-1",
+            },
+            {
+                "id": "param-fee-office-large",
+                "parameter_name": "commercial_linkage_fee_office_large",
+                "state": "resolved",
+                "value": 17.89,
+                "unit": "usd_per_sqft",
+                "source_url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers-multifamily-rental-commercial-linkage-fee",
+                "source_excerpt": (
+                    "Structured fact commercial_linkage_fee_office_large resolved from source payload. "
+                    "Payment due prior to building permit issuance."
+                ),
+                "evidence_card_id": "ev-direct-1",
+            },
+        ],
+    }
+
+    service = PolicyEvidenceQualitySpineEconomicsService()
+    endpoint = service.build_endpoint_read_model(
+        matrix_input=MatrixInput(
+            payload=_real_matrix_from_case(package),
+            source_path="horizontal_matrix.json",
+            source_mode="agent_a_horizontal_matrix",
+        ),
+        package_id=package["package_id"],
+        source_family="policy_documents",
+    )
+
+    direct_model_card = endpoint["economic_trace"]["direct_fee_model_card"]
+    assert direct_model_card["status"] == "pass"
+    assert direct_model_card["scope"] == "direct_developer_fee"
+    assert direct_model_card["arithmetic"]["units"]["rate"] == "usd_per_sqft"
+    totals = direct_model_card["arithmetic"]["total_direct_fee_usd"]
+    assert totals["low"] <= totals["base"] <= totals["high"]
+    assert len(direct_model_card["source_refs"]) == 2
+    assert endpoint["economic_readiness"]["direct_model_card_readiness"]["status"] == "pass"
+
+
+def test_direct_model_card_keeps_household_conclusion_fail_closed_without_pass_through_assumptions() -> None:
+    bundle = PolicyEconomicMechanismCaseService().build_case_bundle()
+    direct = _case(bundle, "direct_cost_case")
+    model_card = dict(direct["primary_package"]["model_cards"][0])
+    package = {
+        **direct["primary_package"],
+        "assumption_cards": [],
+        "assumption_usage": [],
+        "model_cards": [
+            {
+                **model_card,
+                "input_parameter_ids": ["param-fee-office-small"],
+            }
+        ],
+        "parameter_cards": [
+            {
+                "id": "param-fee-office-small",
+                "parameter_name": "commercial_linkage_fee_office_small",
+                "state": "resolved",
+                "value": 3.58,
+                "unit": "usd_per_sqft",
+                "source_url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers-multifamily-rental-commercial-linkage-fee",
+                "source_excerpt": "Structured fact office fee resolved from source payload.",
+                "evidence_card_id": "ev-direct-1",
+            }
+        ],
+    }
+
+    service = PolicyEvidenceQualitySpineEconomicsService()
+    endpoint = service.build_endpoint_read_model(
+        matrix_input=MatrixInput(
+            payload=_real_matrix_from_case(package),
+            source_path="horizontal_matrix.json",
+            source_mode="agent_a_horizontal_matrix",
+        ),
+        package_id=package["package_id"],
+        source_family="policy_documents",
+    )
+
+    direct_model_card = endpoint["economic_trace"]["direct_fee_model_card"]
+    assert direct_model_card["status"] == "pass"
+    household_readiness = direct_model_card["household_impact_readiness"]
+    assert household_readiness["status"] == "not_proven"
+    assert "pass-through/incidence assumptions" in household_readiness["reason"]
     assert endpoint["decision_grade_verdict"] == "not_decision_grade"
     assert endpoint["economic_output"]["status"] == "not_proven"
     assert endpoint["economic_output"]["user_facing_conclusion"] is None
