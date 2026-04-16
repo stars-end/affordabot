@@ -80,6 +80,24 @@ def test_builder_fails_closed_for_portal_or_reader_insufficient_scraped_input() 
     assert "blocking_gate_present" in reasons
 
 
+def test_builder_fails_closed_instead_of_schema_error_when_reader_gate_blocks_quantified_candidate() -> None:
+    bad_scraped = _find_envelope(source_lane="scrape_search", provider="private_searxng")
+    bad_scraped["reader_artifact_refs"] = []
+
+    payload = PolicyEvidencePackageBuilder().build(
+        package_id="pkg-reader-blocked-quant-candidate",
+        jurisdiction="san_jose_ca",
+        scraped_candidates=[bad_scraped],
+        structured_candidates=[],
+        freshness_gate={"freshness_status": "fresh"},
+    )
+
+    assert payload["economic_handoff_ready"] is False
+    assert payload["gate_report"]["verdict"] == "fail_closed"
+    assert payload["gate_report"]["blocking_gate"] == "reader_substance"
+    assert "blocking_gate_present" in set(payload["insufficiency_reasons"])
+
+
 def test_builder_allows_structured_only_package_when_fields_are_economic_relevant() -> None:
     structured = _find_envelope(source_lane="structured", provider="ckan")
     payload = PolicyEvidencePackageBuilder().build(

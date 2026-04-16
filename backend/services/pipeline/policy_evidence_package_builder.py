@@ -391,9 +391,12 @@ class PolicyEvidencePackageBuilder:
             insufficiency_reasons.add(PackageFailureReason.NO_EVIDENCE_CARDS)
 
         has_resolved_parameters = any(card.state == ParameterState.RESOLVED for card in parameter_cards)
-        has_blocking_gate = bool(insufficiency_reasons) or (not has_resolved_parameters)
+        reader_gate_blocked = SourceLane.SCRAPED in source_lanes and not reader_substance_passed
+        if reader_gate_blocked:
+            insufficiency_reasons.add(PackageFailureReason.BLOCKING_GATE_PRESENT)
         if not has_resolved_parameters:
             insufficiency_reasons.add(PackageFailureReason.NO_QUANT_SUPPORT_PATH)
+        has_blocking_gate = bool(insufficiency_reasons)
         if has_blocking_gate:
             insufficiency_reasons.add(PackageFailureReason.BLOCKING_GATE_PRESENT)
 
