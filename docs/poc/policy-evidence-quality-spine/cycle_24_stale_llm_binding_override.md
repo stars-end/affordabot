@@ -69,3 +69,20 @@ Additional validation:
 
 - `poetry run pytest tests/routers/test_admin_pipeline_read_model.py -q` -> 11 passed
 - `poetry run ruff check routers/admin.py tests/routers/test_admin_pipeline_read_model.py` -> passed
+
+## Service-Level Fix
+
+The router override alone was not sufficient because `PolicyEvidenceQualitySpineEconomicsService` independently derives both the LLM narrative taxonomy and canonical binding read model.
+
+The service now treats a proof block as bound when:
+
+- proof canonical run id equals package projected canonical run id,
+- proof canonical step id equals package projected canonical step id,
+- route run id is absent or equals the package projected run id.
+
+This prevents older `proof_status=not_proven` labels from overriding stronger package/run identity evidence, while still refusing blank proof blocks.
+
+Additional focused validation:
+
+- `poetry run pytest tests/services/pipeline/test_policy_evidence_quality_spine_economics.py tests/routers/test_admin_pipeline_read_model.py -q` -> 39 passed
+- `poetry run ruff check services/pipeline/policy_evidence_quality_spine_economics.py routers/admin.py tests/routers/test_admin_pipeline_read_model.py tests/services/pipeline/test_policy_evidence_quality_spine_economics.py` -> passed

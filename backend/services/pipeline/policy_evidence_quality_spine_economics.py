@@ -702,7 +702,14 @@ class PolicyEvidenceQualitySpineEconomicsService:
             }
             for card in package.evidence_cards
         ]
-        if proof_status == "pass" and observed_run_id:
+        projection_matches_route = bool(
+            package_run_id
+            and package_step_id
+            and observed_run_id == package_run_id
+            and observed_step_id == package_step_id
+            and (route_run_id is None or route_run_id == package_run_id)
+        )
+        if (proof_status == "pass" and observed_run_id) or projection_matches_route:
             return {
                 "status": "bound",
                 "reason": "canonical analysis run/step ids are linked to this package",
@@ -1783,15 +1790,26 @@ class PolicyEvidenceQualitySpineEconomicsService:
                 "canonical_pipeline_step_id": package.gate_projection.canonical_pipeline_step_id,
             }
 
-        run_id = proof.get("canonical_pipeline_run_id") or package.gate_projection.canonical_pipeline_run_id
-        step_id = proof.get("canonical_pipeline_step_id") or package.gate_projection.canonical_pipeline_step_id
+        proof_run_id = proof.get("canonical_pipeline_run_id")
+        proof_step_id = proof.get("canonical_pipeline_step_id")
+        run_id = proof_run_id or package.gate_projection.canonical_pipeline_run_id
+        step_id = proof_step_id or package.gate_projection.canonical_pipeline_step_id
         source = str(proof.get("source") or "quality_spine_deterministic_lane")
         blocker = str(proof.get("blocker") or "canonical_llm_run_id_missing")
         proof_status = str(proof.get("proof_status") or "not_proven")
         analysis_step_executed = bool(proof.get("analysis_step_executed"))
         analysis_payload_present = bool(proof.get("analysis_payload_present"))
+        proof_matches_package_projection = bool(
+            proof_run_id
+            and proof_step_id
+            and package.gate_projection.canonical_pipeline_run_id
+            and proof_run_id == package.gate_projection.canonical_pipeline_run_id
+            and proof_step_id == package.gate_projection.canonical_pipeline_step_id
+        )
 
-        if matrix_source_mode != "fallback_fixture" and proof_status == "pass" and run_id:
+        if matrix_source_mode != "fallback_fixture" and (
+            (proof_status == "pass" and run_id) or proof_matches_package_projection
+        ):
             return {
                 "status": "pass",
                 "details": (

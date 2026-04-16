@@ -427,7 +427,7 @@ def test_not_decision_grade_contains_explicit_missing_evidence() -> None:
     assert decision_grade["verdict"] == "not_decision_grade"
     assert any("storage/read-back:" in item for item in decision_grade["missing_evidence"])
     assert any("Windmill/orchestration:" in item for item in decision_grade["missing_evidence"])
-    assert any("LLM narrative:" in item for item in decision_grade["missing_evidence"])
+    assert result["scorecard"]["taxonomy"]["LLM narrative"]["status"] == "pass"
     endpoint = service.build_endpoint_read_model(
         matrix_input=MatrixInput(
             payload=matrix,
