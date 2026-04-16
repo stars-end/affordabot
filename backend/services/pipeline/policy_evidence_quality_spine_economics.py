@@ -218,6 +218,8 @@ class PolicyEvidenceQualitySpineEconomicsService:
         sufficiency = scorecard["sufficiency_result"]
         decision_grade = scorecard["decision_grade"]
         quality_verdict = scorecard["economic_quality_rubric"]["verdict"]
+        rubric = scorecard["economic_quality_rubric"]["dimensions"]
+        selected_payload = evaluation["selected_package_payload"]
         runtime = self._extract_runtime_evidence(matrix_input.payload or {})
         orchestration_proof = runtime.get("orchestration_proof")
         llm_proof = handoff.get("llm_narrative_proof", {})
@@ -256,14 +258,31 @@ class PolicyEvidenceQualitySpineEconomicsService:
             readiness_status = "not_proven"
             readiness_reason = f"readiness={readiness_level}"
 
+        backend_run_id = self._extract_backend_run_id(
+            selected_payload=selected_payload,
+            run_context=run_context or {},
+        )
         overall_verdict = scorecard["overall_verdict"]
         evidence_package_status = (
             "pass"
             if overall_verdict == "pass"
             else "fail" if overall_verdict == "fail" else "not_proven"
         )
+        required_evidence_gaps = self._extract_evidence_gap_categories(
+            missing_evidence=decision_grade["missing_evidence"]
+        )
+        analysis_status = self._derive_analysis_status(
+            readiness_level=readiness_level,
+            decision_grade_verdict=decision_grade["verdict"],
+            required_evidence_gaps=required_evidence_gaps,
+        )
+        conclusion_supported = (
+            vertical["quantified"]
+            and decision_grade["verdict"] == "decision_grade"
+            and analysis_status["status"] == "decision_grade"
+        )
 
-        if vertical["quantified"] and decision_grade["verdict"] == "decision_grade":
+        if conclusion_supported:
             economic_output = {
                 "status": "ready",
                 "decision_grade_verdict": "decision_grade",
@@ -283,16 +302,21 @@ class PolicyEvidenceQualitySpineEconomicsService:
                 ),
                 "missing_evidence": decision_grade["missing_evidence"],
                 "unsupported_claim_rejection": vertical["unsupported_claim_rejection"],
-                "user_facing_conclusion": vertical["user_facing_conclusion"],
+                "user_facing_conclusion": None,
             }
 
         return {
             "package_id": package.package_id,
+            "backend_run_id": backend_run_id,
             "jurisdiction": package.jurisdiction,
             "source_family": source_family,
             "evidence_package_status": evidence_package_status,
             "decision_grade_verdict": decision_grade["verdict"],
             "sufficiency_readiness_level": readiness_level,
+            "economic_analysis_status": {
+                **analysis_status,
+                "required_evidence_gaps": required_evidence_gaps,
+            },
             "run_context": run_context or {},
             "provenance": {
                 "canonical_document_key": package.canonical_document_key,
@@ -350,7 +374,93 @@ class PolicyEvidenceQualitySpineEconomicsService:
                     ),
                 },
             },
+            "economic_readiness": {
+                "mechanism_readiness": {
+                    "status": rubric["mechanism_graph_validity"]["status"],
+                    "reason": rubric["mechanism_graph_validity"]["details"],
+                },
+                "evidence_readiness": {
+                    "status": "pass" if package.evidence_cards else "fail",
+                    "reason": (
+                        f"evidence_cards={len(package.evidence_cards)}"
+                        if package.evidence_cards
+                        else "No evidence cards present."
+                    ),
+                },
+                "parameter_readiness": {
+                    "status": rubric["parameter_provenance"]["status"],
+                    "reason": rubric["parameter_provenance"]["details"],
+                },
+                "assumption_readiness": {
+                    "status": rubric["assumption_governance"]["status"],
+                    "reason": rubric["assumption_governance"]["details"],
+                },
+                "model_readiness": {
+                    "status": rubric["arithmetic_integrity"]["status"],
+                    "reason": rubric["arithmetic_integrity"]["details"],
+                },
+                "uncertainty_readiness": {
+                    "status": rubric["uncertainty_sensitivity"]["status"],
+                    "reason": rubric["uncertainty_sensitivity"]["details"],
+                },
+                "unsupported_claim_rejection": vertical["unsupported_claim_rejection"],
+            },
             "economic_output": economic_output,
+        }
+
+    @staticmethod
+    def _extract_backend_run_id(
+        *,
+        selected_payload: dict[str, Any],
+        run_context: dict[str, Any],
+    ) -> str | None:
+        payload_context = selected_payload.get("run_context")
+        if isinstance(payload_context, dict):
+            backend_run_id = payload_context.get("backend_run_id")
+            if backend_run_id:
+                return str(backend_run_id)
+        run_context_run_id = run_context.get("run_id")
+        if run_context_run_id:
+            return str(run_context_run_id)
+        return None
+
+    @staticmethod
+    def _extract_evidence_gap_categories(*, missing_evidence: list[str]) -> list[str]:
+        categories: list[str] = []
+        for item in missing_evidence:
+            text = str(item or "").strip()
+            if not text:
+                continue
+            category = text.split(":", 1)[0].strip().lower()
+            if category and category not in categories:
+                categories.append(category)
+        return categories
+
+    @staticmethod
+    def _derive_analysis_status(
+        *,
+        readiness_level: str,
+        decision_grade_verdict: str,
+        required_evidence_gaps: list[str],
+    ) -> dict[str, str]:
+        if readiness_level == PackageReadinessLevel.FAIL_CLOSED.value:
+            return {
+                "status": "fail_closed",
+                "reason": "fail_closed package cannot produce quantitative conclusion",
+            }
+        if decision_grade_verdict == "decision_grade":
+            return {
+                "status": "decision_grade",
+                "reason": "all quality gates are decision-grade complete",
+            }
+        if required_evidence_gaps:
+            return {
+                "status": "secondary_research_needed",
+                "reason": "additional evidence is required before quantitative conclusion",
+            }
+        return {
+            "status": "qualitative_only",
+            "reason": "package supports qualitative reasoning only",
         }
 
     def render_markdown_report(self, *, evaluation: dict[str, Any]) -> str:

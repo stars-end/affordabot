@@ -409,6 +409,20 @@ def test_not_decision_grade_contains_explicit_missing_evidence() -> None:
     )
     assert endpoint["economic_output"]["status"] == "not_proven"
     assert endpoint["economic_output"]["decision_grade_verdict"] == "not_decision_grade"
+    assert endpoint["economic_output"]["user_facing_conclusion"] is None
+    assert endpoint["economic_analysis_status"]["status"] in {
+        "secondary_research_needed",
+        "qualitative_only",
+    }
+    assert endpoint["economic_analysis_status"]["required_evidence_gaps"]
+    assert endpoint["economic_readiness"]["mechanism_readiness"]["status"] in {
+        "pass",
+        "fail",
+    }
+    assert endpoint["economic_readiness"]["unsupported_claim_rejection"]["status"] in {
+        "none",
+        "rejected",
+    }
 
 
 def test_decision_grade_requires_full_runtime_proofs() -> None:
@@ -493,6 +507,27 @@ def test_decision_grade_requires_full_runtime_proofs() -> None:
     )
     assert endpoint["decision_grade_verdict"] == "decision_grade"
     assert endpoint["economic_output"]["status"] == "ready"
+    assert endpoint["economic_analysis_status"]["status"] == "decision_grade"
+    assert endpoint["economic_analysis_status"]["required_evidence_gaps"] == []
+
+
+def test_endpoint_uses_backend_run_id_from_selected_payload_context() -> None:
+    bundle = PolicyEconomicMechanismCaseService().build_case_bundle()
+    direct = _case(bundle, "direct_cost_case")
+    package = {**direct["primary_package"], "run_context": {"backend_run_id": "run-ctx-42"}}
+
+    service = PolicyEvidenceQualitySpineEconomicsService()
+    endpoint = service.build_endpoint_read_model(
+        matrix_input=MatrixInput(
+            payload=_real_matrix_from_case(package),
+            source_path="horizontal_matrix.json",
+            source_mode="agent_a_horizontal_matrix",
+        ),
+        package_id=package["package_id"],
+        source_family="meeting_minutes",
+        run_context={},
+    )
+    assert endpoint["backend_run_id"] == "run-ctx-42"
 
 
 def test_fixture_case_coverage_tracks_direct_indirect_secondary() -> None:

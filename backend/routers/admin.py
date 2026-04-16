@@ -353,6 +353,76 @@ def _coerce_quality_spine_matrix_payload(result: dict[str, Any]) -> dict[str, An
     return {}
 
 
+async def _fetch_policy_evidence_package_row(
+    db: PostgresDB, *, package_id: str
+) -> dict[str, Any] | None:
+    query = """
+        SELECT
+            id,
+            package_id,
+            package_payload,
+            artifact_readback_status,
+            fail_closed,
+            gate_state,
+            created_at,
+            updated_at
+        FROM public.policy_evidence_packages
+        WHERE package_id = $1
+        LIMIT 1
+    """
+    try:
+        row = await db._fetchrow(query, package_id)
+    except Exception:
+        return None
+    return dict(row) if row else None
+
+
+def _coerce_policy_package_runtime_matrix(
+    *,
+    package_row: dict[str, Any],
+    run_result: dict[str, Any],
+) -> dict[str, Any]:
+    package_payload = _json_payload(package_row.get("package_payload"))
+    if not package_payload:
+        return {}
+
+    runtime = _json_payload(run_result.get("agent_a_runtime_evidence"))
+    if not runtime:
+        runtime = {
+            "orchestration_proof": _json_payload(run_result.get("orchestration_proof")),
+            "llm_narrative_proof": _json_payload(run_result.get("llm_narrative_proof")),
+            "storage_proof": _json_payload(run_result.get("storage_proof")),
+        }
+
+    storage_proof = _json_payload(runtime.get("storage_proof"))
+    if not storage_proof:
+        storage_proof = {}
+    if not storage_proof.get("proof_status"):
+        artifact_readback = _to_text(package_row.get("artifact_readback_status"))
+        proof_status = "pass" if artifact_readback == "proven" else "not_proven"
+        storage_proof = {
+            "proof_status": proof_status,
+            "proof_mode": "postgres_minio_live",
+            "store_backend": "postgres",
+            "artifact_probe_backend": "minio",
+            "persisted_record_id": _to_text(package_row.get("id")) or None,
+            "minio_readback_proven": artifact_readback == "proven",
+            "blocker": None
+            if artifact_readback == "proven"
+            else f"artifact_readback_status={artifact_readback or 'unknown'}",
+        }
+
+    return {
+        "agent_a_runtime_evidence": {
+            "vertical_package_payload": package_payload,
+            "orchestration_proof": _json_payload(runtime.get("orchestration_proof")),
+            "llm_narrative_proof": _json_payload(runtime.get("llm_narrative_proof")),
+            "storage_proof": storage_proof,
+        },
+        "rows": run_result.get("rows", []) if isinstance(run_result.get("rows"), list) else [],
+    }
+
+
 # ============================================================================
 # JURISDICTION ENDPOINTS
 # ============================================================================
@@ -1466,6 +1536,7 @@ async def get_policy_evidence_analysis_status(
     package_id: str,
     run_id: Optional[str] = None,
     source_family: str = DEFAULT_SOURCE_FAMILY,
+    db: PostgresDB = Depends(get_db),
     service: GlassBoxService = Depends(get_glass_box_service),
 ):
     """Backend-authored policy evidence + economic readiness read model for admin/frontend."""
@@ -1503,7 +1574,15 @@ async def get_policy_evidence_analysis_status(
             )
 
         run_result = _json_payload(run.get("result"))
-        matrix_payload = _coerce_quality_spine_matrix_payload(run_result)
+        package_row = await _fetch_policy_evidence_package_row(db, package_id=package_id)
+        matrix_payload = {}
+        if package_row:
+            matrix_payload = _coerce_policy_package_runtime_matrix(
+                package_row=package_row,
+                run_result=run_result,
+            )
+        if not matrix_payload:
+            matrix_payload = _coerce_quality_spine_matrix_payload(run_result)
         if not matrix_payload:
             raise HTTPException(
                 status_code=404,

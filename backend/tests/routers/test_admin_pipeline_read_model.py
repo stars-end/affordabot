@@ -274,25 +274,37 @@ def test_policy_evidence_analysis_status_surfaces_provenance_and_not_proven_gate
     client, mock_db
 ):
     package = _case_package("direct_cost_case")
-    mock_db._fetchrow.return_value = {
-        "id": "run-q1",
-        "bill_id": "SR-2026-001",
-        "jurisdiction": "San Jose CA",
-        "status": "completed",
-        "error": None,
-        "models": {},
-        "trigger_source": "windmill",
-        "windmill_run_id": "wm-run-q1",
-        "started_at": "2026-04-15T01:00:00Z",
-        "completed_at": "2026-04-15T01:02:00Z",
-        "result": {
-            "policy_evidence_package": package,
-            "rows": [],
-            "orchestration_proof": {},
-            "llm_narrative_proof": {},
-            "storage_proof": {},
+    mock_db._fetchrow.side_effect = [
+        {
+            "id": "run-q1",
+            "bill_id": "SR-2026-001",
+            "jurisdiction": "San Jose CA",
+            "status": "completed",
+            "error": None,
+            "models": {},
+            "trigger_source": "windmill",
+            "windmill_run_id": "wm-run-q1",
+            "started_at": "2026-04-15T01:00:00Z",
+            "completed_at": "2026-04-15T01:02:00Z",
+            "result": {
+                "policy_evidence_package": package,
+                "rows": [],
+                "orchestration_proof": {},
+                "llm_narrative_proof": {},
+                "storage_proof": {},
+            },
         },
-    }
+        {
+            "id": "pkg-row-q1",
+            "package_id": package["package_id"],
+            "package_payload": {**package, "run_context": {"backend_run_id": "run-q1"}},
+            "artifact_readback_status": "proven",
+            "fail_closed": False,
+            "gate_state": "quantified",
+            "created_at": "2026-04-15T01:00:00Z",
+            "updated_at": "2026-04-15T01:02:00Z",
+        },
+    ]
 
     client.set_auth("admin")
     response = client.get(
@@ -302,15 +314,75 @@ def test_policy_evidence_analysis_status_surfaces_provenance_and_not_proven_gate
     data = response.json()
     assert data["contract_version"] == CONTRACT_VERSION
     assert data["package_id"] == package["package_id"]
+    assert data["backend_run_id"] == "run-q1"
     assert data["provenance"]["canonical_document_key"] == package["canonical_document_key"]
     assert "scraped" in data["provenance"]["source_lanes"]
     assert "structured" in data["provenance"]["source_lanes"]
     assert data["provenance"]["scraped_sources"], "expected scraped provenance rows"
     assert data["provenance"]["structured_sources"], "expected structured provenance rows"
-    assert data["gates"]["storage/read-back"]["status"] == "not_proven"
+    assert data["gates"]["storage/read-back"]["status"] == "pass"
     assert data["gates"]["Windmill/orchestration"]["status"] == "not_proven"
     assert data["gates"]["LLM narrative"]["status"] == "not_proven"
+    assert data["economic_analysis_status"]["status"] in {
+        "secondary_research_needed",
+        "qualitative_only",
+        "decision_grade",
+    }
     assert data["economic_output"]["status"] in {"ready", "not_proven"}
+    if data["economic_output"]["status"] != "ready":
+        assert data["economic_output"]["user_facing_conclusion"] is None
+    assert "parameter_readiness" in data["economic_readiness"]
+    assert "unsupported_claim_rejection" in data["economic_readiness"]
+
+
+def test_policy_evidence_analysis_status_fail_closed_case_blocks_quantified_conclusion(
+    client, mock_db
+):
+    package = _case_package("secondary_research_required_case")
+    mock_db._fetchrow.side_effect = [
+        {
+            "id": "run-q3",
+            "bill_id": "SR-2026-001",
+            "jurisdiction": "San Jose CA",
+            "status": "completed",
+            "error": None,
+            "models": {},
+            "trigger_source": "windmill",
+            "windmill_run_id": "wm-run-q3",
+            "started_at": "2026-04-15T03:00:00Z",
+            "completed_at": "2026-04-15T03:02:00Z",
+            "result": {"policy_evidence_package": package},
+        },
+        {
+            "id": "pkg-row-q3",
+            "package_id": package["package_id"],
+            "package_payload": {
+                **package,
+                "run_context": {"backend_run_id": "run-q3"},
+            },
+            "artifact_readback_status": "missing",
+            "fail_closed": True,
+            "gate_state": "insufficient_evidence",
+            "created_at": "2026-04-15T03:00:00Z",
+            "updated_at": "2026-04-15T03:02:00Z",
+        },
+    ]
+
+    client.set_auth("admin")
+    response = client.get(
+        f"/api/admin/pipeline/policy-evidence/packages/{package['package_id']}/analysis-status?run_id=run-q3"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["backend_run_id"] == "run-q3"
+    assert data["economic_analysis_status"]["status"] in {
+        "fail_closed",
+        "secondary_research_needed",
+        "qualitative_only",
+    }
+    assert data["economic_output"]["status"] == "not_proven"
+    assert data["economic_output"]["decision_grade_verdict"] == "not_decision_grade"
+    assert data["economic_output"]["user_facing_conclusion"] is None
 
 
 def test_policy_evidence_analysis_status_rejects_missing_package_in_run(client, mock_db):
