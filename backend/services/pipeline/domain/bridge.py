@@ -368,6 +368,8 @@ class RailwayRuntimeBridge:
     def _resolve_package_store(self) -> PolicyEvidencePackageStore:
         if self._package_store_override is not None:
             return self._package_store_override
+        if not isinstance(self.db, PostgresDB):
+            return InMemoryPolicyEvidencePackageStore()
         database_url = (
             os.getenv("DATABASE_URL_PUBLIC", "").strip()
             or os.getenv("DATABASE_URL", "").strip()
