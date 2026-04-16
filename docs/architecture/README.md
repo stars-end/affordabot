@@ -18,7 +18,14 @@ The docs are routing maps, not a substitute for source inspection.
 
 ## Future Agent Start Here
 
+**Data moat is the product objective; architecture is the means.**
+
+Cycle 25 was a mechanics/narrow scraped pass, not a full data-moat pass. Honest
+verdict: `PASS_SCRAPED_ARTIFACT_AND_PACKAGE_MECHANICS_ONLY__STRUCTURED_MOAT_NOT_PROVEN__ECONOMIC_DECISION_GRADE_NOT_PROVEN`.
+
 For the next implementation wave, the dependency-lockdown spec and the [data moat quality gates](../specs/2026-04-16-data-moat-quality-gates.md) are authoritative. Treat those as the current working locks until `bd-3wefe.8` either confirms or revises them. Do not claim pass/done on any architecture validation without completing the new quality gates.
+
+The next POC must prove structured-source economic depth or honestly classify it as `not_proven`. Tavily/Exa secondary search does not count as true structured-source proof.
 
 ## Current Non-Obvious Truths
 
@@ -47,6 +54,8 @@ If an agent is searching semantically or with `rg`, use these terms:
 - `PipelineDomainBridge not canonical AnalysisPipeline`
 - `economic literature inventory WAVE2 AssumptionCard`
 - `PolicyEvidencePackage dependency lockdown`
+- `PASS_SCRAPED_ARTIFACT_AND_PACKAGE_MECHANICS_ONLY`
+- `data moat quality gates D0 D1 D2 D3 D4 D5 D6 D7`
 
 ## Staleness Rule
 

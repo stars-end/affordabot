@@ -638,6 +638,10 @@ Final two-agent quality-spine wave:
 
 All validation gates must comply with the hard pass/fail/not_proven criteria defined in [2026-04-16-data-moat-quality-gates.md](2026-04-16-data-moat-quality-gates.md). The overarching constraint is that data moat success requires proven economic substance, not just architecture mechanics.
 
+### Cycle 25 Honest Assessment
+
+`bd-3wefe.13` (Cycle 25) did not pass the product gates. The honest verdict is `PASS_SCRAPED_ARTIFACT_AND_PACKAGE_MECHANICS_ONLY__STRUCTURED_MOAT_NOT_PROVEN__ECONOMIC_DECISION_GRADE_NOT_PROVEN`. SearXNG/scraped artifact mechanics and package persistence worked. True structured-source economic depth was not proven (Legistar Web API was shallow, CKAN was unavailable, Tavily rescued parameters but is secondary search-derived). Economic analysis correctly failed closed, but that does not prove the upstream data moat is real. The next POC must prove structured-source economic depth or honestly classify it as `not_proven`.
+
 Before `bd-3wefe.8` can recommend architecture lock:
 
 - Code audit: dx-review has mapped existing raw/structured-data-to-analysis code and identified already-built economic capabilities.

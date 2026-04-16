@@ -17,12 +17,35 @@ economic analysis and admin/frontend read models.
 - `artifacts/live_cycle_01_windmill_domain_run.json`
 - `artifacts/live_cycle_01_windmill_domain_run.md`
 - `artifacts/live_cycle_08_economic_bridge.md`
+- `artifacts/live_cycle_25_windmill_domain_run.json`
+- `artifacts/live_cycle_25_windmill_domain_run.md`
+- `artifacts/live_cycle_25_admin_analysis_status.json`
 - `cycle_08_gate_controller_upgrade.md`
 - `cycle_09_metadata_and_manual_audit_hooks.md`
 
 ## Future Agent Start Here
 
 **STOP:** Do not launch another POC cycle before reading the [2026-04-16 data moat quality gates](../../specs/2026-04-16-data-moat-quality-gates.md). The original product gates (v2, described below) were passed mechanically but failed the economic-depth substance bar (see `Current verdict` below for details). All future cycles must adhere to the hardened D0-D7 and E1-E5 gates in the new contract.
+
+### Cycle 25 Honest Verdict
+
+Cycle 25 did not pass the original product gates.
+
+Verdict: `PASS_SCRAPED_ARTIFACT_AND_PACKAGE_MECHANICS_ONLY__STRUCTURED_MOAT_NOT_PROVEN__ECONOMIC_DECISION_GRADE_NOT_PROVEN`
+
+What passed:
+- SearXNG/scraped path found and read a useful official Legistar artifact.
+- Package mechanics, persistence, and admin read model were useful.
+- Economic analysis correctly failed closed on household cost-of-living claims.
+
+What did not pass:
+- Legistar Web API was mechanically live but economically shallow (no attachments).
+- CKAN/San Jose Open Data was not live-proven.
+- Tavily rescued fee parameters, but Tavily is secondary search-derived evidence, not true structured-source proof.
+- The structured data moat was not proven.
+- Economic analysis failing closed does not prove the upstream data moat is real.
+
+Next POC must prove structured-source economic depth or honestly classify it as `not_proven`.
 
 ## Gate Contract v2 (Superseded by 2026-04-16 Gates)
 
