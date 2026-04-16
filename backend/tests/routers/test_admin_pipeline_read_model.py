@@ -290,7 +290,10 @@ def test_policy_evidence_analysis_status_surfaces_provenance_and_not_proven_gate
                 "policy_evidence_package": package,
                 "rows": [],
                 "orchestration_proof": {},
-                "llm_narrative_proof": {},
+                "llm_narrative_proof": {
+                    "proof_status": "not_proven",
+                    "blocker": "canonical_llm_run_id_unverified_from_package_payload",
+                },
                 "storage_proof": {},
             },
         },

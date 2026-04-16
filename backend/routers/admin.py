@@ -427,24 +427,24 @@ def _coerce_policy_package_runtime_matrix(
             }
 
     llm_narrative_proof = _json_payload(runtime.get("llm_narrative_proof"))
+    gate_projection = _json_payload(package_payload.get("gate_projection"))
+    canonical_run_id = _to_text(gate_projection.get("canonical_pipeline_run_id"))
+    canonical_step_id = _to_text(gate_projection.get("canonical_pipeline_step_id"))
+    context_backend_run_id = _to_text(
+        package_run_context.get("backend_run_id")
+        or package_run_context.get("run_id")
+        or run_result.get("run_id")
+        or run_result.get("id")
+    )
+    analysis_payload = _json_payload(run_result.get("analysis"))
+    analysis_step_executed = bool(analysis_payload)
+    projection_matches_route = bool(
+        canonical_run_id
+        and canonical_step_id
+        and analysis_step_executed
+        and canonical_run_id == context_backend_run_id
+    )
     if not llm_narrative_proof:
-        gate_projection = _json_payload(package_payload.get("gate_projection"))
-        canonical_run_id = _to_text(gate_projection.get("canonical_pipeline_run_id"))
-        canonical_step_id = _to_text(gate_projection.get("canonical_pipeline_step_id"))
-        context_backend_run_id = _to_text(
-            package_run_context.get("backend_run_id")
-            or package_run_context.get("run_id")
-            or run_result.get("run_id")
-            or run_result.get("id")
-        )
-        analysis_payload = _json_payload(run_result.get("analysis"))
-        analysis_step_executed = bool(analysis_payload)
-        projection_matches_route = bool(
-            canonical_run_id
-            and canonical_step_id
-            and analysis_step_executed
-            and canonical_run_id == context_backend_run_id
-        )
         blocker = "canonical_llm_run_id_missing"
         if projection_matches_route:
             blocker = None
@@ -460,6 +460,17 @@ def _coerce_policy_package_runtime_matrix(
             "analysis_payload_present": analysis_step_executed,
             "source": "policy_evidence_packages.package_payload + pipeline_runs.result.analysis",
             "blocker": blocker,
+        }
+    elif projection_matches_route and llm_narrative_proof.get("proof_status") != "pass":
+        llm_narrative_proof = {
+            **llm_narrative_proof,
+            "proof_status": "pass",
+            "canonical_pipeline_run_id": canonical_run_id,
+            "canonical_pipeline_step_id": canonical_step_id,
+            "analysis_step_executed": analysis_step_executed,
+            "analysis_payload_present": analysis_step_executed,
+            "source": "policy_evidence_packages.package_payload + pipeline_runs.result.analysis",
+            "blocker": None,
         }
 
     storage_proof = _json_payload(runtime.get("storage_proof"))
