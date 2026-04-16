@@ -750,7 +750,35 @@ class RailwayRuntimeBridge:
                 raw_token = match.group(0)
                 value = float(match.group(1))
                 category = "unknown"
-                context_window = lowered[max(0, match.start() - 80) : match.end() + 80]
+                context_start = max(0, match.start() - 160)
+                context_end = min(len(text), match.end() + 160)
+                context_excerpt = " ".join(text[context_start:context_end].split())
+                context_window = context_excerpt.lower()
+                unit_signals = (
+                    "per square foot",
+                    "per sq",
+                    "sq. ft",
+                    "sq.ft",
+                    "square foot",
+                    "gross floor area",
+                )
+                post_value_window = lowered[match.end() : min(len(lowered), match.end() + 60)]
+                if any(
+                    signal in post_value_window
+                    for signal in ("million", "annually", "annual revenue", "generate")
+                ):
+                    continue
+                if not any(signal in context_window for signal in unit_signals):
+                    continue
+                sentence_start = max(text.rfind("\n", 0, match.start()), text.rfind(".", 0, match.start()))
+                sentence_end_candidates = [
+                    pos for pos in (text.find("\n", match.end()), text.find(".", match.end())) if pos != -1
+                ]
+                sentence_start = sentence_start + 1 if sentence_start != -1 else context_start
+                sentence_end = min(sentence_end_candidates) if sentence_end_candidates else context_end
+                local_excerpt = " ".join(text[sentence_start:sentence_end].split())
+                if not local_excerpt:
+                    local_excerpt = context_excerpt
                 if "office" in context_window:
                     category = "office"
                 elif "retail" in context_window:
@@ -780,7 +808,7 @@ class RailwayRuntimeBridge:
                         "denominator": "per_square_foot",
                         "category": category,
                         "source_url": selected_url,
-                        "source_excerpt": text[:600],
+                        "source_excerpt": (local_excerpt or context_excerpt)[:600],
                         "source_locator": f"{source_locator_prefix}:{chunk_index}",
                         "provenance_lane": "primary_scraped_document",
                         "source_hierarchy_status": "bill_or_reg_text",
