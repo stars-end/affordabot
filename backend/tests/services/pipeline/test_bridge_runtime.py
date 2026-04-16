@@ -707,7 +707,23 @@ def test_runtime_bridge_reader_and_llm_failures_classify() -> None:
     runtime.reader_client = FakeReaderClient()
     runtime._llm_client = FakeLLMClient(fail="analysis_down")
     llm_fail = asyncio.run(runtime.run_scope_pipeline(_request(idempotency_key="wm:run-scope:llm-fail")))
-    assert llm_fail["steps"]["analyze"]["decision_reason"] == "analysis_failed"
+    analyze_step = llm_fail["steps"]["analyze"]
+    assert analyze_step["status"] == "succeeded_with_alerts"
+    assert analyze_step["decision_reason"] == "analysis_provider_unavailable"
+    assert "analysis_provider_unavailable" in analyze_step["alerts"]
+    assert "canonical_llm_narrative_not_proven" in analyze_step["alerts"]
+    analysis_payload = analyze_step["details"]["analysis"]
+    assert analysis_payload["sufficiency_state"] == "provider_unavailable"
+    assert analysis_payload["canonical_llm_narrative_proven"] is False
+    assert analysis_payload["analysis_not_proven"] is True
+    assert analysis_payload["evidence_chunk_count"] > 0
+    assert len(analysis_payload["evidence_refs"]) > 0
+    assert llm_fail["steps"]["summarize_run"]["status"] == "succeeded_with_alerts"
+    policy_package = llm_fail["steps"]["summarize_run"]["details"]["policy_evidence_package"]
+    fail_closed_reasons = policy_package["refs"]["fail_closed_reasons"]
+    assert "analyze:analysis_provider_unavailable" in fail_closed_reasons
+    assert policy_package["storage_result"]["stored"] is True
+    assert policy_package["storage_result"]["fail_closed"] is True
 
 
 def test_runtime_bridge_uses_minio_artifact_writer_probe_and_indirect_hint() -> None:

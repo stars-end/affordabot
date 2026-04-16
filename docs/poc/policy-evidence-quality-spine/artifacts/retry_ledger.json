@@ -5,131 +5,10 @@
       "commands_executed": [],
       "external_blocker_proof": [],
       "gate_deltas": {},
-      "gate_snapshot": {
-        "D1": {
-          "code": "D1",
-          "details": "catalog_families=['legistar_web_api', 'san_jose_open_data_ckan'], complete_families=['legistar_web_api', 'san_jose_open_data_ckan'], free_ingestible=['legistar_web_api', 'san_jose_open_data_ckan']",
-          "domain": "data_moat",
-          "name": "source_catalog",
-          "severity": "blocking",
-          "status": "pass"
-        },
-        "D2": {
-          "code": "D2",
-          "details": "selected_url=present",
-          "domain": "data_moat",
-          "name": "scraped_evidence_quality",
-          "severity": "blocking",
-          "status": "pass"
-        },
-        "D3": {
-          "code": "D3",
-          "details": "scorecard indicates structured pass, but live cycle lacks structured source-family evidence",
-          "domain": "data_moat",
-          "name": "structured_evidence_quality",
-          "severity": "blocking",
-          "status": "partial"
-        },
-        "D4": {
-          "code": "D4",
-          "details": "package_id=missing, package_artifact=missing",
-          "domain": "data_moat",
-          "name": "unified_package_identity",
-          "severity": "blocking",
-          "status": "not_proven"
-        },
-        "D5": {
-          "code": "D5",
-          "details": "postgres=pass (package_row_linked_to_backend_run_id), minio=pass (all_artifact_refs_read_back), pgvector=pass (document_chunks_and_embeddings_present_with_derived_index_truth_role)",
-          "domain": "data_moat",
-          "name": "storage_readback",
-          "severity": "blocking",
-          "status": "pass"
-        },
-        "D6": {
-          "code": "D6",
-          "details": "windmill_job_id=019d94d2-81ef-1117-0353-4c40719876ed, backend_run_id=present",
-          "domain": "data_moat",
-          "name": "windmill_integration",
-          "severity": "blocking",
-          "status": "pass"
-        },
-        "E1": {
-          "code": "E1",
-          "details": "mechanism=missing impact_mode=missing",
-          "domain": "economic_analysis",
-          "name": "mechanism_coverage",
-          "severity": "blocking",
-          "status": "not_proven"
-        },
-        "E2": {
-          "code": "E2",
-          "details": "analysis_status_endpoint=secondary_research_needed",
-          "domain": "economic_analysis",
-          "name": "sufficiency_gate",
-          "severity": "blocking",
-          "status": "partial"
-        },
-        "E3": {
-          "code": "E3",
-          "details": "analysis_status confirms secondary_research_needed",
-          "domain": "economic_analysis",
-          "name": "secondary_research_loop",
-          "severity": "blocking",
-          "status": "partial"
-        },
-        "E4": {
-          "code": "E4",
-          "details": "LLM narrative not proven (canonical_llm_run_id_missing; source=quality_spine_deterministic_lane).",
-          "domain": "economic_analysis",
-          "name": "canonical_llm_binding",
-          "severity": "blocking",
-          "status": "not_proven"
-        },
-        "E5": {
-          "code": "E5",
-          "details": "decision_grade_verdict=not_decision_grade",
-          "domain": "economic_analysis",
-          "name": "decision_grade_quality",
-          "severity": "blocking",
-          "status": "partial"
-        },
-        "E6": {
-          "code": "E6",
-          "details": "analysis-status endpoint response captured",
-          "domain": "economic_analysis",
-          "name": "admin_read_model",
-          "severity": "nonblocking",
-          "status": "pass"
-        },
-        "M1": {
-          "code": "M1",
-          "details": "manual data audit markdown path missing",
-          "domain": "manual_audit",
-          "name": "manual_data_audit",
-          "severity": "blocking",
-          "status": "not_proven"
-        },
-        "M2": {
-          "code": "M2",
-          "details": "manual economic audit markdown path missing",
-          "domain": "manual_audit",
-          "name": "manual_economic_audit",
-          "severity": "blocking",
-          "status": "not_proven"
-        },
-        "M3": {
-          "code": "M3",
-          "details": "manual gate decision markdown path missing",
-          "domain": "manual_audit",
-          "name": "manual_gate_decision",
-          "severity": "blocking",
-          "status": "not_proven"
-        }
-      },
-      "result_verdict": "partial",
-      "status": "completed",
-      "stop_continue_decision": "continue_prove_remaining",
+      "gate_snapshot": {},
+      "result_verdict": null,
+      "status": "not_executed",
+      "stop_continue_decision": "continue",
       "tweaks_applied": []
     },
     {
@@ -137,131 +16,10 @@
       "commands_executed": [],
       "external_blocker_proof": [],
       "gate_deltas": {},
-      "gate_snapshot": {
-        "D1": {
-          "code": "D1",
-          "details": "catalog_families=['legistar_web_api', 'san_jose_open_data_ckan'], complete_families=['legistar_web_api', 'san_jose_open_data_ckan'], free_ingestible=['legistar_web_api', 'san_jose_open_data_ckan']",
-          "domain": "data_moat",
-          "name": "source_catalog",
-          "severity": "blocking",
-          "status": "pass"
-        },
-        "D2": {
-          "code": "D2",
-          "details": "selected_url=present",
-          "domain": "data_moat",
-          "name": "scraped_evidence_quality",
-          "severity": "blocking",
-          "status": "pass"
-        },
-        "D3": {
-          "code": "D3",
-          "details": "scorecard indicates structured pass, but live cycle lacks structured source-family evidence",
-          "domain": "data_moat",
-          "name": "structured_evidence_quality",
-          "severity": "blocking",
-          "status": "partial"
-        },
-        "D4": {
-          "code": "D4",
-          "details": "package_id=missing, package_artifact=missing",
-          "domain": "data_moat",
-          "name": "unified_package_identity",
-          "severity": "blocking",
-          "status": "not_proven"
-        },
-        "D5": {
-          "code": "D5",
-          "details": "postgres=pass (package_row_linked_to_backend_run_id), minio=pass (all_artifact_refs_read_back), pgvector=pass (document_chunks_and_embeddings_present_with_derived_index_truth_role)",
-          "domain": "data_moat",
-          "name": "storage_readback",
-          "severity": "blocking",
-          "status": "pass"
-        },
-        "D6": {
-          "code": "D6",
-          "details": "windmill_job_id=019d94d7-1f8a-2755-6d12-4b8c20565081, backend_run_id=present",
-          "domain": "data_moat",
-          "name": "windmill_integration",
-          "severity": "blocking",
-          "status": "pass"
-        },
-        "E1": {
-          "code": "E1",
-          "details": "mechanism=missing impact_mode=missing",
-          "domain": "economic_analysis",
-          "name": "mechanism_coverage",
-          "severity": "blocking",
-          "status": "not_proven"
-        },
-        "E2": {
-          "code": "E2",
-          "details": "analysis_status_endpoint=secondary_research_needed",
-          "domain": "economic_analysis",
-          "name": "sufficiency_gate",
-          "severity": "blocking",
-          "status": "partial"
-        },
-        "E3": {
-          "code": "E3",
-          "details": "analysis_status confirms secondary_research_needed",
-          "domain": "economic_analysis",
-          "name": "secondary_research_loop",
-          "severity": "blocking",
-          "status": "partial"
-        },
-        "E4": {
-          "code": "E4",
-          "details": "LLM narrative not proven (canonical_llm_run_id_missing; source=quality_spine_deterministic_lane).",
-          "domain": "economic_analysis",
-          "name": "canonical_llm_binding",
-          "severity": "blocking",
-          "status": "not_proven"
-        },
-        "E5": {
-          "code": "E5",
-          "details": "decision_grade_verdict=not_decision_grade",
-          "domain": "economic_analysis",
-          "name": "decision_grade_quality",
-          "severity": "blocking",
-          "status": "partial"
-        },
-        "E6": {
-          "code": "E6",
-          "details": "analysis-status endpoint response captured",
-          "domain": "economic_analysis",
-          "name": "admin_read_model",
-          "severity": "nonblocking",
-          "status": "pass"
-        },
-        "M1": {
-          "code": "M1",
-          "details": "manual data audit markdown path missing",
-          "domain": "manual_audit",
-          "name": "manual_data_audit",
-          "severity": "blocking",
-          "status": "not_proven"
-        },
-        "M2": {
-          "code": "M2",
-          "details": "manual economic audit markdown path missing",
-          "domain": "manual_audit",
-          "name": "manual_economic_audit",
-          "severity": "blocking",
-          "status": "not_proven"
-        },
-        "M3": {
-          "code": "M3",
-          "details": "manual gate decision markdown path missing",
-          "domain": "manual_audit",
-          "name": "manual_gate_decision",
-          "severity": "blocking",
-          "status": "not_proven"
-        }
-      },
-      "result_verdict": "partial",
-      "status": "completed",
-      "stop_continue_decision": "continue_prove_remaining",
+      "gate_snapshot": {},
+      "result_verdict": null,
+      "status": "not_executed",
+      "stop_continue_decision": "continue",
       "tweaks_applied": []
     },
     {
@@ -269,272 +27,21 @@
       "commands_executed": [],
       "external_blocker_proof": [],
       "gate_deltas": {},
-      "gate_snapshot": {
-        "D1": {
-          "code": "D1",
-          "details": "catalog_families=['legistar_web_api', 'san_jose_open_data_ckan'], complete_families=['legistar_web_api', 'san_jose_open_data_ckan'], free_ingestible=['legistar_web_api', 'san_jose_open_data_ckan']",
-          "domain": "data_moat",
-          "name": "source_catalog",
-          "severity": "blocking",
-          "status": "pass"
-        },
-        "D2": {
-          "code": "D2",
-          "details": "selected_url=present",
-          "domain": "data_moat",
-          "name": "scraped_evidence_quality",
-          "severity": "blocking",
-          "status": "pass"
-        },
-        "D3": {
-          "code": "D3",
-          "details": "scorecard indicates structured pass, but live cycle lacks structured source-family evidence",
-          "domain": "data_moat",
-          "name": "structured_evidence_quality",
-          "severity": "blocking",
-          "status": "partial"
-        },
-        "D4": {
-          "code": "D4",
-          "details": "package_id=missing, package_artifact=missing",
-          "domain": "data_moat",
-          "name": "unified_package_identity",
-          "severity": "blocking",
-          "status": "not_proven"
-        },
-        "D5": {
-          "code": "D5",
-          "details": "postgres=pass (package_row_linked_to_backend_run_id), minio=pass (all_artifact_refs_read_back), pgvector=pass (document_chunks_and_embeddings_present_with_derived_index_truth_role)",
-          "domain": "data_moat",
-          "name": "storage_readback",
-          "severity": "blocking",
-          "status": "pass"
-        },
-        "D6": {
-          "code": "D6",
-          "details": "windmill_job_id=019d94da-1547-48ec-9185-11b91651f5be, backend_run_id=present",
-          "domain": "data_moat",
-          "name": "windmill_integration",
-          "severity": "blocking",
-          "status": "pass"
-        },
-        "E1": {
-          "code": "E1",
-          "details": "mechanism=missing impact_mode=missing",
-          "domain": "economic_analysis",
-          "name": "mechanism_coverage",
-          "severity": "blocking",
-          "status": "not_proven"
-        },
-        "E2": {
-          "code": "E2",
-          "details": "analysis_status_endpoint=secondary_research_needed",
-          "domain": "economic_analysis",
-          "name": "sufficiency_gate",
-          "severity": "blocking",
-          "status": "partial"
-        },
-        "E3": {
-          "code": "E3",
-          "details": "analysis_status confirms secondary_research_needed",
-          "domain": "economic_analysis",
-          "name": "secondary_research_loop",
-          "severity": "blocking",
-          "status": "partial"
-        },
-        "E4": {
-          "code": "E4",
-          "details": "LLM narrative not proven (canonical_llm_run_id_missing; source=quality_spine_deterministic_lane).",
-          "domain": "economic_analysis",
-          "name": "canonical_llm_binding",
-          "severity": "blocking",
-          "status": "not_proven"
-        },
-        "E5": {
-          "code": "E5",
-          "details": "decision_grade_verdict=not_decision_grade",
-          "domain": "economic_analysis",
-          "name": "decision_grade_quality",
-          "severity": "blocking",
-          "status": "partial"
-        },
-        "E6": {
-          "code": "E6",
-          "details": "analysis-status endpoint response captured",
-          "domain": "economic_analysis",
-          "name": "admin_read_model",
-          "severity": "nonblocking",
-          "status": "pass"
-        },
-        "M1": {
-          "code": "M1",
-          "details": "manual data audit markdown path missing",
-          "domain": "manual_audit",
-          "name": "manual_data_audit",
-          "severity": "blocking",
-          "status": "not_proven"
-        },
-        "M2": {
-          "code": "M2",
-          "details": "manual economic audit markdown path missing",
-          "domain": "manual_audit",
-          "name": "manual_economic_audit",
-          "severity": "blocking",
-          "status": "not_proven"
-        },
-        "M3": {
-          "code": "M3",
-          "details": "manual gate decision markdown path missing",
-          "domain": "manual_audit",
-          "name": "manual_gate_decision",
-          "severity": "blocking",
-          "status": "not_proven"
-        }
-      },
-      "result_verdict": "partial",
-      "status": "completed",
-      "stop_continue_decision": "continue_prove_remaining",
+      "gate_snapshot": {},
+      "result_verdict": null,
+      "status": "not_executed",
+      "stop_continue_decision": "continue",
       "tweaks_applied": []
     },
     {
       "attempt_id": "cycle_4",
       "commands_executed": [],
       "external_blocker_proof": [],
-      "gate_deltas": {
-        "D4": {
-          "from": "not_proven",
-          "to": "pass"
-        },
-        "E1": {
-          "from": "not_proven",
-          "to": "pass"
-        }
-      },
-      "gate_snapshot": {
-        "D1": {
-          "code": "D1",
-          "details": "catalog_families=['legistar_web_api', 'san_jose_open_data_ckan'], complete_families=['legistar_web_api', 'san_jose_open_data_ckan'], free_ingestible=['legistar_web_api', 'san_jose_open_data_ckan']",
-          "domain": "data_moat",
-          "name": "source_catalog",
-          "severity": "blocking",
-          "status": "pass"
-        },
-        "D2": {
-          "code": "D2",
-          "details": "selected_url=present",
-          "domain": "data_moat",
-          "name": "scraped_evidence_quality",
-          "severity": "blocking",
-          "status": "pass"
-        },
-        "D3": {
-          "code": "D3",
-          "details": "scorecard indicates structured pass, but live cycle lacks structured source-family evidence",
-          "domain": "data_moat",
-          "name": "structured_evidence_quality",
-          "severity": "blocking",
-          "status": "partial"
-        },
-        "D4": {
-          "code": "D4",
-          "details": "package_id=present, package_artifact=present",
-          "domain": "data_moat",
-          "name": "unified_package_identity",
-          "severity": "blocking",
-          "status": "pass"
-        },
-        "D5": {
-          "code": "D5",
-          "details": "postgres=pass (package_row_linked_to_backend_run_id), minio=pass (all_artifact_refs_read_back), pgvector=pass (document_chunks_and_embeddings_present_with_derived_index_truth_role)",
-          "domain": "data_moat",
-          "name": "storage_readback",
-          "severity": "blocking",
-          "status": "pass"
-        },
-        "D6": {
-          "code": "D6",
-          "details": "windmill_job_id=019d94ec-e80e-0daf-3bb2-fdee2c6dce6a, backend_run_id=present",
-          "domain": "data_moat",
-          "name": "windmill_integration",
-          "severity": "blocking",
-          "status": "pass"
-        },
-        "E1": {
-          "code": "E1",
-          "details": "mechanism=fee_or_tax_pass_through impact_mode=pass_through_incidence",
-          "domain": "economic_analysis",
-          "name": "mechanism_coverage",
-          "severity": "blocking",
-          "status": "pass"
-        },
-        "E2": {
-          "code": "E2",
-          "details": "analysis_status_endpoint=secondary_research_needed",
-          "domain": "economic_analysis",
-          "name": "sufficiency_gate",
-          "severity": "blocking",
-          "status": "partial"
-        },
-        "E3": {
-          "code": "E3",
-          "details": "secondary_research_needed=True",
-          "domain": "economic_analysis",
-          "name": "secondary_research_loop",
-          "severity": "blocking",
-          "status": "partial"
-        },
-        "E4": {
-          "code": "E4",
-          "details": "LLM narrative not proven (canonical_llm_run_id_missing; source=quality_spine_deterministic_lane).",
-          "domain": "economic_analysis",
-          "name": "canonical_llm_binding",
-          "severity": "blocking",
-          "status": "not_proven"
-        },
-        "E5": {
-          "code": "E5",
-          "details": "decision_grade_verdict=not_decision_grade",
-          "domain": "economic_analysis",
-          "name": "decision_grade_quality",
-          "severity": "blocking",
-          "status": "partial"
-        },
-        "E6": {
-          "code": "E6",
-          "details": "analysis-status endpoint response captured",
-          "domain": "economic_analysis",
-          "name": "admin_read_model",
-          "severity": "nonblocking",
-          "status": "pass"
-        },
-        "M1": {
-          "code": "M1",
-          "details": "manual data audit markdown path missing",
-          "domain": "manual_audit",
-          "name": "manual_data_audit",
-          "severity": "blocking",
-          "status": "not_proven"
-        },
-        "M2": {
-          "code": "M2",
-          "details": "manual economic audit markdown path missing",
-          "domain": "manual_audit",
-          "name": "manual_economic_audit",
-          "severity": "blocking",
-          "status": "not_proven"
-        },
-        "M3": {
-          "code": "M3",
-          "details": "manual gate decision markdown path missing",
-          "domain": "manual_audit",
-          "name": "manual_gate_decision",
-          "severity": "blocking",
-          "status": "not_proven"
-        }
-      },
-      "result_verdict": "partial",
-      "status": "completed",
-      "stop_continue_decision": "continue_prove_remaining",
+      "gate_deltas": {},
+      "gate_snapshot": {},
+      "result_verdict": null,
+      "status": "not_executed",
+      "stop_continue_decision": "continue",
       "tweaks_applied": []
     },
     {
@@ -542,131 +49,10 @@
       "commands_executed": [],
       "external_blocker_proof": [],
       "gate_deltas": {},
-      "gate_snapshot": {
-        "D1": {
-          "code": "D1",
-          "details": "catalog_families=['legistar_web_api', 'san_jose_open_data_ckan'], complete_families=['legistar_web_api', 'san_jose_open_data_ckan'], free_ingestible=['legistar_web_api', 'san_jose_open_data_ckan']",
-          "domain": "data_moat",
-          "name": "source_catalog",
-          "severity": "blocking",
-          "status": "pass"
-        },
-        "D2": {
-          "code": "D2",
-          "details": "selected_url=present",
-          "domain": "data_moat",
-          "name": "scraped_evidence_quality",
-          "severity": "blocking",
-          "status": "pass"
-        },
-        "D3": {
-          "code": "D3",
-          "details": "scorecard indicates structured pass, but live cycle lacks structured source-family evidence",
-          "domain": "data_moat",
-          "name": "structured_evidence_quality",
-          "severity": "blocking",
-          "status": "partial"
-        },
-        "D4": {
-          "code": "D4",
-          "details": "package_id=present, package_artifact=present",
-          "domain": "data_moat",
-          "name": "unified_package_identity",
-          "severity": "blocking",
-          "status": "pass"
-        },
-        "D5": {
-          "code": "D5",
-          "details": "postgres=pass (package_row_linked_to_backend_run_id), minio=pass (all_artifact_refs_read_back), pgvector=pass (document_chunks_and_embeddings_present_with_derived_index_truth_role)",
-          "domain": "data_moat",
-          "name": "storage_readback",
-          "severity": "blocking",
-          "status": "pass"
-        },
-        "D6": {
-          "code": "D6",
-          "details": "windmill_job_id=019d94f5-27d3-0de0-4f82-4d554d74234e, backend_run_id=present",
-          "domain": "data_moat",
-          "name": "windmill_integration",
-          "severity": "blocking",
-          "status": "pass"
-        },
-        "E1": {
-          "code": "E1",
-          "details": "mechanism=fee_or_tax_pass_through impact_mode=pass_through_incidence",
-          "domain": "economic_analysis",
-          "name": "mechanism_coverage",
-          "severity": "blocking",
-          "status": "pass"
-        },
-        "E2": {
-          "code": "E2",
-          "details": "analysis_status_endpoint=secondary_research_needed",
-          "domain": "economic_analysis",
-          "name": "sufficiency_gate",
-          "severity": "blocking",
-          "status": "partial"
-        },
-        "E3": {
-          "code": "E3",
-          "details": "secondary_research_needed=True",
-          "domain": "economic_analysis",
-          "name": "secondary_research_loop",
-          "severity": "blocking",
-          "status": "partial"
-        },
-        "E4": {
-          "code": "E4",
-          "details": "LLM narrative not proven (canonical_llm_run_id_missing; source=quality_spine_deterministic_lane).",
-          "domain": "economic_analysis",
-          "name": "canonical_llm_binding",
-          "severity": "blocking",
-          "status": "not_proven"
-        },
-        "E5": {
-          "code": "E5",
-          "details": "decision_grade_verdict=not_decision_grade",
-          "domain": "economic_analysis",
-          "name": "decision_grade_quality",
-          "severity": "blocking",
-          "status": "partial"
-        },
-        "E6": {
-          "code": "E6",
-          "details": "analysis-status endpoint response captured",
-          "domain": "economic_analysis",
-          "name": "admin_read_model",
-          "severity": "nonblocking",
-          "status": "pass"
-        },
-        "M1": {
-          "code": "M1",
-          "details": "manual data audit markdown path missing",
-          "domain": "manual_audit",
-          "name": "manual_data_audit",
-          "severity": "blocking",
-          "status": "not_proven"
-        },
-        "M2": {
-          "code": "M2",
-          "details": "manual economic audit markdown path missing",
-          "domain": "manual_audit",
-          "name": "manual_economic_audit",
-          "severity": "blocking",
-          "status": "not_proven"
-        },
-        "M3": {
-          "code": "M3",
-          "details": "manual gate decision markdown path missing",
-          "domain": "manual_audit",
-          "name": "manual_gate_decision",
-          "severity": "blocking",
-          "status": "not_proven"
-        }
-      },
-      "result_verdict": "partial",
-      "status": "completed",
-      "stop_continue_decision": "continue_prove_remaining",
+      "gate_snapshot": {},
+      "result_verdict": null,
+      "status": "not_executed",
+      "stop_continue_decision": "continue",
       "tweaks_applied": []
     },
     {
@@ -674,131 +60,10 @@
       "commands_executed": [],
       "external_blocker_proof": [],
       "gate_deltas": {},
-      "gate_snapshot": {
-        "D1": {
-          "code": "D1",
-          "details": "catalog_families=['legistar_web_api', 'san_jose_open_data_ckan'], complete_families=['legistar_web_api', 'san_jose_open_data_ckan'], free_ingestible=['legistar_web_api', 'san_jose_open_data_ckan']",
-          "domain": "data_moat",
-          "name": "source_catalog",
-          "severity": "blocking",
-          "status": "pass"
-        },
-        "D2": {
-          "code": "D2",
-          "details": "selected_url=present",
-          "domain": "data_moat",
-          "name": "scraped_evidence_quality",
-          "severity": "blocking",
-          "status": "pass"
-        },
-        "D3": {
-          "code": "D3",
-          "details": "scorecard indicates structured pass, but live cycle lacks structured source-family evidence",
-          "domain": "data_moat",
-          "name": "structured_evidence_quality",
-          "severity": "blocking",
-          "status": "partial"
-        },
-        "D4": {
-          "code": "D4",
-          "details": "package_id=present, package_artifact=present",
-          "domain": "data_moat",
-          "name": "unified_package_identity",
-          "severity": "blocking",
-          "status": "pass"
-        },
-        "D5": {
-          "code": "D5",
-          "details": "postgres=pass (package_row_linked_to_backend_run_id), minio=pass (all_artifact_refs_read_back), pgvector=pass (document_chunks_and_embeddings_present_with_derived_index_truth_role)",
-          "domain": "data_moat",
-          "name": "storage_readback",
-          "severity": "blocking",
-          "status": "pass"
-        },
-        "D6": {
-          "code": "D6",
-          "details": "windmill_job_id=019d94f9-c6fa-9aab-f6e7-eca32b5b951f, backend_run_id=present",
-          "domain": "data_moat",
-          "name": "windmill_integration",
-          "severity": "blocking",
-          "status": "pass"
-        },
-        "E1": {
-          "code": "E1",
-          "details": "mechanism=fee_or_tax_pass_through impact_mode=pass_through_incidence",
-          "domain": "economic_analysis",
-          "name": "mechanism_coverage",
-          "severity": "blocking",
-          "status": "pass"
-        },
-        "E2": {
-          "code": "E2",
-          "details": "analysis_status_endpoint=secondary_research_needed",
-          "domain": "economic_analysis",
-          "name": "sufficiency_gate",
-          "severity": "blocking",
-          "status": "partial"
-        },
-        "E3": {
-          "code": "E3",
-          "details": "secondary_research_needed=True",
-          "domain": "economic_analysis",
-          "name": "secondary_research_loop",
-          "severity": "blocking",
-          "status": "partial"
-        },
-        "E4": {
-          "code": "E4",
-          "details": "LLM narrative not proven (canonical_llm_run_id_missing; source=quality_spine_deterministic_lane).",
-          "domain": "economic_analysis",
-          "name": "canonical_llm_binding",
-          "severity": "blocking",
-          "status": "not_proven"
-        },
-        "E5": {
-          "code": "E5",
-          "details": "decision_grade_verdict=not_decision_grade",
-          "domain": "economic_analysis",
-          "name": "decision_grade_quality",
-          "severity": "blocking",
-          "status": "partial"
-        },
-        "E6": {
-          "code": "E6",
-          "details": "analysis-status endpoint response captured",
-          "domain": "economic_analysis",
-          "name": "admin_read_model",
-          "severity": "nonblocking",
-          "status": "pass"
-        },
-        "M1": {
-          "code": "M1",
-          "details": "manual data audit markdown path missing",
-          "domain": "manual_audit",
-          "name": "manual_data_audit",
-          "severity": "blocking",
-          "status": "not_proven"
-        },
-        "M2": {
-          "code": "M2",
-          "details": "manual economic audit markdown path missing",
-          "domain": "manual_audit",
-          "name": "manual_economic_audit",
-          "severity": "blocking",
-          "status": "not_proven"
-        },
-        "M3": {
-          "code": "M3",
-          "details": "manual gate decision markdown path missing",
-          "domain": "manual_audit",
-          "name": "manual_gate_decision",
-          "severity": "blocking",
-          "status": "not_proven"
-        }
-      },
-      "result_verdict": "partial",
-      "status": "completed",
-      "stop_continue_decision": "continue_prove_remaining",
+      "gate_snapshot": {},
+      "result_verdict": null,
+      "status": "not_executed",
+      "stop_continue_decision": "continue",
       "tweaks_applied": []
     },
     {
@@ -806,131 +71,10 @@
       "commands_executed": [],
       "external_blocker_proof": [],
       "gate_deltas": {},
-      "gate_snapshot": {
-        "D1": {
-          "code": "D1",
-          "details": "catalog_families=['legistar_web_api', 'san_jose_open_data_ckan'], complete_families=['legistar_web_api', 'san_jose_open_data_ckan'], free_ingestible=['legistar_web_api', 'san_jose_open_data_ckan']",
-          "domain": "data_moat",
-          "name": "source_catalog",
-          "severity": "blocking",
-          "status": "pass"
-        },
-        "D2": {
-          "code": "D2",
-          "details": "selected_url=present",
-          "domain": "data_moat",
-          "name": "scraped_evidence_quality",
-          "severity": "blocking",
-          "status": "pass"
-        },
-        "D3": {
-          "code": "D3",
-          "details": "scorecard indicates structured pass, but live cycle lacks structured source-family evidence",
-          "domain": "data_moat",
-          "name": "structured_evidence_quality",
-          "severity": "blocking",
-          "status": "partial"
-        },
-        "D4": {
-          "code": "D4",
-          "details": "package_id=present, package_artifact=present",
-          "domain": "data_moat",
-          "name": "unified_package_identity",
-          "severity": "blocking",
-          "status": "pass"
-        },
-        "D5": {
-          "code": "D5",
-          "details": "postgres=pass (package_row_linked_to_backend_run_id), minio=pass (all_artifact_refs_read_back), pgvector=pass (document_chunks_and_embeddings_present_with_derived_index_truth_role)",
-          "domain": "data_moat",
-          "name": "storage_readback",
-          "severity": "blocking",
-          "status": "pass"
-        },
-        "D6": {
-          "code": "D6",
-          "details": "windmill_job_id=019d94fb-dfaa-7681-7d6b-c1fb39f6ab49, backend_run_id=present",
-          "domain": "data_moat",
-          "name": "windmill_integration",
-          "severity": "blocking",
-          "status": "pass"
-        },
-        "E1": {
-          "code": "E1",
-          "details": "mechanism=fee_or_tax_pass_through impact_mode=pass_through_incidence",
-          "domain": "economic_analysis",
-          "name": "mechanism_coverage",
-          "severity": "blocking",
-          "status": "pass"
-        },
-        "E2": {
-          "code": "E2",
-          "details": "analysis_status_endpoint=secondary_research_needed",
-          "domain": "economic_analysis",
-          "name": "sufficiency_gate",
-          "severity": "blocking",
-          "status": "partial"
-        },
-        "E3": {
-          "code": "E3",
-          "details": "secondary_research_needed=True",
-          "domain": "economic_analysis",
-          "name": "secondary_research_loop",
-          "severity": "blocking",
-          "status": "partial"
-        },
-        "E4": {
-          "code": "E4",
-          "details": "LLM narrative not proven (canonical_llm_run_id_missing; source=quality_spine_deterministic_lane).",
-          "domain": "economic_analysis",
-          "name": "canonical_llm_binding",
-          "severity": "blocking",
-          "status": "not_proven"
-        },
-        "E5": {
-          "code": "E5",
-          "details": "decision_grade_verdict=not_decision_grade",
-          "domain": "economic_analysis",
-          "name": "decision_grade_quality",
-          "severity": "blocking",
-          "status": "partial"
-        },
-        "E6": {
-          "code": "E6",
-          "details": "analysis-status endpoint response captured",
-          "domain": "economic_analysis",
-          "name": "admin_read_model",
-          "severity": "nonblocking",
-          "status": "pass"
-        },
-        "M1": {
-          "code": "M1",
-          "details": "manual data audit markdown path missing",
-          "domain": "manual_audit",
-          "name": "manual_data_audit",
-          "severity": "blocking",
-          "status": "not_proven"
-        },
-        "M2": {
-          "code": "M2",
-          "details": "manual economic audit markdown path missing",
-          "domain": "manual_audit",
-          "name": "manual_economic_audit",
-          "severity": "blocking",
-          "status": "not_proven"
-        },
-        "M3": {
-          "code": "M3",
-          "details": "manual gate decision markdown path missing",
-          "domain": "manual_audit",
-          "name": "manual_gate_decision",
-          "severity": "blocking",
-          "status": "not_proven"
-        }
-      },
-      "result_verdict": "partial",
-      "status": "completed",
-      "stop_continue_decision": "continue_prove_remaining",
+      "gate_snapshot": {},
+      "result_verdict": null,
+      "status": "not_executed",
+      "stop_continue_decision": "continue",
       "tweaks_applied": []
     },
     {
@@ -993,10 +137,131 @@
       "commands_executed": [],
       "external_blocker_proof": [],
       "gate_deltas": {},
-      "gate_snapshot": {},
-      "result_verdict": null,
-      "status": "not_executed",
-      "stop_continue_decision": "continue",
+      "gate_snapshot": {
+        "D1": {
+          "code": "D1",
+          "details": "catalog_families=['legistar_web_api', 'san_jose_open_data_ckan'], complete_families=['legistar_web_api', 'san_jose_open_data_ckan'], free_ingestible=['legistar_web_api', 'san_jose_open_data_ckan']",
+          "domain": "data_moat",
+          "name": "source_catalog",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D2": {
+          "code": "D2",
+          "details": "selected_url=present",
+          "domain": "data_moat",
+          "name": "scraped_evidence_quality",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D3": {
+          "code": "D3",
+          "details": "structured_sources present count=1; manual quality audit pending",
+          "domain": "data_moat",
+          "name": "structured_evidence_quality",
+          "severity": "blocking",
+          "status": "partial"
+        },
+        "D4": {
+          "code": "D4",
+          "details": "package_id=present, package_artifact=present",
+          "domain": "data_moat",
+          "name": "unified_package_identity",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D5": {
+          "code": "D5",
+          "details": "postgres=pass (package_row_linked_to_backend_run_id), minio=pass (all_artifact_refs_read_back), pgvector=pass (document_chunks_and_embeddings_present_with_derived_index_truth_role)",
+          "domain": "data_moat",
+          "name": "storage_readback",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "D6": {
+          "code": "D6",
+          "details": "windmill job present but final_status=failed",
+          "domain": "data_moat",
+          "name": "windmill_integration",
+          "severity": "blocking",
+          "status": "fail"
+        },
+        "E1": {
+          "code": "E1",
+          "details": "mechanism=fee_or_tax_pass_through impact_mode=pass_through_incidence",
+          "domain": "economic_analysis",
+          "name": "mechanism_coverage",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "E2": {
+          "code": "E2",
+          "details": "sufficiency=pass, economic_reasoning=pass",
+          "domain": "economic_analysis",
+          "name": "sufficiency_gate",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "E3": {
+          "code": "E3",
+          "details": "secondary_research_needed=True",
+          "domain": "economic_analysis",
+          "name": "secondary_research_loop",
+          "severity": "blocking",
+          "status": "partial"
+        },
+        "E4": {
+          "code": "E4",
+          "details": "LLM narrative not proven (canonical_llm_run_id_missing; source=quality_spine_deterministic_lane).",
+          "domain": "economic_analysis",
+          "name": "canonical_llm_binding",
+          "severity": "blocking",
+          "status": "not_proven"
+        },
+        "E5": {
+          "code": "E5",
+          "details": "decision_grade_verdict=not_decision_grade",
+          "domain": "economic_analysis",
+          "name": "decision_grade_quality",
+          "severity": "blocking",
+          "status": "partial"
+        },
+        "E6": {
+          "code": "E6",
+          "details": "analysis-status endpoint returned error",
+          "domain": "economic_analysis",
+          "name": "admin_read_model",
+          "severity": "nonblocking",
+          "status": "fail"
+        },
+        "M1": {
+          "code": "M1",
+          "details": "manual_data_audit_path=../docs/poc/policy-evidence-quality-spine/manual_audit_cycle_13_data_moat.md",
+          "domain": "manual_audit",
+          "name": "manual_data_audit",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "M2": {
+          "code": "M2",
+          "details": "manual_economic_audit_path=../docs/poc/policy-evidence-quality-spine/manual_audit_cycle_13_economic_analysis.md",
+          "domain": "manual_audit",
+          "name": "manual_economic_audit",
+          "severity": "blocking",
+          "status": "pass"
+        },
+        "M3": {
+          "code": "M3",
+          "details": "manual_gate_decision_path=../docs/poc/policy-evidence-quality-spine/manual_gate_decision_cycle_13.md",
+          "domain": "manual_audit",
+          "name": "manual_gate_decision",
+          "severity": "blocking",
+          "status": "pass"
+        }
+      },
+      "result_verdict": "fail",
+      "status": "completed",
+      "stop_continue_decision": "continue_fix_failed_gate",
       "tweaks_applied": []
     },
     {

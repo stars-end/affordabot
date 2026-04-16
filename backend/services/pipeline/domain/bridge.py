@@ -1710,15 +1710,27 @@ class RailwayRuntimeBridge:
             )
             return await self._persist_response(run_id=run_id, request=request, response=response)
         if not self._llm_client:
+            fail_closed_analysis = self._provider_unavailable_analysis_payload(
+                request=request,
+                reason="analysis_provider_unavailable",
+                evidence_audit=evidence_audit,
+                evidence_chunk_count=len(evidence_chunks),
+            )
             response = CommandResponse(
                 command="analyze",
-                status="failed_terminal",
+                status="succeeded_with_alerts",
                 decision_reason="analysis_provider_unavailable",
                 retry_class="provider_unavailable",
-                alerts=["analysis_error:missing_zai_api_key"],
+                alerts=[
+                    "analysis_provider_unavailable",
+                    "analysis_fail_closed_provider_unavailable",
+                    "canonical_llm_narrative_not_proven",
+                    "analysis_error:missing_zai_api_key",
+                ],
                 counts={"evidence_chunks": len(evidence_chunks)},
                 refs={"windmill_run_id": meta.run_id, "windmill_job_id": meta.job_id},
                 details={
+                    "analysis": fail_closed_analysis,
                     "evidence_selection": {
                         "candidate_chunk_count": len(candidate_chunks),
                         "selected_chunk_count": len(evidence_chunks),
@@ -1775,15 +1787,27 @@ class RailwayRuntimeBridge:
             )
             return await self._persist_response(run_id=run_id, request=request, response=response)
         except Exception as exc:
+            fail_closed_analysis = self._provider_unavailable_analysis_payload(
+                request=request,
+                reason="analysis_provider_unavailable",
+                evidence_audit=evidence_audit,
+                evidence_chunk_count=len(evidence_chunks),
+            )
             response = CommandResponse(
                 command="analyze",
-                status="failed_terminal",
-                decision_reason="analysis_failed",
+                status="succeeded_with_alerts",
+                decision_reason="analysis_provider_unavailable",
                 retry_class="provider_unavailable",
-                alerts=[f"analysis_error:{exc}"],
+                alerts=[
+                    "analysis_provider_unavailable",
+                    "analysis_fail_closed_provider_unavailable",
+                    "canonical_llm_narrative_not_proven",
+                    f"analysis_error:{exc}",
+                ],
                 counts={"evidence_chunks": len(evidence_chunks)},
                 refs={"windmill_run_id": meta.run_id, "windmill_job_id": meta.job_id},
                 details={
+                    "analysis": fail_closed_analysis,
                     "evidence_selection": {
                         "candidate_chunk_count": len(candidate_chunks),
                         "selected_chunk_count": len(evidence_chunks),
@@ -1792,6 +1816,43 @@ class RailwayRuntimeBridge:
                 },
             )
             return await self._persist_response(run_id=run_id, request=request, response=response)
+
+    @staticmethod
+    def _provider_unavailable_analysis_payload(
+        *,
+        request: RunScopeRequest,
+        reason: str,
+        evidence_audit: list[dict[str, Any]],
+        evidence_chunk_count: int,
+    ) -> dict[str, Any]:
+        return {
+            "summary": "Economic analysis failed closed because the canonical LLM provider was unavailable.",
+            "key_points": [
+                "Evidence was ingested and selected for analysis, but no canonical model output was produced.",
+                "This run is not decision-grade and requires a provider-healthy rerun before quantitative conclusions.",
+            ],
+            "sufficiency_state": "provider_unavailable",
+            "analysis_mode": "fail_closed_provider_unavailable",
+            "analysis_not_proven": True,
+            "canonical_llm_narrative_proven": False,
+            "decision_reason": reason,
+            "requested_analysis_question": request.analysis_question,
+            "evidence_chunk_count": evidence_chunk_count,
+            "evidence_refs": [
+                {
+                    "chunk_id": chunk.get("chunk_id"),
+                    "chunk_index": chunk.get("chunk_index"),
+                    "score": chunk.get("score"),
+                    "snippet": chunk.get("snippet"),
+                }
+                for chunk in evidence_audit
+            ],
+            "alerts": [
+                "analysis_provider_unavailable",
+                "analysis_fail_closed_provider_unavailable",
+                "canonical_llm_narrative_not_proven",
+            ],
+        }
 
     async def _summarize(
         self,
