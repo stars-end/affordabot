@@ -28,6 +28,9 @@ economic analysis and admin/frontend read models.
 - `structured_lane_cycles_agent_b.md`
 - `package_handoff_cycles_agent_c.md`
 - `agent_abc_30_cycle_integration_review.md`
+- `manual_audit_cycle_30_data_moat.md`
+- `manual_audit_cycle_30_economic_analysis.md`
+- `manual_gate_decision_cycle_30.md`
 - `cycle_08_gate_controller_upgrade.md`
 - `cycle_09_metadata_and_manual_audit_hooks.md`
 
@@ -56,6 +59,36 @@ What did not pass:
 - Economic analysis failing closed does not prove the upstream data moat is real.
 
 Next POC must prove `decision_grade_data_moat`, or honestly classify the result as `evidence_ready_with_gaps`, `package_mechanics_only`, `fail`, or `blocked_hitl` with concrete evidence. In particular, it must prove policy lineage completeness, extraction accuracy/citation, cross-source reconciliation, robustness/fallback behavior, and economic handoff fitness.
+
+### Cycle 30 Final Verdict
+
+Cycle 30 stopped at `evidence_ready_with_gaps`, not `decision_grade_data_moat`.
+
+Final artifact: `artifacts/live_cycle_30i_windmill_domain_run.json`.
+
+What materially improved since Cycle 25:
+
+- private SearXNG runtime provenance is derived from the active client and points to `searxng-private.railway.internal:8080`;
+- the final San Jose CLF run selected an official Legistar PDF artifact at rank 1;
+- the package persisted with Postgres, MinIO refs, reader output refs, pgvector chunks, and analysis provenance gates passing;
+- Legistar Web API resolved the correct Matter `7526` with 19 attachment references;
+- Tavily secondary search is tier C and cannot masquerade as true structured evidence;
+- primary fee rows are extracted from the official Legistar artifact, with malformed money kept ambiguous;
+- the live gate harness no longer reports `full_product_pass` when `economic_handoff_ready=false`.
+
+What still blocks decision-grade data moat:
+
+- the true structured source is metadata-only and does not contribute structured economic rows;
+- related Legistar attachments are discovered but not ingested into the same package;
+- policy lineage remains partial because related attachments are missing;
+- economic handoff correctly fails closed with blocking gate `parameterization`;
+- no governed model cards, assumptions, sensitivity ranges, or secondary research package are bound to the package.
+
+Start future work from:
+
+- `manual_audit_cycle_30_data_moat.md`
+- `manual_audit_cycle_30_economic_analysis.md`
+- `manual_gate_decision_cycle_30.md`
 
 ## Gate Contract v2 (Superseded by 2026-04-16 Gates)
 

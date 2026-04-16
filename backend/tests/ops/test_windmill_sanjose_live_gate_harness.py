@@ -235,6 +235,46 @@ def test_classification_full_product_pass_when_storage_gates_are_complete():
     assert readiness == "ready"
 
 
+def test_classification_surfaces_package_handoff_gap_even_when_storage_passes():
+    payload = _stub_scope_result("completed")
+    payload["status"] = "succeeded"
+    payload["scope_results"][0]["backend_response"] = {"storage_mode": "railway_runtime"}
+    payload["scope_results"][0]["steps"]["summarize_run"]["details"] = {
+        "policy_evidence_package": {
+            "package_payload": {
+                "economic_handoff_ready": False,
+                "gate_report": {"blocking_gate": "parameterization"},
+            }
+        }
+    }
+    storage_gates = module._build_storage_evidence_gates(payload)
+    for gate_name in [
+        "postgres_rows_written",
+        "pgvector_index_probe",
+        "minio_object_refs",
+        "reader_output_ref",
+        "analysis_provenance_chain",
+        "idempotent_rerun",
+        "stale_drill_stale_but_usable",
+        "stale_drill_stale_blocked",
+    ]:
+        storage_gates[gate_name] = {"status": "passed", "note": "ok"}
+    storage_gates["quality_gate_blocked_before_index_analyze"] = {
+        "status": "not_applicable",
+        "note": "successful path",
+    }
+
+    classification, readiness = module._derive_classification(
+        result_payload=payload,
+        storage_gates=storage_gates,
+        backend_endpoint_readiness={"status": "ready_for_opt_in"},
+        blockers=[],
+    )
+
+    assert classification == "evidence_ready_with_gaps"
+    assert readiness == "ready"
+
+
 def test_classification_is_backend_bridge_surface_ready_when_probe_ready():
     result_payload = _stub_scope_result(module.STUB_SUMMARY_MARKER)
     result_payload["status"] = "succeeded"

@@ -75,3 +75,29 @@ This does not yet satisfy `decision_grade_data_moat`, because the new code has n
 - cross-source reconciliation between scraped and structured facts;
 - Postgres, MinIO, and pgvector refs with direct or explicitly caveated proof mode;
 - admin read-model economic handoff fields populated from the current package.
+
+## Live Deployment Final Verdict
+
+Final status after orchestrator integration, targeted fixes, Railway dev deployment, and live Windmill validation: `evidence_ready_with_gaps`.
+
+Final live artifact: `docs/poc/policy-evidence-quality-spine/artifacts/live_cycle_30i_windmill_domain_run.json`.
+
+Cycle 30i proves the runtime/product spine:
+
+- Windmill job `019d97ee-4a45-5db5-92ac-38c281071b8e` completed the expected six-step flow.
+- Runtime search provider was private SearXNG via `OssSearxngWebSearchClient`.
+- Selected source was the official Legistar artifact `View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6`.
+- Postgres, MinIO refs, reader-output refs, pgvector, idempotent rerun, and stale drills passed.
+- Legistar Web API resolved Matter `7526` and 19 attachments.
+- Final package `pkg-d2ca84f146a17beb8b3266a1` unified scraped and structured lanes.
+
+Cycle 30i does not prove `decision_grade_data_moat`:
+
+- `economic_handoff_ready=false`.
+- `gate_report.verdict=fail_closed`.
+- `blocking_gate=parameterization`.
+- true structured source depth remains metadata-only;
+- related attachments are discovered but not ingested into the package;
+- economic model cards and governed assumptions are absent.
+
+This is the correct stop condition for this PR. The next high-leverage PR is a data-moat depth lane: Legistar attachment traversal plus official fee-table/nexus-study normalization into structured economic rows.

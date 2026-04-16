@@ -626,6 +626,34 @@ def test_runtime_bridge_extracts_primary_fee_facts_from_analysis_chunks() -> Non
     assert "primary_parameter_money_format_anomaly" in alerts
 
 
+def test_runtime_bridge_prefers_categorized_ambiguous_fee_fact() -> None:
+    merged = RailwayRuntimeBridge._merge_primary_fee_facts(
+        [
+            {
+                "field": "commercial_linkage_fee_rate_usd_per_sqft",
+                "raw_value": "$18.706.00",
+                "normalized_value": None,
+                "category": "residential_care",
+                "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120",
+                "ambiguity_flag": True,
+            }
+        ],
+        [
+            {
+                "field": "commercial_linkage_fee_rate_usd_per_sqft",
+                "raw_value": "$18.706.00",
+                "normalized_value": None,
+                "category": "unknown",
+                "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120",
+                "ambiguity_flag": True,
+            }
+        ],
+    )
+
+    assert len(merged) == 1
+    assert merged[0]["category"] == "residential_care"
+
+
 def test_runtime_bridge_idempotency_is_scoped_to_jurisdiction_and_source_family() -> None:
     db = FakeDB()
     storage = FakeStorage()

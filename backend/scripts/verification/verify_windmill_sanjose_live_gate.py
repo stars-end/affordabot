@@ -326,6 +326,35 @@ def _read_fetch_raw_scrape_ids(result_payload: dict[str, Any] | None) -> list[st
     return [str(raw_id) for raw_id in raw_scrape_ids if raw_id]
 
 
+def _extract_policy_evidence_package_payload(result_payload: dict[str, Any] | None) -> dict[str, Any]:
+    scope_result = _first_scope_result(result_payload)
+    steps = scope_result.get("steps") or {}
+    if not isinstance(steps, dict):
+        return {}
+    summarize = steps.get("summarize_run") or {}
+    if not isinstance(summarize, dict):
+        return {}
+    details = summarize.get("details") or {}
+    if not isinstance(details, dict):
+        return {}
+    package = details.get("policy_evidence_package") or {}
+    if not isinstance(package, dict):
+        return {}
+    payload = package.get("package_payload") or {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _package_has_blocking_handoff_gap(package_payload: dict[str, Any]) -> bool:
+    if not package_payload:
+        return False
+    if package_payload.get("economic_handoff_ready") is False:
+        return True
+    gate_report = package_payload.get("gate_report") or {}
+    if isinstance(gate_report, dict) and gate_report.get("blocking_gate"):
+        return True
+    return False
+
+
 def _any_step_idempotent_reuse(result_payload: dict[str, Any] | None) -> bool:
     scope_result = _first_scope_result(result_payload)
     steps = scope_result.get("steps") or {}
@@ -977,6 +1006,9 @@ def _derive_classification(
         and gate.get("status") in {"pending", "failed"}
     ]
     if not incomplete_storage_gates and storage_gates.get("bridge_mode", {}).get("status") not in {"stub", "unknown"}:
+        package_payload = _extract_policy_evidence_package_payload(result_payload)
+        if _package_has_blocking_handoff_gap(package_payload):
+            return "evidence_ready_with_gaps", "ready"
         return "full_product_pass", "ready"
 
     summary = (

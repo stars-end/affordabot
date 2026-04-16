@@ -717,9 +717,91 @@ class RailwayRuntimeBridge:
         facts: list[dict[str, Any]] = []
         alerts: list[str] = []
         seen: set[tuple[float, str]] = set()
+        fee_row_pattern = re.compile(
+            r"(?P<category>Downtown\s+Office|Rest\s+of\s+City\s+Office|Office|Retail|Hotel|"
+            r"Industrial/Research\s+and\s+Development|Warehouse|Residential\s+Care)"
+            r"(?:\s*\((?P<threshold>[^)]*?(?:sq\.?\s*ft|sq\.?ft|square\s+foot)[^)]*)\))?"
+            r"\s*(?P<raw>No\s+fee\s*\(\$0\)|\$[0-9]+(?:\.[0-9]+){2,}|\$[0-9]+(?:\.[0-9]{1,2})?)",
+            re.IGNORECASE,
+        )
+
+        def normalize_category(raw_category: str) -> str:
+            category_text = " ".join(raw_category.lower().split())
+            if "industrial" in category_text:
+                return "industrial"
+            if "residential care" in category_text:
+                return "residential_care"
+            if "office" in category_text:
+                return "office"
+            if "retail" in category_text:
+                return "retail"
+            if "hotel" in category_text:
+                return "hotel"
+            if "warehouse" in category_text:
+                return "warehouse"
+            return "unknown"
+
         for chunk_index, text in enumerate(text_parts, start=1):
             lowered = text.lower()
             if not any(signal in lowered for signal in ("fee", "fees", "per sq", "square foot", "sq. ft")):
+                continue
+            row_match_found = False
+            for row_match in fee_row_pattern.finditer(text):
+                row_match_found = True
+                raw_token = row_match.group("raw")
+                category = normalize_category(row_match.group("category"))
+                threshold = " ".join((row_match.group("threshold") or "").split()) or None
+                context_start = max(0, row_match.start() - 120)
+                context_end = min(len(text), row_match.end() + 120)
+                context_excerpt = " ".join(text[context_start:context_end].split())
+                if re.match(r"no\s+fee", raw_token, flags=re.IGNORECASE):
+                    value: float | None = 0.0
+                    normalized_raw = "$0"
+                    ambiguity = False
+                    ambiguity_reason = None
+                    confidence = 0.86
+                elif re.fullmatch(r"\$[0-9]+(?:\.[0-9]+){2,}", raw_token):
+                    alerts.append("primary_parameter_money_format_anomaly")
+                    value = None
+                    normalized_raw = raw_token
+                    ambiguity = True
+                    ambiguity_reason = "currency_format_anomaly"
+                    confidence = 0.35
+                else:
+                    value = float(raw_token.replace("$", ""))
+                    normalized_raw = raw_token
+                    ambiguity = False
+                    ambiguity_reason = None
+                    confidence = 0.86
+                dedupe_value = value if value is not None else -1.0
+                dedupe_key = (dedupe_value, category)
+                if dedupe_key in seen:
+                    continue
+                seen.add(dedupe_key)
+                facts.append(
+                    {
+                        "field": "commercial_linkage_fee_rate_usd_per_sqft",
+                        "raw_value": normalized_raw,
+                        "value": value,
+                        "normalized_value": value,
+                        "unit": "usd_per_square_foot",
+                        "denominator": "per_square_foot",
+                        "category": category,
+                        "threshold": threshold,
+                        "source_url": selected_url,
+                        "source_excerpt": context_excerpt[:600],
+                        "source_locator": f"{source_locator_prefix}:{chunk_index}:fee_table_row",
+                        "provenance_lane": "primary_scraped_document",
+                        "source_hierarchy_status": "bill_or_reg_text",
+                        "confidence": confidence,
+                        "ambiguity_flag": ambiguity,
+                        "ambiguity_reason": ambiguity_reason,
+                        "currency_sanity": "invalid" if ambiguity else "valid",
+                        "unit_sanity": "valid",
+                        "effective_date": None,
+                    }
+                )
+            if row_match_found:
                 continue
             if re.search(r"\$[0-9]+(?:\.[0-9]+){2,}", text):
                 alerts.append("primary_parameter_money_format_anomaly")
@@ -842,9 +924,30 @@ class RailwayRuntimeBridge:
     ) -> list[dict[str, Any]]:
         merged: list[dict[str, Any]] = []
         seen: set[tuple[str, str, str, str]] = set()
+        categorized_ambiguous_raws = {
+            (
+                str(fact.get("field") or ""),
+                str(fact.get("raw_value") or ""),
+                str(fact.get("source_url") or ""),
+            )
+            for facts in fact_groups
+            for fact in facts
+            if fact.get("ambiguity_flag")
+            and str(fact.get("raw_value") or "")
+            and str(fact.get("category") or "unknown") != "unknown"
+        }
         for facts in fact_groups:
             for fact in facts:
-                value_key = str(fact.get("normalized_value", fact.get("raw_value") or ""))
+                raw_value = str(fact.get("raw_value") or "")
+                if (
+                    fact.get("ambiguity_flag")
+                    and str(fact.get("category") or "unknown") == "unknown"
+                    and (str(fact.get("field") or ""), raw_value, str(fact.get("source_url") or ""))
+                    in categorized_ambiguous_raws
+                ):
+                    continue
+                normalized_value = fact.get("normalized_value")
+                value_key = str(normalized_value if normalized_value is not None else raw_value)
                 key = (
                     str(fact.get("field") or ""),
                     value_key,
