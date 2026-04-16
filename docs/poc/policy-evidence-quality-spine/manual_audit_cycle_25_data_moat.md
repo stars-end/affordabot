@@ -20,7 +20,7 @@ The live package now proves:
 - Source-quality metrics were persisted into the package and surfaced by the admin endpoint.
 - Scraped/search gate passed for selected-artifact quality.
 - Structured evidence was unified with scraped evidence in the same package.
-- Secondary structured-search evidence rescued numeric fee parameters.
+- Secondary search-derived evidence rescued numeric fee parameters.
 - Canonical LLM binding passed for the package.
 
 ## Selected Artifact Quality
@@ -44,9 +44,9 @@ The package contains:
 
 - scraped official Legistar attachment evidence,
 - structured Legistar Web API metadata,
-- Tavily secondary structured-search evidence from an official San Jose news page.
+- Tavily secondary search-derived evidence from an official San Jose news page.
 
-The secondary structured lane extracted two source-bound fee parameters:
+The secondary search lane extracted two source-bound fee parameters:
 
 - `$3.00` per square foot,
 - `$3.58` per square foot.
@@ -55,6 +55,6 @@ Manual judgment: this is enough to prove the unified scraped + structured packag
 
 ## Remaining Gate A Limits
 
-- The harness DB/storage probe still reports local DNS limitations for direct DB probing, but the admin read model and prior MinIO probe have proven the storage path.
+- The harness DB/storage probe still reports local DNS limitations for direct DB probing, so the storage/read-back `pass` claims are based on the successful admin read model retrieval and prior MinIO probes proving the storage path.
 - Provider metrics are now present for the fresh package, but broader search-quality breadth is still required before claiming production recall.
 - The source-quality gate is now useful: old packages show `source_quality_metrics_missing`, fresh packages show selected-artifact quality explicitly.
