@@ -25,7 +25,9 @@ economic analysis and admin/frontend read models.
 
 ## Future Agent Start Here
 
-**STOP:** Do not launch another POC cycle before reading the [2026-04-16 data moat quality gates](../../specs/2026-04-16-data-moat-quality-gates.md). The original product gates (v2, described below) were passed mechanically but failed the economic-depth substance bar (see `Current verdict` below for details). All future cycles must adhere to the hardened D0-D7 and E1-E5 gates in the new contract.
+**STOP:** Do not launch another POC cycle before reading the [2026-04-16 data moat quality gates](../../specs/2026-04-16-data-moat-quality-gates.md). The original product gates (v2, described below) were passed mechanically but failed the data-moat substance bar (see `Current verdict` below for details). All future cycles must adhere to the hardened D0-D11 and E1-E5 gates in the new contract.
+
+The next cycle may not stop at "Windmill ran", "MinIO persisted", "admin read model displayed", "SearXNG found one PDF", "Tavily rescued parameters", or "economic analysis failed closed." Those are mechanics. The required target is a comprehensive, accurate, robust, fit-for-purpose data package that can honestly tell the economic engine whether to quantify, request secondary research, produce qualitative analysis, or fail closed.
 
 ### Cycle 25 Honest Verdict
 
@@ -45,7 +47,7 @@ What did not pass:
 - The structured data moat was not proven.
 - Economic analysis failing closed does not prove the upstream data moat is real.
 
-Next POC must prove structured-source economic depth or honestly classify it as `not_proven`.
+Next POC must prove `decision_grade_data_moat`, or honestly classify the result as `evidence_ready_with_gaps`, `package_mechanics_only`, `fail`, or `blocked_hitl` with concrete evidence. In particular, it must prove policy lineage completeness, extraction accuracy/citation, cross-source reconciliation, robustness/fallback behavior, and economic handoff fitness.
 
 ## Gate Contract v2 (Superseded by 2026-04-16 Gates)
 
@@ -118,8 +120,9 @@ The eval-cycle harness now records per-cycle ledger rows with:
 - economic status endpoint (if captured)
 - verdict and next tweak
 
-Gate taxonomy is now explicit and severity-aware:
-- `D1..D6` data moat
+Gate taxonomy is now explicit and severity-aware. The v2 taxonomy below is
+superseded by the D0-D11 data-moat gate contract for new POC cycles:
+- `D1..D6` data moat (legacy v2)
 - `E1..E6` economic analysis
 - `M1..M3` manual audits
 - status: `pass|partial|not_proven|fail`

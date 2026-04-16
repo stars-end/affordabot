@@ -8,6 +8,8 @@ Harden the Affordabot data-moat iteration gates before any new POC is launched. 
 
 The Affordabot product goal is to produce a **real data moat**: durable, auditable, source-grounded local-policy evidence packages from scraped and true structured sources. That package is useful input to downstream economic cost-of-living analysis.
 
+The data moat is not "we found a document." The data moat is a policy-specific, source-grounded, lineage-aware, structured-plus-scraped evidence package with enough accuracy, completeness, and provenance that an economic analysis engine can safely decide whether to quantify, request secondary research, produce qualitative analysis, or fail closed.
+
 Economic analysis is allowed to fail closed, but only after the upstream data package has been honestly classified as `analysis_ready`, `analysis_ready_with_gaps`, or `not_analysis_ready`.
 
 ## Important Product Context: Cycle 25 Did Not Pass
@@ -28,7 +30,7 @@ Reasons:
 Future agents start here:
 - **Data moat is the product objective; architecture is the means.**
 - Cycle 25 was a mechanics/narrow scraped pass, not a full data-moat pass.
-- The next POC must prove structured-source economic depth or honestly classify it as `not_proven`.
+- The next POC must prove `decision_grade_data_moat`, or honestly classify the result as `evidence_ready_with_gaps`, `package_mechanics_only`, `fail`, or `blocked_hitl`.
 
 ## Data Moat Gates
 
@@ -40,7 +42,22 @@ Result states:
 - `not_proven`: gate was not directly exercised or proof is indirect/unavailable.
 - `blocked_hitl`: only for strategic decisions or missing external access that cannot be resolved non-destructively.
 
-### D0 Source Catalog Gate
+Top-level data moat verdict:
+- `fail`: source evidence is wrong, misleading, ungrounded, or unusable.
+- `package_mechanics_only`: transport, storage, or admin visibility works, but evidence substance is not proved.
+- `evidence_ready_with_gaps`: credible source-grounded package exists, but one or more lineage/source-family/economic-handoff gaps remain named.
+- `economic_handoff_ready`: package is source-grounded and detailed enough for the economic engine to run or fail closed with machine-actionable reasons.
+- `decision_grade_data_moat`: package is comprehensive, accurate, robust, and fit for direct or indirect economic analysis without hidden assumptions.
+
+Required data-moat dimensions:
+- comprehensive: policy lineage and expected source families are searched, linked, or explicitly marked missing.
+- accurate: every extracted fact/parameter is quote-, page-, field-, or row-grounded with units and applicability context.
+- robust: reruns, source drift, fallbacks, provider failures, and duplicated evidence cannot silently produce a false pass.
+- fit for purpose: the package tells the economic engine what can be quantified, what needs secondary research, what is qualitative only, and what must be rejected.
+
+Cycle 25 classification under this contract: `package_mechanics_only`.
+
+### D0 Source Universe And Catalog Gate
 
 Pass requires a canonical source catalog artifact with:
 - source family;
@@ -61,7 +78,27 @@ Fail if:
 - search snippets are counted as true structured sources;
 - source family breadth is claimed without live proof or explicit `cataloged-unavailable` evidence.
 
-### D1 Scraped Primary Artifact Gate
+`not_proven` is the required state when a source family is cataloged but not exercised in the current package.
+
+### D1 Policy Lineage Completeness Gate
+
+Pass requires a package-level policy lineage graph, not a single artifact. For a local policy, the package must attempt and record:
+- authoritative policy text: ordinance, resolution, bill, amendment, adopted text, staff draft, or fee schedule;
+- meeting context: agenda item, minutes, vote/action record, event/body/item metadata;
+- staff/economic context: staff report, fiscal impact memo, fee study, cost analysis, budget attachment, department memo, or impact statement;
+- structured metadata: API/raw row tying event/body/item/date/jurisdiction/source identity;
+- related artifacts: attachments, revisions, linked files, exhibits, implementation dates, and effective dates where available;
+- negative evidence: searched source families that were not found or unavailable.
+
+Pass does not require every possible document, but it requires the expected source families to be enumerated and either linked or explicitly marked missing with evidence.
+
+Fail if:
+- one artifact is treated as comprehensive without lineage search;
+- staff/fiscal/economic context is absent and not marked as a named gap;
+- the package cannot explain which source families were expected for the policy family;
+- lineage claims are only LLM narrative without source records.
+
+### D2 Scraped Primary Artifact Substance Gate
 
 Pass requires:
 - provider runtime provenance, not hardcoded provider labels;
@@ -83,7 +120,7 @@ Fail if:
 - provider label is not runtime-derived;
 - primary artifact contains fee/cost schedule but no structured cards are emitted.
 
-### D2 True Structured Source Economic Depth Gate
+### D3 True Structured Source Economic Depth Gate
 
 Pass requires at least one true structured API/raw source linked to the same policy identity, jurisdiction, and time window that contributes one of:
 - economically relevant facts/parameters; or
@@ -99,7 +136,53 @@ Fail if:
 
 `not_proven` is acceptable only when the source catalog explicitly shows no free/easily ingestible structured source exists for that specific policy family/jurisdiction/time window.
 
-### D3 Unified Package Identity And Provenance Gate
+### D4 Extraction Accuracy And Citation Gate
+
+Pass requires every economic evidence card and parameter card to be human-auditable. Each parameter card must include:
+- source URL or structured row id;
+- quote/excerpt, cell/field path, or attachment reference that contains the claimed value;
+- page number, attachment id, row id, chunk id, or stable locator when available;
+- raw value and normalized value;
+- unit;
+- denominator such as per square foot, per unit, per parcel, annual, one-time, percent, or household;
+- category/applicability such as residential, commercial, citywide, district, project type, or exempt/non-exempt class;
+- effective date, adoption date, or applicability date when present;
+- parser/extractor confidence;
+- ambiguity flag;
+- unit sanity check;
+- currency/number format sanity check.
+
+Fail if:
+- a parameter has no human-auditable citation;
+- the source excerpt or row does not contain the claimed value;
+- unit, denominator, category, geography, or applicability is missing when needed for analysis;
+- malformed monetary values, such as `$18.706.00`, are not flagged;
+- arithmetic uses an unresolved ambiguous parameter;
+- an LLM summary is treated as source truth instead of source-grounded extraction.
+
+Dual-reader extraction is not required for every value. It is required or must be escalated to manual audit when a value is high-impact, ambiguous, malformed, internally inconsistent, or used as a key economic-analysis driver.
+
+### D5 Cross-Source Reconciliation Gate
+
+Pass requires the package to reconcile overlapping facts across source families:
+- primary artifact vs structured metadata;
+- meeting/action record vs policy text;
+- staff/fiscal/economic memo vs extracted fee/cost parameters;
+- secondary-search-derived evidence vs authoritative sources.
+
+For each overlapping fact, the package must record one of:
+- `confirmed`: sources agree;
+- `source_of_truth_selected`: sources differ but the authoritative source is named;
+- `conflict_unresolved`: conflict blocks quantification or requires manual review;
+- `not_applicable`: no overlapping source exists.
+
+Fail if:
+- secondary search overrides authoritative policy text without an explicit source-of-truth decision;
+- a structured API "latest event" row is linked to the wrong policy artifact;
+- conflicting values are averaged, merged, or silently overwritten;
+- the economic engine receives reconciled-looking parameters that still have unresolved source conflict.
+
+### D6 Unified Package Identity And Provenance Gate
 
 Pass requires:
 - scraped and structured inputs unify under one canonical package identity;
@@ -115,7 +198,7 @@ Fail if:
 - provenance stubs replace real excerpts/rows;
 - epoch timestamps or degraded source tiers obscure authoritative sources.
 
-### D4 Storage And Readback Gate
+### D7 Storage, Readback, And Replay Gate
 
 Pass requires current-package proof for:
 - Postgres package/read-model row;
@@ -130,7 +213,24 @@ Fail if:
 - storage refs exist but readback was not exercised and proof mode is not marked indirect;
 - MinIO/pgvector/Postgres are treated as proven from local fixture-only evidence.
 
-### D5 Windmill Linkage Gate
+### D8 Robustness, Fallback, And Regression Gate
+
+Pass requires proof that the package is resilient to common failure modes:
+- same policy rerun produces the same canonical package identity, or a documented version transition;
+- source failure or provider fallback is exercised and correctly labeled;
+- fallback evidence never becomes primary source proof unless promoted by a documented source-of-truth rule;
+- unavailable sources cannot appear as `live_proven=true`;
+- duplicated evidence does not produce duplicate parameter cards;
+- source shape drift creates `source_shape_changed`, `not_proven`, or `fail`, not pass;
+- at least one golden policy regression fixture validates search/ranking, reading, extraction, package build, gate verdict, and economic handoff classification.
+
+Fail if:
+- rerun identity changes without explanation;
+- provider fallback hides primary-source failure;
+- source drift or API-shape change silently drops attachments/fields while the gate still passes;
+- there is no regression fixture covering a known hard policy case before claiming robustness.
+
+### D9 Windmill Linkage Gate
 
 Pass requires:
 - current Windmill flow/run/job ids linked to package/run state;
@@ -143,7 +243,7 @@ Fail if:
 - run ids are not bound to the current package;
 - business logic lives in Windmill scripts.
 
-### D6 Manual Data Audit Gate
+### D10 Manual Data Audit Gate
 
 Pass requires a human/orchestrator-readable audit artifact that manually inspects:
 - raw scraped candidates;
@@ -161,7 +261,7 @@ Fail if:
 - audit does not inspect the actual package;
 - audit omits why the package is or is not useful for economic analysis.
 
-### D7 Economic Handoff Gate
+### D11 Economic Handoff Fitness Gate
 
 Pass requires the package to emit:
 - `economic_handoff_quality`: `analysis_ready`, `analysis_ready_with_gaps`, or `not_analysis_ready`;
@@ -172,7 +272,46 @@ Pass requires the package to emit:
 - unsupported-claim risk;
 - whether direct and/or indirect analysis is plausible.
 
-**Important:** This gate can pass with `analysis_ready_with_gaps` or `not_analysis_ready` if the classification is honest and source-grounded. Economic-analysis failure does not automatically fail the data-moat gate.
+The package must also emit:
+- `mechanism_candidates`;
+- `parameter_inventory`;
+- `missing_parameters`;
+- `assumption_needs`;
+- `secondary_research_needs`;
+- `unsupported_claim_risks`;
+- `recommended_next_action`: `run_direct_analysis`, `run_secondary_research`, `qualitative_summary_only`, or `reject`.
+
+**Important:** This gate can pass with `analysis_ready_with_gaps`, `qualitative_only`, or `not_analysis_ready` if the classification is honest and source-grounded. Economic-analysis failure does not automatically fail the data-moat gate.
+
+Fail if:
+- a qualitative-only policy is forced into fake quantification;
+- missing indirect-cost parameters are not named;
+- secondary research needs are hidden inside LLM context;
+- the economic engine receives a package without explicit handoff quality.
+
+## Decision-Grade Threshold
+
+`decision_grade_data_moat` requires:
+- D0 `pass`;
+- D1 `pass` or `evidence_ready_with_gaps` with named missing lineage pieces;
+- D2 `pass`;
+- D3 `pass` or source-catalog-proven structured absence for the specific policy family;
+- D4 `pass`;
+- D5 `pass` or `not_applicable`;
+- D6 `pass`;
+- D7 `pass`;
+- D8 `pass`;
+- D9 `pass`;
+- D10 `pass`;
+- D11 `pass`.
+
+The next 25-cycle run must end in one of these states:
+- `decision_grade_data_moat`: San Jose vertical satisfies the full standard.
+- `evidence_ready_with_gaps`: credible package exists, but exact missing lineage, structured-source, or economic-handoff gaps are documented.
+- `fail`: current architecture cannot produce the required data moat without a strategic change, with evidence.
+- `blocked_hitl`: only for real infra/API/key/vendor or architecture decisions that cannot be resolved non-destructively.
+
+It must not end at `package_mechanics_only` unless all remaining cycles were exhausted with direct evidence that no non-destructive improvement path remains.
 
 ## Economic Analysis Gates
 
@@ -269,3 +408,23 @@ Stop early only if:
 - "we identified the blockers";
 - "economic analysis failed closed";
 - "storage/read model visible" without data substance.
+
+## Review Issue Coverage
+
+This v3 gate contract explicitly addresses the latest GLM-5.1 and Gemini review concerns.
+
+### GLM-5.1 Coverage
+
+- PR #438 routing/findability is preserved through architecture README, POC README, dependency lockdown spec, and this gate contract.
+- Cycle 25 remains explicitly classified as `package_mechanics_only`, not a data-moat pass.
+- True structured-source proof is separated from Tavily/Exa/SearXNG secondary or scraped evidence.
+- Future cycles must cite artifact paths, package ids/run ids, and concrete evidence for each `pass`.
+- Economic-analysis failure is allowed only after the package emits an honest economic handoff classification.
+
+### Gemini Coverage
+
+- Comprehensive: D1 requires a policy lineage graph covering authoritative text, meeting context, staff/fiscal/economic context, structured metadata, related artifacts, and negative evidence.
+- Accurate: D4 requires quote/page/row grounding, raw and normalized value, units, denominator, applicability, dates, ambiguity flags, confidence, and unit/currency sanity checks.
+- Robust: D8 requires rerun identity stability, fallback labeling, unavailable-source handling, source-shape drift classification, duplicate control, and a golden policy regression fixture.
+- Fit for purpose: D11 requires economic handoff quality, mechanism candidates, parameter inventory, missing parameters, assumption needs, secondary-research needs, unsupported-claim risks, and recommended next action.
+- Qualitative policies: D11 allows `qualitative_only` as an honest handoff outcome when the package is source-rich but cannot support quantification.

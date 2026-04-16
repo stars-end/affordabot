@@ -23,9 +23,11 @@ The docs are routing maps, not a substitute for source inspection.
 Cycle 25 was a mechanics/narrow scraped pass, not a full data-moat pass. Honest
 verdict: `PASS_SCRAPED_ARTIFACT_AND_PACKAGE_MECHANICS_ONLY__STRUCTURED_MOAT_NOT_PROVEN__ECONOMIC_DECISION_GRADE_NOT_PROVEN`.
 
-For the next implementation wave, the dependency-lockdown spec and the [data moat quality gates](../specs/2026-04-16-data-moat-quality-gates.md) are authoritative. Treat those as the current working locks until `bd-3wefe.8` either confirms or revises them. Do not claim pass/done on any architecture validation without completing the new quality gates.
+For the next implementation wave, the dependency-lockdown spec and the [data moat quality gates](../specs/2026-04-16-data-moat-quality-gates.md) are authoritative. Treat those as the current working locks until `bd-3wefe.8` either confirms or revises them. Do not claim pass/done on any architecture validation without completing the new D0-D11 data moat gates.
 
-The next POC must prove structured-source economic depth or honestly classify it as `not_proven`. Tavily/Exa secondary search does not count as true structured-source proof.
+The next POC must prove comprehensive, accurate, robust, fit-for-purpose evidence or honestly classify the result as `package_mechanics_only`, `evidence_ready_with_gaps`, `fail`, or `blocked_hitl`. Tavily/Exa secondary search does not count as true structured-source proof.
+
+Decision-grade data moat means the package is not merely persisted. It must include policy lineage, primary artifact substance, true structured-source depth or source-catalog-proven absence, quote/row-grounded extraction accuracy, cross-source reconciliation, stable package identity, storage/replay proof, fallback/source-drift robustness, manual audit, Windmill linkage, and economic handoff fitness.
 
 ## Current Non-Obvious Truths
 
@@ -55,7 +57,9 @@ If an agent is searching semantically or with `rg`, use these terms:
 - `economic literature inventory WAVE2 AssumptionCard`
 - `PolicyEvidencePackage dependency lockdown`
 - `PASS_SCRAPED_ARTIFACT_AND_PACKAGE_MECHANICS_ONLY`
-- `data moat quality gates D0 D1 D2 D3 D4 D5 D6 D7`
+- `data moat quality gates D0 D1 D2 D3 D4 D5 D6 D7 D8 D9 D10 D11`
+- `decision_grade_data_moat package_mechanics_only evidence_ready_with_gaps`
+- `policy lineage completeness extraction accuracy citation gate cross-source reconciliation`
 
 ## Staleness Rule
 
