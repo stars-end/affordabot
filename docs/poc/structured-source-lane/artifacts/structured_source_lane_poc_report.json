@@ -1,0 +1,140 @@
+{
+  "feature_key": "bd-2agbe.1",
+  "poc_version": "2026-04-14.structured-source-lane.v1",
+  "mode": "live",
+  "generated_at": "2026-04-14T17:17:55.427476+00:00",
+  "probes": {
+    "leginfo": {
+      "source_family": "ca_leginfo_pubinfo",
+      "probe_name": "California LegInfo PUBINFO official feed",
+      "sample_pull_without_browser": true,
+      "status": "pass",
+      "checks": [
+        {
+          "method": "HEAD",
+          "url": "https://downloads.leginfo.legislature.ca.gov/",
+          "status": 200,
+          "content_type": "text/html;charset=ISO-8859-1",
+          "content_length": ""
+        },
+        {
+          "method": "GET",
+          "url": "https://downloads.leginfo.legislature.ca.gov/pubinfo_Readme.pdf",
+          "status": 206,
+          "content_type": "application/pdf",
+          "content_length": "1024"
+        },
+        {
+          "method": "HEAD",
+          "url": "https://downloads.leginfo.legislature.ca.gov/pubinfo_daily_Mon.zip",
+          "status": 200,
+          "content_type": "application/zip",
+          "content_length": "681341373"
+        }
+      ],
+      "errors": [],
+      "evidence": {
+        "official_root_reachable": true,
+        "raw_artifact_endpoint_reachable": true,
+        "artifact_endpoints_checked": [
+          "https://downloads.leginfo.legislature.ca.gov/pubinfo_Readme.pdf",
+          "https://downloads.leginfo.legislature.ca.gov/pubinfo_daily_Mon.zip"
+        ]
+      }
+    },
+    "legistar": {
+      "source_family": "legistar_web_api",
+      "probe_name": "Legistar Web API public San Jose endpoint",
+      "endpoint": "https://webapi.legistar.com/v1/sanjose/matters?$top=5",
+      "sample_pull_without_browser": true,
+      "status": "pass",
+      "row_count": 5,
+      "schema_presence": {
+        "MatterId": true,
+        "MatterGuid": true,
+        "MatterFile": true,
+        "MatterLastModifiedUtc": true
+      },
+      "sample_row": {
+        "MatterId": 1962,
+        "MatterGuid": "F1DB3AA7-212E-4E5E-8482-217A17200431",
+        "MatterFile": "17-006",
+        "MatterLastModifiedUtc": "2017-08-24T19:52:52.313"
+      },
+      "errors": []
+    },
+    "arcgis": {
+      "source_family": "arcgis_rest_public",
+      "probe_name": "Public ArcGIS REST/Hub Bay Area endpoint",
+      "sample_pull_without_browser": true,
+      "status": "pass",
+      "search_url": "https://www.arcgis.com/sharing/rest/search?f=json&num=20&sortField=numviews&sortOrder=desc&q=%28%28%22San+Jose%22+OR+%22Santa+Clara%22%29+AND+%28%22FeatureServer%22+OR+%22MapServer%22%29+AND+%28%22planning%22+OR+%22zoning%22+OR+%22housing%22+OR+%22parcel%22+OR+%22permit%22%29%29+-type%3A%22Web+Mapping+Application%22+-type%3ACode",
+      "candidate_count": 2,
+      "selected": {
+        "source_item_title": "NFHL Flood Hazard Zones",
+        "source_item_id": "cd5ae448b3e44659b85b9a2b332cf6d7",
+        "layer_url": "https://services2.arcgis.com/9KdAx8qBsHiGXOEw/arcgis/rest/services/NFHL_Flood_Hazard_Zones_Dissolve/FeatureServer/0",
+        "metadata_url": "https://services2.arcgis.com/9KdAx8qBsHiGXOEw/arcgis/rest/services/NFHL_Flood_Hazard_Zones_Dissolve/FeatureServer/0?f=json",
+        "query_url": "https://services2.arcgis.com/9KdAx8qBsHiGXOEw/arcgis/rest/services/NFHL_Flood_Hazard_Zones_Dissolve/FeatureServer/0/query?f=json&where=1%3D1&outFields=%2A&returnGeometry=false&resultRecordCount=3",
+        "row_count_sampled": 3,
+        "identity_fields": [
+          "OBJECTID"
+        ],
+        "date_fields": [],
+        "sample_attributes": {
+          "OBJECTID": 1,
+          "FLD_ZONE": "A",
+          "ZONE_SUBTY": null,
+          "Shape__Area": 0.013292547641867714,
+          "Shape__Length": 12.497199049476594
+        }
+      },
+      "errors": []
+    }
+  },
+  "sources": [
+    {
+      "source_family": "ca_pubinfo_leginfo",
+      "probe_id": "leginfo",
+      "signup_or_key_link": "none_required",
+      "free_status": "free_public",
+      "api_or_raw_confirmed": "raw_official_file",
+      "sample_endpoint_or_file_url": "https://downloads.leginfo.legislature.ca.gov/pubinfo_daily_Mon.zip",
+      "auth_required": "no",
+      "recommendation": "structured_lane",
+      "probe_status": "pass"
+    },
+    {
+      "source_family": "legistar_sanjose",
+      "probe_id": "legistar",
+      "signup_or_key_link": "none_required",
+      "free_status": "free_public",
+      "api_or_raw_confirmed": "api",
+      "sample_endpoint_or_file_url": "https://webapi.legistar.com/v1/sanjose/matters?$top=5",
+      "auth_required": "no",
+      "recommendation": "structured_lane",
+      "probe_status": "pass"
+    },
+    {
+      "source_family": "arcgis_public_gis_dataset",
+      "probe_id": "arcgis",
+      "signup_or_key_link": "none_required",
+      "free_status": "free_public",
+      "api_or_raw_confirmed": "api",
+      "sample_endpoint_or_file_url": "https://services2.arcgis.com/9KdAx8qBsHiGXOEw/arcgis/rest/services/NFHL_Flood_Hazard_Zones_Dissolve/FeatureServer/0/query?f=json&where=1%3D1&outFields=%2A&returnGeometry=false&resultRecordCount=3",
+      "auth_required": "no",
+      "recommendation": "structured_lane",
+      "probe_status": "pass",
+      "selected_title": "NFHL Flood Hazard Zones"
+    }
+  ],
+  "summary": {
+    "total_sources": 3,
+    "passed_sources": 3,
+    "failed_sources": 0,
+    "failed_source_ids": [],
+    "sample_pull_without_browser_count": 3,
+    "acceptance_legistar_and_one_other": true,
+    "acceptance_legistar_or_leginfo_or_arcgis": true
+  }
+}

@@ -62,7 +62,27 @@ LOW_VALUE_PORTAL_PREFETCH_SKIP_URL_SIGNALS = (
     "/resource-library/council-memos",
 )
 
+LOW_VALUE_FALLBACK_URL_SIGNALS = (
+    "youtube.com",
+    "youtu.be",
+    "vimeo.com",
+    "dailymotion.com",
+)
+
+LOW_VALUE_FALLBACK_TEXT_SIGNALS = (
+    "youtube",
+    "video",
+    "transcript",
+    "podcast",
+    "watch",
+)
+
 LOW_VALUE_PORTAL_URL_PENALTY = 10
+ECONOMIC_LOW_VALUE_PORTAL_EXTRA_PENALTY = 6
+ECONOMIC_PROCEDURAL_PAGE_PENALTY = 20
+ECONOMIC_SIGNAL_BOOST = 8
+ECONOMIC_NUMERIC_SIGNAL_BOOST = 6
+ECONOMIC_OFFICIAL_SOURCE_BOOST = 4
 
 CONCRETE_ARTIFACT_URL_SIGNALS = (
     "meetingdetail.aspx?id=",
@@ -220,6 +240,55 @@ ANALYSIS_STOPWORDS = {
     "with",
 }
 
+ECONOMIC_QUERY_INTENT_SIGNALS = (
+    "fee",
+    "fees",
+    "rate",
+    "rates",
+    "per square foot",
+    "per sq ft",
+    "commercial linkage",
+    "impact fee",
+    "affordable housing impact fee",
+    "cost",
+    "fiscal",
+    "economic",
+)
+
+ECONOMIC_VALUE_TEXT_SIGNALS = (
+    "commercial linkage fee",
+    "affordable housing impact fee",
+    "impact fee",
+    "fee schedule",
+    "fees and rates",
+    "per square foot",
+    "per sq ft",
+    "rate schedule",
+    "nexus",
+)
+
+ECONOMIC_VALUE_URL_SIGNALS = (
+    "/fees",
+    "/fee",
+    "/rates",
+    "/rate",
+    "impact-fee",
+    "linkage-fee",
+    "fee-schedule",
+    "rate-schedule",
+    "nexus",
+    "staff-report",
+    "resolution-",
+)
+
+ECONOMIC_PROCEDURAL_URL_SIGNALS = (
+    "gateway.aspx",
+    "meetingdetail.aspx?id=",
+    "legislationdetail.aspx?id=",
+    "calendar.aspx",
+    "/agendas-minutes",
+)
+
 
 def _hash_text(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
@@ -322,8 +391,12 @@ def assess_reader_substance(text: str) -> tuple[bool, dict[str, Any]]:
 
 
 def rank_reader_candidates(
-    candidates: list[SearchResultItem], *, max_candidates: int | None = None
+    candidates: list[SearchResultItem],
+    *,
+    max_candidates: int | None = None,
+    query_context: str | None = None,
 ) -> list[dict[str, Any]]:
+    economic_query = _is_economic_analysis_query(query_context)
     ranked: list[dict[str, Any]] = []
     for index, candidate in enumerate(candidates):
         url = candidate.url.strip()
@@ -331,6 +404,7 @@ def rank_reader_candidates(
         snippet = candidate.snippet.strip()
         lowered_url = url.lower()
         lowered_text = f"{title} {snippet}".lower()
+        combined_text = f"{lowered_url} {lowered_text}"
         score = 0
         reasons: list[str] = []
 
@@ -353,6 +427,9 @@ def rank_reader_candidates(
             if signal in lowered_url:
                 score -= LOW_VALUE_PORTAL_URL_PENALTY
                 reasons.append(f"url_penalty:{signal}")
+                if economic_query:
+                    score -= ECONOMIC_LOW_VALUE_PORTAL_EXTRA_PENALTY
+                    reasons.append(f"url_penalty_economic:{signal}")
         for signal in MEETING_ARTIFACT_TEXT_SIGNALS:
             if signal in lowered_text:
                 score += 1
@@ -369,6 +446,26 @@ def rank_reader_candidates(
             if penalty in lowered_text or penalty in lowered_url:
                 score -= 2
                 reasons.append(f"penalty:{penalty}")
+
+        if economic_query:
+            if any(signal in combined_text for signal in ECONOMIC_VALUE_TEXT_SIGNALS):
+                score += ECONOMIC_SIGNAL_BOOST
+                reasons.append("economic_signal:context")
+            if any(signal in lowered_url for signal in ECONOMIC_VALUE_URL_SIGNALS):
+                score += ECONOMIC_SIGNAL_BOOST
+                reasons.append("economic_signal:url")
+            if "sanjoseca.gov" in lowered_url:
+                score += ECONOMIC_OFFICIAL_SOURCE_BOOST
+                reasons.append("economic_signal:official_source")
+            if _has_economic_numeric_signal(combined_text):
+                score += ECONOMIC_NUMERIC_SIGNAL_BOOST
+                reasons.append("economic_signal:numeric")
+            if _is_procedural_page_without_economic_signal(
+                lowered_url=lowered_url,
+                lowered_text=lowered_text,
+            ):
+                score -= ECONOMIC_PROCEDURAL_PAGE_PENALTY
+                reasons.append("economic_penalty:procedural_without_value_signal")
 
         ranked.append(
             {
@@ -402,6 +499,16 @@ def prefetch_skip_reason(url: str) -> str | None:
         if signal in lowered_url:
             return signal
     return None
+
+
+def _is_weak_reader_fallback_candidate(candidate: SearchResultItem) -> bool:
+    lowered_url = candidate.url.lower().strip()
+    lowered_text = f"{candidate.title} {candidate.snippet}".lower()
+    if _is_concrete_artifact_url(candidate.url):
+        return False
+    if any(signal in lowered_url for signal in LOW_VALUE_FALLBACK_URL_SIGNALS):
+        return True
+    return any(signal in lowered_text for signal in LOW_VALUE_FALLBACK_TEXT_SIGNALS)
 
 
 def _parsed_query_params(url: str) -> dict[str, list[str]]:
@@ -470,6 +577,30 @@ def _tokenize_question_terms(question: str) -> list[str]:
         if token not in deduped:
             deduped.append(token)
     return deduped
+
+
+def _is_economic_analysis_query(query_context: str | None) -> bool:
+    if not query_context:
+        return False
+    lowered = query_context.strip().lower()
+    return any(signal in lowered for signal in ECONOMIC_QUERY_INTENT_SIGNALS)
+
+
+def _has_economic_numeric_signal(text: str) -> bool:
+    return bool(
+        re.search(
+            r"(\$\s*\d+(?:,\d{3})*(?:\.\d+)?)|(\b\d+(?:\.\d+)?\s*(?:%|percent)\b)|(\bper\s+(?:sq\.?\s*ft|square\s+foot|unit|acre)\b)",
+            text,
+        )
+    )
+
+
+def _is_procedural_page_without_economic_signal(*, lowered_url: str, lowered_text: str) -> bool:
+    if any(signal in lowered_url for signal in ECONOMIC_VALUE_URL_SIGNALS):
+        return False
+    if _has_economic_numeric_signal(lowered_text):
+        return False
+    return any(signal in lowered_url for signal in ECONOMIC_PROCEDURAL_URL_SIGNALS)
 
 
 def _normalize_chunk_content(chunk: dict[str, Any]) -> str:
@@ -772,7 +903,10 @@ class PipelineDomainCommands:
             )
             for item in snapshot["results"]
         ]
-        ranked_candidates = rank_reader_candidates(search_items)
+        ranked_candidates = rank_reader_candidates(
+            search_items,
+            query_context=str(snapshot.get("query", "")),
+        )
         selected = ranked_candidates[: max(0, max_reads)]
         if not selected:
             return self._store_result(
@@ -799,6 +933,9 @@ class PipelineDomainCommands:
                 title=str(candidate_entry["title"]),
                 snippet=str(candidate_entry["snippet"]),
             )
+            official_artifact_provider_error_seen = any(
+                bool(item.get("candidate_is_official_artifact")) for item in reader_provider_errors
+            )
             skip_reason = prefetch_skip_reason(candidate.url)
             if skip_reason:
                 quality_alerts.append("reader_prefetch_skipped_low_value_portal")
@@ -821,16 +958,45 @@ class PipelineDomainCommands:
                     }
                 )
                 continue
+            if (
+                envelope.source_family == "meeting_minutes"
+                and official_artifact_provider_error_seen
+                and _is_weak_reader_fallback_candidate(candidate)
+            ):
+                quality_alerts.append("reader_fallback_blocked_after_official_reader_errors")
+                reader_quality_failures.append(
+                    {
+                        "url": candidate.url,
+                        "rank": candidate_entry["rank"],
+                        "score": candidate_entry["score"],
+                        "reason": "fallback_blocked_after_official_reader_errors",
+                        "quality_details": {
+                            "source_family": envelope.source_family,
+                            "official_artifact_provider_error_seen": True,
+                        },
+                    }
+                )
+                candidate_audit.append(
+                    {
+                        "url": candidate.url,
+                        "rank": candidate_entry["rank"],
+                        "score": candidate_entry["score"],
+                        "outcome": "reader_fallback_blocked_after_official_reader_errors",
+                    }
+                )
+                continue
             try:
                 doc = self.reader_provider.fetch(url=candidate.url)
             except Exception as exc:
                 err = str(exc)
+                candidate_is_official_artifact = _is_concrete_artifact_url(candidate.url)
                 reader_provider_errors.append(
                     {
                         "url": candidate.url,
                         "rank": candidate_entry["rank"],
                         "score": candidate_entry["score"],
                         "error": err,
+                        "candidate_is_official_artifact": candidate_is_official_artifact,
                     }
                 )
                 candidate_audit.append(
@@ -840,6 +1006,7 @@ class PipelineDomainCommands:
                         "score": candidate_entry["score"],
                         "outcome": "reader_provider_error",
                         "error": err,
+                        "candidate_is_official_artifact": candidate_is_official_artifact,
                     }
                 )
                 continue

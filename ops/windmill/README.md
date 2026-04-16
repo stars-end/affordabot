@@ -47,10 +47,26 @@ Path B orchestration skeleton (unscheduled by default):
 - `ops/windmill/f/affordabot/pipeline_daily_refresh_domain_boundary.script.yaml`
 - `ops/windmill/f/affordabot/pipeline_daily_refresh_domain_boundary__flow/flow.yaml`
 
+Policy-evidence package flow (boundary verifier shim):
+- `ops/windmill/f/affordabot/policy_evidence_package_orchestration.py`
+- `ops/windmill/f/affordabot/policy_evidence_package_orchestration.script.yaml`
+- `ops/windmill/f/affordabot/policy_evidence_package_orchestration__flow/flow.yaml`
+
 Boundary note:
 - this flow shape calls coarse domain-command stubs only (`search_materialize`, `freshness_gate`,
   `read_fetch`, `index`, `analyze`, `summarize_run`).
 - direct product writes (Postgres, pgvector, object storage) stay outside Windmill assets.
+
+Authoritative live-proof note:
+- `policy_evidence_package_orchestration__flow` is a boundary verifier shim. Stub success here is not a full product pass.
+- Full live product proof is authoritative only on `pipeline_daily_refresh_domain_boundary__flow` with backend endpoint + storage/runtime gates.
+- The policy-evidence script backend endpoint path (`/cron/pipeline/policy-evidence/command`) does not currently map to a live backend route.
+
+Current live evidence note:
+- Latest authoritative domain-boundary live run used idempotency key `bd-3wefe.13-live-domain-backend-2026-04-15-r1`.
+- Outcome was `succeeded_with_alerts`, not clean pass.
+- Proven in that run: Windmill -> backend endpoint path, private SearXNG search path, MinIO upload, chunk indexing/embeddings, Z.ai LLM analysis invocation.
+- Quality warning in that run: Z.ai reader provider `500` failures on top candidates forced fallback transcript materialization; LLM sufficiency state was `Insufficient`.
 
 Required workspace variables:
 

@@ -438,6 +438,91 @@ def test_rank_reader_candidates_does_not_apply_concrete_boost_to_third_party_pdf
     ]
 
 
+def test_rank_reader_candidates_economic_query_prefers_fee_rate_sources_over_procedural_pages() -> None:
+    ranked = rank_reader_candidates(
+        [
+            SearchResultItem(
+                url="https://sanjose.legistar.com/MeetingDetail.aspx?ID=1278450&GUID=EE2476D7-15A4-4D25-AEA9-11A37D897CB5",
+                title="Meeting Detail",
+                snippet="City Council agenda item and procedural posting",
+            ),
+            SearchResultItem(
+                url="https://www.sanjoseca.gov/your-government/departments-offices/planning-building-code-enforcement/planning-division/development-fees/commercial-linkage-fee",
+                title="Commercial Linkage Fee",
+                snippet="Affordable housing impact fee schedule per square foot",
+            ),
+            SearchResultItem(
+                url="https://www.sanjoseca.gov/Calendar.aspx?CID=114",
+                title="City Calendar",
+                snippet="Meeting calendar listings",
+            ),
+        ],
+        query_context="San Jose Resolution 79705 commercial linkage fee affordable housing impact fee per square foot staff report",
+    )
+    ranked_urls = [item["url"] for item in ranked]
+    ranked_by_url = {item["url"]: item for item in ranked}
+
+    assert ranked_urls[0].startswith("https://www.sanjoseca.gov/")
+    assert "commercial-linkage-fee" in ranked_urls[0]
+    assert ranked_urls[-1].endswith("Calendar.aspx?CID=114")
+    assert ranked_by_url[
+        "https://www.sanjoseca.gov/your-government/departments-offices/planning-building-code-enforcement/planning-division/development-fees/commercial-linkage-fee"
+    ]["score"] > ranked_by_url[
+        "https://sanjose.legistar.com/MeetingDetail.aspx?ID=1278450&GUID=EE2476D7-15A4-4D25-AEA9-11A37D897CB5"
+    ]["score"]
+    assert "economic_signal:context" in ranked_by_url[
+        "https://www.sanjoseca.gov/your-government/departments-offices/planning-building-code-enforcement/planning-division/development-fees/commercial-linkage-fee"
+    ]["reasons"]
+    assert "economic_penalty:procedural_without_value_signal" in ranked_by_url[
+        "https://sanjose.legistar.com/MeetingDetail.aspx?ID=1278450&GUID=EE2476D7-15A4-4D25-AEA9-11A37D897CB5"
+    ]["reasons"]
+
+
+def test_rank_reader_candidates_economic_query_demotes_gateway_fee_title_without_numeric_value() -> None:
+    ranked = rank_reader_candidates(
+        [
+            SearchResultItem(
+                url="https://sanjose.legistar.com/gateway.aspx?m=l&id=/matter.aspx?key=15360",
+                title="City of San Jose - File #: 25-1313 - Calendar",
+                snippet=(
+                    "Fiscal Year 2024-2025 Affordable Housing Impact Fee and "
+                    "Commercial Linkage Fee Annual Report. Attachments: 1. Memorandum."
+                ),
+            ),
+            SearchResultItem(
+                url="https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee",
+                title="Commercial Linkage Fee | City of San Jose",
+                snippet="The Commercial Linkage Fee is an impact fee levied on commercial development.",
+            ),
+        ],
+        query_context="San Jose commercial linkage fee per square foot staff report",
+    )
+
+    assert "sanjoseca.gov" in ranked[0]["url"]
+    assert "economic_signal:official_source" in ranked[0]["reasons"]
+    assert "economic_penalty:procedural_without_value_signal" in ranked[1]["reasons"]
+
+
+def test_rank_reader_candidates_meeting_minutes_query_keeps_legistar_artifact_preference() -> None:
+    ranked = rank_reader_candidates(
+        [
+            SearchResultItem(
+                url="https://www.sanjoseca.gov/your-government/departments-offices/planning-building-code-enforcement/planning-division/development-fees/commercial-linkage-fee",
+                title="Commercial Linkage Fee",
+                snippet="Affordable housing impact fee schedule per square foot",
+            ),
+            SearchResultItem(
+                url="https://sanjose.legistar.com/View.ashx?M=F&ID=12345&GUID=abc",
+                title="Final Agenda Packet",
+                snippet="Agenda item 4.2 housing ordinance adopted",
+            ),
+        ],
+        query_context="San Jose city council meeting minutes agenda item 4.2 housing ordinance",
+    )
+    assert ranked[0]["url"].startswith("https://sanjose.legistar.com/View.ashx")
+    assert "economic_signal:context" not in ranked[0]["reasons"]
+
+
 def test_assess_reader_substance_rejects_title_only_agendas_minutes_output() -> None:
     is_substantive, details = assess_reader_substance("Agendas & Minutes | City of San Jose")
     assert is_substantive is False
@@ -505,6 +590,55 @@ def test_read_fetch_tries_ranked_fallback_candidates_after_reader_error() -> Non
     assert any(item["outcome"] == "reader_provider_error" for item in read.details["candidate_audit"])
     assert any(item["outcome"] == "materialized_raw_scrape" for item in read.details["candidate_audit"])
     assert len(state.raw_scrapes) == 1
+
+
+def test_read_fetch_blocks_weak_video_fallback_after_official_reader_error() -> None:
+    state, service = _service(
+        search_results=[
+            SearchResultItem(
+                url="https://sanjose.legistar.com/MeetingDetail.aspx?ID=123&GUID=abc",
+                title="City Council Meeting Detail",
+                snippet="agenda minutes housing item",
+            ),
+            SearchResultItem(
+                url="https://www.youtube.com/watch?v=abc123",
+                title="San Jose City Council Meeting Video Transcript",
+                snippet="full transcript of meeting discussion",
+            ),
+        ]
+    )
+    service.reader_provider = _RoutingReaderProvider(
+        by_url={
+            "https://www.youtube.com/watch?v=abc123": (
+                "City Council meeting transcript with discussion of housing policy changes."
+            )
+        },
+        fail_urls={"https://sanjose.legistar.com/MeetingDetail.aspx?ID=123&GUID=abc"},
+    )
+
+    search = service.search_materialize(envelope=_envelope("search_materialize", "yt1"), query="q")
+    read = service.read_fetch(
+        envelope=_envelope("read_fetch", "yt2"),
+        snapshot_id=str(search.refs["search_snapshot_id"]),
+        max_reads=3,
+    )
+
+    assert read.status == "failed_retryable"
+    assert read.decision_reason == "reader_provider_error"
+    assert read.retry_class == "provider_unavailable"
+    assert any(alert.startswith("reader_error:") for alert in read.alerts)
+    assert "reader_fallback_blocked_after_official_reader_errors" in read.alerts
+    assert any(
+        item["outcome"] == "reader_provider_error"
+        and item.get("candidate_is_official_artifact") is True
+        for item in read.details["candidate_audit"]
+    )
+    assert any(
+        item["outcome"] == "reader_fallback_blocked_after_official_reader_errors"
+        and item["url"] == "https://www.youtube.com/watch?v=abc123"
+        for item in read.details["candidate_audit"]
+    )
+    assert len(state.raw_scrapes) == 0
 
 
 def test_read_fetch_falls_through_agenda_header_logistics_to_legistar_pdf() -> None:

@@ -1,0 +1,100 @@
+{
+  "blocking_gate": "economic_evidence_card_sufficiency",
+  "decision_grade_for_numeric_economic_analysis": false,
+  "feature_key": "bd-2agbe.5",
+  "final_verdict": "fail_closed_qualitative_only",
+  "gate_results": {
+    "assumption_sufficiency": {
+      "details": {
+        "assumption_card_count": 0,
+        "valid_assumption_card_count": 0
+      },
+      "passed": false,
+      "reason": "missing_or_invalid_assumption_cards",
+      "status": "fail"
+    },
+    "deterministic_quantification_readiness": {
+      "details": {
+        "deterministic_flag": false,
+        "quant_output_count": 0,
+        "valid_quant_output_count": 0
+      },
+      "passed": false,
+      "reason": "deterministic_quantification_not_supported",
+      "status": "fail"
+    },
+    "economic_evidence_card_sufficiency": {
+      "details": {
+        "note": "Reader snippets without explicit source_url/content_hash/excerpt cards are not sufficient for quantified economics.",
+        "structured_evidence_card_count": 0,
+        "valid_evidence_card_count": 0
+      },
+      "passed": false,
+      "reason": "missing_structured_evidence_cards_with_provenance",
+      "status": "fail"
+    },
+    "llm_explanation_support": {
+      "details": {
+        "llm_excerpt_chars": 382,
+        "llm_quality_note": "LLM analysis produced a substantive answer from persisted evidence."
+      },
+      "passed": true,
+      "reason": "llm_explanation_present_but_requires_quant_guardrails",
+      "status": "pass"
+    },
+    "parameterization_sufficiency": {
+      "details": {
+        "formula_id_count": 0,
+        "formula_ids": [],
+        "parameter_card_count": 0,
+        "resolved_numeric_parameter_count": 0
+      },
+      "passed": false,
+      "reason": "missing_parameter_cards_or_formula_ids",
+      "status": "fail"
+    },
+    "reader_substrate_quality": {
+      "details": {
+        "analyze_status": "succeeded",
+        "index_status": "succeeded",
+        "raw_scrape_row_count": 7,
+        "read_fetch_status": "succeeded",
+        "reader_excerpt_chars": 591,
+        "selected_chunk_count": 20
+      },
+      "passed": true,
+      "reason": "reader_and_substrate_outputs_are_substantive",
+      "status": "pass"
+    },
+    "search_provider_source_quality": {
+      "details": {
+        "best_official_domain_hit_rate_percent": 94.7,
+        "best_reader_ready_rate_percent": 36.8,
+        "live_search_materialize_status": "succeeded",
+        "live_search_result_count": 10,
+        "provider_count": 3,
+        "providers_with_official_hits": 3
+      },
+      "passed": true,
+      "reason": "search_sources_sufficient_for_artifact_discovery",
+      "status": "pass"
+    }
+  },
+  "generated_at": "2026-04-14T08:02:01.117711+00:00",
+  "inputs": {
+    "bakeoff_report_path": "docs/poc/search-source-quality-bakeoff/artifacts/search_source_quality_bakeoff_report.json",
+    "gate_fixture_path": "backend/scripts/verification/fixtures/economic_evidence_gate_cases.json",
+    "live_report_path": "docs/poc/windmill-domain-boundary-integration/artifacts/sanjose_live_gate_report.json"
+  },
+  "manual_audit_notes": [
+    "Search/provider quality is treated independently from quantitative economics readiness.",
+    "Reader/substrate success confirms retrieval and persistence, not quantitative sufficiency.",
+    "Quantified economics requires structured evidence cards + parameterization + assumptions + deterministic formulas.",
+    "Current San Jose live artifact contains selected chunks and qualitative analysis, but does not expose structured evidence cards with source_url/content_hash/excerpt linkage.",
+    "No explicit numeric parameter card payload and formula_id set were found in the live analyze step output.",
+    "No deterministic quantification outputs with scenario bounds were found; numeric economic judgment should fail closed.",
+    "Live manual audit note: LLM analysis produced a substantive answer from persisted evidence."
+  ],
+  "recommendation": "Not decision-grade for numeric economics. Retrieval/reader quality is usable, but structured evidence cards are missing; fail closed before parameterization.",
+  "verifier_version": "2026-04-14.overlay-v1"
+}

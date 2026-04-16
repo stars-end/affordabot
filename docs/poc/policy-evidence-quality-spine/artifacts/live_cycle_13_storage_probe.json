@@ -1,0 +1,69 @@
+{
+  "generated_at": "2026-04-16T08:42:17.822474+00:00",
+  "feature_key": "bd-3wefe.13",
+  "status": "fail",
+  "blocker": "storage_gate_failed",
+  "details": "one_or_more_storage_gates_failed",
+  "inputs": {
+    "package_id": "pkg-02457f6abdab43aaa78cdc44",
+    "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=policy_documents|doctype=meeting_minutes|url=https://siliconvalleyathome.org/resources/commercial-linkage-fees-2",
+    "backend_run_id": "848c36e6-54e2-49c2-9906-9206ede90787",
+    "windmill_job_id": "019d9571-ba10-6e09-4355-3cc297c83d5a",
+    "idempotency_key": "bd-3wefe.13-live-gate-20260416-083910",
+    "artifact_refs": [
+      "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/policy_documents/reader_output/107a066718d26348a7a15e23038bd44a9f2daf227b2e068b92f75dee9d2a06ce.md",
+      "minio://affordabot-artifacts/policy-evidence/packages/pkg-02457f6abdab43aaa78cdc44.json",
+      "artifacts/2026-04-13.windmill-domain.v1/San Jose CA/policy_documents/reader_output/107a066718d26348a7a15e23038bd44a9f2daf227b2e068b92f75dee9d2a06ce.md"
+    ],
+    "pgvector_truth_role": "derived_index"
+  },
+  "gates": {
+    "postgres_package_row": {
+      "status": "pass",
+      "details": "package_row_linked_to_backend_run_id",
+      "evidence": {
+        "table_exists": true,
+        "record_id": "78fdc0de-c8ea-597d-bf57-b12117a560ba"
+      }
+    },
+    "minio_object_readback": {
+      "status": "pass",
+      "details": "all_artifact_refs_read_back",
+      "passed": 3
+    },
+    "pgvector_derivation": {
+      "status": "pass",
+      "details": "document_chunks_and_embeddings_present_with_derived_index_truth_role",
+      "document_id": "796e0c0c-5e69-582f-a040-8f08e77bca75",
+      "total_chunks": 46,
+      "with_embedding": 46,
+      "truth_role": "derived_index"
+    },
+    "atomicity_or_replay": {
+      "status": "fail",
+      "details": "run_contains_failed_steps",
+      "failed_statuses": [
+        "failed_terminal"
+      ],
+      "runs_for_idempotency": 0
+    },
+    "storage/read-back": {
+      "status": "fail",
+      "details": "one_or_more_storage_gates_failed"
+    }
+  },
+  "supporting_signals": {
+    "artifact_refs_count": 3,
+    "package_id": "pkg-02457f6abdab43aaa78cdc44",
+    "backend_run_id": "848c36e6-54e2-49c2-9906-9206ede90787",
+    "windmill_job_id": "019d9571-ba10-6e09-4355-3cc297c83d5a"
+  },
+  "missing_or_failed_signals": [
+    "failed_steps_present"
+  ],
+  "probe_mode": "live",
+  "inputs_artifacts": {
+    "runtime": null,
+    "windmill": "docs/poc/policy-evidence-quality-spine/artifacts/live_cycle_13_windmill_domain_run.json"
+  }
+}

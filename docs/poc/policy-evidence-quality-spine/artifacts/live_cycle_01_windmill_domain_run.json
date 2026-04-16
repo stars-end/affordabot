@@ -1,0 +1,873 @@
+{
+  "backend_endpoint_readiness": {
+    "local_mock_probe": {
+      "note": "local mock backend endpoint probe passed",
+      "status": "passed"
+    },
+    "missing_inputs": [],
+    "note": "backend endpoint config is present and local mock probe passed",
+    "status": "ready_for_opt_in"
+  },
+  "blockers": [
+    {
+      "blocking": false,
+      "category": "storage/runtime",
+      "details": {
+        "reason": "DATABASE_URL missing",
+        "status": "not_configured"
+      },
+      "message": "DB/storage probe unavailable"
+    },
+    {
+      "blocking": false,
+      "category": "storage/runtime",
+      "details": {
+        "pending_gates": [
+          "postgres_rows_written",
+          "pgvector_index_probe",
+          "minio_object_refs",
+          "reader_output_ref",
+          "analysis_provenance_chain",
+          "idempotent_rerun",
+          "stale_drill_stale_but_usable",
+          "stale_drill_stale_blocked"
+        ]
+      },
+      "message": "storage/runtime evidence gates are pending"
+    }
+  ],
+  "canonical_variables": {
+    "BACKEND_ENDPOINT_AUTH_TOKEN": "optional local readiness input only",
+    "BACKEND_ENDPOINT_URL": "optional local readiness input only",
+    "BACKEND_PUBLIC_URL_VAR": "f/affordabot/BACKEND_PUBLIC_URL",
+    "CRON_SECRET_VAR": "f/affordabot/CRON_SECRET",
+    "TMP_WMILL_CONFIG": "auto-created temporary profile directory",
+    "WINDMILL_API_TOKEN": "op://dev/Agent-Secrets-Production/WINDMILL_API_TOKEN",
+    "WINDMILL_BASE_URL": "derived as WINDMILL_DEV_LOGIN_URL without /user/login",
+    "WINDMILL_DEV_LOGIN_URL": "op://dev/Agent-Secrets-Production/WINDMILL_DEV_LOGIN_URL",
+    "WINDMILL_WORKSPACE": "affordabot"
+  },
+  "classification": "backend_bridge_surface_ready",
+  "db_storage_probe": {
+    "reason": "DATABASE_URL missing",
+    "status": "not_configured"
+  },
+  "deployment_surface": {
+    "flow_deployed": true,
+    "flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+    "flow_unscheduled": true,
+    "script_deployed": true,
+    "script_path": "f/affordabot/pipeline_daily_refresh_domain_boundary"
+  },
+  "feature_key": "bd-3wefe.13",
+  "full_run_readiness": "partial",
+  "generated_at": "2026-04-16T05:46:19.199960+00:00",
+  "harness_version": "2026-04-13.worker-b.v2",
+  "idempotent_rerun": {
+    "attempted": false
+  },
+  "manual_audit_notes": {
+    "llm_analysis_excerpt": "The provided text consists of procedural instructions and logistical details for a San Jose City Council meeting, covering public participation rules and technical requirements for viewing the session. It contains no data related to housing or development costs.",
+    "llm_quality_note": "LLM analysis produced a substantive answer from persisted evidence.",
+    "manual_verdict": "PASS_MANUAL_AUDIT",
+    "reader_output_excerpt": "",
+    "reader_quality_note": "Reader output was persisted and provided to analysis."
+  },
+  "manual_run": {
+    "attempted": true,
+    "command_client": "backend_endpoint",
+    "contract_metadata_present": true,
+    "expected_step_sequence": [
+      "search_materialize",
+      "freshness_gate",
+      "read_fetch",
+      "index",
+      "analyze",
+      "summarize_run"
+    ],
+    "final_status": "succeeded",
+    "idempotency_key": "bd-3wefe.13-live-cycle-01-20260416",
+    "job_get": {
+      "canceled": false,
+      "completed_at": "2026-04-16T05:46:02.835393Z",
+      "created_at": "2026-04-16T05:45:17.033954Z",
+      "deleted": false,
+      "duration_ms": 45733,
+      "flow_status": {
+        "failure_module": {
+          "id": "failure_handler",
+          "type": "WaitingForPriorSteps"
+        },
+        "modules": [
+          {
+            "branch_chosen": null,
+            "id": "build_scope_matrix",
+            "skipped": false,
+            "type": "Success"
+          },
+          {
+            "branch_chosen": null,
+            "id": "per_scope_pipeline",
+            "skipped": false,
+            "type": "Success"
+          },
+          {
+            "branch_chosen": {
+              "type": "default"
+            },
+            "id": "branch_outcome_review",
+            "skipped": false,
+            "type": "Success"
+          }
+        ],
+        "step": 3
+      },
+      "id": "019d94d2-81ef-1117-0353-4c40719876ed",
+      "job_kind": "flow",
+      "script_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow"
+    },
+    "job_logs_excerpt": "\u001b[33mNo wmill.yaml found. Use 'wmill init' to bootstrap it.\u001b[39m\n\u001b[36m\u001b[1m\n====== build_scope_matrix ======\u001b[22m\u001b[39m\njob=019d94d2-823e-439b-5553-12e3425e48fb tag=python3 worker=wk-default-661cef133dc0-WZTwK hostname=661cef133dc0 isolation=none\n\nenv deps from local cache: certifi==2026.2.25, charset-normalizer==3.4.7, idna==3.11, requests==2.33.1, urllib3==2.6.3\n\n\n--- PYTHON (3.12) CODE EXECUTION ---\n\n\u001b[36m\u001b[1m\n====== per_scope_pipeline (iteration 0) ======\u001b[22m\u001b[39m\nFlow job completed with success\n\n\u001b[36m\u001b[1m\n====== branch_outcome_review ======\u001b[22m\u001b[39m\nFlow job completed with success\n\n",
+    "scope_totals": {
+      "scope_blocked": 0,
+      "scope_failed": 0,
+      "scope_succeeded": 1,
+      "scope_total": 1
+    },
+    "step_sequence": [
+      "search_materialize",
+      "freshness_gate",
+      "read_fetch",
+      "index",
+      "analyze",
+      "summarize_run"
+    ],
+    "step_sequence_matches_expected": true,
+    "windmill_job_id": "019d94d2-81ef-1117-0353-4c40719876ed"
+  },
+  "result_payload": {
+    "alerts": [],
+    "scope_blocked": 0,
+    "scope_failed": 0,
+    "scope_results": [
+      {
+        "alert": "",
+        "backend_response": {
+          "decision_reason": "run_summary_materialized",
+          "missing_runtime_adapters": [],
+          "refs": {
+            "analyze_reason": "analysis_completed",
+            "analyze_retry_class": "none",
+            "freshness_gate_reason": "fresh",
+            "freshness_gate_retry_class": "none",
+            "index_reason": "chunks_indexed",
+            "index_retry_class": "none",
+            "read_fetch_reason": "raw_scrapes_materialized",
+            "read_fetch_retry_class": "none",
+            "run_id": "6695fe26-eaaf-47d1-9100-7eb861a7aa2f",
+            "search_materialize_reason": "fresh_snapshot_materialized",
+            "search_materialize_retry_class": "none",
+            "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+            "windmill_run_id": "bd-3wefe.13-live-cycle-01-20260416"
+          },
+          "status": "succeeded",
+          "storage_mode": "railway_runtime"
+        },
+        "scope_index": 0,
+        "scope_item": {
+          "jurisdiction": "San Jose CA",
+          "scope_key": "san jose ca::meeting_minutes",
+          "source_family": "meeting_minutes"
+        },
+        "status": "succeeded",
+        "steps": {
+          "analyze": {
+            "alerts": [],
+            "command": "analyze",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "counts": {
+              "analyses": 1,
+              "evidence_chunks": 20
+            },
+            "created_at": "2026-04-16T05:46:02.118895+00:00",
+            "decision_reason": "analysis_completed",
+            "details": {
+              "analysis": {
+                "key_points": [
+                  "The text outlines protocols for public speakers and filling out speaker cards.",
+                  "It includes technical specifications for viewing the meeting online (browser versions).",
+                  "It references agenda items like 'Labor Negotiations Update' but offers no financial data.",
+                  "No signals regarding housing costs or development costs were identified."
+                ],
+                "sufficiency_state": "Insufficient evidence for quantitative cost-of-living analysis.",
+                "summary": "The provided text consists of procedural instructions and logistical details for a San Jose City Council meeting, covering public participation rules and technical requirements for viewing the session. It contains no data related to housing or development costs."
+              },
+              "evidence_selection": {
+                "candidate_chunk_count": 250,
+                "selected_chunk_count": 20,
+                "selected_chunks": [
+                  {
+                    "chunk_id": "9fb0cc69-3487-589c-a01c-5800df90bcc9",
+                    "chunk_index": 54,
+                    "matched_action_signals": [
+                      "agenda item",
+                      "item "
+                    ],
+                    "matched_question_terms": [
+                      "identify"
+                    ],
+                    "rank": 1,
+                    "score": 11,
+                    "snippet": "the Council Item under \u201cLetters from the Public.\u201d Please identify the Agenda Item Number in the subject"
+                  },
+                  {
+                    "chunk_id": "bf4e450c-d819-57a6-9290-c9551d5dd5c2",
+                    "chunk_index": 77,
+                    "matched_action_signals": [
+                      "item "
+                    ],
+                    "matched_question_terms": [],
+                    "rank": 2,
+                    "score": 9,
+                    "snippet": "Open Session, Labor Negotiations Update (See Item 3.2)"
+                  },
+                  {
+                    "chunk_id": "712c5727-f912-5a75-8567-2311809760dd",
+                    "chunk_index": 63,
+                    "matched_action_signals": [
+                      "agenda item",
+                      "item "
+                    ],
+                    "matched_question_terms": [],
+                    "rank": 3,
+                    "score": 8,
+                    "snippet": "testimony for each public speakers or for an agenda item may be limited at the Mayor\u2019s discretion,"
+                  },
+                  {
+                    "chunk_id": "6ac95a65-35cc-54f3-ac5c-18acac386124",
+                    "chunk_index": 67,
+                    "matched_action_signals": [
+                      "item "
+                    ],
+                    "matched_question_terms": [
+                      "meeting"
+                    ],
+                    "rank": 4,
+                    "score": 7,
+                    "snippet": "meeting or before the item is heard. This will ensure that the name on the card is called for the item(s) that"
+                  },
+                  {
+                    "chunk_id": "5c1c093b-d2e4-5539-b531-bc98cd635b9b",
+                    "chunk_index": 48,
+                    "matched_action_signals": [
+                      "rent"
+                    ],
+                    "matched_question_terms": [],
+                    "rank": 5,
+                    "score": 4,
+                    "snippet": "Use a current, up-to-date browser: Chrome 30+, Firefox 27+, Microsoft Edge 12+, Safari 7+. Certain"
+                  },
+                  {
+                    "chunk_id": "fb0f9e42-029e-518d-a49a-a1b84e354eca",
+                    "chunk_index": 57,
+                    "matched_action_signals": [
+                      "item "
+                    ],
+                    "matched_question_terms": [],
+                    "rank": 6,
+                    "score": 4,
+                    "snippet": "You may speak to the City Council about any discussion item that is on the agenda, and you may also"
+                  },
+                  {
+                    "chunk_id": "4f9dbd9f-c7c4-5c66-ac75-c3a46769292d",
+                    "chunk_index": 70,
+                    "matched_action_signals": [
+                      "item "
+                    ],
+                    "matched_question_terms": [],
+                    "rank": 7,
+                    "score": 4,
+                    "snippet": "put \u201canonymous speaker\u201d or \u201cno name\u201d on the card. When the Council reaches your item on the agenda,"
+                  },
+                  {
+                    "chunk_id": "ba6f64b8-be65-5748-8f25-a00c96f7eee9",
+                    "chunk_index": 71,
+                    "matched_action_signals": [
+                      "public hearing"
+                    ],
+                    "matched_question_terms": [],
+                    "rank": 8,
+                    "score": 4,
+                    "snippet": "the Mayor will open the public hearing and call your name. Please address the Council from the podium,"
+                  },
+                  {
+                    "chunk_id": "955449c1-b7de-5956-87b0-7959a61ef66f",
+                    "chunk_index": 90,
+                    "matched_action_signals": [
+                      "approved"
+                    ],
+                    "matched_question_terms": [],
+                    "rank": 9,
+                    "score": 4,
+                    "snippet": "Items recommended to be added, dropped, or deferred are usually approved under Orders of the"
+                  },
+                  {
+                    "chunk_id": "5c88bf92-661e-5357-9e93-264e2815ab62",
+                    "chunk_index": 106,
+                    "matched_action_signals": [
+                      "adopted"
+                    ],
+                    "matched_question_terms": [],
+                    "rank": 10,
+                    "score": 4,
+                    "snippet": "considered to be routine by the City Council and will be adopted by one motion. If a member of"
+                  },
+                  {
+                    "chunk_id": "0c9877ef-3318-5d91-88de-1939f2079e7e",
+                    "chunk_index": 107,
+                    "matched_action_signals": [
+                      "item "
+                    ],
+                    "matched_question_terms": [],
+                    "rank": 11,
+                    "score": 4,
+                    "snippet": "the City Council requests discussion on a particular item, that item may be removed from the"
+                  },
+                  {
+                    "chunk_id": "702dc287-3547-54d4-a6b9-1abfede1d7b7",
+                    "chunk_index": 110,
+                    "matched_action_signals": [
+                      "ordinance"
+                    ],
+                    "matched_question_terms": [],
+                    "rank": 12,
+                    "score": 4,
+                    "snippet": "2.2 Final Adoption of Ordinances."
+                  },
+                  {
+                    "chunk_id": "7f04f7ad-6d90-5ae1-b216-8b39f683e57f",
+                    "chunk_index": 159,
+                    "matched_action_signals": [
+                      "resolution"
+                    ],
+                    "matched_question_terms": [],
+                    "rank": 13,
+                    "score": 4,
+                    "snippet": "Recommendation: Adopt a resolution authorizing the City Manager or her designee to"
+                  },
+                  {
+                    "chunk_id": "6422ab9e-65a4-5a5a-96ad-9e78f2b9a7a7",
+                    "chunk_index": 173,
+                    "matched_action_signals": [
+                      "resolution"
+                    ],
+                    "matched_question_terms": [],
+                    "rank": 14,
+                    "score": 4,
+                    "snippet": "Recommendation: Adopt a resolution:"
+                  },
+                  {
+                    "chunk_id": "6ba15e0e-96dd-5b11-84de-9893d96bb78f",
+                    "chunk_index": 186,
+                    "matched_action_signals": [
+                      "affordability"
+                    ],
+                    "matched_question_terms": [],
+                    "rank": 15,
+                    "score": 4,
+                    "snippet": "exempt from affordability requirements of the Surplus Lands Act, and"
+                  },
+                  {
+                    "chunk_id": "64507ce9-fc14-57a8-a215-3bb736ef572d",
+                    "chunk_index": 206,
+                    "matched_action_signals": [
+                      "resolution"
+                    ],
+                    "matched_question_terms": [],
+                    "rank": 16,
+                    "score": 4,
+                    "snippet": "ResolutionAttachments"
+                  },
+                  {
+                    "chunk_id": "f5e34f82-83b9-515e-9089-85b8f6269282",
+                    "chunk_index": 223,
+                    "matched_action_signals": [
+                      "resolution"
+                    ],
+                    "matched_question_terms": [],
+                    "rank": 17,
+                    "score": 4,
+                    "snippet": "Recommendation: Adopt a resolution authorizing the City Manager or her designee to:"
+                  },
+                  {
+                    "chunk_id": "48acac0c-e3bb-59f1-972d-b810964c6c92",
+                    "chunk_index": 241,
+                    "matched_action_signals": [
+                      "resolution"
+                    ],
+                    "matched_question_terms": [],
+                    "rank": 18,
+                    "score": 4,
+                    "snippet": "Recommendation: Adopt a resolution authorizing \u201cFree Use\u201d of the Janet Gray Hayes"
+                  },
+                  {
+                    "chunk_id": "a1495d57-a9a4-5792-ac47-ecf388108509",
+                    "chunk_index": 248,
+                    "matched_action_signals": [
+                      "resolution"
+                    ],
+                    "matched_question_terms": [],
+                    "rank": 19,
+                    "score": 4,
+                    "snippet": "ResolutionAttachments"
+                  },
+                  {
+                    "chunk_id": "1dd8fdeb-4eab-582f-b847-00084a8b6006",
+                    "chunk_index": 0,
+                    "matched_action_signals": [],
+                    "matched_question_terms": [
+                      "meeting"
+                    ],
+                    "rank": 20,
+                    "score": 3,
+                    "snippet": "City Council Meeting"
+                  }
+                ]
+              }
+            },
+            "envelope": {
+              "analysis_question": "Identify housing-cost or development-cost signals in recent San Jose meeting materials and classify whether there is enough evidence for quantitative cost-of-living analysis.",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-3wefe.13-live-cycle-01-20260416",
+              "jurisdiction": "San Jose CA",
+              "orchestrator": "windmill",
+              "scope_idempotency_key": "bd-3wefe.13-live-cycle-01-20260416::1c07b61a28453506",
+              "search_query": "San Jose CA city council meeting minutes housing ordinance agenda packet filetype:pdf OR site:sanjoseca.legistar.com",
+              "source_family": "meeting_minutes",
+              "stale_status": "fresh",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-01-20260416",
+              "windmill_workspace": "affordabot"
+            },
+            "refs": {
+              "analysis_id": "97c9e2b1-d052-5171-9b42-8f856c3fd576",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-01-20260416"
+            },
+            "retry_class": "none",
+            "status": "succeeded"
+          },
+          "freshness_gate": {
+            "alerts": [],
+            "command": "freshness_gate",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "counts": {
+              "search_results": 10
+            },
+            "created_at": "2026-04-16T05:45:19.534569+00:00",
+            "decision_reason": "fresh",
+            "details": {
+              "fail_closed_ceiling_hours": 168,
+              "fresh_hours": 24,
+              "freshness_status": "fresh",
+              "snapshot_age_hours": 0,
+              "stale_usable_ceiling_hours": 72
+            },
+            "envelope": {
+              "analysis_question": "Identify housing-cost or development-cost signals in recent San Jose meeting materials and classify whether there is enough evidence for quantitative cost-of-living analysis.",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-3wefe.13-live-cycle-01-20260416",
+              "jurisdiction": "San Jose CA",
+              "orchestrator": "windmill",
+              "scope_idempotency_key": "bd-3wefe.13-live-cycle-01-20260416::1c07b61a28453506",
+              "search_query": "San Jose CA city council meeting minutes housing ordinance agenda packet filetype:pdf OR site:sanjoseca.legistar.com",
+              "source_family": "meeting_minutes",
+              "stale_status": "fresh",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-01-20260416",
+              "windmill_workspace": "affordabot"
+            },
+            "refs": {
+              "search_snapshot_id": "c4b34227-2c91-40a9-95ce-c084092fb12d",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-01-20260416"
+            },
+            "retry_class": "none",
+            "status": "succeeded"
+          },
+          "index": {
+            "alerts": [],
+            "command": "index",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "counts": {
+              "chunks": 558
+            },
+            "created_at": "2026-04-16T05:45:40.661579+00:00",
+            "decision_reason": "chunks_indexed",
+            "details": {
+              "embedding_count": 558,
+              "embedding_provider": "openrouter:qwen/qwen3-embedding-8b"
+            },
+            "envelope": {
+              "analysis_question": "Identify housing-cost or development-cost signals in recent San Jose meeting materials and classify whether there is enough evidence for quantitative cost-of-living analysis.",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-3wefe.13-live-cycle-01-20260416",
+              "jurisdiction": "San Jose CA",
+              "orchestrator": "windmill",
+              "scope_idempotency_key": "bd-3wefe.13-live-cycle-01-20260416::1c07b61a28453506",
+              "search_query": "San Jose CA city council meeting minutes housing ordinance agenda packet filetype:pdf OR site:sanjoseca.legistar.com",
+              "source_family": "meeting_minutes",
+              "stale_status": "fresh",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-01-20260416",
+              "windmill_workspace": "affordabot"
+            },
+            "refs": {
+              "document_id": "c32135bb-f09f-5b8e-a9a2-0b242144a85f",
+              "raw_scrape_ids": [
+                "bfa71d13-dacc-5831-8ca0-9740283f618c"
+              ],
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-01-20260416"
+            },
+            "retry_class": "none",
+            "status": "succeeded"
+          },
+          "read_fetch": {
+            "alerts": [],
+            "command": "read_fetch",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "counts": {
+              "artifacts": 1,
+              "raw_scrapes": 1
+            },
+            "created_at": "2026-04-16T05:45:28.484134+00:00",
+            "decision_reason": "raw_scrapes_materialized",
+            "details": {
+              "candidate_audit": [
+                {
+                  "outcome": "materialized_raw_scrape",
+                  "rank": 1,
+                  "raw_scrape_id": "bfa71d13-dacc-5831-8ca0-9740283f618c",
+                  "score": 26,
+                  "url": "https://sanjose.legistar.com/View.ashx?M=A&ID=1345653&GUID=CF0F61B5-1467-4299-B504-21A4ADD6FCFF"
+                }
+              ],
+              "ranked_candidates": [
+                {
+                  "input_index": 0,
+                  "rank": 1,
+                  "reasons": [
+                    "url_signal:legistar.com",
+                    "url_signal:view.ashx",
+                    "url_high_value:view.ashx",
+                    "url_concrete_artifact:parsed",
+                    "text_signal:agenda",
+                    "text_signal:minutes",
+                    "text_signal:meeting",
+                    "text_signal:council",
+                    "text_signal:ordinance"
+                  ],
+                  "score": 26,
+                  "snippet": "Apr 2, 2026 \u00b7 2.1 Approval of City Council Minutes. 2.2 Final Adoption of Ordinances. 2.3 Approval of Council Committee Minutes. Page 4. City of San Jos\u00e9.Missing: packet | Show results with:packet",
+                  "title": "[PDF] City Council Meeting Agenda - Calendar",
+                  "url": "https://sanjose.legistar.com/View.ashx?M=A&ID=1345653&GUID=CF0F61B5-1467-4299-B504-21A4ADD6FCFF"
+                },
+                {
+                  "input_index": 2,
+                  "rank": 2,
+                  "reasons": [
+                    "url_signal:.pdf",
+                    "url_high_value:.pdf",
+                    "url_concrete_artifact:parsed",
+                    "text_signal:agenda",
+                    "text_signal:minutes",
+                    "text_signal:meeting",
+                    "text_signal:ordinance",
+                    "text_signal:housing",
+                    "text_action:rent"
+                  ],
+                  "score": 26,
+                  "snippet": "Approval of March 20, 2026, meeting minutes Discussion and possible action regarding potential amendments to the Rent Ordinance proposed by the Rent Board for the November 2026 General Election (attached to agenda). Discussion and possible action regarding Affordable Housing Provider Fees under the Rent Ordinance Update on the Emergency Ordinance",
+                  "title": "PDF 2026_April_17_4x4_Committee_Agenda_PACKET",
+                  "url": "https://berkeleyca.gov/sites/default/files/legislative-body-meeting-agendas/2026_April_17_4x4_Committee_Agenda_PACKET.pdf"
+                },
+                {
+                  "input_index": 1,
+                  "rank": 3,
+                  "reasons": [
+                    "url_signal:.pdf",
+                    "url_high_value:.pdf",
+                    "url_concrete_artifact:parsed",
+                    "text_signal:agenda",
+                    "text_signal:meeting"
+                  ],
+                  "score": 21,
+                  "snippet": "Meeting Conduct: If this meeting is willfully interrupted or disrupted by one or more persons rendering orderly conduct of the meeting unfeasible, the Chair may order the removal of individuals who are willfully disrupting the meeting. Such individuals may be arrested.",
+                  "title": "PDF Meeting Agenda",
+                  "url": "https://mtc.ca.gov/sites/default/files/documents/2026-04/00_04-17-2026_SB63_FER_IOC_Final_Packet_1.pdf"
+                },
+                {
+                  "input_index": 4,
+                  "rank": 4,
+                  "reasons": [
+                    "url_signal:.pdf",
+                    "url_high_value:.pdf",
+                    "text_signal:council",
+                    "text_signal:housing"
+                  ],
+                  "score": 13,
+                  "snippet": "Dec 7, 2018 ... City Council approval of the recommended actions will result in the construction of two. Emergency Bridge Housing Communities in San Jose\u00a0...",
+                  "title": "18-1703 - Memorandum",
+                  "url": "https://dig.abclocal.go.com/kgo/PDF/sjmemorandum.pdf"
+                },
+                {
+                  "input_index": 5,
+                  "rank": 5,
+                  "reasons": [
+                    "url_signal:.pdf",
+                    "url_high_value:.pdf",
+                    "text_signal:agenda",
+                    "text_signal:meeting"
+                  ],
+                  "score": 13,
+                  "snippet": "Persons unable to attend the meeting may submit to the City, by the time the proceedings begin, written comments regarding agenda items for the official public record. Written communications should be submitted to the Clerk of the Board or the Clerk of the Committee: 1 Dr. Carlton B. Goodlett Place, Room 244, San Francisco, CA 94102.",
+                  "title": "PDF AGENDA - sfbos.org",
+                  "url": "https://sfbos.org/sites/default/files/bag041426_agenda.pdf"
+                }
+              ],
+              "reader_provider_errors": [],
+              "reader_quality_failures": []
+            },
+            "envelope": {
+              "analysis_question": "Identify housing-cost or development-cost signals in recent San Jose meeting materials and classify whether there is enough evidence for quantitative cost-of-living analysis.",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-3wefe.13-live-cycle-01-20260416",
+              "jurisdiction": "San Jose CA",
+              "orchestrator": "windmill",
+              "scope_idempotency_key": "bd-3wefe.13-live-cycle-01-20260416::1c07b61a28453506",
+              "search_query": "San Jose CA city council meeting minutes housing ordinance agenda packet filetype:pdf OR site:sanjoseca.legistar.com",
+              "source_family": "meeting_minutes",
+              "stale_status": "fresh",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-01-20260416",
+              "windmill_workspace": "affordabot"
+            },
+            "refs": {
+              "artifact_refs": [
+                "artifacts/2026-04-13.windmill-domain.v1/San Jose CA/meeting_minutes/reader_output/ae11ddffb6292d654ab990cddc9f169ce23868654ee623d07261ec553c81ed77.md"
+              ],
+              "document_id": "c32135bb-f09f-5b8e-a9a2-0b242144a85f",
+              "raw_scrape_ids": [
+                "bfa71d13-dacc-5831-8ca0-9740283f618c"
+              ],
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-01-20260416"
+            },
+            "retry_class": "none",
+            "status": "succeeded"
+          },
+          "search_materialize": {
+            "alerts": [],
+            "command": "search_materialize",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "counts": {
+              "search_results": 10
+            },
+            "created_at": "2026-04-16T05:45:19.451771+00:00",
+            "decision_reason": "fresh_snapshot_materialized",
+            "details": {
+              "query": "San Jose CA city council meeting minutes housing ordinance agenda packet filetype:pdf OR site:sanjoseca.legistar.com"
+            },
+            "envelope": {
+              "analysis_question": "Identify housing-cost or development-cost signals in recent San Jose meeting materials and classify whether there is enough evidence for quantitative cost-of-living analysis.",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-3wefe.13-live-cycle-01-20260416",
+              "jurisdiction": "San Jose CA",
+              "orchestrator": "windmill",
+              "scope_idempotency_key": "bd-3wefe.13-live-cycle-01-20260416::1c07b61a28453506",
+              "search_query": "San Jose CA city council meeting minutes housing ordinance agenda packet filetype:pdf OR site:sanjoseca.legistar.com",
+              "source_family": "meeting_minutes",
+              "stale_status": "fresh",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-01-20260416",
+              "windmill_workspace": "affordabot"
+            },
+            "refs": {
+              "search_snapshot_id": "c4b34227-2c91-40a9-95ce-c084092fb12d",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-01-20260416"
+            },
+            "retry_class": "none",
+            "status": "succeeded"
+          },
+          "summarize_run": {
+            "alerts": [],
+            "command": "summarize_run",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "counts": {
+              "analyses": 1,
+              "artifacts": 1,
+              "chunks": 558,
+              "evidence_chunks": 20,
+              "raw_scrapes": 1,
+              "search_results": 20
+            },
+            "created_at": "2026-04-16T05:46:02.135323+00:00",
+            "decision_reason": "run_summary_materialized",
+            "details": {
+              "step_statuses": {
+                "analyze": "succeeded",
+                "freshness_gate": "succeeded",
+                "index": "succeeded",
+                "read_fetch": "succeeded",
+                "search_materialize": "succeeded"
+              }
+            },
+            "envelope": {
+              "analysis_question": "Identify housing-cost or development-cost signals in recent San Jose meeting materials and classify whether there is enough evidence for quantitative cost-of-living analysis.",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-3wefe.13-live-cycle-01-20260416",
+              "jurisdiction": "San Jose CA",
+              "orchestrator": "windmill",
+              "scope_idempotency_key": "bd-3wefe.13-live-cycle-01-20260416::1c07b61a28453506",
+              "search_query": "San Jose CA city council meeting minutes housing ordinance agenda packet filetype:pdf OR site:sanjoseca.legistar.com",
+              "source_family": "meeting_minutes",
+              "stale_status": "fresh",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-01-20260416",
+              "windmill_workspace": "affordabot"
+            },
+            "refs": {
+              "analyze_reason": "analysis_completed",
+              "analyze_retry_class": "none",
+              "freshness_gate_reason": "fresh",
+              "freshness_gate_retry_class": "none",
+              "index_reason": "chunks_indexed",
+              "index_retry_class": "none",
+              "read_fetch_reason": "raw_scrapes_materialized",
+              "read_fetch_retry_class": "none",
+              "run_id": "6695fe26-eaaf-47d1-9100-7eb861a7aa2f",
+              "search_materialize_reason": "fresh_snapshot_materialized",
+              "search_materialize_retry_class": "none",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-01-20260416"
+            },
+            "retry_class": "none",
+            "status": "succeeded"
+          }
+        }
+      }
+    ],
+    "scope_succeeded": 1,
+    "scope_total": 1,
+    "status": "succeeded"
+  },
+  "run_mode": "backend-endpoint-run",
+  "search_provider_bakeoff": [
+    {
+      "endpoint": "https://searx.tiekoetter.com/search",
+      "failure_classification": "http_error",
+      "http_status": 429,
+      "latency_ms": 1336,
+      "provider": "searxng",
+      "query": "San Jose CA city council meeting minutes housing ordinance agenda packet filetype:pdf OR site:sanjoseca.legistar.com",
+      "result_count": 0,
+      "status": "failed",
+      "top_results": []
+    },
+    {
+      "failure_classification": null,
+      "http_status": 200,
+      "latency_ms": 1208,
+      "provider": "exa",
+      "query": "San Jose CA city council meeting minutes housing ordinance agenda packet filetype:pdf OR site:sanjoseca.legistar.com",
+      "result_count": 0,
+      "status": "succeeded",
+      "top_results": []
+    },
+    {
+      "failure_classification": null,
+      "http_status": 200,
+      "latency_ms": 1876,
+      "provider": "tavily",
+      "query": "San Jose CA city council meeting minutes housing ordinance agenda packet filetype:pdf OR site:sanjoseca.legistar.com",
+      "result_count": 5,
+      "status": "succeeded",
+      "top_results": [
+        {
+          "snippet": "MINUTES OF THE CITY COUNCIL. SAN JOS\u00c9, CALIFORNIA. TUESDAY, MARCH 20, 2018 ... Code ... MEETING OF THE BOARD OF COMMISSIONERS OF THE CITY OF SAN JOSE HOUSING.",
+          "title": "[PDF] 18-954 - d. Regular City Council Meeting Minutes of March 20, 2018",
+          "url": "https://sanjose.legistar.com/View.ashx?M=M&ID=582632&GUID=1FA61E16-3B5F-4534-ABA3-13A5AA7F562A"
+        },
+        {
+          "snippet": "City Council. Amended Agenda. 24-2247. Approval of City Council Minutes. Recommendation: (a) City Council Study Session Meeting Minutes of May 12, 2023. (b)",
+          "title": "[PDF] Amended Agenda - City of San Jos\u00e9 - Calendar",
+          "url": "https://sanjose.legistar.com/View.ashx?M=A&ID=1213468&GUID=97B04634-354D-438D-856E-FF9F810AC963"
+        },
+        {
+          "snippet": "2.2 18-401. Final Adoption of Ordinances. Recommendation: (a) ORD. NO. 30078 - An ordinance of the City of San Jos\u00e9 rezoning certain real.",
+          "title": "[PDF] City Council Meeting Administrative Draft - Calendar",
+          "url": "https://sanjose.legistar.com/View.ashx?M=F&ID=5876950&GUID=08966784-3B32-4B17-8A25-786676A6545C&G=920296E4-80BE-4CA2-A78F-32C5EFCF78AF"
+        }
+      ]
+    }
+  ],
+  "stale_drills": [],
+  "storage_evidence_gates": {
+    "analysis_provenance_chain": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "bridge_mode": {
+      "note": "",
+      "status": "railway_runtime"
+    },
+    "failure_handler_drill": {
+      "note": "failure injection is a separate pre-schedule gate; this San Jose product path run verified the native failure handler surface was configured",
+      "status": "not_run"
+    },
+    "idempotent_rerun": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "minio_object_refs": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "pgvector_index_probe": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "postgres_rows_written": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "quality_gate_blocked_before_index_analyze": {
+      "note": "current run completed past read_fetch; reader quality block was not expected in this success path",
+      "status": "not_applicable"
+    },
+    "reader_output_ref": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "stale_drill_stale_blocked": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "stale_drill_stale_but_usable": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    }
+  },
+  "surface_checks": {
+    "jobs_checked_count": 20,
+    "schedule_count": 4,
+    "workspace_profile_listed": true
+  }
+}

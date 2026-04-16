@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 import hashlib
+from io import BytesIO
 from threading import Lock
 from typing import Any
+from urllib.parse import urlsplit
 import uuid
 
 from openai import AsyncOpenAI
@@ -17,6 +20,8 @@ from db.postgres_client import PostgresDB
 from services.llm.web_search_factory import create_web_search_client
 from services.pipeline.domain.commands import (
     PipelineDomainCommands,
+    _is_concrete_artifact_url,
+    _is_weak_reader_fallback_candidate,
     assess_reader_substance,
     prefetch_skip_reason,
     rank_evidence_chunks,
@@ -44,7 +49,22 @@ from services.pipeline.domain.storage import (
     chunk_markdown_lines,
     sha256_text,
 )
+from services.pipeline.policy_evidence_package_builder import PolicyEvidencePackageBuilder
+from services.pipeline.policy_evidence_package_storage import (
+    ArtifactProbe,
+    ArtifactWriter,
+    InMemoryPolicyEvidencePackageStore,
+    PolicyEvidencePackageStorageService,
+    PolicyEvidencePackageStore,
+    PostgresPolicyEvidencePackageStore,
+)
+from services.pipeline.structured_source_enrichment import (
+    StructuredEnrichmentResult,
+    StructuredSourceEnricher,
+)
 from services.storage import S3Storage
+from schemas.analysis import ImpactMode
+from schemas.economic_evidence import MechanismFamily
 
 EMBEDDING_DIMENSIONS = 4096
 
@@ -109,6 +129,75 @@ def _scope_idempotency_key(request: "RunScopeRequest") -> str:
 
 
 @dataclass(frozen=True)
+class _EconomicMechanismHint:
+    mechanism_family: str | None
+    impact_mode: str
+    secondary_research_needed: bool
+    secondary_research_reason: str | None = None
+
+
+class _NoopStructuredSourceEnricher:
+    async def enrich(
+        self,
+        *,
+        jurisdiction: str,
+        source_family: str,
+        search_query: str,
+        selected_url: str,
+    ) -> StructuredEnrichmentResult:
+        _ = (jurisdiction, source_family, search_query, selected_url)
+        return StructuredEnrichmentResult(
+            status="not_configured",
+            candidates=[],
+            alerts=["structured_enrichment_not_configured"],
+            source_catalog=[],
+        )
+
+
+class _S3PolicyEvidenceArtifactWriter(ArtifactWriter):
+    def __init__(self, *, storage: S3Storage) -> None:
+        self._storage = storage
+
+    def write_package_artifact(self, *, package_id: str, payload: dict[str, Any]) -> str:
+        client = getattr(self._storage, "client", None)
+        bucket = str(getattr(self._storage, "bucket", "") or "").strip()
+        if client is None or not bucket:
+            raise RuntimeError("artifact_write_failed")
+        object_key = f"policy-evidence/packages/{package_id}.json"
+        body = json.dumps(payload, ensure_ascii=True, sort_keys=True).encode("utf-8")
+        try:
+            client.put_object(
+                bucket,
+                object_key,
+                BytesIO(body),
+                length=len(body),
+                content_type="application/json",
+            )
+        except Exception as exc:  # noqa: BLE001
+            raise RuntimeError("artifact_write_failed") from exc
+        return f"minio://{bucket}/{object_key}"
+
+
+class _S3PolicyEvidenceArtifactProbe(ArtifactProbe):
+    def __init__(self, *, storage: S3Storage) -> None:
+        self._storage = storage
+
+    def exists(self, *, uri: str) -> bool:
+        parsed = RailwayRuntimeBridge._parse_minio_uri(uri)
+        if parsed is None:
+            return False
+        bucket, object_key = parsed
+        client = getattr(self._storage, "client", None)
+        if client is None:
+            return False
+        try:
+            client.stat_object(bucket, object_key)
+            return True
+        except Exception:  # noqa: BLE001
+            return False
+
+
+@dataclass(frozen=True)
 class RunScopeRequest:
     contract_version: str
     idempotency_key: str
@@ -126,9 +215,23 @@ class RunScopeRequest:
 class RailwayRuntimeBridge:
     """Railway-compatible runtime for persisted bridge execution."""
 
-    def __init__(self, *, db: PostgresDB, storage: S3Storage) -> None:
+    def __init__(
+        self,
+        *,
+        db: PostgresDB,
+        storage: S3Storage,
+        package_store: PolicyEvidencePackageStore | None = None,
+        structured_enricher: StructuredSourceEnricher | None = None,
+    ) -> None:
         self.db = db
         self.storage = storage
+        self._package_store_override = package_store
+        if structured_enricher is not None:
+            self.structured_enricher = structured_enricher
+        elif isinstance(db, PostgresDB):
+            self.structured_enricher = StructuredSourceEnricher()
+        else:
+            self.structured_enricher = _NoopStructuredSourceEnricher()
         self.search_client = create_web_search_client(api_key=os.getenv("ZAI_API_KEY"))
         self.reader_client: Any | None = None
         try:
@@ -220,6 +323,17 @@ class RailwayRuntimeBridge:
             meta=meta,
             command_responses=responses,
         )
+        package_materialization = await self._materialize_policy_evidence_package(
+            request=request,
+            run_id=run_id,
+            command_responses=responses,
+        )
+        summary.refs.update(package_materialization["refs"])
+        summary.alerts = list(
+            dict.fromkeys([*summary.alerts, *package_materialization.get("alerts", [])])
+        )
+        summary.details["policy_evidence_package"] = package_materialization
+        summary = await self._persist_response(run_id=run_id, request=request, response=summary)
         responses.append(summary)
 
         await self.db._execute(
@@ -257,6 +371,735 @@ class RailwayRuntimeBridge:
             "steps": steps,
             "storage_mode": "railway_runtime",
             "missing_runtime_adapters": [],
+        }
+
+    @staticmethod
+    def _response_by_command(
+        command_responses: list[CommandResponse], command: str
+    ) -> CommandResponse | None:
+        for response in command_responses:
+            if response.command == command:
+                return response
+        return None
+
+    @staticmethod
+    def _selected_url_from_read_fetch(read_fetch: CommandResponse | None) -> str:
+        if not read_fetch:
+            return ""
+        audit = read_fetch.details.get("candidate_audit", [])
+        if not isinstance(audit, list):
+            return ""
+        for entry in audit:
+            if not isinstance(entry, dict):
+                continue
+            if entry.get("outcome") in {"materialized_raw_scrape", "reused_existing_raw_scrape"}:
+                return str(entry.get("url") or "").strip()
+        return ""
+
+    def _resolve_package_store(self) -> PolicyEvidencePackageStore:
+        if self._package_store_override is not None:
+            return self._package_store_override
+        if not isinstance(self.db, PostgresDB):
+            return InMemoryPolicyEvidencePackageStore()
+        database_url = (
+            os.getenv("DATABASE_URL_PUBLIC", "").strip()
+            or os.getenv("DATABASE_URL", "").strip()
+        )
+        if database_url:
+            return PostgresPolicyEvidencePackageStore(database_url=database_url)
+        return InMemoryPolicyEvidencePackageStore()
+
+    @staticmethod
+    def _parse_minio_uri(uri: str) -> tuple[str, str] | None:
+        if not uri.startswith("minio://"):
+            return None
+        payload = uri[len("minio://") :]
+        if "/" not in payload:
+            return None
+        bucket, object_key = payload.split("/", 1)
+        bucket = bucket.strip()
+        object_key = object_key.strip()
+        if not bucket or not object_key:
+            return None
+        return bucket, object_key
+
+    def _normalize_artifact_uri(self, uri: str) -> str:
+        value = str(uri or "").strip()
+        if not value:
+            return ""
+        if "://" in value:
+            return value
+        bucket = str(getattr(self.storage, "bucket", "") or "").strip()
+        if not bucket:
+            return value
+        return f"minio://{bucket}/{value.lstrip('/')}"
+
+    def _package_artifact_uri(self, package_id: str) -> str:
+        bucket = str(getattr(self.storage, "bucket", "") or "").strip() or "policy-evidence"
+        return f"minio://{bucket}/policy-evidence/packages/{package_id}.json"
+
+    @staticmethod
+    def _is_official_domain_url(url: str) -> bool:
+        host = urlsplit(url).netloc.lower()
+        if not host:
+            return False
+        if host.endswith(".gov") or ".gov." in host:
+            return True
+        return any(
+            signal in host
+            for signal in (
+                "legistar.com",
+                "granicus.com",
+                "records.",
+                "cityof",
+                "countyof",
+            )
+        )
+
+    @classmethod
+    def _classify_selected_artifact_family(cls, url: str) -> str:
+        normalized = str(url or "").strip()
+        if not normalized:
+            return "missing"
+        if _is_concrete_artifact_url(normalized):
+            return "artifact"
+        if prefetch_skip_reason(normalized):
+            return "portal"
+        if cls._is_official_domain_url(normalized):
+            return "official_page"
+        return "external_page"
+
+    @staticmethod
+    def _selection_reason_from_audit(candidate_audit: list[dict[str, Any]], selected_url: str) -> str:
+        for item in candidate_audit:
+            if str(item.get("url") or "").strip() != selected_url:
+                continue
+            outcome = str(item.get("outcome") or "").strip()
+            if outcome:
+                return outcome
+        return "selected_candidate_recorded"
+
+    @classmethod
+    def _build_source_quality_metrics(
+        cls,
+        *,
+        search_provider: str,
+        search_provider_runtime: dict[str, Any],
+        selected_url: str,
+        search_candidates: list[dict[str, Any]],
+        ranked_candidates: list[dict[str, Any]],
+        candidate_audit: list[dict[str, Any]],
+        reader_provider_errors: list[dict[str, Any]],
+        reader_quality_failures: list[dict[str, Any]],
+        structured_candidates: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        top_n_window = min(
+            5,
+            len(ranked_candidates) if ranked_candidates else len(search_candidates),
+        )
+        candidate_pool = ranked_candidates[:top_n_window] if ranked_candidates else [
+            {
+                "url": str(item.get("url") or "").strip(),
+                "rank": index + 1,
+                "score": 0,
+            }
+            for index, item in enumerate(search_candidates[:top_n_window])
+        ]
+        candidate_pool = [item for item in candidate_pool if str(item.get("url") or "").strip()]
+
+        official_recall = sum(
+            1 for item in candidate_pool if cls._is_official_domain_url(str(item.get("url") or ""))
+        )
+        artifact_recall = sum(
+            1 for item in candidate_pool if _is_concrete_artifact_url(str(item.get("url") or ""))
+        )
+        selected_rank = None
+        for item in candidate_pool:
+            if str(item.get("url") or "").strip() == selected_url:
+                selected_rank = item.get("rank")
+                break
+        if selected_rank is None:
+            for item in candidate_audit:
+                if str(item.get("url") or "").strip() == selected_url:
+                    selected_rank = item.get("rank")
+                    break
+        selected_artifact_family = cls._classify_selected_artifact_family(selected_url)
+        selected_candidate = {
+            "url": selected_url,
+            "provider": search_provider,
+            "rank": selected_rank,
+            "selection_reason": cls._selection_reason_from_audit(candidate_audit, selected_url),
+            "artifact_grade": selected_artifact_family == "artifact",
+            "official_domain": cls._is_official_domain_url(selected_url),
+            "artifact_family": selected_artifact_family,
+        }
+        selected_outcome = cls._selection_reason_from_audit(candidate_audit, selected_url)
+        reader_substance_observed = selected_outcome in {
+            "materialized_raw_scrape",
+            "reused_existing_raw_scrape",
+        }
+        secondary_lane_used = any(
+            str(item.get("source_family") or "").strip().lower() in {"tavily_secondary_search", "exa_secondary_search"}
+            for item in structured_candidates
+            if isinstance(item, dict)
+        )
+        secondary_numeric_parameter_count = 0
+        for item in structured_candidates:
+            if not isinstance(item, dict):
+                continue
+            facts = item.get("structured_policy_facts")
+            if not isinstance(facts, list):
+                continue
+            for fact in facts:
+                if not isinstance(fact, dict):
+                    continue
+                value = fact.get("value")
+                if isinstance(value, (int, float)):
+                    secondary_numeric_parameter_count += 1
+        provider_candidates = [
+            {
+                "url": str(item.get("url") or "").strip(),
+                "rank": item.get("rank"),
+                "artifact_grade": _is_concrete_artifact_url(str(item.get("url") or "")),
+                "official_domain": cls._is_official_domain_url(str(item.get("url") or "")),
+            }
+            for item in candidate_pool
+        ]
+        return {
+            "top_n_window": top_n_window,
+            "top_n_official_recall_count": official_recall,
+            "top_n_artifact_recall_count": artifact_recall,
+            "selected_candidate": selected_candidate,
+            "selected_artifact_family": selected_artifact_family,
+            "reader_substance_observed": reader_substance_observed,
+            "reader_substance_selection_outcome": selected_outcome,
+            "secondary_numeric_rescue_detected": secondary_lane_used
+            and secondary_numeric_parameter_count > 0,
+            "secondary_numeric_parameter_count": secondary_numeric_parameter_count,
+            "provider_summary": {
+                "primary_provider": search_provider,
+                "provider_error_count": len(reader_provider_errors),
+                "quality_failure_count": len(reader_quality_failures),
+                "provider_error_urls": [
+                    str(item.get("url") or "")
+                    for item in reader_provider_errors
+                    if str(item.get("url") or "").strip()
+                ],
+                "runtime": search_provider_runtime,
+            },
+            "provider_results": {
+                search_provider: {
+                    "status": "succeeded" if provider_candidates else "empty",
+                    "reason_code": selected_candidate["selection_reason"],
+                    "candidates": provider_candidates,
+                }
+            },
+        }
+
+    def _active_search_provider_provenance(self) -> dict[str, Any]:
+        client = self.search_client
+        explicit_label = str(getattr(client, "provider_label", "") or "").strip()
+        class_name = client.__class__.__name__
+        class_key = class_name.lower()
+        configured_provider = os.getenv("WEB_SEARCH_PROVIDER", "").strip().lower()
+
+        if explicit_label:
+            provider = explicit_label
+        elif "searxng" in class_key or "searx" in class_key:
+            provider = "private_searxng"
+        elif "tavily" in class_key:
+            provider = "tavily"
+        elif "exa" in class_key:
+            provider = "exa"
+        elif "zai" in class_key:
+            provider = "zai_search"
+        else:
+            provider = configured_provider or "other"
+
+        endpoint = str(getattr(client, "endpoint", "") or "").strip()
+        endpoint_host = urlsplit(endpoint).netloc if endpoint else ""
+        return {
+            "provider": provider,
+            "client_class": class_name,
+            "configured_provider": configured_provider or None,
+            "endpoint_host": endpoint_host or None,
+            "endpoint_configured": bool(endpoint),
+        }
+
+    @staticmethod
+    def _analysis_text_parts(analyze: CommandResponse | None) -> list[str]:
+        if analyze is None:
+            return []
+        details = analyze.details if isinstance(analyze.details, dict) else {}
+        parts: list[str] = []
+        evidence_selection = details.get("evidence_selection")
+        if isinstance(evidence_selection, dict):
+            selected_chunks = evidence_selection.get("selected_chunks")
+            if isinstance(selected_chunks, list):
+                for chunk in selected_chunks:
+                    if not isinstance(chunk, dict):
+                        continue
+                    snippet = str(chunk.get("snippet") or "").strip()
+                    if snippet:
+                        parts.append(snippet)
+        analysis = details.get("analysis")
+        if isinstance(analysis, dict):
+            for item in analysis.get("key_points") or []:
+                text = str(item or "").strip()
+                if text:
+                    parts.append(text)
+            summary = str(analysis.get("summary") or "").strip()
+            if summary:
+                parts.append(summary)
+        return parts
+
+    @classmethod
+    def _extract_primary_fee_facts_from_analysis(
+        cls,
+        *,
+        analyze: CommandResponse | None,
+        selected_url: str,
+    ) -> tuple[list[dict[str, Any]], list[str]]:
+        facts: list[dict[str, Any]] = []
+        alerts: list[str] = []
+        seen: set[float] = set()
+        for text in cls._analysis_text_parts(analyze):
+            lowered = text.lower()
+            if not any(signal in lowered for signal in ("fee", "fees", "per sq", "square foot", "sq. ft")):
+                continue
+            if re.search(r"\$[0-9]+(?:\.[0-9]+){2,}", text):
+                alerts.append("primary_parameter_money_format_anomaly")
+            for match in re.finditer(r"\$([0-9]+(?:\.[0-9]{1,2})?)(?![\d.])", text):
+                value = float(match.group(1))
+                if value in seen:
+                    continue
+                seen.add(value)
+                facts.append(
+                    {
+                        "field": "commercial_linkage_fee_rate_usd_per_sqft",
+                        "value": value,
+                        "unit": "usd_per_square_foot",
+                        "source_url": selected_url,
+                        "source_excerpt": text[:600],
+                        "provenance_lane": "primary_scraped_document",
+                        "source_hierarchy_status": "bill_or_reg_text",
+                    }
+                )
+        return facts, sorted(set(alerts))
+
+    @staticmethod
+    def _infer_mechanism_hint(
+        *,
+        request: RunScopeRequest,
+        selected_url: str,
+    ) -> _EconomicMechanismHint:
+        text = " ".join(
+            [
+                request.search_query.lower(),
+                request.source_family.lower(),
+                request.analysis_question.lower(),
+                selected_url.lower(),
+            ]
+        )
+
+        has_fee_or_tax = any(
+            token in text
+            for token in (
+                "impact fee",
+                "development fee",
+                "developer fee",
+                "linkage fee",
+                "permit fee",
+                "tax",
+                "assessment",
+            )
+        )
+        has_housing = any(
+            token in text
+            for token in ("housing", "multifamily", "condo", "rent", "residential", "developer")
+        )
+        if has_fee_or_tax and has_housing:
+            return _EconomicMechanismHint(
+                mechanism_family=MechanismFamily.FEE_OR_TAX_PASS_THROUGH.value,
+                impact_mode=ImpactMode.PASS_THROUGH_INCIDENCE.value,
+                secondary_research_needed=True,
+                secondary_research_reason="pass_through_incidence_rate_missing",
+            )
+
+        if any(
+            token in text
+            for token in ("service fee", "utility fee", "city tax", "sales tax", "parcel tax")
+        ):
+            return _EconomicMechanismHint(
+                mechanism_family=MechanismFamily.DIRECT_FISCAL.value,
+                impact_mode=ImpactMode.DIRECT_FISCAL.value,
+                secondary_research_needed=False,
+            )
+
+        if any(
+            token in text
+            for token in (
+                "license",
+                "licensing",
+                "permit requirement",
+                "training requirement",
+                "compliance",
+                "mandate",
+            )
+        ):
+            return _EconomicMechanismHint(
+                mechanism_family=MechanismFamily.COMPLIANCE_COST.value,
+                impact_mode=ImpactMode.COMPLIANCE_COST.value,
+                secondary_research_needed=False,
+            )
+
+        return _EconomicMechanismHint(
+            mechanism_family=None,
+            impact_mode=ImpactMode.QUALITATIVE_ONLY.value,
+            secondary_research_needed=False,
+        )
+
+    async def _materialize_policy_evidence_package(
+        self,
+        *,
+        request: RunScopeRequest,
+        run_id: str,
+        command_responses: list[CommandResponse],
+    ) -> dict[str, Any]:
+        search = self._response_by_command(command_responses, "search_materialize")
+        read_fetch = self._response_by_command(command_responses, "read_fetch")
+        index = self._response_by_command(command_responses, "index")
+        analyze = self._response_by_command(command_responses, "analyze")
+
+        raw_scrape_id = ""
+        reader_artifact_uri = ""
+        if read_fetch:
+            raw_ids = read_fetch.refs.get("raw_scrape_ids", [])
+            if isinstance(raw_ids, list) and raw_ids:
+                raw_scrape_id = str(raw_ids[0])
+            artifact_refs = read_fetch.refs.get("artifact_refs", [])
+            if isinstance(artifact_refs, list) and artifact_refs:
+                reader_artifact_uri = self._normalize_artifact_uri(str(artifact_refs[0]))
+        document_id = str(index.refs.get("document_id", "")) if index else ""
+        selected_url = self._selected_url_from_read_fetch(read_fetch)
+
+        canonical_document_key = ""
+        content_hash = ""
+        if raw_scrape_id:
+            raw_row = await self.db._fetchrow(
+                """
+                SELECT canonical_document_key, content_hash, storage_uri
+                FROM raw_scrapes
+                WHERE id = $1::uuid
+                LIMIT 1
+                """,
+                raw_scrape_id,
+            )
+            if raw_row:
+                canonical_document_key = str(raw_row["canonical_document_key"] or "")
+                content_hash = str(raw_row["content_hash"] or "")
+                if not reader_artifact_uri:
+                    reader_artifact_uri = self._normalize_artifact_uri(
+                        str(raw_row["storage_uri"] or "")
+                    )
+        if not reader_artifact_uri:
+            reader_artifact_uri = self._normalize_artifact_uri("policy-evidence/unproven/pending")
+
+        fail_closed_reasons: list[str] = []
+        if read_fetch and read_fetch.status not in {"succeeded", "succeeded_with_alerts"}:
+            fail_closed_reasons.append(f"read_fetch:{read_fetch.decision_reason}")
+        if not raw_scrape_id:
+            fail_closed_reasons.append("raw_scrape_missing")
+        if not document_id:
+            fail_closed_reasons.append("document_id_missing")
+        analyze_sufficiency = ""
+        if analyze:
+            analysis_payload = analyze.details.get("analysis", {})
+            if isinstance(analysis_payload, dict):
+                analyze_sufficiency = str(analysis_payload.get("sufficiency_state") or "").strip()
+            if analyze.status != "succeeded":
+                fail_closed_reasons.append(f"analyze:{analyze.decision_reason}")
+            elif analyze_sufficiency and analyze_sufficiency not in {"sufficient", "quantified"}:
+                fail_closed_reasons.append(f"analysis_sufficiency:{analyze_sufficiency}")
+        else:
+            fail_closed_reasons.append("analysis_missing")
+
+        package_id = f"pkg-{_hash(f'{_scope_idempotency_key(request)}|{canonical_document_key}|{selected_url}')[:24]}"
+        mechanism_hint = self._infer_mechanism_hint(request=request, selected_url=selected_url)
+        structured_enrichment = await self.structured_enricher.enrich(
+            jurisdiction=request.jurisdiction,
+            source_family=request.source_family,
+            search_query=request.search_query,
+            selected_url=selected_url,
+        )
+        search_snapshot_id = ""
+        if search:
+            search_snapshot_id = str(search.refs.get("search_snapshot_id") or "").strip()
+        search_candidates: list[dict[str, Any]] = []
+        if search_snapshot_id:
+            snapshot_row = await self.db._fetchrow(
+                "SELECT snapshot_payload FROM search_result_snapshots WHERE id = $1::uuid",
+                search_snapshot_id,
+            )
+            if snapshot_row:
+                payload = _db_json(snapshot_row["snapshot_payload"], [])
+                if isinstance(payload, list):
+                    search_candidates = [item for item in payload if isinstance(item, dict)]
+        read_fetch_details = read_fetch.details if read_fetch else {}
+        ranked_candidates = (
+            list(read_fetch_details.get("ranked_candidates", []))
+            if isinstance(read_fetch_details.get("ranked_candidates", []), list)
+            else []
+        )
+        candidate_audit = (
+            list(read_fetch_details.get("candidate_audit", []))
+            if isinstance(read_fetch_details.get("candidate_audit", []), list)
+            else []
+        )
+        reader_provider_errors = (
+            list(read_fetch_details.get("reader_provider_errors", []))
+            if isinstance(read_fetch_details.get("reader_provider_errors", []), list)
+            else []
+        )
+        reader_quality_failures = (
+            list(read_fetch_details.get("reader_quality_failures", []))
+            if isinstance(read_fetch_details.get("reader_quality_failures", []), list)
+            else []
+        )
+        search_provider_runtime = self._active_search_provider_provenance()
+        search_provider = str(search_provider_runtime["provider"])
+        source_quality_metrics = self._build_source_quality_metrics(
+            search_provider=search_provider,
+            search_provider_runtime=search_provider_runtime,
+            selected_url=selected_url,
+            search_candidates=search_candidates,
+            ranked_candidates=ranked_candidates,
+            candidate_audit=candidate_audit,
+            reader_provider_errors=reader_provider_errors,
+            reader_quality_failures=reader_quality_failures,
+            structured_candidates=structured_enrichment.candidates,
+        )
+        primary_fee_facts, primary_parameter_alerts = self._extract_primary_fee_facts_from_analysis(
+            analyze=analyze,
+            selected_url=selected_url,
+        )
+        if (
+            mechanism_hint.secondary_research_needed
+            and mechanism_hint.secondary_research_reason
+        ):
+            fail_closed_reasons.append(
+                f"secondary_research_needed:{mechanism_hint.secondary_research_reason}"
+            )
+        canonical_analysis_id = ""
+        canonical_pipeline_run_id = ""
+        canonical_pipeline_step_id = ""
+        canonical_breakdown_ref = ""
+        if analyze and analyze.status == "succeeded":
+            analysis_id_value = str(analyze.refs.get("analysis_id") or "").strip()
+            if analysis_id_value:
+                canonical_analysis_id = analysis_id_value
+                canonical_pipeline_run_id = run_id
+                canonical_pipeline_step_id = analysis_id_value
+                canonical_breakdown_ref = f"analysis:{analysis_id_value}"
+        raw_scrape_retrieved_at = _utc_now().isoformat()
+        raw_scrape_excerpt = ""
+        if raw_scrape_id:
+            raw_row_for_excerpt = await self.db._fetchrow(
+                """
+                SELECT created_at, data
+                FROM raw_scrapes
+                WHERE id = $1::uuid
+                LIMIT 1
+                """,
+                raw_scrape_id,
+            )
+            if raw_row_for_excerpt:
+                created_at_value = raw_row_for_excerpt["created_at"]
+                if hasattr(created_at_value, "isoformat"):
+                    raw_scrape_retrieved_at = created_at_value.isoformat()
+                elif created_at_value:
+                    raw_scrape_retrieved_at = str(created_at_value)
+                raw_data = _db_json(raw_row_for_excerpt["data"], {})
+                if isinstance(raw_data, dict):
+                    raw_content = str(raw_data.get("content") or "").strip()
+                    raw_scrape_excerpt = raw_content[:600]
+        if not raw_scrape_excerpt:
+            text_parts = self._analysis_text_parts(analyze)
+            raw_scrape_excerpt = text_parts[0][:600] if text_parts else ""
+        scraped_evidence_ready = bool(raw_scrape_id and reader_artifact_uri and selected_url)
+        reader_substance_reason = ""
+        if read_fetch and read_fetch.status not in {"succeeded", "succeeded_with_alerts"}:
+            reader_substance_reason = "reader_output_insufficient_substance"
+        elif not scraped_evidence_ready:
+            reader_substance_reason = "empty_reader_output"
+        package_artifact_uri = self._package_artifact_uri(package_id)
+        package_payload = PolicyEvidencePackageBuilder().build(
+            package_id=package_id,
+            jurisdiction=request.jurisdiction,
+            scraped_candidates=[
+                {
+                    "source_lane": "scrape_search",
+                    "provider": search_provider,
+                    "provider_run_id": request.windmill_run_id,
+                    "source_family": request.source_family,
+                    "jurisdiction": request.jurisdiction,
+                    "query_text": request.search_query,
+                    "search_snapshot_id": (
+                        str(search.refs.get("search_snapshot_id", ""))
+                        if search
+                        else f"{package_id}-snapshot"
+                    ),
+                    "candidate_rank": 1,
+                    "artifact_url": selected_url,
+                    "artifact_type": request.source_family,
+                    "content_hash": content_hash,
+                    "canonical_document_key": canonical_document_key,
+                    "reader_artifact_refs": [reader_artifact_uri] if reader_artifact_uri else [],
+                    "reader_substance_reason": reader_substance_reason,
+                    "evidence_readiness": "ready" if scraped_evidence_ready else "insufficient",
+                    "retrieved_at": raw_scrape_retrieved_at,
+                    "excerpt": raw_scrape_excerpt,
+                    "evidence_source_type": "ordinance_text",
+                    "source_tier": "tier_a",
+                    "structured_policy_facts": primary_fee_facts,
+                    "alerts": list(dict.fromkeys([*fail_closed_reasons, *primary_parameter_alerts])),
+                    "selected_impact_mode": mechanism_hint.impact_mode,
+                    "mechanism_family": mechanism_hint.mechanism_family,
+                }
+            ],
+            structured_candidates=structured_enrichment.candidates,
+            freshness_gate={"freshness_status": request.stale_status},
+            economic_hints={
+                "impact_mode": mechanism_hint.impact_mode,
+                "mechanism_family": mechanism_hint.mechanism_family,
+                "secondary_research_needed": mechanism_hint.secondary_research_needed,
+                "secondary_research_reason": mechanism_hint.secondary_research_reason,
+                "canonical_breakdown_ref": canonical_breakdown_ref,
+                "canonical_pipeline_run_id": canonical_pipeline_run_id,
+                "canonical_pipeline_step_id": canonical_pipeline_step_id,
+            },
+            storage_refs={
+                "postgres_package_row": f"policy_evidence_packages:{package_id}",
+                "reader_artifact": reader_artifact_uri or "minio://policy-evidence/unproven/pending",
+                "pgvector_chunk_ref": f"document:{document_id or 'pending'}",
+            },
+        )
+        package_storage_refs = package_payload.get("storage_refs")
+        if isinstance(package_storage_refs, list):
+            package_storage_refs.append(
+                {
+                    "storage_system": "minio",
+                    "truth_role": "artifact_of_record",
+                    "reference_id": package_artifact_uri,
+                    "uri": package_artifact_uri,
+                    "notes": "package artifact envelope",
+                }
+            )
+        # Keep idempotent content-hash semantics stable for reruns of the same scope key.
+        package_payload["created_at"] = "1970-01-01T00:00:00+00:00"
+        package_payload["run_context"] = {
+            "backend_run_id": run_id,
+            "windmill_run_id": request.windmill_run_id,
+            "windmill_job_id": request.windmill_job_id,
+            "windmill_workspace": request.windmill_workspace,
+            "windmill_flow_path": request.windmill_flow_path,
+            "canonical_document_key": canonical_document_key,
+            "selected_url": selected_url,
+            "reader_artifact_uri": reader_artifact_uri,
+            "raw_scrape_id": raw_scrape_id,
+            "document_id": document_id,
+            "structured_enrichment_status": structured_enrichment.status,
+            "structured_sources": structured_enrichment.candidates,
+            "structured_source_catalog": structured_enrichment.source_catalog,
+            "structured_enrichment_alerts": structured_enrichment.alerts,
+            "mechanism_family_hint": mechanism_hint.mechanism_family,
+            "impact_mode_hint": mechanism_hint.impact_mode,
+            "secondary_research_needed": mechanism_hint.secondary_research_needed,
+            "secondary_research_reason": mechanism_hint.secondary_research_reason,
+            "source_quality_metrics": source_quality_metrics,
+            "search_provider_runtime": search_provider_runtime,
+            "primary_parameter_extraction": {
+                "source": "analyze.evidence_selection.selected_chunks",
+                "parameter_count": len(primary_fee_facts),
+                "alerts": primary_parameter_alerts,
+            },
+            "canonical_analysis_id": canonical_analysis_id,
+            "canonical_pipeline_run_id": canonical_pipeline_run_id,
+            "canonical_pipeline_step_id": canonical_pipeline_step_id,
+            "canonical_breakdown_ref": canonical_breakdown_ref,
+            "fail_closed_reasons": list(dict.fromkeys(fail_closed_reasons)),
+        }
+        package_payload["structured_enrichment_status"] = structured_enrichment.status
+        package_payload["source_quality_metrics"] = source_quality_metrics
+
+        idempotency_key = f"{_scope_idempotency_key(request)}::policy_evidence_package"
+        store = self._resolve_package_store()
+        artifact_writer: ArtifactWriter | None = None
+        artifact_probe: ArtifactProbe | None = None
+        if getattr(self.storage, "client", None) is not None and getattr(
+            self.storage, "bucket", None
+        ):
+            artifact_writer = _S3PolicyEvidenceArtifactWriter(storage=self.storage)
+            artifact_probe = _S3PolicyEvidenceArtifactProbe(storage=self.storage)
+        storage = PolicyEvidencePackageStorageService(
+            store=store,
+            artifact_writer=artifact_writer,
+            artifact_probe=artifact_probe,
+        )
+        try:
+            storage_result = storage.persist(
+                package_payload=package_payload,
+                idempotency_key=idempotency_key,
+            )
+        except RuntimeError as exc:
+            if isinstance(store, PostgresPolicyEvidencePackageStore):
+                fallback = PolicyEvidencePackageStorageService(
+                    store=InMemoryPolicyEvidencePackageStore()
+                )
+                storage_result = fallback.persist(
+                    package_payload=package_payload,
+                    idempotency_key=idempotency_key,
+                )
+                fail_closed_reasons.append(f"postgres_store_unavailable:{exc}")
+            else:
+                raise
+        storage_status = "stored" if storage_result.stored else "store_failed"
+        if storage_result.idempotent_reuse:
+            storage_status = "stored_reused"
+
+        if storage_result.failure_class:
+            fail_closed_reasons.append(storage_result.failure_class)
+        fail_closed_reasons.extend(package_payload.get("insufficiency_reasons", []))
+        refs = {
+            "backend_run_id": run_id,
+            "package_id": storage_result.package_id if storage_result.stored else None,
+            "canonical_document_key": canonical_document_key,
+            "selected_url": selected_url,
+            "reader_artifact_uri": reader_artifact_uri,
+            "package_artifact_uri": package_artifact_uri,
+            "raw_scrape_id": raw_scrape_id,
+            "document_id": document_id,
+            "storage_status": storage_status,
+            "fail_closed_reasons": sorted(set(str(item) for item in fail_closed_reasons if str(item).strip())),
+        }
+        alerts = []
+        if storage_result.failure_class:
+            alerts.append(f"policy_evidence_storage:{storage_result.failure_class}")
+        if storage_result.fail_closed:
+            alerts.append("policy_evidence_fail_closed")
+        return {
+            "refs": refs,
+            "alerts": alerts,
+            "storage_result": {
+                "stored": storage_result.stored,
+                "idempotent_reuse": storage_result.idempotent_reuse,
+                "fail_closed": storage_result.fail_closed,
+                "failure_class": storage_result.failure_class,
+                "artifact_write_status": storage_result.artifact_write_status,
+                "artifact_readback_status": storage_result.artifact_readback_status,
+                "pgvector_truth_role": storage_result.pgvector_truth_role,
+            },
+            "package_payload": package_payload,
         }
 
     async def _get_or_create_run_id(self, request: RunScopeRequest) -> str:
@@ -676,7 +1519,11 @@ class RailwayRuntimeBridge:
             for item in payload
             if str(item.get("url", item.get("link", ""))).strip()
         ]
-        ranked_candidates = rank_reader_candidates(search_items, max_candidates=READ_FETCH_MAX_CANDIDATES)
+        ranked_candidates = rank_reader_candidates(
+            search_items,
+            max_candidates=READ_FETCH_MAX_CANDIDATES,
+            query_context=request.search_query,
+        )
         if not ranked_candidates:
             response = CommandResponse(
                 command="read_fetch",
@@ -697,12 +1544,17 @@ class RailwayRuntimeBridge:
                 reason = str(item.get("reason", "")).strip()
                 if reason == "prefetch_skipped_low_value_portal":
                     alerts.append("reader_prefetch_skipped_low_value_portal")
+                elif reason == "fallback_blocked_after_official_reader_errors":
+                    alerts.append("reader_fallback_blocked_after_official_reader_errors")
                 elif reason:
                     alerts.append(f"reader_output_insufficient_substance:{reason}")
             return alerts
 
         for candidate in ranked_candidates:
             url = str(candidate["url"])
+            official_artifact_provider_error_seen = any(
+                bool(item.get("candidate_is_official_artifact")) for item in reader_provider_errors
+            )
             skip_reason = prefetch_skip_reason(url)
             if skip_reason:
                 reader_quality_failures.append(
@@ -724,16 +1576,49 @@ class RailwayRuntimeBridge:
                     }
                 )
                 continue
+            fallback_candidate = SearchResultItem(
+                url=url,
+                title=str(candidate.get("title", "")),
+                snippet=str(candidate.get("snippet", "")),
+            )
+            if (
+                request.source_family == "meeting_minutes"
+                and official_artifact_provider_error_seen
+                and _is_weak_reader_fallback_candidate(fallback_candidate)
+            ):
+                reader_quality_failures.append(
+                    {
+                        "url": url,
+                        "rank": candidate["rank"],
+                        "score": candidate["score"],
+                        "reason": "fallback_blocked_after_official_reader_errors",
+                        "quality_details": {
+                            "source_family": request.source_family,
+                            "official_artifact_provider_error_seen": True,
+                        },
+                    }
+                )
+                candidate_audit.append(
+                    {
+                        "url": url,
+                        "rank": candidate["rank"],
+                        "score": candidate["score"],
+                        "outcome": "reader_fallback_blocked_after_official_reader_errors",
+                    }
+                )
+                continue
             try:
                 reader_payload = await self.reader_client.fetch_content(url, timeout=60)
             except Exception as exc:
                 err = str(exc)
+                candidate_is_official_artifact = _is_concrete_artifact_url(url)
                 reader_provider_errors.append(
                     {
                         "url": url,
                         "rank": candidate["rank"],
                         "score": candidate["score"],
                         "error": err,
+                        "candidate_is_official_artifact": candidate_is_official_artifact,
                     }
                 )
                 candidate_audit.append(
@@ -743,6 +1628,7 @@ class RailwayRuntimeBridge:
                         "score": candidate["score"],
                         "outcome": "reader_provider_error",
                         "error": err,
+                        "candidate_is_official_artifact": candidate_is_official_artifact,
                     }
                 )
                 continue
@@ -1183,15 +2069,27 @@ class RailwayRuntimeBridge:
             )
             return await self._persist_response(run_id=run_id, request=request, response=response)
         if not self._llm_client:
+            fail_closed_analysis = self._provider_unavailable_analysis_payload(
+                request=request,
+                reason="analysis_provider_unavailable",
+                evidence_audit=evidence_audit,
+                evidence_chunk_count=len(evidence_chunks),
+            )
             response = CommandResponse(
                 command="analyze",
-                status="failed_terminal",
+                status="succeeded_with_alerts",
                 decision_reason="analysis_provider_unavailable",
                 retry_class="provider_unavailable",
-                alerts=["analysis_error:missing_zai_api_key"],
+                alerts=[
+                    "analysis_provider_unavailable",
+                    "analysis_fail_closed_provider_unavailable",
+                    "canonical_llm_narrative_not_proven",
+                    "analysis_error:missing_zai_api_key",
+                ],
                 counts={"evidence_chunks": len(evidence_chunks)},
                 refs={"windmill_run_id": meta.run_id, "windmill_job_id": meta.job_id},
                 details={
+                    "analysis": fail_closed_analysis,
                     "evidence_selection": {
                         "candidate_chunk_count": len(candidate_chunks),
                         "selected_chunk_count": len(evidence_chunks),
@@ -1248,15 +2146,27 @@ class RailwayRuntimeBridge:
             )
             return await self._persist_response(run_id=run_id, request=request, response=response)
         except Exception as exc:
+            fail_closed_analysis = self._provider_unavailable_analysis_payload(
+                request=request,
+                reason="analysis_provider_unavailable",
+                evidence_audit=evidence_audit,
+                evidence_chunk_count=len(evidence_chunks),
+            )
             response = CommandResponse(
                 command="analyze",
-                status="failed_terminal",
-                decision_reason="analysis_failed",
+                status="succeeded_with_alerts",
+                decision_reason="analysis_provider_unavailable",
                 retry_class="provider_unavailable",
-                alerts=[f"analysis_error:{exc}"],
+                alerts=[
+                    "analysis_provider_unavailable",
+                    "analysis_fail_closed_provider_unavailable",
+                    "canonical_llm_narrative_not_proven",
+                    f"analysis_error:{exc}",
+                ],
                 counts={"evidence_chunks": len(evidence_chunks)},
                 refs={"windmill_run_id": meta.run_id, "windmill_job_id": meta.job_id},
                 details={
+                    "analysis": fail_closed_analysis,
                     "evidence_selection": {
                         "candidate_chunk_count": len(candidate_chunks),
                         "selected_chunk_count": len(evidence_chunks),
@@ -1265,6 +2175,43 @@ class RailwayRuntimeBridge:
                 },
             )
             return await self._persist_response(run_id=run_id, request=request, response=response)
+
+    @staticmethod
+    def _provider_unavailable_analysis_payload(
+        *,
+        request: RunScopeRequest,
+        reason: str,
+        evidence_audit: list[dict[str, Any]],
+        evidence_chunk_count: int,
+    ) -> dict[str, Any]:
+        return {
+            "summary": "Economic analysis failed closed because the canonical LLM provider was unavailable.",
+            "key_points": [
+                "Evidence was ingested and selected for analysis, but no canonical model output was produced.",
+                "This run is not decision-grade and requires a provider-healthy rerun before quantitative conclusions.",
+            ],
+            "sufficiency_state": "provider_unavailable",
+            "analysis_mode": "fail_closed_provider_unavailable",
+            "analysis_not_proven": True,
+            "canonical_llm_narrative_proven": False,
+            "decision_reason": reason,
+            "requested_analysis_question": request.analysis_question,
+            "evidence_chunk_count": evidence_chunk_count,
+            "evidence_refs": [
+                {
+                    "chunk_id": chunk.get("chunk_id"),
+                    "chunk_index": chunk.get("chunk_index"),
+                    "score": chunk.get("score"),
+                    "snippet": chunk.get("snippet"),
+                }
+                for chunk in evidence_audit
+            ],
+            "alerts": [
+                "analysis_provider_unavailable",
+                "analysis_fail_closed_provider_unavailable",
+                "canonical_llm_narrative_not_proven",
+            ],
+        }
 
     async def _summarize(
         self,

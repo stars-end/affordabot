@@ -1,0 +1,42 @@
+{
+  "version": "2026-04-14.live-reader-probe-v1",
+  "generated_at": "2026-04-14T12:00:00+00:00",
+  "cases": [
+    {
+      "case_id": "sanjose_legistar_cost_of_residential_development",
+      "label": "San Jose Legistar meeting detail (Cost of Residential Development)",
+      "source_family": "official_meeting_detail",
+      "url": "https://sanjose.legistar.com/MeetingDetail.aspx?ID=1315729&GUID=3C17B03F-B014-43D5-B8DF-44024CDE065B&Options=info%7C&Search=",
+      "fetch_error": "",
+      "reader_payload": {
+        "reader_result": {
+          "content": "Agenda item summary for cost of residential development policy update. The staff memo discusses housing affordability outcomes, fee and tax context, fiscal impact framing, budget tradeoffs, and contract delivery implications for development activity in San Jose. This notice includes Levine Act boilerplate that bars officials from participating if campaign contributions exceed $500 from a party to the proceeding. The discussion references economic development priorities, subsidy considerations, rent pressure, and expected revenue effects across implementation scenarios. The item explains that the analysis remains qualitative at this stage and does not publish numeric pass through rates, dollar estimates, percentages, or basis point assumptions for modeling."
+        }
+      }
+    },
+    {
+      "case_id": "sanjose_records_contract_pdf_con667337_002",
+      "label": "San Jose records PDF (CON667337-002)",
+      "source_family": "official_record_pdf",
+      "url": "https://records.sanjoseca.gov/Contracts/CON667337-002.pdf",
+      "fetch_error": "",
+      "reader_payload": {
+        "reader_result": {
+          "content": "Search Records GILES City of San Jose. Skip to main content. City Clerk. Home menu accessibility search. Popular links include business license, payments, housing, police, fire, library, and city calendar. Department listing and council links are shown with navigation sections. Participate and watch public meetings. Official city records. Terms and privacy. Sign in account."
+        }
+      }
+    },
+    {
+      "case_id": "sanjose_housing_council_memos_portal",
+      "label": "San Jose housing council memos portal",
+      "source_family": "official_portal_listing",
+      "url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/policies-and-data/reports-and-memos/city-council-memos",
+      "fetch_error": "",
+      "reader_payload": {
+        "reader_result": {
+          "content": "Housing reports and memos listing page for city council memos. This page is a portal index with links to memo titles, publish dates, and categories. It contains navigation and directory content and does not provide standalone analysis text for direct economic parameter extraction."
+        }
+      }
+    }
+  ]
+}

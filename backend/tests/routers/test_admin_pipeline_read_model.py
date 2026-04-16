@@ -6,6 +6,9 @@ import pytest
 
 from main import app
 from routers.admin import get_db
+from services.pipeline.policy_economic_mechanism_cases import (
+    PolicyEconomicMechanismCaseService,
+)
 from services.pipeline.domain.constants import CONTRACT_VERSION
 
 
@@ -104,7 +107,7 @@ def test_get_pipeline_jurisdiction_status_shape(client, mock_db):
     ]
     client.set_auth("admin")
     response = client.get("/api/admin/pipeline/jurisdictions/jur-1/status")
-    assert response.status_code == 200
+    assert response.status_code == 200, response.text
     data = response.json()
     assert data["contract_version"] == CONTRACT_VERSION
     assert data["jurisdiction_id"] == "jur-1"
@@ -144,7 +147,7 @@ def test_get_pipeline_run_detail_shape(client, mock_db):
     }
     client.set_auth("admin")
     response = client.get("/api/admin/pipeline/runs/run-2")
-    assert response.status_code == 200
+    assert response.status_code == 200, response.text
     data = response.json()
     assert data["contract_version"] == CONTRACT_VERSION
     assert data["run_id"] == "run-2"
@@ -257,3 +260,333 @@ def test_post_pipeline_jurisdiction_refresh_shape(client, mock_db):
     assert data["status"] == "accepted"
     assert data["decision_reason"] == "manual_refresh_queued"
     assert data["jurisdiction_id"] == "jur-7"
+
+
+def _case_package(case_id: str) -> dict:
+    bundle = PolicyEconomicMechanismCaseService().build_case_bundle()
+    for case in bundle["cases"]:
+        if case["case_id"] == case_id:
+            return case["primary_package"]
+    raise AssertionError(f"missing case_id={case_id}")
+
+
+def test_policy_evidence_analysis_status_surfaces_provenance_and_not_proven_gates(
+    client, mock_db
+):
+    package = _case_package("direct_cost_case")
+    mock_db._fetchrow.side_effect = [
+        {
+            "id": "run-q1",
+            "bill_id": "SR-2026-001",
+            "jurisdiction": "San Jose CA",
+            "status": "completed",
+            "error": None,
+            "models": {},
+            "trigger_source": "windmill",
+            "windmill_run_id": "wm-run-q1",
+            "started_at": "2026-04-15T01:00:00Z",
+            "completed_at": "2026-04-15T01:02:00Z",
+            "result": {
+                "policy_evidence_package": package,
+                "rows": [],
+                "orchestration_proof": {},
+                "llm_narrative_proof": {
+                    "proof_status": "not_proven",
+                    "blocker": "canonical_llm_run_id_unverified_from_package_payload",
+                },
+                "storage_proof": {},
+            },
+        },
+        {
+            "id": "pkg-row-q1",
+            "package_id": package["package_id"],
+            "package_payload": {**package, "run_context": {"backend_run_id": "run-q1"}},
+            "artifact_readback_status": "proven",
+            "fail_closed": False,
+            "gate_state": "quantified",
+            "created_at": "2026-04-15T01:00:00Z",
+            "updated_at": "2026-04-15T01:02:00Z",
+        },
+    ]
+
+    client.set_auth("admin")
+    response = client.get(
+        f"/api/admin/pipeline/policy-evidence/packages/{package['package_id']}/analysis-status?run_id=run-q1"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["contract_version"] == CONTRACT_VERSION
+    assert data["package_id"] == package["package_id"]
+    assert data["backend_run_id"] == "run-q1"
+    assert data["provenance"]["canonical_document_key"] == package["canonical_document_key"]
+    assert "scraped" in data["provenance"]["source_lanes"]
+    assert "structured" in data["provenance"]["source_lanes"]
+    assert data["provenance"]["scraped_sources"], "expected scraped provenance rows"
+    assert data["provenance"]["structured_sources"], "expected structured provenance rows"
+    assert data["gates"]["storage/read-back"]["status"] == "pass"
+    assert data["gates"]["Windmill/orchestration"]["status"] == "not_proven"
+    assert data["gates"]["LLM narrative"]["status"] == "not_proven"
+    assert data["source_quality"]["status"] == "not_proven"
+    assert data["source_quality"]["reason"] == "source_quality_metrics_missing"
+    assert data["source_quality"]["selection_quality_status"] == "not_proven"
+    assert data["economic_analysis_status"]["status"] in {
+        "secondary_research_needed",
+        "qualitative_only",
+        "decision_grade",
+    }
+    assert data["economic_output"]["status"] in {"ready", "not_proven"}
+    if data["economic_output"]["status"] != "ready":
+        assert data["economic_output"]["user_facing_conclusion"] is None
+    assert "parameter_readiness" in data["economic_readiness"]
+    assert "unsupported_claim_rejection" in data["economic_readiness"]
+
+
+def test_policy_evidence_analysis_status_fail_closed_case_blocks_quantified_conclusion(
+    client, mock_db
+):
+    package = _case_package("secondary_research_required_case")
+    mock_db._fetchrow.side_effect = [
+        {
+            "id": "run-q3",
+            "bill_id": "SR-2026-001",
+            "jurisdiction": "San Jose CA",
+            "status": "completed",
+            "error": None,
+            "models": {},
+            "trigger_source": "windmill",
+            "windmill_run_id": "wm-run-q3",
+            "started_at": "2026-04-15T03:00:00Z",
+            "completed_at": "2026-04-15T03:02:00Z",
+            "result": {"policy_evidence_package": package},
+        },
+        {
+            "id": "pkg-row-q3",
+            "package_id": package["package_id"],
+            "package_payload": {
+                **package,
+                "run_context": {"backend_run_id": "run-q3"},
+            },
+            "artifact_readback_status": "missing",
+            "fail_closed": True,
+            "gate_state": "insufficient_evidence",
+            "created_at": "2026-04-15T03:00:00Z",
+            "updated_at": "2026-04-15T03:02:00Z",
+        },
+    ]
+
+    client.set_auth("admin")
+    response = client.get(
+        f"/api/admin/pipeline/policy-evidence/packages/{package['package_id']}/analysis-status?run_id=run-q3"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["backend_run_id"] == "run-q3"
+    assert data["economic_analysis_status"]["status"] in {
+        "fail_closed",
+        "secondary_research_needed",
+        "qualitative_only",
+    }
+    assert data["economic_output"]["status"] == "not_proven"
+    assert data["economic_output"]["decision_grade_verdict"] == "not_decision_grade"
+    assert data["economic_output"]["user_facing_conclusion"] is None
+
+
+def test_policy_evidence_analysis_status_rejects_missing_package_in_run(client, mock_db):
+    package = _case_package("direct_cost_case")
+    mock_db._fetchrow.return_value = {
+        "id": "run-q2",
+        "bill_id": "SR-2026-001",
+        "jurisdiction": "San Jose CA",
+        "status": "completed",
+        "error": None,
+        "models": {},
+        "trigger_source": "windmill",
+        "windmill_run_id": "wm-run-q2",
+        "result": {
+            "policy_evidence_package": package,
+        },
+    }
+
+    client.set_auth("admin")
+    response = client.get(
+        "/api/admin/pipeline/policy-evidence/packages/pkg-does-not-exist/analysis-status?run_id=run-q2"
+    )
+    assert response.status_code == 404
+
+
+def test_policy_evidence_analysis_status_hydrates_live_run_context_proofs(client, mock_db):
+    package = _case_package("indirect_pass_through_case")
+    scraped = dict(package["scraped_sources"][0])
+    scraped["reader_substance_passed"] = False
+    package = {
+        **package,
+        "scraped_sources": [scraped],
+    }
+    mock_db._fetchrow.side_effect = [
+        {
+            "id": "run-live-q4",
+            "bill_id": "SJ-2026-AHIF",
+            "jurisdiction": "San Jose CA",
+            "status": "completed",
+            "error": None,
+            "models": {},
+            "trigger_source": "windmill",
+            "windmill_run_id": "wm-live-q4",
+            "started_at": "2026-04-16T01:00:00Z",
+            "completed_at": "2026-04-16T01:03:00Z",
+            "result": {
+                "policy_evidence_package": package,
+                "analysis": {
+                    "summary": "Narrative generated from selected artifact.",
+                },
+                "rows": [],
+                "orchestration_proof": {},
+                "llm_narrative_proof": {},
+                "storage_proof": {},
+            },
+        },
+        {
+            "id": "pkg-row-live-q4",
+            "package_id": package["package_id"],
+            "package_payload": {
+                **package,
+                "gate_projection": {
+                    **package["gate_projection"],
+                    "canonical_pipeline_run_id": "run-live-q4",
+                    "canonical_pipeline_step_id": "analysis-q4",
+                    "canonical_breakdown_ref": "analysis:analysis-q4",
+                },
+                "run_context": {
+                    "run_id": "run-live-q4",
+                    "windmill_run_id": "wm-live-q4",
+                    "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+                    "windmill_workspace": "affordabot",
+                    "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+                    "reader_artifact_uri": "minio://affordabot-artifacts/artifacts/live/reader_output.md",
+                },
+            },
+            "artifact_readback_status": "proven",
+            "fail_closed": False,
+            "gate_state": "qualitative_only",
+            "created_at": "2026-04-16T01:00:00Z",
+            "updated_at": "2026-04-16T01:03:00Z",
+        },
+    ]
+
+    client.set_auth("admin")
+    response = client.get(
+        f"/api/admin/pipeline/policy-evidence/packages/{package['package_id']}/analysis-status?run_id=run-live-q4"
+    )
+    assert response.status_code == 200, response.text
+    data = response.json()
+    scraped_row = data["provenance"]["scraped_sources"][0]
+    assert scraped_row["reader_substance_observed"] is False
+    assert scraped_row["reader_substance_passed"] is True
+    assert scraped_row["reader_provenance_hydrated"] is True
+    assert data["gates"]["storage/read-back"]["status"] == "pass"
+    assert data["gates"]["Windmill/orchestration"]["status"] == "pass"
+    assert "scope job id only" in data["gates"]["Windmill/orchestration"]["reason"]
+    windmill_ref_keys = {ref["key"] for ref in data["gates"]["Windmill/orchestration"]["refs"]}
+    assert "windmill_scope_job_id" in windmill_ref_keys
+    assert data["gates"]["LLM narrative"]["status"] == "pass"
+    assert data["canonical_analysis_binding"]["status"] == "bound"
+    assert data["canonical_analysis_binding"]["package_projection"] == {
+        "canonical_pipeline_run_id": "run-live-q4",
+        "canonical_pipeline_step_id": "analysis-q4",
+    }
+    if "missing_evidence" in data["economic_output"]:
+        assert all(
+            not str(item).startswith("reader:")
+            for item in data["economic_output"]["missing_evidence"]
+        )
+
+
+def test_policy_evidence_analysis_status_surfaces_selected_artifact_quality_metrics(client, mock_db):
+    package = _case_package("direct_cost_case")
+    source_quality_metrics = {
+        "top_n_window": 5,
+        "top_n_official_recall_count": 5,
+        "top_n_artifact_recall_count": 2,
+        "selected_artifact_family": "official_page",
+        "reader_substance_observed": True,
+        "secondary_numeric_rescue_detected": True,
+        "secondary_numeric_parameter_count": 2,
+        "selected_candidate": {
+            "url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee",
+            "provider": "private_searxng",
+            "rank": 1,
+            "selection_reason": "materialized_raw_scrape",
+            "artifact_grade": False,
+            "official_domain": True,
+            "artifact_family": "official_page",
+        },
+        "provider_summary": {
+            "primary_provider": "private_searxng",
+            "provider_error_count": 1,
+            "quality_failure_count": 0,
+        },
+        "provider_results": {
+            "private_searxng": {
+                "status": "succeeded",
+                "reason_code": "materialized_raw_scrape",
+                "candidates": [
+                    {
+                        "url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee",
+                        "rank": 1,
+                        "artifact_grade": False,
+                        "official_domain": True,
+                    },
+                    {
+                        "url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+                        "rank": 2,
+                        "artifact_grade": True,
+                        "official_domain": True,
+                    },
+                ],
+            }
+        },
+    }
+    mock_db._fetchrow.side_effect = [
+        {
+            "id": "run-q5",
+            "bill_id": "SJ-2026-CLF",
+            "jurisdiction": "San Jose CA",
+            "status": "completed",
+            "error": None,
+            "models": {},
+            "trigger_source": "windmill",
+            "windmill_run_id": "wm-run-q5",
+            "started_at": "2026-04-16T05:00:00Z",
+            "completed_at": "2026-04-16T05:05:00Z",
+            "result": {"policy_evidence_package": package, "rows": []},
+        },
+        {
+            "id": "pkg-row-q5",
+            "package_id": package["package_id"],
+            "package_payload": {
+                **package,
+                "run_context": {
+                    "backend_run_id": "run-q5",
+                    "source_quality_metrics": source_quality_metrics,
+                },
+            },
+            "artifact_readback_status": "proven",
+            "fail_closed": False,
+            "gate_state": "qualitative_only",
+            "created_at": "2026-04-16T05:00:00Z",
+            "updated_at": "2026-04-16T05:05:00Z",
+        },
+    ]
+
+    client.set_auth("admin")
+    response = client.get(
+        f"/api/admin/pipeline/policy-evidence/packages/{package['package_id']}/analysis-status?run_id=run-q5"
+    )
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data["source_quality"]["status"] == "captured"
+    assert data["source_quality"]["selected_artifact_family"] == "official_page"
+    assert data["source_quality"]["top_n_artifact_recall_count"] == 2
+    assert data["source_quality"]["secondary_numeric_rescue_detected"] is True
+    assert data["source_quality"]["selected_candidate_rank"] == 1
+    assert data["source_quality"]["selection_quality_status"] == "fail"

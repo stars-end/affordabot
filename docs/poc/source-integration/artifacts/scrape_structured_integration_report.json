@@ -1,0 +1,346 @@
+{
+  "feature_key": "bd-2agbe.11",
+  "poc_version": "2026-04-14.scrape-structured-integration.v1",
+  "mode": "replay",
+  "generated_at": "2026-04-16T00:25:30.425868+00:00",
+  "impact_to_mechanism_mapping": [
+    {
+      "impact_mode": "direct_fiscal",
+      "mechanism_family": "direct_fiscal",
+      "supports_quantified_handoff": true,
+      "note": "Direct appropriations/tax spend flows map 1:1."
+    },
+    {
+      "impact_mode": "compliance_cost",
+      "mechanism_family": "compliance_cost",
+      "supports_quantified_handoff": true,
+      "note": "Regulatory/admin burden costs map 1:1."
+    },
+    {
+      "impact_mode": "pass_through_incidence",
+      "mechanism_family": "fee_or_tax_pass_through",
+      "supports_quantified_handoff": true,
+      "note": "Explicit normalization required due enum label mismatch."
+    },
+    {
+      "impact_mode": "adoption_take_up",
+      "mechanism_family": "adoption_take_up",
+      "supports_quantified_handoff": true,
+      "note": "Program participation/uptake mechanics map 1:1."
+    },
+    {
+      "impact_mode": "qualitative_only",
+      "mechanism_family": null,
+      "supports_quantified_handoff": false,
+      "note": "No economic_evidence mechanism family exists for qualitative-only."
+    }
+  ],
+  "provider_role_recommendation": {
+    "structured_first_policy": true,
+    "lane_roles": [
+      {
+        "provider": "private_searxng",
+        "role": "primary_scrape_search_lane",
+        "reason": "Low cost + broad official-domain discovery for linked artifacts."
+      },
+      {
+        "provider": "tavily",
+        "role": "hot_fallback",
+        "reason": "Fallback when SearXNG recall/ranking misses official artifacts."
+      },
+      {
+        "provider": "exa",
+        "role": "bakeoff_eval_only",
+        "reason": "Constrain quota spend to eval/research experiments."
+      },
+      {
+        "provider": "legistar|leginfo|ckan|arcgis",
+        "role": "structured_primary_when_available",
+        "reason": "Prefer structured facts + canonical linked refs before scrape-only interpretation."
+      }
+    ]
+  },
+  "envelopes": [
+    {
+      "source_lane": "structured",
+      "provider": "legistar",
+      "canonical_document_key": "san_jose_ca::sj-13000001-program-cost",
+      "jurisdiction": "san_jose_ca",
+      "artifact_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13000001&GUID=A-1",
+      "artifact_type": "staff_report",
+      "source_tier": "tier_a",
+      "content_hash": "c162f11614915da52a949297ca7f0a6c82dd4769b080f247aff5fcda4a87a3b9",
+      "retrieved_at": "2026-04-14T08:00:00+00:00",
+      "structured_policy_facts": [
+        {
+          "field": "annual_cost_usd",
+          "value": 2400000.0,
+          "unit": "usd_per_year"
+        },
+        {
+          "field": "affected_households",
+          "value": 8000,
+          "unit": "households"
+        }
+      ],
+      "linked_artifact_refs": [
+        "https://sanjose.legistar.com/View.ashx?M=A&ID=13000001&GUID=A-1"
+      ],
+      "reader_artifact_refs": [],
+      "dedupe_group": "sj-13000001-program-cost",
+      "selected_impact_mode": "direct_fiscal",
+      "mechanism_family": "direct_fiscal",
+      "evidence_source_type": "staff_report",
+      "evidence_readiness": "evidence_card_ready",
+      "economic_handoff_ready": true
+    },
+    {
+      "source_lane": "scrape_search",
+      "provider": "private_searxng",
+      "canonical_document_key": "san_jose_ca::sj-13000001-program-cost",
+      "jurisdiction": "san_jose_ca",
+      "artifact_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13000001&GUID=A-1",
+      "artifact_type": "staff_report",
+      "source_tier": "tier_a",
+      "content_hash": "c162f11614915da52a949297ca7f0a6c82dd4769b080f247aff5fcda4a87a3b9",
+      "retrieved_at": "2026-04-14T08:05:00+00:00",
+      "structured_policy_facts": [],
+      "linked_artifact_refs": [],
+      "reader_artifact_refs": [
+        "https://backend.artifacts/scrape/sj-13000001-program-cost-reader.txt"
+      ],
+      "dedupe_group": "sj-13000001-program-cost",
+      "selected_impact_mode": "direct_fiscal",
+      "mechanism_family": "direct_fiscal",
+      "evidence_source_type": "staff_report",
+      "evidence_readiness": "reader_required",
+      "economic_handoff_ready": false
+    },
+    {
+      "source_lane": "scrape_search",
+      "provider": "tavily",
+      "canonical_document_key": "san_jose_ca::sj-13000001-program-cost",
+      "jurisdiction": "san_jose_ca",
+      "artifact_url": "https://sanjose.legistar.com/MeetingDetail.aspx?ID=13000001&GUID=A-1",
+      "artifact_type": "meeting_detail",
+      "source_tier": "tier_b",
+      "content_hash": "aead1ab71517f945a54a4af49b34d3a2c2993a49918a337c0ab5f18d467a6d0b",
+      "retrieved_at": "2026-04-14T08:06:00+00:00",
+      "structured_policy_facts": [],
+      "linked_artifact_refs": [
+        "https://sanjose.legistar.com/View.ashx?M=A&ID=13000001&GUID=A-1"
+      ],
+      "reader_artifact_refs": [],
+      "dedupe_group": "sj-13000001-program-cost",
+      "selected_impact_mode": "compliance_cost",
+      "mechanism_family": "compliance_cost",
+      "evidence_source_type": "minutes",
+      "evidence_readiness": "reader_required",
+      "economic_handoff_ready": false
+    },
+    {
+      "source_lane": "scrape_search",
+      "provider": "exa",
+      "canonical_document_key": "san_jose_ca::sj-opinion-eval-only",
+      "jurisdiction": "san_jose_ca",
+      "artifact_url": "https://example.org/blog/sanjose-housing-opinion",
+      "artifact_type": "other",
+      "source_tier": "tier_c",
+      "content_hash": "ea8c8d3457e5222a467edd099d4821eae96613ce80ccb79ad50f85ed269abbe1",
+      "retrieved_at": "2026-04-14T08:09:00+00:00",
+      "structured_policy_facts": [],
+      "linked_artifact_refs": [],
+      "reader_artifact_refs": [],
+      "dedupe_group": "sj-opinion-eval-only",
+      "selected_impact_mode": "qualitative_only",
+      "mechanism_family": null,
+      "evidence_source_type": "other",
+      "evidence_readiness": "insufficient",
+      "economic_handoff_ready": false
+    },
+    {
+      "source_lane": "structured",
+      "provider": "leginfo",
+      "canonical_document_key": "california_state::ca-ab-1234-reporting",
+      "jurisdiction": "california_state",
+      "artifact_url": "https://downloads.leginfo.legislature.ca.gov/pubinfo_daily_Mon.zip",
+      "artifact_type": "bill_text",
+      "source_tier": "tier_a",
+      "content_hash": "e710ef4c6fc160b9a924dc58af44b8478fa6e97ef51f755d79e03ac2dbf41e7e",
+      "retrieved_at": "2026-04-14T07:55:00+00:00",
+      "structured_policy_facts": [
+        {
+          "field": "bill_id",
+          "value": "AB-1234",
+          "unit": null
+        },
+        {
+          "field": "requires_reporting",
+          "value": true,
+          "unit": "boolean"
+        }
+      ],
+      "linked_artifact_refs": [
+        "https://leginfo.legislature.ca.gov/faces/billTextClient.xhtml?bill_id=202520260AB1234"
+      ],
+      "reader_artifact_refs": [
+        "https://backend.artifacts/scrape/ab-1234-analysis.txt"
+      ],
+      "dedupe_group": "ca-ab-1234-reporting",
+      "selected_impact_mode": "compliance_cost",
+      "mechanism_family": "compliance_cost",
+      "evidence_source_type": "bill_text",
+      "evidence_readiness": "evidence_card_ready",
+      "economic_handoff_ready": true
+    },
+    {
+      "source_lane": "structured",
+      "provider": "ckan",
+      "canonical_document_key": "california_state::ca-housing-permits-delta",
+      "jurisdiction": "california_state",
+      "artifact_url": "https://data.ca.gov/api/3/action/package_show?id=state-housing-permits",
+      "artifact_type": "budget_document",
+      "source_tier": "tier_b",
+      "content_hash": "2fab4c2ce06c9d92dfaa07472b767585645f3aa9c7e85ea92a9adff717831528",
+      "retrieved_at": "2026-04-14T07:57:00+00:00",
+      "structured_policy_facts": [
+        {
+          "field": "permit_volume_delta_pct",
+          "value": 0.08,
+          "unit": "ratio"
+        },
+        {
+          "field": "baseline_permits",
+          "value": 26000,
+          "unit": "units_per_year"
+        }
+      ],
+      "linked_artifact_refs": [
+        "https://data.ca.gov/dataset/state-housing-permits"
+      ],
+      "reader_artifact_refs": [],
+      "dedupe_group": "ca-housing-permits-delta",
+      "selected_impact_mode": "adoption_take_up",
+      "mechanism_family": "adoption_take_up",
+      "evidence_source_type": "budget_document",
+      "evidence_readiness": "evidence_card_ready",
+      "economic_handoff_ready": true
+    },
+    {
+      "source_lane": "structured",
+      "provider": "arcgis",
+      "canonical_document_key": "santa_clara_county_ca::sc-flood-hazard-context",
+      "jurisdiction": "santa_clara_county_ca",
+      "artifact_url": "https://services2.arcgis.com/9KdAx8qBsHiGXOEw/arcgis/rest/services/NFHL_Flood_Hazard_Zones_Dissolve/FeatureServer/0/query",
+      "artifact_type": "other",
+      "source_tier": "tier_c",
+      "content_hash": "0a06fcfc64522d4a647c42d7538cdbd25d76041e24203735d60bb3756b90f951",
+      "retrieved_at": "2026-04-14T08:04:00+00:00",
+      "structured_policy_facts": [
+        {
+          "field": "flood_hazard_flag",
+          "value": true,
+          "unit": "boolean"
+        }
+      ],
+      "linked_artifact_refs": [],
+      "reader_artifact_refs": [],
+      "dedupe_group": "sc-flood-hazard-context",
+      "selected_impact_mode": "qualitative_only",
+      "mechanism_family": null,
+      "evidence_source_type": "other",
+      "evidence_readiness": "insufficient",
+      "economic_handoff_ready": false
+    },
+    {
+      "source_lane": "scrape_search",
+      "provider": "private_searxng",
+      "canonical_document_key": "san_jose_ca::sj-planning-fees-pass-through",
+      "jurisdiction": "san_jose_ca",
+      "artifact_url": "https://www.sanjoseca.gov/your-government/departments-offices/planning-building-code-enforcement/planning-division/planning-fees",
+      "artifact_type": "staff_report",
+      "source_tier": "tier_b",
+      "content_hash": "ab12e11bbf015b0630be9c7699581173f3c69c885d2a05f51dd103ecc7944a09",
+      "retrieved_at": "2026-04-14T08:10:00+00:00",
+      "structured_policy_facts": [],
+      "linked_artifact_refs": [],
+      "reader_artifact_refs": [
+        "https://backend.artifacts/scrape/sj-planning-fees-reader.txt"
+      ],
+      "dedupe_group": "sj-planning-fees-pass-through",
+      "selected_impact_mode": "pass_through_incidence",
+      "mechanism_family": "fee_or_tax_pass_through",
+      "evidence_source_type": "staff_report",
+      "evidence_readiness": "reader_required",
+      "economic_handoff_ready": false
+    }
+  ],
+  "schema_validation": {
+    "schema_validation_mode": "pydantic_economic_evidence",
+    "validated_ready_evidence_count": 3,
+    "skipped_non_ready_count": 5,
+    "schema_errors": [],
+    "schema_import_error": null,
+    "local_contract_errors": []
+  },
+  "summary": {
+    "total_envelopes": 8,
+    "ready_count": 3,
+    "reader_required_count": 3,
+    "insufficient_count": 2,
+    "economic_handoff_ready_count": 3,
+    "quantified_handoff_ready_count": 3,
+    "integrated_dedupe_groups_count": 1,
+    "integrated_dedupe_groups": [
+      "sj-13000001-program-cost"
+    ],
+    "provider_counts": {
+      "arcgis": 1,
+      "ckan": 1,
+      "exa": 1,
+      "leginfo": 1,
+      "legistar": 1,
+      "private_searxng": 2,
+      "tavily": 1
+    },
+    "schema_validation_mode": "pydantic_economic_evidence",
+    "schema_errors_count": 0,
+    "evidence_quality_assessment": "sufficient_for_quantified_handoff_in_subset",
+    "evidence_quality_note": "Merged contract is suitable for backend economic handoff in a subset; items marked reader_required/insufficient remain fail-closed or qualitative."
+  },
+  "unified_package_proof": {
+    "passed": true,
+    "has_scraped_lane": true,
+    "has_structured_lane": true,
+    "structured_source_family_count": 4,
+    "structured_source_families": [
+      "arcgis",
+      "ckan",
+      "leginfo",
+      "legistar"
+    ],
+    "cross_lane_canonical_document_keys": [
+      "san_jose_ca::sj-13000001-program-cost"
+    ],
+    "missing_provenance_rows": [],
+    "deterministic_identity_hash_failures": [],
+    "reasons": []
+  },
+  "economic_analysis_handoff_assessment": {
+    "sufficient_for_economic_analysis_handoff": true,
+    "handoff_decision": "sufficient_for_controlled_backend_handoff",
+    "conditions": {
+      "unified_package_passed": true,
+      "quantified_ready_count_ge_2": true,
+      "schema_errors_zero": true
+    },
+    "why_or_why_not": [
+      "quantified_subset_ready_with_proven_unified_package"
+    ],
+    "production_decision_grade_ready": false,
+    "production_blockers": [
+      "reader_required_rows_remain",
+      "insufficient_rows_remain"
+    ]
+  }
+}

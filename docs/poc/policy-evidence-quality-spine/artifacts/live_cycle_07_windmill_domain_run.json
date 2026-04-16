@@ -1,0 +1,1314 @@
+{
+  "backend_endpoint_readiness": {
+    "local_mock_probe": {
+      "note": "local mock backend endpoint probe passed",
+      "status": "passed"
+    },
+    "missing_inputs": [],
+    "note": "backend endpoint config is present and local mock probe passed",
+    "status": "ready_for_opt_in"
+  },
+  "blockers": [
+    {
+      "blocking": false,
+      "category": "storage/runtime",
+      "details": {
+        "reason": "DATABASE_URL missing",
+        "status": "not_configured"
+      },
+      "message": "DB/storage probe unavailable"
+    },
+    {
+      "blocking": false,
+      "category": "storage/runtime",
+      "details": {
+        "pending_gates": [
+          "postgres_rows_written",
+          "pgvector_index_probe",
+          "minio_object_refs",
+          "reader_output_ref",
+          "analysis_provenance_chain",
+          "idempotent_rerun",
+          "stale_drill_stale_but_usable",
+          "stale_drill_stale_blocked"
+        ]
+      },
+      "message": "storage/runtime evidence gates are pending"
+    }
+  ],
+  "canonical_variables": {
+    "BACKEND_ENDPOINT_AUTH_TOKEN": "optional local readiness input only",
+    "BACKEND_ENDPOINT_URL": "optional local readiness input only",
+    "BACKEND_PUBLIC_URL_VAR": "f/affordabot/BACKEND_PUBLIC_URL",
+    "CRON_SECRET_VAR": "f/affordabot/CRON_SECRET",
+    "TMP_WMILL_CONFIG": "auto-created temporary profile directory",
+    "WINDMILL_API_TOKEN": "op://dev/Agent-Secrets-Production/WINDMILL_API_TOKEN",
+    "WINDMILL_BASE_URL": "derived as WINDMILL_DEV_LOGIN_URL without /user/login",
+    "WINDMILL_DEV_LOGIN_URL": "op://dev/Agent-Secrets-Production/WINDMILL_DEV_LOGIN_URL",
+    "WINDMILL_WORKSPACE": "affordabot"
+  },
+  "classification": "backend_bridge_surface_ready",
+  "db_storage_probe": {
+    "reason": "DATABASE_URL missing",
+    "status": "not_configured"
+  },
+  "deployment_surface": {
+    "flow_deployed": true,
+    "flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+    "flow_unscheduled": true,
+    "script_deployed": true,
+    "script_path": "f/affordabot/pipeline_daily_refresh_domain_boundary"
+  },
+  "feature_key": "bd-3wefe.13",
+  "full_run_readiness": "partial",
+  "generated_at": "2026-04-16T06:32:34.540308+00:00",
+  "harness_version": "2026-04-13.worker-b.v2",
+  "idempotent_rerun": {
+    "attempted": false
+  },
+  "manual_audit_notes": {
+    "llm_analysis_excerpt": "The evidence reviews theoretical and empirical studies on impact fee incidence. Ihlanfeldt and Shaughnessy (2004) provide qualitative estimates suggesting developers are fully compensated for fees through higher new home prices, and that new and existing home prices rise equally due to perceived property tax savings, a finding the text critiques as unrealistic. A separate study in Dunedin, Florida, provides quantitative data showing a $1,150 fee led to a $2,600 increase in new housing prices and a $1,643 increase in existing housing prices, though these effects were temporary, dissipating over six years.",
+    "llm_quality_note": "LLM analysis produced a substantive answer from persisted evidence.",
+    "manual_verdict": "PASS_MANUAL_AUDIT",
+    "reader_output_excerpt": "",
+    "reader_quality_note": "Reader output was persisted and provided to analysis."
+  },
+  "manual_run": {
+    "attempted": true,
+    "command_client": "backend_endpoint",
+    "contract_metadata_present": true,
+    "expected_step_sequence": [
+      "search_materialize",
+      "freshness_gate",
+      "read_fetch",
+      "index",
+      "analyze",
+      "summarize_run"
+    ],
+    "final_status": "succeeded",
+    "idempotency_key": "bd-3wefe.13-live-cycle-07-20260416",
+    "job_get": {
+      "canceled": false,
+      "completed_at": "2026-04-16T06:32:18.706189Z",
+      "created_at": "2026-04-16T06:30:28.003605Z",
+      "deleted": false,
+      "duration_ms": 110616,
+      "flow_status": {
+        "failure_module": {
+          "id": "failure_handler",
+          "type": "WaitingForPriorSteps"
+        },
+        "modules": [
+          {
+            "branch_chosen": null,
+            "id": "build_scope_matrix",
+            "skipped": false,
+            "type": "Success"
+          },
+          {
+            "branch_chosen": null,
+            "id": "per_scope_pipeline",
+            "skipped": false,
+            "type": "Success"
+          },
+          {
+            "branch_chosen": {
+              "type": "default"
+            },
+            "id": "branch_outcome_review",
+            "skipped": false,
+            "type": "Success"
+          }
+        ],
+        "step": 3
+      },
+      "id": "019d94fb-dfaa-7681-7d6b-c1fb39f6ab49",
+      "job_kind": "flow",
+      "script_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow"
+    },
+    "job_logs_excerpt": "\u001b[33mNo wmill.yaml found. Use 'wmill init' to bootstrap it.\u001b[39m\n\u001b[36m\u001b[1m\n====== build_scope_matrix ======\u001b[22m\u001b[39m\njob=019d94fb-e005-595d-7dc5-6ee2b869efe5 tag=python3 worker=wk-default-661cef133dc0-WZTwK hostname=661cef133dc0 isolation=none\n\nenv deps from local cache: certifi==2026.2.25, charset-normalizer==3.4.7, idna==3.11, requests==2.33.1, urllib3==2.6.3\n\n\n--- PYTHON (3.12) CODE EXECUTION ---\n\n\u001b[36m\u001b[1m\n====== per_scope_pipeline (iteration 0) ======\u001b[22m\u001b[39m\nFlow job completed with success\n\n\u001b[36m\u001b[1m\n====== branch_outcome_review ======\u001b[22m\u001b[39m\nFlow job completed with success\n\n",
+    "scope_totals": {
+      "scope_blocked": 0,
+      "scope_failed": 0,
+      "scope_succeeded": 1,
+      "scope_total": 1
+    },
+    "step_sequence": [
+      "search_materialize",
+      "freshness_gate",
+      "read_fetch",
+      "index",
+      "analyze",
+      "summarize_run"
+    ],
+    "step_sequence_matches_expected": true,
+    "windmill_job_id": "019d94fb-dfaa-7681-7d6b-c1fb39f6ab49"
+  },
+  "result_payload": {
+    "alerts": [
+      "policy_evidence_fail_closed"
+    ],
+    "scope_blocked": 0,
+    "scope_failed": 0,
+    "scope_results": [
+      {
+        "alert": "policy_evidence_fail_closed",
+        "backend_response": {
+          "decision_reason": "run_summary_materialized",
+          "missing_runtime_adapters": [],
+          "refs": {
+            "analyze_reason": "analysis_completed",
+            "analyze_retry_class": "none",
+            "backend_run_id": "e1826ad9-cda9-4737-9c1d-316852460029",
+            "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=economic_literature|doctype=meeting_minutes|url=https://www.huduser.gov/periodicals/cityscpe/vol8num1/ch4.pdf",
+            "document_id": "ddda14c9-c2b2-5920-9857-00a995429731",
+            "fail_closed_reasons": [
+              "analysis_sufficiency:Insufficient. The estimates cannot support a robust indirect pass-through cost-of-living analysis for San Jose. Ihlanfeldt and Shaughnessy lack specific quantitative fee amounts and rely on theoretical assumptions about property tax savings and risk reduction that the text identifies as unrealistic and potentially inapplicable to San Jose's market structure. The quantitative data from the Dunedin study is dated (1970s), specific to a Florida housing market with noted imperfections, and showed temporary effects. Neither study provides the local supply and demand elasticities or specific linkage fee contexts necessary for San Jose.",
+              "blocking_gate_present",
+              "no_quant_support_path",
+              "secondary_research_needed:pass_through_incidence_rate_missing"
+            ],
+            "freshness_gate_reason": "fresh",
+            "freshness_gate_retry_class": "none",
+            "index_reason": "chunks_indexed",
+            "index_retry_class": "none",
+            "package_artifact_uri": "minio://affordabot-artifacts/policy-evidence/packages/pkg-10adcd7b63e6262425240b5b.json",
+            "package_id": "pkg-10adcd7b63e6262425240b5b",
+            "raw_scrape_id": "e0ce25aa-0c7d-528a-b760-1b500152b435",
+            "read_fetch_reason": "raw_scrapes_materialized",
+            "read_fetch_retry_class": "none",
+            "reader_artifact_uri": "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/economic_literature/reader_output/4dbf81f3a67ad8e4c8782b5ba6c2291992c16c2e0e480d1a78adaa441db8bd80.md",
+            "run_id": "e1826ad9-cda9-4737-9c1d-316852460029",
+            "search_materialize_reason": "fresh_snapshot_materialized",
+            "search_materialize_retry_class": "none",
+            "selected_url": "https://www.huduser.gov/periodicals/cityscpe/vol8num1/ch4.pdf",
+            "storage_status": "stored",
+            "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+            "windmill_run_id": "bd-3wefe.13-live-cycle-07-20260416"
+          },
+          "status": "succeeded",
+          "storage_mode": "railway_runtime"
+        },
+        "scope_index": 0,
+        "scope_item": {
+          "jurisdiction": "San Jose CA",
+          "scope_key": "san jose ca::economic_literature",
+          "source_family": "economic_literature"
+        },
+        "status": "succeeded",
+        "steps": {
+          "analyze": {
+            "alerts": [],
+            "command": "analyze",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "counts": {
+              "analyses": 1,
+              "evidence_chunks": 20
+            },
+            "created_at": "2026-04-16T06:32:17.733745+00:00",
+            "decision_reason": "analysis_completed",
+            "details": {
+              "analysis": {
+                "key_points": [
+                  "Ihlanfeldt and Shaughnessy (2004) qualitative estimate: Developers fully compensated for fees via price increases (100% pass-through to new housing prices).",
+                  "Ihlanfeldt and Shaughnessy (2004) qualitative estimate: Impact fees increase prices of new and existing homes by equal amounts.",
+                  "Ihlanfeldt and Shaughnessy (2004) assumptions: No change in infrastructure quality for new homes; consumers value fee-financing as tax/risk reduction; willingness to pay based on future tax savings.",
+                  "Dunedin, FL study (similar study) quantitative estimate: Fee amount of $1,150.",
+                  "Dunedin, FL study quantitative estimate: New housing price increase of $2,600 (approx. 226% of fee).",
+                  "Dunedin, FL study quantitative estimate: Existing housing price increase of $1,643 relative to control.",
+                  "Dunedin, FL study geography: Dunedin and Clearwater, Florida.",
+                  "Dunedin, FL study uncertainty/temporality: Price differentials lasted 6 years before market adjustments eliminated them.",
+                  "General theoretical assumption: Full pass-through requires perfectly inelastic supply or demand; otherwise incidence is shared based on elasticities."
+                ],
+                "sufficiency_state": "Insufficient. The estimates cannot support a robust indirect pass-through cost-of-living analysis for San Jose. Ihlanfeldt and Shaughnessy lack specific quantitative fee amounts and rely on theoretical assumptions about property tax savings and risk reduction that the text identifies as unrealistic and potentially inapplicable to San Jose's market structure. The quantitative data from the Dunedin study is dated (1970s), specific to a Florida housing market with noted imperfections, and showed temporary effects. Neither study provides the local supply and demand elasticities or specific linkage fee contexts necessary for San Jose.",
+                "summary": "The evidence reviews theoretical and empirical studies on impact fee incidence. Ihlanfeldt and Shaughnessy (2004) provide qualitative estimates suggesting developers are fully compensated for fees through higher new home prices, and that new and existing home prices rise equally due to perceived property tax savings, a finding the text critiques as unrealistic. A separate study in Dunedin, Florida, provides quantitative data showing a $1,150 fee led to a $2,600 increase in new housing prices and a $1,643 increase in existing housing prices, though these effects were temporary, dissipating over six years."
+              },
+              "evidence_selection": {
+                "candidate_chunk_count": 250,
+                "selected_chunk_count": 20,
+                "selected_chunks": [
+                  {
+                    "chunk_id": "94d91277-e2a4-5746-afa7-d8b5efc92f5a",
+                    "chunk_index": 46,
+                    "matched_action_signals": [
+                      "housing",
+                      "affordability"
+                    ],
+                    "matched_question_terms": [
+                      "impact",
+                      "fee",
+                      "incidence",
+                      "housing",
+                      "prices",
+                      "land",
+                      "whether",
+                      "cost",
+                      "analysis",
+                      "fees"
+                    ],
+                    "rank": 1,
+                    "score": 38,
+                    "snippet": "A. Theoretical Framework for Evaluating the Price Ef fect of ImpactFeesImpact Fees and the Amenities They ProvideAs Ellickson (1977) recognized some 25 years ago, any analysis of the ef fect fees mayh"
+                  },
+                  {
+                    "chunk_id": "61dd96ee-66ef-5b5b-8510-d2ad9f6c35db",
+                    "chunk_index": 119,
+                    "matched_action_signals": [
+                      "housing",
+                      "rent"
+                    ],
+                    "matched_question_terms": [
+                      "ihlanfeldt",
+                      "shaughnessy",
+                      "impact",
+                      "fee",
+                      "housing",
+                      "prices",
+                      "existing",
+                      "model",
+                      "can",
+                      "fees"
+                    ],
+                    "rank": 2,
+                    "score": 38,
+                    "snippet": "Elsewhere in the paper , Ihlanfeldt and Shaughnessy of fered a dif ferent e xplanation for theprice ef fect: they argued that if an impact fee pro vides no change in infrastructure qualityfor ne w hou"
+                  },
+                  {
+                    "chunk_id": "00cb3333-ad31-5020-80c5-d73fdd09212a",
+                    "chunk_index": 9,
+                    "matched_action_signals": [
+                      "housing",
+                      "adopted",
+                      "affordability",
+                      "zoning"
+                    ],
+                    "matched_question_terms": [
+                      "similar",
+                      "impact",
+                      "housing",
+                      "prices",
+                      "commercial",
+                      "linkage",
+                      "fees"
+                    ],
+                    "rank": 3,
+                    "score": 37,
+                    "snippet": "Linkages are a hybrid of impact fees and of fsite dedications. Linkage programs conditionthe appro val of certain central city de velopments (usually commercial or of fice space) onthe de veloper\u2019 s p"
+                  },
+                  {
+                    "chunk_id": "e53e5492-11ca-5f55-9f69-ed3ddf41848b",
+                    "chunk_index": 29,
+                    "matched_action_signals": [
+                      "housing",
+                      "ordinance",
+                      "adopted",
+                      "affordability"
+                    ],
+                    "matched_question_terms": [
+                      "empirical",
+                      "impact",
+                      "studies",
+                      "housing",
+                      "can",
+                      "fees"
+                    ],
+                    "rank": 4,
+                    "score": 34,
+                    "snippet": "144 CityscapeImpact Fees and Housing AffordabilityEnabling gr owth. Impact fees may enable gro wth where infrastructure constraints w ouldotherwise mak e it impossible. When, for example, a developmen"
+                  },
+                  {
+                    "chunk_id": "d19fd876-35db-5a42-934a-d2f7af297fa2",
+                    "chunk_index": 153,
+                    "matched_action_signals": [
+                      "housing",
+                      "affordability",
+                      "rent"
+                    ],
+                    "matched_question_terms": [
+                      "impact",
+                      "fee",
+                      "new",
+                      "housing",
+                      "can",
+                      "cost",
+                      "fees"
+                    ],
+                    "rank": 5,
+                    "score": 33,
+                    "snippet": "As noted pre viously , discussions of the relati ve affordability of alternati ve housing/service/financing packages need to be attenti ve to potential dif ferences in the ef fect of alternati vepacka"
+                  },
+                  {
+                    "chunk_id": "2f9a7c79-2261-542b-a769-e8c67fc82f61",
+                    "chunk_index": 42,
+                    "matched_action_signals": [
+                      "housing",
+                      "rent"
+                    ],
+                    "matched_question_terms": [
+                      "impact",
+                      "fee",
+                      "new",
+                      "housing",
+                      "prices",
+                      "land",
+                      "can",
+                      "fees"
+                    ],
+                    "rank": 6,
+                    "score": 32,
+                    "snippet": "Second, if the property tax es ne w residents pay include a char ge for the debt service oninfrastructure already pro vided to e xisting residents or a le vy for current or future capitalexpenditures "
+                  },
+                  {
+                    "chunk_id": "a4aa293b-d5a8-5662-a75d-218ae3211714",
+                    "chunk_index": 55,
+                    "matched_action_signals": [
+                      "housing"
+                    ],
+                    "matched_question_terms": [
+                      "impact",
+                      "fee",
+                      "incidence",
+                      "housing",
+                      "land",
+                      "whether",
+                      "can",
+                      "cost",
+                      "fees"
+                    ],
+                    "rank": 7,
+                    "score": 31,
+                    "snippet": "Incidence of Impact Fees That Do Not Provide V alue Worth Their Costs or ThatFund Amenities Available for Less in Other JurisdictionsWhen impact fees do not pro vide infrastructure or f inancing adv a"
+                  },
+                  {
+                    "chunk_id": "90e7746c-3049-52e8-a691-b7f27c394741",
+                    "chunk_index": 60,
+                    "matched_action_signals": [
+                      "housing"
+                    ],
+                    "matched_question_terms": [
+                      "impact",
+                      "fee",
+                      "amount",
+                      "housing",
+                      "prices",
+                      "can",
+                      "pass",
+                      "cost",
+                      "fees"
+                    ],
+                    "rank": 8,
+                    "score": 31,
+                    "snippet": "Where de velopers are able to pass on the entire amount of the impact fee (plus an y costof the fee, such as f inancing char ges)36 to the consumer , the increase in the price of housingwould equal F "
+                  },
+                  {
+                    "chunk_id": "ea636cd9-5865-5f99-9bbe-80d1fc2c59b6",
+                    "chunk_index": 101,
+                    "matched_action_signals": [
+                      "housing"
+                    ],
+                    "matched_question_terms": [
+                      "impact",
+                      "fee",
+                      "studies",
+                      "amount",
+                      "housing",
+                      "prices",
+                      "whether",
+                      "cost",
+                      "fees"
+                    ],
+                    "rank": 9,
+                    "score": 31,
+                    "snippet": "Several studies in recent years ha ve examined the ef fect that impact fees ha ve on the supplyof housing rather than on prices. Mark Skidmore and Michael Peddle (1998) e xaminedthe ef fects impact fe"
+                  },
+                  {
+                    "chunk_id": "988067c5-f016-5292-98da-00fa1d83a0a0",
+                    "chunk_index": 87,
+                    "matched_action_signals": [
+                      "housing",
+                      "affordability",
+                      "rent"
+                    ],
+                    "matched_question_terms": [
+                      "impact",
+                      "fee",
+                      "studies",
+                      "housing",
+                      "existing",
+                      "fees"
+                    ],
+                    "rank": 10,
+                    "score": 30,
+                    "snippet": "The results sho wed that the price of ne w housing, compared to the price of e xisting housing,rose in Dunedin until 1978. The price dif ference of $2,600 w as more than twice theamount of the $1,150 "
+                  },
+                  {
+                    "chunk_id": "4dc8af31-de69-5148-9911-4504e36d6b9e",
+                    "chunk_index": 134,
+                    "matched_action_signals": [
+                      "housing",
+                      "affordability",
+                      "rent"
+                    ],
+                    "matched_question_terms": [
+                      "impact",
+                      "fee",
+                      "housing",
+                      "prices",
+                      "whether",
+                      "fees"
+                    ],
+                    "rank": 11,
+                    "score": 30,
+                    "snippet": "Whether impact fees are imposed on all those types of housing to the same e xtent that164 CityscapeImpact Fees and Housing Affordabilitysuch fees are imposed on higher v alue single-f amily housing is"
+                  },
+                  {
+                    "chunk_id": "28383314-4678-516b-9312-cb3f27308a6c",
+                    "chunk_index": 141,
+                    "matched_action_signals": [
+                      "housing",
+                      "affordability",
+                      "rent"
+                    ],
+                    "matched_question_terms": [
+                      "impact",
+                      "fee",
+                      "housing",
+                      "prices",
+                      "whether",
+                      "fees"
+                    ],
+                    "rank": 12,
+                    "score": 30,
+                    "snippet": "Prices versus affordability. Because impact fees are assessed on ne w housing, moreresearch is required to understand ho w price ef fects on ne w (and, therefore, usually higherquality) housing transl"
+                  },
+                  {
+                    "chunk_id": "1d93ec9b-d566-545c-9005-f640476ab903",
+                    "chunk_index": 27,
+                    "matched_action_signals": [
+                      "housing",
+                      "rent"
+                    ],
+                    "matched_question_terms": [
+                      "impact",
+                      "housing",
+                      "prices",
+                      "land",
+                      "can",
+                      "cost",
+                      "fees"
+                    ],
+                    "rank": 13,
+                    "score": 29,
+                    "snippet": "to be ef ficient\u2014to maximize o verall social utility\u2014standard economic theory holds thatthe price of housing must include all the benef its and costs that the de velopment brings toor imposes on socie"
+                  },
+                  {
+                    "chunk_id": "ec2b903d-df6b-55c9-8d9d-1bf84e9ca61b",
+                    "chunk_index": 37,
+                    "matched_action_signals": [
+                      "housing",
+                      "affordability"
+                    ],
+                    "matched_question_terms": [
+                      "impact",
+                      "fee",
+                      "housing",
+                      "model",
+                      "whether",
+                      "analysis",
+                      "fees"
+                    ],
+                    "rank": 14,
+                    "score": 29,
+                    "snippet": "Additional e vidence that impact fees may be used for e xclusionary purposes lies in whatlittle we kno w about the characteristics of jurisdictions imposing impact fees. As notedabove, the last compre"
+                  },
+                  {
+                    "chunk_id": "68386133-d88e-5745-8d22-e6b4ff68cf85",
+                    "chunk_index": 84,
+                    "matched_action_signals": [
+                      "housing",
+                      "adopted"
+                    ],
+                    "matched_question_terms": [
+                      "impact",
+                      "fee",
+                      "housing",
+                      "prices",
+                      "land",
+                      "cost",
+                      "fees"
+                    ],
+                    "rank": 15,
+                    "score": 29,
+                    "snippet": "The f irst major study , by Charles Delane y and Marc Smith (1989a), used hedonic re gressionsto examine the ef fect a $1,150 impact fee that Dunedin, Florida, adopted in 1974 had onthe price of ne w "
+                  },
+                  {
+                    "chunk_id": "7b13d3eb-cd9e-5ac6-bff6-2c17e0bac52f",
+                    "chunk_index": 90,
+                    "matched_action_signals": [
+                      "housing",
+                      "rent"
+                    ],
+                    "matched_question_terms": [
+                      "impact",
+                      "fee",
+                      "housing",
+                      "prices",
+                      "land",
+                      "cost",
+                      "fees"
+                    ],
+                    "rank": 16,
+                    "score": 29,
+                    "snippet": "Third, Delane y and Smith included no direct neighborhood v ariables in their re gression, andtheir proxy for neighborhood ef fects\u2014the square foot cost of land\u2014is a v ery attenuatedproxy for such det"
+                  },
+                  {
+                    "chunk_id": "17e032b0-af30-5a07-919b-9de4454ef13d",
+                    "chunk_index": 92,
+                    "matched_action_signals": [
+                      "housing",
+                      "rent"
+                    ],
+                    "matched_question_terms": [
+                      "impact",
+                      "fee",
+                      "incidence",
+                      "housing",
+                      "prices",
+                      "existing",
+                      "fees"
+                    ],
+                    "rank": 17,
+                    "score": 29,
+                    "snippet": "Cityscape 157BeenAgain, the Singell and Lillydahl study may be dif ficult to generalize because the authorsdescribed Lo veland as being an unusual community with fe w substitutes. The 18-monthperiod m"
+                  },
+                  {
+                    "chunk_id": "525a5f32-53c1-5c57-8aa6-59a2a30938d5",
+                    "chunk_index": 93,
+                    "matched_action_signals": [
+                      "housing",
+                      "rent"
+                    ],
+                    "matched_question_terms": [
+                      "impact",
+                      "effect",
+                      "housing",
+                      "prices",
+                      "existing",
+                      "model",
+                      "fees"
+                    ],
+                    "rank": 18,
+                    "score": 29,
+                    "snippet": "There is no reason in either scenario, however, for existing housing to become more valuable than the ne w housing (Y inger , 1998).56Marla Dresch and Ste ven Shef frin (1997) studied the ef fect of d"
+                  },
+                  {
+                    "chunk_id": "60f68968-2f20-54c2-b297-b7797957a28b",
+                    "chunk_index": 95,
+                    "matched_action_signals": [
+                      "housing",
+                      "affordability"
+                    ],
+                    "matched_question_terms": [
+                      "impact",
+                      "fee",
+                      "studies",
+                      "housing",
+                      "prices",
+                      "land",
+                      "fees"
+                    ],
+                    "rank": 19,
+                    "score": 29,
+                    "snippet": "158 CityscapeImpact Fees and Housing AffordabilityTwo studies e xplored the ef fect impact fees had on the price of unde veloped land (ratherthan housing prices). Nelson and Lillydahl et al. (1992) us"
+                  },
+                  {
+                    "chunk_id": "f4df0d3b-daf1-5383-a235-5f6e23090e6e",
+                    "chunk_index": 113,
+                    "matched_action_signals": [
+                      "housing",
+                      "rent"
+                    ],
+                    "matched_question_terms": [
+                      "ihlanfeldt",
+                      "shaughnessy",
+                      "impact",
+                      "fee",
+                      "studies",
+                      "housing",
+                      "model"
+                    ],
+                    "rank": 20,
+                    "score": 29,
+                    "snippet": "Ihlanfeldt and Shaughnessy\u2019 s model used hedonic price and repeat sale models to constructmonthly inde xes of the price of ne w and e xisting housing and unde veloped residentialland of constant quali"
+                  }
+                ]
+              }
+            },
+            "envelope": {
+              "analysis_question": "Extract quantitative empirical estimates from Ihlanfeldt and Shaughnessy or similar impact-fee incidence studies: fee amount, effect on new housing prices, existing housing prices, land prices, geography, model assumptions, and uncertainty. State whether these estimates can support indirect pass-through cost-of-living analysis for San Jose commercial linkage or housing impact fees.",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-3wefe.13-live-cycle-07-20260416",
+              "jurisdiction": "San Jose CA",
+              "orchestrator": "windmill",
+              "scope_idempotency_key": "bd-3wefe.13-live-cycle-07-20260416::3a48af0ace567978",
+              "search_query": "Ihlanfeldt Shaughnessy impact fees housing prices land prices PDF incidence estimates",
+              "source_family": "economic_literature",
+              "stale_status": "fresh",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-07-20260416",
+              "windmill_workspace": "affordabot"
+            },
+            "refs": {
+              "analysis_id": "6dab550f-c531-58af-8c59-d6b73f1aea93",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-07-20260416"
+            },
+            "retry_class": "none",
+            "status": "succeeded"
+          },
+          "freshness_gate": {
+            "alerts": [],
+            "command": "freshness_gate",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "counts": {
+              "search_results": 10
+            },
+            "created_at": "2026-04-16T06:30:30.484538+00:00",
+            "decision_reason": "fresh",
+            "details": {
+              "fail_closed_ceiling_hours": 168,
+              "fresh_hours": 24,
+              "freshness_status": "fresh",
+              "snapshot_age_hours": 0,
+              "stale_usable_ceiling_hours": 72
+            },
+            "envelope": {
+              "analysis_question": "Extract quantitative empirical estimates from Ihlanfeldt and Shaughnessy or similar impact-fee incidence studies: fee amount, effect on new housing prices, existing housing prices, land prices, geography, model assumptions, and uncertainty. State whether these estimates can support indirect pass-through cost-of-living analysis for San Jose commercial linkage or housing impact fees.",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-3wefe.13-live-cycle-07-20260416",
+              "jurisdiction": "San Jose CA",
+              "orchestrator": "windmill",
+              "scope_idempotency_key": "bd-3wefe.13-live-cycle-07-20260416::3a48af0ace567978",
+              "search_query": "Ihlanfeldt Shaughnessy impact fees housing prices land prices PDF incidence estimates",
+              "source_family": "economic_literature",
+              "stale_status": "fresh",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-07-20260416",
+              "windmill_workspace": "affordabot"
+            },
+            "refs": {
+              "search_snapshot_id": "0d6de592-ea23-496c-98ce-241a586db7b1",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-07-20260416"
+            },
+            "retry_class": "none",
+            "status": "succeeded"
+          },
+          "index": {
+            "alerts": [],
+            "command": "index",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "counts": {
+              "chunks": 386
+            },
+            "created_at": "2026-04-16T06:30:45.732816+00:00",
+            "decision_reason": "chunks_indexed",
+            "details": {
+              "embedding_count": 386,
+              "embedding_provider": "openrouter:qwen/qwen3-embedding-8b"
+            },
+            "envelope": {
+              "analysis_question": "Extract quantitative empirical estimates from Ihlanfeldt and Shaughnessy or similar impact-fee incidence studies: fee amount, effect on new housing prices, existing housing prices, land prices, geography, model assumptions, and uncertainty. State whether these estimates can support indirect pass-through cost-of-living analysis for San Jose commercial linkage or housing impact fees.",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-3wefe.13-live-cycle-07-20260416",
+              "jurisdiction": "San Jose CA",
+              "orchestrator": "windmill",
+              "scope_idempotency_key": "bd-3wefe.13-live-cycle-07-20260416::3a48af0ace567978",
+              "search_query": "Ihlanfeldt Shaughnessy impact fees housing prices land prices PDF incidence estimates",
+              "source_family": "economic_literature",
+              "stale_status": "fresh",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-07-20260416",
+              "windmill_workspace": "affordabot"
+            },
+            "refs": {
+              "document_id": "ddda14c9-c2b2-5920-9857-00a995429731",
+              "raw_scrape_ids": [
+                "e0ce25aa-0c7d-528a-b760-1b500152b435"
+              ],
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-07-20260416"
+            },
+            "retry_class": "none",
+            "status": "succeeded"
+          },
+          "read_fetch": {
+            "alerts": [],
+            "command": "read_fetch",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "counts": {
+              "artifacts": 1,
+              "raw_scrapes": 1
+            },
+            "created_at": "2026-04-16T06:30:32.948715+00:00",
+            "decision_reason": "raw_scrapes_materialized",
+            "details": {
+              "candidate_audit": [
+                {
+                  "outcome": "materialized_raw_scrape",
+                  "rank": 1,
+                  "raw_scrape_id": "e0ce25aa-0c7d-528a-b760-1b500152b435",
+                  "score": 22,
+                  "url": "https://www.huduser.gov/periodicals/cityscpe/vol8num1/ch4.pdf"
+                }
+              ],
+              "ranked_candidates": [
+                {
+                  "input_index": 3,
+                  "rank": 1,
+                  "reasons": [
+                    "url_signal:.pdf",
+                    "url_high_value:.pdf",
+                    "url_concrete_artifact:parsed",
+                    "text_signal:housing",
+                    "text_action:affordability"
+                  ],
+                  "score": 22,
+                  "snippet": "Ihlanfeldt and Shaughnessy thus offered evidence of a price effect from impact fees ... Ihlanfeldt and Shaughnessy (2004) explained the decrease in land values, ...",
+                  "title": "[PDF] Impact Fees and Housing Affordability - HUD User",
+                  "url": "https://www.huduser.gov/periodicals/cityscpe/vol8num1/ch4.pdf"
+                },
+                {
+                  "input_index": 6,
+                  "rank": 2,
+                  "reasons": [
+                    "url_signal:.pdf",
+                    "url_high_value:.pdf",
+                    "text_signal:housing"
+                  ],
+                  "score": 12,
+                  "snippet": "Jul 25, 2024 \u00b7 The results show that an additional $1.00 of impact fees increase the price of both new and existing housing by about $1.60 and reduces the ...",
+                  "title": "[PDF] The Effects of Impact Fees on Housing and Land Markets",
+                  "url": "https://cosspp.fsu.edu/dmc/wp-content/uploads/sites/8/2024/07/08.2002-The-Effects-of-Impact-Fees-on-Housing-and-Land-Markets.pdf"
+                },
+                {
+                  "input_index": 8,
+                  "rank": 3,
+                  "reasons": [
+                    "url_signal:.pdf",
+                    "url_high_value:.pdf",
+                    "text_signal:housing",
+                    "text_action:affordability",
+                    "penalty:resources"
+                  ],
+                  "score": 12,
+                  "snippet": "Apr 1, 2004 \u00b7 $1.00 in impact fees.73 Finally, Ihlanfeldt and Shaughnessy also found that land prices declined by about eight percent, or by roughly the ...",
+                  "title": "[PDF] Impact Fees and Housing Affordability - Institute for Local Government",
+                  "url": "https://www.ca-ilg.org/sites/main/files/file-attachments/resources__impactfeesandhousing.pdf?1436996238"
+                },
+                {
+                  "input_index": 4,
+                  "rank": 4,
+                  "reasons": [
+                    "url_signal:.pdf",
+                    "url_high_value:.pdf"
+                  ],
+                  "score": 11,
+                  "snippet": "Specifically, whereas the Ihlanfeldt and. Shaughnessy results suggest a $1,000 impact fee should lower the price of an average residential lot by about $1,000, ...",
+                  "title": "[PDF] The Capitalization Effects of Development Impact Fees",
+                  "url": "https://www.lincolninst.edu/app/uploads/legacy-files/pubfiles/2134_1456_Burge_WP12GB1.pdf"
+                },
+                {
+                  "input_index": 0,
+                  "rank": 5,
+                  "reasons": [
+                    "url_signal:.pdf",
+                    "url_high_value:.pdf",
+                    "text_signal:housing",
+                    "penalty:home"
+                  ],
+                  "score": 10,
+                  "snippet": "Abstract This paper presents the results from estimating the effects of development impact fees on the prices of new and existing single-family homes and undeveloped residential land using unique data for Dade County, Florida. The results show that an additional $1.00 of fees increases the price of both new and existing housing by about $1.60 and reduces the price of land by about $1.00. These ...",
+                  "title": "PDF An Empirical Investigation of the Effects of Impact Fees on Housing and ...",
+                  "url": "https://www.impactfees.com/publications%20pdf/Ihlanfeldt_Shaughnessy.pdf"
+                }
+              ],
+              "reader_provider_errors": [],
+              "reader_quality_failures": []
+            },
+            "envelope": {
+              "analysis_question": "Extract quantitative empirical estimates from Ihlanfeldt and Shaughnessy or similar impact-fee incidence studies: fee amount, effect on new housing prices, existing housing prices, land prices, geography, model assumptions, and uncertainty. State whether these estimates can support indirect pass-through cost-of-living analysis for San Jose commercial linkage or housing impact fees.",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-3wefe.13-live-cycle-07-20260416",
+              "jurisdiction": "San Jose CA",
+              "orchestrator": "windmill",
+              "scope_idempotency_key": "bd-3wefe.13-live-cycle-07-20260416::3a48af0ace567978",
+              "search_query": "Ihlanfeldt Shaughnessy impact fees housing prices land prices PDF incidence estimates",
+              "source_family": "economic_literature",
+              "stale_status": "fresh",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-07-20260416",
+              "windmill_workspace": "affordabot"
+            },
+            "refs": {
+              "artifact_refs": [
+                "artifacts/2026-04-13.windmill-domain.v1/San Jose CA/economic_literature/reader_output/4dbf81f3a67ad8e4c8782b5ba6c2291992c16c2e0e480d1a78adaa441db8bd80.md"
+              ],
+              "document_id": "ddda14c9-c2b2-5920-9857-00a995429731",
+              "raw_scrape_ids": [
+                "e0ce25aa-0c7d-528a-b760-1b500152b435"
+              ],
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-07-20260416"
+            },
+            "retry_class": "none",
+            "status": "succeeded"
+          },
+          "search_materialize": {
+            "alerts": [],
+            "command": "search_materialize",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "counts": {
+              "search_results": 10
+            },
+            "created_at": "2026-04-16T06:30:30.455631+00:00",
+            "decision_reason": "fresh_snapshot_materialized",
+            "details": {
+              "query": "Ihlanfeldt Shaughnessy impact fees housing prices land prices PDF incidence estimates"
+            },
+            "envelope": {
+              "analysis_question": "Extract quantitative empirical estimates from Ihlanfeldt and Shaughnessy or similar impact-fee incidence studies: fee amount, effect on new housing prices, existing housing prices, land prices, geography, model assumptions, and uncertainty. State whether these estimates can support indirect pass-through cost-of-living analysis for San Jose commercial linkage or housing impact fees.",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-3wefe.13-live-cycle-07-20260416",
+              "jurisdiction": "San Jose CA",
+              "orchestrator": "windmill",
+              "scope_idempotency_key": "bd-3wefe.13-live-cycle-07-20260416::3a48af0ace567978",
+              "search_query": "Ihlanfeldt Shaughnessy impact fees housing prices land prices PDF incidence estimates",
+              "source_family": "economic_literature",
+              "stale_status": "fresh",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-07-20260416",
+              "windmill_workspace": "affordabot"
+            },
+            "refs": {
+              "search_snapshot_id": "0d6de592-ea23-496c-98ce-241a586db7b1",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-07-20260416"
+            },
+            "retry_class": "none",
+            "status": "succeeded"
+          },
+          "summarize_run": {
+            "alerts": [
+              "policy_evidence_fail_closed"
+            ],
+            "command": "summarize_run",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "counts": {
+              "analyses": 1,
+              "artifacts": 1,
+              "chunks": 386,
+              "evidence_chunks": 20,
+              "raw_scrapes": 1,
+              "search_results": 20
+            },
+            "created_at": "2026-04-16T06:32:17.746487+00:00",
+            "decision_reason": "run_summary_materialized",
+            "details": {
+              "policy_evidence_package": {
+                "alerts": [
+                  "policy_evidence_fail_closed"
+                ],
+                "package_payload": {
+                  "assumption_cards": [
+                    {
+                      "applicability_tags": [
+                        "San Jose CA",
+                        "economic_literature"
+                      ],
+                      "central": 0.65,
+                      "confidence": 0.5,
+                      "external_validity_notes": "POC placeholder assumption; validate with literature in bd-3wefe.5/.6.",
+                      "family": "fee_or_tax_pass_through",
+                      "high": 0.8,
+                      "id": "assump-1-fee_or_tax_pass_through",
+                      "low": 0.5,
+                      "source_excerpt": "Mapped mechanism assumption from source evidence and policy context.",
+                      "source_url": "https://www.huduser.gov/periodicals/cityscpe/vol8num1/ch4.pdf",
+                      "stale_after_days": 365,
+                      "unit": "share",
+                      "version": "v1"
+                    }
+                  ],
+                  "assumption_usage": [],
+                  "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=economic_literature|doctype=meeting_minutes|url=https://www.huduser.gov/periodicals/cityscpe/vol8num1/ch4.pdf",
+                  "created_at": "1970-01-01T00:00:00+00:00",
+                  "economic_handoff_ready": false,
+                  "evidence_cards": [
+                    {
+                      "artifact_id": "v2|jurisdiction=san-jose-ca|family=economic_literature|doctype=meeting_minutes|url=https://www.huduser.gov/periodicals/cityscpe/vol8num1/ch4.pdf",
+                      "content_hash": "4dbf81f3a67ad8e4c8782b5ba6c2291992c16c2e0e480d1a78adaa441db8bd80",
+                      "excerpt": "Evidence extracted from economic_literature artifact for economic analysis.",
+                      "id": "ev-1",
+                      "provenance_label": "private_searxng_economic_literature",
+                      "reader_run_id": null,
+                      "retrieved_at": "1970-01-01T00:00:00Z",
+                      "source_tier": "tier_c",
+                      "source_type": "other",
+                      "source_url": "https://www.huduser.gov/periodicals/cityscpe/vol8num1/ch4.pdf"
+                    }
+                  ],
+                  "freshness_status": "fresh",
+                  "gate_projection": {
+                    "canonical_breakdown_ref": "",
+                    "canonical_pipeline_run_id": "",
+                    "canonical_pipeline_step_id": "",
+                    "runtime_failure_codes": [
+                      "parameter_missing"
+                    ],
+                    "runtime_insufficiency_reason": "blocking gate present or missing quantitative support",
+                    "runtime_sufficiency_state": "qualitative_only"
+                  },
+                  "gate_report": {
+                    "artifact_counts": {
+                      "evidence_cards": 1
+                    },
+                    "blocking_gate": "reader_substance",
+                    "case_id": "pkg-10adcd7b63e6262425240b5b-gate",
+                    "failure_codes": [
+                      "parameter_missing"
+                    ],
+                    "manual_audit_notes": "Builder POC payload; full durability/orchestration gates in bd-3wefe.10/.12.",
+                    "provider": "private_searxng",
+                    "stage_results": [
+                      {
+                        "failure_codes": [],
+                        "note": null,
+                        "passed": true,
+                        "stage": "search_recall"
+                      },
+                      {
+                        "failure_codes": [
+                          "excerpt_validation_failed"
+                        ],
+                        "note": null,
+                        "passed": false,
+                        "stage": "reader_substance"
+                      },
+                      {
+                        "failure_codes": [
+                          "parameter_missing"
+                        ],
+                        "note": null,
+                        "passed": false,
+                        "stage": "parameterization"
+                      },
+                      {
+                        "failure_codes": [
+                          "parameter_unverifiable"
+                        ],
+                        "note": null,
+                        "passed": false,
+                        "stage": "quantification"
+                      }
+                    ],
+                    "unsupported_claim_count": 1,
+                    "verdict": "fail_closed"
+                  },
+                  "insufficiency_reasons": [
+                    "blocking_gate_present",
+                    "no_quant_support_path"
+                  ],
+                  "jurisdiction": "San Jose CA",
+                  "model_cards": [],
+                  "package_id": "pkg-10adcd7b63e6262425240b5b",
+                  "parameter_cards": [],
+                  "policy_identifier": "v2|jurisdiction=san-jose-ca|family=economic_literature|doctype=meeting_minutes|url=https://www.huduser.gov/periodicals/cityscpe/vol8num1/ch4.pdf",
+                  "run_context": {
+                    "backend_run_id": "e1826ad9-cda9-4737-9c1d-316852460029",
+                    "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=economic_literature|doctype=meeting_minutes|url=https://www.huduser.gov/periodicals/cityscpe/vol8num1/ch4.pdf",
+                    "document_id": "ddda14c9-c2b2-5920-9857-00a995429731",
+                    "fail_closed_reasons": [
+                      "analysis_sufficiency:Insufficient. The estimates cannot support a robust indirect pass-through cost-of-living analysis for San Jose. Ihlanfeldt and Shaughnessy lack specific quantitative fee amounts and rely on theoretical assumptions about property tax savings and risk reduction that the text identifies as unrealistic and potentially inapplicable to San Jose's market structure. The quantitative data from the Dunedin study is dated (1970s), specific to a Florida housing market with noted imperfections, and showed temporary effects. Neither study provides the local supply and demand elasticities or specific linkage fee contexts necessary for San Jose.",
+                      "secondary_research_needed:pass_through_incidence_rate_missing"
+                    ],
+                    "impact_mode_hint": "pass_through_incidence",
+                    "mechanism_family_hint": "fee_or_tax_pass_through",
+                    "raw_scrape_id": "e0ce25aa-0c7d-528a-b760-1b500152b435",
+                    "reader_artifact_uri": "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/economic_literature/reader_output/4dbf81f3a67ad8e4c8782b5ba6c2291992c16c2e0e480d1a78adaa441db8bd80.md",
+                    "secondary_research_needed": true,
+                    "secondary_research_reason": "pass_through_incidence_rate_missing",
+                    "selected_url": "https://www.huduser.gov/periodicals/cityscpe/vol8num1/ch4.pdf",
+                    "structured_enrichment_status": "not_configured",
+                    "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+                    "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+                    "windmill_run_id": "bd-3wefe.13-live-cycle-07-20260416",
+                    "windmill_workspace": "affordabot"
+                  },
+                  "schema_version": "1.0.0",
+                  "scraped_sources": [
+                    {
+                      "candidate_rank": 1,
+                      "provider_run_id": "bd-3wefe.13-live-cycle-07-20260416",
+                      "query_family": "economic_literature",
+                      "query_text": "Ihlanfeldt Shaughnessy impact fees housing prices land prices PDF incidence estimates",
+                      "reader_artifact_url": null,
+                      "reader_substance_passed": false,
+                      "search_provider": "private_searxng",
+                      "search_snapshot_id": "0d6de592-ea23-496c-98ce-241a586db7b1",
+                      "selected_candidate_url": "https://www.huduser.gov/periodicals/cityscpe/vol8num1/ch4.pdf"
+                    }
+                  ],
+                  "source_lanes": [
+                    "scraped"
+                  ],
+                  "storage_refs": [
+                    {
+                      "content_hash": null,
+                      "notes": null,
+                      "reference_id": "policy_evidence_packages:pkg-10adcd7b63e6262425240b5b",
+                      "storage_system": "postgres",
+                      "truth_role": "source_of_truth",
+                      "uri": null
+                    },
+                    {
+                      "content_hash": null,
+                      "notes": "readback proof pending bd-3wefe.10",
+                      "reference_id": "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/economic_literature/reader_output/4dbf81f3a67ad8e4c8782b5ba6c2291992c16c2e0e480d1a78adaa441db8bd80.md",
+                      "storage_system": "minio",
+                      "truth_role": "artifact_of_record",
+                      "uri": "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/economic_literature/reader_output/4dbf81f3a67ad8e4c8782b5ba6c2291992c16c2e0e480d1a78adaa441db8bd80.md"
+                    },
+                    {
+                      "content_hash": null,
+                      "notes": "derived index only",
+                      "reference_id": "document:ddda14c9-c2b2-5920-9857-00a995429731",
+                      "storage_system": "pgvector",
+                      "truth_role": "derived_index",
+                      "uri": null
+                    },
+                    {
+                      "notes": "package artifact envelope",
+                      "reference_id": "minio://affordabot-artifacts/policy-evidence/packages/pkg-10adcd7b63e6262425240b5b.json",
+                      "storage_system": "minio",
+                      "truth_role": "artifact_of_record",
+                      "uri": "minio://affordabot-artifacts/policy-evidence/packages/pkg-10adcd7b63e6262425240b5b.json"
+                    }
+                  ],
+                  "structured_enrichment_status": "not_configured",
+                  "structured_sources": []
+                },
+                "refs": {
+                  "backend_run_id": "e1826ad9-cda9-4737-9c1d-316852460029",
+                  "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=economic_literature|doctype=meeting_minutes|url=https://www.huduser.gov/periodicals/cityscpe/vol8num1/ch4.pdf",
+                  "document_id": "ddda14c9-c2b2-5920-9857-00a995429731",
+                  "fail_closed_reasons": [
+                    "analysis_sufficiency:Insufficient. The estimates cannot support a robust indirect pass-through cost-of-living analysis for San Jose. Ihlanfeldt and Shaughnessy lack specific quantitative fee amounts and rely on theoretical assumptions about property tax savings and risk reduction that the text identifies as unrealistic and potentially inapplicable to San Jose's market structure. The quantitative data from the Dunedin study is dated (1970s), specific to a Florida housing market with noted imperfections, and showed temporary effects. Neither study provides the local supply and demand elasticities or specific linkage fee contexts necessary for San Jose.",
+                    "blocking_gate_present",
+                    "no_quant_support_path",
+                    "secondary_research_needed:pass_through_incidence_rate_missing"
+                  ],
+                  "package_artifact_uri": "minio://affordabot-artifacts/policy-evidence/packages/pkg-10adcd7b63e6262425240b5b.json",
+                  "package_id": "pkg-10adcd7b63e6262425240b5b",
+                  "raw_scrape_id": "e0ce25aa-0c7d-528a-b760-1b500152b435",
+                  "reader_artifact_uri": "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/economic_literature/reader_output/4dbf81f3a67ad8e4c8782b5ba6c2291992c16c2e0e480d1a78adaa441db8bd80.md",
+                  "selected_url": "https://www.huduser.gov/periodicals/cityscpe/vol8num1/ch4.pdf",
+                  "storage_status": "stored"
+                },
+                "storage_result": {
+                  "artifact_readback_status": "proven",
+                  "artifact_write_status": "succeeded",
+                  "fail_closed": true,
+                  "failure_class": null,
+                  "idempotent_reuse": false,
+                  "pgvector_truth_role": "derived_index",
+                  "stored": true
+                }
+              },
+              "step_statuses": {
+                "analyze": "succeeded",
+                "freshness_gate": "succeeded",
+                "index": "succeeded",
+                "read_fetch": "succeeded",
+                "search_materialize": "succeeded"
+              }
+            },
+            "envelope": {
+              "analysis_question": "Extract quantitative empirical estimates from Ihlanfeldt and Shaughnessy or similar impact-fee incidence studies: fee amount, effect on new housing prices, existing housing prices, land prices, geography, model assumptions, and uncertainty. State whether these estimates can support indirect pass-through cost-of-living analysis for San Jose commercial linkage or housing impact fees.",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-3wefe.13-live-cycle-07-20260416",
+              "jurisdiction": "San Jose CA",
+              "orchestrator": "windmill",
+              "scope_idempotency_key": "bd-3wefe.13-live-cycle-07-20260416::3a48af0ace567978",
+              "search_query": "Ihlanfeldt Shaughnessy impact fees housing prices land prices PDF incidence estimates",
+              "source_family": "economic_literature",
+              "stale_status": "fresh",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-07-20260416",
+              "windmill_workspace": "affordabot"
+            },
+            "refs": {
+              "analyze_reason": "analysis_completed",
+              "analyze_retry_class": "none",
+              "backend_run_id": "e1826ad9-cda9-4737-9c1d-316852460029",
+              "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=economic_literature|doctype=meeting_minutes|url=https://www.huduser.gov/periodicals/cityscpe/vol8num1/ch4.pdf",
+              "document_id": "ddda14c9-c2b2-5920-9857-00a995429731",
+              "fail_closed_reasons": [
+                "analysis_sufficiency:Insufficient. The estimates cannot support a robust indirect pass-through cost-of-living analysis for San Jose. Ihlanfeldt and Shaughnessy lack specific quantitative fee amounts and rely on theoretical assumptions about property tax savings and risk reduction that the text identifies as unrealistic and potentially inapplicable to San Jose's market structure. The quantitative data from the Dunedin study is dated (1970s), specific to a Florida housing market with noted imperfections, and showed temporary effects. Neither study provides the local supply and demand elasticities or specific linkage fee contexts necessary for San Jose.",
+                "blocking_gate_present",
+                "no_quant_support_path",
+                "secondary_research_needed:pass_through_incidence_rate_missing"
+              ],
+              "freshness_gate_reason": "fresh",
+              "freshness_gate_retry_class": "none",
+              "index_reason": "chunks_indexed",
+              "index_retry_class": "none",
+              "package_artifact_uri": "minio://affordabot-artifacts/policy-evidence/packages/pkg-10adcd7b63e6262425240b5b.json",
+              "package_id": "pkg-10adcd7b63e6262425240b5b",
+              "raw_scrape_id": "e0ce25aa-0c7d-528a-b760-1b500152b435",
+              "read_fetch_reason": "raw_scrapes_materialized",
+              "read_fetch_retry_class": "none",
+              "reader_artifact_uri": "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/economic_literature/reader_output/4dbf81f3a67ad8e4c8782b5ba6c2291992c16c2e0e480d1a78adaa441db8bd80.md",
+              "run_id": "e1826ad9-cda9-4737-9c1d-316852460029",
+              "search_materialize_reason": "fresh_snapshot_materialized",
+              "search_materialize_retry_class": "none",
+              "selected_url": "https://www.huduser.gov/periodicals/cityscpe/vol8num1/ch4.pdf",
+              "storage_status": "stored",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-07-20260416"
+            },
+            "retry_class": "none",
+            "status": "succeeded"
+          }
+        }
+      }
+    ],
+    "scope_succeeded": 1,
+    "scope_total": 1,
+    "status": "succeeded"
+  },
+  "run_mode": "backend-endpoint-run",
+  "search_provider_bakeoff": [
+    {
+      "endpoint": "https://searx.tiekoetter.com/search",
+      "failure_classification": "http_error",
+      "http_status": 429,
+      "latency_ms": 734,
+      "provider": "searxng",
+      "query": "Ihlanfeldt Shaughnessy impact fees housing prices land prices PDF incidence estimates",
+      "result_count": 0,
+      "status": "failed",
+      "top_results": []
+    },
+    {
+      "failure_classification": null,
+      "http_status": 200,
+      "latency_ms": 1032,
+      "provider": "exa",
+      "query": "Ihlanfeldt Shaughnessy impact fees housing prices land prices PDF incidence estimates",
+      "result_count": 5,
+      "status": "succeeded",
+      "top_results": [
+        {
+          "snippet": "",
+          "title": "An Empirical Investigation of the Effects of Impact Fees on ...",
+          "url": "http://www.impactfees.com/publications%20pdf/Ihlanfeldt_Shaughnessy.pdf"
+        },
+        {
+          "snippet": "",
+          "title": "The Effects of Impact Fees on Housing and Land Markets",
+          "url": "https://cosspp.fsu.edu/dmc/wp-content/uploads/sites/8/2024/07/08.2002-The-Effects-of-Impact-Fees-on-Housing-and-Land-Markets.pdf"
+        },
+        {
+          "snippet": "",
+          "title": "An empirical investigation of the effects of impact fees on housing and land markets",
+          "url": "https://ideas.repec.org/a/eee/regeco/v34y2004i6p639-661.html"
+        }
+      ]
+    },
+    {
+      "failure_classification": null,
+      "http_status": 200,
+      "latency_ms": 1290,
+      "provider": "tavily",
+      "query": "Ihlanfeldt Shaughnessy impact fees housing prices land prices PDF incidence estimates",
+      "result_count": 5,
+      "status": "succeeded",
+      "top_results": [
+        {
+          "snippet": "$1.00 in impact fees.73 Finally, Ihlanfeldt and Shaughnessy also found that land prices declined by about eight percent, or by roughly the",
+          "title": "[PDF] Impact Fees and Housing Affordability - Institute for Local Government",
+          "url": "https://www.ca-ilg.org/sites/main/files/file-attachments/resources__impactfeesandhousing.pdf?1436996238"
+        },
+        {
+          "snippet": "Conclusion The three principal predictions of the new view theory of impact fee incidence are that 1) impact fees increase the prices of new and existing homes by the same amount, 2) the increase in the price of housing equals the present value of the property tax savings expected by homeowners from the shift from property tax finance to the use of impact fees to pay for new public capital services, and 3) undeveloped land values decline if the increase in the price of housing is insufficient to guarantee developers of new housing a competitive rate of return.",
+          "title": "[PDF] An Empirical Investigation of the Effects of Impact Fees on Housing ...",
+          "url": "http://www.impactfees.com/publications%20pdf/Ihlanfeldt_Shaughnessy.pdf"
+        },
+        {
+          "snippet": "Development impact fees increase the cost of construction, thereby increasing housing prices (Ihlanfeldt and Shaughnessy 2004) . At least in theory, impact fees",
+          "title": "An Empirical Investigation of the Effects of Impact Fees on Housing ...",
+          "url": "https://www.researchgate.net/publication/4925735_An_Empirical_Investigation_of_the_Effects_of_Impact_Fees_on_Housing_and_Land_Markets"
+        }
+      ]
+    }
+  ],
+  "stale_drills": [],
+  "storage_evidence_gates": {
+    "analysis_provenance_chain": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "bridge_mode": {
+      "note": "",
+      "status": "railway_runtime"
+    },
+    "failure_handler_drill": {
+      "note": "failure injection is a separate pre-schedule gate; this San Jose product path run verified the native failure handler surface was configured",
+      "status": "not_run"
+    },
+    "idempotent_rerun": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "minio_object_refs": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "pgvector_index_probe": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "postgres_rows_written": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "quality_gate_blocked_before_index_analyze": {
+      "note": "current run completed past read_fetch; reader quality block was not expected in this success path",
+      "status": "not_applicable"
+    },
+    "reader_output_ref": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "stale_drill_stale_blocked": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "stale_drill_stale_but_usable": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    }
+  },
+  "surface_checks": {
+    "jobs_checked_count": 20,
+    "schedule_count": 4,
+    "workspace_profile_listed": true
+  }
+}

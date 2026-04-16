@@ -1,0 +1,1590 @@
+{
+  "backend_endpoint_readiness": {
+    "local_mock_probe": {
+      "note": "local mock backend endpoint probe passed",
+      "status": "passed"
+    },
+    "missing_inputs": [],
+    "note": "backend endpoint config is present and local mock probe passed",
+    "status": "ready_for_opt_in"
+  },
+  "blockers": [
+    {
+      "blocking": false,
+      "category": "storage/runtime",
+      "details": {
+        "pending_gates": [
+          "idempotent_rerun",
+          "stale_drill_stale_but_usable",
+          "stale_drill_stale_blocked"
+        ]
+      },
+      "message": "storage/runtime evidence gates are pending"
+    }
+  ],
+  "canonical_variables": {
+    "BACKEND_ENDPOINT_AUTH_TOKEN": "optional local readiness input only",
+    "BACKEND_ENDPOINT_URL": "optional local readiness input only",
+    "BACKEND_PUBLIC_URL_VAR": "f/affordabot/BACKEND_PUBLIC_URL",
+    "CRON_SECRET_VAR": "f/affordabot/CRON_SECRET",
+    "TMP_WMILL_CONFIG": "auto-created temporary profile directory",
+    "WINDMILL_API_TOKEN": "op://dev/Agent-Secrets-Production/WINDMILL_API_TOKEN",
+    "WINDMILL_BASE_URL": "derived as WINDMILL_DEV_LOGIN_URL without /user/login",
+    "WINDMILL_DEV_LOGIN_URL": "op://dev/Agent-Secrets-Production/WINDMILL_DEV_LOGIN_URL",
+    "WINDMILL_WORKSPACE": "affordabot"
+  },
+  "classification": "backend_bridge_surface_ready",
+  "db_storage_probe": {
+    "content_artifact_rows": [
+      {
+        "artifact_kind": "reader_output",
+        "content_hash": "71524d4b161bbf71c6145f0549351b0c4a9603630c5e8e7794fb77c552468dd3",
+        "id": "9e38c5ab-bdb8-4b39-9388-9ccf24f5bf22",
+        "storage_uri": "artifacts/2026-04-13.windmill-domain.v1/San Jose CA/policy_documents/reader_output/71524d4b161bbf71c6145f0549351b0c4a9603630c5e8e7794fb77c552468dd3.md"
+      },
+      {
+        "artifact_kind": "reader_output",
+        "content_hash": "fa41fad8e08bfc60fa8a3dba43212d67ec16a38829d9e7869d261fc830ab4161",
+        "id": "6236fdb8-6e04-4f5d-a68b-b960762269f6",
+        "storage_uri": "artifacts/2026-04-13.windmill-domain.v1/San Jose CA/policy_documents/reader_output/fa41fad8e08bfc60fa8a3dba43212d67ec16a38829d9e7869d261fc830ab4161.md"
+      },
+      {
+        "artifact_kind": "reader_output",
+        "content_hash": "107a066718d26348a7a15e23038bd44a9f2daf227b2e068b92f75dee9d2a06ce",
+        "id": "a864076f-eb08-4997-a7ef-27b152d1435d",
+        "storage_uri": "artifacts/2026-04-13.windmill-domain.v1/San Jose CA/policy_documents/reader_output/107a066718d26348a7a15e23038bd44a9f2daf227b2e068b92f75dee9d2a06ce.md"
+      }
+    ],
+    "document_chunks_count": 9167,
+    "document_chunks_with_embedding_count": 9167,
+    "minio_object_checks": [
+      {
+        "status": "not_probeable_without_storage_client",
+        "uri": "artifacts/2026-04-13.windmill-domain.v1/San Jose CA/policy_documents/reader_output/71524d4b161bbf71c6145f0549351b0c4a9603630c5e8e7794fb77c552468dd3.md"
+      },
+      {
+        "status": "not_probeable_without_storage_client",
+        "uri": "artifacts/2026-04-13.windmill-domain.v1/San Jose CA/policy_documents/reader_output/fa41fad8e08bfc60fa8a3dba43212d67ec16a38829d9e7869d261fc830ab4161.md"
+      },
+      {
+        "status": "not_probeable_without_storage_client",
+        "uri": "artifacts/2026-04-13.windmill-domain.v1/San Jose CA/policy_documents/reader_output/107a066718d26348a7a15e23038bd44a9f2daf227b2e068b92f75dee9d2a06ce.md"
+      }
+    ],
+    "pipeline_command_rows": [
+      {
+        "alerts": [],
+        "command": "summarize_run",
+        "id": "fecb6e4c-a66a-43d3-858e-846a73bc384c",
+        "refs": {},
+        "status": "succeeded"
+      },
+      {
+        "alerts": [],
+        "command": "analyze",
+        "id": "ee4f8593-c226-40f4-8659-45da36f61fcc",
+        "refs": {},
+        "status": "succeeded"
+      },
+      {
+        "alerts": [],
+        "command": "index",
+        "id": "7d4e5d33-e8f1-4934-b3f8-3e73e953b0fb",
+        "refs": {},
+        "status": "succeeded"
+      },
+      {
+        "alerts": [],
+        "command": "read_fetch",
+        "id": "74f1aba1-69e0-4a88-9d09-81003450047e",
+        "refs": {},
+        "status": "succeeded"
+      },
+      {
+        "alerts": [],
+        "command": "freshness_gate",
+        "id": "f5585de7-99f4-4095-a90c-07728d2b171e",
+        "refs": {},
+        "status": "succeeded"
+      },
+      {
+        "alerts": [],
+        "command": "search_materialize",
+        "id": "af6d7ce1-4503-4af8-ac69-3837b790fe4c",
+        "refs": {},
+        "status": "succeeded"
+      }
+    ],
+    "raw_scrape_rows": [
+      {
+        "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=policy_documents|doctype=meeting_minutes|url=https://sanjose.legistar.com/View.ashx?GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6&ID=8758120&M=F",
+        "content_excerpt": "> NF:VMT:JMD 9/1/2020 1T-36631 / 1735108_43 Council Agenda: 09-01-2020 Item No.: 8.2(c)(2)\n> DRAFT \u2013 Contact the Office of the City Clerk at (408) 535-1260 or CityClerk@sanjoseca.gov for final document. REVISED \u2013 City Manager changes made since original posting on 8/21/2020.\nRESOLUTION NO. _______\nA RESOLUTION OF THE COUNCIL OF THE CITY OF SAN JOSE ESTABLISHING THE AMOUNTS OF COMMERCIAL LINKAGE FEES IN ACCORDANCE WITH CHAPTER 5.11 OF TITLE 5 OF THE SAN JOSE MUNICIPAL CODE WHEREAS, the City Council of the City of San Jos\u00e9 adopted an ordinance establishing a Commercial Linkage Fee on Non-Residential development as codified in Chapter 5.11 of Title 5 of the San Jos\u00e9 Municipal Code (the \u201cOrdinan",
+        "id": "5b748596-7025-5feb-bad3-3887819d0304",
+        "url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6"
+      },
+      {
+        "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=policy_documents|doctype=meeting_minutes|url=https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee",
+        "content_excerpt": "![Image 1: Skip to page body](https://www.sanjoseca.gov/DefaultContent/Default/_gfx/spacer.gif)\n![Image 2: Home](https://www.sanjoseca.gov/DefaultContent/Default/_gfx/spacer.gif)\n![Image 3: Residents](https://www.sanjoseca.gov/DefaultContent/Default/_gfx/spacer.gif)\n![Image 4: Businesses](https://www.sanjoseca.gov/DefaultContent/Default/_gfx/spacer.gif)\n![Image 5: Jobs](https://www.sanjoseca.gov/DefaultContent/Default/_gfx/spacer.gif)\n![Image 6: Your Government](https://www.sanjoseca.gov/DefaultContent/Default/_gfx/spacer.gif)\n![Image 7: News & Stories](https://www.sanjoseca.gov/DefaultContent/Default/_gfx/spacer.gif)\n\n- Housing-\n  - Rental Rights+\n    - Housing Ordinances\n    - Petition Pro",
+        "id": "58769634-4e46-5032-bd8b-8d91893d6064",
+        "url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee"
+      },
+      {
+        "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=policy_documents|doctype=meeting_minutes|url=https://siliconvalleyathome.org/resources/commercial-linkage-fees-2",
+        "content_excerpt": "Commercial Linkage Fees (CLF) are a standard tool used by local communities for generating affordable housing resources. The CLF is similar to other impact fees levied on new development, and helps cover the cost associated with creating new or expanded public facilities to meet the additional demand created by the development, such as parks, schools, libraries and streets. Before levying an impact fee, jurisdictions are required by state law to complete a nexus study that shows the linkage between the new development and the increased demand for the facilities. The results of the nexus study establish the maximum legal fee that may be charged.\n\nIn the case of the CLF, as cities build jobs-g",
+        "id": "6372bb01-fb68-504b-8373-43d31625bd98",
+        "url": "https://siliconvalleyathome.org/resources/commercial-linkage-fees-2/"
+      },
+      {
+        "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=meeting_minutes|doctype=meeting_minutes|url=https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee",
+        "content_excerpt": "![Image 1: Skip to page body](https://www.sanjoseca.gov/DefaultContent/Default/_gfx/spacer.gif)\n![Image 2: Home](https://www.sanjoseca.gov/DefaultContent/Default/_gfx/spacer.gif)\n![Image 3: Residents](https://www.sanjoseca.gov/DefaultContent/Default/_gfx/spacer.gif)\n![Image 4: Businesses](https://www.sanjoseca.gov/DefaultContent/Default/_gfx/spacer.gif)\n![Image 5: Jobs](https://www.sanjoseca.gov/DefaultContent/Default/_gfx/spacer.gif)\n![Image 6: Your Government](https://www.sanjoseca.gov/DefaultContent/Default/_gfx/spacer.gif)\n![Image 7: News & Stories](https://www.sanjoseca.gov/DefaultContent/Default/_gfx/spacer.gif)\n\n- Housing-\n  - Rental Rights+\n    - Housing Ordinances\n    - Petition Pro",
+        "id": "2aff9aee-fb19-5487-af70-6804f503e1fe",
+        "url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee"
+      },
+      {
+        "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=meeting_minutes|doctype=meeting_minutes|url=https://sanjose.granicus.com/MetaViewer.php?event_id=1477&meta_id=547137",
+        "content_excerpt": "COUNCIL AGENDA: 12/15/15\nITEM: 4.4\nCITY OF CT 3\nSAN JOSE CITY OF\nMemorandum CAPITAL OF SILICON VALLEY\nTO: HONORABLE MAYOR\nAND CITY COUNCIL FROM: Jacky Morales-Ferrand\nHarry Freitas\nKim Walesh\nSUBJECT: SEE BELOW DATE: November 23, 2015\nApproved Date\nSUBJECT: POTENTIAL RESEARCH REGARDING IMPACT FEE ON\nCOMMERCIAL DEVELOPMENT TO FUND AFFORDABLE HOUSING\nRECOMMENDATION\n1. Accept this research report from staff on a potential Commercial Impact Fee Nexus Study\nand Feasibility Study to support the development of affordable housing; and\n2. Discuss and provide direction to staff regarding next steps for a potential Nexus Study and\nFeasibility Study.\nOUTCOME\nAs a result of this item, the City Council wi",
+        "id": "6f8afe23-e5f5-51cb-8050-44a41edf091c",
+        "url": "https://sanjose.granicus.com/MetaViewer.php?event_id=1477&meta_id=547137"
+      },
+      {
+        "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=meeting_minutes|doctype=meeting_minutes|url=https://sanjose.legistar.com/gateway.aspx?id=%2Fmatter.aspx%3Fkey%3D15360&m=l",
+        "content_excerpt": "|  |  |  |  |\n| --- | --- | --- | --- |\n| File #: | 25-1313 \u00a0\u00a0 Version: 1 |  |  |\n\n|  |  |  |  |\n| --- | --- | --- | --- |\n| Type: | Consent Agenda | Status: | Agenda Ready |\n\n|  |  |  |  |\n| --- | --- | --- | --- |\n| On agenda: | 12/16/2025 | Final action: |  |\n\n|  |  |\n| --- | --- |\n| Title: | Fiscal Year 2024-2025 Affordable Housing Impact Fee and Commercial Linkage Fee Annual Report. |\n\n|  |  |\n| --- | --- |\n| Attachments: | 1. Memorandum |\n\n...Title\n\nFiscal Year 2024-2025 Affordable Housing Impact Fee and Commercial Linkage Fee Annual Report.\n\n...Recommendations\n\nAccept the Fiscal Year 2024-2025 Affordable Housing Impact Fee and Commercial Linkage Fee Annual Report prepared in accordanc",
+        "id": "a22d5dae-1cd0-5848-b3db-e4bb99ab931a",
+        "url": "https://sanjose.legistar.com/gateway.aspx?m=l&id=/matter.aspx?key=15360"
+      },
+      {
+        "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=economic_literature|doctype=meeting_minutes|url=https://www.huduser.gov/periodicals/cityscpe/vol8num1/ch4.pdf",
+        "content_excerpt": "Impact Fees and Housing AffordabilityImpact Fees andHousing AffordabilityVicki BeenNew York Uni versity, School of La wAbstractAppr oximately 60 per cent of U .S. cities with mor e than 25,000 r esidents now imposeimpact fees to fund infr astructur e needed to service ne w housing and other de velopment(GAO, 2000). In 89 jurisdictions selected for study in California, the state in whic himpact fees ar e most heavily used, the aver age amount of fees imposed on single-family homes in ne w subdivisions in 1999 was $19,552, with fees r anging fr om a lowof $6,783 to a high of $47,742 (Landis et al., 2001). Although California jurisdictionsimpose fees higher\u2014perhaps muc h higher\u2014than those in ot",
+        "id": "e0ce25aa-0c7d-528a-b760-1b500152b435",
+        "url": "https://www.huduser.gov/periodicals/cityscpe/vol8num1/ch4.pdf"
+      },
+      {
+        "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=meeting_minutes|doctype=meeting_minutes|url=https://sanjose.legistar.com/View.ashx?GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6&ID=8758120&M=F",
+        "content_excerpt": "> NF:VMT:JMD 9/1/2020 1T-36631 / 1735108_43 Council Agenda: 09-01-2020 Item No.: 8.2(c)(2)\n> DRAFT \u2013 Contact the Office of the City Clerk at (408) 535-1260 or CityClerk@sanjoseca.gov for final document. REVISED \u2013 City Manager changes made since original posting on 8/21/2020.\nRESOLUTION NO. _______\nA RESOLUTION OF THE COUNCIL OF THE CITY OF SAN JOSE ESTABLISHING THE AMOUNTS OF COMMERCIAL LINKAGE FEES IN ACCORDANCE WITH CHAPTER 5.11 OF TITLE 5 OF THE SAN JOSE MUNICIPAL CODE WHEREAS, the City Council of the City of San Jos\u00e9 adopted an ordinance establishing a Commercial Linkage Fee on Non-Residential development as codified in Chapter 5.11 of Title 5 of the San Jos\u00e9 Municipal Code (the \u201cOrdinan",
+        "id": "a33559cd-d306-58e2-91db-7e750ca50a0d",
+        "url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6"
+      },
+      {
+        "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=meeting_minutes|doctype=meeting_minutes|url=https://sanjose.legistar.com/View.ashx?GUID=DEBFA654-8B86-447A-997C-5ED36892BE3C&ID=7810086&M=F",
+        "content_excerpt": "COUNCIL AGENDA\nFILE\nITEM10-29-19\n19-964\nCITY OF\nSAN JOSECITY OFMemorandum\u00a3\u2022/ 3\nCAPITAL OF SILICON VALLEY\nTO: HONORABLE MAYOR\nAND CITY COUNCILFROM: Jacky Morales-Ferrand\nSUBJECT: AFFORDABLE HOUSING DATE: October 8, 2019\nIMPACT FEE FUND ANNUAL\nREPORT FOR FY 2018-2019\nApproved Date\nRECOMMENDATION\nAccept the Fiscal Year 2018-2019 Annual Report prepared in accordance with the Mitigation\nFee Act (Government Code section 66000 et seq.) on the status of the City\u2019s Affordable Housing\nImpact Fee.\nOUTCOME\nAccepting this memorandum with the attached Annual Report of required information will allow\nthe City of San Jose to continue to use Affordable Housing Impact Fee (AHIF) funds to fund\naffordable housi",
+        "id": "9659a5dc-f761-5d8d-b44d-717c94ac2325",
+        "url": "https://sanjose.legistar.com/View.ashx?M=F&ID=7810086&GUID=DEBFA654-8B86-447A-997C-5ED36892BE3C"
+      },
+      {
+        "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=meeting_minutes|doctype=meeting_minutes|url=https://sanjose.legistar.com/View.ashx?GUID=DEBFA654-8B86-447A-997C-5ED36892BE3C&ID=7810086&M=F",
+        "content_excerpt": "COUNCIL AGENDA FILE ITEM\n> 10 -29-19 19-964\n> CITY OF\n# SAN JOSE\n> CITY OF\n# Memorandum\n> \u00a3\u2022/\n# 3\n> CAPITAL OF SILICON VALLEY\nTO: HONORABLE MAYOR AND CITY COUNCIL\nFROM: Jacky Morales-Ferrand\nSUBJECT: AFFORDABLE HOUSING DATE: October 8, 2019\nIMPACT FEE FUND ANNUAL\nREPORT FOR FY 2018-2019\nApproved Date\nRECOMMENDATION\nAccept the Fiscal Year 2018-2019 Annual Report prepared in accordance with the Mitigation Fee Act (Government Code section 66000 et seq.) on the status of the City \u2019s Affordable Housing Impact Fee.\nOUTCOME\nAccepting this memorandum with the attached Ann ual Report of required information will allow the City of San Jose to continue to use Affordable Housing Impact Fee (AHIF) funds ",
+        "id": "b197180f-3144-5b33-8f37-c1bbdf847638",
+        "url": "https://sanjose.legistar.com/View.ashx?GUID=DEBFA654-8B86-447A-997C-5ED36892BE3C&ID=7810086&M=F"
+      },
+      {
+        "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=meeting_minutes|doctype=meeting_minutes|url=https://sanjose.legistar.com/View.ashx?GUID=CF0F61B5-1467-4299-B504-21A4ADD6FCFF&ID=1345653&M=A",
+        "content_excerpt": "City Council Meeting\nAgenda\nTuesday, April 14, 2026\n1:30 PM\nCouncil Chambers\nClosed Session at 9:30 a.m.\nMATT MAHAN, MAYOR\nROSEMARY KAMEI, DISTRICT 1\nPAMELA CAMPOS, DISTRICT 2\nANTHONY TORDILLOS, DISTRICT 3\nDAVID COHEN, DISTRICT 4\nPETER ORTIZ, DISTRICT 5\nMICHAEL MULCAHY, DISTRICT 6\nBIEN DOAN, DISTRICT 7\nDOMINGO CANDELAS, DISTRICT 8\nPAM FOLEY, VICE MAYOR, DISTRICT 9\nGEORGE CASEY, DISTRICT 10\nApril 14, 2026 City Council Agenda\nPlease scroll to the end for information about the City Council Agenda and for the Rules of\nConduct of the meeting.\nPublic Comment in Person Only\nFor live translations in over 50 languages, please go to https://attend.wordly.ai/join/FAYU-7105\nAmerican Disability Act\nTo re",
+        "id": "bfa71d13-dacc-5831-8ca0-9740283f618c",
+        "url": "https://sanjose.legistar.com/View.ashx?M=A&ID=1345653&GUID=CF0F61B5-1467-4299-B504-21A4ADD6FCFF"
+      },
+      {
+        "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=meeting_minutes|doctype=meeting_minutes|url=https://www.youtube.com/watch?v=IEf8RB9aEio",
+        "content_excerpt": "Video Information\n-----------------\n* **Channel:** City of San Jose, CA\n* **Published:** 2025-12-09\n* **Views:** 599\n* **Likes:** 3\n* **Duration:** 2:21:01\n* **Category:** News & Politics\nDescription\n-----------\nCity of San Jos\u00e9, California\nCity Council Study Session: Cost of Residential Development in San Jose, December 8, 2025\nThis public meeting will be held at San Jos\u00e9 City Hall and also viewable via Zoom Webinar. For information on public viewing via Zoom, please refer to the meeting agenda.\nAgenda: https://sanjose.legistar.com/Calendar.aspx\nTranscript\n----------\nHeat. Heat.\nAll right. Good morning everyone. Happy\nMonday. Happy holidays. Welcome. I'm\npleased to call to order this study\n",
+        "id": "27e8abbf-0273-50da-8b03-2d08c2982937",
+        "url": "https://www.youtube.com/watch?v=IEf8RB9aEio"
+      },
+      {
+        "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=meeting_minutes|doctype=meeting_minutes|url=https://www.sanjoseca.gov/your-government/agendas-minutes",
+        "content_excerpt": "Agendas & Minutes | City of San Jos\u00e9",
+        "id": "8ba434d6-0dea-5d0c-9c9e-be1877b32fb2",
+        "url": "https://www.sanjoseca.gov/your-government/agendas-minutes"
+      },
+      {
+        "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=meeting_minutes|doctype=meeting_minutes|url=https://legistar.granicus.com/sanjose/attachments/4d6afad0-672c-4863-9ff2-1926d4914983.pdf",
+        "content_excerpt": "City Council MeetingAgendaTuesday, March 25, 20251:30 PMCouncil ChambersMATT MAHAN, MAYORROSEMARY KAMEI, DISTRICT 1PAMELA CAMPOS, DISTRICT 2CARL SALAS, DISTRICT 3DAVID COHEN, DISTRICT 4PETER ORT IZ, DISTRICT 5MICHAEL MULCAHY, DISTRICT 6BIEN DOAN, DISTRICT 7DOMINGO CANDELAS, DISTRICT 8PAM FOLEY, VICE MAYOR, DISTRICT 9GEORGE CASEY, DISTRICT 10City Council Agenda March 25, 2025City of San Jos \u00e9 Page 2 Printed on 3/12/2025 Please scroll to the end for information about the City Council Agenda and for the Rules of Conduct ofthe meeting.\nPublic Comment in Person OnlyFor live translations in over 50 languages, please go to https://attend.wordly.ai/join/FAYU -7105American Disability ActTo request an",
+        "id": "6d6254e5-17c7-5d44-9f9a-3917931c6c68",
+        "url": "https://legistar.granicus.com/sanjose/attachments/4d6afad0-672c-4863-9ff2-1926d4914983.pdf"
+      },
+      {
+        "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=meeting_minutes|doctype=meeting_minutes|url=https://sanjose.legistar.com/View.ashx?GUID=DD691AF1-FB8F-433E-A6F0-0EAC70EA8FAF&ID=15069952&M=F",
+        "content_excerpt": "City Council Meeting Minutes\n# Tuesday, December 16, 2025\n1:30 PM\nCouncil Chambers Closed Session at 9:30 a.m.\nMATT MAHAN, MAYOR ROSEMARY KAMEI, DISTRICT 1 PAMELA CAMPOS, DISTRICT 2 ANTHONY TORDILLOS, DISTRICT 3 DAVID COHEN, DISTRICT 4 PETER ORTIZ, DISTRICT 5 MICHAEL MULCAHY, DISTRICT 6 BIEN DOAN, DISTRICT 7 DOMINGO CANDELAS, DISTRICT 8\nPAM FOLEY, VICE MAYOR, DISTRICT 9 GEORGE CASEY, DISTRICT 10 San Jos\u00e9 City Council December 16, 2025\n> Page 2\n# \u2022 Call to Order and Roll Call\n9:30 a.m.- Closed Session- See Page 34-39 for the Closed Session Minutes.\nPresent Councilmembers: Mahan, Foley, Kamei, Campos, Tordillos,\nCohen, Ortiz, Doan, Candelas, Mulcahy, Casey.\nAbsent Councilmembers: All present.\n",
+        "id": "5d26f9ce-8986-528f-a4d9-8207c39462ee",
+        "url": "https://sanjose.legistar.com/View.ashx?GUID=DD691AF1-FB8F-433E-A6F0-0EAC70EA8FAF&ID=15069952&M=F"
+      },
+      {
+        "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=meeting_minutes|doctype=meeting_minutes|url=https://sanjose.granicus.com/AgendaViewer.php?clip_id=14442&view_id=60",
+        "content_excerpt": "CITY COUNCIL MEETING\nAmended Agenda\nTuesday, June 11, 2024\n1:30 PM\nLOCATION:\nCouncil Chambers - 200 E. Santa Clara Street\nAttachments and related materials can be viewed HERE\nInterpretation is available in Spanish and Vietnamese. In your webinar controls, select \u201cInterpretation.\u201d Click the language you\nwould like to hear. (Zoom only)\nSe dispone de interpretaci\u00f3n en espa\u00f1ol y vietnamita. En los controles de su seminario web, seleccione \"Interpretation\"\n(Interpretaci\u00f3n). (Zoom solo)\nTh\u00f4ng d\u1ecbch c\u00f3 s\u1eb5n b\u1eb1ng ti\u1ebfng T\u00e2y Ban Nha v\u00e0 ti\u1ebfng Vi\u1ec7t. Tro ng c\u00e1c \u0111i\u1ec1u khi\u1ec3n h\u1ed9i th\u1ea3o tr\u00ean web c\u1ee7a b\u1ea1n, h\u00e3y ch\u1ecdn\n\u201cInterpretation\u201d (Phi\u00ean d\u1ecbch). (Zoom ch\u1ec9 m\u1ed9t)\nFor live translations in over 50 languages, please go ",
+        "id": "2e3adf12-c1db-5cdb-bc66-5d60c6363256",
+        "url": "https://sanjose.granicus.com/AgendaViewer.php?clip_id=14442&view_id=60"
+      },
+      {
+        "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=meeting_minutes|doctype=meeting_minutes|url=https://sanjose.granicus.com/AgendaViewer.php?clip_id=14442&view_id=60",
+        "content_excerpt": "CITY COUNCIL MEETING\n\nAmended Agenda\n\nTuesday, June 11, 2024\n\n1:30 PM\n\nLOCATION:\n\nCouncil Chambers - 200 E. Santa Clara Street\n\nAttachments and related materials can be viewed HERE\n\nInterpretation is available in Spanish and Vietnamese. In your webinar controls, select \u201cInterpretation.\u201d Click the language you\n\nwould like to hear. (Zoom only)\n\nSe dispone de interpretaci\u00f3n en espa\u00f1ol y vietnamita. En los controles de su seminario web, seleccione \"Interpretation\"\n\n(Interpretaci\u00f3n). (Zoom solo)\n\nTh\u00f4ng d\u1ecbch c\u00f3 s\u1eb5n b\u1eb1ng ti\u1ebfng T\u00e2y Ban Nha v\u00e0 ti\u1ebfng Vi\u1ec7t. Trong c\u00e1c \u0111i\u1ec1u khi\u1ec3n h\u1ed9i th\u1ea3o tr\u00ean web c\u1ee7a b\u1ea1n, h\u00e3y ch\u1ecdn\n\n\u201cInterpretation\u201d (Phi\u00ean d\u1ecbch). (Zoom ch\u1ec9 m\u1ed9t)\n\nFor live translations in over 50 languages",
+        "id": "fa62027e-63ff-5665-ab38-c52aff0cc182",
+        "url": "https://sanjose.granicus.com/AgendaViewer.php?clip_id=14442&view_id=60"
+      },
+      {
+        "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=meeting_minutes|doctype=meeting_minutes|url=https://sanjose.legistar.com/gateway.aspx?ID=30dfe51f-d23d-4480-a407-44e17ef4c0c3.pdf&M=F",
+        "content_excerpt": "City Council Meeting Minutes\n# Tuesday, February 10, 2026\n1:30 PM\nCouncil Chambers Closed Session at 9:30 a.m.\nMATT MAHAN, MAYOR ROSEMARY KAMEI, DISTRICT 1 PAMELA CAMPOS, DISTRICT 2 ANTHONY TORDILLOS, DISTRICT 3 DAVID COHEN, DISTRICT 4 PETER ORTIZ, DISTRICT 5 MICHAEL MULCAHY, DISTRICT 6 BIEN DOAN, DISTRICT 7 DOMINGO CANDELAS, DISTRICT 8\nPAM FOLEY, VICE MAYOR, DISTRICT 9 GEORGE CASEY, DISTRICT 10 San Jos\u00e9 City Council February 10, 2026\n> Page 2\n# \u2022 Call to Order and Roll Call\n9:31 a.m.- Closed Session- See Page 15-18 for the Closed Session Minutes.\nPresent Councilmembers: Mahan, Foley, Kamei, Tordillos, Cohen, Campos,\nOrtiz, Doan, Candelas, Mulcahy, Casey.\nAbsent Councilmembers: All present.\n",
+        "id": "2fa08e2a-ed24-5570-b5ac-1066ae77f7bc",
+        "url": "https://sanjose.legistar.com/gateway.aspx?ID=30dfe51f-d23d-4480-a407-44e17ef4c0c3.pdf&M=F"
+      },
+      {
+        "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=meeting_minutes|doctype=meeting_minutes|url=https://www.sanjoseca.gov/your-government/appointees/city-clerk/council-agendas-minutes/council-agendas",
+        "content_excerpt": "Council Agendas | City of San Jos\u00e9\n\n![Image 1: Skip to page body](https://www.sanjoseca.gov/DefaultContent/Default/_gfx/spacer.gif)\n![Image 2: Home](https://www.sanjoseca.gov/DefaultContent/Default/_gfx/spacer.gif)\n![Image 3: Residents](https://www.sanjoseca.gov/DefaultContent/Default/_gfx/spacer.gif)\n![Image 4: Businesses](https://www.sanjoseca.gov/DefaultContent/Default/_gfx/spacer.gif)\n![Image 5: Jobs](https://www.sanjoseca.gov/DefaultContent/Default/_gfx/spacer.gif)\n![Image 6: Your Government](https://www.sanjoseca.gov/DefaultContent/Default/_gfx/spacer.gif)\n![Image 7: News & Stories](https://www.sanjoseca.gov/DefaultContent/Default/_gfx/spacer.gif)\n\n# City of San Jos\u00e9\n\nHome\nMenu\n\nAccess",
+        "id": "05612b33-afe6-52ac-be79-b555727dfd1e",
+        "url": "https://www.sanjoseca.gov/your-government/appointees/city-clerk/council-agendas-minutes/council-agendas"
+      },
+      {
+        "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=meeting_minutes|doctype=meeting_minutes|url=https://sanjose.legistar.com/MeetingDetail.aspx?GUID=3C17B03F-B014-43D5-B8DF-44024CDE065B&ID=1315729&Options=info%7C&Search=",
+        "content_excerpt": "| File# | Ver. | Agenda# | Agenda Note | Type | Title | Action | Result | Action Details | Video |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n| | | | | | Please scroll to the end for information about the City Council Agenda and for the Rules of Conduct of the meeting. | | | Not available | Not available |\n| | | | | | Public Comment in Person Only | | | Not available | Not available |\n| | | | | | For live translations in over 50 languages, please go to https://attend.wordly.ai/join/FAYU-7105 | | | Not available | Not available |\n| | | | | | American Disability Act | | | Not available | Not available |\n| | | | | | To request an alternative format agenda under the Americans ",
+        "id": "36847cd8-1c4f-50a2-b091-2fcf48e63bcf",
+        "url": "https://sanjose.legistar.com/MeetingDetail.aspx?ID=1315729&GUID=3C17B03F-B014-43D5-B8DF-44024CDE065B&Options=info%7C&Search="
+      },
+      {
+        "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=meeting_minutes|doctype=meeting_minutes|url=https://www.sanjoseca.gov/your-government/appointees/city-clerk/council-agendas-minutes",
+        "content_excerpt": "![Image 1: Skip to page body](https://www.sanjoseca.gov/DefaultContent/Default/_gfx/spacer.gif)\n![Image 2: Home](https://www.sanjoseca.gov/DefaultContent/Default/_gfx/spacer.gif)\n![Image 3: Residents](https://www.sanjoseca.gov/DefaultContent/Default/_gfx/spacer.gif)\n![Image 4: Businesses](https://www.sanjoseca.gov/DefaultContent/Default/_gfx/spacer.gif)\n![Image 5: Jobs](https://www.sanjoseca.gov/DefaultContent/Default/_gfx/spacer.gif)\n![Image 6: Your Government](https://www.sanjoseca.gov/DefaultContent/Default/_gfx/spacer.gif)\n![Image 7: News & Stories](https://www.sanjoseca.gov/DefaultContent/Default/_gfx/spacer.gif)\n\nHome\nMenu\n\nAccessibility\n\n![Image 8: facebook](https://www.sanjoseca.gov/",
+        "id": "2140d4b0-b2cb-5939-b442-bd941efaa7f2",
+        "url": "https://www.sanjoseca.gov/your-government/appointees/city-clerk/council-agendas-minutes"
+      }
+    ],
+    "search_snapshot_rows": [
+      {
+        "id": "ede02b83-1d23-40b7-bc2e-ddcfd4525bf8",
+        "result_count": 10
+      }
+    ],
+    "status": "queried"
+  },
+  "deployment_surface": {
+    "flow_deployed": true,
+    "flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+    "flow_unscheduled": true,
+    "script_deployed": true,
+    "script_path": "f/affordabot/pipeline_daily_refresh_domain_boundary"
+  },
+  "feature_key": "bd-3wefe.13",
+  "full_run_readiness": "partial",
+  "generated_at": "2026-04-16T09:10:36.762193+00:00",
+  "harness_version": "2026-04-13.worker-b.v2",
+  "idempotent_rerun": {
+    "attempted": false
+  },
+  "manual_audit_notes": {
+    "llm_analysis_excerpt": "San Jose City Council Resolution establishes Commercial Linkage Fees for non-residential development calculated on gross square footage, effective upon adoption of Chapter 5.11 ordinance.",
+    "llm_quality_note": "LLM analysis produced a substantive answer from persisted evidence.",
+    "manual_verdict": "PASS_MANUAL_AUDIT",
+    "reader_output_excerpt": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6: > NF:VMT:JMD 9/1/2020 1T-36631 / 1735108_43 Council Agenda: 09-01-2020 Item No.: 8.2(c)(2) > DRAFT \u2013 Contact the Office of the City Clerk at (408) 535-1260 or CityClerk@sanjoseca.gov for final document. REVISED \u2013 City Manager changes made since original posting on 8/21/2020. RESOLUTION NO. _______ A RESOLUTION OF THE COUNCIL OF THE CITY OF SAN JOSE ESTABLISHING THE AMOUNTS OF COMMERCIAL LINKAGE FEES IN ACCORDANCE WITH CHAPTER 5.11 OF TITLE 5 OF THE SAN JOSE MUNICIPAL CODE WHEREAS, the City Counc",
+    "reader_quality_note": "Reader output was persisted and provided to analysis."
+  },
+  "manual_run": {
+    "attempted": true,
+    "command_client": "backend_endpoint",
+    "contract_metadata_present": true,
+    "expected_step_sequence": [
+      "search_materialize",
+      "freshness_gate",
+      "read_fetch",
+      "index",
+      "analyze",
+      "summarize_run"
+    ],
+    "final_status": "succeeded",
+    "idempotency_key": "bd-3wefe.13-live-gate-20260416-090909",
+    "job_get": {
+      "canceled": false,
+      "completed_at": "2026-04-16T09:10:26.425994Z",
+      "created_at": "2026-04-16T09:09:10.347648Z",
+      "deleted": false,
+      "duration_ms": 76057,
+      "flow_status": {
+        "failure_module": {
+          "id": "failure_handler",
+          "type": "WaitingForPriorSteps"
+        },
+        "modules": [
+          {
+            "branch_chosen": null,
+            "id": "build_scope_matrix",
+            "skipped": false,
+            "type": "Success"
+          },
+          {
+            "branch_chosen": null,
+            "id": "per_scope_pipeline",
+            "skipped": false,
+            "type": "Success"
+          },
+          {
+            "branch_chosen": {
+              "type": "default"
+            },
+            "id": "branch_outcome_review",
+            "skipped": false,
+            "type": "Success"
+          }
+        ],
+        "step": 3
+      },
+      "id": "019d958d-2c51-5e21-f010-3fb74a514e3b",
+      "job_kind": "flow",
+      "script_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow"
+    },
+    "job_logs_excerpt": "\u001b[33mNo wmill.yaml found. Use 'wmill init' to bootstrap it.\u001b[39m\n\u001b[36m\u001b[1m\n====== build_scope_matrix ======\u001b[22m\u001b[39m\njob=019d958d-2c6e-7bab-3c1b-d443174526fc tag=python3 worker=wk-default-661cef133dc0-WZTwK hostname=661cef133dc0 isolation=none\n\nenv deps from local cache: certifi==2026.2.25, charset-normalizer==3.4.7, idna==3.11, requests==2.33.1, urllib3==2.6.3\n\n\n--- PYTHON (3.12) CODE EXECUTION ---\n\n\u001b[36m\u001b[1m\n====== per_scope_pipeline (iteration 0) ======\u001b[22m\u001b[39m\nFlow job completed with success\n\n\u001b[36m\u001b[1m\n====== branch_outcome_review ======\u001b[22m\u001b[39m\nFlow job completed with success\n\n",
+    "scope_totals": {
+      "scope_blocked": 0,
+      "scope_failed": 0,
+      "scope_succeeded": 1,
+      "scope_total": 1
+    },
+    "step_sequence": [
+      "search_materialize",
+      "freshness_gate",
+      "read_fetch",
+      "index",
+      "analyze",
+      "summarize_run"
+    ],
+    "step_sequence_matches_expected": true,
+    "windmill_job_id": "019d958d-2c51-5e21-f010-3fb74a514e3b"
+  },
+  "result_payload": {
+    "alerts": [
+      "policy_evidence_fail_closed"
+    ],
+    "scope_blocked": 0,
+    "scope_failed": 0,
+    "scope_results": [
+      {
+        "alert": "policy_evidence_fail_closed",
+        "backend_response": {
+          "decision_reason": "run_summary_materialized",
+          "missing_runtime_adapters": [],
+          "refs": {
+            "analyze_reason": "analysis_completed",
+            "analyze_retry_class": "none",
+            "backend_run_id": "82bc5cc6-c666-400f-84e9-feb7351065cc",
+            "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=policy_documents|doctype=meeting_minutes|url=https://sanjose.legistar.com/View.ashx?GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6&ID=8758120&M=F",
+            "document_id": "b9bb5240-607d-558b-9528-7456e0c4988d",
+            "fail_closed_reasons": [
+              "analysis_sufficiency:Source provides specific fee rates, categories, and calculation mechanics, but lacks data on household pass-through assumptions.",
+              "blocking_gate_present",
+              "scraped_provider_identity_missing",
+              "secondary_research_needed:pass_through_incidence_rate_missing"
+            ],
+            "freshness_gate_reason": "fresh",
+            "freshness_gate_retry_class": "none",
+            "index_reason": "chunks_indexed",
+            "index_retry_class": "none",
+            "package_artifact_uri": "minio://affordabot-artifacts/policy-evidence/packages/pkg-efa6e50f77c3b9690dc3d2a8.json",
+            "package_id": "pkg-efa6e50f77c3b9690dc3d2a8",
+            "raw_scrape_id": "5b748596-7025-5feb-bad3-3887819d0304",
+            "read_fetch_reason": "raw_scrapes_materialized",
+            "read_fetch_retry_class": "none",
+            "reader_artifact_uri": "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/policy_documents/reader_output/71524d4b161bbf71c6145f0549351b0c4a9603630c5e8e7794fb77c552468dd3.md",
+            "run_id": "82bc5cc6-c666-400f-84e9-feb7351065cc",
+            "search_materialize_reason": "fresh_snapshot_materialized",
+            "search_materialize_retry_class": "none",
+            "selected_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+            "storage_status": "stored",
+            "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+            "windmill_run_id": "bd-3wefe.13-live-gate-20260416-090909"
+          },
+          "status": "succeeded",
+          "storage_mode": "railway_runtime"
+        },
+        "scope_index": 0,
+        "scope_item": {
+          "jurisdiction": "San Jose CA",
+          "scope_key": "san jose ca::policy_documents",
+          "source_family": "policy_documents"
+        },
+        "status": "succeeded",
+        "steps": {
+          "analyze": {
+            "alerts": [],
+            "command": "analyze",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "counts": {
+              "analyses": 1,
+              "evidence_chunks": 19
+            },
+            "created_at": "2026-04-16T09:10:23.386757+00:00",
+            "decision_reason": "analysis_completed",
+            "details": {
+              "analysis": {
+                "key_points": [
+                  "Fee Rates (per sq. ft.): Office (<100,000 sq. ft.) $3.00; Retail (\u2265100,000 sq. ft.) $3.00; Retail (<100,000 sq. ft.) No fee ($0); Hotel $5.00; Industrial/Research and Development (\u2265100,000 sq. ft.) $3.00; Industrial/Research and Development (<100,000 sq. ft.) No fee ($0); Warehouse $5.00; Residential Care $18.706.00.",
+                  "Affected Project Categories: All Non-Residential Projects and Non-Residential portions of Projects including Office, Retail, Hotel, Industrial/Research and Development, Warehouse, and Residential Care.",
+                  "Effective Date: Upon the effective date of the ordinance adopting Chapter 5.11 (Council Agenda listed 09-01-2020).",
+                  "Direct Development-Cost Mechanism: Fees are computed based on the gross square footage of each use included in the proposed Project; credits are applied for legally permitted non-residential square footage demolished based on the fee of the prior use.",
+                  "Secondary Research Needed: The provided text does not contain information regarding household pass-through assumptions; external research is required."
+                ],
+                "sufficiency_state": "Source provides specific fee rates, categories, and calculation mechanics, but lacks data on household pass-through assumptions.",
+                "summary": "San Jose City Council Resolution establishes Commercial Linkage Fees for non-residential development calculated on gross square footage, effective upon adoption of Chapter 5.11 ordinance."
+              },
+              "evidence_selection": {
+                "candidate_chunk_count": 19,
+                "selected_chunk_count": 19,
+                "selected_chunks": [
+                  {
+                    "chunk_id": "ae52cbee-3221-5ce8-a1d1-fd2f9c55803f",
+                    "chunk_index": 16,
+                    "matched_action_signals": [
+                      "ordinance",
+                      "resolution",
+                      "item "
+                    ],
+                    "matched_question_terms": [
+                      "san",
+                      "commercial",
+                      "linkage",
+                      "fee",
+                      "per",
+                      "square",
+                      "foot",
+                      "project",
+                      "effective",
+                      "date",
+                      "development",
+                      "research"
+                    ],
+                    "rank": 1,
+                    "score": 48,
+                    "snippet": "Industrial/Research and Development (<100,000 sq. ft.) No fee ($0) Warehouse $5.00 Residential Care $18.706.00 B. The amount of legally permitted Non-Residential square footage to be demolished or rem"
+                  },
+                  {
+                    "chunk_id": "b34d50ed-ae9f-5719-a567-ccd7b4516f82",
+                    "chunk_index": 3,
+                    "matched_action_signals": [
+                      "ordinance",
+                      "adopted",
+                      "resolution"
+                    ],
+                    "matched_question_terms": [
+                      "san",
+                      "jose",
+                      "commercial",
+                      "linkage",
+                      "fee",
+                      "development"
+                    ],
+                    "rank": 2,
+                    "score": 30,
+                    "snippet": "A RESOLUTION OF THE COUNCIL OF THE CITY OF SAN JOSE ESTABLISHING THE AMOUNTS OF COMMERCIAL LINKAGE FEES IN ACCORDANCE WITH CHAPTER 5.11 OF TITLE 5 OF THE SAN JOSE MUNICIPAL CODE WHEREAS, the City Coun"
+                  },
+                  {
+                    "chunk_id": "5a1bd00e-05bf-504a-9a5f-0e1fe5bf3bfc",
+                    "chunk_index": 9,
+                    "matched_action_signals": [
+                      "adopted",
+                      "resolution"
+                    ],
+                    "matched_question_terms": [
+                      "san",
+                      "commercial",
+                      "linkage",
+                      "square",
+                      "project",
+                      "categories"
+                    ],
+                    "rank": 3,
+                    "score": 26,
+                    "snippet": "SECTION 1. The definitions of the terms \u201cGeographic Subarea,\u201d \u201cNon-Residential\u201d land use categories, and \u201cNon-Residential Project\u201d used in this Resolution shall have meanings set forth in Section 5.11"
+                  },
+                  {
+                    "chunk_id": "08f61170-1952-5483-b72b-08f49de0d6a4",
+                    "chunk_index": 4,
+                    "matched_action_signals": [
+                      "ordinance"
+                    ],
+                    "matched_question_terms": [
+                      "commercial",
+                      "linkage",
+                      "fee"
+                    ],
+                    "rank": 4,
+                    "score": 13,
+                    "snippet": "WHEREAS, the purpose and findings supporting the adoption of the Commercial Linkage Fee are set forth in the Ordinance; and"
+                  },
+                  {
+                    "chunk_id": "8d44bc73-8f18-5bf1-81e5-e81f3726717f",
+                    "chunk_index": 14,
+                    "matched_action_signals": [
+                      "item "
+                    ],
+                    "matched_question_terms": [
+                      "fee",
+                      "development",
+                      "research"
+                    ],
+                    "rank": 5,
+                    "score": 13,
+                    "snippet": "Office (<100,000 sq. ft.) $3.00 Retail ( \u2265100,000 sq. ft.) $3.00 Retail (<100,000 sq. ft.) No fee ($0) Hotel $5.00 Industrial/Research and Development ( \u2265100,000 sq. ft.) $3.00 NF:VMT:JMD 9/1/2020 3T-"
+                  },
+                  {
+                    "chunk_id": "98ed732a-8f21-5f9b-bec2-44eb605872f4",
+                    "chunk_index": 6,
+                    "matched_action_signals": [
+                      "resolution"
+                    ],
+                    "matched_question_terms": [
+                      "project",
+                      "mechanism"
+                    ],
+                    "rank": 6,
+                    "score": 10,
+                    "snippet": "WHEREAS, this Resolution is not a project subject to the California Environmental Quality Act of 1970, as amended (\u201cCEQA\u201d) pursuant to Section 15378(b)(4) of the CEQA Guidelines which excludes the fol"
+                  },
+                  {
+                    "chunk_id": "e18e6d51-50fe-5b34-bb2d-93ff896a70ff",
+                    "chunk_index": 7,
+                    "matched_action_signals": [
+                      "item "
+                    ],
+                    "matched_question_terms": [
+                      "san",
+                      "jose"
+                    ],
+                    "rank": 7,
+                    "score": 10,
+                    "snippet": "NOW, THEREFORE, BE IT RESOLVED BY THE COUNCIL OF THE CITY OF SAN JOSE AS FOLLOWS: NF:VMT:JMD 9/1/2020 2T-36631 / 1735108_43 Council Agenda: 09-01-2020 Item No.: 8.2(c)(2)"
+                  },
+                  {
+                    "chunk_id": "1d46dace-51a7-5e3a-b9ab-040acfc5b738",
+                    "chunk_index": 5,
+                    "matched_action_signals": [],
+                    "matched_question_terms": [
+                      "san",
+                      "commercial",
+                      "linkage"
+                    ],
+                    "rank": 8,
+                    "score": 9,
+                    "snippet": "WHEREAS, the Council desires to establish herein the amount of the Commercial Linkage Fees for specified Non-Residential land uses in specified Geographic Subareas of the City of San Jos\u00e9; and"
+                  },
+                  {
+                    "chunk_id": "32a9f097-6c21-5c80-8bc0-d22a16861d50",
+                    "chunk_index": 12,
+                    "matched_action_signals": [],
+                    "matched_question_terms": [
+                      "fee",
+                      "development",
+                      "research"
+                    ],
+                    "rank": 9,
+                    "score": 9,
+                    "snippet": "Office (<100,000 sq. ft.) $3.00 Retail ( \u2265100,000 sq. ft.) $3.00 Retail (<100,000 sq. ft.) No fee ($0) Hotel $5.00 Industrial/Research and Development ( \u2265100,000 sq. ft.) $3.00 Industrial/Research and"
+                  },
+                  {
+                    "chunk_id": "a028a412-0658-5290-8ee0-62eee5cc26c9",
+                    "chunk_index": 10,
+                    "matched_action_signals": [],
+                    "matched_question_terms": [
+                      "fee",
+                      "per"
+                    ],
+                    "rank": 10,
+                    "score": 6,
+                    "snippet": "Geographic Subarea Non-Residential Use Fee per sq. ft."
+                  },
+                  {
+                    "chunk_id": "ebe151bc-3221-5f1f-b633-f595985c6944",
+                    "chunk_index": 0,
+                    "matched_action_signals": [
+                      "item "
+                    ],
+                    "matched_question_terms": [],
+                    "rank": 11,
+                    "score": 4,
+                    "snippet": "> NF:VMT:JMD 9/1/2020 1T-36631 / 1735108_43 Council Agenda: 09-01-2020 Item No.: 8.2(c)(2)"
+                  },
+                  {
+                    "chunk_id": "270a71db-30eb-55b2-a5ca-d0627f2cbc88",
+                    "chunk_index": 2,
+                    "matched_action_signals": [
+                      "resolution"
+                    ],
+                    "matched_question_terms": [],
+                    "rank": 12,
+                    "score": 4,
+                    "snippet": "RESOLUTION NO. _______"
+                  },
+                  {
+                    "chunk_id": "23d3f6d6-60bb-5e93-9c25-802283a46105",
+                    "chunk_index": 18,
+                    "matched_action_signals": [
+                      "adopted"
+                    ],
+                    "matched_question_terms": [],
+                    "rank": 13,
+                    "score": 4,
+                    "snippet": "ADOPTED this _____ day of ___________, 2020, by the following vote: AYES: NOES: ABSENT: DISQUALIFIED: SAM LICCARDO Mayor ATTEST: TONI J. TABER, CMC City Clerk"
+                  },
+                  {
+                    "chunk_id": "2fe4bec2-6d48-53e3-a655-d0e867b4e6c9",
+                    "chunk_index": 1,
+                    "matched_action_signals": [],
+                    "matched_question_terms": [],
+                    "rank": 14,
+                    "score": 0,
+                    "snippet": "> DRAFT \u2013 Contact the Office of the City Clerk at (408) 535-1260 or CityClerk@sanjoseca.gov for final document. REVISED \u2013 City Manager changes made since original posting on 8/21/2020."
+                  },
+                  {
+                    "chunk_id": "17fa21e0-5fe0-5a1d-b2b0-0daa3675e830",
+                    "chunk_index": 8,
+                    "matched_action_signals": [],
+                    "matched_question_terms": [],
+                    "rank": 15,
+                    "score": 0,
+                    "snippet": "> DRAFT \u2013 Contact the Office of the City Clerk at (408) 535-1260 or CityClerk@sanjoseca.gov for final document. REVISED \u2013 City Manager changes made since original posting on 8/21/2020."
+                  },
+                  {
+                    "chunk_id": "847dcd5b-4d4c-5e0c-96bd-480d41b4fa63",
+                    "chunk_index": 11,
+                    "matched_action_signals": [],
+                    "matched_question_terms": [],
+                    "rank": 16,
+                    "score": 0,
+                    "snippet": "Downtown Office ( \u2265100,000 sq. ft.) $10.00"
+                  },
+                  {
+                    "chunk_id": "bf186cda-3e59-5b31-9944-72661f1e846d",
+                    "chunk_index": 13,
+                    "matched_action_signals": [],
+                    "matched_question_terms": [],
+                    "rank": 17,
+                    "score": 0,
+                    "snippet": "Rest of City Office ( \u2265100,000 sq. ft.) $5.00"
+                  },
+                  {
+                    "chunk_id": "17edc23b-6815-5726-a1a7-a968a0a1bafd",
+                    "chunk_index": 15,
+                    "matched_action_signals": [],
+                    "matched_question_terms": [],
+                    "rank": 18,
+                    "score": 0,
+                    "snippet": "> DRAFT \u2013 Contact the Office of the City Clerk at (408) 535-1260 or CityClerk@sanjoseca.gov for final document. REVISED \u2013 City Manager changes made since original posting on 8/21/2020."
+                  },
+                  {
+                    "chunk_id": "8e65a4ce-901d-5a62-8cab-d40307a40b69",
+                    "chunk_index": 17,
+                    "matched_action_signals": [],
+                    "matched_question_terms": [],
+                    "rank": 19,
+                    "score": 0,
+                    "snippet": "DRAFT \u2013 Contact the Office of the City Clerk at (408) 535-1260 or CityClerk@sanjoseca.gov for final document. REVISED \u2013 City Manager changes made since original posting on 8/21/2020."
+                  }
+                ]
+              }
+            },
+            "envelope": {
+              "analysis_question": "Using source-backed facts only, extract current San Jose Commercial Linkage Fee dollar rates per square foot, affected project categories, effective date, direct development-cost mechanism, and mark secondary research needed for household pass-through assumptions.",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-3wefe.13-live-gate-20260416-090909",
+              "jurisdiction": "San Jose CA",
+              "orchestrator": "windmill",
+              "scope_idempotency_key": "bd-3wefe.13-live-gate-20260416-090909::e29e77f2a610ecbc",
+              "search_query": "San Jose Commercial Linkage Fee Resolution 80069 fee per square foot",
+              "source_family": "policy_documents",
+              "stale_status": "fresh",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-gate-20260416-090909",
+              "windmill_workspace": "affordabot"
+            },
+            "refs": {
+              "analysis_id": "fa047627-f701-5ebe-905c-628a23c78db9",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-gate-20260416-090909"
+            },
+            "retry_class": "none",
+            "status": "succeeded"
+          },
+          "freshness_gate": {
+            "alerts": [],
+            "command": "freshness_gate",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "counts": {
+              "search_results": 10
+            },
+            "created_at": "2026-04-16T09:09:13.031990+00:00",
+            "decision_reason": "fresh",
+            "details": {
+              "fail_closed_ceiling_hours": 168,
+              "fresh_hours": 24,
+              "freshness_status": "fresh",
+              "snapshot_age_hours": 0,
+              "stale_usable_ceiling_hours": 72
+            },
+            "envelope": {
+              "analysis_question": "Using source-backed facts only, extract current San Jose Commercial Linkage Fee dollar rates per square foot, affected project categories, effective date, direct development-cost mechanism, and mark secondary research needed for household pass-through assumptions.",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-3wefe.13-live-gate-20260416-090909",
+              "jurisdiction": "San Jose CA",
+              "orchestrator": "windmill",
+              "scope_idempotency_key": "bd-3wefe.13-live-gate-20260416-090909::e29e77f2a610ecbc",
+              "search_query": "San Jose Commercial Linkage Fee Resolution 80069 fee per square foot",
+              "source_family": "policy_documents",
+              "stale_status": "fresh",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-gate-20260416-090909",
+              "windmill_workspace": "affordabot"
+            },
+            "refs": {
+              "search_snapshot_id": "ede02b83-1d23-40b7-bc2e-ddcfd4525bf8",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-gate-20260416-090909"
+            },
+            "retry_class": "none",
+            "status": "succeeded"
+          },
+          "index": {
+            "alerts": [],
+            "command": "index",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "counts": {
+              "chunks": 19
+            },
+            "created_at": "2026-04-16T09:09:16.037312+00:00",
+            "decision_reason": "chunks_indexed",
+            "details": {
+              "embedding_count": 19,
+              "embedding_provider": "openrouter:qwen/qwen3-embedding-8b"
+            },
+            "envelope": {
+              "analysis_question": "Using source-backed facts only, extract current San Jose Commercial Linkage Fee dollar rates per square foot, affected project categories, effective date, direct development-cost mechanism, and mark secondary research needed for household pass-through assumptions.",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-3wefe.13-live-gate-20260416-090909",
+              "jurisdiction": "San Jose CA",
+              "orchestrator": "windmill",
+              "scope_idempotency_key": "bd-3wefe.13-live-gate-20260416-090909::e29e77f2a610ecbc",
+              "search_query": "San Jose Commercial Linkage Fee Resolution 80069 fee per square foot",
+              "source_family": "policy_documents",
+              "stale_status": "fresh",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-gate-20260416-090909",
+              "windmill_workspace": "affordabot"
+            },
+            "refs": {
+              "document_id": "b9bb5240-607d-558b-9528-7456e0c4988d",
+              "raw_scrape_ids": [
+                "5b748596-7025-5feb-bad3-3887819d0304"
+              ],
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-gate-20260416-090909"
+            },
+            "retry_class": "none",
+            "status": "succeeded"
+          },
+          "read_fetch": {
+            "alerts": [],
+            "command": "read_fetch",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "counts": {
+              "artifacts": 1,
+              "raw_scrapes": 1
+            },
+            "created_at": "2026-04-16T09:09:13.901833+00:00",
+            "decision_reason": "raw_scrapes_materialized",
+            "details": {
+              "candidate_audit": [
+                {
+                  "outcome": "materialized_raw_scrape",
+                  "rank": 1,
+                  "raw_scrape_id": "5b748596-7025-5feb-bad3-3887819d0304",
+                  "score": 35,
+                  "url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6"
+                }
+              ],
+              "ranked_candidates": [
+                {
+                  "input_index": 9,
+                  "rank": 1,
+                  "reasons": [
+                    "url_signal:legistar.com",
+                    "url_signal:view.ashx",
+                    "url_high_value:view.ashx",
+                    "url_concrete_artifact:parsed",
+                    "text_signal:council",
+                    "text_signal:resolution",
+                    "text_action:adopted",
+                    "text_action:resolution",
+                    "economic_signal:context"
+                  ],
+                  "score": 35,
+                  "snippet": "Aug 21, 2020 \u00b7 020 of the San Jos\u00e9 Municipal Code. SECTION 2. The Commercial Linkage Fees adopted in Chapter 5.11 of the San Jos\u00e9. Municipal Code are hereby ...Missing: 80069 | Show results with:80069",
+                  "title": "A RESOLUTION OF THE COUNCIL OF THE CITY OF SAN JOSE ...",
+                  "url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6"
+                },
+                {
+                  "input_index": 0,
+                  "rank": 2,
+                  "reasons": [
+                    "text_signal:council",
+                    "text_signal:housing",
+                    "penalty:departments",
+                    "economic_signal:context",
+                    "economic_signal:url",
+                    "economic_signal:official_source"
+                  ],
+                  "score": 20,
+                  "snippet": "The Commercial Linkage Fee is a one-time impact fee that applies to new and existing Non-Residential Projects in San Jos\u00e9 that either add gross floor area or change the existing building use The production and preservation of affordable housing is a priority for City Council.",
+                  "title": "Commercial Linkage Fee | City of San Jos\u00e9",
+                  "url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee"
+                },
+                {
+                  "input_index": 2,
+                  "rank": 3,
+                  "reasons": [
+                    "text_signal:housing",
+                    "text_action:adopted",
+                    "economic_signal:context",
+                    "economic_signal:numeric"
+                  ],
+                  "score": 17,
+                  "snippet": "The commercial linkage fee program, adopted in 2020, requires developers of office, retail, hotel, industrial, research and development, warehouse and residential care spaces to pay $12-15 per square foot, unless they promise to build the equivalent in affordable housing.",
+                  "title": "UPDATE: San Jose gives more fee breaks to commercial developers",
+                  "url": "https://sanjosespotlight.com/san-jose-could-give-commercial-developers-more-fee-breaks/"
+                },
+                {
+                  "input_index": 7,
+                  "rank": 4,
+                  "reasons": [
+                    "text_signal:housing",
+                    "text_action:adopted",
+                    "economic_signal:context",
+                    "economic_signal:numeric"
+                  ],
+                  "score": 17,
+                  "snippet": "The commercial linkage fee program, adopted in 2020, requires developers of office, retail, hotel, industrial, research and development, warehouse and residential care spaces to pay $12-15 per square foot, unless they promise to build the equivalent in affordable housing. For developments outside the downtown core, fees are $5 per square foot.",
+                  "title": "UPDATE: San Jose gives more fee breaks to commercial developers",
+                  "url": "https://tieuproperty.com/2024/06/23/update-san-jose-gives-more-fee-breaks-to-commercial-developers/"
+                },
+                {
+                  "input_index": 6,
+                  "rank": 5,
+                  "reasons": [
+                    "text_signal:council",
+                    "text_signal:resolution",
+                    "text_signal:housing",
+                    "text_action:resolution",
+                    "penalty:home",
+                    "economic_signal:context",
+                    "economic_signal:official_source"
+                  ],
+                  "score": 15,
+                  "snippet": "... Linkage Fee. Program will bring desperately needed funds for affordable housing. Post Date:09/02/2020 12:30 PM. FOR IMMEDIATE RELEASE September 2, 2020.Missing: Resolution 80069",
+                  "title": "San Jose City Council Passes Commercial Linkage Fee | News",
+                  "url": "https://www.sanjoseca.gov/Home/Components/News/News/1801/4699"
+                }
+              ],
+              "reader_provider_errors": [],
+              "reader_quality_failures": []
+            },
+            "envelope": {
+              "analysis_question": "Using source-backed facts only, extract current San Jose Commercial Linkage Fee dollar rates per square foot, affected project categories, effective date, direct development-cost mechanism, and mark secondary research needed for household pass-through assumptions.",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-3wefe.13-live-gate-20260416-090909",
+              "jurisdiction": "San Jose CA",
+              "orchestrator": "windmill",
+              "scope_idempotency_key": "bd-3wefe.13-live-gate-20260416-090909::e29e77f2a610ecbc",
+              "search_query": "San Jose Commercial Linkage Fee Resolution 80069 fee per square foot",
+              "source_family": "policy_documents",
+              "stale_status": "fresh",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-gate-20260416-090909",
+              "windmill_workspace": "affordabot"
+            },
+            "refs": {
+              "artifact_refs": [
+                "artifacts/2026-04-13.windmill-domain.v1/San Jose CA/policy_documents/reader_output/71524d4b161bbf71c6145f0549351b0c4a9603630c5e8e7794fb77c552468dd3.md"
+              ],
+              "document_id": "b9bb5240-607d-558b-9528-7456e0c4988d",
+              "raw_scrape_ids": [
+                "5b748596-7025-5feb-bad3-3887819d0304"
+              ],
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-gate-20260416-090909"
+            },
+            "retry_class": "none",
+            "status": "succeeded"
+          },
+          "search_materialize": {
+            "alerts": [],
+            "command": "search_materialize",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "counts": {
+              "search_results": 10
+            },
+            "created_at": "2026-04-16T09:09:12.994969+00:00",
+            "decision_reason": "fresh_snapshot_materialized",
+            "details": {
+              "query": "San Jose Commercial Linkage Fee Resolution 80069 fee per square foot"
+            },
+            "envelope": {
+              "analysis_question": "Using source-backed facts only, extract current San Jose Commercial Linkage Fee dollar rates per square foot, affected project categories, effective date, direct development-cost mechanism, and mark secondary research needed for household pass-through assumptions.",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-3wefe.13-live-gate-20260416-090909",
+              "jurisdiction": "San Jose CA",
+              "orchestrator": "windmill",
+              "scope_idempotency_key": "bd-3wefe.13-live-gate-20260416-090909::e29e77f2a610ecbc",
+              "search_query": "San Jose Commercial Linkage Fee Resolution 80069 fee per square foot",
+              "source_family": "policy_documents",
+              "stale_status": "fresh",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-gate-20260416-090909",
+              "windmill_workspace": "affordabot"
+            },
+            "refs": {
+              "search_snapshot_id": "ede02b83-1d23-40b7-bc2e-ddcfd4525bf8",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-gate-20260416-090909"
+            },
+            "retry_class": "none",
+            "status": "succeeded"
+          },
+          "summarize_run": {
+            "alerts": [
+              "policy_evidence_fail_closed"
+            ],
+            "command": "summarize_run",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "counts": {
+              "analyses": 1,
+              "artifacts": 1,
+              "chunks": 19,
+              "evidence_chunks": 19,
+              "raw_scrapes": 1,
+              "search_results": 20
+            },
+            "created_at": "2026-04-16T09:10:23.400938+00:00",
+            "decision_reason": "run_summary_materialized",
+            "details": {
+              "policy_evidence_package": {
+                "alerts": [
+                  "policy_evidence_fail_closed"
+                ],
+                "package_payload": {
+                  "assumption_cards": [
+                    {
+                      "applicability_tags": [
+                        "San Jose CA",
+                        "policy_documents"
+                      ],
+                      "central": 0.65,
+                      "confidence": 0.5,
+                      "external_validity_notes": "POC placeholder assumption; validate with literature in bd-3wefe.5/.6.",
+                      "family": "fee_or_tax_pass_through",
+                      "high": 0.8,
+                      "id": "assump-1-fee_or_tax_pass_through",
+                      "low": 0.5,
+                      "source_excerpt": "Mapped mechanism assumption from source evidence and policy context.",
+                      "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+                      "stale_after_days": 365,
+                      "unit": "share",
+                      "version": "v1"
+                    }
+                  ],
+                  "assumption_usage": [],
+                  "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=policy_documents|doctype=meeting_minutes|url=https://sanjose.legistar.com/View.ashx?GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6&ID=8758120&M=F",
+                  "created_at": "1970-01-01T00:00:00+00:00",
+                  "economic_handoff_ready": false,
+                  "evidence_cards": [
+                    {
+                      "artifact_id": "v2|jurisdiction=san-jose-ca|family=policy_documents|doctype=meeting_minutes|url=https://sanjose.legistar.com/View.ashx?GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6&ID=8758120&M=F",
+                      "content_hash": "71524d4b161bbf71c6145f0549351b0c4a9603630c5e8e7794fb77c552468dd3",
+                      "excerpt": "Evidence extracted from policy_documents artifact for economic analysis.",
+                      "id": "ev-1",
+                      "provenance_label": "private_searxng_policy_documents",
+                      "reader_run_id": null,
+                      "retrieved_at": "1970-01-01T00:00:00Z",
+                      "source_tier": "tier_c",
+                      "source_type": "other",
+                      "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6"
+                    },
+                    {
+                      "artifact_id": "v2|jurisdiction=san-jose-ca|family=legistar-web-api|doctype=meeting_metadata|url=https://sanjose.legistar.com/MeetingDetail.aspx?G=920296E4-80BE-4CA2-A78F-32C5EFCF78AF&GID=317&LEGID=7927",
+                      "content_hash": "missing_hash::https://sanjose.legistar.com/MeetingDetail.aspx?LEGID=7927&GID=317&G=920296E4-80BE-4CA2-A78F-32C5EFCF78AF",
+                      "excerpt": "Structured Legistar event metadata fetched from San Jose Web API; EventId=7927, EventDate=2026-06-03T00:00:00.",
+                      "id": "ev-2",
+                      "provenance_label": "legistar_web_api_legistar_web_api",
+                      "reader_run_id": null,
+                      "retrieved_at": "2026-04-16T09:10:24.276561Z",
+                      "source_tier": "tier_b",
+                      "source_type": "other",
+                      "source_url": "https://sanjose.legistar.com/MeetingDetail.aspx?LEGID=7927&GID=317&G=920296E4-80BE-4CA2-A78F-32C5EFCF78AF"
+                    },
+                    {
+                      "artifact_id": "v2|jurisdiction=san-jose-ca|family=tavily-secondary-search|doctype=secondary_search_rate_snippet|url=https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee",
+                      "content_hash": "missing_hash::https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee",
+                      "excerpt": "Secondary structured Tavily snippet extraction for missing economic fee/rate evidence; extracted_facts=2, provenance_safe_results=3.",
+                      "id": "ev-3",
+                      "provenance_label": "tavily_search_tavily_secondary_search",
+                      "reader_run_id": null,
+                      "retrieved_at": "2026-04-16T09:10:25.677340Z",
+                      "source_tier": "tier_b",
+                      "source_type": "other",
+                      "source_url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee"
+                    }
+                  ],
+                  "freshness_status": "fresh",
+                  "gate_projection": {
+                    "canonical_breakdown_ref": "",
+                    "canonical_pipeline_run_id": "",
+                    "canonical_pipeline_step_id": "",
+                    "runtime_failure_codes": [
+                      "parameter_missing"
+                    ],
+                    "runtime_insufficiency_reason": "blocking gate present or missing quantitative support",
+                    "runtime_sufficiency_state": "qualitative_only"
+                  },
+                  "gate_report": {
+                    "artifact_counts": {
+                      "evidence_cards": 3
+                    },
+                    "blocking_gate": "reader_substance",
+                    "case_id": "pkg-efa6e50f77c3b9690dc3d2a8-gate",
+                    "failure_codes": [
+                      "parameter_missing"
+                    ],
+                    "manual_audit_notes": "Builder POC payload; full durability/orchestration gates in bd-3wefe.10/.12.",
+                    "provider": "private_searxng",
+                    "stage_results": [
+                      {
+                        "failure_codes": [],
+                        "note": null,
+                        "passed": true,
+                        "stage": "search_recall"
+                      },
+                      {
+                        "failure_codes": [
+                          "excerpt_validation_failed"
+                        ],
+                        "note": null,
+                        "passed": false,
+                        "stage": "reader_substance"
+                      },
+                      {
+                        "failure_codes": [],
+                        "note": null,
+                        "passed": true,
+                        "stage": "parameterization"
+                      },
+                      {
+                        "failure_codes": [
+                          "parameter_unverifiable"
+                        ],
+                        "note": null,
+                        "passed": false,
+                        "stage": "quantification"
+                      }
+                    ],
+                    "unsupported_claim_count": 0,
+                    "verdict": "fail_closed"
+                  },
+                  "insufficiency_reasons": [
+                    "blocking_gate_present",
+                    "scraped_provider_identity_missing"
+                  ],
+                  "jurisdiction": "San Jose CA",
+                  "model_cards": [],
+                  "package_id": "pkg-efa6e50f77c3b9690dc3d2a8",
+                  "parameter_cards": [
+                    {
+                      "ambiguity_reason": null,
+                      "evidence_card_id": "ev-2",
+                      "id": "param-1-event-attachment-hint-count",
+                      "parameter_name": "event_attachment_hint_count",
+                      "source_excerpt": "Structured fact event_attachment_hint_count resolved from source payload.",
+                      "source_hierarchy_status": "fiscal_or_reg_impact_analysis",
+                      "source_url": "https://sanjose.legistar.com/MeetingDetail.aspx?LEGID=7927&GID=317&G=920296E4-80BE-4CA2-A78F-32C5EFCF78AF",
+                      "state": "resolved",
+                      "time_horizon": null,
+                      "unit": "count",
+                      "value": 0
+                    },
+                    {
+                      "ambiguity_reason": null,
+                      "evidence_card_id": "ev-3",
+                      "id": "param-1-commercial-linkage-fee-rate-usd-per-sqft",
+                      "parameter_name": "commercial_linkage_fee_rate_usd_per_sqft",
+                      "source_excerpt": "Structured fact commercial_linkage_fee_rate_usd_per_sqft resolved from source payload.",
+                      "source_hierarchy_status": "fiscal_or_reg_impact_analysis",
+                      "source_url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee",
+                      "state": "resolved",
+                      "time_horizon": null,
+                      "unit": "usd_per_square_foot",
+                      "value": 3.58
+                    },
+                    {
+                      "ambiguity_reason": null,
+                      "evidence_card_id": "ev-3",
+                      "id": "param-2-commercial-linkage-fee-rate-usd-per-sqft",
+                      "parameter_name": "commercial_linkage_fee_rate_usd_per_sqft",
+                      "source_excerpt": "Structured fact commercial_linkage_fee_rate_usd_per_sqft resolved from source payload.",
+                      "source_hierarchy_status": "fiscal_or_reg_impact_analysis",
+                      "source_url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee",
+                      "state": "resolved",
+                      "time_horizon": null,
+                      "unit": "usd_per_square_foot",
+                      "value": 3
+                    }
+                  ],
+                  "policy_identifier": "v2|jurisdiction=san-jose-ca|family=policy_documents|doctype=meeting_minutes|url=https://sanjose.legistar.com/View.ashx?GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6&ID=8758120&M=F",
+                  "run_context": {
+                    "backend_run_id": "82bc5cc6-c666-400f-84e9-feb7351065cc",
+                    "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=policy_documents|doctype=meeting_minutes|url=https://sanjose.legistar.com/View.ashx?GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6&ID=8758120&M=F",
+                    "document_id": "b9bb5240-607d-558b-9528-7456e0c4988d",
+                    "fail_closed_reasons": [
+                      "analysis_sufficiency:Source provides specific fee rates, categories, and calculation mechanics, but lacks data on household pass-through assumptions.",
+                      "secondary_research_needed:pass_through_incidence_rate_missing"
+                    ],
+                    "impact_mode_hint": "pass_through_incidence",
+                    "mechanism_family_hint": "fee_or_tax_pass_through",
+                    "raw_scrape_id": "5b748596-7025-5feb-bad3-3887819d0304",
+                    "reader_artifact_uri": "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/policy_documents/reader_output/71524d4b161bbf71c6145f0549351b0c4a9603630c5e8e7794fb77c552468dd3.md",
+                    "secondary_research_needed": true,
+                    "secondary_research_reason": "pass_through_incidence_rate_missing",
+                    "selected_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+                    "structured_enrichment_alerts": [
+                      "structured_enrichment_ckan_unavailable"
+                    ],
+                    "structured_enrichment_status": "integrated",
+                    "structured_source_catalog": [
+                      {
+                        "access_method": "public_api_json",
+                        "cadence_freshness": "meeting-driven; near-real-time event updates",
+                        "display_name": "San Jose Legistar Web API",
+                        "economic_usefulness_score": 0.78,
+                        "endpoint_or_file_url": "https://webapi.legistar.com/v1/sanjose/Events",
+                        "free_status": "free_public",
+                        "jurisdiction_coverage": "san_jose_ca",
+                        "lane_classification": "structured_lane",
+                        "policy_domain_relevance": "meeting agendas, minutes, ordinance/resolution metadata",
+                        "runtime_status": "integrated",
+                        "signup_or_key": "none_required",
+                        "signup_url": "https://webapi.legistar.com/",
+                        "source_family": "legistar_web_api",
+                        "storage_target": "policy_evidence_packages.package_payload.run_context.structured_sources"
+                      },
+                      {
+                        "access_method": "ckan_api_json",
+                        "cadence_freshness": "dataset-dependent metadata freshness",
+                        "display_name": "San Jose Open Data (CKAN)",
+                        "economic_usefulness_score": 0.63,
+                        "endpoint_or_file_url": "https://data.sanjoseca.gov/api/3/action/package_search",
+                        "free_status": "free_public",
+                        "jurisdiction_coverage": "san_jose_ca",
+                        "lane_classification": "structured_lane",
+                        "policy_domain_relevance": "permits, housing/open data metadata, contextual economic indicators",
+                        "runtime_status": "integrated",
+                        "signup_or_key": "none_required",
+                        "signup_url": "https://data.sanjoseca.gov/",
+                        "source_family": "san_jose_open_data_ckan",
+                        "storage_target": "policy_evidence_packages.package_payload.run_context.structured_sources"
+                      }
+                    ],
+                    "structured_sources": [
+                      {
+                        "access_method": "public_api_json",
+                        "artifact_type": "meeting_metadata",
+                        "artifact_url": "https://sanjose.legistar.com/MeetingDetail.aspx?LEGID=7927&GID=317&G=920296E4-80BE-4CA2-A78F-32C5EFCF78AF",
+                        "diagnostic_facts": [
+                          {
+                            "field": "event_id",
+                            "unit": "count",
+                            "value": 7927
+                          },
+                          {
+                            "field": "event_body_id",
+                            "unit": "count",
+                            "value": 258
+                          }
+                        ],
+                        "excerpt": "Structured Legistar event metadata fetched from San Jose Web API; EventId=7927, EventDate=2026-06-03T00:00:00.",
+                        "jurisdiction": "san_jose_ca",
+                        "provider": "legistar_web_api",
+                        "provider_run_id": "7927",
+                        "query_text": "latest san jose legistar event metadata",
+                        "retrieved_at": "2026-04-16T09:10:24.276561+00:00",
+                        "source_family": "legistar_web_api",
+                        "source_lane": "structured",
+                        "source_tier": "tier_b",
+                        "structured_policy_facts": [
+                          {
+                            "field": "event_attachment_hint_count",
+                            "unit": "count",
+                            "value": 0
+                          }
+                        ]
+                      },
+                      {
+                        "access_method": "tavily_search_api",
+                        "alerts": [
+                          "structured_secondary_source_tavily",
+                          "secondary_search_complementary_lane"
+                        ],
+                        "artifact_type": "secondary_search_rate_snippet",
+                        "artifact_url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee",
+                        "candidate_status": "secondary_search_complement",
+                        "diagnostic_facts": [
+                          {
+                            "field": "tavily_result_count_scanned",
+                            "unit": "count",
+                            "value": 5
+                          },
+                          {
+                            "field": "tavily_result_count_provenance_safe",
+                            "unit": "count",
+                            "value": 3
+                          },
+                          {
+                            "field": "tavily_fee_fact_count",
+                            "unit": "count",
+                            "value": 2
+                          }
+                        ],
+                        "excerpt": "Secondary structured Tavily snippet extraction for missing economic fee/rate evidence; extracted_facts=2, provenance_safe_results=3.",
+                        "jurisdiction": "san_jose_ca",
+                        "linked_artifact_refs": [
+                          "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee",
+                          "https://www.sanjoseca.gov/Home/Components/News/News/1801/4699"
+                        ],
+                        "provider": "tavily_search",
+                        "provider_run_id": "a47135c4-6ab6-455c-917e-54cd4b85c8c5",
+                        "query_text": "San Jose Commercial Linkage Fee Resolution 80069 fee per square foot",
+                        "reader_artifact_refs": [],
+                        "retrieved_at": "2026-04-16T09:10:25.677340+00:00",
+                        "secondary_search": true,
+                        "secondary_search_parent_source_family": "policy_documents",
+                        "secondary_search_scope": "bounded_max_results_5",
+                        "source_family": "tavily_secondary_search",
+                        "source_lane": "structured_secondary_source",
+                        "source_tier": "tier_b",
+                        "structured_policy_facts": [
+                          {
+                            "field": "commercial_linkage_fee_rate_usd_per_sqft",
+                            "provenance_lane": "structured_secondary_source",
+                            "provider_rank": 1,
+                            "source_excerpt": "The San Jos\u00e9 City Council voted on September 1, 2020 to begin charging commercial developers fees to fund affordable housing. The Commercial Linkage Fee is a one-time impact fee that applies to new and existing Non-Residential Projects in San Jos\u00e9 that either add gross floor area or change the existing building use. The San Jos\u00e9 City Council voted on December 11, 2018 to pursue a nexus and a feasibility study on a potential commercial linkage fee in San Jos\u00e9. | Industrial/Research and Development (\u2265100,000 sq.ft.) | $3.58 - When paid in full prior to the Building Permit issuance, a 20% reducti",
+                            "source_title": "Commercial Linkage Fee | City of San Jos\u00e9",
+                            "source_url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee",
+                            "unit": "usd_per_square_foot",
+                            "value": 3.58
+                          },
+                          {
+                            "field": "commercial_linkage_fee_rate_usd_per_sqft",
+                            "provenance_lane": "structured_secondary_source",
+                            "provider_rank": 2,
+                            "source_excerpt": "SAN JOSE, CA - At Tuesday\u2019s San Jose City Council meeting,\u00a0the pressing need for affordable housing spurred broad consensus on establishing a Commercial Linkage Fee,\u00a0implementing a new framework for developer fees that will fund affordable housing projects in the City. \u201cI commend my council colleagues, community organizations, and business partners for working together to find middle ground on a solution that will generate millions of dollars annually for affordable housing, while ensuring that job-creating projects can move forward,\u201d\u00a0**said San Jose Mayor Sam Liccardo.**\u00a0\u201cAs we confront the d",
+                            "source_title": "San Jose City Council Passes Commercial Linkage Fee | News",
+                            "source_url": "https://www.sanjoseca.gov/Home/Components/News/News/1801/4699",
+                            "unit": "usd_per_square_foot",
+                            "value": 3
+                          }
+                        ]
+                      }
+                    ],
+                    "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+                    "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+                    "windmill_run_id": "bd-3wefe.13-live-gate-20260416-090909",
+                    "windmill_workspace": "affordabot"
+                  },
+                  "schema_version": "1.0.0",
+                  "scraped_sources": [
+                    {
+                      "candidate_rank": 1,
+                      "provider_run_id": "bd-3wefe.13-live-gate-20260416-090909",
+                      "query_family": "policy_documents",
+                      "query_text": "San Jose Commercial Linkage Fee Resolution 80069 fee per square foot",
+                      "reader_artifact_url": null,
+                      "reader_substance_passed": false,
+                      "search_provider": "private_searxng",
+                      "search_snapshot_id": "ede02b83-1d23-40b7-bc2e-ddcfd4525bf8",
+                      "selected_candidate_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6"
+                    },
+                    {
+                      "candidate_rank": 1,
+                      "provider_run_id": "a47135c4-6ab6-455c-917e-54cd4b85c8c5",
+                      "query_family": "tavily_secondary_search",
+                      "query_text": "San Jose Commercial Linkage Fee Resolution 80069 fee per square foot",
+                      "reader_artifact_url": null,
+                      "reader_substance_passed": false,
+                      "search_provider": "other",
+                      "search_snapshot_id": "pkg-efa6e50f77c3b9690dc3d2a8-snapshot",
+                      "selected_candidate_url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee"
+                    }
+                  ],
+                  "source_lanes": [
+                    "scraped",
+                    "structured"
+                  ],
+                  "storage_refs": [
+                    {
+                      "content_hash": null,
+                      "notes": null,
+                      "reference_id": "policy_evidence_packages:pkg-efa6e50f77c3b9690dc3d2a8",
+                      "storage_system": "postgres",
+                      "truth_role": "source_of_truth",
+                      "uri": null
+                    },
+                    {
+                      "content_hash": null,
+                      "notes": "readback proof pending bd-3wefe.10",
+                      "reference_id": "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/policy_documents/reader_output/71524d4b161bbf71c6145f0549351b0c4a9603630c5e8e7794fb77c552468dd3.md",
+                      "storage_system": "minio",
+                      "truth_role": "artifact_of_record",
+                      "uri": "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/policy_documents/reader_output/71524d4b161bbf71c6145f0549351b0c4a9603630c5e8e7794fb77c552468dd3.md"
+                    },
+                    {
+                      "content_hash": null,
+                      "notes": "derived index only",
+                      "reference_id": "document:b9bb5240-607d-558b-9528-7456e0c4988d",
+                      "storage_system": "pgvector",
+                      "truth_role": "derived_index",
+                      "uri": null
+                    },
+                    {
+                      "notes": "package artifact envelope",
+                      "reference_id": "minio://affordabot-artifacts/policy-evidence/packages/pkg-efa6e50f77c3b9690dc3d2a8.json",
+                      "storage_system": "minio",
+                      "truth_role": "artifact_of_record",
+                      "uri": "minio://affordabot-artifacts/policy-evidence/packages/pkg-efa6e50f77c3b9690dc3d2a8.json"
+                    }
+                  ],
+                  "structured_enrichment_status": "integrated",
+                  "structured_sources": [
+                    {
+                      "access_method": "public_api_json",
+                      "endpoint_or_file_url": "https://sanjose.legistar.com/MeetingDetail.aspx?LEGID=7927&GID=317&G=920296E4-80BE-4CA2-A78F-32C5EFCF78AF",
+                      "field_count": 1,
+                      "provider_run_id": "7927",
+                      "source_family": "legistar_web_api"
+                    }
+                  ]
+                },
+                "refs": {
+                  "backend_run_id": "82bc5cc6-c666-400f-84e9-feb7351065cc",
+                  "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=policy_documents|doctype=meeting_minutes|url=https://sanjose.legistar.com/View.ashx?GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6&ID=8758120&M=F",
+                  "document_id": "b9bb5240-607d-558b-9528-7456e0c4988d",
+                  "fail_closed_reasons": [
+                    "analysis_sufficiency:Source provides specific fee rates, categories, and calculation mechanics, but lacks data on household pass-through assumptions.",
+                    "blocking_gate_present",
+                    "scraped_provider_identity_missing",
+                    "secondary_research_needed:pass_through_incidence_rate_missing"
+                  ],
+                  "package_artifact_uri": "minio://affordabot-artifacts/policy-evidence/packages/pkg-efa6e50f77c3b9690dc3d2a8.json",
+                  "package_id": "pkg-efa6e50f77c3b9690dc3d2a8",
+                  "raw_scrape_id": "5b748596-7025-5feb-bad3-3887819d0304",
+                  "reader_artifact_uri": "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/policy_documents/reader_output/71524d4b161bbf71c6145f0549351b0c4a9603630c5e8e7794fb77c552468dd3.md",
+                  "selected_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+                  "storage_status": "stored"
+                },
+                "storage_result": {
+                  "artifact_readback_status": "proven",
+                  "artifact_write_status": "succeeded",
+                  "fail_closed": true,
+                  "failure_class": null,
+                  "idempotent_reuse": false,
+                  "pgvector_truth_role": "derived_index",
+                  "stored": true
+                }
+              },
+              "step_statuses": {
+                "analyze": "succeeded",
+                "freshness_gate": "succeeded",
+                "index": "succeeded",
+                "read_fetch": "succeeded",
+                "search_materialize": "succeeded"
+              }
+            },
+            "envelope": {
+              "analysis_question": "Using source-backed facts only, extract current San Jose Commercial Linkage Fee dollar rates per square foot, affected project categories, effective date, direct development-cost mechanism, and mark secondary research needed for household pass-through assumptions.",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-3wefe.13-live-gate-20260416-090909",
+              "jurisdiction": "San Jose CA",
+              "orchestrator": "windmill",
+              "scope_idempotency_key": "bd-3wefe.13-live-gate-20260416-090909::e29e77f2a610ecbc",
+              "search_query": "San Jose Commercial Linkage Fee Resolution 80069 fee per square foot",
+              "source_family": "policy_documents",
+              "stale_status": "fresh",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-gate-20260416-090909",
+              "windmill_workspace": "affordabot"
+            },
+            "refs": {
+              "analyze_reason": "analysis_completed",
+              "analyze_retry_class": "none",
+              "backend_run_id": "82bc5cc6-c666-400f-84e9-feb7351065cc",
+              "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=policy_documents|doctype=meeting_minutes|url=https://sanjose.legistar.com/View.ashx?GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6&ID=8758120&M=F",
+              "document_id": "b9bb5240-607d-558b-9528-7456e0c4988d",
+              "fail_closed_reasons": [
+                "analysis_sufficiency:Source provides specific fee rates, categories, and calculation mechanics, but lacks data on household pass-through assumptions.",
+                "blocking_gate_present",
+                "scraped_provider_identity_missing",
+                "secondary_research_needed:pass_through_incidence_rate_missing"
+              ],
+              "freshness_gate_reason": "fresh",
+              "freshness_gate_retry_class": "none",
+              "index_reason": "chunks_indexed",
+              "index_retry_class": "none",
+              "package_artifact_uri": "minio://affordabot-artifacts/policy-evidence/packages/pkg-efa6e50f77c3b9690dc3d2a8.json",
+              "package_id": "pkg-efa6e50f77c3b9690dc3d2a8",
+              "raw_scrape_id": "5b748596-7025-5feb-bad3-3887819d0304",
+              "read_fetch_reason": "raw_scrapes_materialized",
+              "read_fetch_retry_class": "none",
+              "reader_artifact_uri": "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/policy_documents/reader_output/71524d4b161bbf71c6145f0549351b0c4a9603630c5e8e7794fb77c552468dd3.md",
+              "run_id": "82bc5cc6-c666-400f-84e9-feb7351065cc",
+              "search_materialize_reason": "fresh_snapshot_materialized",
+              "search_materialize_retry_class": "none",
+              "selected_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+              "storage_status": "stored",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-gate-20260416-090909"
+            },
+            "retry_class": "none",
+            "status": "succeeded"
+          }
+        }
+      }
+    ],
+    "scope_succeeded": 1,
+    "scope_total": 1,
+    "status": "succeeded"
+  },
+  "run_mode": "backend-endpoint-run",
+  "search_provider_bakeoff": [
+    {
+      "endpoint": "https://searxng-railway-production-79aa.up.railway.app/search",
+      "failure_classification": null,
+      "http_status": 200,
+      "latency_ms": 1272,
+      "provider": "searxng",
+      "query": "San Jose Commercial Linkage Fee Resolution 80069 fee per square foot",
+      "result_count": 33,
+      "status": "succeeded",
+      "top_results": [
+        {
+          "snippet": "The Commercial Linkage Fee is a one-time impact fee that applies to new and existing Non-Residential Projects in San Jos\u00e9 that either add gross floor area or change the existing building use The production and preservation of affordable housing is a priority for City Council.",
+          "title": "Commercial Linkage Fee | City of San Jos\u00e9",
+          "url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee"
+        },
+        {
+          "snippet": "The CLF is similar to other impact fees levied on new development, which help cover the cost associated with creating new or expanded infrastructure, public ...Missing: 80069 | Show results with:80069",
+          "title": "Commercial Linkage Fees - SV@Home",
+          "url": "https://siliconvalleyathome.org/resources/commercial-linkage-fees/"
+        },
+        {
+          "snippet": "Following the nexus study, local city councils set fees at levels expected to generate resources for local affordable housing development without making ...Missing: 80069 | Show results with:80069",
+          "title": "Commercial Linkage Fees - SV@Home",
+          "url": "https://siliconvalleyathome.org/resources/commercial-linkage-fees-2/"
+        }
+      ]
+    },
+    {
+      "failure_classification": null,
+      "http_status": 200,
+      "latency_ms": 1034,
+      "provider": "exa",
+      "query": "San Jose Commercial Linkage Fee Resolution 80069 fee per square foot",
+      "result_count": 5,
+      "status": "succeeded",
+      "top_results": [
+        {
+          "snippet": "",
+          "title": "",
+          "url": "https://records.sanjoseca.gov/Resolutions/RES80069.pdf"
+        },
+        {
+          "snippet": "",
+          "title": "Commercial Linkage Fee | City of San Jos\u00e9",
+          "url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee"
+        },
+        {
+          "snippet": "",
+          "title": "",
+          "url": "https://www.sanjoseca.gov/home/showpublisheddocument/61766/637306026819830000"
+        }
+      ]
+    },
+    {
+      "failure_classification": null,
+      "http_status": 200,
+      "latency_ms": 502,
+      "provider": "tavily",
+      "query": "San Jose Commercial Linkage Fee Resolution 80069 fee per square foot",
+      "result_count": 5,
+      "status": "succeeded",
+      "top_results": [
+        {
+          "snippet": "The San Jos\u00e9 City Council voted on September 1, 2020 to begin charging commercial developers fees to fund affordable housing. The Commercial Linkage Fee is a one-time impact fee that applies to new and existing Non-Residential Projects in San Jos\u00e9 that either add gross floor area or change the existing building use. The San Jos\u00e9 City Council voted on December 11, 2018 to pursue a nexus and a feasibility study on a potential commercial linkage fee in San Jos\u00e9. | Industrial/Research and Development (\u2265100,000 sq.ft.) | $3.58 - When paid in full prior to the Building Permit issuance, a 20% reduction in the payment will apply. | Industrial/Research and Development(\u2265100,000 sq.ft.) | $3.58 - When paid in full prior to the Building Permit issuance, a 20% reduction in the payment will apply. | Industrial/Research and Development (\u2265100,000 sq.ft.) | $3.58 - When paid in full prior to the Building Permit issuance, a 20% reduction in the payment will apply.",
+          "title": "Commercial Linkage Fee | City of San Jos\u00e9",
+          "url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee"
+        },
+        {
+          "snippet": "SAN JOSE, CA - At Tuesday\u2019s San Jose City Council meeting,\u00a0the pressing need for affordable housing spurred broad consensus on establishing a Commercial Linkage Fee,\u00a0implementing a new framework for developer fees that will fund affordable housing projects in the City. \u201cI commend my council colleagues, community organizations, and business partners for working together to find middle ground on a solution that will generate millions of dollars annually for affordable housing, while ensuring that job-creating projects can move forward,\u201d\u00a0**said San Jose Mayor Sam Liccardo.**\u00a0\u201cAs we confront the deepest economic crisis of our lifetimes, and our persistent affordable housing crisis, we need to follow a balanced course that enables more families both to put food on the table and to stay housed.\". Under the approved City Council plan, Downtown office developers with projects more than 100,000 square feet will have three fee options:. For office projects less than 100,000 square feet citywide, City Council amended that the first 50,000 square feet will not be charged the $3 per square foot fee.",
+          "title": "San Jose City Council Passes Commercial Linkage Fee | News",
+          "url": "https://www.sanjoseca.gov/Home/Components/News/News/1801/4699"
+        },
+        {
+          "snippet": "... commercial linkage fees to developers citywide if the fees are fully paid before construction. The fee is a cost per square footage. The",
+          "title": "San Jose Could Give Commercial Developers More Fee Breaks",
+          "url": "https://www.sfgate.com/news/bayarea/article/San-Jose-Spotlight-San-Jose-Could-Give-17036338.php"
+        }
+      ]
+    }
+  ],
+  "stale_drills": [],
+  "storage_evidence_gates": {
+    "analysis_provenance_chain": {
+      "note": "successful analyze command row found",
+      "status": "passed"
+    },
+    "bridge_mode": {
+      "note": "",
+      "status": "railway_runtime"
+    },
+    "failure_handler_drill": {
+      "note": "failure injection is a separate pre-schedule gate; this San Jose product path run verified the native failure handler surface was configured",
+      "status": "not_run"
+    },
+    "idempotent_rerun": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "minio_object_refs": {
+      "note": "storage_uri refs present in content_artifacts",
+      "status": "passed"
+    },
+    "pgvector_index_probe": {
+      "note": "document_chunks rows found with embeddings (9167)",
+      "status": "passed"
+    },
+    "postgres_rows_written": {
+      "note": "Postgres product rows found",
+      "status": "passed"
+    },
+    "quality_gate_blocked_before_index_analyze": {
+      "note": "current run completed past read_fetch; reader quality block was not expected in this success path",
+      "status": "not_applicable"
+    },
+    "reader_output_ref": {
+      "note": "content_artifacts rows found",
+      "status": "passed"
+    },
+    "stale_drill_stale_blocked": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "stale_drill_stale_but_usable": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    }
+  },
+  "surface_checks": {
+    "jobs_checked_count": 20,
+    "schedule_count": 4,
+    "workspace_profile_listed": true
+  }
+}

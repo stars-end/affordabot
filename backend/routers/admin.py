@@ -7,6 +7,10 @@ from services.glass_box import GlassBoxService, AgentStep, PipelineStep
 from auth.clerk import require_admin_user
 from db.postgres_client import PostgresDB
 from services.pipeline.domain.constants import CONTRACT_VERSION
+from services.pipeline.policy_evidence_quality_spine_economics import (
+    MatrixInput,
+    PolicyEvidenceQualitySpineEconomicsService,
+)
 from scripts.substrate.substrate_inspection_report import (
     build_substrate_inspection_report,
     fetch_raw_scrapes_for_run,
@@ -320,6 +324,280 @@ def _build_windmill_run_url(windmill_run_id: Optional[str]) -> Optional[str]:
 
 def _json_payload(value: Any) -> dict[str, Any]:
     return _to_json_dict(value)
+
+
+def _coerce_quality_spine_matrix_payload(result: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(result, dict):
+        return {}
+
+    if any(key in result for key in ("artifact_rows", "rows", "agent_a_runtime_evidence")):
+        return result
+
+    runtime = result.get("agent_a_runtime_evidence")
+    if isinstance(runtime, dict):
+        return {"agent_a_runtime_evidence": runtime}
+
+    vertical = result.get("vertical_package_payload")
+    if not isinstance(vertical, dict):
+        vertical = result.get("policy_evidence_package")
+    if isinstance(vertical, dict):
+        return {
+            "agent_a_runtime_evidence": {
+                "vertical_package_payload": vertical,
+                "orchestration_proof": result.get("orchestration_proof", {}),
+                "llm_narrative_proof": result.get("llm_narrative_proof", {}),
+                "storage_proof": result.get("storage_proof", {}),
+            },
+            "rows": result.get("rows", []) if isinstance(result.get("rows"), list) else [],
+        }
+    return {}
+
+
+async def _fetch_policy_evidence_package_row(
+    db: PostgresDB, *, package_id: str
+) -> dict[str, Any] | None:
+    query = """
+        SELECT
+            id,
+            package_id,
+            package_payload,
+            artifact_readback_status,
+            fail_closed,
+            gate_state,
+            created_at,
+            updated_at
+        FROM public.policy_evidence_packages
+        WHERE package_id = $1
+        LIMIT 1
+    """
+    try:
+        row = await db._fetchrow(query, package_id)
+    except Exception:
+        return None
+    return dict(row) if row else None
+
+
+def _coerce_policy_package_runtime_matrix(
+    *,
+    package_row: dict[str, Any],
+    run_result: dict[str, Any],
+) -> dict[str, Any]:
+    package_payload = _json_payload(package_row.get("package_payload"))
+    if not package_payload:
+        return {}
+
+    package_run_context = _json_payload(package_payload.get("run_context"))
+
+    runtime = _json_payload(run_result.get("agent_a_runtime_evidence"))
+    if not runtime:
+        runtime = {
+            "orchestration_proof": _json_payload(run_result.get("orchestration_proof")),
+            "llm_narrative_proof": _json_payload(run_result.get("llm_narrative_proof")),
+            "storage_proof": _json_payload(run_result.get("storage_proof")),
+        }
+
+    orchestration_proof = _json_payload(runtime.get("orchestration_proof"))
+    if not orchestration_proof:
+        context_run_id = _to_text(
+            package_run_context.get("windmill_run_id") or run_result.get("windmill_run_id")
+        )
+        context_scope_job_id = _to_text(package_run_context.get("windmill_job_id"))
+        context_platform_job_id = _to_text(
+            package_run_context.get("windmill_platform_job_id")
+            or package_run_context.get("windmill_job_id_platform")
+        )
+        context_workspace = _to_text(package_run_context.get("windmill_workspace"))
+        context_flow_path = _to_text(package_run_context.get("windmill_flow_path"))
+
+        if context_run_id or context_scope_job_id or context_platform_job_id:
+            proof_status = "pass" if context_run_id and (context_scope_job_id or context_platform_job_id) else "not_proven"
+            orchestration_proof = {
+                "proof_status": proof_status,
+                "proof_mode": "package_run_context",
+                "linked_to_current_vertical_package": True,
+                "windmill_run_id": context_run_id,
+                "windmill_job_id": context_scope_job_id,
+                "windmill_platform_job_id": context_platform_job_id,
+                "windmill_workspace": context_workspace,
+                "windmill_flow_path": context_flow_path,
+                "source": "policy_evidence_packages.package_payload.run_context",
+                "blocker": None
+                if proof_status == "pass"
+                else "windmill_current_run_proof_missing",
+            }
+
+    llm_narrative_proof = _json_payload(runtime.get("llm_narrative_proof"))
+    gate_projection = _json_payload(package_payload.get("gate_projection"))
+    canonical_run_id = _to_text(gate_projection.get("canonical_pipeline_run_id"))
+    canonical_step_id = _to_text(gate_projection.get("canonical_pipeline_step_id"))
+    context_backend_run_id = _to_text(
+        package_run_context.get("backend_run_id")
+        or package_run_context.get("run_id")
+        or run_result.get("run_id")
+        or run_result.get("id")
+    )
+    analysis_payload = _json_payload(run_result.get("analysis"))
+    analysis_step_executed = bool(analysis_payload)
+    proof_step_matches_projection = (
+        bool(llm_narrative_proof)
+        and _to_text(llm_narrative_proof.get("canonical_pipeline_step_id")) == canonical_step_id
+    )
+    proof_observed_analysis = (
+        proof_step_matches_projection
+        or bool(llm_narrative_proof.get("analysis_step_executed"))
+        or bool(llm_narrative_proof.get("analysis_payload_present"))
+    )
+    projection_matches_route = bool(
+        canonical_run_id
+        and canonical_step_id
+        and (analysis_step_executed or proof_observed_analysis)
+        and canonical_run_id == context_backend_run_id
+    )
+    if not llm_narrative_proof:
+        blocker = "canonical_llm_run_id_missing"
+        if projection_matches_route:
+            blocker = None
+        elif analysis_step_executed:
+            blocker = "analysis_step_succeeded_but_no_canonical_analysis_history"
+        elif canonical_run_id:
+            blocker = "canonical_llm_run_id_unverified_from_package_payload"
+        llm_narrative_proof = {
+            "proof_status": "pass" if projection_matches_route else "not_proven",
+            "canonical_pipeline_run_id": canonical_run_id,
+            "canonical_pipeline_step_id": canonical_step_id,
+            "analysis_step_executed": analysis_step_executed,
+            "analysis_payload_present": analysis_step_executed,
+            "source": "policy_evidence_packages.package_payload + pipeline_runs.result.analysis",
+            "blocker": blocker,
+        }
+    elif projection_matches_route and llm_narrative_proof.get("proof_status") != "pass":
+        llm_narrative_proof = {
+            **llm_narrative_proof,
+            "proof_status": "pass",
+            "canonical_pipeline_run_id": canonical_run_id,
+            "canonical_pipeline_step_id": canonical_step_id,
+            "analysis_step_executed": analysis_step_executed,
+            "analysis_payload_present": analysis_step_executed,
+            "source": "policy_evidence_packages.package_payload + pipeline_runs.result.analysis",
+            "blocker": None,
+        }
+
+    storage_proof = _json_payload(runtime.get("storage_proof"))
+    if not storage_proof:
+        storage_proof = {}
+    if not storage_proof.get("proof_status"):
+        artifact_readback = _to_text(package_row.get("artifact_readback_status"))
+        proof_status = "pass" if artifact_readback == "proven" else "not_proven"
+        storage_proof = {
+            "proof_status": proof_status,
+            "proof_mode": "postgres_minio_live",
+            "store_backend": "postgres",
+            "artifact_probe_backend": "minio",
+            "persisted_record_id": _to_text(package_row.get("id")) or None,
+            "minio_readback_proven": artifact_readback == "proven",
+            "blocker": None
+            if artifact_readback == "proven"
+            else f"artifact_readback_status={artifact_readback or 'unknown'}",
+        }
+
+    rows = run_result.get("rows")
+    if not isinstance(rows, list):
+        rows = []
+    if not rows:
+        metrics = _extract_source_quality_metrics(package_payload=package_payload)
+        selected_candidate = _to_json_dict(metrics.get("selected_candidate"))
+        provider_results = _to_json_dict(metrics.get("provider_results"))
+        if selected_candidate and provider_results:
+            rows = [
+                {
+                    "source": "policy_evidence_packages.package_payload.run_context.source_quality_metrics",
+                    "selected_candidate": selected_candidate,
+                    "provider_results": provider_results,
+                }
+            ]
+
+    return {
+        "agent_a_runtime_evidence": {
+            "vertical_package_payload": package_payload,
+            "orchestration_proof": orchestration_proof,
+            "llm_narrative_proof": llm_narrative_proof,
+            "storage_proof": storage_proof,
+        },
+        "rows": rows,
+    }
+
+
+def _extract_source_quality_metrics(*, package_payload: dict[str, Any]) -> dict[str, Any]:
+    direct = _to_json_dict(package_payload.get("source_quality_metrics"))
+    if direct:
+        return direct
+    run_context = _to_json_dict(package_payload.get("run_context"))
+    nested = _to_json_dict(run_context.get("source_quality_metrics"))
+    if nested:
+        return nested
+    return {}
+
+
+def _source_quality_read_model(*, matrix_payload: dict[str, Any]) -> dict[str, Any]:
+    runtime = _to_json_dict(matrix_payload.get("agent_a_runtime_evidence"))
+    package_payload = _to_json_dict(runtime.get("vertical_package_payload"))
+    metrics = _extract_source_quality_metrics(package_payload=package_payload)
+    if not metrics:
+        return {
+            "status": "not_proven",
+            "reason": "source_quality_metrics_missing",
+            "selected_artifact_family": "unknown",
+            "top_n_window": 0,
+            "top_n_official_recall_count": 0,
+            "top_n_artifact_recall_count": 0,
+            "reader_substance_observed": False,
+            "secondary_numeric_rescue_detected": False,
+            "provider_summary": {},
+            "selection_quality_status": "not_proven",
+            "selection_quality_reason": "selected_artifact_quality_metrics_missing",
+        }
+
+    provider_summary = _to_json_dict(metrics.get("provider_summary"))
+    selected_candidate = _to_json_dict(metrics.get("selected_candidate"))
+    selected_artifact_family = _to_text(
+        metrics.get("selected_artifact_family")
+        or selected_candidate.get("artifact_family")
+    ) or "unknown"
+    top_n_artifact_recall_count = _coerce_int(metrics.get("top_n_artifact_recall_count"))
+    if selected_artifact_family == "artifact":
+        selection_quality_status = "pass"
+        selection_quality_reason = "selected_candidate_is_artifact_grade"
+    elif top_n_artifact_recall_count > 0:
+        selection_quality_status = "fail"
+        selection_quality_reason = "artifact_candidates_present_but_non_artifact_selected"
+    else:
+        selection_quality_status = "not_proven"
+        selection_quality_reason = "artifact_candidates_not_observed_in_top_n"
+
+    return {
+        "status": "captured",
+        "reason": "source_quality_metrics_present",
+        "selected_artifact_family": selected_artifact_family,
+        "selected_candidate_url": _to_text(selected_candidate.get("url")) or None,
+        "selected_candidate_rank": selected_candidate.get("rank"),
+        "top_n_window": _coerce_int(metrics.get("top_n_window")),
+        "top_n_official_recall_count": _coerce_int(metrics.get("top_n_official_recall_count")),
+        "top_n_artifact_recall_count": top_n_artifact_recall_count,
+        "reader_substance_observed": _to_bool(metrics.get("reader_substance_observed")),
+        "reader_substance_selection_outcome": _to_text(
+            metrics.get("reader_substance_selection_outcome")
+        )
+        or None,
+        "secondary_numeric_rescue_detected": _to_bool(
+            metrics.get("secondary_numeric_rescue_detected")
+        ),
+        "secondary_numeric_parameter_count": _coerce_int(
+            metrics.get("secondary_numeric_parameter_count")
+        ),
+        "provider_summary": provider_summary,
+        "selection_quality_status": selection_quality_status,
+        "selection_quality_reason": selection_quality_reason,
+    }
 
 
 # ============================================================================
@@ -1427,6 +1705,98 @@ async def get_pipeline_run_evidence(
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to fetch pipeline run evidence: {str(e)}"
+        )
+
+
+@router.get("/pipeline/policy-evidence/packages/{package_id}/analysis-status")
+async def get_policy_evidence_analysis_status(
+    package_id: str,
+    run_id: Optional[str] = None,
+    source_family: str = DEFAULT_SOURCE_FAMILY,
+    db: PostgresDB = Depends(get_db),
+    service: GlassBoxService = Depends(get_glass_box_service),
+):
+    """Backend-authored policy evidence + economic readiness read model for admin/frontend."""
+    try:
+        if run_id:
+            run = await service.get_pipeline_run(run_id)
+            if not run:
+                raise HTTPException(status_code=404, detail="Pipeline run not found")
+        else:
+            run = None
+            recent_runs = await service.list_pipeline_runs(limit=50)
+            for candidate in recent_runs:
+                candidate_result = _json_payload(candidate.get("result"))
+                candidate_matrix = _coerce_quality_spine_matrix_payload(candidate_result)
+                if not candidate_matrix:
+                    continue
+                try:
+                    PolicyEvidenceQualitySpineEconomicsService().evaluate(
+                        matrix_input=MatrixInput(
+                            payload=candidate_matrix,
+                            source_path="pipeline_runs.result",
+                            source_mode="pipeline_run_result",
+                        ),
+                        preferred_package_id=package_id,
+                    )
+                    run = candidate
+                    break
+                except ValueError:
+                    continue
+
+        if not run:
+            raise HTTPException(
+                status_code=404,
+                detail="No pipeline run contains the requested policy evidence package",
+            )
+
+        run_result = _json_payload(run.get("result"))
+        package_row = await _fetch_policy_evidence_package_row(db, package_id=package_id)
+        matrix_payload = {}
+        if package_row:
+            matrix_payload = _coerce_policy_package_runtime_matrix(
+                package_row=package_row,
+                run_result=run_result,
+            )
+        if not matrix_payload:
+            matrix_payload = _coerce_quality_spine_matrix_payload(run_result)
+        if not matrix_payload:
+            raise HTTPException(
+                status_code=404,
+                detail="Pipeline run does not include policy evidence package payload",
+            )
+
+        normalized_source_family = _normalize_source_family(source_family)
+        read_model = PolicyEvidenceQualitySpineEconomicsService().build_endpoint_read_model(
+            matrix_input=MatrixInput(
+                payload=matrix_payload,
+                source_path="pipeline_runs.result",
+                source_mode="pipeline_run_result",
+            ),
+            package_id=package_id,
+            source_family=normalized_source_family,
+            run_context={
+                "run_id": _to_text(run.get("id")) or None,
+                "status": _to_text(run.get("status")) or None,
+                "windmill_run_id": _to_text(run.get("windmill_run_id")) or None,
+                "started_at": _to_text(run.get("started_at")) or None,
+                "completed_at": _to_text(run.get("completed_at")) or None,
+            },
+        )
+        source_quality = _source_quality_read_model(matrix_payload=matrix_payload)
+        return {
+            "contract_version": CONTRACT_VERSION,
+            **read_model,
+            "source_quality": source_quality,
+        }
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch policy evidence analysis status: {str(e)}",
         )
 
 

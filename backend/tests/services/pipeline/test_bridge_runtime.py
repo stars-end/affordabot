@@ -7,6 +7,8 @@ import asyncio
 import json
 
 from services.pipeline.domain.bridge import RailwayRuntimeBridge, RunScopeRequest
+from services.pipeline.policy_evidence_package_storage import InMemoryPolicyEvidencePackageStore
+from services.pipeline.structured_source_enrichment import StructuredEnrichmentResult
 
 
 @dataclass
@@ -92,6 +94,13 @@ class FakeDB:
             raw = self.raw_scrapes.get(str(args[0]))
             if not raw:
                 return None
+            if "SELECT created_at, data" in query:
+                return _Row(
+                    {
+                        "created_at": raw["created_at"],
+                        "data": raw["data"],
+                    }
+                )
             return _Row(
                 {
                     "id": raw["id"],
@@ -148,6 +157,9 @@ class FakeDB:
                 "storage_uri": str(args[7]),
                 "metadata": __import__("json").loads(args[6]),
                 "processed": False,
+                "created_at": __import__("datetime").datetime.now(
+                    __import__("datetime").timezone.utc
+                ),
             }
             self.raw_by_identity[(str(args[9]), str(args[2]))] = raw_id
 
@@ -178,6 +190,76 @@ class FakeStorage:
         return path
 
 
+class FakeS3Client:
+    def __init__(self) -> None:
+        self.objects: dict[tuple[str, str], bytes] = {}
+
+    def put_object(
+        self,
+        bucket: str,
+        object_name: str,
+        data: Any,
+        length: int,
+        content_type: str = "application/octet-stream",
+    ) -> None:
+        _ = content_type
+        payload = data.read(length)
+        self.objects[(bucket, object_name)] = payload
+
+    def stat_object(self, bucket: str, object_name: str) -> dict[str, Any]:
+        if (bucket, object_name) not in self.objects:
+            raise RuntimeError("not_found")
+        return {"bucket": bucket, "object_name": object_name}
+
+
+class FakeS3Storage(FakeStorage):
+    def __init__(self, bucket: str = "affordabot-artifacts") -> None:
+        super().__init__()
+        self.bucket = bucket
+        self.client = FakeS3Client()
+
+    async def upload(
+        self,
+        path: str,
+        content: bytes,
+        content_type: str = "application/octet-stream",
+    ) -> str:
+        result = await super().upload(path, content, content_type)
+        self.client.objects[(self.bucket, path)] = content
+        return result
+
+
+class FakeStructuredEnricher:
+    def __init__(
+        self,
+        *,
+        status: str = "integrated",
+        candidates: list[dict[str, Any]] | None = None,
+        alerts: list[str] | None = None,
+        source_catalog: list[dict[str, Any]] | None = None,
+    ) -> None:
+        self.status = status
+        self.candidates = list(candidates or [])
+        self.alerts = list(alerts or [])
+        self.source_catalog = list(source_catalog or [])
+
+    async def enrich(
+        self,
+        *,
+        jurisdiction: str,
+        source_family: str,
+        search_query: str,
+        selected_url: str,
+    ) -> StructuredEnrichmentResult:
+        _ = (jurisdiction, source_family, search_query, selected_url)
+        return StructuredEnrichmentResult(
+            status=self.status,
+            candidates=self.candidates,
+            alerts=self.alerts,
+            source_catalog=self.source_catalog,
+        )
+
+
 class JsonStringFakeDB(FakeDB):
     async def _fetchrow(self, query: str, *args: Any) -> _Row | None:
         row = await super()._fetchrow(query, *args)
@@ -198,6 +280,8 @@ class JsonStringFakeDB(FakeDB):
 
 
 class FakeSearchClient:
+    provider_label = "private_searxng"
+
     def __init__(self, results: list[dict[str, Any]]) -> None:
         self.results = results
 
@@ -280,6 +364,7 @@ def _request(
     idempotency_key: str = "wm:run-scope:runtime",
     jurisdiction: str = "san-jose-ca",
     source_family: str = "meeting_minutes",
+    search_query: str = "San Jose housing meeting minutes",
 ) -> RunScopeRequest:
     return RunScopeRequest(
         contract_version="2026-04-13.windmill-domain.v1",
@@ -291,7 +376,7 @@ def _request(
         windmill_flow_path="f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
         windmill_run_id="wm-run-1",
         windmill_job_id="wm-job-1",
-        search_query="San Jose housing meeting minutes",
+        search_query=search_query,
         analysis_question="What housing decisions were made?",
     )
 
@@ -358,6 +443,147 @@ def test_runtime_bridge_rerun_reuses_idempotent_rows_without_duplicate_blob() ->
     assert second["steps"]["search_materialize"]["details"]["idempotent_reuse"] is True
     assert second["steps"]["index"]["details"]["idempotent_reuse"] is True
     assert len(storage.upload_calls) == 1
+
+
+def test_runtime_bridge_persists_policy_evidence_package_refs() -> None:
+    db = FakeDB()
+    storage = FakeStorage()
+    package_store = InMemoryPolicyEvidencePackageStore()
+    runtime = RailwayRuntimeBridge(
+        db=db, storage=storage, package_store=package_store
+    )  # type: ignore[arg-type]
+    runtime.search_client = FakeSearchClient(
+        [{"url": "https://www.sanjoseca.gov/agenda/1", "title": "SJ Agenda", "snippet": "Housing"}]
+    )
+    runtime.reader_client = FakeReaderClient()
+    runtime._llm_client = FakeLLMClient()
+    runtime.embedding_service = FakeEmbeddingService()
+    runtime.zai_api_key = "x"
+
+    first = asyncio.run(runtime.run_scope_pipeline(_request(idempotency_key="wm:run-scope:package")))
+    second = asyncio.run(runtime.run_scope_pipeline(_request(idempotency_key="wm:run-scope:package")))
+
+    refs = second["refs"]
+    assert refs["backend_run_id"] == first["refs"]["backend_run_id"]
+    assert refs["package_id"] == first["refs"]["package_id"]
+    assert refs["storage_status"] in {"stored", "stored_reused"}
+    assert refs["raw_scrape_id"]
+    assert refs["document_id"]
+    assert refs["selected_url"] == "https://www.sanjoseca.gov/agenda/1"
+    assert refs["reader_artifact_uri"]
+    assert refs["canonical_document_key"]
+    assert refs["fail_closed_reasons"]
+    assert len(package_store.by_idempotency) == 1
+    persisted = next(iter(package_store.by_idempotency.values()))
+    run_context = persisted.package_payload["run_context"]
+    gate_projection = persisted.package_payload["gate_projection"]
+    analyze_step = second["steps"]["analyze"]
+    analysis_id = str(analyze_step["refs"]["analysis_id"])
+    assert run_context["backend_run_id"] == refs["backend_run_id"]
+    assert run_context["windmill_run_id"] == "wm-run-1"
+    assert run_context["windmill_job_id"] == "wm-job-1"
+    assert run_context["canonical_analysis_id"] == analysis_id
+    assert run_context["canonical_pipeline_run_id"] == refs["backend_run_id"]
+    assert run_context["canonical_pipeline_step_id"] == analysis_id
+    assert run_context["canonical_breakdown_ref"] == f"analysis:{analysis_id}"
+    source_quality = run_context["source_quality_metrics"]
+    assert source_quality["top_n_window"] >= 1
+    assert source_quality["selected_candidate"]["url"] == refs["selected_url"]
+    assert source_quality["provider_results"]["private_searxng"]["candidates"]
+    assert gate_projection["canonical_pipeline_run_id"] == refs["backend_run_id"]
+    assert gate_projection["canonical_pipeline_step_id"] == analysis_id
+    assert gate_projection["canonical_breakdown_ref"] == f"analysis:{analysis_id}"
+
+
+def test_runtime_bridge_materializes_structured_sources_when_enrichment_available() -> None:
+    db = FakeDB()
+    storage = FakeStorage()
+    package_store = InMemoryPolicyEvidencePackageStore()
+    structured_candidate = {
+        "source_lane": "structured",
+        "provider": "legistar_web_api",
+        "source_family": "legistar_web_api",
+        "access_method": "public_api_json",
+        "jurisdiction": "san_jose_ca",
+        "artifact_url": "https://webapi.legistar.com/v1/sanjose/Events/13001",
+        "artifact_type": "meeting_metadata",
+        "source_tier": "tier_b",
+        "retrieved_at": "2026-04-16T00:00:00+00:00",
+        "structured_policy_facts": [
+            {"field": "event_id", "value": 13001.0, "unit": "count"},
+            {"field": "event_item_count", "value": 16.0, "unit": "count"},
+        ],
+        "excerpt": "Structured event metadata for San Jose agenda cycle.",
+    }
+    runtime = RailwayRuntimeBridge(
+        db=db,
+        storage=storage,
+        package_store=package_store,
+        structured_enricher=FakeStructuredEnricher(
+            status="integrated",
+            candidates=[structured_candidate],
+            alerts=["structured_enrichment_source_family_context:meeting_minutes"],
+            source_catalog=[
+                {
+                    "source_family": "legistar_web_api",
+                    "access_method": "public_api_json",
+                    "jurisdiction_coverage": "san_jose_ca",
+                }
+            ],
+        ),
+    )  # type: ignore[arg-type]
+    runtime.search_client = FakeSearchClient(
+        [{"url": "https://www.sanjoseca.gov/agenda/1", "title": "SJ Agenda", "snippet": "Housing"}]
+    )
+    runtime.reader_client = FakeReaderClient()
+    runtime._llm_client = FakeLLMClient()
+    runtime.embedding_service = FakeEmbeddingService()
+    runtime.zai_api_key = "x"
+
+    response = asyncio.run(runtime.run_scope_pipeline(_request(idempotency_key="wm:run-scope:structured")))
+    refs = response["refs"]
+    persisted = next(iter(package_store.by_idempotency.values()))
+    package_payload = persisted.package_payload
+    run_context = package_payload["run_context"]
+
+    assert refs["storage_status"] in {"stored", "stored_reused"}
+    assert set(package_payload["source_lanes"]) == {"scraped", "structured"}
+    assert package_payload["structured_sources"]
+    assert package_payload["structured_sources"][0]["source_family"] == "legistar_web_api"
+    assert run_context["structured_enrichment_status"] == "integrated"
+    assert run_context["structured_sources"]
+    assert run_context["structured_source_catalog"][0]["source_family"] == "legistar_web_api"
+
+
+def test_runtime_bridge_extracts_primary_fee_facts_from_analysis_chunks() -> None:
+    analyze = SimpleNamespace(
+        details={
+            "evidence_selection": {
+                "selected_chunks": [
+                    {
+                        "snippet": (
+                            "Office (<100,000 sq. ft.) $3.00 Retail (<100,000 sq. ft.) "
+                            "$0 Hotel $5.00 Residential Care $18.706.00"
+                        )
+                    }
+                ]
+            },
+            "analysis": {
+                "key_points": [
+                    "Industrial/Research and Development (>=100,000 sq. ft.) $3.00"
+                ]
+            },
+        }
+    )
+
+    facts, alerts = RailwayRuntimeBridge._extract_primary_fee_facts_from_analysis(
+        analyze=analyze,  # type: ignore[arg-type]
+        selected_url="https://sanjose.legistar.com/View.ashx?M=F&ID=8758120",
+    )
+
+    assert {fact["value"] for fact in facts} == {0.0, 3.0, 5.0}
+    assert all(fact["source_hierarchy_status"] == "bill_or_reg_text" for fact in facts)
+    assert "primary_parameter_money_format_anomaly" in alerts
 
 
 def test_runtime_bridge_idempotency_is_scoped_to_jurisdiction_and_source_family() -> None:
@@ -538,7 +764,128 @@ def test_runtime_bridge_reader_and_llm_failures_classify() -> None:
     runtime.reader_client = FakeReaderClient()
     runtime._llm_client = FakeLLMClient(fail="analysis_down")
     llm_fail = asyncio.run(runtime.run_scope_pipeline(_request(idempotency_key="wm:run-scope:llm-fail")))
-    assert llm_fail["steps"]["analyze"]["decision_reason"] == "analysis_failed"
+    analyze_step = llm_fail["steps"]["analyze"]
+    assert analyze_step["status"] == "succeeded_with_alerts"
+    assert analyze_step["decision_reason"] == "analysis_provider_unavailable"
+    assert "analysis_provider_unavailable" in analyze_step["alerts"]
+    assert "canonical_llm_narrative_not_proven" in analyze_step["alerts"]
+    analysis_payload = analyze_step["details"]["analysis"]
+    assert analysis_payload["sufficiency_state"] == "provider_unavailable"
+    assert analysis_payload["canonical_llm_narrative_proven"] is False
+    assert analysis_payload["analysis_not_proven"] is True
+    assert analysis_payload["evidence_chunk_count"] > 0
+    assert len(analysis_payload["evidence_refs"]) > 0
+    assert llm_fail["steps"]["summarize_run"]["status"] == "succeeded_with_alerts"
+    policy_package = llm_fail["steps"]["summarize_run"]["details"]["policy_evidence_package"]
+    fail_closed_reasons = policy_package["refs"]["fail_closed_reasons"]
+    assert "analyze:analysis_provider_unavailable" in fail_closed_reasons
+    assert policy_package["storage_result"]["stored"] is True
+    assert policy_package["storage_result"]["fail_closed"] is True
+    projection = policy_package["package_payload"]["gate_projection"]
+    assert projection["canonical_pipeline_run_id"] == ""
+    assert projection["canonical_pipeline_step_id"] == ""
+    assert projection["canonical_breakdown_ref"] == ""
+
+
+def test_runtime_bridge_uses_minio_artifact_writer_probe_and_indirect_hint() -> None:
+    db = FakeDB()
+    storage = FakeS3Storage()
+    package_store = InMemoryPolicyEvidencePackageStore()
+    runtime = RailwayRuntimeBridge(
+        db=db, storage=storage, package_store=package_store
+    )  # type: ignore[arg-type]
+    runtime.search_client = FakeSearchClient(
+        [
+            {
+                "url": "https://records.sanjoseca.gov/View.ashx?M=F&ID=13000001",
+                "title": "Affordable Housing Impact Fee",
+                "snippet": "multifamily housing development impact fee update",
+            }
+        ]
+    )
+    runtime.reader_client = FakeReaderClient(
+        content=(
+            "# Agenda Packet\n"
+            "Council discussed increasing multifamily development impact fees.\n"
+        )
+    )
+    runtime._llm_client = FakeLLMClient()
+    runtime.embedding_service = FakeEmbeddingService()
+    runtime.zai_api_key = "x"
+
+    response = asyncio.run(
+        runtime.run_scope_pipeline(
+            _request(
+                idempotency_key="wm:run-scope:pass-through",
+                source_family="agenda_packet",
+                search_query="San Jose multifamily housing development impact fee increase",
+            )
+        )
+    )
+
+    policy_package = response["steps"]["summarize_run"]["details"]["policy_evidence_package"]
+    storage_result = policy_package["storage_result"]
+    refs = response["refs"]
+    persisted = next(iter(package_store.by_idempotency.values()))
+    run_context = persisted.package_payload["run_context"]
+
+    assert storage_result["artifact_write_status"] == "succeeded"
+    assert storage_result["artifact_readback_status"] == "proven"
+    assert refs["package_artifact_uri"].startswith(
+        "minio://affordabot-artifacts/policy-evidence/packages/"
+    )
+    assert refs["reader_artifact_uri"].startswith("minio://affordabot-artifacts/")
+    minio_uris = {
+        ref["uri"]
+        for ref in persisted.package_payload["storage_refs"]
+        if ref["storage_system"] == "minio"
+    }
+    assert refs["package_artifact_uri"] in minio_uris
+    assert refs["reader_artifact_uri"] in minio_uris
+    assert run_context["mechanism_family_hint"] == "fee_or_tax_pass_through"
+    assert run_context["impact_mode_hint"] == "pass_through_incidence"
+    assert run_context["secondary_research_needed"] is True
+    assert "secondary_research_needed:pass_through_incidence_rate_missing" in refs["fail_closed_reasons"]
+
+
+def test_runtime_bridge_maps_licensing_to_compliance_cost_hint() -> None:
+    db = FakeDB()
+    storage = FakeStorage()
+    package_store = InMemoryPolicyEvidencePackageStore()
+    runtime = RailwayRuntimeBridge(
+        db=db, storage=storage, package_store=package_store
+    )  # type: ignore[arg-type]
+    runtime.search_client = FakeSearchClient(
+        [
+            {
+                "url": "https://records.sanjoseca.gov/ordinance/barber-license-training",
+                "title": "Barber License Training Requirement",
+                "snippet": "new two year licensing and training requirement",
+            }
+        ]
+    )
+    runtime.reader_client = FakeReaderClient(
+        content="# Ordinance\nLicensing and compliance training requirements were adopted."
+    )
+    runtime._llm_client = FakeLLMClient()
+    runtime.embedding_service = FakeEmbeddingService()
+    runtime.zai_api_key = "x"
+
+    asyncio.run(
+        runtime.run_scope_pipeline(
+            _request(
+                idempotency_key="wm:run-scope:compliance-hint",
+                source_family="ordinance_text",
+                jurisdiction="san-jose-ca",
+            )
+        )
+    )
+    persisted = next(iter(package_store.by_idempotency.values()))
+    run_context = persisted.package_payload["run_context"]
+
+    assert run_context["mechanism_family_hint"] == "compliance_cost"
+    assert run_context["impact_mode_hint"] == "compliance_cost"
+    assert run_context["secondary_research_needed"] is False
 
 
 def test_runtime_bridge_read_fetch_falls_back_after_ranked_reader_error() -> None:
@@ -585,6 +932,120 @@ def test_runtime_bridge_read_fetch_falls_back_after_ranked_reader_error() -> Non
     )
     assert response["steps"]["index"]["status"] in {"succeeded", "succeeded_with_alerts"}
     assert response["steps"]["analyze"]["status"] in {"succeeded", "succeeded_with_alerts"}
+
+
+def test_runtime_bridge_records_selected_quality_when_artifact_exists_but_official_page_selected() -> None:
+    db = FakeDB()
+    storage = FakeStorage()
+    package_store = InMemoryPolicyEvidencePackageStore()
+    runtime = RailwayRuntimeBridge(
+        db=db, storage=storage, package_store=package_store
+    )  # type: ignore[arg-type]
+    runtime.search_client = FakeSearchClient(
+        [
+            {
+                "url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+                "title": "CLF Fee Schedule",
+                "snippet": "Commercial Linkage Fee schedule attachment",
+            },
+            {
+                "url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee",
+                "title": "Commercial Linkage Fee | City of San Jose",
+                "snippet": "Official CLF page and references",
+            },
+        ]
+    )
+    runtime.reader_client = RoutingFakeReaderClient(
+        by_url={
+            "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee": (
+                "# Commercial Linkage Fee\n"
+                "Agenda item 4.2 was approved by vote after public hearing.\n"
+                "Office and retail fee details were adopted by council resolution.\n"
+                "Staff recommendation and implementation timeline were accepted.\n"
+                "The program applies to qualifying non-residential development "
+                "projects and supports affordable housing production. The page "
+                "describes fee categories, payment timing, exemptions, annual "
+                "adjustments, nexus study background, and implementation rules "
+                "for applicants seeking building permits in San Jose.\n"
+            )
+        },
+        fail_urls={
+            "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6"
+        },
+    )
+    runtime._llm_client = FakeLLMClient()
+    runtime.embedding_service = FakeEmbeddingService()
+    runtime.zai_api_key = "x"
+
+    response = asyncio.run(
+        runtime.run_scope_pipeline(
+            _request(
+                idempotency_key="wm:run-scope:selected-official-page",
+                source_family="agenda_packet",
+                search_query="San Jose Commercial Linkage Fee schedule",
+            )
+        )
+    )
+    persisted = next(iter(package_store.by_idempotency.values()))
+    source_quality = persisted.package_payload["run_context"]["source_quality_metrics"]
+
+    assert response["status"] in {"succeeded", "succeeded_with_alerts"}
+    assert source_quality["top_n_artifact_recall_count"] >= 1
+    assert source_quality["selected_artifact_family"] == "official_page"
+    assert source_quality["selected_candidate"]["artifact_grade"] is False
+    assert source_quality["selected_candidate"]["official_domain"] is True
+    assert source_quality["provider_summary"]["provider_error_count"] >= 1
+
+
+def test_runtime_bridge_blocks_weak_video_fallback_after_official_reader_error() -> None:
+    db = FakeDB()
+    storage = FakeStorage()
+    runtime = RailwayRuntimeBridge(db=db, storage=storage)  # type: ignore[arg-type]
+    runtime.search_client = FakeSearchClient(
+        [
+            {
+                "url": "https://sanjose.legistar.com/MeetingDetail.aspx?ID=123&GUID=abc",
+                "title": "Meeting Detail",
+                "snippet": "minutes and housing hearing",
+            },
+            {
+                "url": "https://www.youtube.com/watch?v=abc123",
+                "title": "San Jose City Council Meeting Video Transcript",
+                "snippet": "full transcript of meeting discussion",
+            },
+        ]
+    )
+    runtime.reader_client = RoutingFakeReaderClient(
+        by_url={
+            "https://www.youtube.com/watch?v=abc123": (
+                "# Meeting Transcript\nCouncil discussed housing policy and ordinance updates."
+            )
+        },
+        fail_urls={"https://sanjose.legistar.com/MeetingDetail.aspx?ID=123&GUID=abc"},
+    )
+    runtime._llm_client = FakeLLMClient()
+    runtime.zai_api_key = "x"
+
+    response = asyncio.run(runtime.run_scope_pipeline(_request(idempotency_key="wm:run-scope:video-blocked")))
+
+    read_step = response["steps"]["read_fetch"]
+    assert read_step["status"] == "failed_retryable"
+    assert read_step["decision_reason"] == "reader_provider_error"
+    assert read_step["retry_class"] == "provider_unavailable"
+    assert any(alert.startswith("reader_error:") for alert in response["alerts"])
+    assert "reader_fallback_blocked_after_official_reader_errors" in response["alerts"]
+    assert any(
+        item["outcome"] == "reader_provider_error"
+        and item.get("candidate_is_official_artifact") is True
+        for item in read_step["details"]["candidate_audit"]
+    )
+    assert any(
+        item["outcome"] == "reader_fallback_blocked_after_official_reader_errors"
+        and item["url"] == "https://www.youtube.com/watch?v=abc123"
+        for item in read_step["details"]["candidate_audit"]
+    )
+    assert "index" not in response["steps"]
+    assert "analyze" not in response["steps"]
 
 
 def test_runtime_bridge_blocks_when_all_ranked_candidates_are_navigation_shells() -> None:

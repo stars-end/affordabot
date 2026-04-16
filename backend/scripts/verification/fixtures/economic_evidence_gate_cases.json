@@ -1,0 +1,453 @@
+{
+  "fixture_set_version": "1.0",
+  "feature_key": "bd-2agbe.4",
+  "description": "Deterministic corpus for isolated economic evidence gate attribution.",
+  "cases": [
+    {
+      "case_id": "direct_fiscal_positive_city_staff_report",
+      "jurisdiction": "San Jose CA",
+      "source_family": "staff_report",
+      "provider": "fixture",
+      "manual_audit_notes": "Official city staff report includes explicit annual appropriation amount and implementation horizon.",
+      "gate_inputs": {
+        "search_recall": {
+          "artifact_candidates_found": 4,
+          "official_domain_hit_rate_percent": 100.0
+        },
+        "reader_substance": {
+          "substantive": true,
+          "selected_artifact_text_chars": 9200
+        },
+        "artifact_classification": {
+          "selected_artifact_class": "staff_report",
+          "is_portal_page": false
+        },
+        "evidence_cards": {
+          "cards": [
+            {
+              "id": "ev_direct_1",
+              "source_url": "https://www.sanjoseca.gov/home/showpublisheddocument/104111/638701000000000000",
+              "content_hash": "hash_direct_1",
+              "excerpt": "Fiscal Impact: The proposed program requires an annual appropriation of $12,000,000 from the General Fund."
+            },
+            {
+              "id": "ev_direct_2",
+              "source_url": "https://www.sanjoseca.gov/home/showpublisheddocument/104111/638701000000000000",
+              "content_hash": "hash_direct_2",
+              "excerpt": "Implementation would begin in FY 2027 and continue through FY 2029."
+            }
+          ]
+        },
+        "parameterization": {
+          "required_parameters": [
+            "annual_fiscal_amount_usd",
+            "time_horizon_years"
+          ],
+          "formula_ids": [
+            "direct_fiscal_bounds_v1"
+          ],
+          "cards": [
+            {
+              "name": "annual_fiscal_amount_usd",
+              "value": 12000000,
+              "unit": "usd_per_year",
+              "source_evidence_id": "ev_direct_1"
+            },
+            {
+              "name": "time_horizon_years",
+              "value": 3,
+              "unit": "years",
+              "source_evidence_id": "ev_direct_2"
+            }
+          ]
+        },
+        "assumption_selection": {
+          "required_assumptions": [],
+          "cards": []
+        },
+        "quantification": {
+          "deterministic": true,
+          "outputs": [
+            {
+              "formula_id": "direct_fiscal_bounds_v1",
+              "unit": "usd_total",
+              "scenario_bounds": {
+                "conservative": 28800000,
+                "central": 36000000,
+                "aggressive": 43200000
+              }
+            }
+          ]
+        },
+        "llm_explanation": {
+          "unsupported_claim_count": 0,
+          "introduced_numeric_claims": 0
+        }
+      },
+      "expected": {
+        "blocking_gate": "",
+        "final_verdict": "quantified_pass"
+      }
+    },
+    {
+      "case_id": "compliance_cost_positive_recurring_reporting",
+      "jurisdiction": "Saratoga CA",
+      "source_family": "ordinance_text",
+      "provider": "fixture",
+      "manual_audit_notes": "Ordinance text and implementation memo define population, recurrence, labor burden, and wage rate assumptions.",
+      "gate_inputs": {
+        "search_recall": {
+          "artifact_candidates_found": 3,
+          "official_domain_hit_rate_percent": 100.0
+        },
+        "reader_substance": {
+          "substantive": true,
+          "selected_artifact_text_chars": 6100
+        },
+        "artifact_classification": {
+          "selected_artifact_class": "ordinance_text",
+          "is_portal_page": false
+        },
+        "evidence_cards": {
+          "cards": [
+            {
+              "id": "ev_comp_1",
+              "source_url": "https://www.saratoga.ca.us/DocumentCenter/View/22111/ORD-2026-03",
+              "content_hash": "hash_comp_1",
+              "excerpt": "Covered entities include approximately 1,200 regulated units filing quarterly compliance submissions."
+            },
+            {
+              "id": "ev_comp_2",
+              "source_url": "https://www.saratoga.ca.us/DocumentCenter/View/22112/Implementation-Memo",
+              "content_hash": "hash_comp_2",
+              "excerpt": "Expected labor burden is 3.0 staff hours per filing at a fully loaded wage rate of $45/hour."
+            }
+          ]
+        },
+        "parameterization": {
+          "required_parameters": [
+            "population_units",
+            "filing_frequency_per_year",
+            "time_burden_hours",
+            "loaded_wage_usd_per_hour"
+          ],
+          "formula_ids": [
+            "compliance_cost_labor_v1"
+          ],
+          "cards": [
+            {
+              "name": "population_units",
+              "value": 1200,
+              "unit": "entities",
+              "source_evidence_id": "ev_comp_1"
+            },
+            {
+              "name": "filing_frequency_per_year",
+              "value": 4,
+              "unit": "filings_per_year",
+              "source_evidence_id": "ev_comp_1"
+            },
+            {
+              "name": "time_burden_hours",
+              "value": 3.0,
+              "unit": "hours_per_filing",
+              "source_evidence_id": "ev_comp_2"
+            },
+            {
+              "name": "loaded_wage_usd_per_hour",
+              "value": 45.0,
+              "unit": "usd_per_hour",
+              "source_evidence_id": "ev_comp_2"
+            }
+          ]
+        },
+        "assumption_selection": {
+          "required_assumptions": [],
+          "cards": []
+        },
+        "quantification": {
+          "deterministic": true,
+          "outputs": [
+            {
+              "formula_id": "compliance_cost_labor_v1",
+              "unit": "usd_per_year",
+              "scenario_bounds": {
+                "conservative": 518400,
+                "central": 648000,
+                "aggressive": 777600
+              }
+            }
+          ]
+        },
+        "llm_explanation": {
+          "unsupported_claim_count": 0,
+          "introduced_numeric_claims": 0
+        }
+      },
+      "expected": {
+        "blocking_gate": "",
+        "final_verdict": "quantified_pass"
+      }
+    },
+    {
+      "case_id": "pass_through_positive_declared_assumption",
+      "jurisdiction": "Santa Clara County CA",
+      "source_family": "fiscal_analysis",
+      "provider": "fixture",
+      "manual_audit_notes": "County impact memo provides annual levy amount; pass-through assumption is registry-aligned for housing rental local tax or fee incidence.",
+      "gate_inputs": {
+        "search_recall": {
+          "artifact_candidates_found": 5,
+          "official_domain_hit_rate_percent": 100.0
+        },
+        "reader_substance": {
+          "substantive": true,
+          "selected_artifact_text_chars": 7800
+        },
+        "artifact_classification": {
+          "selected_artifact_class": "fiscal_analysis",
+          "is_portal_page": false
+        },
+        "evidence_cards": {
+          "cards": [
+            {
+              "id": "ev_pass_1",
+              "source_url": "https://www.sccgov.org/sites/bos/agenda/2026/Item-77-fiscal-memo.pdf",
+              "content_hash": "hash_pass_1",
+              "excerpt": "The proposal imposes an annual cost burden of $5,000,000 on regulated rental operators."
+            }
+          ]
+        },
+        "parameterization": {
+          "required_parameters": [
+            "levied_cost_usd_per_year"
+          ],
+          "formula_ids": [
+            "pass_through_incidence_v1"
+          ],
+          "cards": [
+            {
+              "name": "levied_cost_usd_per_year",
+              "value": 5000000,
+              "unit": "usd_per_year",
+              "source_evidence_id": "ev_pass_1"
+            }
+          ]
+        },
+        "assumption_selection": {
+          "required_assumptions": [
+            "pass_through_rate"
+          ],
+          "cards": [
+            {
+              "name": "pass_through_rate",
+              "low": 0.5,
+              "central": 0.68,
+              "high": 0.89,
+              "source_url": "https://www.philadelphiafed.org/-/media/frbp/assets/consumer-finance/discussion-papers/dp24-01.pdf",
+              "applicability": "housing,rental_market,local_tax_or_fee"
+            }
+          ]
+        },
+        "quantification": {
+          "deterministic": true,
+          "outputs": [
+            {
+              "formula_id": "pass_through_incidence_v1",
+              "unit": "usd_per_year",
+              "scenario_bounds": {
+                "conservative": 2500000,
+                "central": 3250000,
+                "aggressive": 4450000
+              }
+            }
+          ]
+        },
+        "llm_explanation": {
+          "unsupported_claim_count": 0,
+          "introduced_numeric_claims": 0
+        }
+      },
+      "expected": {
+        "blocking_gate": "",
+        "final_verdict": "quantified_pass"
+      }
+    },
+    {
+      "case_id": "local_minutes_control_fail_closed_no_numeric_basis",
+      "jurisdiction": "San Jose CA",
+      "source_family": "meeting_minutes",
+      "provider": "fixture",
+      "manual_audit_notes": "Official minutes confirm policy discussion and vote but provide no fiscal amount or numeric compliance basis.",
+      "gate_inputs": {
+        "search_recall": {
+          "artifact_candidates_found": 3,
+          "official_domain_hit_rate_percent": 100.0
+        },
+        "reader_substance": {
+          "substantive": true,
+          "selected_artifact_text_chars": 3900
+        },
+        "artifact_classification": {
+          "selected_artifact_class": "meeting_minutes",
+          "is_portal_page": false
+        },
+        "evidence_cards": {
+          "cards": [
+            {
+              "id": "ev_local_1",
+              "source_url": "https://sanjose.legistar.com/MeetingDetail.aspx?ID=1300000&GUID=A-1234",
+              "content_hash": "hash_local_1",
+              "excerpt": "Council adopted the housing compliance ordinance after public comment."
+            }
+          ]
+        },
+        "parameterization": {
+          "required_parameters": [
+            "annual_fiscal_amount_usd"
+          ],
+          "formula_ids": [
+            "direct_fiscal_bounds_v1"
+          ],
+          "cards": []
+        },
+        "assumption_selection": {
+          "required_assumptions": [],
+          "cards": []
+        },
+        "quantification": {
+          "deterministic": false,
+          "outputs": []
+        },
+        "llm_explanation": {
+          "unsupported_claim_count": 0,
+          "introduced_numeric_claims": 0
+        }
+      },
+      "expected": {
+        "blocking_gate": "parameterization",
+        "final_verdict": "fail_closed_qualitative_only"
+      }
+    },
+    {
+      "case_id": "provider_failure_no_artifact_candidates",
+      "jurisdiction": "Mountain View CA",
+      "source_family": "city_council_minutes",
+      "provider": "fixture",
+      "manual_audit_notes": "Provider returned no useful artifact URLs; attribution must stop at search gate.",
+      "gate_inputs": {
+        "search_recall": {
+          "artifact_candidates_found": 0,
+          "official_domain_hit_rate_percent": 0.0
+        },
+        "reader_substance": {
+          "substantive": false,
+          "selected_artifact_text_chars": 0
+        },
+        "artifact_classification": {
+          "selected_artifact_class": "",
+          "is_portal_page": true
+        },
+        "evidence_cards": {
+          "cards": []
+        },
+        "parameterization": {
+          "required_parameters": [
+            "annual_fiscal_amount_usd"
+          ],
+          "formula_ids": [],
+          "cards": []
+        },
+        "assumption_selection": {
+          "required_assumptions": [],
+          "cards": []
+        },
+        "quantification": {
+          "deterministic": false,
+          "outputs": []
+        },
+        "llm_explanation": {
+          "unsupported_claim_count": 0,
+          "introduced_numeric_claims": 0
+        }
+      },
+      "expected": {
+        "blocking_gate": "search_recall",
+        "final_verdict": "fail_closed_qualitative_only"
+      }
+    },
+    {
+      "case_id": "llm_explanation_failure_unsupported_claims",
+      "jurisdiction": "Sunnyvale CA",
+      "source_family": "staff_report",
+      "provider": "fixture",
+      "manual_audit_notes": "Deterministic calculation succeeds, but the generated narrative introduces unsupported numeric claims.",
+      "gate_inputs": {
+        "search_recall": {
+          "artifact_candidates_found": 2,
+          "official_domain_hit_rate_percent": 100.0
+        },
+        "reader_substance": {
+          "substantive": true,
+          "selected_artifact_text_chars": 4400
+        },
+        "artifact_classification": {
+          "selected_artifact_class": "staff_report",
+          "is_portal_page": false
+        },
+        "evidence_cards": {
+          "cards": [
+            {
+              "id": "ev_llm_1",
+              "source_url": "https://sunnyvale.ca.gov/home/showpublisheddocument/99881/638702000000000000",
+              "content_hash": "hash_llm_1",
+              "excerpt": "Staff estimates annual compliance administration costs at $950,000."
+            }
+          ]
+        },
+        "parameterization": {
+          "required_parameters": [
+            "annual_fiscal_amount_usd"
+          ],
+          "formula_ids": [
+            "direct_fiscal_bounds_v1"
+          ],
+          "cards": [
+            {
+              "name": "annual_fiscal_amount_usd",
+              "value": 950000,
+              "unit": "usd_per_year",
+              "source_evidence_id": "ev_llm_1"
+            }
+          ]
+        },
+        "assumption_selection": {
+          "required_assumptions": [],
+          "cards": []
+        },
+        "quantification": {
+          "deterministic": true,
+          "outputs": [
+            {
+              "formula_id": "direct_fiscal_bounds_v1",
+              "unit": "usd_per_year",
+              "scenario_bounds": {
+                "conservative": 760000,
+                "central": 950000,
+                "aggressive": 1140000
+              }
+            }
+          ]
+        },
+        "llm_explanation": {
+          "unsupported_claim_count": 2,
+          "introduced_numeric_claims": 1
+        }
+      },
+      "expected": {
+        "blocking_gate": "llm_explanation",
+        "final_verdict": "qualitative_only_due_to_unsupported_claims"
+      }
+    }
+  ]
+}

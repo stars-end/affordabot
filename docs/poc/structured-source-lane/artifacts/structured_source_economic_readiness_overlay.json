@@ -1,0 +1,146 @@
+{
+  "feature_key": "bd-2agbe.1",
+  "verifier_version": "2026-04-14.structured-source-overlay-v1",
+  "generated_at": "2026-04-14T17:17:55.509548+00:00",
+  "probe_report_summary": {
+    "source_count": 3,
+    "structured_lane_candidates": 3
+  },
+  "source_overlay": [
+    {
+      "source_family": "ca_pubinfo_leginfo",
+      "recommendation": "structured_lane",
+      "signup_or_key_link": "none_required",
+      "free_status": "free_public",
+      "api_or_raw_confirmed": "raw_official_file",
+      "sample_endpoint_or_file_url": "https://downloads.leginfo.legislature.ca.gov/pubinfo_daily_Mon.zip",
+      "policy_fact_fields": [
+        "session_year",
+        "bill_number",
+        "bill_version",
+        "bill_status",
+        "history_actions[]",
+        "committee_analysis_refs[]",
+        "vote_rows[]"
+      ],
+      "requires_reader_for_linked_artifacts": [
+        "Reader required for linked bill text/analysis pages when downstream model needs clause-level evidence excerpts."
+      ],
+      "economic_research_seed_queries": [
+        "query: \"{bill_number} committee analysis fiscal\"",
+        "query: \"{bill_number} implementation cost estimate\"",
+        "query: \"{policy_mechanism} compliance cost evidence\""
+      ],
+      "ready_for_structured_lane": true
+    },
+    {
+      "source_family": "legistar_sanjose",
+      "recommendation": "structured_lane",
+      "signup_or_key_link": "none_required",
+      "free_status": "free_public",
+      "api_or_raw_confirmed": "api",
+      "sample_endpoint_or_file_url": "https://webapi.legistar.com/v1/sanjose/matters?$top=5",
+      "policy_fact_fields": [
+        "matter_id",
+        "matter_file",
+        "matter_guid",
+        "matter_title",
+        "matter_status",
+        "matter_intro_date",
+        "agenda_refs[]",
+        "minutes_refs[]"
+      ],
+      "requires_reader_for_linked_artifacts": [
+        "Reader required for agenda packet PDFs, minutes attachments, and staff reports linked from Matter records."
+      ],
+      "economic_research_seed_queries": [
+        "query: \"San Jose {matter_file} staff report fiscal impact\"",
+        "query: \"San Jose {policy_mechanism} implementation cost\"",
+        "query: \"{policy_mechanism} housing price impact literature\""
+      ],
+      "ready_for_structured_lane": true
+    },
+    {
+      "source_family": "arcgis_public_gis_dataset",
+      "recommendation": "structured_lane",
+      "signup_or_key_link": "none_required",
+      "free_status": "free_public",
+      "api_or_raw_confirmed": "api",
+      "sample_endpoint_or_file_url": "https://services2.arcgis.com/9KdAx8qBsHiGXOEw/arcgis/rest/services/NFHL_Flood_Hazard_Zones_Dissolve/FeatureServer/0/query?f=json&where=1%3D1&outFields=%2A&returnGeometry=false&resultRecordCount=3",
+      "policy_fact_fields": [
+        "dataset_id",
+        "layer_id",
+        "objectid",
+        "jurisdiction",
+        "gis_attribute_code",
+        "geometry_or_area_measure",
+        "update_timestamp"
+      ],
+      "requires_reader_for_linked_artifacts": [
+        "Reader optional for ordinance, staff-report, or metadata links referenced in feature attributes."
+      ],
+      "economic_research_seed_queries": [
+        "query: \"{jurisdiction} development cost benchmark\"",
+        "query: \"{gis_attribute_code} housing supply or development feasibility impact\"",
+        "query: \"{policy_mechanism} household affordability impact\""
+      ],
+      "ready_for_structured_lane": true
+    }
+  ],
+  "no_key_scope_verdict": {
+    "required_source_families": [
+      "ca_pubinfo_leginfo",
+      "legistar_sanjose",
+      "arcgis_public_gis_dataset"
+    ],
+    "present_source_families": [
+      "ca_pubinfo_leginfo",
+      "legistar_sanjose",
+      "arcgis_public_gis_dataset"
+    ],
+    "missing_source_families": [],
+    "structured_ready_source_families": [
+      "ca_pubinfo_leginfo",
+      "legistar_sanjose",
+      "arcgis_public_gis_dataset"
+    ],
+    "sufficient_for_wave1": true,
+    "reason": "no_key_scope_ready_for_wave1"
+  },
+  "pipeline_path_comparison": {
+    "thin_windmill_domain_path": {
+      "entrypoint": "backend/main.py:521 (/cron/pipeline/domain/run-scope)",
+      "search_read_analyze_steps": [
+        "backend/services/pipeline/domain/bridge.py:479 (_search_materialize)",
+        "backend/services/pipeline/domain/bridge.py:635 (_read_fetch)",
+        "backend/services/pipeline/domain/bridge.py:1127 (_analyze)"
+      ],
+      "analysis_behavior": "Analyze step prompts LLM for strict JSON with keys: summary, key_points, sufficiency_state over selected evidence chunks.",
+      "citation": "backend/services/pipeline/domain/bridge.py:1204"
+    },
+    "canonical_analysis_pipeline_path": {
+      "entrypoint": "backend/main.py:258 (AnalysisPipeline construction)",
+      "research_invocation": "backend/services/llm/orchestrator.py:1126 (_research_step)",
+      "research_behavior": [
+        "backend/services/legislation_research.py:260 (research)",
+        "backend/services/legislation_research.py:405 (_web_research)",
+        "backend/services/legislation_research.py:743 (_derive_wave1_candidates)",
+        "backend/services/legislation_research.py:794 (_derive_wave2_prerequisites)"
+      ],
+      "generation_behavior": "backend/services/llm/orchestrator.py:1248 (_generate_step)"
+    },
+    "current_disconnect": "Windmill domain bridge analyze path does not call AnalysisPipeline or LegislationResearchService directly; it runs a thin question-over-chunks analysis.",
+    "handoff_boundary": "Structured-source lane should publish policy facts + linked artifact refs into backend-owned evidence contracts, then invoke canonical AnalysisPipeline for economic research and quantification gating."
+  },
+  "scrape_reader_backlog_source_families": [
+    "boarddocs_public_portal",
+    "civicplus_agenda_center",
+    "cleargov_budget_book",
+    "escribe_public_filestream",
+    "granicus_public_pages",
+    "novusagenda_public_portal",
+    "opengov_budget_book",
+    "primegov_public_portal",
+    "swagit_public_archive"
+  ]
+}

@@ -1,0 +1,182 @@
+{
+  "artifact_version": "2026-04-15.package-readiness-source-quality.v1",
+  "generated_from_existing_evidence_only": true,
+  "beads_subtask": "bd-3wefe.2/bd-3wefe.3",
+  "scraped_provider_matrix": [
+    {
+      "provider": "private_searxng",
+      "official_domain_hit_rate_percent": 94.7,
+      "reader_ready_rate_percent": 21.1,
+      "provider_score": 67.59,
+      "queries_tested": 19,
+      "package_role": "primary_candidate",
+      "package_risks": [
+        "portal_misselection_without_strong_ranker_penalties",
+        "reader_substance_failures_without_prefetch_skip"
+      ],
+      "required_gates": [
+        "rank_reader_candidates",
+        "prefetch_skip_reason",
+        "assess_reader_substance",
+        "freshness_gate"
+      ]
+    },
+    {
+      "provider": "tavily",
+      "official_domain_hit_rate_percent": 84.2,
+      "reader_ready_rate_percent": 36.8,
+      "provider_score": 73.61,
+      "queries_tested": 19,
+      "package_role": "hot_fallback_candidate",
+      "package_risks": [
+        "free_tier_quota_cap"
+      ],
+      "required_gates": [
+        "provider_identity_preservation",
+        "freshness_gate",
+        "reader_substance"
+      ]
+    },
+    {
+      "provider": "exa",
+      "official_domain_hit_rate_percent": 73.7,
+      "reader_ready_rate_percent": 31.6,
+      "provider_score": 72.04,
+      "queries_tested": 19,
+      "package_role": "bakeoff_eval_only",
+      "package_risks": [
+        "free_tier_quota_cap",
+        "user_agent_sensitivity"
+      ],
+      "required_gates": [
+        "evaluation_only_routing",
+        "provider_identity_preservation"
+      ]
+    }
+  ],
+  "structured_source_matrix": [
+    {
+      "source_family": "legistar_sanjose",
+      "access_method": "api",
+      "free_status": "free_public",
+      "key_env_var": null,
+      "recommendation": "structured_lane",
+      "downstream_economic_usefulness": "high",
+      "storage_target": "structured_policy_facts + linked_artifact_refs"
+    },
+    {
+      "source_family": "ca_pubinfo_leginfo",
+      "access_method": "raw_official_file",
+      "free_status": "free_public",
+      "key_env_var": null,
+      "recommendation": "structured_lane",
+      "downstream_economic_usefulness": "high",
+      "storage_target": "raw_artifact + normalized_facts + official_refs"
+    },
+    {
+      "source_family": "arcgis_public_gis_dataset",
+      "access_method": "api",
+      "free_status": "free_public",
+      "key_env_var": null,
+      "recommendation": "structured_lane",
+      "downstream_economic_usefulness": "medium",
+      "storage_target": "context_facts_with_policy_relevance_flag"
+    },
+    {
+      "source_family": "ca_ckan_open_data_catalog",
+      "access_method": "api",
+      "free_status": "free_public",
+      "key_env_var": null,
+      "recommendation": "structured_lane",
+      "downstream_economic_usefulness": "medium",
+      "storage_target": "catalog_and_dataset_facts"
+    },
+    {
+      "source_family": "openstates_plural_api",
+      "access_method": "api",
+      "free_status": "free_tier_available",
+      "key_env_var": "OPENSTATES_API_KEY",
+      "recommendation": "structured_lane",
+      "downstream_economic_usefulness": "medium_high",
+      "storage_target": "discovery_metadata + official_text_refs"
+    },
+    {
+      "source_family": "socrata_open_data",
+      "access_method": "api",
+      "free_status": "free_tier_key_optional_limits",
+      "key_env_var": "SOCRATA_APP_TOKEN",
+      "recommendation": "structured_lane_backlog",
+      "downstream_economic_usefulness": "high",
+      "storage_target": "dataset_facts_for_local_economic_context"
+    }
+  ],
+  "minimum_unified_package_fields": {
+    "identity_and_provenance": [
+      "canonical_document_key",
+      "jurisdiction",
+      "source_lane",
+      "provider",
+      "source_tier",
+      "artifact_url",
+      "retrieved_at",
+      "content_hash"
+    ],
+    "scraped_lineage": [
+      "query_family",
+      "query",
+      "search_snapshot_id",
+      "candidate_rank",
+      "candidate_score",
+      "prefetch_skip_reason",
+      "reader_substance_reason",
+      "reader_artifact_ref"
+    ],
+    "structured_lineage": [
+      "source_family",
+      "access_method",
+      "sample_endpoint_or_file_url",
+      "structured_policy_facts[]",
+      "linked_artifact_refs[]"
+    ],
+    "economic_mapping": [
+      "artifact_type",
+      "evidence_source_type",
+      "selected_impact_mode",
+      "mechanism_family",
+      "evidence_readiness",
+      "economic_handoff_ready"
+    ],
+    "freshness_and_gate_state": [
+      "freshness_status",
+      "snapshot_age_hours",
+      "decision_reason",
+      "retry_class",
+      "alerts[]"
+    ]
+  },
+  "failure_classes": [
+    "search_transport_error",
+    "search_empty_result",
+    "empty_blocked",
+    "stale_blocked",
+    "prefetch_skipped_low_value_portal",
+    "reader_output_insufficient_substance",
+    "reader_provider_error",
+    "reader_provider_unavailable",
+    "no_raw_scrapes",
+    "no_evidence_chunks",
+    "reader_artifact_write_failed",
+    "vector_write_failed",
+    "missing_snapshot",
+    "analysis_failed"
+  ],
+  "integration_readiness_snapshot": {
+    "total_envelopes": 8,
+    "ready_count": 3,
+    "reader_required_count": 3,
+    "insufficient_count": 2,
+    "economic_handoff_ready_count": 3,
+    "quantified_handoff_ready_count": 3,
+    "evidence_quality_assessment": "sufficient_for_quantified_handoff_in_subset"
+  }
+}

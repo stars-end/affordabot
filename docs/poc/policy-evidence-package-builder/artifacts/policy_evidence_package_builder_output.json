@@ -1,0 +1,260 @@
+{
+  "feature_key": "bd-3wefe.4",
+  "generated_at": "2026-04-15T00:00:00+00:00",
+  "report_version": "2026-04-15.policy-evidence-package-builder.v1",
+  "schema_validation": {
+    "schema_type": "pydantic",
+    "error": null
+  },
+  "package": {
+    "schema_version": "1.0.0",
+    "package_id": "pkg-bd-3wefe-4-sample",
+    "jurisdiction": "san_jose_ca",
+    "canonical_document_key": "san_jose_ca::sj-13000001-program-cost",
+    "policy_identifier": "sj-13000001-program-cost",
+    "created_at": "2026-04-15T00:00:00Z",
+    "source_lanes": [
+      "scraped",
+      "structured"
+    ],
+    "scraped_sources": [
+      {
+        "search_provider": "private_searxng",
+        "provider_run_id": null,
+        "query_family": "private_searxng",
+        "query_text": "https://sanjose.legistar.com/View.ashx?M=F&ID=13000001&GUID=A-1",
+        "search_snapshot_id": "pkg-bd-3wefe-4-sample-snapshot",
+        "candidate_rank": 1,
+        "selected_candidate_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13000001&GUID=A-1",
+        "reader_artifact_url": "https://backend.artifacts/scrape/sj-13000001-program-cost-reader.txt",
+        "reader_substance_passed": true
+      },
+      {
+        "search_provider": "private_searxng",
+        "provider_run_id": null,
+        "query_family": "meeting_minutes",
+        "query_text": "https://www.sanjoseca.gov/your-government/agendas-minutes",
+        "search_snapshot_id": "pkg-bd-3wefe-4-sample-snapshot",
+        "candidate_rank": 1,
+        "selected_candidate_url": "https://www.sanjoseca.gov/your-government/agendas-minutes",
+        "reader_artifact_url": null,
+        "reader_substance_passed": false
+      }
+    ],
+    "structured_sources": [
+      {
+        "source_family": "legistar",
+        "access_method": "api_or_file",
+        "endpoint_or_file_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13000001&GUID=A-1",
+        "provider_run_id": null,
+        "field_count": 2
+      }
+    ],
+    "evidence_cards": [
+      {
+        "id": "ev-1",
+        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13000001&GUID=A-1",
+        "source_type": "staff_report",
+        "content_hash": "c162f11614915da52a949297ca7f0a6c82dd4769b080f247aff5fcda4a87a3b9",
+        "excerpt": "Evidence extracted from private_searxng artifact for economic analysis.",
+        "retrieved_at": "2026-04-14T08:05:00Z",
+        "source_tier": "tier_a",
+        "provenance_label": "private_searxng_private_searxng",
+        "artifact_id": "san_jose_ca::sj-13000001-program-cost",
+        "reader_run_id": null
+      },
+      {
+        "id": "ev-2",
+        "source_url": "https://www.sanjoseca.gov/your-government/agendas-minutes",
+        "source_type": "other",
+        "content_hash": "missing_hash::https://www.sanjoseca.gov/your-government/agendas-minutes",
+        "excerpt": "Evidence extracted from meeting_minutes artifact for economic analysis.",
+        "retrieved_at": "2026-04-15T00:00:00Z",
+        "source_tier": "tier_c",
+        "provenance_label": "private_searxng_meeting_minutes",
+        "artifact_id": "v2|jurisdiction=san-jose-ca|family=meeting-minutes|doctype=meeting_portal|url=https://www.sanjoseca.gov/your-government/agendas-minutes",
+        "reader_run_id": null
+      },
+      {
+        "id": "ev-3",
+        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13000001&GUID=A-1",
+        "source_type": "staff_report",
+        "content_hash": "c162f11614915da52a949297ca7f0a6c82dd4769b080f247aff5fcda4a87a3b9",
+        "excerpt": "Evidence extracted from legistar artifact for economic analysis.",
+        "retrieved_at": "2026-04-14T08:00:00Z",
+        "source_tier": "tier_a",
+        "provenance_label": "legistar_legistar",
+        "artifact_id": "san_jose_ca::sj-13000001-program-cost",
+        "reader_run_id": null
+      }
+    ],
+    "parameter_cards": [
+      {
+        "id": "param-1-annual-cost-usd",
+        "parameter_name": "annual_cost_usd",
+        "state": "resolved",
+        "value": 2400000.0,
+        "unit": "usd_per_year",
+        "time_horizon": null,
+        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13000001&GUID=A-1",
+        "source_excerpt": "Structured fact annual_cost_usd resolved from source payload.",
+        "source_hierarchy_status": "fiscal_or_reg_impact_analysis",
+        "ambiguity_reason": null,
+        "evidence_card_id": "ev-3"
+      },
+      {
+        "id": "param-2-affected-households",
+        "parameter_name": "affected_households",
+        "state": "resolved",
+        "value": 8000.0,
+        "unit": "households",
+        "time_horizon": null,
+        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13000001&GUID=A-1",
+        "source_excerpt": "Structured fact affected_households resolved from source payload.",
+        "source_hierarchy_status": "fiscal_or_reg_impact_analysis",
+        "ambiguity_reason": null,
+        "evidence_card_id": "ev-3"
+      }
+    ],
+    "assumption_cards": [
+      {
+        "id": "assump-1-direct_fiscal",
+        "family": "direct_fiscal",
+        "low": 0.5,
+        "central": 0.65,
+        "high": 0.8,
+        "unit": "share",
+        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13000001&GUID=A-1",
+        "source_excerpt": "Mapped mechanism assumption from source evidence and policy context.",
+        "applicability_tags": [
+          "san_jose_ca",
+          "private_searxng"
+        ],
+        "external_validity_notes": "POC placeholder assumption; validate with literature in bd-3wefe.5/.6.",
+        "confidence": 0.5,
+        "version": "v1",
+        "stale_after_days": 365
+      },
+      {
+        "id": "assump-3-direct_fiscal",
+        "family": "direct_fiscal",
+        "low": 0.5,
+        "central": 0.65,
+        "high": 0.8,
+        "unit": "share",
+        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13000001&GUID=A-1",
+        "source_excerpt": "Mapped mechanism assumption from source evidence and policy context.",
+        "applicability_tags": [
+          "san_jose_ca",
+          "legistar"
+        ],
+        "external_validity_notes": "POC placeholder assumption; validate with literature in bd-3wefe.5/.6.",
+        "confidence": 0.5,
+        "version": "v1",
+        "stale_after_days": 365
+      }
+    ],
+    "model_cards": [],
+    "gate_report": {
+      "case_id": "pkg-bd-3wefe-4-sample-gate",
+      "provider": "private_searxng",
+      "verdict": "fail_closed",
+      "stage_results": [
+        {
+          "stage": "search_recall",
+          "passed": true,
+          "failure_codes": [],
+          "note": null
+        },
+        {
+          "stage": "reader_substance",
+          "passed": false,
+          "failure_codes": [
+            "excerpt_validation_failed"
+          ],
+          "note": null
+        },
+        {
+          "stage": "parameterization",
+          "passed": true,
+          "failure_codes": [],
+          "note": null
+        },
+        {
+          "stage": "quantification",
+          "passed": false,
+          "failure_codes": [
+            "parameter_unverifiable"
+          ],
+          "note": null
+        }
+      ],
+      "blocking_gate": "reader_substance",
+      "failure_codes": [
+        "parameter_missing"
+      ],
+      "artifact_counts": {
+        "evidence_cards": 3
+      },
+      "unsupported_claim_count": 0,
+      "manual_audit_notes": "Builder POC payload; full durability/orchestration gates in bd-3wefe.10/.12."
+    },
+    "gate_projection": {
+      "runtime_sufficiency_state": "qualitative_only",
+      "runtime_insufficiency_reason": "blocking gate present or missing quantitative support",
+      "runtime_failure_codes": [
+        "parameter_missing"
+      ],
+      "canonical_breakdown_ref": "",
+      "canonical_pipeline_run_id": "",
+      "canonical_pipeline_step_id": ""
+    },
+    "assumption_usage": [],
+    "storage_refs": [
+      {
+        "storage_system": "postgres",
+        "truth_role": "source_of_truth",
+        "reference_id": "pipeline_packages:pending",
+        "content_hash": null,
+        "uri": null,
+        "notes": null
+      },
+      {
+        "storage_system": "minio",
+        "truth_role": "artifact_of_record",
+        "reference_id": "minio://policy-evidence/reader/private_searxng/sj-13000001.txt",
+        "content_hash": null,
+        "uri": "minio://policy-evidence/reader/private_searxng/sj-13000001.txt",
+        "notes": "readback proof pending bd-3wefe.10"
+      },
+      {
+        "storage_system": "pgvector",
+        "truth_role": "derived_index",
+        "reference_id": "chunk:pending",
+        "content_hash": null,
+        "uri": null,
+        "notes": "derived index only"
+      }
+    ],
+    "freshness_status": "fresh",
+    "economic_handoff_ready": false,
+    "insufficiency_reasons": [
+      "blocking_gate_present"
+    ]
+  },
+  "readiness_summary": {
+    "package_ready_evidence_count": 2,
+    "reader_required_evidence_count": 1,
+    "insufficient_evidence_count": 1,
+    "economic_handoff_ready": false,
+    "fail_closed": true,
+    "insufficiency_reasons": [
+      "blocking_gate_present"
+    ]
+  },
+  "open_proof_gaps": [
+    "bd-3wefe.10 storage durability/readback not proven by this verifier",
+    "bd-3wefe.12 windmill orchestration not exercised by this verifier",
+    "bd-3wefe.5 final economic sufficiency gate not asserted by this verifier"
+  ]
+}

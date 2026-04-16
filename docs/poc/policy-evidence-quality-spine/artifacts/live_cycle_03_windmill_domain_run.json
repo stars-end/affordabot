@@ -1,0 +1,966 @@
+{
+  "backend_endpoint_readiness": {
+    "local_mock_probe": {
+      "note": "local mock backend endpoint probe passed",
+      "status": "passed"
+    },
+    "missing_inputs": [],
+    "note": "backend endpoint config is present and local mock probe passed",
+    "status": "ready_for_opt_in"
+  },
+  "blockers": [
+    {
+      "blocking": false,
+      "category": "storage/runtime",
+      "details": {
+        "reason": "DATABASE_URL missing",
+        "status": "not_configured"
+      },
+      "message": "DB/storage probe unavailable"
+    },
+    {
+      "blocking": false,
+      "category": "storage/runtime",
+      "details": {
+        "pending_gates": [
+          "postgres_rows_written",
+          "pgvector_index_probe",
+          "minio_object_refs",
+          "reader_output_ref",
+          "analysis_provenance_chain",
+          "idempotent_rerun",
+          "stale_drill_stale_but_usable",
+          "stale_drill_stale_blocked"
+        ]
+      },
+      "message": "storage/runtime evidence gates are pending"
+    }
+  ],
+  "canonical_variables": {
+    "BACKEND_ENDPOINT_AUTH_TOKEN": "optional local readiness input only",
+    "BACKEND_ENDPOINT_URL": "optional local readiness input only",
+    "BACKEND_PUBLIC_URL_VAR": "f/affordabot/BACKEND_PUBLIC_URL",
+    "CRON_SECRET_VAR": "f/affordabot/CRON_SECRET",
+    "TMP_WMILL_CONFIG": "auto-created temporary profile directory",
+    "WINDMILL_API_TOKEN": "op://dev/Agent-Secrets-Production/WINDMILL_API_TOKEN",
+    "WINDMILL_BASE_URL": "derived as WINDMILL_DEV_LOGIN_URL without /user/login",
+    "WINDMILL_DEV_LOGIN_URL": "op://dev/Agent-Secrets-Production/WINDMILL_DEV_LOGIN_URL",
+    "WINDMILL_WORKSPACE": "affordabot"
+  },
+  "classification": "backend_bridge_surface_ready",
+  "db_storage_probe": {
+    "reason": "DATABASE_URL missing",
+    "status": "not_configured"
+  },
+  "deployment_surface": {
+    "flow_deployed": true,
+    "flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+    "flow_unscheduled": true,
+    "script_deployed": true,
+    "script_path": "f/affordabot/pipeline_daily_refresh_domain_boundary"
+  },
+  "feature_key": "bd-3wefe.13",
+  "full_run_readiness": "partial",
+  "generated_at": "2026-04-16T05:54:32.089624+00:00",
+  "harness_version": "2026-04-13.worker-b.v2",
+  "idempotent_rerun": {
+    "attempted": false
+  },
+  "manual_audit_notes": {
+    "llm_analysis_excerpt": "The provided text outlines the establishment of San Jose's Affordable Housing Impact Fee (AHIF) via a resolution adopted on November 18, 2014. It specifies that the fee applies to new market-rate rental housing developments, specifically those with 3 to 19 apartments. However, the text cuts off before revealing the specific numeric fee rates.",
+    "llm_quality_note": "LLM analysis produced a substantive answer from persisted evidence.",
+    "manual_verdict": "PASS_MANUAL_AUDIT",
+    "reader_output_excerpt": "",
+    "reader_quality_note": "Reader output was persisted and provided to analysis."
+  },
+  "manual_run": {
+    "attempted": true,
+    "command_client": "backend_endpoint",
+    "contract_metadata_present": true,
+    "expected_step_sequence": [
+      "search_materialize",
+      "freshness_gate",
+      "read_fetch",
+      "index",
+      "analyze",
+      "summarize_run"
+    ],
+    "final_status": "succeeded",
+    "idempotency_key": "bd-3wefe.13-live-cycle-03-20260416",
+    "job_get": {
+      "canceled": false,
+      "completed_at": "2026-04-16T05:54:21.190780Z",
+      "created_at": "2026-04-16T05:53:33.506725Z",
+      "deleted": false,
+      "duration_ms": 47644,
+      "flow_status": {
+        "failure_module": {
+          "id": "failure_handler",
+          "type": "WaitingForPriorSteps"
+        },
+        "modules": [
+          {
+            "branch_chosen": null,
+            "id": "build_scope_matrix",
+            "skipped": false,
+            "type": "Success"
+          },
+          {
+            "branch_chosen": null,
+            "id": "per_scope_pipeline",
+            "skipped": false,
+            "type": "Success"
+          },
+          {
+            "branch_chosen": {
+              "type": "default"
+            },
+            "id": "branch_outcome_review",
+            "skipped": false,
+            "type": "Success"
+          }
+        ],
+        "step": 3
+      },
+      "id": "019d94da-1547-48ec-9185-11b91651f5be",
+      "job_kind": "flow",
+      "script_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow"
+    },
+    "job_logs_excerpt": "\u001b[33mNo wmill.yaml found. Use 'wmill init' to bootstrap it.\u001b[39m\n\u001b[36m\u001b[1m\n====== build_scope_matrix ======\u001b[22m\u001b[39m\njob=019d94da-1574-c0c0-c9b7-70248ad6ee8f tag=python3 worker=wk-default-661cef133dc0-WZTwK hostname=661cef133dc0 isolation=none\n\nenv deps from local cache: certifi==2026.2.25, charset-normalizer==3.4.7, idna==3.11, requests==2.33.1, urllib3==2.6.3\n\n\n--- PYTHON (3.12) CODE EXECUTION ---\n\n\u001b[36m\u001b[1m\n====== per_scope_pipeline (iteration 0) ======\u001b[22m\u001b[39m\nFlow job completed with success\n\n\u001b[36m\u001b[1m\n====== branch_outcome_review ======\u001b[22m\u001b[39m\nFlow job completed with success\n\n",
+    "scope_totals": {
+      "scope_blocked": 0,
+      "scope_failed": 0,
+      "scope_succeeded": 1,
+      "scope_total": 1
+    },
+    "step_sequence": [
+      "search_materialize",
+      "freshness_gate",
+      "read_fetch",
+      "index",
+      "analyze",
+      "summarize_run"
+    ],
+    "step_sequence_matches_expected": true,
+    "windmill_job_id": "019d94da-1547-48ec-9185-11b91651f5be"
+  },
+  "result_payload": {
+    "alerts": [],
+    "scope_blocked": 0,
+    "scope_failed": 0,
+    "scope_results": [
+      {
+        "alert": "",
+        "backend_response": {
+          "decision_reason": "run_summary_materialized",
+          "missing_runtime_adapters": [],
+          "refs": {
+            "analyze_reason": "analysis_completed",
+            "analyze_retry_class": "none",
+            "freshness_gate_reason": "fresh",
+            "freshness_gate_retry_class": "none",
+            "index_reason": "chunks_indexed",
+            "index_retry_class": "none",
+            "read_fetch_reason": "raw_scrapes_materialized",
+            "read_fetch_retry_class": "none",
+            "run_id": "498aff1e-3af9-4a28-9895-5058ffc92e21",
+            "search_materialize_reason": "fresh_snapshot_materialized",
+            "search_materialize_retry_class": "none",
+            "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+            "windmill_run_id": "bd-3wefe.13-live-cycle-03-20260416"
+          },
+          "status": "succeeded",
+          "storage_mode": "railway_runtime"
+        },
+        "scope_index": 0,
+        "scope_item": {
+          "jurisdiction": "San Jose CA",
+          "scope_key": "san jose ca::meeting_minutes",
+          "source_family": "meeting_minutes"
+        },
+        "status": "succeeded",
+        "steps": {
+          "analyze": {
+            "alerts": [],
+            "command": "analyze",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "counts": {
+              "analyses": 1,
+              "evidence_chunks": 20
+            },
+            "created_at": "2026-04-16T05:54:20.544648+00:00",
+            "decision_reason": "analysis_completed",
+            "details": {
+              "analysis": {
+                "key_points": [
+                  "City Council adopted the Housing Impact Fee Resolution on November 18, 2014.",
+                  "The fee applies to developers of new market-rate rental residential developments.",
+                  "Applicability is specifically for rental housing developments of three (3) to nineteen (19) apartments.",
+                  "The evidence references an Affordable Housing Impact Fee Annual Report for FY2018-2019.",
+                  "The specific numeric fee rate is not present in the provided text."
+                ],
+                "sufficiency_state": "Insufficient. Secondary evidence required: The specific fee schedule or the full text of the Housing Impact Fee Resolution containing the numeric fee rates (e.g., dollars per square foot or per unit).",
+                "summary": "The provided text outlines the establishment of San Jose's Affordable Housing Impact Fee (AHIF) via a resolution adopted on November 18, 2014. It specifies that the fee applies to new market-rate rental housing developments, specifically those with 3 to 19 apartments. However, the text cuts off before revealing the specific numeric fee rates."
+              },
+              "evidence_selection": {
+                "candidate_chunk_count": 87,
+                "selected_chunk_count": 20,
+                "selected_chunks": [
+                  {
+                    "chunk_id": "d0ad4e13-8194-57a2-b043-af60439574c8",
+                    "chunk_index": 19,
+                    "matched_action_signals": [
+                      "housing"
+                    ],
+                    "matched_question_terms": [
+                      "san",
+                      "jose",
+                      "affordable",
+                      "housing",
+                      "impact",
+                      "fee"
+                    ],
+                    "rank": 1,
+                    "score": 22,
+                    "snippet": "the City of San Jose to continue to use Affordable Housing Impact Fee (AHIF) funds to fund"
+                  },
+                  {
+                    "chunk_id": "0a5bde14-eb66-596b-a4d0-449b50934674",
+                    "chunk_index": 38,
+                    "matched_action_signals": [
+                      "housing",
+                      "adopted",
+                      "resolution"
+                    ],
+                    "matched_question_terms": [
+                      "housing",
+                      "impact",
+                      "fee"
+                    ],
+                    "rank": 2,
+                    "score": 21,
+                    "snippet": "On November 18, 2014, the City Council adopted the Housing Impact Fee Resolution"
+                  },
+                  {
+                    "chunk_id": "c32e9d12-053d-52e1-ab3e-c18b5cbdddba",
+                    "chunk_index": 60,
+                    "matched_action_signals": [
+                      "housing",
+                      "adopted"
+                    ],
+                    "matched_question_terms": [
+                      "affordable",
+                      "housing",
+                      "impact",
+                      "fee"
+                    ],
+                    "rank": 3,
+                    "score": 20,
+                    "snippet": "The City adopted the housing impact fee to address the increased need for affordable housing"
+                  },
+                  {
+                    "chunk_id": "e22a94c8-6d92-59ab-a31b-b458ccfce845",
+                    "chunk_index": 39,
+                    "matched_action_signals": [
+                      "housing",
+                      "resolution"
+                    ],
+                    "matched_question_terms": [
+                      "housing",
+                      "impact",
+                      "fee"
+                    ],
+                    "rank": 4,
+                    "score": 17,
+                    "snippet": "establishing the AHIF program. Under the Housing Impact Fee Resolution, Developers of new"
+                  },
+                  {
+                    "chunk_id": "6fb320b5-f745-54f4-bb18-bdb350e012b5",
+                    "chunk_index": 63,
+                    "matched_action_signals": [
+                      "housing",
+                      "rent"
+                    ],
+                    "matched_question_terms": [
+                      "affordable",
+                      "housing",
+                      "rate"
+                    ],
+                    "rank": 5,
+                    "score": 17,
+                    "snippet": "the need for affordable housing and new, market-rate rental residential development. This occurs"
+                  },
+                  {
+                    "chunk_id": "45f6a130-e291-59a1-8486-8d9b8f913731",
+                    "chunk_index": 35,
+                    "matched_action_signals": [
+                      "housing"
+                    ],
+                    "matched_question_terms": [
+                      "affordable",
+                      "housing",
+                      "impact",
+                      "fee"
+                    ],
+                    "rank": 6,
+                    "score": 16,
+                    "snippet": "Subject: Affordable Housing Impact Fee Annual Report for FY2018-2019"
+                  },
+                  {
+                    "chunk_id": "6866c650-baca-50a5-91b3-e605a2be788a",
+                    "chunk_index": 37,
+                    "matched_action_signals": [
+                      "housing"
+                    ],
+                    "matched_question_terms": [
+                      "affordable",
+                      "housing",
+                      "impact",
+                      "fee"
+                    ],
+                    "rank": 7,
+                    "score": 16,
+                    "snippet": "Affordable Housing Impact Fee"
+                  },
+                  {
+                    "chunk_id": "d7774456-1bda-53d9-9a87-a3a6761b86b4",
+                    "chunk_index": 74,
+                    "matched_action_signals": [
+                      "housing"
+                    ],
+                    "matched_question_terms": [
+                      "affordable",
+                      "housing",
+                      "impact",
+                      "fee"
+                    ],
+                    "rank": 8,
+                    "score": 16,
+                    "snippet": "Subject: Affordable Housing Impact Fee Annual Report for FY2018-2019"
+                  },
+                  {
+                    "chunk_id": "cdb8be1f-f54e-59cd-8357-666b3a7bb343",
+                    "chunk_index": 78,
+                    "matched_action_signals": [
+                      "housing"
+                    ],
+                    "matched_question_terms": [
+                      "affordable",
+                      "housing",
+                      "impact",
+                      "fee"
+                    ],
+                    "rank": 9,
+                    "score": 16,
+                    "snippet": "low-, low-, and moderate-income households, which an affordable housing impact fee would be"
+                  },
+                  {
+                    "chunk_id": "445b5aa1-8fff-5cd0-aea4-4a2960c7272d",
+                    "chunk_index": 40,
+                    "matched_action_signals": [
+                      "housing",
+                      "rent"
+                    ],
+                    "matched_question_terms": [
+                      "housing",
+                      "required"
+                    ],
+                    "rank": 10,
+                    "score": 14,
+                    "snippet": "rental housing developments of three (3) to nineteen (19) 2 apartments are required to pay an"
+                  },
+                  {
+                    "chunk_id": "0427df92-5860-594f-8b16-608c4744bc78",
+                    "chunk_index": 46,
+                    "matched_action_signals": [
+                      "housing",
+                      "rent"
+                    ],
+                    "matched_question_terms": [
+                      "affordable",
+                      "housing"
+                    ],
+                    "rank": 11,
+                    "score": 14,
+                    "snippet": "proposed affordable housing projects as examples of the types of rental housing developments"
+                  },
+                  {
+                    "chunk_id": "1e70456d-42cd-53e4-adc7-f84cb6eabde1",
+                    "chunk_index": 15,
+                    "matched_action_signals": [
+                      "housing"
+                    ],
+                    "matched_question_terms": [
+                      "affordable",
+                      "housing",
+                      "fee"
+                    ],
+                    "rank": 12,
+                    "score": 13,
+                    "snippet": "Fee Act (Government Code section 66000 et seq.) on the status of the City\u2019s Affordable Housing"
+                  },
+                  {
+                    "chunk_id": "7dcf667f-bd11-559a-b254-d51f9805b1c7",
+                    "chunk_index": 47,
+                    "matched_action_signals": [
+                      "housing"
+                    ],
+                    "matched_question_terms": [
+                      "housing",
+                      "impact",
+                      "fee"
+                    ],
+                    "rank": 13,
+                    "score": 13,
+                    "snippet": "that could be funded with Housing Impact Fee revenues. In August 2018, the Housing"
+                  },
+                  {
+                    "chunk_id": "98de9538-e18e-5a3e-a0bd-04229d7843cc",
+                    "chunk_index": 55,
+                    "matched_action_signals": [
+                      "housing"
+                    ],
+                    "matched_question_terms": [
+                      "housing",
+                      "impact",
+                      "fee"
+                    ],
+                    "rank": 14,
+                    "score": 13,
+                    "snippet": "Housing Impact Fee Fund reserve in the Multi-Source Housing Fund."
+                  },
+                  {
+                    "chunk_id": "341dd89e-82e6-5d66-94d2-669133233152",
+                    "chunk_index": 67,
+                    "matched_action_signals": [
+                      "housing",
+                      "rent"
+                    ],
+                    "matched_question_terms": [
+                      "housing"
+                    ],
+                    "rank": 15,
+                    "score": 11,
+                    "snippet": "2 At its adoption, the AHIF applied to new rental housing developments with three or more apartments. The unit cap"
+                  },
+                  {
+                    "chunk_id": "3dcf65cd-e647-50b2-9fa1-feef9dcabb42",
+                    "chunk_index": 69,
+                    "matched_action_signals": [
+                      "ordinance",
+                      "rent"
+                    ],
+                    "matched_question_terms": [
+                      "units"
+                    ],
+                    "rank": 16,
+                    "score": 11,
+                    "snippet": "Ordinance to apply towards rental developments of 20 or more units, effective January 1, 2018."
+                  },
+                  {
+                    "chunk_id": "72744aea-6d06-5897-b64e-95d9c8324fad",
+                    "chunk_index": 81,
+                    "matched_action_signals": [
+                      "housing",
+                      "rent"
+                    ],
+                    "matched_question_terms": [
+                      "housing"
+                    ],
+                    "rank": 17,
+                    "score": 11,
+                    "snippet": "income housing. This may include either moderate income rental housing and purchase"
+                  },
+                  {
+                    "chunk_id": "320c763d-26e0-5348-aaae-12b5191f74e0",
+                    "chunk_index": 9,
+                    "matched_action_signals": [
+                      "housing"
+                    ],
+                    "matched_question_terms": [
+                      "affordable",
+                      "housing"
+                    ],
+                    "rank": 18,
+                    "score": 10,
+                    "snippet": "SUBJECT: AFFORDABLE HOUSING DATE: October 8, 2019"
+                  },
+                  {
+                    "chunk_id": "9e113a2b-2985-525b-a1f8-adbd1abff797",
+                    "chunk_index": 20,
+                    "matched_action_signals": [
+                      "housing"
+                    ],
+                    "matched_question_terms": [
+                      "affordable",
+                      "housing"
+                    ],
+                    "rank": 19,
+                    "score": 10,
+                    "snippet": "affordable housing developments fully or partially. This memorandum provides the City Council"
+                  },
+                  {
+                    "chunk_id": "b2005a17-617a-5985-8042-f4bfe861814f",
+                    "chunk_index": 41,
+                    "matched_action_signals": [
+                      "rent"
+                    ],
+                    "matched_question_terms": [
+                      "impact",
+                      "fee"
+                    ],
+                    "rank": 20,
+                    "score": 10,
+                    "snippet": "impact fee per net rentable square foot. Revenue from the AHIF is intended to be used to"
+                  }
+                ]
+              }
+            },
+            "envelope": {
+              "analysis_question": "Extract the specific San Jose affordable housing impact fee or commercial linkage fee rates, units, dates, and applicability. If no numeric fee rate is present, classify what secondary evidence is required.",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-3wefe.13-live-cycle-03-20260416",
+              "jurisdiction": "San Jose CA",
+              "orchestrator": "windmill",
+              "scope_idempotency_key": "bd-3wefe.13-live-cycle-03-20260416::1c07b61a28453506",
+              "search_query": "San Jose Fiscal Year 2024-2025 Affordable Housing Impact Fee Commercial Linkage Fee Annual Report fee per square foot filetype:pdf",
+              "source_family": "meeting_minutes",
+              "stale_status": "fresh",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-03-20260416",
+              "windmill_workspace": "affordabot"
+            },
+            "refs": {
+              "analysis_id": "ae2223c8-d054-5685-85ec-5106b77c2a11",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-03-20260416"
+            },
+            "retry_class": "none",
+            "status": "succeeded"
+          },
+          "freshness_gate": {
+            "alerts": [],
+            "command": "freshness_gate",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "counts": {
+              "search_results": 10
+            },
+            "created_at": "2026-04-16T05:53:35.243838+00:00",
+            "decision_reason": "fresh",
+            "details": {
+              "fail_closed_ceiling_hours": 168,
+              "fresh_hours": 24,
+              "freshness_status": "fresh",
+              "snapshot_age_hours": 0,
+              "stale_usable_ceiling_hours": 72
+            },
+            "envelope": {
+              "analysis_question": "Extract the specific San Jose affordable housing impact fee or commercial linkage fee rates, units, dates, and applicability. If no numeric fee rate is present, classify what secondary evidence is required.",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-3wefe.13-live-cycle-03-20260416",
+              "jurisdiction": "San Jose CA",
+              "orchestrator": "windmill",
+              "scope_idempotency_key": "bd-3wefe.13-live-cycle-03-20260416::1c07b61a28453506",
+              "search_query": "San Jose Fiscal Year 2024-2025 Affordable Housing Impact Fee Commercial Linkage Fee Annual Report fee per square foot filetype:pdf",
+              "source_family": "meeting_minutes",
+              "stale_status": "fresh",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-03-20260416",
+              "windmill_workspace": "affordabot"
+            },
+            "refs": {
+              "search_snapshot_id": "8cd52a8c-c91e-4bdd-8347-c09a75fd17e8",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-03-20260416"
+            },
+            "retry_class": "none",
+            "status": "succeeded"
+          },
+          "index": {
+            "alerts": [],
+            "command": "index",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "counts": {
+              "chunks": 87
+            },
+            "created_at": "2026-04-16T05:53:54.144148+00:00",
+            "decision_reason": "chunks_indexed",
+            "details": {
+              "embedding_count": 87,
+              "embedding_provider": "openrouter:qwen/qwen3-embedding-8b"
+            },
+            "envelope": {
+              "analysis_question": "Extract the specific San Jose affordable housing impact fee or commercial linkage fee rates, units, dates, and applicability. If no numeric fee rate is present, classify what secondary evidence is required.",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-3wefe.13-live-cycle-03-20260416",
+              "jurisdiction": "San Jose CA",
+              "orchestrator": "windmill",
+              "scope_idempotency_key": "bd-3wefe.13-live-cycle-03-20260416::1c07b61a28453506",
+              "search_query": "San Jose Fiscal Year 2024-2025 Affordable Housing Impact Fee Commercial Linkage Fee Annual Report fee per square foot filetype:pdf",
+              "source_family": "meeting_minutes",
+              "stale_status": "fresh",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-03-20260416",
+              "windmill_workspace": "affordabot"
+            },
+            "refs": {
+              "document_id": "43865f5b-cfad-5408-a541-41fcb7793fbc",
+              "raw_scrape_ids": [
+                "9659a5dc-f761-5d8d-b44d-717c94ac2325"
+              ],
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-03-20260416"
+            },
+            "retry_class": "none",
+            "status": "succeeded"
+          },
+          "read_fetch": {
+            "alerts": [],
+            "command": "read_fetch",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "counts": {
+              "artifacts": 1,
+              "raw_scrapes": 1
+            },
+            "created_at": "2026-04-16T05:53:49.995152+00:00",
+            "decision_reason": "raw_scrapes_materialized",
+            "details": {
+              "candidate_audit": [
+                {
+                  "outcome": "materialized_raw_scrape",
+                  "rank": 1,
+                  "raw_scrape_id": "9659a5dc-f761-5d8d-b44d-717c94ac2325",
+                  "score": 29,
+                  "url": "https://sanjose.legistar.com/View.ashx?M=F&ID=7810086&GUID=DEBFA654-8B86-447A-997C-5ED36892BE3C"
+                }
+              ],
+              "ranked_candidates": [
+                {
+                  "input_index": 0,
+                  "rank": 1,
+                  "reasons": [
+                    "url_signal:legistar.com",
+                    "url_signal:view.ashx",
+                    "url_high_value:view.ashx",
+                    "url_concrete_artifact:parsed",
+                    "text_signal:agenda",
+                    "text_signal:council",
+                    "text_signal:resolution",
+                    "text_signal:housing",
+                    "text_action:resolution",
+                    "text_action:rent"
+                  ],
+                  "score": 29,
+                  "snippet": "following annual impact fee report for the Fiscal Year (FY) ending June 30, 2019. ... Impact Fee Resolution included an expenditure plan. That expenditure plan provided a list of \u00b7 proposed affordable housing projects as examples of the types of rental housing developments",
+                  "title": "COUNCIL AGENDA FILE ITEM 10-29-19 19-964 CITY OF SAN JOSE CITY OF Memorandum",
+                  "url": "https://sanjose.legistar.com/View.ashx?M=F&ID=7810086&GUID=DEBFA654-8B86-447A-997C-5ED36892BE3C"
+                },
+                {
+                  "input_index": 8,
+                  "rank": 2,
+                  "reasons": [
+                    "url_signal:.pdf",
+                    "url_high_value:.pdf",
+                    "url_concrete_artifact:parsed"
+                  ],
+                  "score": 19,
+                  "snippet": "The Budgets represent our agencies' priorities and commitments for the fiscal year and were developed through a collaborative process with staff across the ...",
+                  "title": "[PDF] Bay Area Metro Budget Book, Fiscal Year 2024-25",
+                  "url": "https://mtc.ca.gov/sites/default/files/documents/2025-05/FY24-25_MTC_Agency_Budget_Book.pdf"
+                },
+                {
+                  "input_index": 6,
+                  "rank": 3,
+                  "reasons": [
+                    "url_signal:.pdf",
+                    "url_high_value:.pdf",
+                    "url_concrete_artifact:parsed",
+                    "penalty:resources"
+                  ],
+                  "score": 17,
+                  "snippet": "Required Fees to be paid: \u00b7 Development Impact Fees FY 2024-2025",
+                  "title": "Required Fees to be paid: Development Impact Fees FY 2024-2025",
+                  "url": "https://www.santamonica.gov/media/Document%20Library/Topic%20Explainers/Planning%20Resources/Development%20Impact%20Fee%20Handout%202024-2025.pdf"
+                },
+                {
+                  "input_index": 7,
+                  "rank": 4,
+                  "reasons": [
+                    "url_signal:.pdf",
+                    "url_high_value:.pdf",
+                    "text_signal:housing",
+                    "text_action:adopted",
+                    "text_action:rent"
+                  ],
+                  "score": 16,
+                  "snippet": "The city in 2010 adopted a new affordable housing program that required for-sale residential developers to set aside as \u00b7 affordable 15 percent of a project's units or pay an in-lieu fee. Rental projects paid a direct impact fee. In late 2016, the city commissioned a commercial linkage fee ...",
+                  "title": "1 Status of Bay Area Jurisdictions That Have Commissioned Affordable",
+                  "url": "https://loridroste.com/wp-content/uploads/2022/11/Affordable_Housing_Impact_Fee_Matrix.pdf"
+                },
+                {
+                  "input_index": 4,
+                  "rank": 5,
+                  "reasons": [
+                    "url_signal:.pdf",
+                    "url_high_value:.pdf",
+                    "text_signal:housing",
+                    "text_action:approved"
+                  ],
+                  "score": 14,
+                  "snippet": "In June 2024, approved agreements with the EAN's to serve households in Fiscal Year 2024-2025. ... By March 2025, issue the Annual Progress Report for Year 5. \u2022.",
+                  "title": "[PDF] Chapter 4: County Housing Strategies, Policies, and Programs",
+                  "url": "https://stgenpln.blob.core.windows.net/document/HousingElementUpdate_Draft_R4_Rev_2_Ch4.pdf"
+                }
+              ],
+              "reader_provider_errors": [],
+              "reader_quality_failures": []
+            },
+            "envelope": {
+              "analysis_question": "Extract the specific San Jose affordable housing impact fee or commercial linkage fee rates, units, dates, and applicability. If no numeric fee rate is present, classify what secondary evidence is required.",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-3wefe.13-live-cycle-03-20260416",
+              "jurisdiction": "San Jose CA",
+              "orchestrator": "windmill",
+              "scope_idempotency_key": "bd-3wefe.13-live-cycle-03-20260416::1c07b61a28453506",
+              "search_query": "San Jose Fiscal Year 2024-2025 Affordable Housing Impact Fee Commercial Linkage Fee Annual Report fee per square foot filetype:pdf",
+              "source_family": "meeting_minutes",
+              "stale_status": "fresh",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-03-20260416",
+              "windmill_workspace": "affordabot"
+            },
+            "refs": {
+              "artifact_refs": [
+                "artifacts/2026-04-13.windmill-domain.v1/San Jose CA/meeting_minutes/reader_output/ebadafaceba9d9d13d15d661559000beba0056f129d8e79e233c8c0f5f0ddca4.md"
+              ],
+              "document_id": "43865f5b-cfad-5408-a541-41fcb7793fbc",
+              "raw_scrape_ids": [
+                "9659a5dc-f761-5d8d-b44d-717c94ac2325"
+              ],
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-03-20260416"
+            },
+            "retry_class": "none",
+            "status": "succeeded"
+          },
+          "search_materialize": {
+            "alerts": [],
+            "command": "search_materialize",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "counts": {
+              "search_results": 10
+            },
+            "created_at": "2026-04-16T05:53:35.215877+00:00",
+            "decision_reason": "fresh_snapshot_materialized",
+            "details": {
+              "query": "San Jose Fiscal Year 2024-2025 Affordable Housing Impact Fee Commercial Linkage Fee Annual Report fee per square foot filetype:pdf"
+            },
+            "envelope": {
+              "analysis_question": "Extract the specific San Jose affordable housing impact fee or commercial linkage fee rates, units, dates, and applicability. If no numeric fee rate is present, classify what secondary evidence is required.",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-3wefe.13-live-cycle-03-20260416",
+              "jurisdiction": "San Jose CA",
+              "orchestrator": "windmill",
+              "scope_idempotency_key": "bd-3wefe.13-live-cycle-03-20260416::1c07b61a28453506",
+              "search_query": "San Jose Fiscal Year 2024-2025 Affordable Housing Impact Fee Commercial Linkage Fee Annual Report fee per square foot filetype:pdf",
+              "source_family": "meeting_minutes",
+              "stale_status": "fresh",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-03-20260416",
+              "windmill_workspace": "affordabot"
+            },
+            "refs": {
+              "search_snapshot_id": "8cd52a8c-c91e-4bdd-8347-c09a75fd17e8",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-03-20260416"
+            },
+            "retry_class": "none",
+            "status": "succeeded"
+          },
+          "summarize_run": {
+            "alerts": [],
+            "command": "summarize_run",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "counts": {
+              "analyses": 1,
+              "artifacts": 1,
+              "chunks": 87,
+              "evidence_chunks": 20,
+              "raw_scrapes": 1,
+              "search_results": 20
+            },
+            "created_at": "2026-04-16T05:54:20.567234+00:00",
+            "decision_reason": "run_summary_materialized",
+            "details": {
+              "step_statuses": {
+                "analyze": "succeeded",
+                "freshness_gate": "succeeded",
+                "index": "succeeded",
+                "read_fetch": "succeeded",
+                "search_materialize": "succeeded"
+              }
+            },
+            "envelope": {
+              "analysis_question": "Extract the specific San Jose affordable housing impact fee or commercial linkage fee rates, units, dates, and applicability. If no numeric fee rate is present, classify what secondary evidence is required.",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-3wefe.13-live-cycle-03-20260416",
+              "jurisdiction": "San Jose CA",
+              "orchestrator": "windmill",
+              "scope_idempotency_key": "bd-3wefe.13-live-cycle-03-20260416::1c07b61a28453506",
+              "search_query": "San Jose Fiscal Year 2024-2025 Affordable Housing Impact Fee Commercial Linkage Fee Annual Report fee per square foot filetype:pdf",
+              "source_family": "meeting_minutes",
+              "stale_status": "fresh",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-03-20260416",
+              "windmill_workspace": "affordabot"
+            },
+            "refs": {
+              "analyze_reason": "analysis_completed",
+              "analyze_retry_class": "none",
+              "freshness_gate_reason": "fresh",
+              "freshness_gate_retry_class": "none",
+              "index_reason": "chunks_indexed",
+              "index_retry_class": "none",
+              "read_fetch_reason": "raw_scrapes_materialized",
+              "read_fetch_retry_class": "none",
+              "run_id": "498aff1e-3af9-4a28-9895-5058ffc92e21",
+              "search_materialize_reason": "fresh_snapshot_materialized",
+              "search_materialize_retry_class": "none",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-03-20260416"
+            },
+            "retry_class": "none",
+            "status": "succeeded"
+          }
+        }
+      }
+    ],
+    "scope_succeeded": 1,
+    "scope_total": 1,
+    "status": "succeeded"
+  },
+  "run_mode": "backend-endpoint-run",
+  "search_provider_bakeoff": [
+    {
+      "endpoint": "https://searx.tiekoetter.com/search",
+      "failure_classification": "http_error",
+      "http_status": 429,
+      "latency_ms": 716,
+      "provider": "searxng",
+      "query": "San Jose Fiscal Year 2024-2025 Affordable Housing Impact Fee Commercial Linkage Fee Annual Report fee per square foot filetype:pdf",
+      "result_count": 0,
+      "status": "failed",
+      "top_results": []
+    },
+    {
+      "failure_classification": null,
+      "http_status": 200,
+      "latency_ms": 1362,
+      "provider": "exa",
+      "query": "San Jose Fiscal Year 2024-2025 Affordable Housing Impact Fee Commercial Linkage Fee Annual Report fee per square foot filetype:pdf",
+      "result_count": 5,
+      "status": "succeeded",
+      "top_results": [
+        {
+          "snippet": "",
+          "title": "Commercial Linkage Fee | City of San Jos\u00e9",
+          "url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee"
+        },
+        {
+          "snippet": "",
+          "title": "Developer Fees & Charges | City of San Jos\u00e9",
+          "url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/developer-fees-charges"
+        },
+        {
+          "snippet": "",
+          "title": "",
+          "url": "https://sanjose.legistar.com/View.ashx?GUID=6E25A1DF-ECC8-411F-B6CC-A9CC359F6E12&ID=10558176&M=F"
+        }
+      ]
+    },
+    {
+      "failure_classification": null,
+      "http_status": 200,
+      "latency_ms": 2151,
+      "provider": "tavily",
+      "query": "San Jose Fiscal Year 2024-2025 Affordable Housing Impact Fee Commercial Linkage Fee Annual Report fee per square foot filetype:pdf",
+      "result_count": 5,
+      "status": "succeeded",
+      "top_results": [
+        {
+          "snippet": "EOHLC is excited to announce the Fiscal Year 2026 budget ... The Fee Accountant will create financial reports for the various housing programs.",
+          "title": "Salem Housing Authority",
+          "url": "https://salemha.org/wp-content/uploads/2025/09/September-10-2025-Board-Packet-Readable-Format.pdf"
+        },
+        {
+          "snippet": "In developing recommendations for the FY 2026-2027 Focus Areas based on City Council direction from the Mayor\u2019s March Budget Message, staff will carry out the following principles: \u2022 Select change initiatives that require the City to implement a new strategy or solve a difficult problem. HONORABLE MAYOR AND CITY COUNCIL February 13, 2026 Subject: Second Quarter City Council Focus Areas Status Report for Fiscal Year 2025-2026 Page 5 EVALUATION AND FOLLOW-UP The Administration will provide a Third Quarter Focus Area Status Report at City Council Committees in June 2026 as follows: Building More Housing and Growing Our Economy will report to the Community and Economic Development Committee; Cleaning Up Our Neighborhoods and Reducing Unsheltered Homelessness will report to the Neighborhood Services and Education Committee; and Increasing Community Safety will report to the Public Safety, Finance and Strategic Support Committee.",
+          "title": "Memorandum - San Jose",
+          "url": "https://sanjose.legistar.com/View.ashx?M=F&ID=15283514&GUID=80F62DA7-90F9-47D1-9F6A-606E2C8952CF&G=920296E4-80BE-4CA2-A78F-32C5EFCF78AF"
+        },
+        {
+          "snippet": "County Grantee must develop a One Year Action Plan (OYAP) for housing and community. County consulted and coordinated with various departments, housing and community service. determining Riverside County\u2019s community needs and investment in housing, homelessness,. receive public comments regarding the community, social, and economic needs in the County\u2019s Consolidated Plan RIVERSIDE COUNTY 8. \u2022 Programs that improve community facilities and services in low -income areas; Consolidated Plan RIVERSIDE COUNTY 9. used to identify relative levels of need regarding affordable housing, homelessness, special needs, Consolidated Plan RIVERSIDE COUNTY 10. 2 Agency/Group/Organization  HOUSING AUTHORITY OF THE COUNTY OF RIVERSIDE. 4 Agency/Group/Organization  Fair Housing Council of Riverside County, Inc.,. Program service consultation Consolidated Plan RIVERSIDE COUNTY 26. Program services consultation - Economic Development Consolidated Plan RIVERSIDE COUNTY 30. 82  SW24181854  S MANL/D  34840  Calle De Esparanza  WILD  SRCAR  STD  $720,000  $412.84  3/2,0,0,0  1744/A  1977/PUB  111,949/2.57  120/120  Y N 2/24/2025  CRMLSM Riverside County Consolidated Plan 2025-2026 One Year Action Plan.",
+          "title": "[PDF] 2025-2026 One Year Action Plan - Housing and Workforce Solutions",
+          "url": "https://rivcohws.org/sites/g/files/aldnop131/files/2025-07/2025-2026%20One%20Year%20Action%20Plan%20of%20the%202024-2029%20ConPlan%2071625.pdf"
+        }
+      ]
+    }
+  ],
+  "stale_drills": [],
+  "storage_evidence_gates": {
+    "analysis_provenance_chain": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "bridge_mode": {
+      "note": "",
+      "status": "railway_runtime"
+    },
+    "failure_handler_drill": {
+      "note": "failure injection is a separate pre-schedule gate; this San Jose product path run verified the native failure handler surface was configured",
+      "status": "not_run"
+    },
+    "idempotent_rerun": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "minio_object_refs": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "pgvector_index_probe": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "postgres_rows_written": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "quality_gate_blocked_before_index_analyze": {
+      "note": "current run completed past read_fetch; reader quality block was not expected in this success path",
+      "status": "not_applicable"
+    },
+    "reader_output_ref": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "stale_drill_stale_blocked": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "stale_drill_stale_but_usable": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    }
+  },
+  "surface_checks": {
+    "jobs_checked_count": 20,
+    "schedule_count": 4,
+    "workspace_profile_listed": true
+  }
+}

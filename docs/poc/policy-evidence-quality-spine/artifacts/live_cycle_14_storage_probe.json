@@ -1,0 +1,65 @@
+{
+  "generated_at": "2026-04-16T08:54:14.764807+00:00",
+  "feature_key": "bd-3wefe.13",
+  "status": "pass",
+  "blocker": null,
+  "details": "all_storage_gates_passed",
+  "inputs": {
+    "package_id": "pkg-3da784731acec1a985cc33cd",
+    "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=policy_documents|doctype=meeting_minutes|url=https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee",
+    "backend_run_id": "651818df-05d7-4a98-ab5a-b5047ce7fe47",
+    "windmill_job_id": "019d957d-b9c3-9ebc-5db4-32ef156b4e47",
+    "idempotency_key": "bd-3wefe.13-live-gate-20260416-085217",
+    "artifact_refs": [
+      "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/policy_documents/reader_output/fa41fad8e08bfc60fa8a3dba43212d67ec16a38829d9e7869d261fc830ab4161.md",
+      "minio://affordabot-artifacts/policy-evidence/packages/pkg-3da784731acec1a985cc33cd.json",
+      "artifacts/2026-04-13.windmill-domain.v1/San Jose CA/policy_documents/reader_output/fa41fad8e08bfc60fa8a3dba43212d67ec16a38829d9e7869d261fc830ab4161.md"
+    ],
+    "pgvector_truth_role": "derived_index"
+  },
+  "gates": {
+    "postgres_package_row": {
+      "status": "pass",
+      "details": "package_row_linked_to_backend_run_id",
+      "evidence": {
+        "table_exists": true,
+        "record_id": "c5851f5d-bbdd-57b4-b1ac-a3a65b218d66"
+      }
+    },
+    "minio_object_readback": {
+      "status": "pass",
+      "details": "all_artifact_refs_read_back",
+      "passed": 3
+    },
+    "pgvector_derivation": {
+      "status": "pass",
+      "details": "document_chunks_and_embeddings_present_with_derived_index_truth_role",
+      "document_id": "34b934e3-eea2-5428-9ce9-d7436e567167",
+      "total_chunks": 233,
+      "with_embedding": 233,
+      "truth_role": "derived_index"
+    },
+    "atomicity_or_replay": {
+      "status": "pass",
+      "details": "pipeline_run_is_terminal_without_failed_steps",
+      "runs_for_idempotency": 0,
+      "idempotent_replay_observed": false
+    },
+    "storage/read-back": {
+      "status": "pass",
+      "details": "all_storage_gates_passed"
+    }
+  },
+  "supporting_signals": {
+    "artifact_refs_count": 3,
+    "package_id": "pkg-3da784731acec1a985cc33cd",
+    "backend_run_id": "651818df-05d7-4a98-ab5a-b5047ce7fe47",
+    "windmill_job_id": "019d957d-b9c3-9ebc-5db4-32ef156b4e47"
+  },
+  "missing_or_failed_signals": [],
+  "probe_mode": "live",
+  "inputs_artifacts": {
+    "runtime": null,
+    "windmill": "docs/poc/policy-evidence-quality-spine/artifacts/live_cycle_14_windmill_domain_run.json"
+  }
+}

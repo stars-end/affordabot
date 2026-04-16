@@ -9,6 +9,8 @@ ROOT = Path(__file__).resolve().parents[3]
 WINDMILL_DIR = ROOT / "ops" / "windmill" / "f" / "affordabot"
 TRIGGER_SCRIPT_PATH = WINDMILL_DIR / "trigger_cron_job.py"
 WINDMILL_README_PATH = ROOT / "ops" / "windmill" / "README.md"
+POLICY_EVIDENCE_SCRIPT_PATH = WINDMILL_DIR / "policy_evidence_package_orchestration.py"
+BACKEND_MAIN_PATH = ROOT / "backend" / "main.py"
 
 
 spec = spec_from_file_location("windmill_trigger_cron_job", TRIGGER_SCRIPT_PATH)
@@ -90,6 +92,20 @@ def test_manual_substrate_expansion_readme_documents_cli_safe_operator_path():
     assert "wmill flow run f/affordabot/manual_substrate_expansion" in readme_text
     assert "Do not pass `-s` for this flow path." in readme_text
     assert "completed-job-not-found style response" in readme_text
+
+
+def test_policy_evidence_backend_endpoint_route_mismatch_is_explicit():
+    script_text = POLICY_EVIDENCE_SCRIPT_PATH.read_text()
+    backend_main_text = BACKEND_MAIN_PATH.read_text()
+    readme_text = WINDMILL_README_PATH.read_text()
+
+    assert 'BACKEND_COMMAND_ENDPOINT_PATH = "/cron/pipeline/policy-evidence/command"' in script_text
+    assert '@app.post("/cron/pipeline/domain/run-scope")' in backend_main_text
+    assert '@app.post("/cron/pipeline/policy-evidence/command")' not in backend_main_text
+    assert "Stub success here is not a full product pass." in readme_text
+    assert "pipeline_daily_refresh_domain_boundary__flow" in readme_text
+    assert "bd-3wefe.13-live-domain-backend-2026-04-15-r1" in readme_text
+    assert "succeeded_with_alerts" in readme_text
 
 
 def test_send_slack_alert_posts_webhook_payload(monkeypatch):

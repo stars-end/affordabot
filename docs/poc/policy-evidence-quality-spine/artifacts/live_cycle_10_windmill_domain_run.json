@@ -1,0 +1,425 @@
+{
+  "backend_endpoint_readiness": {
+    "local_mock_probe": {
+      "note": "local mock backend endpoint probe passed",
+      "status": "passed"
+    },
+    "missing_inputs": [],
+    "note": "backend endpoint config is present and local mock probe passed",
+    "status": "ready_for_opt_in"
+  },
+  "blockers": [
+    {
+      "blocking": false,
+      "category": "storage/runtime",
+      "details": {
+        "reason": "[Errno 8] nodename nor servname provided, or not known",
+        "status": "probe_failed"
+      },
+      "message": "DB/storage probe unavailable"
+    },
+    {
+      "blocking": false,
+      "category": "storage/runtime",
+      "details": {
+        "pending_gates": [
+          "postgres_rows_written",
+          "pgvector_index_probe",
+          "minio_object_refs",
+          "reader_output_ref",
+          "analysis_provenance_chain",
+          "idempotent_rerun",
+          "stale_drill_stale_but_usable"
+        ]
+      },
+      "message": "storage/runtime evidence gates are pending"
+    }
+  ],
+  "canonical_variables": {
+    "BACKEND_ENDPOINT_AUTH_TOKEN": "optional local readiness input only",
+    "BACKEND_ENDPOINT_URL": "optional local readiness input only",
+    "BACKEND_PUBLIC_URL_VAR": "f/affordabot/BACKEND_PUBLIC_URL",
+    "CRON_SECRET_VAR": "f/affordabot/CRON_SECRET",
+    "TMP_WMILL_CONFIG": "auto-created temporary profile directory",
+    "WINDMILL_API_TOKEN": "op://dev/Agent-Secrets-Production/WINDMILL_API_TOKEN",
+    "WINDMILL_BASE_URL": "derived as WINDMILL_DEV_LOGIN_URL without /user/login",
+    "WINDMILL_DEV_LOGIN_URL": "op://dev/Agent-Secrets-Production/WINDMILL_DEV_LOGIN_URL",
+    "WINDMILL_WORKSPACE": "affordabot"
+  },
+  "classification": "failed_run",
+  "db_storage_probe": {
+    "reason": "[Errno 8] nodename nor servname provided, or not known",
+    "status": "probe_failed"
+  },
+  "deployment_surface": {
+    "flow_deployed": true,
+    "flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+    "flow_unscheduled": true,
+    "script_deployed": true,
+    "script_path": "f/affordabot/pipeline_daily_refresh_domain_boundary"
+  },
+  "feature_key": "bd-3wefe.13",
+  "full_run_readiness": "partial",
+  "generated_at": "2026-04-16T08:11:56.338557+00:00",
+  "harness_version": "2026-04-13.worker-b.v2",
+  "idempotent_rerun": {
+    "attempted": true,
+    "result_payload": {
+      "alerts": [
+        "backend_endpoint:backend_endpoint_http_error"
+      ],
+      "scope_blocked": 0,
+      "scope_failed": 1,
+      "scope_results": [
+        {
+          "alert": "backend_endpoint:backend_endpoint_http_error",
+          "scope_index": 0,
+          "scope_item": {
+            "jurisdiction": "San Jose CA",
+            "scope_key": "san jose ca::meeting_minutes",
+            "source_family": "meeting_minutes"
+          },
+          "status": "failed",
+          "steps": {
+            "run_scope_pipeline": {
+              "envelope": {
+                "architecture_path": "affordabot_domain_boundary",
+                "contract_version": "2026-04-13.windmill-domain.v1",
+                "idempotency_key": "bd-3wefe.13-live-gate-20260416-081003",
+                "jurisdiction_id": "San Jose CA",
+                "jurisdiction_name": "San Jose CA",
+                "mode": "manual",
+                "orchestrator": "windmill",
+                "scope_index": 0,
+                "scope_key": "San Jose CA|meeting_minutes|0",
+                "source_family": "meeting_minutes",
+                "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+                "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+                "windmill_run_id": "bd-3wefe.13-live-gate-20260416-081003",
+                "windmill_step_id": "run_scope_pipeline",
+                "windmill_workspace": "affordabot"
+              },
+              "error": "backend_endpoint_http_error",
+              "error_details": {
+                "endpoint_url": "https://backend-dev-3d99.up.railway.app/cron/pipeline/domain/run-scope",
+                "http_status": 400,
+                "response": {
+                  "detail": "1 validation error for PolicyEvidencePackage\n  Value error, blocking_gate_present [type=value_error, input_value={'package_id': 'pkg-4862b...ufficiency_reasons': []}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/value_error"
+                }
+              },
+              "invoked_command": "run_scope_pipeline",
+              "status": "failed"
+            }
+          }
+        }
+      ],
+      "scope_succeeded": 0,
+      "scope_total": 1,
+      "status": "failed"
+    },
+    "scope_totals": {
+      "scope_blocked": 0,
+      "scope_failed": 1,
+      "scope_succeeded": 0,
+      "scope_total": 1
+    },
+    "status": "failed",
+    "step_sequence": [
+      "run_scope_pipeline"
+    ]
+  },
+  "manual_audit_notes": {
+    "llm_analysis_excerpt": "",
+    "llm_quality_note": "LLM analysis excerpt was not available in the run payload.",
+    "manual_verdict": "PENDING_MANUAL_AUDIT",
+    "reader_output_excerpt": "",
+    "reader_quality_note": "Reader output evidence was not available in the DB probe."
+  },
+  "manual_run": {
+    "attempted": true,
+    "command_client": "backend_endpoint",
+    "contract_metadata_present": true,
+    "expected_step_sequence": [
+      "search_materialize",
+      "freshness_gate",
+      "read_fetch",
+      "index",
+      "analyze",
+      "summarize_run"
+    ],
+    "final_status": "failed",
+    "idempotency_key": "bd-3wefe.13-live-gate-20260416-081003",
+    "job_get": {
+      "canceled": false,
+      "completed_at": "2026-04-16T08:10:56.714161Z",
+      "created_at": "2026-04-16T08:10:04.588474Z",
+      "deleted": false,
+      "duration_ms": 52046,
+      "flow_status": {
+        "failure_module": {
+          "id": "failure_handler",
+          "type": "WaitingForPriorSteps"
+        },
+        "modules": [
+          {
+            "branch_chosen": null,
+            "id": "build_scope_matrix",
+            "skipped": false,
+            "type": "Success"
+          },
+          {
+            "branch_chosen": null,
+            "id": "per_scope_pipeline",
+            "skipped": false,
+            "type": "Success"
+          },
+          {
+            "branch_chosen": {
+              "branch": 0,
+              "type": "branch"
+            },
+            "id": "branch_outcome_review",
+            "skipped": false,
+            "type": "Success"
+          }
+        ],
+        "step": 3
+      },
+      "id": "019d9557-11b4-9cea-38fa-818cd959f02e",
+      "job_kind": "flow",
+      "script_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow"
+    },
+    "job_logs_excerpt": "\u001b[33mNo wmill.yaml found. Use 'wmill init' to bootstrap it.\u001b[39m\n\u001b[36m\u001b[1m\n====== build_scope_matrix ======\u001b[22m\u001b[39m\njob=019d9557-1207-44aa-7b63-4a7c48195ee7 tag=python3 worker=wk-default-661cef133dc0-WZTwK hostname=661cef133dc0 isolation=none\n\nenv deps from local cache: certifi==2026.2.25, charset-normalizer==3.4.7, idna==3.11, requests==2.33.1, urllib3==2.6.3\n\n\n--- PYTHON (3.12) CODE EXECUTION ---\n\n\u001b[36m\u001b[1m\n====== per_scope_pipeline (iteration 0) ======\u001b[22m\u001b[39m\nFlow job completed with success\n\n\u001b[36m\u001b[1m\n====== branch_outcome_review ======\u001b[22m\u001b[39m\nFlow job completed with success\n\n",
+    "scope_totals": {
+      "scope_blocked": 0,
+      "scope_failed": 1,
+      "scope_succeeded": 0,
+      "scope_total": 1
+    },
+    "step_sequence": [
+      "run_scope_pipeline"
+    ],
+    "step_sequence_matches_expected": false,
+    "windmill_job_id": "019d9557-11b4-9cea-38fa-818cd959f02e"
+  },
+  "result_payload": {
+    "alerts": [
+      "backend_endpoint:backend_endpoint_http_error"
+    ],
+    "scope_blocked": 0,
+    "scope_failed": 1,
+    "scope_results": [
+      {
+        "alert": "backend_endpoint:backend_endpoint_http_error",
+        "scope_index": 0,
+        "scope_item": {
+          "jurisdiction": "San Jose CA",
+          "scope_key": "san jose ca::meeting_minutes",
+          "source_family": "meeting_minutes"
+        },
+        "status": "failed",
+        "steps": {
+          "run_scope_pipeline": {
+            "envelope": {
+              "architecture_path": "affordabot_domain_boundary",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-3wefe.13-live-gate-20260416-081003",
+              "jurisdiction_id": "San Jose CA",
+              "jurisdiction_name": "San Jose CA",
+              "mode": "manual",
+              "orchestrator": "windmill",
+              "scope_index": 0,
+              "scope_key": "San Jose CA|meeting_minutes|0",
+              "source_family": "meeting_minutes",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-gate-20260416-081003",
+              "windmill_step_id": "run_scope_pipeline",
+              "windmill_workspace": "affordabot"
+            },
+            "error": "backend_endpoint_http_error",
+            "error_details": {
+              "endpoint_url": "https://backend-dev-3d99.up.railway.app/cron/pipeline/domain/run-scope",
+              "http_status": 400,
+              "response": {
+                "detail": "1 validation error for PolicyEvidencePackage\n  Value error, blocking_gate_present [type=value_error, input_value={'package_id': 'pkg-4862b...ufficiency_reasons': []}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/value_error"
+              }
+            },
+            "invoked_command": "run_scope_pipeline",
+            "status": "failed"
+          }
+        }
+      }
+    ],
+    "scope_succeeded": 0,
+    "scope_total": 1,
+    "status": "failed"
+  },
+  "run_mode": "backend-endpoint-run",
+  "search_provider_bakeoff": [
+    {
+      "endpoint": "https://searxng-railway-production-79aa.up.railway.app/search",
+      "failure_classification": null,
+      "http_status": 200,
+      "latency_ms": 1619,
+      "provider": "searxng",
+      "query": "San Jose Resolution 79705 commercial linkage fee affordable housing impact fee per square foot staff report",
+      "result_count": 30,
+      "status": "succeeded",
+      "top_results": [
+        {
+          "snippet": "The Commercial Linkage Fee (CLF) is an impact fee levied on commercial development for the provision of affordable housing. The San Jos\u00e9 City Council voted on September 1, 2020 to begin charging commercial developers fees to fund affordable housing.",
+          "title": "Commercial Linkage Fee | City of San Jos\u00e9",
+          "url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee"
+        },
+        {
+          "snippet": "Your Government \u00bb Departments & Offices \u00bb Housing \u00bb Resource Library \u00b7 San Jos\u00e9 is the Capital of Silicon Valley and home to many of the world\u2019s most innovative technology companies. It is also one of the most expensive places to live in the country. Across the region, the demand for ...",
+          "title": "Housing Policy, Plans, and Reports | City of San Jos\u00e9",
+          "url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/resource-library/housing-policy-plans-and-reports"
+        },
+        {
+          "snippet": "The fee is levied per square foot, and collected when projects start construction. On Tuesday, September 1st, 2020, the San Jose City Council approved a Commercial Linkage Fee (CLF) Ordinance, joining all of the other major cities in the South ...",
+          "title": "Commercial Linkage Fees - SV@Home",
+          "url": "https://siliconvalleyathome.org/resources/commercial-linkage-fees/"
+        }
+      ]
+    },
+    {
+      "failure_classification": null,
+      "http_status": 200,
+      "latency_ms": 1492,
+      "provider": "exa",
+      "query": "San Jose Resolution 79705 commercial linkage fee affordable housing impact fee per square foot staff report",
+      "result_count": 5,
+      "status": "succeeded",
+      "top_results": [
+        {
+          "snippet": "",
+          "title": "Commercial Linkage Fee | City of San Jos\u00e9",
+          "url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee"
+        },
+        {
+          "snippet": "",
+          "title": "",
+          "url": "https://www.srcity.org/DocumentCenter/View/26478/Resolution---Commerical-Linkage-Fee-Final?bidId="
+        },
+        {
+          "snippet": "",
+          "title": "",
+          "url": "https://www.sanjoseca.gov/home/showpublisheddocument/61766/637306026819830000"
+        }
+      ]
+    },
+    {
+      "failure_classification": null,
+      "http_status": 200,
+      "latency_ms": 1865,
+      "provider": "tavily",
+      "query": "San Jose Resolution 79705 commercial linkage fee affordable housing impact fee per square foot staff report",
+      "result_count": 5,
+      "status": "succeeded",
+      "top_results": [
+        {
+          "snippet": "Title: Fiscal Year 2024-2025 Affordable Housing Impact Fee and Commercial Linkage Fee Annual Report.",
+          "title": "City of San Jos\u00e9 - File #: 25-1313 - Calendar",
+          "url": "https://sanjose.legistar.com/gateway.aspx?m=l&id=/matter.aspx?key=15360"
+        },
+        {
+          "snippet": "The San Jos\u00e9 City Council voted on September 1, 2020 to begin charging commercial developers fees to fund affordable housing. The Commercial Linkage Fee is a one-time impact fee that applies to new and existing Non-Residential Projects in San Jos\u00e9 that either add gross floor area or change the existing building use. The San Jos\u00e9 City Council voted on December 11, 2018 to pursue a nexus and a feasibility study on a potential commercial linkage fee in San Jos\u00e9. | Industrial/Research and Development (\u2265100,000 sq.ft.) | $3.58 - When paid in full prior to the Building Permit issuance, a 20% reduction in the payment will apply. | Industrial/Research and Development(\u2265100,000 sq.ft.) | $3.58 - When paid in full prior to the Building Permit issuance, a 20% reduction in the payment will apply. | Industrial/Research and Development (\u2265100,000 sq.ft.) | $3.58 - When paid in full prior to the Building Permit issuance, a 20% reduction in the payment will apply.",
+          "title": "Commercial Linkage Fee | City of San Jos\u00e9",
+          "url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee"
+        },
+        {
+          "snippet": "# After years of debate, San Jose OKs commercial development fees for affordable housing. After years of debate, San Jose OKs commercial development fees for affordable housing. After more than five years of stalled talks, San Jose will begin charging commercial developers fees to fund affordable housing \u2014 a move housing advocates said is long overdue. Supporters of the fees say that as commercial developments, such as the massive Google campus planned for downtown, bring more jobs to the city, the need for additional affordable housing will increase. Sandy Perry, executive director of the Affordable Housing Network of Santa Clara County, called the proposed fees a public relations stunt and said San Jose leaders would be at the behest of Google and other developers if they adopted such a low fee.",
+          "title": "After years of debate, San Jose OKs commercial development fees for affordable housing - San Jos\u00e9 Spotlight",
+          "url": "https://sanjosespotlight.com/san-jose-city-council-commercial-linkage-fee-gaining-favor-ahead-of-vote/"
+        }
+      ]
+    }
+  ],
+  "stale_drills": [
+    {
+      "freshness_gate_reason": null,
+      "freshness_gate_status": null,
+      "idempotency_key": "bd-3wefe.13-live-gate-20260416-081003:stale_but_usable",
+      "quality_blocked": false,
+      "read_fetch_reason": null,
+      "read_fetch_status": null,
+      "requested_stale_status": "stale_but_usable",
+      "scope_failed": 1,
+      "scope_succeeded": 0,
+      "status": "failed",
+      "step_sequence": [
+        "run_scope_pipeline"
+      ]
+    },
+    {
+      "freshness_gate_reason": "stale_blocked",
+      "freshness_gate_status": "blocked",
+      "idempotency_key": "bd-3wefe.13-live-gate-20260416-081003:stale_blocked",
+      "quality_blocked": false,
+      "read_fetch_reason": null,
+      "read_fetch_status": null,
+      "requested_stale_status": "stale_blocked",
+      "scope_failed": 0,
+      "scope_succeeded": 0,
+      "status": "failed",
+      "step_sequence": [
+        "search_materialize",
+        "freshness_gate",
+        "summarize_run"
+      ]
+    }
+  ],
+  "storage_evidence_gates": {
+    "analysis_provenance_chain": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "bridge_mode": {
+      "note": "",
+      "status": "unknown"
+    },
+    "failure_handler_drill": {
+      "note": "failure injection is a separate pre-schedule gate; this San Jose product path run verified the native failure handler surface was configured",
+      "status": "not_run"
+    },
+    "idempotent_rerun": {
+      "note": "rerun_status=failed rerun_quality_blocked=False idempotent_reuse=False",
+      "status": "pending"
+    },
+    "minio_object_refs": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "pgvector_index_probe": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "postgres_rows_written": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "quality_gate_blocked_before_index_analyze": {
+      "note": "current run completed past read_fetch; reader quality block was not expected in this success path",
+      "status": "not_applicable"
+    },
+    "reader_output_ref": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "stale_drill_stale_blocked": {
+      "note": "{'idempotency_key': 'bd-3wefe.13-live-gate-20260416-081003:stale_blocked', 'requested_stale_status': 'stale_blocked', 'status': 'failed', 'scope_succeeded': 0, 'scope_failed': 0, 'step_sequence': ['search_materialize', 'freshness_gate', 'summarize_run'], 'freshness_gate_status': 'blocked', 'freshness_gate_reason': 'stale_blocked', 'read_fetch_status': None, 'read_fetch_reason': None, 'quality_blocked': False}",
+      "status": "passed"
+    },
+    "stale_drill_stale_but_usable": {
+      "note": "{'idempotency_key': 'bd-3wefe.13-live-gate-20260416-081003:stale_but_usable', 'requested_stale_status': 'stale_but_usable', 'status': 'failed', 'scope_succeeded': 0, 'scope_failed': 1, 'step_sequence': ['run_scope_pipeline'], 'freshness_gate_status': None, 'freshness_gate_reason': None, 'read_fetch_status': None, 'read_fetch_reason': None, 'quality_blocked': False}",
+      "status": "failed"
+    }
+  },
+  "surface_checks": {
+    "jobs_checked_count": 20,
+    "schedule_count": 4,
+    "workspace_profile_listed": true
+  }
+}
