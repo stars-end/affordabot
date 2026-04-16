@@ -588,6 +588,17 @@ class RailwayRuntimeBridge:
             fail_closed_reasons.append(
                 f"secondary_research_needed:{mechanism_hint.secondary_research_reason}"
             )
+        canonical_analysis_id = ""
+        canonical_pipeline_run_id = ""
+        canonical_pipeline_step_id = ""
+        canonical_breakdown_ref = ""
+        if analyze and analyze.status == "succeeded":
+            analysis_id_value = str(analyze.refs.get("analysis_id") or "").strip()
+            if analysis_id_value:
+                canonical_analysis_id = analysis_id_value
+                canonical_pipeline_run_id = run_id
+                canonical_pipeline_step_id = analysis_id_value
+                canonical_breakdown_ref = f"analysis:{analysis_id_value}"
         package_artifact_uri = self._package_artifact_uri(package_id)
         package_payload = PolicyEvidencePackageBuilder().build(
             package_id=package_id,
@@ -630,6 +641,9 @@ class RailwayRuntimeBridge:
                 "mechanism_family": mechanism_hint.mechanism_family,
                 "secondary_research_needed": mechanism_hint.secondary_research_needed,
                 "secondary_research_reason": mechanism_hint.secondary_research_reason,
+                "canonical_breakdown_ref": canonical_breakdown_ref,
+                "canonical_pipeline_run_id": canonical_pipeline_run_id,
+                "canonical_pipeline_step_id": canonical_pipeline_step_id,
             },
             storage_refs={
                 "postgres_package_row": f"policy_evidence_packages:{package_id}",
@@ -669,6 +683,10 @@ class RailwayRuntimeBridge:
             "impact_mode_hint": mechanism_hint.impact_mode,
             "secondary_research_needed": mechanism_hint.secondary_research_needed,
             "secondary_research_reason": mechanism_hint.secondary_research_reason,
+            "canonical_analysis_id": canonical_analysis_id,
+            "canonical_pipeline_run_id": canonical_pipeline_run_id,
+            "canonical_pipeline_step_id": canonical_pipeline_step_id,
+            "canonical_breakdown_ref": canonical_breakdown_ref,
             "fail_closed_reasons": list(dict.fromkeys(fail_closed_reasons)),
         }
         package_payload["structured_enrichment_status"] = structured_enrichment.status

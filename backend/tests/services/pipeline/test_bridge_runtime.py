@@ -464,9 +464,19 @@ def test_runtime_bridge_persists_policy_evidence_package_refs() -> None:
     assert len(package_store.by_idempotency) == 1
     persisted = next(iter(package_store.by_idempotency.values()))
     run_context = persisted.package_payload["run_context"]
+    gate_projection = persisted.package_payload["gate_projection"]
+    analyze_step = second["steps"]["analyze"]
+    analysis_id = str(analyze_step["refs"]["analysis_id"])
     assert run_context["backend_run_id"] == refs["backend_run_id"]
     assert run_context["windmill_run_id"] == "wm-run-1"
     assert run_context["windmill_job_id"] == "wm-job-1"
+    assert run_context["canonical_analysis_id"] == analysis_id
+    assert run_context["canonical_pipeline_run_id"] == refs["backend_run_id"]
+    assert run_context["canonical_pipeline_step_id"] == analysis_id
+    assert run_context["canonical_breakdown_ref"] == f"analysis:{analysis_id}"
+    assert gate_projection["canonical_pipeline_run_id"] == refs["backend_run_id"]
+    assert gate_projection["canonical_pipeline_step_id"] == analysis_id
+    assert gate_projection["canonical_breakdown_ref"] == f"analysis:{analysis_id}"
 
 
 def test_runtime_bridge_materializes_structured_sources_when_enrichment_available() -> None:
@@ -724,6 +734,10 @@ def test_runtime_bridge_reader_and_llm_failures_classify() -> None:
     assert "analyze:analysis_provider_unavailable" in fail_closed_reasons
     assert policy_package["storage_result"]["stored"] is True
     assert policy_package["storage_result"]["fail_closed"] is True
+    projection = policy_package["package_payload"]["gate_projection"]
+    assert projection["canonical_pipeline_run_id"] == ""
+    assert projection["canonical_pipeline_step_id"] == ""
+    assert projection["canonical_breakdown_ref"] == ""
 
 
 def test_runtime_bridge_uses_minio_artifact_writer_probe_and_indirect_hint() -> None:
