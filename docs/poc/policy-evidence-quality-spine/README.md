@@ -61,7 +61,7 @@ Status enum: `pass|partial|not_proven|fail`.
 
 Cycle policy:
 
-- adaptive cycle budget up to `25`
+- adaptive cycle budget up to `30`
 - completion guard blocks diagnosis-only cycles unless there is:
   - implementation/fix attempt evidence, or
   - concrete external blocker proof, or
@@ -143,7 +143,7 @@ Cycle 1 (`live_cycle_01_windmill_domain_run.json`) is explicitly marked
 cd backend
 poetry run pytest tests/services/pipeline/test_policy_evidence_quality_spine_economics.py tests/services/pipeline/test_policy_evidence_quality_spine_eval_cycles.py
 poetry run pytest tests/verification/test_policy_evidence_quality_spine_live_storage.py
-poetry run python scripts/verification/verify_policy_evidence_quality_spine_economics.py --max-cycles 25
+poetry run python scripts/verification/verify_policy_evidence_quality_spine_economics.py --max-cycles 30
 poetry run python scripts/verification/verify_policy_evidence_quality_spine_live_storage.py --windmill ../docs/poc/policy-evidence-quality-spine/artifacts/live_cycle_01_windmill_domain_run.json --runtime ../docs/poc/policy-evidence-quality-spine/artifacts/data_runtime_evidence.json --live-mode off
-poetry run python scripts/verification/verify_policy_evidence_quality_spine_eval_cycles.py --max-cycles 25 --live-cycle-artifact '../docs/poc/policy-evidence-quality-spine/artifacts/live_cycle_*_windmill_domain_run.json' --economic-status ../docs/poc/policy-evidence-quality-spine/artifacts/live_cycle_07_admin_analysis_status.json
+poetry run python scripts/verification/verify_policy_evidence_quality_spine_eval_cycles.py --max-cycles 30 --live-cycle-artifact '../docs/poc/policy-evidence-quality-spine/artifacts/live_cycle_*_windmill_domain_run.json' --economic-status ../docs/poc/policy-evidence-quality-spine/artifacts/live_cycle_07_admin_analysis_status.json
 ```

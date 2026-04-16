@@ -305,7 +305,7 @@ Fail if:
 - D10 `pass`;
 - D11 `pass`.
 
-The next 25-cycle run must end in one of these states:
+The next 30-cycle run must end in one of these states:
 - `decision_grade_data_moat`: San Jose vertical satisfies the full standard.
 - `evidence_ready_with_gaps`: credible package exists, but exact missing lineage, structured-source, or economic-handoff gaps are documented.
 - `fail`: current architecture cannot produce the required data moat without a strategic change, with evidence.
@@ -374,10 +374,10 @@ Decision-grade requires:
 
 If missing, the result must be `qualitative_only`, `secondary_research_needed`, or `fail_closed`, not overclaimed.
 
-## Adaptive 25-Cycle Loop Contract
+## Adaptive 30-Cycle Loop Contract
 
 The next autonomous run has this contract:
-- Up to 25 cycles are allowed.
+- Up to 30 cycles are allowed.
 - Cycles are adaptive, not preallocated.
 - Every cycle must do at least one of:
   - improve a measured data-moat gate;
