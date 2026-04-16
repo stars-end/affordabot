@@ -852,3 +852,71 @@ def test_indirect_mechanism_requires_non_placeholder_assumption_or_secondary_res
     assert "rubric/assumption_governance" in endpoint["economic_analysis_status"][
         "required_evidence_gaps"
     ]
+
+
+def test_structured_fee_rows_populate_parameter_table_with_metadata_but_remain_not_decision_grade() -> None:
+    bundle = PolicyEconomicMechanismCaseService().build_case_bundle()
+    secondary = _case(bundle, "secondary_research_required_case")
+    package = {
+        **secondary["primary_package"],
+        "parameter_cards": [
+            {
+                "id": "param-clf-office-large",
+                "parameter_name": "commercial_linkage_fee_office_large",
+                "state": "resolved",
+                "value": 17.45,
+                "unit": "usd_per_sqft",
+                "time_horizon": "effective_2020-09-01",
+                "source_url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers-multifamily-rental-commercial-linkage-fee",
+                "source_excerpt": (
+                    "Structured fact commercial_linkage_fee_office_large resolved from source payload. "
+                    "Effective 2020-09-01. Payment due prior to building permit issuance."
+                ),
+                "evidence_card_id": "ev-indirect-1",
+            },
+            {
+                "id": "param-clf-retail",
+                "parameter_name": "commercial_linkage_fee_retail",
+                "state": "resolved",
+                "value": 9.87,
+                "unit": "usd_per_sqft",
+                "time_horizon": "effective_2020-09-01",
+                "source_url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers-multifamily-rental-commercial-linkage-fee",
+                "source_excerpt": (
+                    "Structured fact commercial_linkage_fee_retail resolved from source payload. "
+                    "Effective 2020-09-01. Payment due prior to building permit issuance."
+                ),
+                "evidence_card_id": "ev-indirect-1",
+            },
+        ],
+    }
+
+    service = PolicyEvidenceQualitySpineEconomicsService()
+    endpoint = service.build_endpoint_read_model(
+        matrix_input=MatrixInput(
+            payload=_real_matrix_from_case(package),
+            source_path="horizontal_matrix.json",
+            source_mode="agent_a_horizontal_matrix",
+        ),
+        package_id=package["package_id"],
+        source_family="policy_documents",
+    )
+
+    parameter_rows = endpoint["economic_trace"]["parameter_table"]
+    assert len(parameter_rows) == 2
+    assert {
+        row["name"] for row in parameter_rows
+    } == {"commercial_linkage_fee_office_large", "commercial_linkage_fee_retail"}
+    for row in parameter_rows:
+        assert row["metadata"]["category"] in {"office_large", "retail"}
+        assert row["metadata"]["effective_date"] == "2020-09-01"
+        assert row["metadata"]["payment_timing"] == "prior to building permit issuance"
+        assert row["metadata"]["time_horizon"] == "effective_2020-09-01"
+
+    assert endpoint["economic_readiness"]["parameter_readiness"]["status"] == "pass"
+    assert endpoint["economic_readiness"]["assumption_readiness"]["status"] in {"pass", "fail"}
+    assert endpoint["economic_readiness"]["model_readiness"]["status"] == "fail"
+    assert endpoint["economic_readiness"]["uncertainty_readiness"]["status"] == "fail"
+    assert endpoint["decision_grade_verdict"] == "not_decision_grade"
+    assert endpoint["economic_output"]["status"] == "not_proven"
+    assert endpoint["economic_output"]["user_facing_conclusion"] is None

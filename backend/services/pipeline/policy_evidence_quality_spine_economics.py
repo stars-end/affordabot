@@ -79,6 +79,17 @@ ECONOMIC_PARAMETER_NAME_HINTS = (
     "spend",
 )
 
+ECONOMIC_PARAMETER_UNIT_HINTS = (
+    "usd_per_sqft",
+    "usd_per_square_foot",
+    "dollars_per_sqft",
+    "dollars_per_square_foot",
+    "$/sqft",
+    "usd/sqft",
+    "usd_per_unit",
+    "usd_per_project",
+)
+
 DIAGNOSTIC_PARAMETER_NAME_HINTS = (
     "event_id",
     "body_id",
@@ -97,6 +108,28 @@ ASSUMPTION_PLACEHOLDER_PATTERNS = (
     r"\bmapped mechanism assumption\b",
     r"\bsource evidence and policy context\b",
     r"\bplaceholder\b",
+)
+
+FEE_CATEGORY_HINTS = (
+    "office_large",
+    "office_small",
+    "office",
+    "retail",
+    "industrial",
+    "hotel",
+    "residential",
+    "commercial",
+    "mixed_use",
+)
+
+PAYMENT_TIMING_PATTERNS = (
+    "prior to building permit issuance",
+    "before building permit issuance",
+    "at permit issuance",
+    "upon permit issuance",
+    "prior to occupancy",
+    "before occupancy",
+    "at occupancy",
 )
 
 
@@ -1306,19 +1339,44 @@ class PolicyEvidenceQualitySpineEconomicsService:
         if any(token in name for token in DIAGNOSTIC_PARAMETER_NAME_HINTS):
             if not any(token in name for token in ECONOMIC_PARAMETER_NAME_HINTS):
                 return False, "diagnostic_name_pattern"
-        if "structured fact" in excerpt and "resolved from source payload" in excerpt:
-            return False, "diagnostic_structured_fact_excerpt"
         if unit in {"id", "identifier"}:
             return False, "diagnostic_unit_identifier"
         has_economic_name_hint = any(token in name for token in ECONOMIC_PARAMETER_NAME_HINTS)
+        has_economic_unit_hint = any(token in unit for token in ECONOMIC_PARAMETER_UNIT_HINTS)
         has_economic_excerpt_hint = any(
             token in excerpt for token in ("cost", "fee", "tax", "rent", "price", "income", "benefit", "burden")
         )
+        has_economic_signal = has_economic_name_hint or has_economic_unit_hint or has_economic_excerpt_hint
+        if "structured fact" in excerpt and "resolved from source payload" in excerpt and not has_economic_signal:
+            return False, "diagnostic_structured_fact_excerpt"
         if unit == "count" and not (has_economic_name_hint or has_economic_excerpt_hint):
             return False, "non_economic_count_metric"
-        if not (has_economic_name_hint or has_economic_excerpt_hint):
+        if not has_economic_signal:
             return False, "missing_economic_semantic_signal"
         return True, "economically_meaningful"
+
+    @classmethod
+    def _extract_parameter_metadata(cls, *, card: Any) -> dict[str, Any]:
+        name = str(getattr(card, "parameter_name", "") or "").strip().lower()
+        excerpt = str(getattr(card, "source_excerpt", "") or "").strip().lower()
+        time_horizon = getattr(card, "time_horizon", None)
+        category = next((hint for hint in FEE_CATEGORY_HINTS if hint in name or hint in excerpt), None)
+
+        effective_date = None
+        date_match = re.search(r"\b(20\d{2}-\d{2}-\d{2})\b", excerpt)
+        if date_match:
+            effective_date = date_match.group(1)
+
+        payment_timing = next(
+            (pattern for pattern in PAYMENT_TIMING_PATTERNS if pattern in excerpt),
+            None,
+        )
+        return {
+            "category": category,
+            "effective_date": effective_date,
+            "payment_timing": payment_timing,
+            "time_horizon": time_horizon,
+        }
 
     def _build_fixture_case_coverage(self) -> dict[str, Any]:
         bundle = PolicyEconomicMechanismCaseService().build_case_bundle()
@@ -1731,6 +1789,7 @@ class PolicyEvidenceQualitySpineEconomicsService:
                 "source_url": None if card.source_url is None else str(card.source_url),
                 "source_excerpt": card.source_excerpt,
                 "evidence_card_id": card.evidence_card_id,
+                "metadata": self._extract_parameter_metadata(card=card),
             }
             is_economic, reason = self._is_economically_meaningful_parameter(card=card)
             if is_economic:

@@ -51,7 +51,11 @@ def test_structured_source_enricher_skips_non_san_jose_jurisdiction() -> None:
 def test_structured_source_enricher_returns_integrated_status_when_candidates_exist(
     monkeypatch: Any,
 ) -> None:
-    enricher = StructuredSourceEnricher()
+    enricher = StructuredSourceEnricher(tavily_api_key="")
+
+    async def _fake_matter(*, client: Any, selected_url: str, search_query: str) -> None:
+        _ = (client, selected_url, search_query)
+        return None
 
     async def _fake_legistar(*, client: Any) -> dict[str, Any]:
         _ = client
@@ -89,6 +93,11 @@ def test_structured_source_enricher_returns_integrated_status_when_candidates_ex
             "provider_run_id": "7",
         }
 
+    monkeypatch.setattr(
+        enricher,
+        "_fetch_legistar_matter_metadata",
+        _fake_matter,
+    )
     monkeypatch.setattr(
         enricher,
         "_fetch_legistar_event_metadata",
@@ -288,3 +297,104 @@ def test_ckan_metadata_uses_only_economic_datasets_with_urls() -> None:
     assert facts["relevant_dataset_count"] == 3.0
     assert facts["relevant_dataset_with_resource_url_count"] == 2.0
     assert facts["top_dataset_resource_count"] == 1.0
+
+
+def test_tavily_secondary_fee_metadata_extracts_official_facts() -> None:
+    enricher = StructuredSourceEnricher(tavily_api_key="test-key")
+
+    class _Response:
+        def __init__(self, payload: Any) -> None:
+            self._payload = payload
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> Any:
+            return self._payload
+
+    class _Client:
+        async def post(self, endpoint: str, json: dict[str, Any]) -> _Response:
+            assert endpoint == "https://api.tavily.com/search"
+            assert json["max_results"] == 5
+            return _Response(
+                {
+                    "query_id": "q-123",
+                    "results": [
+                        {
+                            "url": (
+                                "https://www.sanjoseca.gov/your-government/departments-offices/housing/"
+                                "developers/inclusionary-housing-linkage-fees/commercial-linkage-fee"
+                            ),
+                            "title": "Commercial Linkage Fee",
+                            "content": (
+                                "Commercial Linkage Fee rates include office projects >=100,000 sq.ft. "
+                                "$14.31/$17.89 per net square foot. Office <100,000 sq.ft. is $0 for "
+                                "first 50,000 sq.ft. and $3.58 for remaining area."
+                            ),
+                        },
+                        {
+                            "url": "https://example.com/blog-fees",
+                            "title": "Non official",
+                            "content": "Rate is $99 per square foot.",
+                        },
+                    ],
+                }
+            )
+
+    candidate = asyncio.run(
+        enricher._fetch_tavily_secondary_fee_metadata(
+            client=_Client(),
+            source_family="policy_documents",
+            search_query="san jose commercial linkage fee rates",
+            selected_url="https://www.sanjoseca.gov",
+        )
+    )
+    assert candidate is not None
+    assert candidate["source_lane"] == "structured_secondary_source"
+    assert candidate["provider"] == "tavily_search"
+    assert "structured_secondary_source_tavily" in candidate["alerts"]
+    assert candidate["secondary_search"] is True
+    facts = candidate["structured_policy_facts"]
+    values = sorted({fact["value"] for fact in facts})
+    assert values == [0.0, 3.58, 14.31, 17.89]
+    assert all(fact["source_url"].startswith("https://www.sanjoseca.gov/") for fact in facts)
+
+
+def test_tavily_secondary_fee_metadata_fail_closed_for_non_official_payload() -> None:
+    enricher = StructuredSourceEnricher(tavily_api_key="test-key")
+
+    class _Response:
+        def __init__(self, payload: Any) -> None:
+            self._payload = payload
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> Any:
+            return self._payload
+
+    class _Client:
+        async def post(self, endpoint: str, json: dict[str, Any]) -> _Response:
+            _ = (endpoint, json)
+            return _Response(
+                {
+                    "query_id": "q-456",
+                    "results": [
+                        {
+                            "url": "https://siliconvalleyathome.org/resources/commercial-linkage-fees-2/",
+                            "title": "SV@Home",
+                            "content": "Commercial linkage fee policy context.",
+                        }
+                    ],
+                }
+            )
+
+    candidate = asyncio.run(
+        enricher._fetch_tavily_secondary_fee_metadata(
+            client=_Client(),
+            source_family="policy_documents",
+            search_query="san jose commercial linkage fee rates",
+            selected_url="https://www.sanjoseca.gov",
+        )
+    )
+    assert candidate is None

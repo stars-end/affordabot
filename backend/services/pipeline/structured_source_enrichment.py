@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
+import os
 import re
 from typing import Any
 from urllib.parse import parse_qs, quote_plus, unquote, urlparse
@@ -54,8 +55,11 @@ class StructuredEnrichmentResult:
 class StructuredSourceEnricher:
     """Runtime structured-source collector for San Jose source families."""
 
-    def __init__(self, *, timeout_seconds: float = 4.0) -> None:
+    def __init__(
+        self, *, timeout_seconds: float = 4.0, tavily_api_key: str | None = None
+    ) -> None:
         self.timeout_seconds = timeout_seconds
+        self.tavily_api_key = (tavily_api_key or os.getenv("TAVILY_API_KEY") or "").strip()
 
     async def enrich(
         self,
@@ -102,6 +106,22 @@ class StructuredSourceEnricher:
             else:
                 alerts.append("structured_enrichment_ckan_unavailable")
 
+            if self._should_probe_tavily_secondary(
+                source_family=source_family,
+                search_query=search_query,
+                selected_url=selected_url,
+            ):
+                tavily_candidate = await self._fetch_tavily_secondary_fee_metadata(
+                    client=client,
+                    source_family=source_family,
+                    search_query=search_query,
+                    selected_url=selected_url,
+                )
+                if tavily_candidate:
+                    candidates.append(tavily_candidate)
+                else:
+                    alerts.append("structured_enrichment_tavily_secondary_unavailable")
+
         status = "integrated" if candidates else "unavailable"
         if not candidates and selected_url:
             alerts.append("structured_enrichment_no_candidates_for_selected_url_context")
@@ -113,6 +133,193 @@ class StructuredSourceEnricher:
             alerts=list(dict.fromkeys(alerts)),
             source_catalog=catalog,
         )
+
+    def _should_probe_tavily_secondary(
+        self,
+        *,
+        source_family: str,
+        search_query: str,
+        selected_url: str,
+    ) -> bool:
+        if not self.tavily_api_key:
+            return False
+        source_family_key = str(source_family or "").strip().lower()
+        if source_family_key not in {"policy_documents", "meeting_minutes", "ordinance_text"}:
+            return False
+        combined = f"{search_query} {selected_url}".lower()
+        return any(
+            token in combined
+            for token in (
+                "fee",
+                "fees",
+                "rate",
+                "rates",
+                "impact fee",
+                "linkage",
+                "nexus",
+                "per square foot",
+                "sq.ft",
+                "sq ft",
+                "cost",
+            )
+        )
+
+    @staticmethod
+    def _is_provenance_safe_tavily_url(url: str) -> bool:
+        parsed = urlparse(str(url or "").strip())
+        host = parsed.netloc.lower()
+        if not host:
+            return False
+        if host.endswith(".gov") and ("sanjose" in host or "sccgov" in host):
+            return True
+        if host.endswith("sanjose.legistar.com") or host.endswith("sanjoseca.legistar.com"):
+            return True
+        return False
+
+    @staticmethod
+    def _extract_tavily_fee_facts(
+        *,
+        snippet: str,
+        source_url: str,
+        source_title: str,
+        provider_rank: int,
+    ) -> list[dict[str, Any]]:
+        text = str(snippet or "").strip()
+        normalized = text.lower()
+        if not text:
+            return []
+        if "commercial linkage fee" not in normalized and "impact fee" not in normalized:
+            return []
+        if (
+            "per square foot" not in normalized
+            and "per net square foot" not in normalized
+            and "sq.ft" not in normalized
+            and "sq ft" not in normalized
+        ):
+            return []
+
+        values = re.findall(r"\$([0-9]+(?:\.[0-9]+)?)", text)
+        if not values:
+            return []
+
+        seen: set[tuple[str, float]] = set()
+        facts: list[dict[str, Any]] = []
+        for raw in values:
+            amount = float(raw)
+            key = (source_url, amount)
+            if key in seen:
+                continue
+            seen.add(key)
+            facts.append(
+                {
+                    "field": "commercial_linkage_fee_rate_usd_per_sqft",
+                    "value": amount,
+                    "unit": "usd_per_square_foot",
+                    "source_url": source_url,
+                    "source_excerpt": text[:600],
+                    "source_title": str(source_title or "").strip(),
+                    "provenance_lane": "structured_secondary_source",
+                    "provider_rank": float(provider_rank),
+                }
+            )
+        return facts
+
+    async def _fetch_tavily_secondary_fee_metadata(
+        self,
+        *,
+        client: httpx.AsyncClient,
+        source_family: str,
+        search_query: str,
+        selected_url: str,
+    ) -> dict[str, Any] | None:
+        if not self.tavily_api_key:
+            return None
+
+        endpoint = "https://api.tavily.com/search"
+        query_text = (
+            search_query.strip()
+            or "San Jose commercial linkage fee affordable housing impact fee per square foot rates"
+        )
+        payload = {
+            "api_key": self.tavily_api_key,
+            "query": query_text,
+            "search_depth": "basic",
+            "max_results": 5,
+            "include_answer": False,
+            "include_images": False,
+        }
+        try:
+            response = await client.post(endpoint, json=payload)
+            response.raise_for_status()
+            raw_payload = response.json()
+        except (httpx.HTTPError, ValueError):
+            return None
+
+        if not isinstance(raw_payload, dict):
+            return None
+        results = raw_payload.get("results")
+        if not isinstance(results, list) or not results:
+            return None
+
+        facts: list[dict[str, Any]] = []
+        linked_refs: list[str] = []
+        safe_results = 0
+        for idx, row in enumerate(results[:5], start=1):
+            if not isinstance(row, dict):
+                continue
+            url = str(row.get("url") or "").strip()
+            if not self._is_provenance_safe_tavily_url(url):
+                continue
+            safe_results += 1
+            content = str(row.get("content") or "").strip()
+            title = str(row.get("title") or "").strip()
+            extracted = self._extract_tavily_fee_facts(
+                snippet=content,
+                source_url=url,
+                source_title=title,
+                provider_rank=idx,
+            )
+            if extracted:
+                facts.extend(extracted)
+                linked_refs.append(url)
+
+        if not facts:
+            return None
+
+        primary_url = linked_refs[0] if linked_refs else str(selected_url or "").strip() or endpoint
+        return {
+            "source_lane": "structured_secondary_source",
+            "provider": "tavily_search",
+            "source_family": "tavily_secondary_search",
+            "access_method": "tavily_search_api",
+            "jurisdiction": "san_jose_ca",
+            "artifact_url": primary_url,
+            "artifact_type": "secondary_search_rate_snippet",
+            "source_tier": "tier_b",
+            "retrieved_at": _utc_now_iso(),
+            "query_text": query_text,
+            "excerpt": (
+                "Secondary structured Tavily snippet extraction for missing economic fee/rate "
+                f"evidence; extracted_facts={len(facts)}, provenance_safe_results={safe_results}."
+            ),
+            "structured_policy_facts": facts,
+            "diagnostic_facts": [
+                {"field": "tavily_result_count_scanned", "value": float(len(results[:5])), "unit": "count"},
+                {"field": "tavily_result_count_provenance_safe", "value": float(safe_results), "unit": "count"},
+                {"field": "tavily_fee_fact_count", "value": float(len(facts)), "unit": "count"},
+            ],
+            "alerts": [
+                "structured_secondary_source_tavily",
+                "secondary_search_complementary_lane",
+            ],
+            "provider_run_id": str(raw_payload.get("query_id") or raw_payload.get("request_id") or "unknown"),
+            "linked_artifact_refs": list(dict.fromkeys(linked_refs)),
+            "reader_artifact_refs": [],
+            "candidate_status": "secondary_search_complement",
+            "secondary_search": True,
+            "secondary_search_scope": "bounded_max_results_5",
+            "secondary_search_parent_source_family": str(source_family or "").strip() or "unknown",
+        }
 
     @staticmethod
     def _extract_legistar_matter_id(*, selected_url: str) -> int | None:
