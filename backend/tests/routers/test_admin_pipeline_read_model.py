@@ -451,7 +451,7 @@ def test_policy_evidence_analysis_status_hydrates_live_run_context_proofs(client
                     "canonical_breakdown_ref": "analysis:analysis-q4",
                 },
                 "run_context": {
-                    "backend_run_id": "run-live-q4",
+                    "run_id": "run-live-q4",
                     "windmill_run_id": "wm-live-q4",
                     "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
                     "windmill_workspace": "affordabot",

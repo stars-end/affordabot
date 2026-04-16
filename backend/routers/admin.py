@@ -431,7 +431,12 @@ def _coerce_policy_package_runtime_matrix(
         gate_projection = _json_payload(package_payload.get("gate_projection"))
         canonical_run_id = _to_text(gate_projection.get("canonical_pipeline_run_id"))
         canonical_step_id = _to_text(gate_projection.get("canonical_pipeline_step_id"))
-        context_backend_run_id = _to_text(package_run_context.get("backend_run_id"))
+        context_backend_run_id = _to_text(
+            package_run_context.get("backend_run_id")
+            or package_run_context.get("run_id")
+            or run_result.get("run_id")
+            or run_result.get("id")
+        )
         analysis_payload = _json_payload(run_result.get("analysis"))
         analysis_step_executed = bool(analysis_payload)
         projection_matches_route = bool(
