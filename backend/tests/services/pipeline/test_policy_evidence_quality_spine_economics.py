@@ -773,3 +773,82 @@ def test_fixture_case_coverage_tracks_direct_indirect_secondary() -> None:
         "indirect_pass_through_case",
         "secondary_research_required_case",
     ]
+
+
+def test_diagnostic_parameters_are_excluded_from_economic_support() -> None:
+    bundle = PolicyEconomicMechanismCaseService().build_case_bundle()
+    direct = _case(bundle, "direct_cost_case")
+    package = {
+        **direct["primary_package"],
+        "model_cards": [],
+        "parameter_cards": [
+            {
+                "id": "param-event-id",
+                "parameter_name": "event_id",
+                "state": "resolved",
+                "value": 7927.0,
+                "unit": "count",
+                "source_url": "https://sanjose.legistar.com/MeetingDetail.aspx?LEGID=7927&GID=317&G=920296E4-80BE-4CA2-A78F-32C5EFCF78AF",
+                "source_excerpt": "Structured fact event_id resolved from source payload.",
+                "evidence_card_id": "ev-direct-1",
+            },
+            {
+                "id": "param-dataset-match-count",
+                "parameter_name": "dataset_match_count",
+                "state": "resolved",
+                "value": 0.0,
+                "unit": "count",
+                "source_url": "https://data.sanjoseca.gov/api/3/action/package_search?q=test",
+                "source_excerpt": "Structured fact dataset_match_count resolved from source payload.",
+                "evidence_card_id": "ev-direct-1",
+            },
+        ],
+    }
+
+    service = PolicyEvidenceQualitySpineEconomicsService()
+    endpoint = service.build_endpoint_read_model(
+        matrix_input=MatrixInput(
+            payload=_real_matrix_from_case(package),
+            source_path="horizontal_matrix.json",
+            source_mode="agent_a_horizontal_matrix",
+        ),
+        package_id=package["package_id"],
+        source_family="meeting_minutes",
+    )
+
+    assert endpoint["economic_trace"]["parameter_table"] == []
+    assert len(endpoint["economic_trace"]["diagnostic_parameter_table"]) == 2
+    assert endpoint["economic_readiness"]["parameter_readiness"]["status"] == "fail"
+    assert "diagnostic_resolved_parameters_excluded=2" in endpoint["economic_readiness"][
+        "parameter_readiness"
+    ]["reason"]
+
+
+def test_indirect_mechanism_requires_non_placeholder_assumption_or_secondary_research() -> None:
+    bundle = PolicyEconomicMechanismCaseService().build_case_bundle()
+    indirect = _case(bundle, "indirect_pass_through_case")
+    package = {**indirect["primary_package"]}
+    assumption = dict(package["assumption_cards"][0])
+    assumption["source_excerpt"] = "Mapped mechanism assumption from source evidence and policy context."
+    package["assumption_cards"] = [assumption]
+
+    service = PolicyEvidenceQualitySpineEconomicsService()
+    endpoint = service.build_endpoint_read_model(
+        matrix_input=MatrixInput(
+            payload=_real_matrix_from_case(package),
+            source_path="horizontal_matrix.json",
+            source_mode="agent_a_horizontal_matrix",
+        ),
+        package_id=package["package_id"],
+        source_family="meeting_minutes",
+    )
+
+    assert endpoint["economic_trace"]["direct_indirect_classification"] == "indirect"
+    assert endpoint["economic_readiness"]["assumption_readiness"]["status"] == "fail"
+    assert "source-bound pass-through/incidence assumptions" in endpoint["economic_readiness"][
+        "assumption_readiness"
+    ]["reason"]
+    assert endpoint["secondary_research"]["status"] == "required"
+    assert "rubric/assumption_governance" in endpoint["economic_analysis_status"][
+        "required_evidence_gaps"
+    ]

@@ -71,8 +71,8 @@ def test_structured_source_enricher_returns_integrated_status_when_candidates_ex
             "provider_run_id": "13001",
         }
 
-    async def _fake_ckan(*, client: Any, search_query: str) -> dict[str, Any]:
-        _ = (client, search_query)
+    async def _fake_ckan(*, client: Any, search_query: str, selected_url: str) -> dict[str, Any]:
+        _ = (client, search_query, selected_url)
         return {
             "source_lane": "structured",
             "provider": "san_jose_open_data_ckan",
@@ -85,7 +85,7 @@ def test_structured_source_enricher_returns_integrated_status_when_candidates_ex
             "retrieved_at": "2026-04-16T00:00:00+00:00",
             "query_text": "housing impact fee",
             "excerpt": "Dataset metadata",
-            "structured_policy_facts": [{"field": "dataset_match_count", "value": 7.0, "unit": "count"}],
+            "structured_policy_facts": [{"field": "relevant_dataset_count", "value": 7.0, "unit": "count"}],
             "provider_run_id": "7",
         }
 
@@ -116,3 +116,175 @@ def test_structured_source_enricher_returns_integrated_status_when_candidates_ex
         "san_jose_open_data_ckan",
     }
     assert result.alerts == []
+
+
+def test_extract_legistar_matter_id_from_gateway_url() -> None:
+    matter_id = StructuredSourceEnricher._extract_legistar_matter_id(
+        selected_url="https://sanjoseca.legistar.com/gateway.aspx?M=L&ID=14575&GUID=ABC",
+    )
+    assert matter_id == 14575
+
+
+def test_extract_legistar_matter_id_from_nested_gateway_matter_url() -> None:
+    matter_id = StructuredSourceEnricher._extract_legistar_matter_id(
+        selected_url="https://sanjose.legistar.com/gateway.aspx?m=l&id=/matter.aspx?key=15360",
+    )
+    assert matter_id == 15360
+
+
+def test_extract_legistar_matter_id_ignores_view_attachment_id() -> None:
+    matter_id = StructuredSourceEnricher._extract_legistar_matter_id(
+        selected_url="https://sanjose.legistar.com/View.ashx?M=F&ID=8758120",
+    )
+    assert matter_id is None
+
+
+def test_legistar_event_ids_are_diagnostic_not_economic_parameters() -> None:
+    enricher = StructuredSourceEnricher()
+
+    class _Response:
+        def __init__(self, payload: Any) -> None:
+            self._payload = payload
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> Any:
+            return self._payload
+
+    class _Client:
+        async def get(self, endpoint: str) -> _Response:
+            _ = endpoint
+            return _Response(
+                [
+                    {
+                        "EventId": 13001,
+                        "EventBodyId": 44,
+                        "EventDate": "2026-04-11",
+                        "EventInSiteURL": "https://webapi.legistar.com/v1/sanjose/Events/13001",
+                    }
+                ]
+            )
+
+    candidate = asyncio.run(enricher._fetch_legistar_event_metadata(client=_Client()))
+    assert candidate is not None
+    fact_fields = {fact["field"] for fact in candidate["structured_policy_facts"]}
+    assert "event_id" not in fact_fields
+    assert "event_body_id" not in fact_fields
+    diag_fields = {fact["field"] for fact in candidate.get("diagnostic_facts", [])}
+    assert {"event_id", "event_body_id"}.issubset(diag_fields)
+
+
+def test_legistar_matter_metadata_includes_provenance_and_non_id_facts() -> None:
+    enricher = StructuredSourceEnricher()
+
+    class _Response:
+        def __init__(self, payload: Any) -> None:
+            self._payload = payload
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> Any:
+            return self._payload
+
+    class _Client:
+        async def get(self, endpoint: str) -> _Response:
+            if endpoint.endswith("/Matters/14575"):
+                return _Response(
+                    {
+                        "MatterId": 14575,
+                        "MatterTitle": "Commercial Linkage Fee Update",
+                        "MatterInSiteURL": "https://sanjoseca.legistar.com/LegislationDetail.aspx?ID=14575",
+                    }
+                )
+            if endpoint.endswith("/Matters/14575/Attachments"):
+                return _Response(
+                    [
+                        {
+                            "MatterAttachmentHyperlink": (
+                                "https://sanjoseca.legistar.com/View.ashx?M=F&ID=9988776"
+                            )
+                        }
+                    ]
+                )
+            raise AssertionError(f"unexpected endpoint: {endpoint}")
+
+    candidate = asyncio.run(
+        enricher._fetch_legistar_matter_metadata(
+            client=_Client(),
+            selected_url="https://sanjoseca.legistar.com/gateway.aspx?M=L&ID=14575",
+            search_query="commercial linkage fee san jose",
+        )
+    )
+    assert candidate is not None
+    assert candidate["artifact_type"] == "matter_metadata"
+    assert candidate["linked_artifact_refs"]
+    fact_fields = {fact["field"] for fact in candidate["structured_policy_facts"]}
+    assert "matter_id" not in fact_fields
+    assert "matter_attachment_count" in fact_fields
+    diag_fields = {fact["field"] for fact in candidate.get("diagnostic_facts", [])}
+    assert "matter_id" in diag_fields
+
+
+def test_ckan_metadata_uses_only_economic_datasets_with_urls() -> None:
+    enricher = StructuredSourceEnricher()
+
+    class _Response:
+        def __init__(self, payload: Any) -> None:
+            self._payload = payload
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> Any:
+            return self._payload
+
+    class _Client:
+        async def get(self, endpoint: str) -> _Response:
+            _ = endpoint
+            return _Response(
+                {
+                    "success": True,
+                    "result": {
+                        "count": 4,
+                        "results": [
+                            {
+                                "title": "City Trees Inventory",
+                                "name": "trees",
+                                "resources": [{"url": "https://data.sanjoseca.gov/tree.csv"}],
+                            },
+                            {
+                                "title": "Building Permits by Month",
+                                "name": "building-permits",
+                                "resources": [{"url": "https://data.sanjoseca.gov/permits.csv"}],
+                            },
+                            {
+                                "title": "Affordable Housing Production",
+                                "name": "affordable-housing",
+                                "resources": [],
+                            },
+                            {
+                                "title": "Commercial Development Fees",
+                                "name": "commercial-fees",
+                                "resources": [{"url": "https://data.sanjoseca.gov/fees.csv"}],
+                            },
+                        ],
+                    },
+                }
+            )
+
+    candidate = asyncio.run(
+        enricher._fetch_san_jose_ckan_metadata(
+            client=_Client(),
+            search_query="commercial linkage fee housing",
+            selected_url="https://sanjoseca.legistar.com/gateway.aspx?M=L&ID=14575",
+        )
+    )
+    assert candidate is not None
+    assert candidate["artifact_url"] == "https://data.sanjoseca.gov/permits.csv"
+    assert candidate["linked_artifact_refs"] == ["https://data.sanjoseca.gov/permits.csv"]
+    facts = {item["field"]: item["value"] for item in candidate["structured_policy_facts"]}
+    assert facts["relevant_dataset_count"] == 3.0
+    assert facts["relevant_dataset_with_resource_url_count"] == 2.0
+    assert facts["top_dataset_resource_count"] == 1.0

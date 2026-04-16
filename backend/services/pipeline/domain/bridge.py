@@ -1160,7 +1160,11 @@ class RailwayRuntimeBridge:
             for item in payload
             if str(item.get("url", item.get("link", ""))).strip()
         ]
-        ranked_candidates = rank_reader_candidates(search_items, max_candidates=READ_FETCH_MAX_CANDIDATES)
+        ranked_candidates = rank_reader_candidates(
+            search_items,
+            max_candidates=READ_FETCH_MAX_CANDIDATES,
+            query_context=request.search_query,
+        )
         if not ranked_candidates:
             response = CommandResponse(
                 command="read_fetch",

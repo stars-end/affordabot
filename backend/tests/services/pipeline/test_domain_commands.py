@@ -438,6 +438,91 @@ def test_rank_reader_candidates_does_not_apply_concrete_boost_to_third_party_pdf
     ]
 
 
+def test_rank_reader_candidates_economic_query_prefers_fee_rate_sources_over_procedural_pages() -> None:
+    ranked = rank_reader_candidates(
+        [
+            SearchResultItem(
+                url="https://sanjose.legistar.com/MeetingDetail.aspx?ID=1278450&GUID=EE2476D7-15A4-4D25-AEA9-11A37D897CB5",
+                title="Meeting Detail",
+                snippet="City Council agenda item and procedural posting",
+            ),
+            SearchResultItem(
+                url="https://www.sanjoseca.gov/your-government/departments-offices/planning-building-code-enforcement/planning-division/development-fees/commercial-linkage-fee",
+                title="Commercial Linkage Fee",
+                snippet="Affordable housing impact fee schedule per square foot",
+            ),
+            SearchResultItem(
+                url="https://www.sanjoseca.gov/Calendar.aspx?CID=114",
+                title="City Calendar",
+                snippet="Meeting calendar listings",
+            ),
+        ],
+        query_context="San Jose Resolution 79705 commercial linkage fee affordable housing impact fee per square foot staff report",
+    )
+    ranked_urls = [item["url"] for item in ranked]
+    ranked_by_url = {item["url"]: item for item in ranked}
+
+    assert ranked_urls[0].startswith("https://www.sanjoseca.gov/")
+    assert "commercial-linkage-fee" in ranked_urls[0]
+    assert ranked_urls[-1].endswith("Calendar.aspx?CID=114")
+    assert ranked_by_url[
+        "https://www.sanjoseca.gov/your-government/departments-offices/planning-building-code-enforcement/planning-division/development-fees/commercial-linkage-fee"
+    ]["score"] > ranked_by_url[
+        "https://sanjose.legistar.com/MeetingDetail.aspx?ID=1278450&GUID=EE2476D7-15A4-4D25-AEA9-11A37D897CB5"
+    ]["score"]
+    assert "economic_signal:context" in ranked_by_url[
+        "https://www.sanjoseca.gov/your-government/departments-offices/planning-building-code-enforcement/planning-division/development-fees/commercial-linkage-fee"
+    ]["reasons"]
+    assert "economic_penalty:procedural_without_value_signal" in ranked_by_url[
+        "https://sanjose.legistar.com/MeetingDetail.aspx?ID=1278450&GUID=EE2476D7-15A4-4D25-AEA9-11A37D897CB5"
+    ]["reasons"]
+
+
+def test_rank_reader_candidates_economic_query_demotes_gateway_fee_title_without_numeric_value() -> None:
+    ranked = rank_reader_candidates(
+        [
+            SearchResultItem(
+                url="https://sanjose.legistar.com/gateway.aspx?m=l&id=/matter.aspx?key=15360",
+                title="City of San Jose - File #: 25-1313 - Calendar",
+                snippet=(
+                    "Fiscal Year 2024-2025 Affordable Housing Impact Fee and "
+                    "Commercial Linkage Fee Annual Report. Attachments: 1. Memorandum."
+                ),
+            ),
+            SearchResultItem(
+                url="https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee",
+                title="Commercial Linkage Fee | City of San Jose",
+                snippet="The Commercial Linkage Fee is an impact fee levied on commercial development.",
+            ),
+        ],
+        query_context="San Jose commercial linkage fee per square foot staff report",
+    )
+
+    assert "sanjoseca.gov" in ranked[0]["url"]
+    assert "economic_signal:official_source" in ranked[0]["reasons"]
+    assert "economic_penalty:procedural_without_value_signal" in ranked[1]["reasons"]
+
+
+def test_rank_reader_candidates_meeting_minutes_query_keeps_legistar_artifact_preference() -> None:
+    ranked = rank_reader_candidates(
+        [
+            SearchResultItem(
+                url="https://www.sanjoseca.gov/your-government/departments-offices/planning-building-code-enforcement/planning-division/development-fees/commercial-linkage-fee",
+                title="Commercial Linkage Fee",
+                snippet="Affordable housing impact fee schedule per square foot",
+            ),
+            SearchResultItem(
+                url="https://sanjose.legistar.com/View.ashx?M=F&ID=12345&GUID=abc",
+                title="Final Agenda Packet",
+                snippet="Agenda item 4.2 housing ordinance adopted",
+            ),
+        ],
+        query_context="San Jose city council meeting minutes agenda item 4.2 housing ordinance",
+    )
+    assert ranked[0]["url"].startswith("https://sanjose.legistar.com/View.ashx")
+    assert "economic_signal:context" not in ranked[0]["reasons"]
+
+
 def test_assess_reader_substance_rejects_title_only_agendas_minutes_output() -> None:
     is_substantive, details = assess_reader_substance("Agendas & Minutes | City of San Jose")
     assert is_substantive is False

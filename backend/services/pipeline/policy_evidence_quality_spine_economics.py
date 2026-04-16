@@ -8,6 +8,7 @@ contract-compatible deterministic fixture when it is not.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
@@ -50,6 +51,52 @@ ECONOMIC_QUALITY_DIMENSIONS = (
     "uncertainty_sensitivity",
     "unsupported_claim_rejection",
     "user_facing_conclusion_quality",
+)
+
+ECONOMIC_PARAMETER_NAME_HINTS = (
+    "cost",
+    "fee",
+    "tax",
+    "rate",
+    "rent",
+    "price",
+    "income",
+    "wage",
+    "subsid",
+    "benefit",
+    "burden",
+    "pass_through",
+    "pass-through",
+    "incidence",
+    "take_up",
+    "take-up",
+    "adoption",
+    "household",
+    "consumer",
+    "unit",
+    "units",
+    "elastic",
+    "spend",
+)
+
+DIAGNOSTIC_PARAMETER_NAME_HINTS = (
+    "event_id",
+    "body_id",
+    "dataset_match_count",
+    "record_id",
+    "meeting_id",
+    "session_id",
+    "legid",
+    "gid",
+    "uuid",
+    "hash",
+    "metadata",
+)
+
+ASSUMPTION_PLACEHOLDER_PATTERNS = (
+    r"\bmapped mechanism assumption\b",
+    r"\bsource evidence and policy context\b",
+    r"\bplaceholder\b",
 )
 
 
@@ -504,6 +551,7 @@ class PolicyEvidenceQualitySpineEconomicsService:
                 "direct_indirect_classification": vertical["direct_indirect_classification"],
                 "mechanism_graph": vertical["mechanism_graph"],
                 "parameter_table": vertical["parameter_table"],
+                "diagnostic_parameter_table": vertical.get("diagnostic_parameter_table", []),
                 "assumption_cards": assumption_payload,
                 "model_cards": quant_model_payload,
                 "arithmetic_integrity": {
@@ -1061,6 +1109,7 @@ class PolicyEvidenceQualitySpineEconomicsService:
         vertical_output: dict[str, Any],
     ) -> dict[str, Any]:
         dimensions: dict[str, dict[str, str]] = {}
+        mechanism_type = str(vertical_output.get("mechanism_type") or "direct")
 
         graph = vertical_output.get("mechanism_graph") or {}
         nodes = graph.get("nodes") or []
@@ -1076,16 +1125,30 @@ class PolicyEvidenceQualitySpineEconomicsService:
         }
 
         resolved_cards = [card for card in package.parameter_cards if card.state.value == "resolved"]
-        parameter_provenance_ok = bool(resolved_cards) and all(
+        economic_resolved_cards: list[Any] = []
+        diagnostic_resolved_cards: list[Any] = []
+        for card in resolved_cards:
+            is_economic, _ = self._is_economically_meaningful_parameter(card=card)
+            if is_economic:
+                economic_resolved_cards.append(card)
+            else:
+                diagnostic_resolved_cards.append(card)
+        parameter_provenance_ok = bool(economic_resolved_cards) and all(
             card.source_url is not None and bool(card.source_excerpt) and bool(card.evidence_card_id)
-            for card in resolved_cards
+            for card in economic_resolved_cards
         )
         dimensions["parameter_provenance"] = {
             "status": "pass" if parameter_provenance_ok else "fail",
             "details": (
-                f"resolved_parameters={len(resolved_cards)} with source-bound provenance."
+                (
+                    f"economic_resolved_parameters={len(economic_resolved_cards)} "
+                    f"(diagnostic_excluded={len(diagnostic_resolved_cards)}) with source-bound provenance."
+                )
                 if parameter_provenance_ok
-                else "Resolved parameters are missing source_url/source_excerpt/evidence_card_id."
+                else (
+                    "No economically meaningful resolved parameters with source-bound provenance; "
+                    f"diagnostic_resolved_parameters_excluded={len(diagnostic_resolved_cards)}."
+                )
             ),
         }
 
@@ -1106,6 +1169,25 @@ class PolicyEvidenceQualitySpineEconomicsService:
                 if assumptions_ok
                 else "Assumption governance incomplete: missing applicability/provenance/usage validity."
             )
+            if assumptions_ok and mechanism_type == "indirect":
+                indirect_assumptions = [
+                    card
+                    for card in package.assumption_cards
+                    if card.family
+                    in {
+                        MechanismFamily.FEE_OR_TAX_PASS_THROUGH,
+                        MechanismFamily.ADOPTION_TAKE_UP,
+                    }
+                ]
+                assumptions_ok = bool(indirect_assumptions) and all(
+                    not self._looks_placeholder_assumption_text(card.source_excerpt)
+                    for card in indirect_assumptions
+                )
+                if not assumptions_ok:
+                    assumption_detail = (
+                        "Indirect mechanism requires source-bound pass-through/incidence assumptions; "
+                        "placeholder assumptions are not admissible."
+                    )
         dimensions["assumption_governance"] = {
             "status": "pass" if assumptions_ok else "fail",
             "details": assumption_detail,
@@ -1199,6 +1281,44 @@ class PolicyEvidenceQualitySpineEconomicsService:
             "dimensions": dimensions,
             "failing_dimensions": failing_dimensions,
         }
+
+    @classmethod
+    def _looks_placeholder_assumption_text(cls, source_excerpt: str | None) -> bool:
+        excerpt = str(source_excerpt or "").strip().lower()
+        if not excerpt:
+            return True
+        for pattern in ASSUMPTION_PLACEHOLDER_PATTERNS:
+            if re.search(pattern, excerpt):
+                return True
+        return False
+
+    @classmethod
+    def _is_economically_meaningful_parameter(cls, *, card: Any) -> tuple[bool, str]:
+        name = str(getattr(card, "parameter_name", "") or "").strip().lower()
+        unit = str(getattr(card, "unit", "") or "").strip().lower()
+        excerpt = str(getattr(card, "source_excerpt", "") or "").strip().lower()
+        value = getattr(card, "value", None)
+
+        if value is None:
+            return False, "missing_numeric_value"
+        if not name:
+            return False, "missing_parameter_name"
+        if any(token in name for token in DIAGNOSTIC_PARAMETER_NAME_HINTS):
+            if not any(token in name for token in ECONOMIC_PARAMETER_NAME_HINTS):
+                return False, "diagnostic_name_pattern"
+        if "structured fact" in excerpt and "resolved from source payload" in excerpt:
+            return False, "diagnostic_structured_fact_excerpt"
+        if unit in {"id", "identifier"}:
+            return False, "diagnostic_unit_identifier"
+        has_economic_name_hint = any(token in name for token in ECONOMIC_PARAMETER_NAME_HINTS)
+        has_economic_excerpt_hint = any(
+            token in excerpt for token in ("cost", "fee", "tax", "rent", "price", "income", "benefit", "burden")
+        )
+        if unit == "count" and not (has_economic_name_hint or has_economic_excerpt_hint):
+            return False, "non_economic_count_metric"
+        if not (has_economic_name_hint or has_economic_excerpt_hint):
+            return False, "missing_economic_semantic_signal"
+        return True, "economically_meaningful"
 
     def _build_fixture_case_coverage(self) -> dict[str, Any]:
         bundle = PolicyEconomicMechanismCaseService().build_case_bundle()
@@ -1598,8 +1718,12 @@ class PolicyEvidenceQualitySpineEconomicsService:
     def _build_vertical_economic_output(
         self, *, package: PolicyEvidencePackage, sufficiency: Any
     ) -> dict[str, Any]:
-        parameter_table = [
-            {
+        parameter_table: list[dict[str, Any]] = []
+        diagnostic_parameter_table: list[dict[str, Any]] = []
+        for card in package.parameter_cards:
+            if card.state.value != "resolved":
+                continue
+            parameter_payload = {
                 "parameter_id": card.id,
                 "name": card.parameter_name,
                 "value": card.value,
@@ -1608,9 +1732,17 @@ class PolicyEvidenceQualitySpineEconomicsService:
                 "source_excerpt": card.source_excerpt,
                 "evidence_card_id": card.evidence_card_id,
             }
-            for card in package.parameter_cards
-            if card.state.value == "resolved"
-        ]
+            is_economic, reason = self._is_economically_meaningful_parameter(card=card)
+            if is_economic:
+                parameter_table.append(parameter_payload)
+                continue
+            diagnostic_parameter_table.append(
+                {
+                    **parameter_payload,
+                    "excluded_from_economic_support": True,
+                    "exclusion_reason": reason,
+                }
+            )
         mechanism_family = package.model_cards[0].mechanism_family if package.model_cards else None
         mechanism_type = self._classify_mechanism_type(package=package, mechanism_family=mechanism_family)
 
@@ -1670,6 +1802,7 @@ class PolicyEvidenceQualitySpineEconomicsService:
             "mechanism_graph": {"nodes": graph_nodes, "edges": graph_edges},
             "direct_indirect_classification": mechanism_type,
             "parameter_table": parameter_table,
+            "diagnostic_parameter_table": diagnostic_parameter_table,
             "source_bound_assumptions": [
                 {
                     "assumption_id": card.id,
