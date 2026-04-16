@@ -66,7 +66,6 @@ A final analysis should be rejected or downgraded when it lacks:
 
 Before redesigning this area, inspect:
 - `docs/specs/2026-03-19-affordabot-california-pipeline-truth-remediation.md`
-- `docs/specs/2026-04-14-evidence-package-dependency-lockdown.md`
 - `docs/research/`
 - backend analysis, prompt, agent, and verification code under `backend/`
 

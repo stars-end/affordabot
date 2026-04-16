@@ -88,7 +88,6 @@ explanation. Treat pipeline changes as product changes.
 
 Read these first:
 - `docs/specs/2026-04-13-windmill-domain-brownfield-spec-lock.md`
-- `docs/specs/2026-04-14-evidence-package-dependency-lockdown.md`
 - `docs/specs/2026-03-19-affordabot-california-pipeline-truth-remediation.md`
 - `docs/research/2026-04-14-private-searxng-quality-review.md`
 - `docs/architecture/2026-04-12-windmill-affordabot-boundary-adr.md`
