@@ -685,6 +685,33 @@ def test_manual_audit_notes_quality_block_uses_explicit_verdict_and_notes():
     assert "intentionally not run" in notes["llm_quality_note"]
 
 
+def test_manual_audit_notes_distinguish_substantive_policy_insufficiency_from_navigation():
+    payload = _stub_scope_result("ok")
+    analyze = payload["scope_results"][0]["steps"]["analyze"]
+    analyze["status"] = "succeeded"
+    analyze["details"] = {
+        "analysis": {
+            "summary": (
+                "The resolution establishes Commercial Linkage Fee rates per sq. ft. "
+                "but more gates are needed for final household impact."
+            ),
+            "sufficiency_state": "Insufficient",
+            "key_points": [
+                "Office projects under 100,000 sq. ft. are assessed $3.00 per sq. ft.",
+                "Fees are based on gross square footage.",
+            ],
+        }
+    }
+    notes = module._derive_manual_audit_notes(
+        result_payload=payload,
+        db_storage_probe={"raw_scrape_rows": []},
+    )
+
+    assert notes["manual_verdict"] == "PASS_DATA_EXTRACTION_FAIL_ECONOMIC_HANDOFF"
+    assert "substantive policy text" in notes["reader_quality_note"]
+    assert "navigation/menu" not in notes["reader_quality_note"]
+
+
 def test_main_treats_quality_gate_block_pass_as_success(monkeypatch, tmp_path):
     monkeypatch.setattr(
         module,

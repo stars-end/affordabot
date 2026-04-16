@@ -55,6 +55,35 @@ _ECONOMIC_DATASET_TOKENS = {
     "cost",
 }
 
+_MATTER_CONTEXT_STOPWORDS = {
+    "san",
+    "jose",
+    "city",
+    "council",
+    "policy",
+    "priority",
+    "agenda",
+    "minutes",
+    "meeting",
+    "item",
+    "document",
+}
+
+_MONTH_NUMBER_BY_NAME = {
+    "january": "01",
+    "february": "02",
+    "march": "03",
+    "april": "04",
+    "may": "05",
+    "june": "06",
+    "july": "07",
+    "august": "08",
+    "september": "09",
+    "october": "10",
+    "november": "11",
+    "december": "12",
+}
+
 
 @dataclass(frozen=True)
 class StructuredEnrichmentResult:
@@ -80,6 +109,7 @@ class StructuredSourceEnricher:
         source_family: str,
         search_query: str,
         selected_url: str,
+        selected_candidate_context: str = "",
     ) -> StructuredEnrichmentResult:
         catalog = san_jose_structured_source_catalog()
         if not _is_san_jose_jurisdiction(jurisdiction):
@@ -98,6 +128,7 @@ class StructuredSourceEnricher:
                 client=client,
                 selected_url=selected_url,
                 search_query=search_query,
+                selected_candidate_context=selected_candidate_context,
             )
             if legistar_matter_candidate:
                 candidates.append(legistar_matter_candidate)
@@ -454,10 +485,22 @@ class StructuredSourceEnricher:
         client: httpx.AsyncClient,
         selected_url: str,
         search_query: str,
+        selected_candidate_context: str = "",
     ) -> dict[str, Any] | None:
         matter_id = self._extract_legistar_matter_id(selected_url=selected_url)
         if not matter_id:
-            return None
+            matter_match = await self._search_legistar_matter_by_context(
+                client=client,
+                selected_url=selected_url,
+                search_query=search_query,
+                selected_candidate_context=selected_candidate_context,
+            )
+            if not matter_match:
+                return None
+            resolved_id = matter_match.get("MatterId")
+            if not isinstance(resolved_id, int):
+                return None
+            matter_id = resolved_id
 
         matter_endpoint = f"https://webapi.legistar.com/v1/sanjose/Matters/{matter_id}"
         attachments_endpoint = f"https://webapi.legistar.com/v1/sanjose/Matters/{matter_id}/Attachments"
@@ -530,6 +573,169 @@ class StructuredSourceEnricher:
                 "source_identity": "legistar_web_api",
             },
         }
+
+    @staticmethod
+    def _extract_context_dates(*, context_text: str) -> list[str]:
+        hints: set[str] = set()
+        for match in re.finditer(r"\b(20[0-9]{2})-(0[1-9]|1[0-2])-([0-2][0-9]|3[0-1])\b", context_text):
+            hints.add(match.group(0))
+        for match in re.finditer(r"\b(0?[1-9]|1[0-2])/([0-2]?[0-9]|3[0-1])/(20[0-9]{2})\b", context_text):
+            hints.add(f"{match.group(3)}-{int(match.group(1)):02d}-{int(match.group(2)):02d}")
+        for match in re.finditer(
+            r"\b("
+            r"January|February|March|April|May|June|July|August|September|October|November|December"
+            r")\s+([0-9]{1,2}),\s*(20[0-9]{2})\b",
+            context_text,
+            flags=re.IGNORECASE,
+        ):
+            month = _MONTH_NUMBER_BY_NAME.get(match.group(1).lower())
+            if not month:
+                continue
+            day = f"{int(match.group(2)):02d}"
+            hints.add(f"{match.group(3)}-{month}-{day}")
+        return sorted(hints)
+
+    @staticmethod
+    def _extract_context_file_tokens(*, context_text: str) -> set[str]:
+        return {token.upper() for token in re.findall(r"\b[0-9]{2}-[0-9]{3,5}\b", context_text)}
+
+    @staticmethod
+    def _matter_context_tokens(*, context_text: str) -> set[str]:
+        tokens = {
+            token
+            for token in re.findall(r"[a-z0-9#]+", context_text.lower())
+            if len(token) >= 4 and token not in _MATTER_CONTEXT_STOPWORDS
+        }
+        if "clf" in context_text.lower():
+            tokens.add("clf")
+        return tokens
+
+    @classmethod
+    def _score_matter_candidate(
+        cls,
+        *,
+        matter: dict[str, Any],
+        context_tokens: set[str],
+        file_tokens: set[str],
+        date_hints: set[str],
+    ) -> int:
+        title = str(matter.get("MatterTitle") or "")
+        matter_file = str(matter.get("MatterFile") or "").strip().upper()
+        text = f"{title} {matter_file}".lower()
+        score = 0
+
+        if "commercial linkage impact fee" in text:
+            score += 12
+        if "commercial linkage" in text:
+            score += 8
+        if "impact fee" in text:
+            score += 5
+        if "deferred" in text:
+            score -= 8
+
+        for token in context_tokens:
+            if token in text:
+                score += 2
+
+        if matter_file and matter_file in file_tokens:
+            score += 10
+
+        agenda_date = str(matter.get("MatterAgendaDate") or "").strip()
+        for hint in date_hints:
+            if hint and hint in agenda_date:
+                score += 7
+                break
+
+        return score
+
+    async def _search_legistar_matter_by_context(
+        self,
+        *,
+        client: httpx.AsyncClient,
+        selected_url: str,
+        search_query: str,
+        selected_candidate_context: str,
+    ) -> dict[str, Any] | None:
+        _ = selected_url
+        endpoint = "https://webapi.legistar.com/v1/sanjose/Matters"
+        context_text = " ".join(
+            part.strip()
+            for part in (search_query, selected_candidate_context)
+            if str(part or "").strip()
+        )
+        if not context_text:
+            return None
+
+        date_hints = self._extract_context_dates(context_text=context_text)
+        file_tokens = self._extract_context_file_tokens(context_text=context_text)
+        context_tokens = self._matter_context_tokens(context_text=context_text)
+
+        query_params: list[dict[str, str]] = []
+        for date_hint in date_hints[:2]:
+            query_params.append(
+                {
+                    "$filter": f"MatterAgendaDate eq datetime'{date_hint}T00:00:00'",
+                    "$top": "25",
+                }
+            )
+        normalized_context = context_text.lower()
+        if "commercial" in normalized_context and "linkage" in normalized_context:
+            query_params.append(
+                {
+                    "$filter": "substringof('Commercial Linkage',MatterTitle)",
+                    "$top": "50",
+                }
+            )
+        if "impact fee" in normalized_context:
+            query_params.append(
+                {
+                    "$filter": "substringof('Impact Fee',MatterTitle)",
+                    "$top": "50",
+                }
+            )
+        query_params.append({"$top": "50", "$orderby": "MatterAgendaDate desc"})
+
+        matches: list[dict[str, Any]] = []
+        seen_ids: set[int] = set()
+        for params in query_params:
+            try:
+                response = await client.get(endpoint, params=params)
+                response.raise_for_status()
+                payload = response.json()
+            except (httpx.HTTPError, ValueError):
+                continue
+            if not isinstance(payload, list):
+                continue
+            for item in payload:
+                if not isinstance(item, dict):
+                    continue
+                matter_id = item.get("MatterId")
+                if not isinstance(matter_id, int) or matter_id in seen_ids:
+                    continue
+                seen_ids.add(matter_id)
+                matches.append(item)
+
+        if not matches:
+            return None
+
+        ranked = sorted(
+            matches,
+            key=lambda item: self._score_matter_candidate(
+                matter=item,
+                context_tokens=context_tokens,
+                file_tokens=file_tokens,
+                date_hints=set(date_hints),
+            ),
+            reverse=True,
+        )
+        best = ranked[0]
+        best_score = self._score_matter_candidate(
+            matter=best,
+            context_tokens=context_tokens,
+            file_tokens=file_tokens,
+            date_hints=set(date_hints),
+        )
+        return best if best_score > 0 else None
 
     async def _fetch_legistar_event_metadata(
         self, *, client: httpx.AsyncClient

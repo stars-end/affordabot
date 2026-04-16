@@ -144,8 +144,9 @@ class _NoopStructuredSourceEnricher:
         source_family: str,
         search_query: str,
         selected_url: str,
+        selected_candidate_context: str = "",
     ) -> StructuredEnrichmentResult:
-        _ = (jurisdiction, source_family, search_query, selected_url)
+        _ = (jurisdiction, source_family, search_query, selected_url, selected_candidate_context)
         return StructuredEnrichmentResult(
             status="not_configured",
             candidates=[],
@@ -395,6 +396,31 @@ class RailwayRuntimeBridge:
             if entry.get("outcome") in {"materialized_raw_scrape", "reused_existing_raw_scrape"}:
                 return str(entry.get("url") or "").strip()
         return ""
+
+    @staticmethod
+    def _structured_candidate_context(
+        *,
+        search_query: str,
+        selected_url: str,
+        ranked_candidates: list[dict[str, Any]],
+    ) -> str:
+        parts: list[str] = [search_query.strip()]
+        selected: dict[str, Any] | None = None
+        for candidate in ranked_candidates:
+            if not isinstance(candidate, dict):
+                continue
+            if str(candidate.get("url") or "").strip() == selected_url:
+                selected = candidate
+                break
+        if selected is None and ranked_candidates and isinstance(ranked_candidates[0], dict):
+            selected = ranked_candidates[0]
+        if selected:
+            for key in ("title", "snippet", "query_context"):
+                value = str(selected.get(key) or "").strip()
+                if value:
+                    parts.append(value)
+        parts.append(selected_url.strip())
+        return " ".join(part for part in parts if part)
 
     def _resolve_package_store(self) -> PolicyEvidencePackageStore:
         if self._package_store_override is not None:
@@ -863,6 +889,20 @@ class RailwayRuntimeBridge:
             for fact in facts:
                 if not isinstance(fact, dict):
                     continue
+                field = str(fact.get("field") or "unknown_parameter")
+                if not any(
+                    token in field.lower()
+                    for token in (
+                        "fee",
+                        "rate",
+                        "cost",
+                        "tax",
+                        "assessment",
+                        "charge",
+                        "usd",
+                    )
+                ):
+                    continue
                 value = fact.get("normalized_value", fact.get("value"))
                 if isinstance(value, str):
                     try:
@@ -873,7 +913,7 @@ class RailwayRuntimeBridge:
                     continue
                 collected.append(
                     {
-                        "field": str(fact.get("field") or "unknown_parameter"),
+                        "field": field,
                         "normalized_value": float(value),
                         "source_family": source_family or "unknown",
                         "source_url": str(fact.get("source_url") or candidate.get("artifact_url") or "").strip(),
@@ -1087,11 +1127,23 @@ class RailwayRuntimeBridge:
 
         package_id = f"pkg-{_hash(f'{_scope_idempotency_key(request)}|{canonical_document_key}|{selected_url}')[:24]}"
         mechanism_hint = self._infer_mechanism_hint(request=request, selected_url=selected_url)
+        read_fetch_details = read_fetch.details if read_fetch else {}
+        ranked_candidates = (
+            list(read_fetch_details.get("ranked_candidates", []))
+            if isinstance(read_fetch_details.get("ranked_candidates", []), list)
+            else []
+        )
+        selected_candidate_context = self._structured_candidate_context(
+            search_query=request.search_query,
+            selected_url=selected_url,
+            ranked_candidates=ranked_candidates,
+        )
         structured_enrichment = await self.structured_enricher.enrich(
             jurisdiction=request.jurisdiction,
             source_family=request.source_family,
             search_query=request.search_query,
             selected_url=selected_url,
+            selected_candidate_context=selected_candidate_context,
         )
         search_snapshot_id = ""
         if search:
@@ -1106,12 +1158,6 @@ class RailwayRuntimeBridge:
                 payload = _db_json(snapshot_row["snapshot_payload"], [])
                 if isinstance(payload, list):
                     search_candidates = [item for item in payload if isinstance(item, dict)]
-        read_fetch_details = read_fetch.details if read_fetch else {}
-        ranked_candidates = (
-            list(read_fetch_details.get("ranked_candidates", []))
-            if isinstance(read_fetch_details.get("ranked_candidates", []), list)
-            else []
-        )
         candidate_audit = (
             list(read_fetch_details.get("candidate_audit", []))
             if isinstance(read_fetch_details.get("candidate_audit", []), list)

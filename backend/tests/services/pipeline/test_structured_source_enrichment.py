@@ -54,8 +54,14 @@ def test_structured_source_enricher_returns_integrated_status_when_candidates_ex
 ) -> None:
     enricher = StructuredSourceEnricher(tavily_api_key="")
 
-    async def _fake_matter(*, client: Any, selected_url: str, search_query: str) -> None:
-        _ = (client, selected_url, search_query)
+    async def _fake_matter(
+        *,
+        client: Any,
+        selected_url: str,
+        search_query: str,
+        selected_candidate_context: str,
+    ) -> None:
+        _ = (client, selected_url, search_query, selected_candidate_context)
         return None
 
     async def _fake_legistar(*, client: Any) -> dict[str, Any]:
@@ -228,6 +234,7 @@ def test_legistar_matter_metadata_includes_provenance_and_non_id_facts() -> None
             client=_Client(),
             selected_url="https://sanjoseca.legistar.com/gateway.aspx?M=L&ID=14575",
             search_query="commercial linkage fee san jose",
+            selected_candidate_context="",
         )
     )
     assert candidate is not None
@@ -238,6 +245,196 @@ def test_legistar_matter_metadata_includes_provenance_and_non_id_facts() -> None
     assert "matter_attachment_count" in fact_fields
     diag_fields = {fact["field"] for fact in candidate.get("diagnostic_facts", [])}
     assert "matter_id" in diag_fields
+
+
+def test_legistar_matter_metadata_resolves_view_attachment_via_context_search_fallback() -> None:
+    enricher = StructuredSourceEnricher()
+
+    class _Response:
+        def __init__(self, payload: Any) -> None:
+            self._payload = payload
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> Any:
+            return self._payload
+
+    class _Client:
+        async def get(self, endpoint: str, params: dict[str, str] | None = None) -> _Response:
+            if endpoint.endswith("/Matters") and params:
+                if "2020-09-01" in str(params.get("$filter") or ""):
+                    return _Response(
+                        [
+                            {
+                                "MatterId": 7526,
+                                "MatterFile": "20-969",
+                                "MatterTitle": "Council Policy Priority # 5: Commercial Linkage Impact Fee.",
+                                "MatterAgendaDate": "2020-09-01T00:00:00",
+                            },
+                            {
+                                "MatterId": 1111,
+                                "MatterFile": "20-100",
+                                "MatterTitle": "Tree Program Update",
+                                "MatterAgendaDate": "2020-09-01T00:00:00",
+                            },
+                        ]
+                    )
+                return _Response([])
+            if endpoint.endswith("/Matters/7526"):
+                return _Response(
+                    {
+                        "MatterId": 7526,
+                        "MatterFile": "20-969",
+                        "MatterTitle": "Council Policy Priority # 5: Commercial Linkage Impact Fee.",
+                        "MatterInSiteURL": "https://sanjoseca.legistar.com/LegislationDetail.aspx?ID=7526",
+                    }
+                )
+            if endpoint.endswith("/Matters/7526/Attachments"):
+                return _Response(
+                    [
+                        {
+                            "MatterAttachmentHyperlink": (
+                                "https://sanjoseca.legistar.com/View.ashx?M=F&ID=8758120"
+                            )
+                        }
+                    ]
+                )
+            raise AssertionError(f"unexpected endpoint: {endpoint} params={params}")
+
+    candidate = asyncio.run(
+        enricher._fetch_legistar_matter_metadata(
+            client=_Client(),
+            selected_url="https://sanjose.legistar.com/View.ashx?M=F&ID=8758120",
+            search_query="san jose commercial linkage impact fee",
+            selected_candidate_context=(
+                "Council Policy Priority # 5: Commercial Linkage Impact Fee. "
+                "Matter 20-969 September 1, 2020"
+            ),
+        )
+    )
+    assert candidate is not None
+    assert candidate["true_structured"] is True
+    assert candidate["source_family"] == "legistar_web_api"
+    assert candidate["lineage_metadata"]["matter_id"] == "7526"
+    fact_fields = {fact["field"] for fact in candidate["structured_policy_facts"]}
+    assert "matter_attachment_count" in fact_fields
+    assert "matter_id" not in fact_fields
+    assert candidate["linked_artifact_refs"]
+
+
+def test_legistar_matter_search_uses_policy_phrase_and_skips_deferred_item() -> None:
+    enricher = StructuredSourceEnricher()
+
+    class _Response:
+        def __init__(self, payload: Any) -> None:
+            self._payload = payload
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> Any:
+            return self._payload
+
+    class _Client:
+        async def get(self, endpoint: str, params: dict[str, str] | None = None) -> _Response:
+            assert endpoint.endswith("/Matters")
+            if params and "Commercial Linkage" in str(params.get("$filter") or ""):
+                return _Response(
+                    [
+                        {
+                            "MatterId": 7481,
+                            "MatterFile": "20-927",
+                            "MatterTitle": "Council Policy Priority # 5: Commercial Linkage Impact Fee. - DEFERRED",
+                            "MatterAgendaDate": "2020-08-25T00:00:00",
+                        },
+                        {
+                            "MatterId": 7526,
+                            "MatterFile": "20-969",
+                            "MatterTitle": "Council Policy Priority # 5: Commercial Linkage Impact Fee.",
+                            "MatterAgendaDate": "2020-09-01T00:00:00",
+                        },
+                    ]
+                )
+            return _Response([])
+
+    match = asyncio.run(
+        enricher._search_legistar_matter_by_context(
+            client=_Client(),
+            selected_url="https://sanjose.legistar.com/View.ashx?M=F&ID=8758120",
+            search_query="San Jose CA city council meeting minutes housing",
+            selected_candidate_context=(
+                "A RESOLUTION OF THE COUNCIL OF THE CITY OF SAN JOSE. "
+                "Aug 21, 2020 Linkage Fee are set forth in the Ordinance; "
+                "The Commercial Linkage Fees adopted in Chapter 5.11."
+            ),
+        )
+    )
+    assert match is not None
+    assert match["MatterId"] == 7526
+
+
+def test_structured_enricher_uses_matter_candidate_before_latest_event(monkeypatch: Any) -> None:
+    enricher = StructuredSourceEnricher(tavily_api_key="")
+    calls = {"event": 0}
+
+    async def _fake_matter(
+        *,
+        client: Any,
+        selected_url: str,
+        search_query: str,
+        selected_candidate_context: str,
+    ) -> dict[str, Any]:
+        _ = (client, selected_url, search_query, selected_candidate_context)
+        return {
+            "source_lane": "structured",
+            "provider": "legistar_web_api",
+            "source_family": "legistar_web_api",
+            "access_method": "public_api_json",
+            "jurisdiction": "san_jose_ca",
+            "artifact_url": "https://sanjoseca.legistar.com/LegislationDetail.aspx?ID=7526",
+            "artifact_type": "matter_metadata",
+            "source_tier": "tier_b",
+            "retrieved_at": "2026-04-16T00:00:00+00:00",
+            "query_text": "commercial linkage impact fee",
+            "excerpt": "Matter metadata",
+            "structured_policy_facts": [{"field": "matter_attachment_count", "value": 1.0, "unit": "count"}],
+            "provider_run_id": "7526",
+            "true_structured": True,
+        }
+
+    async def _fake_legistar_event(*, client: Any) -> dict[str, Any]:
+        _ = client
+        calls["event"] += 1
+        return {
+            "source_lane": "structured",
+            "provider": "legistar_web_api",
+            "source_family": "legistar_web_api",
+            "artifact_url": "https://webapi.legistar.com/v1/sanjose/Events/13001",
+            "artifact_type": "meeting_metadata",
+            "structured_policy_facts": [{"field": "event_attachment_hint_count", "value": 0.0, "unit": "count"}],
+            "true_structured": True,
+        }
+
+    async def _fake_ckan(*, client: Any, search_query: str, selected_url: str) -> None:
+        _ = (client, search_query, selected_url)
+        return None
+
+    monkeypatch.setattr(enricher, "_fetch_legistar_matter_metadata", _fake_matter)
+    monkeypatch.setattr(enricher, "_fetch_legistar_event_metadata", _fake_legistar_event)
+    monkeypatch.setattr(enricher, "_fetch_san_jose_ckan_metadata", _fake_ckan)
+
+    result = asyncio.run(
+        enricher.enrich(
+            jurisdiction="San Jose CA",
+            source_family="meeting_minutes",
+            search_query="commercial linkage impact fee",
+            selected_url="https://sanjose.legistar.com/View.ashx?M=F&ID=8758120",
+            selected_candidate_context="Council Policy Priority # 5: Commercial Linkage Impact Fee",
+        )
+    )
+    assert result.status == "integrated"
+    assert calls["event"] == 0
 
 
 def test_ckan_metadata_uses_only_economic_datasets_with_urls() -> None:

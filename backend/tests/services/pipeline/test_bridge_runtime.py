@@ -242,6 +242,7 @@ class FakeStructuredEnricher:
         self.candidates = list(candidates or [])
         self.alerts = list(alerts or [])
         self.source_catalog = list(source_catalog or [])
+        self.last_call: dict[str, Any] | None = None
 
     async def enrich(
         self,
@@ -250,14 +251,38 @@ class FakeStructuredEnricher:
         source_family: str,
         search_query: str,
         selected_url: str,
+        selected_candidate_context: str = "",
     ) -> StructuredEnrichmentResult:
-        _ = (jurisdiction, source_family, search_query, selected_url)
+        self.last_call = {
+            "jurisdiction": jurisdiction,
+            "source_family": source_family,
+            "search_query": search_query,
+            "selected_url": selected_url,
+            "selected_candidate_context": selected_candidate_context,
+        }
         return StructuredEnrichmentResult(
             status=self.status,
             candidates=self.candidates,
             alerts=self.alerts,
             source_catalog=self.source_catalog,
         )
+
+
+def test_runtime_bridge_builds_structured_candidate_context_from_ranked_candidates() -> None:
+    context = RailwayRuntimeBridge._structured_candidate_context(
+        search_query="san jose commercial linkage fee policy",
+        selected_url="https://sanjose.legistar.com/View.ashx?M=F&ID=8758120",
+        ranked_candidates=[
+            {
+                "url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120",
+                "title": "Council Policy Priority # 5: Commercial Linkage Impact Fee",
+                "snippet": "Matter 20-969 on September 1, 2020",
+            }
+        ],
+    )
+    assert "commercial linkage fee policy" in context
+    assert "Council Policy Priority # 5: Commercial Linkage Impact Fee" in context
+    assert "Matter 20-969 on September 1, 2020" in context
 
 
 class JsonStringFakeDB(FakeDB):
@@ -1248,6 +1273,27 @@ def test_runtime_bridge_records_lineage_negative_evidence_and_reconciliation_pol
     assert reconciliation["source_of_truth_policy"] == "primary_artifact_precedence_then_labeled_secondary"
     assert reconciliation["secondary_override_blocked"] is True
     assert any(record["status"] == "source_of_truth_selected" for record in reconciliation["records"])
+
+
+def test_runtime_bridge_reconciliation_ignores_structured_diagnostic_counts() -> None:
+    facts = RailwayRuntimeBridge._collect_secondary_numeric_facts(
+        [
+            {
+                "source_family": "legistar_web_api",
+                "artifact_url": "https://sanjose.legistar.com/MeetingDetail.aspx?LEGID=7927",
+                "structured_policy_facts": [
+                    {"field": "event_attachment_hint_count", "value": 0.0, "unit": "count"},
+                    {
+                        "field": "commercial_linkage_fee_rate_usd_per_sqft",
+                        "value": 3.0,
+                        "unit": "usd_per_square_foot",
+                    },
+                ],
+            }
+        ]
+    )
+
+    assert [item["field"] for item in facts] == ["commercial_linkage_fee_rate_usd_per_sqft"]
 
 
 def test_runtime_bridge_detects_source_shape_drift() -> None:

@@ -1026,6 +1026,21 @@ def _derive_manual_audit_notes(
                 analysis = {}
 
     analysis_excerpt = str(analysis.get("summary") or analysis.get("answer") or "")[:700]
+    key_points = analysis.get("key_points")
+    key_point_text = " ".join(str(item) for item in key_points if isinstance(item, str)) if isinstance(key_points, list) else ""
+    substantive_analysis_text = f"{analysis_excerpt} {key_point_text}".lower()
+    has_substantive_policy_analysis = any(
+        signal in substantive_analysis_text
+        for signal in (
+            "commercial linkage fee",
+            "per sq. ft",
+            "per square foot",
+            "resolution",
+            "ordinance",
+            "fee schedule",
+            "gross square footage",
+        )
+    )
     sufficiency_state = str(analysis.get("sufficiency_state") or "").lower()
     insufficient = sufficiency_state == "insufficient" or "does not contain" in analysis_excerpt.lower()
     quality_blocked = _is_reader_quality_block(result_payload)
@@ -1040,13 +1055,22 @@ def _derive_manual_audit_notes(
         )
         manual_verdict = "PASS_READER_QUALITY_GATE_BLOCKED_NAV_OUTPUT"
     elif insufficient:
-        reader_quality_note = (
-            "Z.ai reader executed and persisted output, but the selected San Jose source resolved to navigation/menu content rather than actual meeting minutes."
-        )
-        llm_quality_note = (
-            "Z.ai analysis correctly refused to infer housing signals from insufficient evidence; product mechanics passed, discovery/source targeting did not."
-        )
-        manual_verdict = "PASS_MECHANICS_FAIL_DISCOVERY_QUALITY"
+        if has_substantive_policy_analysis:
+            reader_quality_note = (
+                "Reader output was persisted and contained substantive policy text; the analysis remained insufficient for final economic decision-grade output."
+            )
+            llm_quality_note = (
+                "LLM analysis extracted policy facts but fail-closed because the package did not satisfy all economic handoff gates."
+            )
+            manual_verdict = "PASS_DATA_EXTRACTION_FAIL_ECONOMIC_HANDOFF"
+        else:
+            reader_quality_note = (
+                "Z.ai reader executed and persisted output, but the selected San Jose source did not contain enough substantive policy content for the requested analysis."
+            )
+            llm_quality_note = (
+                "Z.ai analysis correctly refused to infer housing signals from insufficient evidence; product mechanics passed, discovery/source targeting did not."
+            )
+            manual_verdict = "PASS_MECHANICS_FAIL_DISCOVERY_QUALITY"
     elif analysis_excerpt:
         reader_quality_note = "Reader output was persisted and provided to analysis."
         llm_quality_note = "LLM analysis produced a substantive answer from persisted evidence."
