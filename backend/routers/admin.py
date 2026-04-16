@@ -438,10 +438,19 @@ def _coerce_policy_package_runtime_matrix(
     )
     analysis_payload = _json_payload(run_result.get("analysis"))
     analysis_step_executed = bool(analysis_payload)
+    proof_step_matches_projection = (
+        bool(llm_narrative_proof)
+        and _to_text(llm_narrative_proof.get("canonical_pipeline_step_id")) == canonical_step_id
+    )
+    proof_observed_analysis = (
+        proof_step_matches_projection
+        or bool(llm_narrative_proof.get("analysis_step_executed"))
+        or bool(llm_narrative_proof.get("analysis_payload_present"))
+    )
     projection_matches_route = bool(
         canonical_run_id
         and canonical_step_id
-        and analysis_step_executed
+        and (analysis_step_executed or proof_observed_analysis)
         and canonical_run_id == context_backend_run_id
     )
     if not llm_narrative_proof:

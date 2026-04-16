@@ -53,3 +53,19 @@ Deploy this patch and refetch the same stored package again. Expected result:
 - economic output: still `not_proven`
 
 Then run a new live package so Cycle 22 source-quality metrics are actually persisted into a fresh package.
+
+## Follow-Up Finding
+
+The first deployed retry still returned `not_proven`. The stored live run did not expose `analysis` in the top-level shape used by the fallback check, but it did expose matching canonical run/step ids in the older proof block.
+
+The read model now accepts either:
+
+- current top-level analysis payload, or
+- older proof block with a canonical step id matching the package projection.
+
+This keeps the binding rule strict to package/run identity while allowing legacy persisted run shapes to be re-evaluated by the newer read model.
+
+Additional validation:
+
+- `poetry run pytest tests/routers/test_admin_pipeline_read_model.py -q` -> 11 passed
+- `poetry run ruff check routers/admin.py tests/routers/test_admin_pipeline_read_model.py` -> passed
