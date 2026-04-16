@@ -2,7 +2,7 @@
 
 - feature_key: `bd-3wefe.13`
 - report_version: `2026-04-15.policy-evidence-quality-spine-economics.v1`
-- generated_at: `2026-04-15T18:56:05.883214+00:00`
+- generated_at: `2026-04-16T00:10:33.820984+00:00`
 - matrix_mode: `agent_a_horizontal_matrix`
 - matrix_path: `docs/poc/policy-evidence-quality-spine/artifacts/horizontal_matrix.json`
 - overall_verdict: `partial`

@@ -7,6 +7,10 @@ from services.glass_box import GlassBoxService, AgentStep, PipelineStep
 from auth.clerk import require_admin_user
 from db.postgres_client import PostgresDB
 from services.pipeline.domain.constants import CONTRACT_VERSION
+from services.pipeline.policy_evidence_quality_spine_economics import (
+    MatrixInput,
+    PolicyEvidenceQualitySpineEconomicsService,
+)
 from scripts.substrate.substrate_inspection_report import (
     build_substrate_inspection_report,
     fetch_raw_scrapes_for_run,
@@ -320,6 +324,33 @@ def _build_windmill_run_url(windmill_run_id: Optional[str]) -> Optional[str]:
 
 def _json_payload(value: Any) -> dict[str, Any]:
     return _to_json_dict(value)
+
+
+def _coerce_quality_spine_matrix_payload(result: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(result, dict):
+        return {}
+
+    if any(key in result for key in ("artifact_rows", "rows", "agent_a_runtime_evidence")):
+        return result
+
+    runtime = result.get("agent_a_runtime_evidence")
+    if isinstance(runtime, dict):
+        return {"agent_a_runtime_evidence": runtime}
+
+    vertical = result.get("vertical_package_payload")
+    if not isinstance(vertical, dict):
+        vertical = result.get("policy_evidence_package")
+    if isinstance(vertical, dict):
+        return {
+            "agent_a_runtime_evidence": {
+                "vertical_package_payload": vertical,
+                "orchestration_proof": result.get("orchestration_proof", {}),
+                "llm_narrative_proof": result.get("llm_narrative_proof", {}),
+                "storage_proof": result.get("storage_proof", {}),
+            },
+            "rows": result.get("rows", []) if isinstance(result.get("rows"), list) else [],
+        }
+    return {}
 
 
 # ============================================================================
@@ -1427,6 +1458,87 @@ async def get_pipeline_run_evidence(
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to fetch pipeline run evidence: {str(e)}"
+        )
+
+
+@router.get("/pipeline/policy-evidence/packages/{package_id}/analysis-status")
+async def get_policy_evidence_analysis_status(
+    package_id: str,
+    run_id: Optional[str] = None,
+    source_family: str = DEFAULT_SOURCE_FAMILY,
+    service: GlassBoxService = Depends(get_glass_box_service),
+):
+    """Backend-authored policy evidence + economic readiness read model for admin/frontend."""
+    try:
+        if run_id:
+            run = await service.get_pipeline_run(run_id)
+            if not run:
+                raise HTTPException(status_code=404, detail="Pipeline run not found")
+        else:
+            run = None
+            recent_runs = await service.list_pipeline_runs(limit=50)
+            for candidate in recent_runs:
+                candidate_result = _json_payload(candidate.get("result"))
+                candidate_matrix = _coerce_quality_spine_matrix_payload(candidate_result)
+                if not candidate_matrix:
+                    continue
+                try:
+                    PolicyEvidenceQualitySpineEconomicsService().evaluate(
+                        matrix_input=MatrixInput(
+                            payload=candidate_matrix,
+                            source_path="pipeline_runs.result",
+                            source_mode="pipeline_run_result",
+                        ),
+                        preferred_package_id=package_id,
+                    )
+                    run = candidate
+                    break
+                except ValueError:
+                    continue
+
+        if not run:
+            raise HTTPException(
+                status_code=404,
+                detail="No pipeline run contains the requested policy evidence package",
+            )
+
+        run_result = _json_payload(run.get("result"))
+        matrix_payload = _coerce_quality_spine_matrix_payload(run_result)
+        if not matrix_payload:
+            raise HTTPException(
+                status_code=404,
+                detail="Pipeline run does not include policy evidence package payload",
+            )
+
+        normalized_source_family = _normalize_source_family(source_family)
+        read_model = PolicyEvidenceQualitySpineEconomicsService().build_endpoint_read_model(
+            matrix_input=MatrixInput(
+                payload=matrix_payload,
+                source_path="pipeline_runs.result",
+                source_mode="pipeline_run_result",
+            ),
+            package_id=package_id,
+            source_family=normalized_source_family,
+            run_context={
+                "run_id": _to_text(run.get("id")) or None,
+                "status": _to_text(run.get("status")) or None,
+                "windmill_run_id": _to_text(run.get("windmill_run_id")) or None,
+                "started_at": _to_text(run.get("started_at")) or None,
+                "completed_at": _to_text(run.get("completed_at")) or None,
+            },
+        )
+        return {
+            "contract_version": CONTRACT_VERSION,
+            **read_model,
+        }
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch policy evidence analysis status: {str(e)}",
         )
 
 

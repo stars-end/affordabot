@@ -3,7 +3,7 @@
 - feature_key: `bd-2agbe.6`
 - probe_version: `2026-04-14.live-reader-probe-v1`
 - mode: `live`
-- generated_at: `2026-04-14T07:59:46.681713+00:00`
+- generated_at: `2026-04-15T23:54:32.635103+00:00`
 
 ## Summary
 

@@ -1,0 +1,66 @@
+{
+  "feature_key": "bd-3wefe.13",
+  "generated_at": "2026-04-16T00:01:40.305038+00:00",
+  "run_kind": "windmill_domain_boundary_backend_endpoint",
+  "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+  "windmill_job_id": "019d9392-ba95-36e9-a230-cd8042a79445",
+  "idempotency_key": "bd-3wefe.13-live-domain-backend-2026-04-15-r1",
+  "backend_run_id": "a3e9cdf7-e93a-4779-971d-eae752d94c6a",
+  "jurisdiction": "San Jose CA",
+  "source_family": "meeting_minutes",
+  "search_query": "San Jose CA city council meeting minutes housing development cost residential development",
+  "analysis_question": "What housing development cost signals appear in recent San Jose meeting materials, and are they sufficient for quantitative cost-of-living analysis?",
+  "status": "succeeded_with_alerts",
+  "storage_mode": "railway_runtime",
+  "search_provider": "private_searxng",
+  "steps": {
+    "search_materialize": {
+      "status": "succeeded",
+      "decision_reason": "fresh_snapshot_materialized",
+      "search_results": 10,
+      "search_snapshot_id": "5670afd2-1409-4521-a458-9cba05eeb84c"
+    },
+    "freshness_gate": {
+      "status": "succeeded",
+      "decision_reason": "fresh"
+    },
+    "read_fetch": {
+      "status": "succeeded_with_alerts",
+      "decision_reason": "raw_scrapes_materialized_with_reader_alerts",
+      "raw_scrapes": 1,
+      "artifacts": 1,
+      "artifact_refs": [
+        "artifacts/2026-04-13.windmill-domain.v1/San Jose CA/meeting_minutes/reader_output/047918c143ac71c7d5e693a90cf466cba97aa048878a98f477684cef5b04acf0.md"
+      ],
+      "quality_warning": "Top artifact-grade candidates failed through Z.ai reader with provider 500s; pipeline fell back to a YouTube transcript candidate."
+    },
+    "index": {
+      "status": "succeeded",
+      "decision_reason": "chunks_indexed",
+      "chunks": 3382,
+      "embedding_provider": "openrouter:qwen/qwen3-embedding-8b"
+    },
+    "analyze": {
+      "status": "succeeded",
+      "decision_reason": "analysis_completed",
+      "analysis_id": "7c804de5-70b2-5970-aa16-910f498b6c0f",
+      "evidence_chunks": 20,
+      "llm_sufficiency_state": "Insufficient",
+      "summary": "The LLM correctly reported that the selected transcript excerpt mentions housing development cost topics but does not expose enough numeric cost parameters for quantitative cost-of-living analysis."
+    },
+    "summarize_run": {
+      "status": "succeeded_with_alerts",
+      "decision_reason": "run_summary_materialized"
+    }
+  },
+  "proof_assessment": {
+    "windmill_orchestration": "pass",
+    "private_searxng_search": "pass",
+    "minio_write": "pass",
+    "pgvector_chunk_index": "pass",
+    "zai_llm_analysis": "pass",
+    "zai_reader_artifact_quality": "not_proven",
+    "decision_grade_economic_output": "not_proven",
+    "storage_readback": "not_proven"
+  }
+}

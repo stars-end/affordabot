@@ -102,6 +102,8 @@ def _write_readme(path: Path, *, scorecard: dict[str, Any]) -> None:
         "- `artifacts/quality_spine_scorecard.json`",
         "- `artifacts/quality_spine_report.md`",
         "- `artifacts/retry_ledger.json`",
+        "- `artifacts/quality_spine_eval_cycles_report.json`",
+        "- `artifacts/quality_spine_eval_cycles_report.md`",
         "- `artifacts/quality_spine_gap_audit.md`",
         f"- `artifacts/{LIVE_STORAGE_PROBE_FILENAME}`",
         "",
@@ -131,6 +133,9 @@ def _write_readme(path: Path, *, scorecard: dict[str, Any]) -> None:
         "turns the next step into a runtime configuration gate, not another local fixture",
         "change.",
         "",
+        "The eval-cycle harness supports up to 10 deterministic cycles and keeps",
+        "local deterministic proof separate from live-product proof categories.",
+        "",
         "## Matrix source",
         "",
         f"- mode: `{scorecard['matrix_source']['mode']}`",
@@ -141,8 +146,10 @@ def _write_readme(path: Path, *, scorecard: dict[str, Any]) -> None:
         "",
         "```bash",
         "cd backend",
-        "poetry run pytest tests/services/pipeline/test_policy_evidence_quality_spine_economics.py",
-        "poetry run python scripts/verification/verify_policy_evidence_quality_spine_economics.py",
+        "poetry run pytest tests/services/pipeline/test_policy_evidence_quality_spine_economics.py "
+        "tests/services/pipeline/test_policy_evidence_quality_spine_eval_cycles.py",
+        "poetry run python scripts/verification/verify_policy_evidence_quality_spine_economics.py --max-cycles 10",
+        "poetry run python scripts/verification/verify_policy_evidence_quality_spine_eval_cycles.py --max-cycles 10",
         "```",
     ]
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -153,36 +160,50 @@ def _merge_live_storage_probe(
     retry_ledger: dict[str, Any], *, live_storage_probe_path: Path
 ) -> dict[str, Any]:
     probe = _load_json(live_storage_probe_path)
-    if not isinstance(probe, dict) or probe.get("attempt_id") != "bd-3wefe.13-retry-4":
+    if not isinstance(probe, dict):
         return retry_ledger
+    attempt_id = str(probe.get("attempt_id") or "")
+    if not attempt_id.startswith("bd-3wefe.13-retry-"):
+        return retry_ledger
+    retry_index = attempt_id.rsplit("-", maxsplit=1)[-1]
+    retry_attempt_id = f"retry_{retry_index}"
 
     attempts = retry_ledger.get("attempts")
     if not isinstance(attempts, list):
         return retry_ledger
 
-    probe_status = str(probe.get("status") or "blocked")
+    probe_status = str(probe.get("status") or "not_proven")
     blocker = str(probe.get("blocker") or "unknown")
-    retry_4 = {
-        "attempt_id": "retry_4",
-        "status": "completed" if probe_status == "passed" else "blocked",
+    is_passed = probe_status == "passed"
+    retry_attempt = {
+        "attempt_id": retry_attempt_id,
+        "status": "completed" if is_passed else "blocked",
         "result_verdict": "partial",
         "failed_categories": [],
         "not_proven_categories": ["storage/read-back", "Windmill/orchestration", "LLM narrative"],
         "tweaks_applied": ["railway_dev_current_run_storage_probe"],
         "result_note": (
             "Railway-dev storage probe passed; scorecard still requires regenerated runtime proof linkage."
-            if probe_status == "passed"
+            if is_passed
             else f"Railway-dev storage probe blocked at {blocker}; see {LIVE_STORAGE_PROBE_FILENAME}."
         ),
         "score_delta": None,
     }
 
     merged = dict(retry_ledger)
-    merged["attempts"] = [
-        retry_4 if item.get("attempt_id") == "retry_4" else item
-        for item in attempts
-        if isinstance(item, dict)
-    ]
+    saw_attempt = False
+    merged_attempts = []
+    for item in attempts:
+        if not isinstance(item, dict):
+            continue
+        if item.get("attempt_id") == retry_attempt_id:
+            merged_attempts.append(retry_attempt)
+            saw_attempt = True
+        else:
+            merged_attempts.append(item)
+    if not saw_attempt:
+        merged_attempts.append(retry_attempt)
+    merged["attempts"] = merged_attempts
     return merged
 
 
@@ -192,6 +213,7 @@ def run(
     runtime_path: Path,
     out_dir: Path,
     readme_path: Path,
+    max_cycles: int,
 ) -> dict[str, Any]:
     matrix_payload, matrix_mode = _load_matrix(matrix_path, runtime_path)
     service = PolicyEvidenceQualitySpineEconomicsService()
@@ -200,7 +222,8 @@ def run(
             payload=matrix_payload,
             source_path=_repo_relative(matrix_path),
             source_mode=matrix_mode,
-        )
+        ),
+        max_cycles=max_cycles,
     )
 
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -255,6 +278,12 @@ def _parse_args() -> argparse.Namespace:
         default=DEFAULT_README_PATH,
         help="README output path for the quality-spine lane.",
     )
+    parser.add_argument(
+        "--max-cycles",
+        type=int,
+        default=10,
+        help="Maximum deterministic eval cycles to encode in retry ledger (1..10).",
+    )
     return parser.parse_args()
 
 
@@ -265,6 +294,7 @@ def main() -> int:
         runtime_path=args.runtime,
         out_dir=args.out_dir,
         readme_path=args.readme,
+        max_cycles=args.max_cycles,
     )
     scorecard = evaluation["scorecard"]
     failures = scorecard["failure_classification"]["failed_categories"]

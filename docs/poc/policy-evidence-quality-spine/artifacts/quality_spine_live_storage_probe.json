@@ -1,12 +1,27 @@
 {
-  "attempt_id": "bd-3wefe.13-retry-4",
-  "blocker": "minio_write_or_readback_failed",
-  "error_class": "S3Error",
-  "error_summary": "S3 operation failed; code: AccessDenied; bucket_name: affordabot-artifacts; request identifiers redacted",
+  "attempt_id": "bd-3wefe.13-retry-5",
+  "blocker": "minio_readback_not_probed",
+  "error_class": null,
+  "error_summary": "Previous MinIO AccessDenied was resolved for the live Windmill product path. The live run uploaded a reader artifact to MinIO, but this artifact has not yet been independently read back and matched to the package/read-model contract.",
   "feature_key": "bd-3wefe.13",
-  "generated_at": "2026-04-15T18:54:01.458859+00:00",
+  "generated_at": "2026-04-16T00:01:40.305038+00:00",
   "package_id": "pkg-sj-parking-minimum-amendment",
-  "probe_mode": "railway_ssh_backend_dev",
+  "probe_mode": "windmill_domain_boundary_backend_endpoint",
   "secrets_redacted": true,
-  "status": "blocked"
+  "status": "not_proven",
+  "windmill_run_id": "bd-3wefe.13-live-domain-backend-2026-04-15-r1",
+  "windmill_job_id": "019d9392-ba95-36e9-a230-cd8042a79445",
+  "backend_run_id": "a3e9cdf7-e93a-4779-971d-eae752d94c6a",
+  "storage_write_proven": true,
+  "storage_readback_proven": false,
+  "artifact_refs": [
+    "artifacts/2026-04-13.windmill-domain.v1/San Jose CA/meeting_minutes/reader_output/047918c143ac71c7d5e693a90cf466cba97aa048878a98f477684cef5b04acf0.md"
+  ],
+  "counts": {
+    "raw_scrapes": 1,
+    "artifacts": 1,
+    "chunks": 3382,
+    "analyses": 1,
+    "evidence_chunks": 20
+  }
 }

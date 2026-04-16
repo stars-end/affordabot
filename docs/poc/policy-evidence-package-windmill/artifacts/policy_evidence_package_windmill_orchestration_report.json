@@ -1,4 +1,10 @@
 {
+  "authoritative_live_evidence": {
+    "flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+    "idempotency_key": "bd-3wefe.13-live-domain-backend-2026-04-15-r1",
+    "status": "succeeded_with_alerts",
+    "warning": "top z.ai reader candidates returned provider 500; fallback transcript materialized; sufficiency_state=Insufficient"
+  },
   "backend_endpoint_local_path": {
     "command_client": "backend_endpoint",
     "command_names_seen": [
@@ -14,42 +20,42 @@
     "events": [
       {
         "command_name": "fetch_scraped_candidates",
-        "idempotency_key": "run:bd-3wefe.12:local-backend-endpoint",
+        "idempotency_key": "run:bd-3wefe.13:local-backend-endpoint",
         "jurisdiction": "San Jose CA",
         "query_family": "meeting_minutes",
         "status": "succeeded"
       },
       {
         "command_name": "fetch_structured_candidates",
-        "idempotency_key": "run:bd-3wefe.12:local-backend-endpoint",
+        "idempotency_key": "run:bd-3wefe.13:local-backend-endpoint",
         "jurisdiction": "San Jose CA",
         "query_family": "meeting_minutes",
         "status": "succeeded"
       },
       {
         "command_name": "build_policy_evidence_package",
-        "idempotency_key": "run:bd-3wefe.12:local-backend-endpoint",
+        "idempotency_key": "run:bd-3wefe.13:local-backend-endpoint",
         "jurisdiction": "San Jose CA",
         "query_family": "meeting_minutes",
         "status": "succeeded"
       },
       {
         "command_name": "persist_readback_boundary",
-        "idempotency_key": "run:bd-3wefe.12:local-backend-endpoint",
+        "idempotency_key": "run:bd-3wefe.13:local-backend-endpoint",
         "jurisdiction": "San Jose CA",
         "query_family": "meeting_minutes",
         "status": "succeeded"
       },
       {
         "command_name": "evaluate_package_readiness",
-        "idempotency_key": "run:bd-3wefe.12:local-backend-endpoint",
+        "idempotency_key": "run:bd-3wefe.13:local-backend-endpoint",
         "jurisdiction": "San Jose CA",
         "query_family": "meeting_minutes",
         "status": "succeeded"
       },
       {
         "command_name": "summarize_orchestration",
-        "idempotency_key": "run:bd-3wefe.12:local-backend-endpoint",
+        "idempotency_key": "run:bd-3wefe.13:local-backend-endpoint",
         "jurisdiction": "San Jose CA",
         "query_family": "meeting_minutes",
         "status": "succeeded"
@@ -66,9 +72,20 @@
     "package_id_storage_refs_gate_status_preserved",
     "branch_on_backend_authored_readiness_only"
   ],
-  "feature_key": "bd-3wefe.12",
+  "contract_alignment": {
+    "authoritative_live_evidence_idempotency_key": "bd-3wefe.13-live-domain-backend-2026-04-15-r1",
+    "authoritative_live_evidence_status": "succeeded_with_alerts",
+    "authoritative_live_evidence_warning": "top z.ai reader candidates returned provider 500; fallback transcript materialized; sufficiency_state=Insufficient",
+    "authoritative_live_product_flow": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+    "domain_boundary_backend_path": "/cron/pipeline/domain/run-scope",
+    "domain_boundary_backend_route_present": true,
+    "policy_evidence_backend_path": "/cron/pipeline/policy-evidence/command",
+    "policy_evidence_backend_route_present": false,
+    "route_mismatch": true
+  },
+  "feature_key": "bd-3wefe.13",
   "generated_at": "2026-04-15T00:00:00+00:00",
-  "live_status": "passed_stub_flow_run",
+  "live_status": "blocked_backend_endpoint_route_mismatch",
   "live_surface_probe": {
     "blocker": null,
     "commands": [
@@ -93,11 +110,13 @@
   "local_status": "passed",
   "local_stub_status": "passed",
   "open_gaps": [
-    "run Windmill dev flow with backend_endpoint against deployed backend command endpoint",
+    "policy-evidence stub flow pass is not authoritative for full live product proof",
+    "route mismatch: policy-evidence backend endpoint path is not a live backend route",
+    "treat latest domain-boundary live run as proof-with-warning, not clean data-quality pass",
     "run storage verifier in Railway dev with DATABASE_URL and MinIO env available",
     "connect resulting package to canonical analysis output and admin/frontend read model"
   ],
-  "report_version": "2026-04-15.policy-evidence-package-windmill.v2",
+  "report_version": "2026-04-15.policy-evidence-package-windmill.v3",
   "steps_proven": [
     "fetch_scraped_candidates",
     "fetch_structured_candidates",

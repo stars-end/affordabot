@@ -1,6 +1,6 @@
 {
   "feature_key": "bd-3wefe.13",
-  "max_retry_rounds": 5,
+  "max_retry_rounds": 10,
   "attempts": [
     {
       "attempt_id": "baseline",
@@ -68,6 +68,20 @@
     },
     {
       "attempt_id": "retry_4",
+      "status": "not_executed",
+      "result_verdict": null,
+      "failed_categories": [],
+      "not_proven_categories": [],
+      "tweaks_applied": [
+        "Repair MinIO probe/readback and content-hash linkage.",
+        "Capture windmill job/run identifiers in matrix artifact.",
+        "Run canonical analysis narrative step and record run ids."
+      ],
+      "result_note": null,
+      "score_delta": null
+    },
+    {
+      "attempt_id": "retry_5",
       "status": "blocked",
       "result_verdict": "partial",
       "failed_categories": [],
@@ -79,11 +93,53 @@
       "tweaks_applied": [
         "railway_dev_current_run_storage_probe"
       ],
-      "result_note": "Railway-dev storage probe blocked at minio_write_or_readback_failed; see quality_spine_live_storage_probe.json.",
+      "result_note": "Railway-dev storage probe blocked at minio_readback_not_probed; see quality_spine_live_storage_probe.json.",
       "score_delta": null
     },
     {
-      "attempt_id": "retry_5",
+      "attempt_id": "retry_6",
+      "status": "not_executed",
+      "result_verdict": null,
+      "failed_categories": [],
+      "not_proven_categories": [],
+      "tweaks_applied": [
+        "Repair MinIO probe/readback and content-hash linkage.",
+        "Capture windmill job/run identifiers in matrix artifact.",
+        "Run canonical analysis narrative step and record run ids."
+      ],
+      "result_note": null,
+      "score_delta": null
+    },
+    {
+      "attempt_id": "retry_7",
+      "status": "not_executed",
+      "result_verdict": null,
+      "failed_categories": [],
+      "not_proven_categories": [],
+      "tweaks_applied": [
+        "Repair MinIO probe/readback and content-hash linkage.",
+        "Capture windmill job/run identifiers in matrix artifact.",
+        "Run canonical analysis narrative step and record run ids."
+      ],
+      "result_note": null,
+      "score_delta": null
+    },
+    {
+      "attempt_id": "retry_8",
+      "status": "not_executed",
+      "result_verdict": null,
+      "failed_categories": [],
+      "not_proven_categories": [],
+      "tweaks_applied": [
+        "Repair MinIO probe/readback and content-hash linkage.",
+        "Capture windmill job/run identifiers in matrix artifact.",
+        "Run canonical analysis narrative step and record run ids."
+      ],
+      "result_note": null,
+      "score_delta": null
+    },
+    {
+      "attempt_id": "retry_9",
       "status": "not_executed",
       "result_verdict": null,
       "failed_categories": [],

@@ -55,6 +55,14 @@ FLOW_PATH = (
     / "flow.yaml"
 )
 VERIFY_TS = "2026-04-15T00:00:00+00:00"
+POLICY_EVIDENCE_BACKEND_COMMAND_PATH = "/cron/pipeline/policy-evidence/command"
+DOMAIN_BOUNDARY_BACKEND_COMMAND_PATH = "/cron/pipeline/domain/run-scope"
+AUTHORITATIVE_LIVE_PROOF_FLOW = "f/affordabot/pipeline_daily_refresh_domain_boundary__flow"
+DOMAIN_BOUNDARY_LIVE_EVIDENCE_IDEMPOTENCY_KEY = "bd-3wefe.13-live-domain-backend-2026-04-15-r1"
+DOMAIN_BOUNDARY_LIVE_EVIDENCE_STATUS = "succeeded_with_alerts"
+DOMAIN_BOUNDARY_LIVE_EVIDENCE_WARNING = (
+    "top z.ai reader candidates returned provider 500; fallback transcript materialized; sufficiency_state=Insufficient"
+)
 
 
 def _hash(text: str) -> str:
@@ -73,6 +81,24 @@ def _extract_last_json_object(text: str) -> dict[str, Any]:
         if isinstance(parsed, dict):
             return parsed
     return {}
+
+
+def _backend_route_contract_snapshot() -> dict[str, Any]:
+    backend_main = (BACKEND_ROOT / "main.py").read_text(encoding="utf-8")
+    policy_route_present = f'@app.post("{POLICY_EVIDENCE_BACKEND_COMMAND_PATH}")' in backend_main
+    domain_route_present = f'@app.post("{DOMAIN_BOUNDARY_BACKEND_COMMAND_PATH}")' in backend_main
+    route_mismatch = (not policy_route_present) and domain_route_present
+    return {
+        "policy_evidence_backend_path": POLICY_EVIDENCE_BACKEND_COMMAND_PATH,
+        "domain_boundary_backend_path": DOMAIN_BOUNDARY_BACKEND_COMMAND_PATH,
+        "policy_evidence_backend_route_present": policy_route_present,
+        "domain_boundary_backend_route_present": domain_route_present,
+        "route_mismatch": route_mismatch,
+        "authoritative_live_product_flow": AUTHORITATIVE_LIVE_PROOF_FLOW,
+        "authoritative_live_evidence_idempotency_key": DOMAIN_BOUNDARY_LIVE_EVIDENCE_IDEMPOTENCY_KEY,
+        "authoritative_live_evidence_status": DOMAIN_BOUNDARY_LIVE_EVIDENCE_STATUS,
+        "authoritative_live_evidence_warning": DOMAIN_BOUNDARY_LIVE_EVIDENCE_WARNING,
+    }
 
 
 def _load_module():
@@ -229,7 +255,7 @@ def _local_backend_command_endpoint(auth_token: str):
 def _run_local(module: Any) -> dict[str, Any]:
     stub_happy = module.main(
         step="run_scope_pipeline",
-        idempotency_key="run:bd-3wefe.12:local-happy",
+        idempotency_key="run:bd-3wefe.13:local-happy",
         windmill_run_id="wm-local-policy-happy",
         windmill_job_id="wm-local-job-happy",
         jurisdiction="San Jose CA",
@@ -240,7 +266,7 @@ def _run_local(module: Any) -> dict[str, Any]:
     )
     stub_blocked = module.main(
         step="run_scope_pipeline",
-        idempotency_key="run:bd-3wefe.12:local-blocked",
+        idempotency_key="run:bd-3wefe.13:local-blocked",
         windmill_run_id="wm-local-policy-blocked",
         windmill_job_id="wm-local-job-blocked",
         jurisdiction="San Jose CA",
@@ -253,7 +279,7 @@ def _run_local(module: Any) -> dict[str, Any]:
     with _local_backend_command_endpoint(auth_token) as (endpoint_url, state):
         backend_endpoint_happy = module.main(
             step="run_scope_pipeline",
-            idempotency_key="run:bd-3wefe.12:local-backend-endpoint",
+            idempotency_key="run:bd-3wefe.13:local-backend-endpoint",
             windmill_run_id="wm-local-policy-backend-endpoint",
             windmill_job_id="wm-local-job-backend-endpoint",
             jurisdiction="San Jose CA",
@@ -341,16 +367,28 @@ def _build_report(local: dict[str, Any], live: dict[str, Any]) -> dict[str, Any]
     local_backend_endpoint_status = (
         "passed" if backend_endpoint_happy.get("status") == "succeeded" and bool(backend_endpoint_events) else "failed"
     )
+    contract_snapshot = _backend_route_contract_snapshot()
+    if contract_snapshot["route_mismatch"]:
+        live_status = "blocked_backend_endpoint_route_mismatch"
+    else:
+        live_status = live["live_status"]
     return {
-        "feature_key": "bd-3wefe.12",
+        "feature_key": "bd-3wefe.13",
         "generated_at": VERIFY_TS,
-        "report_version": "2026-04-15.policy-evidence-package-windmill.v2",
+        "report_version": "2026-04-15.policy-evidence-package-windmill.v3",
         "local_status": "passed"
         if local_stub_status == "passed" and local_backend_endpoint_status == "passed"
         else "failed",
         "local_stub_status": local_stub_status,
         "local_backend_endpoint_status": local_backend_endpoint_status,
-        "live_status": live["live_status"],
+        "live_status": live_status,
+        "contract_alignment": contract_snapshot,
+        "authoritative_live_evidence": {
+            "flow_path": contract_snapshot["authoritative_live_product_flow"],
+            "idempotency_key": contract_snapshot["authoritative_live_evidence_idempotency_key"],
+            "status": contract_snapshot["authoritative_live_evidence_status"],
+            "warning": contract_snapshot["authoritative_live_evidence_warning"],
+        },
         "steps_proven": [
             "fetch_scraped_candidates",
             "fetch_structured_candidates",
@@ -395,7 +433,9 @@ def _build_report(local: dict[str, Any], live: dict[str, Any]) -> dict[str, Any]
         },
         "live_surface_probe": live,
         "open_gaps": [
-            "run Windmill dev flow with backend_endpoint against deployed backend command endpoint",
+            "policy-evidence stub flow pass is not authoritative for full live product proof",
+            "route mismatch: policy-evidence backend endpoint path is not a live backend route",
+            "treat latest domain-boundary live run as proof-with-warning, not clean data-quality pass",
             "run storage verifier in Railway dev with DATABASE_URL and MinIO env available",
             "connect resulting package to canonical analysis output and admin/frontend read model",
         ],
@@ -449,10 +489,25 @@ def _to_markdown(report: dict[str, Any]) -> str:
             f"- event_count: `{report['backend_endpoint_local_path']['event_count']}`",
             f"- command_names_seen: `{','.join(report['backend_endpoint_local_path']['command_names_seen'])}`",
             "",
+            "## Contract Alignment",
+            f"- policy_evidence_backend_path: `{report['contract_alignment']['policy_evidence_backend_path']}`",
+            f"- policy_evidence_backend_route_present: `{report['contract_alignment']['policy_evidence_backend_route_present']}`",
+            f"- domain_boundary_backend_path: `{report['contract_alignment']['domain_boundary_backend_path']}`",
+            f"- domain_boundary_backend_route_present: `{report['contract_alignment']['domain_boundary_backend_route_present']}`",
+            f"- route_mismatch: `{report['contract_alignment']['route_mismatch']}`",
+            f"- authoritative_live_product_flow: `{report['contract_alignment']['authoritative_live_product_flow']}`",
+            "",
+            "## Authoritative Live Evidence",
+            f"- flow_path: `{report['authoritative_live_evidence']['flow_path']}`",
+            f"- idempotency_key: `{report['authoritative_live_evidence']['idempotency_key']}`",
+            f"- status: `{report['authoritative_live_evidence']['status']}`",
+            f"- warning: `{report['authoritative_live_evidence']['warning']}`",
+            "",
             "## Live Windmill Surface Probe",
             f"- commands: `{', '.join(report['live_surface_probe']['commands'])}`",
             f"- live_status: `{report['live_surface_probe']['live_status']}`",
             f"- blocker: `{report['live_surface_probe']['blocker']}`",
+            f"- verifier_live_status: `{report['live_status']}`",
             "",
             "## Open Gaps",
         ]

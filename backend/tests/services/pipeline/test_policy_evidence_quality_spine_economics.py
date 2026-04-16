@@ -316,3 +316,42 @@ def test_scraped_search_fails_when_selected_candidate_is_not_artifact_grade() ->
     scraped = result["scorecard"]["taxonomy"]["scraped/search"]
     assert scraped["status"] == "fail"
     assert "did not meet artifact-quality threshold" in scraped["details"]
+
+
+def test_retry_ledger_defaults_to_ten_cycles() -> None:
+    service = PolicyEvidenceQualitySpineEconomicsService()
+    result = service.evaluate(
+        matrix_input=MatrixInput(
+            payload=None,
+            source_path="horizontal_matrix.json",
+            source_mode="missing",
+        )
+    )
+
+    ledger = result["retry_ledger"]
+    assert ledger["max_retry_rounds"] == 10
+    assert len(ledger["attempts"]) == 10
+    assert ledger["attempts"][0]["attempt_id"] == "baseline"
+    assert ledger["attempts"][-1]["attempt_id"] == "retry_9"
+    assert result["scorecard"]["evaluation_cycle_policy"]["max_cycles"] == 10
+
+
+def test_retry_ledger_respects_lower_cycle_cap() -> None:
+    service = PolicyEvidenceQualitySpineEconomicsService()
+    result = service.evaluate(
+        matrix_input=MatrixInput(
+            payload=None,
+            source_path="horizontal_matrix.json",
+            source_mode="missing",
+        ),
+        max_cycles=3,
+    )
+
+    ledger = result["retry_ledger"]
+    assert ledger["max_retry_rounds"] == 3
+    assert [attempt["attempt_id"] for attempt in ledger["attempts"]] == [
+        "baseline",
+        "retry_1",
+        "retry_2",
+    ]
+    assert result["scorecard"]["evaluation_cycle_policy"]["max_cycles"] == 3

@@ -53,7 +53,14 @@ class MatrixInput:
 class PolicyEvidenceQualitySpineEconomicsService:
     """Build deterministic quality-spine economics scorecards and read models."""
 
-    def evaluate(self, *, matrix_input: MatrixInput) -> dict[str, Any]:
+    def evaluate(
+        self,
+        *,
+        matrix_input: MatrixInput,
+        max_cycles: int = 10,
+        preferred_package_id: str | None = None,
+    ) -> dict[str, Any]:
+        bounded_max_cycles = max(1, min(int(max_cycles), 10))
         matrix_packages = self._extract_package_candidates(matrix_input.payload)
         used_fallback = not matrix_packages
         package_payload: dict[str, Any]
@@ -66,7 +73,10 @@ class PolicyEvidenceQualitySpineEconomicsService:
             )
             matrix_source_mode = "fallback_fixture"
         else:
-            package_payload = self._select_vertical_candidate(matrix_packages)
+            package_payload = self._select_vertical_candidate(
+                matrix_packages,
+                preferred_package_id=preferred_package_id,
+            )
             matrix_source_mode = matrix_input.source_mode
 
         package = PolicyEvidencePackage.model_validate(package_payload)
@@ -131,13 +141,162 @@ class PolicyEvidenceQualitySpineEconomicsService:
                 "failed_categories": category_failures,
                 "not_proven_categories": category_not_proven,
             },
+            "evaluation_cycle_policy": {
+                "max_cycles": bounded_max_cycles,
+            },
         }
-        retry_ledger = self._build_retry_ledger(scorecard=scorecard)
+        retry_ledger = self._build_retry_ledger(scorecard=scorecard, max_cycles=bounded_max_cycles)
         return {
             "scorecard": scorecard,
             "vertical_economic_output": vertical_output,
             "read_model_audit_output": read_model_output,
             "retry_ledger": retry_ledger,
+            "selected_package_payload": package_payload,
+        }
+
+    def build_endpoint_read_model(
+        self,
+        *,
+        matrix_input: MatrixInput,
+        package_id: str,
+        source_family: str,
+        run_context: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        evaluation = self.evaluate(
+            matrix_input=matrix_input,
+            preferred_package_id=package_id,
+        )
+        package = PolicyEvidencePackage.model_validate(evaluation["selected_package_payload"])
+        scorecard = evaluation["scorecard"]
+        vertical = evaluation["vertical_economic_output"]
+        handoff = evaluation["read_model_audit_output"]["analysis_handoff"]
+        taxonomy = scorecard["taxonomy"]
+        sufficiency = scorecard["sufficiency_result"]
+        runtime = self._extract_runtime_evidence(matrix_input.payload or {})
+        orchestration_proof = runtime.get("orchestration_proof")
+        llm_proof = handoff.get("llm_narrative_proof", {})
+
+        storage_refs = [
+            {
+                "storage_system": ref.storage_system.value,
+                "truth_role": ref.truth_role.value,
+                "reference_id": ref.reference_id,
+                "uri": ref.uri,
+                "content_hash": ref.content_hash,
+            }
+            for ref in package.storage_refs
+        ]
+        windmill_refs: list[dict[str, Any]] = []
+        if isinstance(orchestration_proof, dict):
+            for key in ("windmill_flow_path", "windmill_run_id", "windmill_job_id", "source"):
+                value = orchestration_proof.get(key)
+                if value:
+                    windmill_refs.append({"key": key, "value": value})
+        llm_refs: list[dict[str, Any]] = []
+        for key in ("canonical_pipeline_run_id", "canonical_pipeline_step_id", "source"):
+            value = llm_proof.get(key)
+            if value:
+                llm_refs.append({"key": key, "value": value})
+
+        readiness_level = sufficiency["readiness_level"]
+        blocking_gate = sufficiency["blocking_gate"]
+        if readiness_level == PackageReadinessLevel.FAIL_CLOSED.value:
+            readiness_status = "fail"
+            readiness_reason = f"fail_closed at {blocking_gate or 'unknown'}"
+        elif readiness_level == PackageReadinessLevel.ECONOMIC_HANDOFF_READY.value:
+            readiness_status = "pass"
+            readiness_reason = "economic handoff is quantified-ready"
+        else:
+            readiness_status = "not_proven"
+            readiness_reason = f"readiness={readiness_level}"
+
+        overall_verdict = scorecard["overall_verdict"]
+        evidence_package_status = (
+            "pass"
+            if overall_verdict == "pass"
+            else "fail" if overall_verdict == "fail" else "not_proven"
+        )
+
+        if vertical["quantified"]:
+            economic_output = {
+                "status": "ready",
+                "mechanism_type": vertical["mechanism_type"],
+                "sensitivity_range": vertical["sensitivity_range"],
+                "user_facing_conclusion": vertical["user_facing_conclusion"],
+                "unsupported_claim_rejection": vertical["unsupported_claim_rejection"],
+            }
+        else:
+            economic_output = {
+                "status": "not_proven",
+                "reason": readiness_reason,
+                "unsupported_claim_rejection": vertical["unsupported_claim_rejection"],
+                "user_facing_conclusion": vertical["user_facing_conclusion"],
+            }
+
+        return {
+            "package_id": package.package_id,
+            "jurisdiction": package.jurisdiction,
+            "source_family": source_family,
+            "evidence_package_status": evidence_package_status,
+            "sufficiency_readiness_level": readiness_level,
+            "run_context": run_context or {},
+            "provenance": {
+                "canonical_document_key": package.canonical_document_key,
+                "policy_identifier": package.policy_identifier,
+                "source_lanes": [lane.value for lane in package.source_lanes],
+                "scraped_sources": [
+                    {
+                        "search_provider": source.search_provider.value,
+                        "query_family": source.query_family,
+                        "search_snapshot_id": source.search_snapshot_id,
+                        "selected_candidate_url": str(source.selected_candidate_url),
+                        "reader_artifact_url": (
+                            str(source.reader_artifact_url)
+                            if source.reader_artifact_url is not None
+                            else None
+                        ),
+                        "reader_substance_passed": source.reader_substance_passed,
+                    }
+                    for source in package.scraped_sources
+                ],
+                "structured_sources": [
+                    {
+                        "source_family": source.source_family,
+                        "access_method": source.access_method,
+                        "endpoint_or_file_url": str(source.endpoint_or_file_url),
+                        "provider_run_id": source.provider_run_id,
+                        "field_count": source.field_count,
+                    }
+                    for source in package.structured_sources
+                ],
+            },
+            "gates": {
+                "storage/read-back": {
+                    "status": taxonomy["storage/read-back"]["status"],
+                    "reason": taxonomy["storage/read-back"]["details"],
+                    "refs": storage_refs,
+                },
+                "Windmill/orchestration": {
+                    "status": taxonomy["Windmill/orchestration"]["status"],
+                    "reason": taxonomy["Windmill/orchestration"]["details"],
+                    "refs": windmill_refs,
+                },
+                "LLM narrative": {
+                    "status": taxonomy["LLM narrative"]["status"],
+                    "reason": taxonomy["LLM narrative"]["details"],
+                    "refs": llm_refs,
+                },
+                "economic_analysis_readiness": {
+                    "status": readiness_status,
+                    "reason": readiness_reason,
+                    "refs": (
+                        [{"key": "blocking_gate", "value": blocking_gate}]
+                        if blocking_gate
+                        else []
+                    ),
+                },
+            },
+            "economic_output": economic_output,
         }
 
     def render_markdown_report(self, *, evaluation: dict[str, Any]) -> str:
@@ -230,7 +389,17 @@ class PolicyEvidenceQualitySpineEconomicsService:
                 return case["primary_package"]
         raise RuntimeError("fallback package not found")
 
-    def _select_vertical_candidate(self, packages: list[dict[str, Any]]) -> dict[str, Any]:
+    def _select_vertical_candidate(
+        self,
+        packages: list[dict[str, Any]],
+        *,
+        preferred_package_id: str | None = None,
+    ) -> dict[str, Any]:
+        if preferred_package_id:
+            for package in packages:
+                if str(package.get("package_id") or "") == preferred_package_id:
+                    return package
+            raise ValueError(f"preferred package_id={preferred_package_id} not found")
         best = None
         for package in packages:
             lanes = set(package.get("source_lanes", []))
@@ -808,13 +977,14 @@ class PolicyEvidenceQualitySpineEconomicsService:
             },
         }
 
-    def _build_retry_ledger(self, *, scorecard: dict[str, Any]) -> dict[str, Any]:
+    def _build_retry_ledger(self, *, scorecard: dict[str, Any], max_cycles: int) -> dict[str, Any]:
         failed = scorecard["failure_classification"]["failed_categories"]
         not_proven = scorecard["failure_classification"]["not_proven_categories"]
         proposed_tweaks = self._proposed_tweaks(failed=failed, not_proven=not_proven)
         matrix_attempt = scorecard.get("matrix_attempt", {})
         current_round = int(matrix_attempt.get("retry_round") or 0)
         current_tweak = str(matrix_attempt.get("targeted_tweak") or "baseline_no_tweak")
+        current_round = max(0, min(current_round, max_cycles - 1))
         known_attempts = {
             0: {
                 "attempt_id": "baseline",
@@ -842,59 +1012,68 @@ class PolicyEvidenceQualitySpineEconomicsService:
             },
         }
         attempts = []
-        for index in range(0, min(current_round, 3)):
-            known = known_attempts[index]
-            attempts.append(
-                {
-                    **known,
-                    "status": "completed_superseded",
-                    "score_delta": None,
-                }
-            )
-        if current_round == 0:
-            attempts.append(
-                {
-                    "attempt_id": "baseline",
-                    "status": "completed",
-                    "result_verdict": scorecard["overall_verdict"],
-                    "failed_categories": failed,
-                    "not_proven_categories": not_proven,
-                    "tweaks_applied": [],
-                    "result_note": None,
-                    "score_delta": {
-                        "before_score": matrix_attempt.get("before_score"),
-                        "after_score": matrix_attempt.get("after_score"),
-                    },
-                }
-            )
-        for index in range(1, 6):
-            executed = index == current_round
-            if index < current_round and index in known_attempts:
+        for index in range(0, max_cycles):
+            attempt_id = "baseline" if index == 0 else f"retry_{index}"
+            if index < current_round:
+                known = known_attempts.get(index)
+                if known is not None:
+                    attempts.append(
+                        {
+                            **known,
+                            "status": "completed_superseded",
+                            "score_delta": None,
+                        }
+                    )
+                    continue
+                attempts.append(
+                    {
+                        "attempt_id": attempt_id,
+                        "status": "completed_superseded",
+                        "result_verdict": None,
+                        "failed_categories": [],
+                        "not_proven_categories": [],
+                        "tweaks_applied": [],
+                        "result_note": "Historical cycle metadata unavailable in deterministic ledger.",
+                        "score_delta": None,
+                    }
+                )
+                continue
+            if index == current_round:
+                attempts.append(
+                    {
+                        "attempt_id": attempt_id,
+                        "status": "completed",
+                        "result_verdict": scorecard["overall_verdict"],
+                        "failed_categories": failed,
+                        "not_proven_categories": not_proven,
+                        "tweaks_applied": [] if index == 0 else [current_tweak],
+                        "result_note": (
+                            "Strict proof fields captured; storage/Windmill/LLM remain not_proven until live current-run proof is present."
+                            if not_proven
+                            else None
+                        ),
+                        "score_delta": {
+                            "before_score": matrix_attempt.get("before_score"),
+                            "after_score": matrix_attempt.get("after_score"),
+                        },
+                    }
+                )
                 continue
             attempts.append(
                 {
-                    "attempt_id": f"retry_{index}",
-                    "status": "completed" if executed else "not_executed",
-                    "result_verdict": scorecard["overall_verdict"] if executed else None,
-                    "failed_categories": failed if executed else [],
-                    "not_proven_categories": not_proven if executed else [],
-                    "tweaks_applied": [current_tweak] if executed else proposed_tweaks,
-                    "result_note": (
-                        "Strict proof fields captured; storage/Windmill/LLM remain not_proven until live current-run proof is present."
-                        if executed and not_proven
-                        else None
-                    ),
-                    "score_delta": {
-                        "before_score": matrix_attempt.get("before_score"),
-                        "after_score": matrix_attempt.get("after_score"),
-                    }
-                    if executed
-                    else None,
+                    "attempt_id": attempt_id,
+                    "status": "not_executed",
+                    "result_verdict": None,
+                    "failed_categories": [],
+                    "not_proven_categories": [],
+                    "tweaks_applied": proposed_tweaks,
+                    "result_note": None,
+                    "score_delta": None,
                 }
             )
         return {
             "feature_key": "bd-3wefe.13",
-            "max_retry_rounds": 5,
+            "max_retry_rounds": max_cycles,
             "attempts": attempts,
             "retry_policy": {
                 "diagnosis_source": "quality_spine_scorecard.taxonomy",

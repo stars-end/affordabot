@@ -2,6 +2,7 @@ summary: Affordabot policy evidence package orchestration flow (boundary-only)
 description: >
   Orchestrates backend command boundaries for scraped + structured evidence
   package generation and readiness branching. No business logic in Windmill.
+  This flow is a boundary verifier shim; stub success is not a full product pass.
 value:
   failure_module:
     id: failure_handler
@@ -133,7 +134,7 @@ schema:
   properties:
     idempotency_key:
       type: string
-      default: run:bd-3wefe.12
+      default: run:bd-3wefe.13
     jurisdiction:
       type: string
       default: San Jose CA
@@ -142,7 +143,7 @@ schema:
       default: meeting_minutes
     package_id:
       type: string
-      default: pkg-bd-3wefe.12-sample
+      default: pkg-bd-3wefe.13-sample
     package_readiness_status:
       type: string
       enum:

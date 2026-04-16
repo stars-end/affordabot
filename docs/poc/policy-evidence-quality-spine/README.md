@@ -10,6 +10,8 @@ economic analysis and admin/frontend read models.
 - `artifacts/quality_spine_scorecard.json`
 - `artifacts/quality_spine_report.md`
 - `artifacts/retry_ledger.json`
+- `artifacts/quality_spine_eval_cycles_report.json`
+- `artifacts/quality_spine_eval_cycles_report.md`
 - `artifacts/quality_spine_gap_audit.md`
 - `artifacts/quality_spine_live_storage_probe.json`
 
@@ -39,6 +41,9 @@ Postgres/MinIO readback could be proven. This keeps storage `not_proven` and
 turns the next step into a runtime configuration gate, not another local fixture
 change.
 
+The eval-cycle harness supports up to 10 deterministic cycles and keeps
+local deterministic proof separate from live-product proof categories.
+
 ## Matrix source
 
 - mode: `agent_a_horizontal_matrix`
@@ -49,6 +54,7 @@ change.
 
 ```bash
 cd backend
-poetry run pytest tests/services/pipeline/test_policy_evidence_quality_spine_economics.py
-poetry run python scripts/verification/verify_policy_evidence_quality_spine_economics.py
+poetry run pytest tests/services/pipeline/test_policy_evidence_quality_spine_economics.py tests/services/pipeline/test_policy_evidence_quality_spine_eval_cycles.py
+poetry run python scripts/verification/verify_policy_evidence_quality_spine_economics.py --max-cycles 10
+poetry run python scripts/verification/verify_policy_evidence_quality_spine_eval_cycles.py --max-cycles 10
 ```

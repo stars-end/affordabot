@@ -6,6 +6,9 @@ import pytest
 
 from main import app
 from routers.admin import get_db
+from services.pipeline.policy_economic_mechanism_cases import (
+    PolicyEconomicMechanismCaseService,
+)
 from services.pipeline.domain.constants import CONTRACT_VERSION
 
 
@@ -257,3 +260,77 @@ def test_post_pipeline_jurisdiction_refresh_shape(client, mock_db):
     assert data["status"] == "accepted"
     assert data["decision_reason"] == "manual_refresh_queued"
     assert data["jurisdiction_id"] == "jur-7"
+
+
+def _case_package(case_id: str) -> dict:
+    bundle = PolicyEconomicMechanismCaseService().build_case_bundle()
+    for case in bundle["cases"]:
+        if case["case_id"] == case_id:
+            return case["primary_package"]
+    raise AssertionError(f"missing case_id={case_id}")
+
+
+def test_policy_evidence_analysis_status_surfaces_provenance_and_not_proven_gates(
+    client, mock_db
+):
+    package = _case_package("direct_cost_case")
+    mock_db._fetchrow.return_value = {
+        "id": "run-q1",
+        "bill_id": "SR-2026-001",
+        "jurisdiction": "San Jose CA",
+        "status": "completed",
+        "error": None,
+        "models": {},
+        "trigger_source": "windmill",
+        "windmill_run_id": "wm-run-q1",
+        "started_at": "2026-04-15T01:00:00Z",
+        "completed_at": "2026-04-15T01:02:00Z",
+        "result": {
+            "policy_evidence_package": package,
+            "rows": [],
+            "orchestration_proof": {},
+            "llm_narrative_proof": {},
+            "storage_proof": {},
+        },
+    }
+
+    client.set_auth("admin")
+    response = client.get(
+        f"/api/admin/pipeline/policy-evidence/packages/{package['package_id']}/analysis-status?run_id=run-q1"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["contract_version"] == CONTRACT_VERSION
+    assert data["package_id"] == package["package_id"]
+    assert data["provenance"]["canonical_document_key"] == package["canonical_document_key"]
+    assert "scraped" in data["provenance"]["source_lanes"]
+    assert "structured" in data["provenance"]["source_lanes"]
+    assert data["provenance"]["scraped_sources"], "expected scraped provenance rows"
+    assert data["provenance"]["structured_sources"], "expected structured provenance rows"
+    assert data["gates"]["storage/read-back"]["status"] == "not_proven"
+    assert data["gates"]["Windmill/orchestration"]["status"] == "not_proven"
+    assert data["gates"]["LLM narrative"]["status"] == "not_proven"
+    assert data["economic_output"]["status"] in {"ready", "not_proven"}
+
+
+def test_policy_evidence_analysis_status_rejects_missing_package_in_run(client, mock_db):
+    package = _case_package("direct_cost_case")
+    mock_db._fetchrow.return_value = {
+        "id": "run-q2",
+        "bill_id": "SR-2026-001",
+        "jurisdiction": "San Jose CA",
+        "status": "completed",
+        "error": None,
+        "models": {},
+        "trigger_source": "windmill",
+        "windmill_run_id": "wm-run-q2",
+        "result": {
+            "policy_evidence_package": package,
+        },
+    }
+
+    client.set_auth("admin")
+    response = client.get(
+        "/api/admin/pipeline/policy-evidence/packages/pkg-does-not-exist/analysis-status?run_id=run-q2"
+    )
+    assert response.status_code == 404
