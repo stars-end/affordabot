@@ -14,6 +14,8 @@ economic analysis and admin/frontend read models.
 - `artifacts/quality_spine_eval_cycles_report.md`
 - `artifacts/quality_spine_gap_audit.md`
 - `artifacts/quality_spine_live_storage_probe.json`
+- `artifacts/live_cycle_01_windmill_domain_run.json`
+- `artifacts/live_cycle_01_windmill_domain_run.md`
 
 ## Current verdict
 
@@ -45,8 +47,35 @@ by the live run. Storage remains `not_proven` because the exact
 `documents` row for that document id was not present, and the live analysis id is
 not persisted in `analysis_history`.
 
-The eval-cycle harness supports up to 10 deterministic cycles and keeps
-local deterministic proof separate from live-product proof categories.
+The eval-cycle harness now records per-cycle ledger rows with:
+- cycle number
+- targeted tweak
+- deploy sha
+- windmill job id
+- backend run id
+- package id
+- selected url
+- reader artifact uri
+- MinIO readback status
+- pgvector chunk stats
+- package row linkage
+- economic status endpoint (if captured)
+- verdict and next tweak
+
+Gate taxonomy is strict pass/fail/not_proven for:
+- scraped_quality
+- structured_quality
+- unified_package
+- postgres
+- minio
+- pgvector
+- windmill
+- llm_narrative
+- economic_analysis
+- admin_read_model
+
+Cycle 1 (`live_cycle_01_windmill_domain_run.json`) is explicitly marked
+`partial`, not product-proof.
 
 ## Matrix source
 
@@ -59,6 +88,8 @@ local deterministic proof separate from live-product proof categories.
 ```bash
 cd backend
 poetry run pytest tests/services/pipeline/test_policy_evidence_quality_spine_economics.py tests/services/pipeline/test_policy_evidence_quality_spine_eval_cycles.py
+poetry run pytest tests/verification/test_policy_evidence_quality_spine_live_storage.py
 poetry run python scripts/verification/verify_policy_evidence_quality_spine_economics.py --max-cycles 10
-poetry run python scripts/verification/verify_policy_evidence_quality_spine_eval_cycles.py --max-cycles 10
+poetry run python scripts/verification/verify_policy_evidence_quality_spine_live_storage.py --windmill ../docs/poc/policy-evidence-quality-spine/artifacts/live_cycle_01_windmill_domain_run.json --runtime ../docs/poc/policy-evidence-quality-spine/artifacts/data_runtime_evidence.json --live-mode off
+poetry run python scripts/verification/verify_policy_evidence_quality_spine_eval_cycles.py --max-cycles 10 --live-cycle-artifact ../docs/poc/policy-evidence-quality-spine/artifacts/live_cycle_01_windmill_domain_run.json
 ```

@@ -1,76 +1,56 @@
 {
-  "generated_at": "2026-04-16T00:25:13.790625+00:00",
+  "generated_at": "2026-04-16T05:55:19.710302+00:00",
   "feature_key": "bd-3wefe.13",
   "status": "not_proven",
-  "blocker": "missing_exact_policy_package_linkage",
-  "details": "manual Railway SSH probe proved MinIO readback, raw scrape row, pgvector chunks, and terminal pipeline steps; exact PolicyEvidencePackage row/current-package linkage remains not_proven",
+  "blocker": "missing_exact_policy_package_linkage_or_live_readback",
+  "details": "one_or_more_storage_gates_not_proven",
   "inputs": {
     "package_id": "pkg-sj-parking-minimum-amendment",
     "canonical_document_key": "san_jose_ca::sj-parking-minimum-amendment",
-    "backend_run_id": "a3e9cdf7-e93a-4779-971d-eae752d94c6a",
-    "windmill_job_id": "019d9392-ba95-36e9-a230-cd8042a79445",
-    "idempotency_key": "bd-3wefe.13-live-domain-backend-2026-04-15-r1",
+    "backend_run_id": "6695fe26-eaaf-47d1-9100-7eb861a7aa2f",
+    "windmill_job_id": null,
+    "idempotency_key": null,
     "artifact_refs": [
-      "artifacts/2026-04-13.windmill-domain.v1/San Jose CA/meeting_minutes/reader_output/047918c143ac71c7d5e693a90cf466cba97aa048878a98f477684cef5b04acf0.md"
+      "artifacts/2026-04-13.windmill-domain.v1/San Jose CA/meeting_minutes/reader_output/ae11ddffb6292d654ab990cddc9f169ce23868654ee623d07261ec553c81ed77.md"
     ],
     "pgvector_truth_role": "derived_index"
   },
   "gates": {
     "postgres_package_row": {
       "status": "not_proven",
-      "details": "policy_evidence_packages_table_missing_or_no_exact_package_row_linked_to_backend_run",
-      "missing": "exact_policy_evidence_package_row_linked_to_backend_run",
-      "manual_probe": "Railway SSH read-only DB inspection found pipeline_runs/pipeline_steps/raw_scrapes/document_chunks but no policy_evidence_packages table in the table list."
+      "details": "offline_mode_no_live_postgres_probe",
+      "missing": "exact_policy_evidence_package_row_linked_to_backend_run"
     },
     "minio_object_readback": {
-      "status": "pass",
-      "details": "manual Railway SSH MinIO stat/get_object passed for the current artifact ref",
-      "bucket": "affordabot-artifacts",
-      "object_size_bytes": 124319,
-      "preview_bytes_read": 256
+      "status": "not_proven",
+      "details": "offline_mode_no_live_minio_probe",
+      "missing": "live_minio_readback_for_current_refs"
     },
     "pgvector_derivation": {
-      "status": "pass",
-      "details": "document_chunks are present with embeddings for the document_id referenced by read_fetch/index steps",
-      "truth_role": "derived_index",
-      "document_id": "83e4bdaf-9b6d-5607-922b-0159b2af5090",
-      "total_chunks": 3382,
-      "with_embedding": 3382
+      "status": "not_proven",
+      "details": "offline_mode_no_live_document_chunks_probe",
+      "truth_role": "derived_index"
     },
     "atomicity_or_replay": {
-      "status": "pass",
-      "details": "pipeline run is terminal without failed steps; idempotent replay was not separately observed",
-      "runs_for_idempotency": 1,
-      "idempotency_key": "bd-3wefe.13-live-domain-backend-2026-04-15-r1::1c07b61a28453506",
-      "idempotent_replay_observed": false
+      "status": "not_proven",
+      "details": "offline_mode_no_live_replay_probe",
+      "missing": "pipeline_runs_idempotency_observation"
     },
     "storage/read-back": {
       "status": "not_proven",
-      "details": "artifact readback and pgvector derivation are proven, but exact PolicyEvidencePackage row/current-package linkage remains not_proven"
+      "details": "one_or_more_storage_gates_not_proven"
     }
   },
   "supporting_signals": {
     "artifact_refs_count": 1,
     "package_id": "pkg-sj-parking-minimum-amendment",
-    "backend_run_id": "a3e9cdf7-e93a-4779-971d-eae752d94c6a",
-    "windmill_job_id": "019d9392-ba95-36e9-a230-cd8042a79445",
-    "pipeline_steps": 6,
-    "raw_scrapes": 1,
-    "document_rows": 0,
-    "document_chunks": 3382,
-    "document_chunks_with_embedding": 3382,
-    "analysis_history_rows": 0,
-    "reader_alerts": 4
+    "backend_run_id": "6695fe26-eaaf-47d1-9100-7eb861a7aa2f",
+    "windmill_job_id": null
   },
-  "missing_or_failed_signals": [
-    "exact_policy_evidence_package_row_linked_to_backend_run",
-    "documents_table_row_missing_for_document_id",
-    "analysis_history_row_missing_for_analysis_id",
-    "reader_alerts_for_top_artifact_candidates"
-  ],
-  "probe_mode": "live",
+  "missing_or_failed_signals": [],
+  "probe_mode": "offline",
   "inputs_artifacts": {
     "runtime": "docs/poc/policy-evidence-quality-spine/artifacts/data_runtime_evidence.json",
-    "windmill": "docs/poc/policy-evidence-quality-spine/artifacts/quality_spine_live_windmill_domain_run.json"
+    "windmill": "docs/poc/policy-evidence-quality-spine/artifacts/live_cycle_01_windmill_domain_run.json"
   }
 }

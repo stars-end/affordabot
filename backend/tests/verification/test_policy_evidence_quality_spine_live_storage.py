@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 from pathlib import Path
 import sys
 from typing import Any
@@ -87,6 +88,55 @@ def _inputs(module):
         artifact_refs=["artifacts/test-object.md"],
         pgvector_truth_role="derived_index",
     )
+
+
+def test_load_inputs_extracts_nested_backend_run_id_and_artifact_refs(tmp_path) -> None:
+    module = _load_module()
+    runtime = {
+        "vertical_package_payload": {
+            "package_id": "pkg-1",
+            "canonical_document_key": "san_jose_ca::case-1",
+            "storage_refs": [
+                {
+                    "storage_system": "pgvector",
+                    "truth_role": "derived_index",
+                }
+            ],
+        }
+    }
+    windmill = {
+        "manual_run": {
+            "windmill_job_id": "019d94d2-81ef-1117-0353-4c40719876ed",
+        },
+        "result_payload": {
+            "scope_results": [
+                {
+                    "backend_response": {
+                        "refs": {
+                            "run_id": "6695fe26-eaaf-47d1-9100-7eb861a7aa2f",
+                        }
+                    },
+                    "steps": {
+                        "read_fetch": {
+                            "refs": {
+                                "artifact_refs": ["artifacts/live/reader_output.md"],
+                            }
+                        }
+                    },
+                }
+            ]
+        },
+    }
+    runtime_path = tmp_path / "runtime.json"
+    windmill_path = tmp_path / "windmill.json"
+    runtime_path.write_text(json.dumps(runtime), encoding="utf-8")
+    windmill_path.write_text(json.dumps(windmill), encoding="utf-8")
+
+    inputs = module.load_inputs(runtime_path=runtime_path, windmill_path=windmill_path)
+    assert inputs.package_id == "pkg-1"
+    assert inputs.backend_run_id == "6695fe26-eaaf-47d1-9100-7eb861a7aa2f"
+    assert inputs.artifact_refs == ["artifacts/live/reader_output.md"]
+    assert inputs.pgvector_truth_role == "derived_index"
 
 
 def test_offline_mode_never_fakes_live_storage_pass() -> None:

@@ -102,16 +102,75 @@ def _repo_rel(path: Path) -> str:
 
 
 def _extract_artifact_refs(payload: dict[str, Any]) -> list[str]:
-    steps = payload.get("steps")
-    if not isinstance(steps, dict):
-        return []
-    read_fetch = steps.get("read_fetch")
-    if not isinstance(read_fetch, dict):
-        return []
-    refs = read_fetch.get("artifact_refs")
-    if not isinstance(refs, list):
-        return []
-    return [str(item) for item in refs if isinstance(item, str) and item.strip()]
+    refs: list[str] = []
+    seen: set[str] = set()
+
+    def _push(value: Any) -> None:
+        if not isinstance(value, str):
+            return
+        normalized = value.strip()
+        if not normalized or normalized in seen:
+            return
+        seen.add(normalized)
+        refs.append(normalized)
+
+    def _from_steps(steps: Any) -> None:
+        if not isinstance(steps, dict):
+            return
+        read_fetch = steps.get("read_fetch")
+        if not isinstance(read_fetch, dict):
+            return
+        artifact_refs = read_fetch.get("artifact_refs")
+        if isinstance(artifact_refs, list):
+            for item in artifact_refs:
+                _push(item)
+        refs_obj = read_fetch.get("refs")
+        if isinstance(refs_obj, dict):
+            nested = refs_obj.get("artifact_refs")
+            if isinstance(nested, list):
+                for item in nested:
+                    _push(item)
+
+    _from_steps(payload.get("steps"))
+
+    result_payload = payload.get("result_payload")
+    if isinstance(result_payload, dict):
+        scope_results = result_payload.get("scope_results")
+        if isinstance(scope_results, list):
+            for scope in scope_results:
+                if not isinstance(scope, dict):
+                    continue
+                steps = scope.get("steps")
+                if isinstance(steps, dict):
+                    _from_steps(steps)
+
+    return refs
+
+
+def _extract_backend_run_id(payload: dict[str, Any]) -> str | None:
+    direct = payload.get("backend_run_id")
+    if isinstance(direct, str) and direct.strip():
+        return direct.strip()
+
+    result_payload = payload.get("result_payload")
+    if not isinstance(result_payload, dict):
+        return None
+    scope_results = result_payload.get("scope_results")
+    if not isinstance(scope_results, list):
+        return None
+    for scope in scope_results:
+        if not isinstance(scope, dict):
+            continue
+        backend_response = scope.get("backend_response")
+        if not isinstance(backend_response, dict):
+            continue
+        refs = backend_response.get("refs")
+        if not isinstance(refs, dict):
+            continue
+        run_id = refs.get("run_id")
+        if isinstance(run_id, str) and run_id.strip():
+            return run_id.strip()
+    return None
 
 
 def _extract_pgvector_truth_role(runtime_payload: dict[str, Any]) -> str:
@@ -140,11 +199,7 @@ def load_inputs(*, runtime_path: Path, windmill_path: Path) -> StorageProbeInput
     return StorageProbeInputs(
         package_id=package_id,
         canonical_document_key=canonical_document_key,
-        backend_run_id=(
-            str(windmill_payload.get("backend_run_id"))
-            if windmill_payload.get("backend_run_id")
-            else None
-        ),
+        backend_run_id=_extract_backend_run_id(windmill_payload),
         windmill_job_id=(
             str(windmill_payload.get("windmill_job_id"))
             if windmill_payload.get("windmill_job_id")

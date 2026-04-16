@@ -1,5 +1,7 @@
 {
   "artifact_sources": {
+    "economic_status_present": false,
+    "live_cycle_present": true,
     "live_storage_probe_present": true,
     "retry_ledger_present": true,
     "scorecard_present": true
@@ -14,205 +16,252 @@
     "stop_continue_decision": "stop",
     "targeted_tweak": "strict_data_runtime_proof_fields"
   },
+  "cycle_1_assessment": {
+    "artifact": "docs/poc/policy-evidence-quality-spine/artifacts/live_cycle_01_windmill_domain_run.json",
+    "backend_run_id": "6695fe26-eaaf-47d1-9100-7eb861a7aa2f",
+    "reason": "Cycle 1 is partial: selected evidence was economically insufficient, structured lane is not proven in this run, and admin/economic endpoint proof is missing.",
+    "status": "partial",
+    "windmill_job_id": "019d94d2-81ef-1117-0353-4c40719876ed"
+  },
   "cycle_ledger": [
     {
-      "attempt_id": "baseline",
-      "failed_categories": [
-        "economic reasoning"
-      ],
-      "not_proven_categories": [
-        "Windmill/orchestration",
-        "LLM narrative"
-      ],
-      "result_note": "Initial integrated run lacked source-bound model cards on the vertical package.",
-      "result_verdict": "fail",
-      "score_delta": null,
-      "status": "completed_superseded",
-      "tweaks_applied": []
-    },
-    {
-      "attempt_id": "retry_1",
-      "failed_categories": [],
-      "not_proven_categories": [
-        "Windmill/orchestration",
-        "LLM narrative"
-      ],
-      "result_note": "Source-bound model card projection cleared the economic reasoning failure.",
-      "result_verdict": "partial",
-      "score_delta": null,
-      "status": "completed_superseded",
-      "tweaks_applied": [
-        "source_bound_model_card_projection"
-      ]
-    },
-    {
-      "attempt_id": "retry_2",
-      "failed_categories": [],
-      "not_proven_categories": [
-        "Windmill/orchestration",
-        "LLM narrative"
-      ],
-      "result_note": "Historical Windmill stub proof captured but not counted as current-run proof.",
-      "result_verdict": "partial",
-      "score_delta": null,
-      "status": "completed_superseded",
-      "tweaks_applied": [
-        "windmill_orchestration_evidence_capture"
-      ]
-    },
-    {
-      "attempt_id": "retry_3",
-      "failed_categories": [],
-      "not_proven_categories": [
-        "storage/read-back",
-        "Windmill/orchestration",
-        "LLM narrative"
-      ],
-      "result_note": "Strict proof fields captured; storage/Windmill/LLM remain not_proven until live current-run proof is present.",
-      "result_verdict": "partial",
-      "score_delta": {
-        "after_score": 75.33,
-        "before_score": 75.33
+      "backend_run_id": "6695fe26-eaaf-47d1-9100-7eb861a7aa2f",
+      "cycle_number": 1,
+      "deploy_sha": "735022f74ebddc0064717b59921a99bd9950f893",
+      "economic_status_endpoint": null,
+      "minio_readback": "not_proven",
+      "next_tweak": "Run a structured-source family in live cycle and verify provenance/storage joins.",
+      "package_id": "pkg-sj-parking-minimum-amendment",
+      "package_row_linkage": "not_proven",
+      "pgvector_chunk_stats": {
+        "total_chunks": null,
+        "with_embedding": null
       },
+      "reader_artifact_uri": "artifacts/2026-04-13.windmill-domain.v1/San Jose CA/meeting_minutes/reader_output/ae11ddffb6292d654ab990cddc9f169ce23868654ee623d07261ec553c81ed77.md",
+      "selected_url": "https://sanjose.legistar.com/View.ashx?M=A&ID=1345653&GUID=CF0F61B5-1467-4299-B504-21A4ADD6FCFF",
       "status": "completed",
-      "tweaks_applied": [
-        "strict_data_runtime_proof_fields"
-      ]
+      "targeted_tweak": "strict_data_runtime_proof_fields",
+      "verdict": "partial",
+      "windmill_job_id": "019d94d2-81ef-1117-0353-4c40719876ed"
     },
     {
-      "attempt_id": "retry_4",
-      "failed_categories": [],
-      "not_proven_categories": [],
-      "result_note": null,
-      "result_verdict": null,
-      "score_delta": null,
+      "backend_run_id": null,
+      "cycle_number": 2,
+      "deploy_sha": null,
+      "economic_status_endpoint": null,
+      "minio_readback": "not_proven",
+      "next_tweak": "Run a structured-source family in live cycle and verify provenance/storage joins.",
+      "package_id": null,
+      "package_row_linkage": "not_proven",
+      "pgvector_chunk_stats": null,
+      "reader_artifact_uri": null,
+      "selected_url": null,
       "status": "not_executed",
-      "tweaks_applied": [
-        "Repair MinIO probe/readback and content-hash linkage.",
-        "Capture windmill job/run identifiers in matrix artifact.",
-        "Run canonical analysis narrative step and record run ids."
-      ]
+      "targeted_tweak": "",
+      "verdict": null,
+      "windmill_job_id": null
     },
     {
-      "attempt_id": "retry_5",
-      "failed_categories": [],
-      "not_proven_categories": [],
-      "result_note": null,
-      "result_verdict": null,
-      "score_delta": null,
+      "backend_run_id": null,
+      "cycle_number": 3,
+      "deploy_sha": null,
+      "economic_status_endpoint": null,
+      "minio_readback": "not_proven",
+      "next_tweak": "Run a structured-source family in live cycle and verify provenance/storage joins.",
+      "package_id": null,
+      "package_row_linkage": "not_proven",
+      "pgvector_chunk_stats": null,
+      "reader_artifact_uri": null,
+      "selected_url": null,
       "status": "not_executed",
-      "tweaks_applied": [
-        "Repair MinIO probe/readback and content-hash linkage.",
-        "Capture windmill job/run identifiers in matrix artifact.",
-        "Run canonical analysis narrative step and record run ids."
-      ]
+      "targeted_tweak": "",
+      "verdict": null,
+      "windmill_job_id": null
     },
     {
-      "attempt_id": "retry_6",
-      "failed_categories": [],
-      "not_proven_categories": [],
-      "result_note": null,
-      "result_verdict": null,
-      "score_delta": null,
+      "backend_run_id": null,
+      "cycle_number": 4,
+      "deploy_sha": null,
+      "economic_status_endpoint": null,
+      "minio_readback": "not_proven",
+      "next_tweak": "Run a structured-source family in live cycle and verify provenance/storage joins.",
+      "package_id": null,
+      "package_row_linkage": "not_proven",
+      "pgvector_chunk_stats": null,
+      "reader_artifact_uri": null,
+      "selected_url": null,
       "status": "not_executed",
-      "tweaks_applied": [
-        "Repair MinIO probe/readback and content-hash linkage.",
-        "Capture windmill job/run identifiers in matrix artifact.",
-        "Run canonical analysis narrative step and record run ids."
-      ]
+      "targeted_tweak": "",
+      "verdict": null,
+      "windmill_job_id": null
     },
     {
-      "attempt_id": "retry_7",
-      "failed_categories": [],
-      "not_proven_categories": [],
-      "result_note": null,
-      "result_verdict": null,
-      "score_delta": null,
+      "backend_run_id": null,
+      "cycle_number": 5,
+      "deploy_sha": null,
+      "economic_status_endpoint": null,
+      "minio_readback": "not_proven",
+      "next_tweak": "Run a structured-source family in live cycle and verify provenance/storage joins.",
+      "package_id": null,
+      "package_row_linkage": "not_proven",
+      "pgvector_chunk_stats": null,
+      "reader_artifact_uri": null,
+      "selected_url": null,
       "status": "not_executed",
-      "tweaks_applied": [
-        "Repair MinIO probe/readback and content-hash linkage.",
-        "Capture windmill job/run identifiers in matrix artifact.",
-        "Run canonical analysis narrative step and record run ids."
-      ]
+      "targeted_tweak": "",
+      "verdict": null,
+      "windmill_job_id": null
     },
     {
-      "attempt_id": "retry_8",
-      "failed_categories": [],
-      "not_proven_categories": [],
-      "result_note": null,
-      "result_verdict": null,
-      "score_delta": null,
+      "backend_run_id": null,
+      "cycle_number": 6,
+      "deploy_sha": null,
+      "economic_status_endpoint": null,
+      "minio_readback": "not_proven",
+      "next_tweak": "Run a structured-source family in live cycle and verify provenance/storage joins.",
+      "package_id": null,
+      "package_row_linkage": "not_proven",
+      "pgvector_chunk_stats": null,
+      "reader_artifact_uri": null,
+      "selected_url": null,
       "status": "not_executed",
-      "tweaks_applied": [
-        "Repair MinIO probe/readback and content-hash linkage.",
-        "Capture windmill job/run identifiers in matrix artifact.",
-        "Run canonical analysis narrative step and record run ids."
-      ]
+      "targeted_tweak": "",
+      "verdict": null,
+      "windmill_job_id": null
     },
     {
-      "attempt_id": "retry_9",
-      "failed_categories": [],
-      "not_proven_categories": [],
-      "result_note": null,
-      "result_verdict": null,
-      "score_delta": null,
+      "backend_run_id": null,
+      "cycle_number": 7,
+      "deploy_sha": null,
+      "economic_status_endpoint": null,
+      "minio_readback": "not_proven",
+      "next_tweak": "Run a structured-source family in live cycle and verify provenance/storage joins.",
+      "package_id": null,
+      "package_row_linkage": "not_proven",
+      "pgvector_chunk_stats": null,
+      "reader_artifact_uri": null,
+      "selected_url": null,
       "status": "not_executed",
-      "tweaks_applied": [
-        "Repair MinIO probe/readback and content-hash linkage.",
-        "Capture windmill job/run identifiers in matrix artifact.",
-        "Run canonical analysis narrative step and record run ids."
-      ]
+      "targeted_tweak": "",
+      "verdict": null,
+      "windmill_job_id": null
+    },
+    {
+      "backend_run_id": null,
+      "cycle_number": 8,
+      "deploy_sha": null,
+      "economic_status_endpoint": null,
+      "minio_readback": "not_proven",
+      "next_tweak": "Run a structured-source family in live cycle and verify provenance/storage joins.",
+      "package_id": null,
+      "package_row_linkage": "not_proven",
+      "pgvector_chunk_stats": null,
+      "reader_artifact_uri": null,
+      "selected_url": null,
+      "status": "not_executed",
+      "targeted_tweak": "",
+      "verdict": null,
+      "windmill_job_id": null
+    },
+    {
+      "backend_run_id": null,
+      "cycle_number": 9,
+      "deploy_sha": null,
+      "economic_status_endpoint": null,
+      "minio_readback": "not_proven",
+      "next_tweak": "Run a structured-source family in live cycle and verify provenance/storage joins.",
+      "package_id": null,
+      "package_row_linkage": "not_proven",
+      "pgvector_chunk_stats": null,
+      "reader_artifact_uri": null,
+      "selected_url": null,
+      "status": "not_executed",
+      "targeted_tweak": "",
+      "verdict": null,
+      "windmill_job_id": null
+    },
+    {
+      "backend_run_id": null,
+      "cycle_number": 10,
+      "deploy_sha": null,
+      "economic_status_endpoint": null,
+      "minio_readback": "not_proven",
+      "next_tweak": "Run a structured-source family in live cycle and verify provenance/storage joins.",
+      "package_id": null,
+      "package_row_linkage": "not_proven",
+      "pgvector_chunk_stats": null,
+      "reader_artifact_uri": null,
+      "selected_url": null,
+      "status": "not_executed",
+      "targeted_tweak": "",
+      "verdict": null,
+      "windmill_job_id": null
     }
   ],
   "feature_key": "bd-3wefe.13",
   "final_verdict": "partial",
   "gate_categories": {
-    "LLM narrative": {
+    "admin_read_model": {
+      "details": "economic analysis status endpoint artifact missing",
+      "status": "not_proven"
+    },
+    "economic_analysis": {
+      "details": "sufficiency=pass, economic_reasoning=pass",
+      "status": "pass"
+    },
+    "llm_narrative": {
       "details": "LLM narrative not proven (canonical_llm_run_id_missing; source=quality_spine_deterministic_lane).",
       "status": "not_proven"
     },
-    "Windmill/orchestration": {
-      "details": "Historical Windmill stub proof exists but is not valid for current vertical package.",
+    "minio": {
+      "details": "offline_mode_no_live_minio_probe",
       "status": "not_proven"
     },
-    "economic_analysis_readiness": {
-      "details": "sufficiency=pass, economic_reasoning=pass",
-      "status": "pass"
+    "pgvector": {
+      "details": "offline_mode_no_live_document_chunks_probe",
+      "status": "not_proven"
+    },
+    "postgres": {
+      "details": "offline_mode_no_live_postgres_probe",
+      "status": "not_proven"
     },
     "scraped_quality": {
       "details": "scraped/search=pass, reader=pass",
       "status": "pass"
     },
-    "storage/read-back": {
-      "details": "Deterministic in-memory readback is proven, but non-memory Postgres/MinIO storage proof is not provided.",
+    "structured_quality": {
+      "details": "scorecard indicates structured pass, but live cycle lacks structured source-family evidence",
       "status": "not_proven"
     },
-    "structured_quality": {
-      "details": "Structured source provenance attached.",
-      "status": "pass"
-    },
     "unified_package": {
-      "details": "identity=pass, sufficiency=pass, read_model=pass",
+      "details": "scraped=pass, structured=not_proven, postgres=not_proven, minio=not_proven, pgvector=not_proven",
+      "status": "not_proven"
+    },
+    "windmill": {
+      "details": "live windmill flow run succeeded with concrete windmill_job_id",
       "status": "pass"
     }
   },
   "max_cycles": 10,
-  "proof_scope": {
-    "distinction_note": "This harness never upgrades local deterministic evidence into full live-product proof. Live-product proof requires pass on storage/read-back, Windmill/orchestration, and LLM narrative.",
-    "live_product_proof": false,
-    "local_deterministic_proof": true
-  },
   "recommendations": {
     "failed_gates": [],
     "next_tweaks": [
-      "Resolve live storage credentials/policy and re-run Postgres+MinIO read-back proof.",
-      "Capture current Windmill run/job ids linked to the same package_id.",
-      "Run canonical LLM narrative step and persist canonical run/step identifiers."
+      "Run a structured-source family in live cycle and verify provenance/storage joins.",
+      "Ensure scraped+structured+storage gates pass in the same run with one package_id.",
+      "Persist and verify policy_evidence_packages row linked to exact backend_run_id.",
+      "Repair MinIO object readback for current run artifact_refs.",
+      "Verify document_chunks + embeddings tied to the same document_id from run refs.",
+      "Persist canonical LLM analysis run+step ids and bind to package_id.",
+      "Capture and store /analysis-status endpoint response artifact for the cycle."
     ],
     "not_proven_gates": [
-      "storage/read-back",
-      "Windmill/orchestration",
-      "LLM narrative"
+      "structured_quality",
+      "unified_package",
+      "postgres",
+      "minio",
+      "pgvector",
+      "llm_narrative",
+      "admin_read_model"
     ]
   }
 }

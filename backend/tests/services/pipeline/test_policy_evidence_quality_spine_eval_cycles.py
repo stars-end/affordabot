@@ -15,6 +15,9 @@ def _scorecard_fixture() -> dict:
         "matrix_source": {
             "mode": "agent_a_horizontal_matrix",
         },
+        "vertical_package": {
+            "package_id": "pkg-sj-parking-minimum-amendment",
+        },
         "overall_verdict": "partial",
         "failure_classification": {
             "failed_categories": [],
@@ -39,43 +42,92 @@ def _scorecard_fixture() -> dict:
     }
 
 
+def _cycle_fixture() -> dict:
+    return {
+        "manual_run": {
+            "windmill_job_id": "019d94d2-81ef-1117-0353-4c40719876ed",
+            "final_status": "succeeded",
+        },
+        "result_payload": {
+            "scope_results": [
+                {
+                    "backend_response": {
+                        "refs": {
+                            "run_id": "6695fe26-eaaf-47d1-9100-7eb861a7aa2f",
+                        }
+                    },
+                    "scope_item": {
+                        "source_family": "meeting_minutes",
+                    },
+                    "steps": {
+                        "read_fetch": {
+                            "details": {
+                                "candidate_audit": [
+                                    {
+                                        "outcome": "materialized_raw_scrape",
+                                        "url": "https://sanjose.legistar.com/View.ashx?M=A&ID=1345653",
+                                    }
+                                ]
+                            },
+                            "refs": {
+                                "artifact_refs": [
+                                    "artifacts/live/reader_output.md",
+                                ]
+                            },
+                        }
+                    },
+                }
+            ]
+        },
+    }
+
+
 def test_eval_cycle_report_defaults_to_ten_cycles_and_partial_verdict() -> None:
     report = build_eval_cycles_report(
         scorecard=_scorecard_fixture(),
         retry_ledger=None,
         live_storage_probe=None,
+        live_cycle=_cycle_fixture(),
+        economic_status=None,
         max_cycles=10,
+        deploy_sha="735022f74ebddc0064717b59921a99bd9950f893",
     )
 
     assert report["max_cycles"] == 10
     assert report["final_verdict"] == "partial"
     assert len(report["cycle_ledger"]) == 10
-    assert report["cycle_ledger"][0]["attempt_id"] == "baseline"
-    assert report["cycle_ledger"][4]["attempt_id"] == "retry_4"
-    assert report["cycle_ledger"][4]["status"] == "completed"
-    assert report["proof_scope"]["local_deterministic_proof"] is True
-    assert report["proof_scope"]["live_product_proof"] is False
-    assert report["gate_categories"]["economic_analysis_readiness"]["status"] == "pass"
+    assert report["cycle_ledger"][0]["cycle_number"] == 1
+    assert report["cycle_ledger"][0]["status"] == "completed"
+    assert report["cycle_ledger"][0]["deploy_sha"] == "735022f74ebddc0064717b59921a99bd9950f893"
+    assert report["cycle_ledger"][0]["windmill_job_id"] == "019d94d2-81ef-1117-0353-4c40719876ed"
+    assert report["cycle_ledger"][0]["backend_run_id"] == "6695fe26-eaaf-47d1-9100-7eb861a7aa2f"
+    assert report["gate_categories"]["economic_analysis"]["status"] == "pass"
+    assert report["cycle_1_assessment"]["status"] == "partial"
 
 
 def test_eval_cycle_report_marks_live_minio_access_denied_as_not_proven_storage_blocker() -> None:
     live_probe = {
-        "status": "blocked",
-        "blocker": "minio_write_or_readback_failed",
-        "error_summary": "S3Error AccessDenied bucket_name=affordabot-artifacts",
+        "gates": {
+            "minio_object_readback": {
+                "status": "fail",
+                "details": "one_or_more_artifact_readbacks_failed",
+            }
+        }
     }
     report = build_eval_cycles_report(
         scorecard=_scorecard_fixture(),
         retry_ledger=None,
         live_storage_probe=live_probe,
+        live_cycle=_cycle_fixture(),
+        economic_status=None,
         max_cycles=10,
+        deploy_sha=None,
     )
 
-    storage = report["gate_categories"]["storage/read-back"]
-    assert storage["status"] == "not_proven"
-    assert "minio_write_or_readback_failed" in storage["details"]
-    assert "AccessDenied" in storage["details"]
-    assert report["final_verdict"] == "partial"
+    minio = report["gate_categories"]["minio"]
+    assert minio["status"] == "fail"
+    assert "artifact_readbacks_failed" in minio["details"]
+    assert report["final_verdict"] == "fail"
 
 
 def test_eval_cycle_report_respects_existing_retry_ledger_records() -> None:
@@ -107,14 +159,13 @@ def test_eval_cycle_report_respects_existing_retry_ledger_records() -> None:
         scorecard=_scorecard_fixture(),
         retry_ledger=retry_ledger,
         live_storage_probe=None,
+        live_cycle=_cycle_fixture(),
+        economic_status=None,
         max_cycles=3,
+        deploy_sha=None,
     )
 
     assert report["max_cycles"] == 3
-    assert [item["attempt_id"] for item in report["cycle_ledger"]] == [
-        "baseline",
-        "retry_1",
-        "retry_2",
-    ]
-    assert report["cycle_ledger"][0]["status"] == "completed_superseded"
-    assert report["cycle_ledger"][1]["status"] == "completed_superseded"
+    assert [item["cycle_number"] for item in report["cycle_ledger"]] == [1, 2, 3]
+    assert report["cycle_ledger"][0]["status"] == "completed"
+    assert report["cycle_ledger"][1]["status"] == "not_executed"
