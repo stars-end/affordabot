@@ -17,6 +17,8 @@ from db.postgres_client import PostgresDB
 from services.llm.web_search_factory import create_web_search_client
 from services.pipeline.domain.commands import (
     PipelineDomainCommands,
+    _is_concrete_artifact_url,
+    _is_weak_reader_fallback_candidate,
     assess_reader_substance,
     prefetch_skip_reason,
     rank_evidence_chunks,
@@ -697,12 +699,17 @@ class RailwayRuntimeBridge:
                 reason = str(item.get("reason", "")).strip()
                 if reason == "prefetch_skipped_low_value_portal":
                     alerts.append("reader_prefetch_skipped_low_value_portal")
+                elif reason == "fallback_blocked_after_official_reader_errors":
+                    alerts.append("reader_fallback_blocked_after_official_reader_errors")
                 elif reason:
                     alerts.append(f"reader_output_insufficient_substance:{reason}")
             return alerts
 
         for candidate in ranked_candidates:
             url = str(candidate["url"])
+            official_artifact_provider_error_seen = any(
+                bool(item.get("candidate_is_official_artifact")) for item in reader_provider_errors
+            )
             skip_reason = prefetch_skip_reason(url)
             if skip_reason:
                 reader_quality_failures.append(
@@ -724,16 +731,49 @@ class RailwayRuntimeBridge:
                     }
                 )
                 continue
+            fallback_candidate = SearchResultItem(
+                url=url,
+                title=str(candidate.get("title", "")),
+                snippet=str(candidate.get("snippet", "")),
+            )
+            if (
+                request.source_family == "meeting_minutes"
+                and official_artifact_provider_error_seen
+                and _is_weak_reader_fallback_candidate(fallback_candidate)
+            ):
+                reader_quality_failures.append(
+                    {
+                        "url": url,
+                        "rank": candidate["rank"],
+                        "score": candidate["score"],
+                        "reason": "fallback_blocked_after_official_reader_errors",
+                        "quality_details": {
+                            "source_family": request.source_family,
+                            "official_artifact_provider_error_seen": True,
+                        },
+                    }
+                )
+                candidate_audit.append(
+                    {
+                        "url": url,
+                        "rank": candidate["rank"],
+                        "score": candidate["score"],
+                        "outcome": "reader_fallback_blocked_after_official_reader_errors",
+                    }
+                )
+                continue
             try:
                 reader_payload = await self.reader_client.fetch_content(url, timeout=60)
             except Exception as exc:
                 err = str(exc)
+                candidate_is_official_artifact = _is_concrete_artifact_url(url)
                 reader_provider_errors.append(
                     {
                         "url": url,
                         "rank": candidate["rank"],
                         "score": candidate["score"],
                         "error": err,
+                        "candidate_is_official_artifact": candidate_is_official_artifact,
                     }
                 )
                 candidate_audit.append(
@@ -743,6 +783,7 @@ class RailwayRuntimeBridge:
                         "score": candidate["score"],
                         "outcome": "reader_provider_error",
                         "error": err,
+                        "candidate_is_official_artifact": candidate_is_official_artifact,
                     }
                 )
                 continue

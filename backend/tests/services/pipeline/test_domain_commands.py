@@ -507,6 +507,55 @@ def test_read_fetch_tries_ranked_fallback_candidates_after_reader_error() -> Non
     assert len(state.raw_scrapes) == 1
 
 
+def test_read_fetch_blocks_weak_video_fallback_after_official_reader_error() -> None:
+    state, service = _service(
+        search_results=[
+            SearchResultItem(
+                url="https://sanjose.legistar.com/MeetingDetail.aspx?ID=123&GUID=abc",
+                title="City Council Meeting Detail",
+                snippet="agenda minutes housing item",
+            ),
+            SearchResultItem(
+                url="https://www.youtube.com/watch?v=abc123",
+                title="San Jose City Council Meeting Video Transcript",
+                snippet="full transcript of meeting discussion",
+            ),
+        ]
+    )
+    service.reader_provider = _RoutingReaderProvider(
+        by_url={
+            "https://www.youtube.com/watch?v=abc123": (
+                "City Council meeting transcript with discussion of housing policy changes."
+            )
+        },
+        fail_urls={"https://sanjose.legistar.com/MeetingDetail.aspx?ID=123&GUID=abc"},
+    )
+
+    search = service.search_materialize(envelope=_envelope("search_materialize", "yt1"), query="q")
+    read = service.read_fetch(
+        envelope=_envelope("read_fetch", "yt2"),
+        snapshot_id=str(search.refs["search_snapshot_id"]),
+        max_reads=3,
+    )
+
+    assert read.status == "failed_retryable"
+    assert read.decision_reason == "reader_provider_error"
+    assert read.retry_class == "provider_unavailable"
+    assert any(alert.startswith("reader_error:") for alert in read.alerts)
+    assert "reader_fallback_blocked_after_official_reader_errors" in read.alerts
+    assert any(
+        item["outcome"] == "reader_provider_error"
+        and item.get("candidate_is_official_artifact") is True
+        for item in read.details["candidate_audit"]
+    )
+    assert any(
+        item["outcome"] == "reader_fallback_blocked_after_official_reader_errors"
+        and item["url"] == "https://www.youtube.com/watch?v=abc123"
+        for item in read.details["candidate_audit"]
+    )
+    assert len(state.raw_scrapes) == 0
+
+
 def test_read_fetch_falls_through_agenda_header_logistics_to_legistar_pdf() -> None:
     state, service = _service(
         search_results=[

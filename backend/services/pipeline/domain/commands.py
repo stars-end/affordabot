@@ -62,6 +62,21 @@ LOW_VALUE_PORTAL_PREFETCH_SKIP_URL_SIGNALS = (
     "/resource-library/council-memos",
 )
 
+LOW_VALUE_FALLBACK_URL_SIGNALS = (
+    "youtube.com",
+    "youtu.be",
+    "vimeo.com",
+    "dailymotion.com",
+)
+
+LOW_VALUE_FALLBACK_TEXT_SIGNALS = (
+    "youtube",
+    "video",
+    "transcript",
+    "podcast",
+    "watch",
+)
+
 LOW_VALUE_PORTAL_URL_PENALTY = 10
 
 CONCRETE_ARTIFACT_URL_SIGNALS = (
@@ -402,6 +417,16 @@ def prefetch_skip_reason(url: str) -> str | None:
         if signal in lowered_url:
             return signal
     return None
+
+
+def _is_weak_reader_fallback_candidate(candidate: SearchResultItem) -> bool:
+    lowered_url = candidate.url.lower().strip()
+    lowered_text = f"{candidate.title} {candidate.snippet}".lower()
+    if _is_concrete_artifact_url(candidate.url):
+        return False
+    if any(signal in lowered_url for signal in LOW_VALUE_FALLBACK_URL_SIGNALS):
+        return True
+    return any(signal in lowered_text for signal in LOW_VALUE_FALLBACK_TEXT_SIGNALS)
 
 
 def _parsed_query_params(url: str) -> dict[str, list[str]]:
@@ -799,6 +824,9 @@ class PipelineDomainCommands:
                 title=str(candidate_entry["title"]),
                 snippet=str(candidate_entry["snippet"]),
             )
+            official_artifact_provider_error_seen = any(
+                bool(item.get("candidate_is_official_artifact")) for item in reader_provider_errors
+            )
             skip_reason = prefetch_skip_reason(candidate.url)
             if skip_reason:
                 quality_alerts.append("reader_prefetch_skipped_low_value_portal")
@@ -821,16 +849,45 @@ class PipelineDomainCommands:
                     }
                 )
                 continue
+            if (
+                envelope.source_family == "meeting_minutes"
+                and official_artifact_provider_error_seen
+                and _is_weak_reader_fallback_candidate(candidate)
+            ):
+                quality_alerts.append("reader_fallback_blocked_after_official_reader_errors")
+                reader_quality_failures.append(
+                    {
+                        "url": candidate.url,
+                        "rank": candidate_entry["rank"],
+                        "score": candidate_entry["score"],
+                        "reason": "fallback_blocked_after_official_reader_errors",
+                        "quality_details": {
+                            "source_family": envelope.source_family,
+                            "official_artifact_provider_error_seen": True,
+                        },
+                    }
+                )
+                candidate_audit.append(
+                    {
+                        "url": candidate.url,
+                        "rank": candidate_entry["rank"],
+                        "score": candidate_entry["score"],
+                        "outcome": "reader_fallback_blocked_after_official_reader_errors",
+                    }
+                )
+                continue
             try:
                 doc = self.reader_provider.fetch(url=candidate.url)
             except Exception as exc:
                 err = str(exc)
+                candidate_is_official_artifact = _is_concrete_artifact_url(candidate.url)
                 reader_provider_errors.append(
                     {
                         "url": candidate.url,
                         "rank": candidate_entry["rank"],
                         "score": candidate_entry["score"],
                         "error": err,
+                        "candidate_is_official_artifact": candidate_is_official_artifact,
                     }
                 )
                 candidate_audit.append(
@@ -840,6 +897,7 @@ class PipelineDomainCommands:
                         "score": candidate_entry["score"],
                         "outcome": "reader_provider_error",
                         "error": err,
+                        "candidate_is_official_artifact": candidate_is_official_artifact,
                     }
                 )
                 continue

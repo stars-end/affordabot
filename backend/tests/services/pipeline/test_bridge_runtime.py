@@ -587,6 +587,57 @@ def test_runtime_bridge_read_fetch_falls_back_after_ranked_reader_error() -> Non
     assert response["steps"]["analyze"]["status"] in {"succeeded", "succeeded_with_alerts"}
 
 
+def test_runtime_bridge_blocks_weak_video_fallback_after_official_reader_error() -> None:
+    db = FakeDB()
+    storage = FakeStorage()
+    runtime = RailwayRuntimeBridge(db=db, storage=storage)  # type: ignore[arg-type]
+    runtime.search_client = FakeSearchClient(
+        [
+            {
+                "url": "https://sanjose.legistar.com/MeetingDetail.aspx?ID=123&GUID=abc",
+                "title": "Meeting Detail",
+                "snippet": "minutes and housing hearing",
+            },
+            {
+                "url": "https://www.youtube.com/watch?v=abc123",
+                "title": "San Jose City Council Meeting Video Transcript",
+                "snippet": "full transcript of meeting discussion",
+            },
+        ]
+    )
+    runtime.reader_client = RoutingFakeReaderClient(
+        by_url={
+            "https://www.youtube.com/watch?v=abc123": (
+                "# Meeting Transcript\nCouncil discussed housing policy and ordinance updates."
+            )
+        },
+        fail_urls={"https://sanjose.legistar.com/MeetingDetail.aspx?ID=123&GUID=abc"},
+    )
+    runtime._llm_client = FakeLLMClient()
+    runtime.zai_api_key = "x"
+
+    response = asyncio.run(runtime.run_scope_pipeline(_request(idempotency_key="wm:run-scope:video-blocked")))
+
+    read_step = response["steps"]["read_fetch"]
+    assert read_step["status"] == "failed_retryable"
+    assert read_step["decision_reason"] == "reader_provider_error"
+    assert read_step["retry_class"] == "provider_unavailable"
+    assert any(alert.startswith("reader_error:") for alert in response["alerts"])
+    assert "reader_fallback_blocked_after_official_reader_errors" in response["alerts"]
+    assert any(
+        item["outcome"] == "reader_provider_error"
+        and item.get("candidate_is_official_artifact") is True
+        for item in read_step["details"]["candidate_audit"]
+    )
+    assert any(
+        item["outcome"] == "reader_fallback_blocked_after_official_reader_errors"
+        and item["url"] == "https://www.youtube.com/watch?v=abc123"
+        for item in read_step["details"]["candidate_audit"]
+    )
+    assert "index" not in response["steps"]
+    assert "analyze" not in response["steps"]
+
+
 def test_runtime_bridge_blocks_when_all_ranked_candidates_are_navigation_shells() -> None:
     db = FakeDB()
     storage = FakeStorage()

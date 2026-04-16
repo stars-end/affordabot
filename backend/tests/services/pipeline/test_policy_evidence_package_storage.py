@@ -9,6 +9,7 @@ from services.pipeline.policy_evidence_package_storage import (
     InMemoryArtifactProbe,
     InMemoryArtifactWriter,
     InMemoryPolicyEvidencePackageStore,
+    PostgresPolicyEvidencePackageStore,
     PolicyEvidencePackageStorageService,
 )
 
@@ -219,3 +220,166 @@ def test_storage_fails_closed_on_db_write_failure() -> None:
     assert result.failure_class == "db_upsert_failed"
     assert result.compensated_rollback is True
     assert len(store.by_idempotency) == 0
+
+
+class _FakeDbState:
+    def __init__(self) -> None:
+        self.rows_by_idempotency: dict[str, dict[str, Any]] = {}
+
+
+class _FakeConnection:
+    def __init__(self, state: _FakeDbState) -> None:
+        self.state = state
+        self.committed = False
+
+    def __enter__(self) -> "_FakeConnection":
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:  # noqa: ANN001
+        return None
+
+    def cursor(self, cursor_factory: Any | None = None) -> "_FakeCursor":  # noqa: ARG002
+        return _FakeCursor(self.state)
+
+    def commit(self) -> None:
+        self.committed = True
+
+
+class _FakeCursor:
+    def __init__(self, state: _FakeDbState) -> None:
+        self.state = state
+        self.fetchone_result: dict[str, Any] | None = None
+
+    def __enter__(self) -> "_FakeCursor":
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:  # noqa: ANN001
+        return None
+
+    def execute(self, query: str, args: tuple[Any, ...]) -> None:
+        compact = " ".join(query.split())
+        if "SELECT id, package_id, idempotency_key" in compact:
+            idempotency_key = str(args[0])
+            self.fetchone_result = self.state.rows_by_idempotency.get(idempotency_key)
+            return
+        if "INSERT INTO public.policy_evidence_packages" in compact:
+            idempotency_key = str(args[2])
+            existing = self.state.rows_by_idempotency.get(idempotency_key)
+            created_at = existing["created_at"] if existing else args[18]
+            row = {
+                "id": args[0],
+                "package_id": args[1],
+                "idempotency_key": args[2],
+                "content_hash": args[3],
+                "schema_version": args[4],
+                "jurisdiction": args[5],
+                "canonical_document_key": args[6],
+                "policy_identifier": args[7],
+                "package_status": args[8],
+                "economic_handoff_ready": args[9],
+                "fail_closed": args[10],
+                "gate_state": args[11],
+                "insufficiency_reasons": args[12].adapted if hasattr(args[12], "adapted") else args[12],
+                "storage_refs": args[13].adapted if hasattr(args[13], "adapted") else args[13],
+                "package_payload": args[14].adapted if hasattr(args[14], "adapted") else args[14],
+                "artifact_write_status": args[15],
+                "artifact_readback_status": args[16],
+                "pgvector_truth_role": args[17],
+                "created_at": created_at,
+                "updated_at": args[19],
+            }
+            self.state.rows_by_idempotency[idempotency_key] = row
+            self.fetchone_result = row
+            return
+        if "DELETE FROM public.policy_evidence_packages WHERE idempotency_key = %s" in compact:
+            idempotency_key = str(args[0])
+            self.state.rows_by_idempotency.pop(idempotency_key, None)
+            self.fetchone_result = None
+            return
+        raise AssertionError(f"unexpected query: {query}")
+
+    def fetchone(self) -> dict[str, Any] | None:
+        return self.fetchone_result
+
+
+def _postgres_store_for_tests() -> tuple[PostgresPolicyEvidencePackageStore, _FakeDbState]:
+    state = _FakeDbState()
+    store = PostgresPolicyEvidencePackageStore(
+        connection_factory=lambda: _FakeConnection(state),
+    )
+    return store, state
+
+
+def test_postgres_store_roundtrip_includes_backend_run_context() -> None:
+    store, _state = _postgres_store_for_tests()
+    service = PolicyEvidencePackageStorageService(
+        store=store,
+        artifact_writer=InMemoryArtifactWriter(),
+        artifact_probe=InMemoryArtifactProbe(
+            known_uris={
+                "minio://policy-evidence/packages/pkg-storage-proof.json",
+                "minio://policy-evidence/reader/private_searxng/sj-13000001.txt",
+            }
+        ),
+    )
+    payload = _sample_package()
+    payload["run_context"] = {"backend_run_id": "run-live-001"}
+
+    persisted = service.persist(
+        package_payload=payload,
+        idempotency_key="idem-postgres-roundtrip",
+    )
+
+    assert persisted.stored is True
+    fetched = store.get_by_idempotency(idempotency_key="idem-postgres-roundtrip")
+    assert fetched is not None
+    assert fetched.package_payload["run_context"]["backend_run_id"] == "run-live-001"
+
+
+def test_postgres_store_idempotent_upsert_reuses_idempotency_key() -> None:
+    store, state = _postgres_store_for_tests()
+    service = PolicyEvidencePackageStorageService(
+        store=store,
+        artifact_writer=InMemoryArtifactWriter(),
+        artifact_probe=InMemoryArtifactProbe(
+            known_uris={
+                "minio://policy-evidence/packages/pkg-storage-proof.json",
+                "minio://policy-evidence/reader/private_searxng/sj-13000001.txt",
+            }
+        ),
+    )
+    payload = _sample_package()
+
+    first = service.persist(package_payload=payload, idempotency_key="idem-postgres-replay")
+    second = service.persist(package_payload=payload, idempotency_key="idem-postgres-replay")
+
+    assert first.stored is True
+    assert second.stored is True
+    assert second.idempotent_reuse is True
+    assert len(state.rows_by_idempotency) == 1
+
+
+def test_storage_conflict_remains_fail_closed_with_postgres_store() -> None:
+    store, state = _postgres_store_for_tests()
+    service = PolicyEvidencePackageStorageService(
+        store=store,
+        artifact_writer=InMemoryArtifactWriter(),
+        artifact_probe=InMemoryArtifactProbe(
+            known_uris={
+                "minio://policy-evidence/packages/pkg-storage-proof.json",
+                "minio://policy-evidence/reader/private_searxng/sj-13000001.txt",
+            }
+        ),
+    )
+    payload = _sample_package()
+    first = service.persist(package_payload=payload, idempotency_key="idem-postgres-conflict")
+    assert first.stored is True
+
+    changed = dict(payload)
+    changed["package_id"] = "pkg-storage-proof-conflict-postgres"
+    second = service.persist(package_payload=changed, idempotency_key="idem-postgres-conflict")
+
+    assert second.stored is False
+    assert second.fail_closed is True
+    assert second.failure_class == "idempotency_conflict"
+    assert len(state.rows_by_idempotency) == 1

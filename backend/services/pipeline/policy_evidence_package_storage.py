@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 import hashlib
 import json
+import os
 from typing import Any, Protocol
 from uuid import NAMESPACE_URL, uuid5
 
@@ -165,6 +166,197 @@ class InMemoryPolicyEvidencePackageStore(PolicyEvidencePackageStore):
         self.by_idempotency.pop(idempotency_key, None)
 
 
+class PostgresPolicyEvidencePackageStore(PolicyEvidencePackageStore):
+    """Postgres-backed adapter for policy_evidence_packages."""
+
+    def __init__(
+        self,
+        *,
+        database_url: str | None = None,
+        connection_factory: Any | None = None,
+    ) -> None:
+        self.database_url = (
+            database_url
+            or os.getenv("DATABASE_URL_PUBLIC")
+            or os.getenv("DATABASE_URL")
+            or ""
+        )
+        self._connection_factory = connection_factory or self._default_connection_factory
+
+    def _default_connection_factory(self) -> Any:
+        if not self.database_url:
+            raise RuntimeError("DATABASE_URL is not set")
+        try:
+            import psycopg2  # type: ignore[import-not-found]
+        except ModuleNotFoundError as exc:
+            raise RuntimeError("psycopg2_not_available") from exc
+        return psycopg2.connect(self.database_url)
+
+    @staticmethod
+    def _real_dict_cursor() -> Any:
+        try:
+            from psycopg2.extras import RealDictCursor  # type: ignore[import-not-found]
+        except ModuleNotFoundError:
+            return None
+        return RealDictCursor
+
+    @staticmethod
+    def _json_param(value: Any) -> Any:
+        try:
+            from psycopg2.extras import Json  # type: ignore[import-not-found]
+        except ModuleNotFoundError:
+            return json.dumps(value, ensure_ascii=True)
+        return Json(value)
+
+    @staticmethod
+    def _json_value(value: Any, *, default: Any) -> Any:
+        if value is None:
+            return default
+        if isinstance(value, str):
+            try:
+                return json.loads(value)
+            except json.JSONDecodeError:
+                return default
+        return value
+
+    @staticmethod
+    def _time_value(value: Any) -> str:
+        if isinstance(value, datetime):
+            return value.astimezone(UTC).isoformat()
+        if isinstance(value, str):
+            return value
+        return _utc_now().isoformat()
+
+    def _record_from_row(self, row: dict[str, Any]) -> PersistedPackageRecord:
+        return PersistedPackageRecord(
+            record_id=str(row["id"]),
+            package_id=str(row["package_id"]),
+            idempotency_key=str(row["idempotency_key"]),
+            content_hash=str(row["content_hash"]),
+            schema_version=str(row["schema_version"]),
+            jurisdiction=str(row["jurisdiction"]),
+            canonical_document_key=str(row["canonical_document_key"]),
+            policy_identifier=str(row["policy_identifier"]),
+            package_status=str(row["package_status"]),
+            economic_handoff_ready=bool(row["economic_handoff_ready"]),
+            fail_closed=bool(row["fail_closed"]),
+            gate_state=str(row["gate_state"]),
+            insufficiency_reasons=list(
+                self._json_value(row.get("insufficiency_reasons"), default=[])
+            ),
+            storage_refs=list(self._json_value(row.get("storage_refs"), default=[])),
+            package_payload=dict(self._json_value(row.get("package_payload"), default={})),
+            artifact_write_status=str(row["artifact_write_status"]),
+            artifact_readback_status=str(row["artifact_readback_status"]),
+            pgvector_truth_role=str(row["pgvector_truth_role"]),
+            created_at=self._time_value(row.get("created_at")),
+            updated_at=self._time_value(row.get("updated_at")),
+        )
+
+    def get_by_idempotency(self, *, idempotency_key: str) -> PersistedPackageRecord | None:
+        query = """
+            SELECT id, package_id, idempotency_key, content_hash, schema_version, jurisdiction,
+                   canonical_document_key, policy_identifier, package_status, economic_handoff_ready,
+                   fail_closed, gate_state, insufficiency_reasons, storage_refs, package_payload,
+                   artifact_write_status, artifact_readback_status, pgvector_truth_role,
+                   created_at, updated_at
+            FROM public.policy_evidence_packages
+            WHERE idempotency_key = %s
+            LIMIT 1
+        """
+        cursor_factory = self._real_dict_cursor()
+        try:
+            with self._connection_factory() as conn:
+                with conn.cursor(cursor_factory=cursor_factory) as cursor:
+                    cursor.execute(query, (idempotency_key,))
+                    row = cursor.fetchone()
+        except Exception as exc:  # noqa: BLE001
+            raise RuntimeError("db_read_failed") from exc
+        if not row:
+            return None
+        return self._record_from_row(dict(row))
+
+    def upsert(self, *, row: PersistedPackageRecord) -> PersistedPackageRecord:
+        query = """
+            INSERT INTO public.policy_evidence_packages (
+                id, package_id, idempotency_key, content_hash, schema_version, jurisdiction,
+                canonical_document_key, policy_identifier, package_status, economic_handoff_ready,
+                fail_closed, gate_state, insufficiency_reasons, storage_refs, package_payload,
+                artifact_write_status, artifact_readback_status, pgvector_truth_role, created_at, updated_at
+            ) VALUES (
+                %s::uuid, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                %s, %s, %s::jsonb, %s::jsonb, %s::jsonb, %s, %s, %s, %s::timestamptz, %s::timestamptz
+            )
+            ON CONFLICT (idempotency_key) DO UPDATE SET
+                package_id = EXCLUDED.package_id,
+                content_hash = EXCLUDED.content_hash,
+                schema_version = EXCLUDED.schema_version,
+                jurisdiction = EXCLUDED.jurisdiction,
+                canonical_document_key = EXCLUDED.canonical_document_key,
+                policy_identifier = EXCLUDED.policy_identifier,
+                package_status = EXCLUDED.package_status,
+                economic_handoff_ready = EXCLUDED.economic_handoff_ready,
+                fail_closed = EXCLUDED.fail_closed,
+                gate_state = EXCLUDED.gate_state,
+                insufficiency_reasons = EXCLUDED.insufficiency_reasons,
+                storage_refs = EXCLUDED.storage_refs,
+                package_payload = EXCLUDED.package_payload,
+                artifact_write_status = EXCLUDED.artifact_write_status,
+                artifact_readback_status = EXCLUDED.artifact_readback_status,
+                pgvector_truth_role = EXCLUDED.pgvector_truth_role,
+                updated_at = EXCLUDED.updated_at
+            RETURNING id, package_id, idempotency_key, content_hash, schema_version, jurisdiction,
+                      canonical_document_key, policy_identifier, package_status, economic_handoff_ready,
+                      fail_closed, gate_state, insufficiency_reasons, storage_refs, package_payload,
+                      artifact_write_status, artifact_readback_status, pgvector_truth_role,
+                      created_at, updated_at
+        """
+        args = (
+            row.record_id,
+            row.package_id,
+            row.idempotency_key,
+            row.content_hash,
+            row.schema_version,
+            row.jurisdiction,
+            row.canonical_document_key,
+            row.policy_identifier,
+            row.package_status,
+            row.economic_handoff_ready,
+            row.fail_closed,
+            row.gate_state,
+            self._json_param(row.insufficiency_reasons),
+            self._json_param(row.storage_refs),
+            self._json_param(row.package_payload),
+            row.artifact_write_status,
+            row.artifact_readback_status,
+            row.pgvector_truth_role,
+            row.created_at,
+            row.updated_at,
+        )
+        cursor_factory = self._real_dict_cursor()
+        try:
+            with self._connection_factory() as conn:
+                with conn.cursor(cursor_factory=cursor_factory) as cursor:
+                    cursor.execute(query, args)
+                    saved = cursor.fetchone()
+                    conn.commit()
+        except Exception as exc:  # noqa: BLE001
+            raise RuntimeError("db_upsert_failed") from exc
+        if not saved:
+            raise RuntimeError("db_upsert_failed")
+        return self._record_from_row(dict(saved))
+
+    def delete_by_idempotency(self, *, idempotency_key: str) -> None:
+        query = "DELETE FROM public.policy_evidence_packages WHERE idempotency_key = %s"
+        try:
+            with self._connection_factory() as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(query, (idempotency_key,))
+                    conn.commit()
+        except Exception as exc:  # noqa: BLE001
+            raise RuntimeError("db_delete_failed") from exc
+
+
 class InMemoryArtifactWriter(ArtifactWriter):
     def __init__(self, *, fail_next_write: bool = False) -> None:
         self.fail_next_write = fail_next_write
@@ -224,6 +416,11 @@ class PolicyEvidencePackageStorageService:
                 pgvector_truth_role="unknown",
             )
         normalized = package.model_dump(mode="json")
+        raw_run_context = package_payload.get("run_context")
+        if isinstance(raw_run_context, dict):
+            backend_run_id = raw_run_context.get("backend_run_id")
+            if backend_run_id is not None:
+                normalized["run_context"] = {"backend_run_id": str(backend_run_id)}
         content_hash = stable_payload_hash(normalized)
 
         existing = self.store.get_by_idempotency(idempotency_key=idempotency_key)
