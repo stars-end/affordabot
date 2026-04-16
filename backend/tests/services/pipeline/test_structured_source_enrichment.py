@@ -287,7 +287,6 @@ def test_legistar_matter_metadata_resolves_view_attachment_via_context_search_fa
                         "MatterId": 7526,
                         "MatterFile": "20-969",
                         "MatterTitle": "Council Policy Priority # 5: Commercial Linkage Impact Fee.",
-                        "MatterInSiteURL": "https://sanjoseca.legistar.com/LegislationDetail.aspx?ID=7526",
                     }
                 )
             if endpoint.endswith("/Matters/7526/Attachments"):
@@ -316,6 +315,7 @@ def test_legistar_matter_metadata_resolves_view_attachment_via_context_search_fa
     assert candidate is not None
     assert candidate["true_structured"] is True
     assert candidate["source_family"] == "legistar_web_api"
+    assert candidate["artifact_url"].endswith("/Matters/7526")
     assert candidate["lineage_metadata"]["matter_id"] == "7526"
     fact_fields = {fact["field"] for fact in candidate["structured_policy_facts"]}
     assert "matter_attachment_count" in fact_fields

@@ -524,7 +524,7 @@ class StructuredSourceEnricher:
         except (httpx.HTTPError, ValueError):
             attachments_payload = []
 
-        matter_url = str(matter_payload.get("MatterInSiteURL") or selected_url or matter_endpoint)
+        matter_url = str(matter_payload.get("MatterInSiteURL") or matter_endpoint)
         matter_title = str(matter_payload.get("MatterTitle") or "").strip()
         file_refs: list[str] = []
         for attachment in attachments_payload:

@@ -478,6 +478,31 @@ def test_rank_reader_candidates_economic_query_prefers_fee_rate_sources_over_pro
     ]["reasons"]
 
 
+def test_rank_reader_candidates_economic_query_prefers_official_source_over_external_article() -> None:
+    ranked = rank_reader_candidates(
+        [
+            SearchResultItem(
+                url="https://www.planetizen.com/news/2020/09/110424-linkage-fee-affordable-housing-funding-approved-san-jose",
+                title="Linkage Fee for Affordable Housing Funding Approved in San Jose",
+                snippet="Commercial linkage fees include $3.00 and $15.00 per square foot rates.",
+            ),
+            SearchResultItem(
+                url="https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee",
+                title="Commercial Linkage Fee | City of San Jose",
+                snippet="The Commercial Linkage Fee is an impact fee levied on commercial development with per square foot rates.",
+            ),
+        ],
+        query_context="San Jose Commercial Linkage Fee Resolution 80069 September 1 2020 per square foot",
+    )
+
+    ranked_by_url = {item["url"]: item for item in ranked}
+    assert ranked[0]["url"].startswith("https://www.sanjoseca.gov/")
+    assert "economic_signal:official_source" in ranked[0]["reasons"]
+    assert "economic_penalty:external_source" in ranked_by_url[
+        "https://www.planetizen.com/news/2020/09/110424-linkage-fee-affordable-housing-funding-approved-san-jose"
+    ]["reasons"]
+
+
 def test_rank_reader_candidates_economic_query_demotes_gateway_fee_title_without_numeric_value() -> None:
     ranked = rank_reader_candidates(
         [

@@ -324,6 +324,8 @@ def _build_parameter_cards(candidate: dict[str, Any], evidence_id: str) -> list[
             except ValueError:
                 value = None
         name = str(fact.get("field") or "").strip() or "unknown_parameter"
+        if not _is_economic_parameter_name(name):
+            continue
         source_url = str(fact.get("source_url") or candidate["artifact_url"] or "https://example.org/unknown")
         excerpt_base = (
             str(fact.get("source_excerpt") or "").strip()

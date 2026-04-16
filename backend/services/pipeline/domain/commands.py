@@ -83,6 +83,7 @@ ECONOMIC_PROCEDURAL_PAGE_PENALTY = 20
 ECONOMIC_SIGNAL_BOOST = 8
 ECONOMIC_NUMERIC_SIGNAL_BOOST = 6
 ECONOMIC_OFFICIAL_SOURCE_BOOST = 4
+ECONOMIC_EXTERNAL_SOURCE_PENALTY = 10
 
 CONCRETE_ARTIFACT_URL_SIGNALS = (
     "meetingdetail.aspx?id=",
@@ -454,9 +455,13 @@ def rank_reader_candidates(
             if any(signal in lowered_url for signal in ECONOMIC_VALUE_URL_SIGNALS):
                 score += ECONOMIC_SIGNAL_BOOST
                 reasons.append("economic_signal:url")
-            if "sanjoseca.gov" in lowered_url:
-                score += ECONOMIC_OFFICIAL_SOURCE_BOOST
-                reasons.append("economic_signal:official_source")
+            if _is_trusted_public_records_url(url):
+                if "sanjoseca.gov" in lowered_url:
+                    score += ECONOMIC_OFFICIAL_SOURCE_BOOST
+                    reasons.append("economic_signal:official_source")
+            else:
+                score -= ECONOMIC_EXTERNAL_SOURCE_PENALTY
+                reasons.append("economic_penalty:external_source")
             if _has_economic_numeric_signal(combined_text):
                 score += ECONOMIC_NUMERIC_SIGNAL_BOOST
                 reasons.append("economic_signal:numeric")
@@ -491,6 +496,17 @@ def rank_reader_candidates(
     if max_candidates is not None:
         return ranked[: max(0, max_candidates)]
     return ranked
+
+
+def _is_trusted_public_records_url(url: str) -> bool:
+    host = urlsplit(url).netloc.lower()
+    return (
+        host.endswith(".gov")
+        or host.endswith(".ca.gov")
+        or host.endswith(".us")
+        or "legistar.com" in host
+        or "granicus.com" in host
+    )
 
 
 def prefetch_skip_reason(url: str) -> str | None:

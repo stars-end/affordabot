@@ -209,6 +209,41 @@ def test_builder_does_not_let_secondary_search_rescue_true_structured_depth() ->
     assert payload["structured_sources"][1]["true_structured"] is False
     assert payload["economic_handoff_ready"] is False
     assert "blocking_gate_present" in set(payload["insufficiency_reasons"])
+    assert all(
+        card["parameter_name"] != "event_attachment_hint_count"
+        for card in payload["parameter_cards"]
+    )
+
+
+def test_builder_does_not_emit_diagnostic_structured_counts_as_parameter_cards() -> None:
+    structured = {
+        "source_lane": "structured",
+        "provider": "legistar_web_api",
+        "source_family": "legistar_web_api",
+        "jurisdiction": "san_jose_ca",
+        "artifact_url": "https://webapi.legistar.com/v1/sanjose/Matters/7526",
+        "artifact_type": "matter_metadata",
+        "source_tier": "tier_b",
+        "retrieved_at": "2026-04-16T00:00:00+00:00",
+        "structured_policy_facts": [
+            {"field": "matter_attachment_count", "value": 19.0, "unit": "count"},
+            {"field": "matter_attachment_url_count", "value": 19.0, "unit": "count"},
+        ],
+        "true_structured": True,
+        "policy_match_key": "legistar::matter::7526",
+        "reconciliation_status": "contextual_metadata_linked_to_policy_query",
+        "lineage_metadata": {"matter_id": "7526"},
+    }
+
+    payload = PolicyEvidencePackageBuilder().build(
+        package_id="pkg-diagnostic-structured-counts",
+        jurisdiction="san_jose_ca",
+        structured_candidates=[structured],
+    )
+
+    assert payload["structured_sources"][0]["field_count"] == 2
+    assert payload["parameter_cards"] == []
+    assert payload["economic_handoff_ready"] is False
 
 
 def test_builder_marks_storage_proof_unproven_when_refs_absent() -> None:
