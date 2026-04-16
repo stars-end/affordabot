@@ -532,6 +532,11 @@ class PolicyEvidenceQualitySpineEconomicsService:
                 ],
             },
             "gates": {
+                "scraped/search": {
+                    "status": taxonomy["scraped/search"]["status"],
+                    "reason": taxonomy["scraped/search"]["details"],
+                    "refs": [],
+                },
                 "storage/read-back": {
                     "status": taxonomy["storage/read-back"]["status"],
                     "reason": taxonomy["storage/read-back"]["details"],
