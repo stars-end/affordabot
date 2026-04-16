@@ -7,6 +7,7 @@ import os
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 import hashlib
+from io import BytesIO
 from threading import Lock
 from typing import Any
 import uuid
@@ -48,12 +49,16 @@ from services.pipeline.domain.storage import (
 )
 from services.pipeline.policy_evidence_package_builder import PolicyEvidencePackageBuilder
 from services.pipeline.policy_evidence_package_storage import (
+    ArtifactProbe,
+    ArtifactWriter,
     InMemoryPolicyEvidencePackageStore,
     PolicyEvidencePackageStorageService,
     PolicyEvidencePackageStore,
     PostgresPolicyEvidencePackageStore,
 )
 from services.storage import S3Storage
+from schemas.analysis import ImpactMode
+from schemas.economic_evidence import MechanismFamily
 
 EMBEDDING_DIMENSIONS = 4096
 
@@ -115,6 +120,57 @@ def _scope_idempotency_key(request: "RunScopeRequest") -> str:
     """
     scope = f"{request.jurisdiction.strip().lower()}::{request.source_family.strip().lower()}"
     return f"{request.idempotency_key}::{_hash(scope)[:16]}"
+
+
+@dataclass(frozen=True)
+class _EconomicMechanismHint:
+    mechanism_family: str | None
+    impact_mode: str
+    secondary_research_needed: bool
+    secondary_research_reason: str | None = None
+
+
+class _S3PolicyEvidenceArtifactWriter(ArtifactWriter):
+    def __init__(self, *, storage: S3Storage) -> None:
+        self._storage = storage
+
+    def write_package_artifact(self, *, package_id: str, payload: dict[str, Any]) -> str:
+        client = getattr(self._storage, "client", None)
+        bucket = str(getattr(self._storage, "bucket", "") or "").strip()
+        if client is None or not bucket:
+            raise RuntimeError("artifact_write_failed")
+        object_key = f"policy-evidence/packages/{package_id}.json"
+        body = json.dumps(payload, ensure_ascii=True, sort_keys=True).encode("utf-8")
+        try:
+            client.put_object(
+                bucket,
+                object_key,
+                BytesIO(body),
+                length=len(body),
+                content_type="application/json",
+            )
+        except Exception as exc:  # noqa: BLE001
+            raise RuntimeError("artifact_write_failed") from exc
+        return f"minio://{bucket}/{object_key}"
+
+
+class _S3PolicyEvidenceArtifactProbe(ArtifactProbe):
+    def __init__(self, *, storage: S3Storage) -> None:
+        self._storage = storage
+
+    def exists(self, *, uri: str) -> bool:
+        parsed = RailwayRuntimeBridge._parse_minio_uri(uri)
+        if parsed is None:
+            return False
+        bucket, object_key = parsed
+        client = getattr(self._storage, "client", None)
+        if client is None:
+            return False
+        try:
+            client.stat_object(bucket, object_key)
+            return True
+        except Exception:  # noqa: BLE001
+            return False
 
 
 @dataclass(frozen=True)
@@ -320,6 +376,107 @@ class RailwayRuntimeBridge:
             return PostgresPolicyEvidencePackageStore(database_url=database_url)
         return InMemoryPolicyEvidencePackageStore()
 
+    @staticmethod
+    def _parse_minio_uri(uri: str) -> tuple[str, str] | None:
+        if not uri.startswith("minio://"):
+            return None
+        payload = uri[len("minio://") :]
+        if "/" not in payload:
+            return None
+        bucket, object_key = payload.split("/", 1)
+        bucket = bucket.strip()
+        object_key = object_key.strip()
+        if not bucket or not object_key:
+            return None
+        return bucket, object_key
+
+    def _normalize_artifact_uri(self, uri: str) -> str:
+        value = str(uri or "").strip()
+        if not value:
+            return ""
+        if "://" in value:
+            return value
+        bucket = str(getattr(self.storage, "bucket", "") or "").strip()
+        if not bucket:
+            return value
+        return f"minio://{bucket}/{value.lstrip('/')}"
+
+    def _package_artifact_uri(self, package_id: str) -> str:
+        bucket = str(getattr(self.storage, "bucket", "") or "").strip() or "policy-evidence"
+        return f"minio://{bucket}/policy-evidence/packages/{package_id}.json"
+
+    @staticmethod
+    def _infer_mechanism_hint(
+        *,
+        request: RunScopeRequest,
+        selected_url: str,
+    ) -> _EconomicMechanismHint:
+        text = " ".join(
+            [
+                request.search_query.lower(),
+                request.source_family.lower(),
+                request.analysis_question.lower(),
+                selected_url.lower(),
+            ]
+        )
+
+        has_fee_or_tax = any(
+            token in text
+            for token in (
+                "impact fee",
+                "development fee",
+                "developer fee",
+                "linkage fee",
+                "permit fee",
+                "tax",
+                "assessment",
+            )
+        )
+        has_housing = any(
+            token in text
+            for token in ("housing", "multifamily", "condo", "rent", "residential", "developer")
+        )
+        if has_fee_or_tax and has_housing:
+            return _EconomicMechanismHint(
+                mechanism_family=MechanismFamily.FEE_OR_TAX_PASS_THROUGH.value,
+                impact_mode=ImpactMode.PASS_THROUGH_INCIDENCE.value,
+                secondary_research_needed=True,
+                secondary_research_reason="pass_through_incidence_rate_missing",
+            )
+
+        if any(
+            token in text
+            for token in ("service fee", "utility fee", "city tax", "sales tax", "parcel tax")
+        ):
+            return _EconomicMechanismHint(
+                mechanism_family=MechanismFamily.DIRECT_FISCAL.value,
+                impact_mode=ImpactMode.DIRECT_FISCAL.value,
+                secondary_research_needed=False,
+            )
+
+        if any(
+            token in text
+            for token in (
+                "license",
+                "licensing",
+                "permit requirement",
+                "training requirement",
+                "compliance",
+                "mandate",
+            )
+        ):
+            return _EconomicMechanismHint(
+                mechanism_family=MechanismFamily.COMPLIANCE_COST.value,
+                impact_mode=ImpactMode.COMPLIANCE_COST.value,
+                secondary_research_needed=False,
+            )
+
+        return _EconomicMechanismHint(
+            mechanism_family=None,
+            impact_mode=ImpactMode.QUALITATIVE_ONLY.value,
+            secondary_research_needed=False,
+        )
+
     async def _materialize_policy_evidence_package(
         self,
         *,
@@ -340,7 +497,7 @@ class RailwayRuntimeBridge:
                 raw_scrape_id = str(raw_ids[0])
             artifact_refs = read_fetch.refs.get("artifact_refs", [])
             if isinstance(artifact_refs, list) and artifact_refs:
-                reader_artifact_uri = str(artifact_refs[0])
+                reader_artifact_uri = self._normalize_artifact_uri(str(artifact_refs[0]))
         document_id = str(index.refs.get("document_id", "")) if index else ""
         selected_url = self._selected_url_from_read_fetch(read_fetch)
 
@@ -349,7 +506,7 @@ class RailwayRuntimeBridge:
         if raw_scrape_id:
             raw_row = await self.db._fetchrow(
                 """
-                SELECT canonical_document_key, content_hash
+                SELECT canonical_document_key, content_hash, storage_uri
                 FROM raw_scrapes
                 WHERE id = $1::uuid
                 LIMIT 1
@@ -359,6 +516,12 @@ class RailwayRuntimeBridge:
             if raw_row:
                 canonical_document_key = str(raw_row["canonical_document_key"] or "")
                 content_hash = str(raw_row["content_hash"] or "")
+                if not reader_artifact_uri:
+                    reader_artifact_uri = self._normalize_artifact_uri(
+                        str(raw_row["storage_uri"] or "")
+                    )
+        if not reader_artifact_uri:
+            reader_artifact_uri = self._normalize_artifact_uri("policy-evidence/unproven/pending")
 
         fail_closed_reasons: list[str] = []
         if read_fetch and read_fetch.status not in {"succeeded", "succeeded_with_alerts"}:
@@ -380,6 +543,15 @@ class RailwayRuntimeBridge:
             fail_closed_reasons.append("analysis_missing")
 
         package_id = f"pkg-{_hash(f'{_scope_idempotency_key(request)}|{canonical_document_key}|{selected_url}')[:24]}"
+        mechanism_hint = self._infer_mechanism_hint(request=request, selected_url=selected_url)
+        if (
+            mechanism_hint.secondary_research_needed
+            and mechanism_hint.secondary_research_reason
+        ):
+            fail_closed_reasons.append(
+                f"secondary_research_needed:{mechanism_hint.secondary_research_reason}"
+            )
+        package_artifact_uri = self._package_artifact_uri(package_id)
         package_payload = PolicyEvidencePackageBuilder().build(
             package_id=package_id,
             jurisdiction=request.jurisdiction,
@@ -410,18 +582,35 @@ class RailwayRuntimeBridge:
                     "evidence_readiness": "insufficient" if fail_closed_reasons else "ready",
                     "retrieved_at": "1970-01-01T00:00:00+00:00",
                     "alerts": list(dict.fromkeys(fail_closed_reasons)),
-                    "selected_impact_mode": "qualitative_only",
+                    "selected_impact_mode": mechanism_hint.impact_mode,
+                    "mechanism_family": mechanism_hint.mechanism_family,
                 }
             ],
             structured_candidates=[],
             freshness_gate={"freshness_status": request.stale_status},
-            economic_hints={"impact_mode": "qualitative_only"},
+            economic_hints={
+                "impact_mode": mechanism_hint.impact_mode,
+                "mechanism_family": mechanism_hint.mechanism_family,
+                "secondary_research_needed": mechanism_hint.secondary_research_needed,
+                "secondary_research_reason": mechanism_hint.secondary_research_reason,
+            },
             storage_refs={
                 "postgres_package_row": f"policy_evidence_packages:{package_id}",
                 "reader_artifact": reader_artifact_uri or "minio://policy-evidence/unproven/pending",
                 "pgvector_chunk_ref": f"document:{document_id or 'pending'}",
             },
         )
+        package_storage_refs = package_payload.get("storage_refs")
+        if isinstance(package_storage_refs, list):
+            package_storage_refs.append(
+                {
+                    "storage_system": "minio",
+                    "truth_role": "artifact_of_record",
+                    "reference_id": package_artifact_uri,
+                    "uri": package_artifact_uri,
+                    "notes": "package artifact envelope",
+                }
+            )
         # Keep idempotent content-hash semantics stable for reruns of the same scope key.
         package_payload["created_at"] = "1970-01-01T00:00:00+00:00"
         package_payload["run_context"] = {
@@ -436,13 +625,28 @@ class RailwayRuntimeBridge:
             "raw_scrape_id": raw_scrape_id,
             "document_id": document_id,
             "structured_enrichment_status": "not_configured",
+            "mechanism_family_hint": mechanism_hint.mechanism_family,
+            "impact_mode_hint": mechanism_hint.impact_mode,
+            "secondary_research_needed": mechanism_hint.secondary_research_needed,
+            "secondary_research_reason": mechanism_hint.secondary_research_reason,
             "fail_closed_reasons": list(dict.fromkeys(fail_closed_reasons)),
         }
         package_payload["structured_enrichment_status"] = "not_configured"
 
         idempotency_key = f"{_scope_idempotency_key(request)}::policy_evidence_package"
         store = self._resolve_package_store()
-        storage = PolicyEvidencePackageStorageService(store=store)
+        artifact_writer: ArtifactWriter | None = None
+        artifact_probe: ArtifactProbe | None = None
+        if getattr(self.storage, "client", None) is not None and getattr(
+            self.storage, "bucket", None
+        ):
+            artifact_writer = _S3PolicyEvidenceArtifactWriter(storage=self.storage)
+            artifact_probe = _S3PolicyEvidenceArtifactProbe(storage=self.storage)
+        storage = PolicyEvidencePackageStorageService(
+            store=store,
+            artifact_writer=artifact_writer,
+            artifact_probe=artifact_probe,
+        )
         try:
             storage_result = storage.persist(
                 package_payload=package_payload,
@@ -473,6 +677,7 @@ class RailwayRuntimeBridge:
             "canonical_document_key": canonical_document_key,
             "selected_url": selected_url,
             "reader_artifact_uri": reader_artifact_uri,
+            "package_artifact_uri": package_artifact_uri,
             "raw_scrape_id": raw_scrape_id,
             "document_id": document_id,
             "storage_status": storage_status,

@@ -24,6 +24,15 @@ from schemas.policy_evidence_package import (
 )
 
 
+def _is_probeable_minio_uri(uri: str) -> bool:
+    value = str(uri or "").strip()
+    if not value:
+        return False
+    if "unproven/pending" in value:
+        return False
+    return True
+
+
 def _utc_now() -> datetime:
     return datetime.now(UTC)
 
@@ -485,7 +494,7 @@ class PolicyEvidencePackageStorageService:
                 probe_uri = ref.uri or (
                     ref.reference_id if "://" in ref.reference_id else None
                 )
-                if probe_uri:
+                if probe_uri and _is_probeable_minio_uri(probe_uri):
                     minio_uris.append(probe_uri)
 
         artifact_write_status = "not_configured"

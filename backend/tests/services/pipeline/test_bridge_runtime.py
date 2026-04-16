@@ -179,6 +179,45 @@ class FakeStorage:
         return path
 
 
+class FakeS3Client:
+    def __init__(self) -> None:
+        self.objects: dict[tuple[str, str], bytes] = {}
+
+    def put_object(
+        self,
+        bucket: str,
+        object_name: str,
+        data: Any,
+        length: int,
+        content_type: str = "application/octet-stream",
+    ) -> None:
+        _ = content_type
+        payload = data.read(length)
+        self.objects[(bucket, object_name)] = payload
+
+    def stat_object(self, bucket: str, object_name: str) -> dict[str, Any]:
+        if (bucket, object_name) not in self.objects:
+            raise RuntimeError("not_found")
+        return {"bucket": bucket, "object_name": object_name}
+
+
+class FakeS3Storage(FakeStorage):
+    def __init__(self, bucket: str = "affordabot-artifacts") -> None:
+        super().__init__()
+        self.bucket = bucket
+        self.client = FakeS3Client()
+
+    async def upload(
+        self,
+        path: str,
+        content: bytes,
+        content_type: str = "application/octet-stream",
+    ) -> str:
+        result = await super().upload(path, content, content_type)
+        self.client.objects[(self.bucket, path)] = content
+        return result
+
+
 class JsonStringFakeDB(FakeDB):
     async def _fetchrow(self, query: str, *args: Any) -> _Row | None:
         row = await super()._fetchrow(query, *args)
@@ -281,6 +320,7 @@ def _request(
     idempotency_key: str = "wm:run-scope:runtime",
     jurisdiction: str = "san-jose-ca",
     source_family: str = "meeting_minutes",
+    search_query: str = "San Jose housing meeting minutes",
 ) -> RunScopeRequest:
     return RunScopeRequest(
         contract_version="2026-04-13.windmill-domain.v1",
@@ -292,7 +332,7 @@ def _request(
         windmill_flow_path="f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
         windmill_run_id="wm-run-1",
         windmill_job_id="wm-job-1",
-        search_query="San Jose housing meeting minutes",
+        search_query=search_query,
         analysis_question="What housing decisions were made?",
     )
 
@@ -576,6 +616,107 @@ def test_runtime_bridge_reader_and_llm_failures_classify() -> None:
     runtime._llm_client = FakeLLMClient(fail="analysis_down")
     llm_fail = asyncio.run(runtime.run_scope_pipeline(_request(idempotency_key="wm:run-scope:llm-fail")))
     assert llm_fail["steps"]["analyze"]["decision_reason"] == "analysis_failed"
+
+
+def test_runtime_bridge_uses_minio_artifact_writer_probe_and_indirect_hint() -> None:
+    db = FakeDB()
+    storage = FakeS3Storage()
+    package_store = InMemoryPolicyEvidencePackageStore()
+    runtime = RailwayRuntimeBridge(
+        db=db, storage=storage, package_store=package_store
+    )  # type: ignore[arg-type]
+    runtime.search_client = FakeSearchClient(
+        [
+            {
+                "url": "https://records.sanjoseca.gov/View.ashx?M=F&ID=13000001",
+                "title": "Affordable Housing Impact Fee",
+                "snippet": "multifamily housing development impact fee update",
+            }
+        ]
+    )
+    runtime.reader_client = FakeReaderClient(
+        content=(
+            "# Agenda Packet\n"
+            "Council discussed increasing multifamily development impact fees.\n"
+        )
+    )
+    runtime._llm_client = FakeLLMClient()
+    runtime.embedding_service = FakeEmbeddingService()
+    runtime.zai_api_key = "x"
+
+    response = asyncio.run(
+        runtime.run_scope_pipeline(
+            _request(
+                idempotency_key="wm:run-scope:pass-through",
+                source_family="agenda_packet",
+                search_query="San Jose multifamily housing development impact fee increase",
+            )
+        )
+    )
+
+    policy_package = response["steps"]["summarize_run"]["details"]["policy_evidence_package"]
+    storage_result = policy_package["storage_result"]
+    refs = response["refs"]
+    persisted = next(iter(package_store.by_idempotency.values()))
+    run_context = persisted.package_payload["run_context"]
+
+    assert storage_result["artifact_write_status"] == "succeeded"
+    assert storage_result["artifact_readback_status"] == "proven"
+    assert refs["package_artifact_uri"].startswith(
+        "minio://affordabot-artifacts/policy-evidence/packages/"
+    )
+    assert refs["reader_artifact_uri"].startswith("minio://affordabot-artifacts/")
+    minio_uris = {
+        ref["uri"]
+        for ref in persisted.package_payload["storage_refs"]
+        if ref["storage_system"] == "minio"
+    }
+    assert refs["package_artifact_uri"] in minio_uris
+    assert refs["reader_artifact_uri"] in minio_uris
+    assert run_context["mechanism_family_hint"] == "fee_or_tax_pass_through"
+    assert run_context["impact_mode_hint"] == "pass_through_incidence"
+    assert run_context["secondary_research_needed"] is True
+    assert "secondary_research_needed:pass_through_incidence_rate_missing" in refs["fail_closed_reasons"]
+
+
+def test_runtime_bridge_maps_licensing_to_compliance_cost_hint() -> None:
+    db = FakeDB()
+    storage = FakeStorage()
+    package_store = InMemoryPolicyEvidencePackageStore()
+    runtime = RailwayRuntimeBridge(
+        db=db, storage=storage, package_store=package_store
+    )  # type: ignore[arg-type]
+    runtime.search_client = FakeSearchClient(
+        [
+            {
+                "url": "https://records.sanjoseca.gov/ordinance/barber-license-training",
+                "title": "Barber License Training Requirement",
+                "snippet": "new two year licensing and training requirement",
+            }
+        ]
+    )
+    runtime.reader_client = FakeReaderClient(
+        content="# Ordinance\nLicensing and compliance training requirements were adopted."
+    )
+    runtime._llm_client = FakeLLMClient()
+    runtime.embedding_service = FakeEmbeddingService()
+    runtime.zai_api_key = "x"
+
+    asyncio.run(
+        runtime.run_scope_pipeline(
+            _request(
+                idempotency_key="wm:run-scope:compliance-hint",
+                source_family="ordinance_text",
+                jurisdiction="san-jose-ca",
+            )
+        )
+    )
+    persisted = next(iter(package_store.by_idempotency.values()))
+    run_context = persisted.package_payload["run_context"]
+
+    assert run_context["mechanism_family_hint"] == "compliance_cost"
+    assert run_context["impact_mode_hint"] == "compliance_cost"
+    assert run_context["secondary_research_needed"] is False
 
 
 def test_runtime_bridge_read_fetch_falls_back_after_ranked_reader_error() -> None:
