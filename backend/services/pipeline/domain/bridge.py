@@ -707,16 +707,17 @@ class RailwayRuntimeBridge:
         return parts
 
     @classmethod
-    def _extract_primary_fee_facts_from_analysis(
+    def _extract_primary_fee_facts_from_text_parts(
         cls,
         *,
-        analyze: CommandResponse | None,
+        text_parts: list[str],
         selected_url: str,
+        source_locator_prefix: str,
     ) -> tuple[list[dict[str, Any]], list[str]]:
         facts: list[dict[str, Any]] = []
         alerts: list[str] = []
         seen: set[tuple[float, str]] = set()
-        for chunk_index, text in enumerate(cls._analysis_text_parts(analyze), start=1):
+        for chunk_index, text in enumerate(text_parts, start=1):
             lowered = text.lower()
             if not any(signal in lowered for signal in ("fee", "fees", "per sq", "square foot", "sq. ft")):
                 continue
@@ -734,7 +735,7 @@ class RailwayRuntimeBridge:
                             "category": "unknown",
                             "source_url": selected_url,
                             "source_excerpt": text[:600],
-                            "source_locator": f"analysis_chunk:{chunk_index}",
+                            "source_locator": f"{source_locator_prefix}:{chunk_index}",
                             "provenance_lane": "primary_scraped_document",
                             "source_hierarchy_status": "bill_or_reg_text",
                             "confidence": 0.35,
@@ -780,7 +781,7 @@ class RailwayRuntimeBridge:
                         "category": category,
                         "source_url": selected_url,
                         "source_excerpt": text[:600],
-                        "source_locator": f"analysis_chunk:{chunk_index}",
+                        "source_locator": f"{source_locator_prefix}:{chunk_index}",
                         "provenance_lane": "primary_scraped_document",
                         "source_hierarchy_status": "bill_or_reg_text",
                         "confidence": 0.82,
@@ -792,6 +793,41 @@ class RailwayRuntimeBridge:
                     }
                 )
         return facts, sorted(set(alerts))
+
+    @classmethod
+    def _extract_primary_fee_facts_from_analysis(
+        cls,
+        *,
+        analyze: CommandResponse | None,
+        selected_url: str,
+    ) -> tuple[list[dict[str, Any]], list[str]]:
+        return cls._extract_primary_fee_facts_from_text_parts(
+            text_parts=cls._analysis_text_parts(analyze),
+            selected_url=selected_url,
+            source_locator_prefix="analysis_chunk",
+        )
+
+    @classmethod
+    def _merge_primary_fee_facts(
+        cls,
+        *fact_groups: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        merged: list[dict[str, Any]] = []
+        seen: set[tuple[str, str, str, str]] = set()
+        for facts in fact_groups:
+            for fact in facts:
+                value_key = str(fact.get("normalized_value", fact.get("raw_value") or ""))
+                key = (
+                    str(fact.get("field") or ""),
+                    value_key,
+                    str(fact.get("category") or ""),
+                    str(fact.get("source_url") or ""),
+                )
+                if key in seen:
+                    continue
+                seen.add(key)
+                merged.append(fact)
+        return merged
 
     @staticmethod
     def _detect_source_shape_drift(search_candidates: list[dict[str, Any]]) -> dict[str, Any]:
@@ -1086,10 +1122,11 @@ class RailwayRuntimeBridge:
 
         canonical_document_key = ""
         content_hash = ""
+        raw_content = ""
         if raw_scrape_id:
             raw_row = await self.db._fetchrow(
                 """
-                SELECT canonical_document_key, content_hash, storage_uri
+                SELECT canonical_document_key, content_hash, storage_uri, data->>'content' AS raw_content
                 FROM raw_scrapes
                 WHERE id = $1::uuid
                 LIMIT 1
@@ -1099,6 +1136,12 @@ class RailwayRuntimeBridge:
             if raw_row:
                 canonical_document_key = str(raw_row["canonical_document_key"] or "")
                 content_hash = str(raw_row["content_hash"] or "")
+                try:
+                    raw_content = str(raw_row["raw_content"] or "")
+                except KeyError:
+                    row_data = getattr(raw_row, "data", {})
+                    raw_data = row_data.get("data") if isinstance(row_data, dict) else {}
+                    raw_content = str(raw_data.get("content") or "") if isinstance(raw_data, dict) else ""
                 if not reader_artifact_uri:
                     reader_artifact_uri = self._normalize_artifact_uri(
                         str(raw_row["storage_uri"] or "")
@@ -1188,10 +1231,17 @@ class RailwayRuntimeBridge:
             structured_candidates=structured_enrichment.candidates,
         )
         source_quality_metrics["source_shape_drift"] = source_shape_drift
-        primary_fee_facts, primary_parameter_alerts = self._extract_primary_fee_facts_from_analysis(
+        analysis_fee_facts, primary_parameter_alerts = self._extract_primary_fee_facts_from_analysis(
             analyze=analyze,
             selected_url=selected_url,
         )
+        raw_fee_facts, raw_parameter_alerts = self._extract_primary_fee_facts_from_text_parts(
+            text_parts=[raw_content] if raw_content else [],
+            selected_url=selected_url,
+            source_locator_prefix="reader_content",
+        )
+        primary_fee_facts = self._merge_primary_fee_facts(analysis_fee_facts, raw_fee_facts)
+        primary_parameter_alerts = sorted(set(primary_parameter_alerts + raw_parameter_alerts))
         secondary_numeric_facts = self._collect_secondary_numeric_facts(structured_enrichment.candidates)
         source_reconciliation = self._reconcile_parameter_sources(
             primary_facts=primary_fee_facts,

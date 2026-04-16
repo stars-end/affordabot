@@ -1296,6 +1296,26 @@ def test_runtime_bridge_reconciliation_ignores_structured_diagnostic_counts() ->
     assert [item["field"] for item in facts] == ["commercial_linkage_fee_rate_usd_per_sqft"]
 
 
+def test_runtime_bridge_extracts_primary_fee_facts_from_reader_content() -> None:
+    facts, alerts = RailwayRuntimeBridge._extract_primary_fee_facts_from_text_parts(
+        text_parts=[
+            (
+                "The Commercial Linkage Fee is an impact fee. "
+                "Industrial/Research and Development projects pay $3.58 per square foot "
+                "when paid in full before building permit issuance."
+            )
+        ],
+        selected_url="https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee",
+        source_locator_prefix="reader_content",
+    )
+
+    assert alerts == []
+    assert len(facts) == 1
+    assert facts[0]["normalized_value"] == 3.58
+    assert facts[0]["source_locator"] == "reader_content:1"
+    assert facts[0]["provenance_lane"] == "primary_scraped_document"
+
+
 def test_runtime_bridge_detects_source_shape_drift() -> None:
     drift = RailwayRuntimeBridge._detect_source_shape_drift(
         [
