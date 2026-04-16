@@ -676,6 +676,22 @@ VISUAL_BASE_URL=http://localhost:5173 pnpm --filter frontend test:visual:update
 
 ## Repo-Specific Addendum
 
+## Repo-Memory Brownfield Maps
+
+Before changing pipeline, storage, analysis, Windmill orchestration, or admin
+frontend surfaces, read the maintained repo-memory maps:
+
+- `docs/architecture/README.md`
+- `docs/architecture/BROWNFIELD_MAP.md`
+- `docs/architecture/DATA_AND_STORAGE.md`
+- `docs/architecture/WORKFLOWS_AND_PATTERNS.md`
+- `docs/architecture/ECONOMIC_ANALYSIS_PIPELINE.md`
+
+These maps are the repo-owned source of truth for brownfield orientation. Beads
+memory is a pointer/decision log, not proof. Legacy context-area workflows may
+exist in `.github/workflows`; do not treat regenerated context-area output as
+canonical unless a task explicitly targets that legacy system.
+
 ## Beads Integration
 
 ### Beads State Sync
