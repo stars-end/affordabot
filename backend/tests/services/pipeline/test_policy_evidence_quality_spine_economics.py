@@ -355,3 +355,161 @@ def test_retry_ledger_respects_lower_cycle_cap() -> None:
         "retry_2",
     ]
     assert result["scorecard"]["evaluation_cycle_policy"]["max_cycles"] == 3
+
+
+def test_economic_quality_rubric_contains_required_dimensions() -> None:
+    service = PolicyEvidenceQualitySpineEconomicsService()
+    result = service.evaluate(
+        matrix_input=MatrixInput(
+            payload=None,
+            source_path="horizontal_matrix.json",
+            source_mode="missing",
+        )
+    )
+
+    rubric = result["scorecard"]["economic_quality_rubric"]
+    assert set(rubric["dimensions"].keys()) == {
+        "mechanism_graph_validity",
+        "parameter_provenance",
+        "assumption_governance",
+        "arithmetic_integrity",
+        "uncertainty_sensitivity",
+        "unsupported_claim_rejection",
+        "user_facing_conclusion_quality",
+    }
+
+
+def test_not_decision_grade_contains_explicit_missing_evidence() -> None:
+    bundle = PolicyEconomicMechanismCaseService().build_case_bundle()
+    direct = _case(bundle, "direct_cost_case")
+    matrix = _real_matrix_from_case(direct["primary_package"])
+
+    service = PolicyEvidenceQualitySpineEconomicsService()
+    result = service.evaluate(
+        matrix_input=MatrixInput(
+            payload=matrix,
+            source_path="horizontal_matrix.json",
+            source_mode="agent_a_horizontal_matrix",
+        )
+    )
+
+    decision_grade = result["scorecard"]["decision_grade"]
+    assert decision_grade["verdict"] == "not_decision_grade"
+    assert any("storage/read-back:" in item for item in decision_grade["missing_evidence"])
+    assert any("Windmill/orchestration:" in item for item in decision_grade["missing_evidence"])
+    assert any("LLM narrative:" in item for item in decision_grade["missing_evidence"])
+    endpoint = service.build_endpoint_read_model(
+        matrix_input=MatrixInput(
+            payload=matrix,
+            source_path="horizontal_matrix.json",
+            source_mode="agent_a_horizontal_matrix",
+        ),
+        package_id=direct["primary_package"]["package_id"],
+        source_family="meeting_minutes",
+    )
+    assert endpoint["economic_output"]["status"] == "not_proven"
+    assert endpoint["economic_output"]["decision_grade_verdict"] == "not_decision_grade"
+
+
+def test_decision_grade_requires_full_runtime_proofs() -> None:
+    bundle = PolicyEconomicMechanismCaseService().build_case_bundle()
+    direct = _case(bundle, "direct_cost_case")
+    package = direct["primary_package"]
+    selected_url = package["scraped_sources"][0]["selected_candidate_url"]
+    provider = package["scraped_sources"][0]["search_provider"]
+
+    matrix = _matrix_with_runtime_evidence(
+        package,
+        orchestration_proof={
+            "proof_status": "pass",
+            "proof_mode": "windmill_live_current_run",
+            "linked_to_current_vertical_package": True,
+            "windmill_run_id": "wm-live-run-001",
+            "windmill_job_id": "wm-live-job-001",
+            "blocker": None,
+        },
+        llm_narrative_proof={
+            "proof_status": "pass",
+            "canonical_pipeline_run_id": "pipe-run-001",
+            "canonical_pipeline_step_id": "step-llm-001",
+            "blocker": None,
+            "source": "canonical_pipeline_live",
+        },
+        storage_proof={
+            "proof_status": "pass",
+            "proof_mode": "postgres_minio_live",
+            "store_backend": "postgres",
+            "artifact_probe_backend": "minio",
+            "persisted_record_id": "row-live-001",
+            "minio_readback_proven": True,
+            "blocker": None,
+        },
+    )
+    matrix["rows"] = [
+        {
+            "selected_candidate": {
+                "provider": provider,
+                "rank": 1,
+                "url": selected_url,
+                "selection_reason": "artifact_grade_top_rank",
+            },
+            "provider_results": {
+                provider: {
+                    "status": "ok",
+                    "reason_code": "artifact_grade_selected",
+                    "candidates": [
+                        {
+                            "rank": 1,
+                            "url": selected_url,
+                            "artifact_grade": True,
+                            "official_domain": True,
+                        }
+                    ],
+                }
+            },
+        }
+    ]
+
+    service = PolicyEvidenceQualitySpineEconomicsService()
+    result = service.evaluate(
+        matrix_input=MatrixInput(
+            payload=matrix,
+            source_path="horizontal_matrix.json",
+            source_mode="agent_a_horizontal_matrix",
+        )
+    )
+
+    assert result["scorecard"]["decision_grade"]["verdict"] == "decision_grade"
+    assert result["scorecard"]["economic_quality_rubric"]["verdict"] == "decision_grade"
+    assert result["scorecard"]["decision_grade"]["missing_evidence"] == []
+    endpoint = service.build_endpoint_read_model(
+        matrix_input=MatrixInput(
+            payload=matrix,
+            source_path="horizontal_matrix.json",
+            source_mode="agent_a_horizontal_matrix",
+        ),
+        package_id=package["package_id"],
+        source_family="meeting_minutes",
+    )
+    assert endpoint["decision_grade_verdict"] == "decision_grade"
+    assert endpoint["economic_output"]["status"] == "ready"
+
+
+def test_fixture_case_coverage_tracks_direct_indirect_secondary() -> None:
+    service = PolicyEvidenceQualitySpineEconomicsService()
+    result = service.evaluate(
+        matrix_input=MatrixInput(
+            payload=None,
+            source_path="horizontal_matrix.json",
+            source_mode="missing",
+        )
+    )
+
+    coverage = result["scorecard"]["fixture_case_coverage"]
+    assert coverage["required_case_count"] == 3
+    assert coverage["covered_case_count"] == 3
+    assert [item["case_id"] for item in coverage["cases"]] == [
+        "direct_cost_case",
+        "indirect_pass_through_case",
+        "secondary_research_required_case",
+    ]

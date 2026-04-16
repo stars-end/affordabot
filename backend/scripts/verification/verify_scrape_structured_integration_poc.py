@@ -487,6 +487,117 @@ def _summary(envelopes: list[dict[str, Any]], schema_check: dict[str, Any]) -> d
     }
 
 
+def _unified_package_proof(
+    envelopes: list[dict[str, Any]],
+) -> dict[str, Any]:
+    lane_values = {str(item.get("source_lane", "")) for item in envelopes}
+    has_scraped_lane = "scrape_search" in lane_values
+    has_structured_lane = "structured" in lane_values
+    structured_families = sorted(
+        {
+            str(item.get("provider", ""))
+            for item in envelopes
+            if item.get("source_lane") == "structured"
+        }
+    )
+    has_multiple_structured_families = len(structured_families) >= 2
+    provenance_required = (
+        "provider",
+        "canonical_document_key",
+        "artifact_url",
+        "content_hash",
+        "retrieved_at",
+        "source_tier",
+    )
+    missing_provenance_rows: list[int] = []
+    deterministic_identity_failures: list[str] = []
+    lanes_by_doc: dict[str, set[str]] = {}
+    for index, envelope in enumerate(envelopes):
+        if any(not envelope.get(key) for key in provenance_required):
+            missing_provenance_rows.append(index)
+        canonical_document_key = str(envelope.get("canonical_document_key", ""))
+        source_lane = str(envelope.get("source_lane", ""))
+        if canonical_document_key:
+            lanes_by_doc.setdefault(canonical_document_key, set()).add(source_lane)
+        artifact_url = str(envelope.get("artifact_url", ""))
+        content_hash = str(envelope.get("content_hash", ""))
+        expected_hash = _stable_hash(f"{canonical_document_key}::{artifact_url}")
+        if canonical_document_key and artifact_url and content_hash and content_hash != expected_hash:
+            deterministic_identity_failures.append(canonical_document_key)
+    cross_lane_document_keys = sorted(
+        [key for key, lanes in lanes_by_doc.items() if {"structured", "scrape_search"}.issubset(lanes)]
+    )
+    has_cross_lane_identity_overlap = len(cross_lane_document_keys) >= 1
+    reasons: list[str] = []
+    if not has_scraped_lane:
+        reasons.append("missing_scraped_lane")
+    if not has_structured_lane:
+        reasons.append("missing_structured_lane")
+    if not has_multiple_structured_families:
+        reasons.append("insufficient_structured_source_families")
+    if not has_cross_lane_identity_overlap:
+        reasons.append("no_cross_lane_canonical_document_overlap")
+    if missing_provenance_rows:
+        reasons.append("missing_source_level_provenance")
+    if deterministic_identity_failures:
+        reasons.append("deterministic_identity_hash_mismatch")
+    passed = len(reasons) == 0
+    return {
+        "passed": passed,
+        "has_scraped_lane": has_scraped_lane,
+        "has_structured_lane": has_structured_lane,
+        "structured_source_family_count": len(structured_families),
+        "structured_source_families": structured_families,
+        "cross_lane_canonical_document_keys": cross_lane_document_keys,
+        "missing_provenance_rows": missing_provenance_rows,
+        "deterministic_identity_hash_failures": sorted(set(deterministic_identity_failures)),
+        "reasons": reasons,
+    }
+
+
+def _economic_analysis_handoff_assessment(
+    *,
+    envelopes: list[dict[str, Any]],
+    summary: dict[str, Any],
+    schema_check: dict[str, Any],
+    unified_package_proof: dict[str, Any],
+) -> dict[str, Any]:
+    quantified_ready_count = int(summary.get("quantified_handoff_ready_count", 0))
+    reader_required_count = int(summary.get("reader_required_count", 0))
+    insufficient_count = int(summary.get("insufficient_count", 0))
+    schema_errors_count = len(schema_check.get("schema_errors", []))
+    conditions = {
+        "unified_package_passed": bool(unified_package_proof.get("passed")),
+        "quantified_ready_count_ge_2": quantified_ready_count >= 2,
+        "schema_errors_zero": schema_errors_count == 0,
+    }
+    sufficient_for_handoff = all(conditions.values())
+    reasons: list[str] = []
+    if not conditions["unified_package_passed"]:
+        reasons.append("unified_package_contract_not_proven")
+    if not conditions["quantified_ready_count_ge_2"]:
+        reasons.append("insufficient_quantified_ready_evidence_cards")
+    if not conditions["schema_errors_zero"]:
+        reasons.append("schema_validation_errors_present")
+    production_blockers: list[str] = []
+    if reader_required_count > 0:
+        production_blockers.append("reader_required_rows_remain")
+    if insufficient_count > 0:
+        production_blockers.append("insufficient_rows_remain")
+    return {
+        "sufficient_for_economic_analysis_handoff": sufficient_for_handoff,
+        "handoff_decision": (
+            "sufficient_for_controlled_backend_handoff"
+            if sufficient_for_handoff
+            else "not_sufficient_for_handoff"
+        ),
+        "conditions": conditions,
+        "why_or_why_not": reasons or ["quantified_subset_ready_with_proven_unified_package"],
+        "production_decision_grade_ready": False,
+        "production_blockers": production_blockers,
+    }
+
+
 def _validate_report(report: dict[str, Any]) -> list[str]:
     errors: list[str] = []
     envelopes = report.get("envelopes")
@@ -517,12 +628,29 @@ def _validate_report(report: dict[str, Any]) -> list[str]:
     summary = report.get("summary", {})
     if summary.get("integrated_dedupe_groups_count", 0) < 1:
         errors.append("integration_not_proven_no_cross_lane_dedupe_group")
+    unified = report.get("unified_package_proof")
+    if not isinstance(unified, dict):
+        errors.append("missing_unified_package_proof")
+    else:
+        if not bool(unified.get("has_scraped_lane")):
+            errors.append("unified_proof_missing_scraped_lane")
+        if not bool(unified.get("has_structured_lane")):
+            errors.append("unified_proof_missing_structured_lane")
+        if int(unified.get("structured_source_family_count", 0)) < 2:
+            errors.append("unified_proof_insufficient_structured_source_families")
+    handoff = report.get("economic_analysis_handoff_assessment")
+    if not isinstance(handoff, dict):
+        errors.append("missing_economic_analysis_handoff_assessment")
+    elif "sufficient_for_economic_analysis_handoff" not in handoff:
+        errors.append("missing_handoff_sufficiency_answer")
     return errors
 
 
 def _render_markdown(report: dict[str, Any]) -> str:
     summary = report["summary"]
     schema = report["schema_validation"]
+    unified = report["unified_package_proof"]
+    handoff = report["economic_analysis_handoff_assessment"]
     return f"""
 # Scrape + Structured Source Integration POC
 
@@ -548,6 +676,15 @@ Prove one backend-owned merged artifact/evidence contract across:
 - quantified-ready subset: `{summary["quantified_handoff_ready_count"]}`
 - quality assessment: `{summary["evidence_quality_assessment"]}`
 
+## Unified Package Proof
+
+- unified package passed: `{unified["passed"]}`
+- has scraped lane: `{unified["has_scraped_lane"]}`
+- has structured lane: `{unified["has_structured_lane"]}`
+- structured source family count: `{unified["structured_source_family_count"]}`
+- cross-lane canonical-document overlap count: `{len(unified["cross_lane_canonical_document_keys"])}`
+- proof blockers: `{', '.join(unified["reasons"]) if unified["reasons"] else 'none'}`
+
 ## Provider Role Recommendation
 
 - `private_searxng`: primary scrape/search lane
@@ -569,6 +706,14 @@ Prove one backend-owned merged artifact/evidence contract across:
 ## Evidence Quality Note
 
 {summary["evidence_quality_note"]}
+
+## Economic Analysis Handoff Answer
+
+- sufficient for economic analysis handoff: `{handoff["sufficient_for_economic_analysis_handoff"]}`
+- handoff decision: `{handoff["handoff_decision"]}`
+- why/why not: `{', '.join(handoff["why_or_why_not"])}`
+- production decision-grade ready: `{handoff["production_decision_grade_ready"]}`
+- production blockers: `{', '.join(handoff["production_blockers"]) if handoff["production_blockers"] else 'none'}`
 """
 
 
@@ -577,6 +722,14 @@ def _run(config: VerifierConfig) -> dict[str, Any]:
     candidates = _fixture_candidates()
     envelopes = [_to_envelope(candidate, mode_map) for candidate in candidates]
     schema_check = _schema_validate_ready_envelopes(envelopes)
+    summary = _summary(envelopes, schema_check)
+    unified_package_proof = _unified_package_proof(envelopes)
+    handoff_assessment = _economic_analysis_handoff_assessment(
+        envelopes=envelopes,
+        summary=summary,
+        schema_check=schema_check,
+        unified_package_proof=unified_package_proof,
+    )
     report = {
         "feature_key": FEATURE_KEY,
         "poc_version": POC_VERSION,
@@ -586,7 +739,9 @@ def _run(config: VerifierConfig) -> dict[str, Any]:
         "provider_role_recommendation": _provider_role_recommendation(),
         "envelopes": envelopes,
         "schema_validation": schema_check,
-        "summary": _summary(envelopes, schema_check),
+        "summary": summary,
+        "unified_package_proof": unified_package_proof,
+        "economic_analysis_handoff_assessment": handoff_assessment,
     }
     return report
 

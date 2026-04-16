@@ -2,7 +2,7 @@
   "feature_key": "bd-2agbe.11",
   "poc_version": "2026-04-14.scrape-structured-integration.v1",
   "mode": "replay",
-  "generated_at": "2026-04-14T17:52:45.616420+00:00",
+  "generated_at": "2026-04-16T00:25:30.425868+00:00",
   "impact_to_mechanism_mapping": [
     {
       "impact_mode": "direct_fiscal",
@@ -276,16 +276,12 @@
     }
   ],
   "schema_validation": {
-    "schema_validation_mode": "local_contract_only",
-    "validated_ready_evidence_count": 0,
+    "schema_validation_mode": "pydantic_economic_evidence",
+    "validated_ready_evidence_count": 3,
     "skipped_non_ready_count": 5,
     "schema_errors": [],
-    "schema_import_error": "ModuleNotFoundError: No module named 'pydantic'",
-    "local_contract_errors": [
-      "schema_models_unavailable",
-      "schema_models_unavailable",
-      "schema_models_unavailable"
-    ]
+    "schema_import_error": null,
+    "local_contract_errors": []
   },
   "summary": {
     "total_envelopes": 8,
@@ -307,9 +303,44 @@
       "private_searxng": 2,
       "tavily": 1
     },
-    "schema_validation_mode": "local_contract_only",
+    "schema_validation_mode": "pydantic_economic_evidence",
     "schema_errors_count": 0,
     "evidence_quality_assessment": "sufficient_for_quantified_handoff_in_subset",
     "evidence_quality_note": "Merged contract is suitable for backend economic handoff in a subset; items marked reader_required/insufficient remain fail-closed or qualitative."
+  },
+  "unified_package_proof": {
+    "passed": true,
+    "has_scraped_lane": true,
+    "has_structured_lane": true,
+    "structured_source_family_count": 4,
+    "structured_source_families": [
+      "arcgis",
+      "ckan",
+      "leginfo",
+      "legistar"
+    ],
+    "cross_lane_canonical_document_keys": [
+      "san_jose_ca::sj-13000001-program-cost"
+    ],
+    "missing_provenance_rows": [],
+    "deterministic_identity_hash_failures": [],
+    "reasons": []
+  },
+  "economic_analysis_handoff_assessment": {
+    "sufficient_for_economic_analysis_handoff": true,
+    "handoff_decision": "sufficient_for_controlled_backend_handoff",
+    "conditions": {
+      "unified_package_passed": true,
+      "quantified_ready_count_ge_2": true,
+      "schema_errors_zero": true
+    },
+    "why_or_why_not": [
+      "quantified_subset_ready_with_proven_unified_package"
+    ],
+    "production_decision_grade_ready": false,
+    "production_blockers": [
+      "reader_required_rows_remain",
+      "insufficient_rows_remain"
+    ]
   }
 }

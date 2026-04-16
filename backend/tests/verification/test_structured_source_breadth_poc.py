@@ -30,6 +30,12 @@ def test_replay_mode_outputs_required_candidate_fields():
         "signup_or_key_link",
         "free_status",
         "api_or_raw_confirmed",
+        "access_method",
+        "jurisdiction_coverage",
+        "cadence_freshness",
+        "storage_target",
+        "mechanism_economic_usefulness_score",
+        "runtime_integration_status",
         "sample_endpoint_or_file_url",
         "auth_required",
         "recommendation",
@@ -41,6 +47,25 @@ def test_replay_mode_outputs_required_candidate_fields():
     for candidate in report["candidates"]:
         assert required.issubset(candidate.keys())
     assert module._validate(report) == []
+
+
+def test_replay_mode_writes_structured_source_catalog_artifact() -> None:
+    out_json = Path("/tmp/structured-source-breadth-audit-catalog-test.json")
+    out_md = Path("/tmp/structured-source-breadth-audit-catalog-test.md")
+    config = module.AuditConfig(
+        mode=module.MODE_REPLAY,
+        timeout_seconds=2.0,
+        out_json=out_json,
+        out_md=out_md,
+        self_check=False,
+    )
+    _ = module._run(config)
+
+    catalog_json = out_json.with_name("structured_source_catalog.json")
+    assert catalog_json.exists()
+    payload = module.json.loads(catalog_json.read_text(encoding="utf-8"))
+    assert payload["summary"]["runtime_integrated_count"] >= 2
+    assert payload["summary"]["total_rows"] >= 8
 
 
 def test_replay_summary_contains_wave1_candidates():

@@ -2,8 +2,8 @@
 
 - Feature key: `bd-2agbe.9`
 - Artifact version: `2026-04-14.structured-source-breadth.v1`
-- Mode: `live`
-- Generated at: `2026-04-14T17:17:55.441749+00:00`
+- Mode: `replay`
+- Generated at: `2026-04-16T00:25:29.859039+00:00`
 
 ## Summary
 
@@ -28,11 +28,11 @@
 
 ## Evidence Notes
 
-- `legistar_sanjose`: rows=3, keys_present=True
-- `ca_pubinfo_leginfo`: root_head=200, daily_head=200
-- `arcgis_public_gis_dataset`: selected_title='NFHL Flood Hazard Zones'; policy_specific_match=False. ArcGIS probe confirms public GIS API mechanics; policy-specific San Jose zoning/parcel/housing may require tighter curation.
-- `ca_ckan_open_data_catalog`: package_count=20
-- `public_opendatasoft_catalog`: catalog_total_count=406; API reachable, but local policy-specific dataset binding not done.
-- `official_static_xlsx_census`: http_status=206
-- `socrata_open_data_portals`: Explicitly excluded from this POC by user decision: no Socrata signup at this time.
-- `granicus_agenda_portals`: Portal-first HTML/PDF source; classify into scrape+reader lane.
+- `legistar_sanjose`: Replay fixture indicates row payload with Matter identifiers.
+- `ca_pubinfo_leginfo`: Replay fixture indicates official PUBINFO feed and daily archive reachable.
+- `arcgis_public_gis_dataset`: Replay fixture confirms ArcGIS REST mechanics only; policy-specific zoning/parcel relevance not guaranteed.
+- `ca_ckan_open_data_catalog`: Replay fixture includes CKAN package_search response envelope.
+- `public_opendatasoft_catalog`: Replay fixture confirms ODS catalog API shape; local-jurisdiction dataset mapping still required.
+- `official_static_xlsx_census`: Replay fixture confirms direct XLSX retrieval from official Census domain.
+- `socrata_open_data_portals`: Excluded from this POC by explicit user constraint: no Socrata signup now.
+- `granicus_agenda_portals`: Agenda portals are generally HTML/PDF-first and belong to scrape+reader lane.

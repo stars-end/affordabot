@@ -42,6 +42,16 @@ QUALITY_BUCKETS = (
     "frontend/read-model auditability",
 )
 
+ECONOMIC_QUALITY_DIMENSIONS = (
+    "mechanism_graph_validity",
+    "parameter_provenance",
+    "assumption_governance",
+    "arithmetic_integrity",
+    "uncertainty_sensitivity",
+    "unsupported_claim_rejection",
+    "user_facing_conclusion_quality",
+)
+
 
 @dataclass(frozen=True)
 class MatrixInput:
@@ -101,11 +111,38 @@ class PolicyEvidenceQualitySpineEconomicsService:
         ]
 
         vertical_output = self._build_vertical_economic_output(package=package, sufficiency=sufficiency)
+        economic_quality = self._build_economic_quality_rubric(
+            package=package,
+            sufficiency=sufficiency,
+            vertical_output=vertical_output,
+        )
+        fixture_case_coverage = self._build_fixture_case_coverage()
         read_model_output = self._build_read_model_output(
             package=package,
             sufficiency=sufficiency,
             vertical_output=vertical_output,
             taxonomy=category_results,
+            economic_quality=economic_quality,
+        )
+        quality_missing_evidence = self._build_missing_evidence(
+            taxonomy=category_results,
+            economic_quality=economic_quality,
+            readiness_level=sufficiency.readiness_level.value,
+            blocking_gate=(
+                None
+                if sufficiency.blocking_gate is None
+                else sufficiency.blocking_gate.value
+            ),
+        )
+        decision_grade_verdict = (
+            "decision_grade"
+            if (
+                not category_failures
+                and not category_not_proven
+                and economic_quality["verdict"] == "decision_grade"
+                and sufficiency.readiness_level == PackageReadinessLevel.ECONOMIC_HANDOFF_READY
+            )
+            else "not_decision_grade"
         )
         scorecard = {
             "feature_key": "bd-3wefe.13",
@@ -141,6 +178,12 @@ class PolicyEvidenceQualitySpineEconomicsService:
                 "failed_categories": category_failures,
                 "not_proven_categories": category_not_proven,
             },
+            "economic_quality_rubric": economic_quality,
+            "decision_grade": {
+                "verdict": decision_grade_verdict,
+                "missing_evidence": quality_missing_evidence,
+            },
+            "fixture_case_coverage": fixture_case_coverage,
             "evaluation_cycle_policy": {
                 "max_cycles": bounded_max_cycles,
             },
@@ -152,6 +195,7 @@ class PolicyEvidenceQualitySpineEconomicsService:
             "read_model_audit_output": read_model_output,
             "retry_ledger": retry_ledger,
             "selected_package_payload": package_payload,
+            "decision_grade_verdict": decision_grade_verdict,
         }
 
     def build_endpoint_read_model(
@@ -172,6 +216,8 @@ class PolicyEvidenceQualitySpineEconomicsService:
         handoff = evaluation["read_model_audit_output"]["analysis_handoff"]
         taxonomy = scorecard["taxonomy"]
         sufficiency = scorecard["sufficiency_result"]
+        decision_grade = scorecard["decision_grade"]
+        quality_verdict = scorecard["economic_quality_rubric"]["verdict"]
         runtime = self._extract_runtime_evidence(matrix_input.payload or {})
         orchestration_proof = runtime.get("orchestration_proof")
         llm_proof = handoff.get("llm_narrative_proof", {})
@@ -217,9 +263,10 @@ class PolicyEvidenceQualitySpineEconomicsService:
             else "fail" if overall_verdict == "fail" else "not_proven"
         )
 
-        if vertical["quantified"]:
+        if vertical["quantified"] and decision_grade["verdict"] == "decision_grade":
             economic_output = {
                 "status": "ready",
+                "decision_grade_verdict": "decision_grade",
                 "mechanism_type": vertical["mechanism_type"],
                 "sensitivity_range": vertical["sensitivity_range"],
                 "user_facing_conclusion": vertical["user_facing_conclusion"],
@@ -228,7 +275,13 @@ class PolicyEvidenceQualitySpineEconomicsService:
         else:
             economic_output = {
                 "status": "not_proven",
-                "reason": readiness_reason,
+                "decision_grade_verdict": "not_decision_grade",
+                "reason": (
+                    "economic quality rubric not decision-grade"
+                    if quality_verdict != "decision_grade"
+                    else readiness_reason
+                ),
+                "missing_evidence": decision_grade["missing_evidence"],
                 "unsupported_claim_rejection": vertical["unsupported_claim_rejection"],
                 "user_facing_conclusion": vertical["user_facing_conclusion"],
             }
@@ -238,6 +291,7 @@ class PolicyEvidenceQualitySpineEconomicsService:
             "jurisdiction": package.jurisdiction,
             "source_family": source_family,
             "evidence_package_status": evidence_package_status,
+            "decision_grade_verdict": decision_grade["verdict"],
             "sufficiency_readiness_level": readiness_level,
             "run_context": run_context or {},
             "provenance": {
@@ -312,6 +366,7 @@ class PolicyEvidenceQualitySpineEconomicsService:
             f"- matrix_mode: `{scorecard['matrix_source']['mode']}`",
             f"- matrix_path: `{scorecard['matrix_source']['path']}`",
             f"- overall_verdict: `{scorecard['overall_verdict']}`",
+            f"- decision_grade_verdict: `{scorecard['decision_grade']['verdict']}`",
             f"- vertical_package_id: `{scorecard['vertical_package']['package_id']}`",
             f"- sufficiency_readiness: `{scorecard['sufficiency_result']['readiness_level']}`",
             "",
@@ -323,6 +378,30 @@ class PolicyEvidenceQualitySpineEconomicsService:
         for category in QUALITY_BUCKETS:
             item = scorecard["taxonomy"][category]
             lines.append(f"| {category} | {item['status']} | {item['details']} |")
+
+        lines.extend(
+            [
+                "",
+                "## Economic quality rubric",
+                "",
+                "| Dimension | Status | Evidence |",
+                "| --- | --- | --- |",
+            ]
+        )
+        rubric = scorecard["economic_quality_rubric"]
+        for dimension in ECONOMIC_QUALITY_DIMENSIONS:
+            item = rubric["dimensions"][dimension]
+            lines.append(f"| {dimension} | {item['status']} | {item['details']} |")
+
+        missing = scorecard["decision_grade"]["missing_evidence"]
+        lines.extend(
+            [
+                "",
+                "### Missing evidence for decision grade",
+                "",
+                *(f"- {item}" for item in missing),
+            ]
+        )
 
         lines.extend(
             [
@@ -567,6 +646,238 @@ class PolicyEvidenceQualitySpineEconomicsService:
                 "details": "Assumption cards exist without applicability tags.",
             }
         return taxonomy
+
+    def _build_economic_quality_rubric(
+        self,
+        *,
+        package: PolicyEvidencePackage,
+        sufficiency: Any,
+        vertical_output: dict[str, Any],
+    ) -> dict[str, Any]:
+        dimensions: dict[str, dict[str, str]] = {}
+
+        graph = vertical_output.get("mechanism_graph") or {}
+        nodes = graph.get("nodes") or []
+        edges = graph.get("edges") or []
+        graph_ok = bool(nodes) and bool(edges) and len(edges) >= 2
+        dimensions["mechanism_graph_validity"] = {
+            "status": "pass" if graph_ok else "fail",
+            "details": (
+                f"nodes={len(nodes)} edges={len(edges)}"
+                if graph_ok
+                else "Mechanism graph is missing nodes/edges required for causal traceability."
+            ),
+        }
+
+        resolved_cards = [card for card in package.parameter_cards if card.state.value == "resolved"]
+        parameter_provenance_ok = bool(resolved_cards) and all(
+            card.source_url is not None and bool(card.source_excerpt) and bool(card.evidence_card_id)
+            for card in resolved_cards
+        )
+        dimensions["parameter_provenance"] = {
+            "status": "pass" if parameter_provenance_ok else "fail",
+            "details": (
+                f"resolved_parameters={len(resolved_cards)} with source-bound provenance."
+                if parameter_provenance_ok
+                else "Resolved parameters are missing source_url/source_excerpt/evidence_card_id."
+            ),
+        }
+
+        assumption_usage = {item.assumption_id: item for item in package.assumption_usage}
+        assumptions_ok = True
+        assumption_detail = "No assumption cards required by this package."
+        if package.assumption_cards:
+            assumptions_ok = all(
+                bool(card.applicability_tags)
+                and card.source_url is not None
+                and assumption_usage.get(card.id) is not None
+                and bool(assumption_usage[card.id].applicable)
+                and not bool(assumption_usage[card.id].stale)
+                for card in package.assumption_cards
+            )
+            assumption_detail = (
+                "Assumption cards include applicability tags, provenance, and non-stale usage records."
+                if assumptions_ok
+                else "Assumption governance incomplete: missing applicability/provenance/usage validity."
+            )
+        dimensions["assumption_governance"] = {
+            "status": "pass" if assumptions_ok else "fail",
+            "details": assumption_detail,
+        }
+
+        quant_models = [model for model in package.model_cards if model.quantification_eligible]
+        arithmetic_ok = bool(quant_models) and all(
+            model.arithmetic_valid and model.unit_validation_status.value == "valid"
+            for model in quant_models
+        )
+        if arithmetic_ok:
+            for model in quant_models:
+                if model.scenario_bounds is None:
+                    arithmetic_ok = False
+                    break
+                bounds = model.scenario_bounds
+                if not (bounds.conservative <= bounds.central <= bounds.aggressive):
+                    arithmetic_ok = False
+                    break
+        dimensions["arithmetic_integrity"] = {
+            "status": "pass" if arithmetic_ok else "fail",
+            "details": (
+                "Quantified model arithmetic/unit checks are valid with ordered scenario bounds."
+                if arithmetic_ok
+                else "Quantified model cards are missing arithmetic/unit validity or ordered scenario bounds."
+            ),
+        }
+
+        sensitivity = vertical_output.get("sensitivity_range")
+        notes = vertical_output.get("uncertainty_notes") or []
+        sensitivity_ok = (
+            isinstance(sensitivity, dict)
+            and all(k in sensitivity for k in ("low", "base", "high"))
+            and sensitivity["low"] <= sensitivity["base"] <= sensitivity["high"]
+            and len(notes) >= 2
+        )
+        dimensions["uncertainty_sensitivity"] = {
+            "status": "pass" if sensitivity_ok else "fail",
+            "details": (
+                "Sensitivity range is ordered and uncertainty notes are present."
+                if sensitivity_ok
+                else "Missing/invalid sensitivity range or uncertainty notes."
+            ),
+        }
+
+        unsupported = vertical_output.get("unsupported_claim_rejection") or {}
+        unsupported_count = int(package.gate_report.unsupported_claim_count or 0)
+        unsupported_ok = (
+            unsupported.get("status") == "rejected"
+            if unsupported_count > 0
+            else unsupported.get("status") == "none"
+        )
+        dimensions["unsupported_claim_rejection"] = {
+            "status": "pass" if unsupported_ok else "fail",
+            "details": (
+                "Unsupported quantified claims are fail-closed."
+                if unsupported_ok
+                else "Unsupported-claim governance is inconsistent with gate evidence."
+            ),
+        }
+
+        conclusion = str(vertical_output.get("user_facing_conclusion") or "").strip()
+        expected_phrase = (
+            "source-bound and auditable"
+            if vertical_output.get("quantified")
+            else "not quantified-ready"
+        )
+        conclusion_ok = bool(conclusion) and expected_phrase in conclusion.lower()
+        dimensions["user_facing_conclusion_quality"] = {
+            "status": "pass" if conclusion_ok else "fail",
+            "details": (
+                "Conclusion is explicit, bounded, and consistent with quantification eligibility."
+                if conclusion_ok
+                else "Conclusion is missing or does not clearly state bounded decision quality."
+            ),
+        }
+
+        failing_dimensions = [
+            name for name, result in dimensions.items() if result["status"] != "pass"
+        ]
+        verdict = (
+            "decision_grade"
+            if (
+                not failing_dimensions
+                and sufficiency.readiness_level == PackageReadinessLevel.ECONOMIC_HANDOFF_READY
+            )
+            else "not_decision_grade"
+        )
+        return {
+            "verdict": verdict,
+            "dimensions": dimensions,
+            "failing_dimensions": failing_dimensions,
+        }
+
+    def _build_fixture_case_coverage(self) -> dict[str, Any]:
+        bundle = PolicyEconomicMechanismCaseService().build_case_bundle()
+        required = {
+            "direct_cost_case": "direct",
+            "indirect_pass_through_case": "indirect",
+            "secondary_research_required_case": "secondary_research",
+        }
+        coverage: list[dict[str, Any]] = []
+        for case_id, case_type in required.items():
+            matched = next((case for case in bundle["cases"] if case["case_id"] == case_id), None)
+            if matched is None:
+                coverage.append(
+                    {
+                        "case_id": case_id,
+                        "case_type": case_type,
+                        "status": "missing",
+                        "details": "Required fixture case not found.",
+                    }
+                )
+                continue
+            package = matched.get("primary_package") or {}
+            has_parameters = bool(package.get("parameter_cards"))
+            has_gate_report = bool(package.get("gate_report"))
+            has_projection = bool(package.get("gate_projection"))
+            plausible = bool(matched.get("quantification_plausible"))
+            status = (
+                "pass"
+                if has_parameters and has_gate_report and has_projection and plausible
+                else "fail"
+            )
+            details = (
+                "Fixture contains source-bound parameters, gates, and quantification plausibility."
+                if status == "pass"
+                else "Fixture is missing source-bound parameterization/gate metadata."
+            )
+            coverage.append(
+                {
+                    "case_id": case_id,
+                    "case_type": case_type,
+                    "status": status,
+                    "details": details,
+                }
+            )
+        return {
+            "required_case_count": len(required),
+            "covered_case_count": sum(1 for item in coverage if item["status"] == "pass"),
+            "cases": coverage,
+        }
+
+    @staticmethod
+    def _build_missing_evidence(
+        *,
+        taxonomy: dict[str, dict[str, str]],
+        economic_quality: dict[str, Any],
+        readiness_level: str,
+        blocking_gate: str | None,
+    ) -> list[str]:
+        missing: list[str] = []
+        for bucket in QUALITY_BUCKETS:
+            bucket_result = taxonomy.get(bucket, {})
+            if bucket_result.get("status") != "pass":
+                details = str(bucket_result.get("details") or "no details")
+                missing.append(f"{bucket}: {details}")
+        for dimension in ECONOMIC_QUALITY_DIMENSIONS:
+            dimension_result = economic_quality.get("dimensions", {}).get(dimension, {})
+            if dimension_result.get("status") != "pass":
+                details = str(dimension_result.get("details") or "no details")
+                missing.append(f"rubric/{dimension}: {details}")
+        if readiness_level != PackageReadinessLevel.ECONOMIC_HANDOFF_READY.value:
+            reason = (
+                f"blocking_gate={blocking_gate}"
+                if blocking_gate
+                else f"readiness_level={readiness_level}"
+            )
+            missing.append(f"sufficiency_readiness: {reason}")
+        # Preserve stable ordering while deduplicating.
+        seen: set[str] = set()
+        deduped: list[str] = []
+        for item in missing:
+            if item in seen:
+                continue
+            seen.add(item)
+            deduped.append(item)
+        return deduped
 
     @staticmethod
     def _evaluate_storage_readback_proof(
@@ -926,6 +1237,7 @@ class PolicyEvidenceQualitySpineEconomicsService:
         sufficiency: Any,
         vertical_output: dict[str, Any],
         taxonomy: dict[str, dict[str, str]],
+        economic_quality: dict[str, Any],
     ) -> dict[str, Any]:
         blocking_gate = None if sufficiency.blocking_gate is None else sufficiency.blocking_gate.value
         frontend_payload = {
@@ -936,6 +1248,7 @@ class PolicyEvidenceQualitySpineEconomicsService:
             "sufficiency_readiness_level": sufficiency.readiness_level.value,
             "blocking_gate": blocking_gate,
             "taxonomy": taxonomy,
+            "economic_quality_rubric": economic_quality,
             "user_facing_conclusion": vertical_output["user_facing_conclusion"],
             "unsupported_claim_rejection": vertical_output["unsupported_claim_rejection"],
             "requires_recomputation": False,

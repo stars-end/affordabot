@@ -18,14 +18,16 @@ economic analysis and admin/frontend read models.
 ## Current verdict
 
 - overall_verdict: `partial`
+- decision_grade_verdict: `not_decision_grade`
 - failed_categories: `0`
 - not_proven_categories: `storage/read-back, Windmill/orchestration, LLM narrative`
 - storage_readback_status: `not_proven`
-- storage_readback_note: `Deterministic in-memory readback is proven, but non-memory Postgres/MinIO storage proof is not provided.`
+- storage_readback_note: `Automated deterministic scorecard remains not_proven; manual Railway SSH evidence now proves MinIO artifact readback and pgvector chunks, but exact PolicyEvidencePackage row/current-package linkage is still missing.`
 - windmill_orchestration_status: `not_proven`
 - windmill_orchestration_note: `Historical Windmill stub proof exists but is not valid for current vertical package.`
 - llm_narrative_status: `not_proven`
 - llm_narrative_note: `LLM narrative not proven (canonical_llm_run_id_missing; source=quality_spine_deterministic_lane).`
+- economic_quality_failing_dimensions: `none`
 
 The current deterministic quality-spine pass has no failed data/economic
 quality categories. Retry-3 adds strict category semantics: selected-artifact
@@ -34,12 +36,14 @@ remains `not_proven` until real Postgres/MinIO proof is available for the
 current vertical package. Windmill/LLM also remain `not_proven` when evidence
 is historical or lacks canonical run ids.
 
-Retry-4 attempted a live Railway-dev backend-network storage proof for the
-current vertical package. The probe reached the backend dev runtime and decoded
-the package, but MinIO returned `AccessDenied` for the configured bucket before
-Postgres/MinIO readback could be proven. This keeps storage `not_proven` and
-turns the next step into a runtime configuration gate, not another local fixture
-change.
+Retry-4 initially found a live MinIO `AccessDenied` blocker. After Railway
+Bucket/Console/backend restarts, a manual Railway SSH probe proved the current
+fallback artifact can be read from MinIO (`124319` bytes), the raw scrape row
+exists, and `3382` pgvector chunks have embeddings for the document id referenced
+by the live run. Storage remains `not_proven` because the exact
+`PolicyEvidencePackage` row/current-package linkage is still missing, the
+`documents` row for that document id was not present, and the live analysis id is
+not persisted in `analysis_history`.
 
 The eval-cycle harness supports up to 10 deterministic cycles and keeps
 local deterministic proof separate from live-product proof categories.

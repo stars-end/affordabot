@@ -42,6 +42,8 @@ OUT_MD = (
     / "artifacts"
     / "structured_source_breadth_audit.md"
 )
+CATALOG_BASENAME_JSON = "structured_source_catalog.json"
+CATALOG_BASENAME_MD = "structured_source_catalog.md"
 
 LEGISTAR_URL = "https://webapi.legistar.com/v1/sanjose/matters?$top=3"
 LEGINFO_ROOT = "https://downloads.leginfo.legislature.ca.gov/"
@@ -169,6 +171,73 @@ REPLAY_CANDIDATES: list[dict[str, Any]] = [
         "downstream_economic_usefulness": "medium",
     },
 ]
+
+SOURCE_CATALOG_PROFILES: dict[str, dict[str, Any]] = {
+    "legistar_sanjose": {
+        "access_method": "rest_api",
+        "jurisdiction_coverage": "city_san_jose",
+        "cadence_freshness": "agenda_and_minutes_event_driven",
+        "storage_target": "postgres_source_snapshots+minio_raw_artifacts",
+        "mechanism_economic_usefulness_score": 95,
+        "runtime_integration_status": "runtime_integrated",
+    },
+    "ca_pubinfo_leginfo": {
+        "access_method": "official_raw_file_zip",
+        "jurisdiction_coverage": "state_california",
+        "cadence_freshness": "daily_pubinfo_feed",
+        "storage_target": "postgres_source_snapshots+minio_raw_artifacts",
+        "mechanism_economic_usefulness_score": 92,
+        "runtime_integration_status": "runtime_integrated",
+    },
+    "arcgis_public_gis_dataset": {
+        "access_method": "rest_api_feature_service",
+        "jurisdiction_coverage": "regional_multi_county",
+        "cadence_freshness": "dataset_defined_variable",
+        "storage_target": "postgres_source_snapshots+minio_raw_artifacts",
+        "mechanism_economic_usefulness_score": 62,
+        "runtime_integration_status": "poc_only",
+    },
+    "ca_ckan_open_data_catalog": {
+        "access_method": "ckan_api",
+        "jurisdiction_coverage": "state_california",
+        "cadence_freshness": "dataset_defined_variable",
+        "storage_target": "postgres_source_snapshots+minio_raw_artifacts",
+        "mechanism_economic_usefulness_score": 70,
+        "runtime_integration_status": "poc_only",
+    },
+    "public_opendatasoft_catalog": {
+        "access_method": "catalog_api",
+        "jurisdiction_coverage": "multi_jurisdiction",
+        "cadence_freshness": "dataset_defined_variable",
+        "storage_target": "candidate_catalog_only",
+        "mechanism_economic_usefulness_score": 35,
+        "runtime_integration_status": "poc_only",
+    },
+    "official_static_xlsx_census": {
+        "access_method": "raw_file_download",
+        "jurisdiction_coverage": "national_context",
+        "cadence_freshness": "annual_or_periodic_release",
+        "storage_target": "candidate_catalog_only",
+        "mechanism_economic_usefulness_score": 40,
+        "runtime_integration_status": "poc_only",
+    },
+    "socrata_open_data_portals": {
+        "access_method": "socrata_api",
+        "jurisdiction_coverage": "city_county_varies",
+        "cadence_freshness": "dataset_defined_variable",
+        "storage_target": "candidate_catalog_only",
+        "mechanism_economic_usefulness_score": 76,
+        "runtime_integration_status": "poc_only",
+    },
+    "granicus_agenda_portals": {
+        "access_method": "html_pdf_portal",
+        "jurisdiction_coverage": "city_county_varies",
+        "cadence_freshness": "meeting_event_driven",
+        "storage_target": "scrape_reader_lane_minio_raw_artifacts",
+        "mechanism_economic_usefulness_score": 58,
+        "runtime_integration_status": "poc_only",
+    },
+}
 
 
 @dataclass(frozen=True)
@@ -495,17 +564,136 @@ def _summary(candidates: list[dict[str, Any]]) -> dict[str, Any]:
     wave1_families = [
         item["source_family"]
         for item in candidates
-        if item["recommendation"] == "structured_lane" and item["downstream_economic_usefulness"] in {"high", "medium"}
+        if item["recommendation"] == "structured_lane"
+        and item["downstream_economic_usefulness"] in {"high", "medium"}
     ]
+    runtime_status_counts: dict[str, int] = {}
+    score_total = 0
+    score_count = 0
+    for item in candidates:
+        runtime_status = str(item.get("runtime_integration_status", "unknown"))
+        runtime_status_counts[runtime_status] = runtime_status_counts.get(runtime_status, 0) + 1
+        score = item.get("mechanism_economic_usefulness_score")
+        if isinstance(score, int):
+            score_total += score
+            score_count += 1
     return {
         "total_candidates": len(candidates),
         "by_recommendation": by_recommendation,
         "by_live_probe_status": by_probe,
+        "by_runtime_integration_status": runtime_status_counts,
+        "average_mechanism_economic_usefulness_score": (
+            round(score_total / score_count, 2) if score_count else 0.0
+        ),
         "wave1_structured_feeds": wave1_families,
         "notes": (
             "ArcGIS confirms public GIS API mechanics. Policy-specific zoning/parcel/housing "
             "coverage still needs catalog curation before production reliance."
         ),
+    }
+
+
+def _enrich_candidate(candidate: dict[str, Any]) -> dict[str, Any]:
+    source_family = str(candidate.get("source_family", ""))
+    profile = SOURCE_CATALOG_PROFILES.get(source_family, {})
+    enriched = dict(candidate)
+    enriched["access_method"] = profile.get("access_method", "unknown")
+    enriched["jurisdiction_coverage"] = profile.get("jurisdiction_coverage", "unknown")
+    enriched["cadence_freshness"] = profile.get("cadence_freshness", "unknown")
+    enriched["storage_target"] = profile.get("storage_target", "candidate_catalog_only")
+    enriched["mechanism_economic_usefulness_score"] = int(
+        profile.get("mechanism_economic_usefulness_score", 0)
+    )
+    enriched["runtime_integration_status"] = profile.get(
+        "runtime_integration_status", "poc_only"
+    )
+    return enriched
+
+
+def _catalog_paths(config: AuditConfig) -> tuple[Path, Path]:
+    return (
+        config.out_json.with_name(CATALOG_BASENAME_JSON),
+        config.out_md.with_name(CATALOG_BASENAME_MD),
+    )
+
+
+def _render_catalog_markdown(payload: dict[str, Any]) -> str:
+    lines = [
+        "# Structured Source Catalog",
+        "",
+        f"- Feature key: `{payload['feature_key']}`",
+        f"- Artifact version: `{payload['artifact_version']}`",
+        f"- Mode: `{payload['mode']}`",
+        f"- Generated at: `{payload['generated_at']}`",
+        "",
+        "## Summary",
+        "",
+        f"- Total catalog rows: `{payload['summary']['total_rows']}`",
+        f"- Runtime integrated: `{payload['summary']['runtime_integrated_count']}`",
+        f"- POC only: `{payload['summary']['poc_only_count']}`",
+        f"- Average usefulness score: `{payload['summary']['average_mechanism_economic_usefulness_score']}`",
+        "",
+        "## Catalog Matrix",
+        "",
+        "| source_family | free_status | signup_or_key | access_method | jurisdiction_coverage | cadence_freshness | storage_target | runtime_status | usefulness_score |",
+        "|---|---|---|---|---|---|---|---|---|",
+    ]
+    for row in payload["catalog_rows"]:
+        lines.append(
+            "| {source_family} | {free_status} | {signup_or_key_link} | {access_method} | "
+            "{jurisdiction_coverage} | {cadence_freshness} | {storage_target} | "
+            "{runtime_integration_status} | {mechanism_economic_usefulness_score} |".format(
+                **row
+            )
+        )
+    lines.append("")
+    return "\n".join(lines)
+
+
+def _build_catalog_payload(
+    *,
+    candidates: list[dict[str, Any]],
+    mode: str,
+    generated_at: str,
+) -> dict[str, Any]:
+    rows = [
+        {
+            "source_family": item["source_family"],
+            "free_status": item["free_status"],
+            "signup_or_key_link": item["signup_or_key_link"],
+            "access_method": item["access_method"],
+            "api_or_raw_confirmed": item["api_or_raw_confirmed"],
+            "jurisdiction_coverage": item["jurisdiction_coverage"],
+            "jurisdiction_scope": item["jurisdiction_scope"],
+            "cadence_freshness": item["cadence_freshness"],
+            "storage_target": item["storage_target"],
+            "policy_mechanism_relevance": item["policy_mechanism_relevance"],
+            "mechanism_economic_usefulness_score": item["mechanism_economic_usefulness_score"],
+            "runtime_integration_status": item["runtime_integration_status"],
+            "recommendation": item["recommendation"],
+            "live_probe_status": item["live_probe_status"],
+            "sample_endpoint_or_file_url": item["sample_endpoint_or_file_url"],
+        }
+        for item in candidates
+    ]
+    runtime_integrated_count = len(
+        [row for row in rows if row["runtime_integration_status"] == "runtime_integrated"]
+    )
+    score_values = [row["mechanism_economic_usefulness_score"] for row in rows]
+    return {
+        "feature_key": FEATURE_KEY,
+        "artifact_version": ARTIFACT_VERSION,
+        "mode": mode,
+        "generated_at": generated_at,
+        "catalog_rows": rows,
+        "summary": {
+            "total_rows": len(rows),
+            "runtime_integrated_count": runtime_integrated_count,
+            "poc_only_count": len(rows) - runtime_integrated_count,
+            "average_mechanism_economic_usefulness_score": (
+                round(sum(score_values) / len(score_values), 2) if score_values else 0.0
+            ),
+        },
     }
 
 
@@ -525,6 +713,12 @@ def _validate(report: dict[str, Any]) -> list[str]:
         "signup_or_key_link",
         "free_status",
         "api_or_raw_confirmed",
+        "access_method",
+        "jurisdiction_coverage",
+        "cadence_freshness",
+        "storage_target",
+        "mechanism_economic_usefulness_score",
+        "runtime_integration_status",
         "sample_endpoint_or_file_url",
         "auth_required",
         "recommendation",
@@ -583,17 +777,31 @@ def _run(config: AuditConfig) -> dict[str, Any]:
         candidates = [dict(item) for item in REPLAY_CANDIDATES]
     else:
         candidates = _live_candidates(config.timeout_seconds)
+    candidates = [_enrich_candidate(item) for item in candidates]
+    generated_at = _now_iso()
     report = {
         "feature_key": FEATURE_KEY,
         "artifact_version": ARTIFACT_VERSION,
         "mode": config.mode,
-        "generated_at": _now_iso(),
+        "generated_at": generated_at,
         "candidates": candidates,
         "summary": _summary(candidates),
     }
     _write_json(config.out_json, report)
     config.out_md.parent.mkdir(parents=True, exist_ok=True)
     config.out_md.write_text(_to_markdown(report), encoding="utf-8")
+    catalog_json_path, catalog_md_path = _catalog_paths(config)
+    catalog_payload = _build_catalog_payload(
+        candidates=candidates,
+        mode=config.mode,
+        generated_at=generated_at,
+    )
+    _write_json(catalog_json_path, catalog_payload)
+    catalog_md_path.parent.mkdir(parents=True, exist_ok=True)
+    catalog_md_path.write_text(
+        _render_catalog_markdown(catalog_payload),
+        encoding="utf-8",
+    )
     return report
 
 

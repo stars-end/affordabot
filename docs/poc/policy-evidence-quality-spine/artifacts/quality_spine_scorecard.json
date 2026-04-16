@@ -1,6 +1,6 @@
 {
   "feature_key": "bd-3wefe.13",
-  "generated_at": "2026-04-16T00:10:33.820984+00:00",
+  "generated_at": "2026-04-16T00:25:31.135481+00:00",
   "report_version": "2026-04-15.policy-evidence-quality-spine-economics.v1",
   "matrix_attempt": {
     "after_score": 75.33,
@@ -84,6 +84,72 @@
       "storage/read-back",
       "Windmill/orchestration",
       "LLM narrative"
+    ]
+  },
+  "economic_quality_rubric": {
+    "verdict": "decision_grade",
+    "dimensions": {
+      "mechanism_graph_validity": {
+        "status": "pass",
+        "details": "nodes=3 edges=2"
+      },
+      "parameter_provenance": {
+        "status": "pass",
+        "details": "resolved_parameters=2 with source-bound provenance."
+      },
+      "assumption_governance": {
+        "status": "pass",
+        "details": "Assumption cards include applicability tags, provenance, and non-stale usage records."
+      },
+      "arithmetic_integrity": {
+        "status": "pass",
+        "details": "Quantified model arithmetic/unit checks are valid with ordered scenario bounds."
+      },
+      "uncertainty_sensitivity": {
+        "status": "pass",
+        "details": "Sensitivity range is ordered and uncertainty notes are present."
+      },
+      "unsupported_claim_rejection": {
+        "status": "pass",
+        "details": "Unsupported quantified claims are fail-closed."
+      },
+      "user_facing_conclusion_quality": {
+        "status": "pass",
+        "details": "Conclusion is explicit, bounded, and consistent with quantification eligibility."
+      }
+    },
+    "failing_dimensions": []
+  },
+  "decision_grade": {
+    "verdict": "not_decision_grade",
+    "missing_evidence": [
+      "storage/read-back: Deterministic in-memory readback is proven, but non-memory Postgres/MinIO storage proof is not provided.",
+      "Windmill/orchestration: Historical Windmill stub proof exists but is not valid for current vertical package.",
+      "LLM narrative: LLM narrative not proven (canonical_llm_run_id_missing; source=quality_spine_deterministic_lane)."
+    ]
+  },
+  "fixture_case_coverage": {
+    "required_case_count": 3,
+    "covered_case_count": 3,
+    "cases": [
+      {
+        "case_id": "direct_cost_case",
+        "case_type": "direct",
+        "status": "pass",
+        "details": "Fixture contains source-bound parameters, gates, and quantification plausibility."
+      },
+      {
+        "case_id": "indirect_pass_through_case",
+        "case_type": "indirect",
+        "status": "pass",
+        "details": "Fixture contains source-bound parameters, gates, and quantification plausibility."
+      },
+      {
+        "case_id": "secondary_research_required_case",
+        "case_type": "secondary_research",
+        "status": "pass",
+        "details": "Fixture contains source-bound parameters, gates, and quantification plausibility."
+      }
     ]
   },
   "evaluation_cycle_policy": {

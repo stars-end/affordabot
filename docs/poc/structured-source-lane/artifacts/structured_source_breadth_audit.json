@@ -1,8 +1,8 @@
 {
   "feature_key": "bd-2agbe.9",
   "artifact_version": "2026-04-14.structured-source-breadth.v1",
-  "mode": "live",
-  "generated_at": "2026-04-14T17:17:55.441749+00:00",
+  "mode": "replay",
+  "generated_at": "2026-04-16T00:25:29.859039+00:00",
   "candidates": [
     {
       "source_family": "legistar_sanjose",
@@ -15,8 +15,14 @@
       "recommendation": "structured_lane",
       "policy_mechanism_relevance": "direct_fiscal",
       "live_probe_status": "pass",
-      "evidence_summary": "rows=3, keys_present=True",
-      "downstream_economic_usefulness": "high"
+      "evidence_summary": "Replay fixture indicates row payload with Matter identifiers.",
+      "downstream_economic_usefulness": "high",
+      "access_method": "rest_api",
+      "jurisdiction_coverage": "city_san_jose",
+      "cadence_freshness": "agenda_and_minutes_event_driven",
+      "storage_target": "postgres_source_snapshots+minio_raw_artifacts",
+      "mechanism_economic_usefulness_score": 95,
+      "runtime_integration_status": "runtime_integrated"
     },
     {
       "source_family": "ca_pubinfo_leginfo",
@@ -29,8 +35,14 @@
       "recommendation": "structured_lane",
       "policy_mechanism_relevance": "land_use_capacity",
       "live_probe_status": "pass",
-      "evidence_summary": "root_head=200, daily_head=200",
-      "downstream_economic_usefulness": "high"
+      "evidence_summary": "Replay fixture indicates official PUBINFO feed and daily archive reachable.",
+      "downstream_economic_usefulness": "high",
+      "access_method": "official_raw_file_zip",
+      "jurisdiction_coverage": "state_california",
+      "cadence_freshness": "daily_pubinfo_feed",
+      "storage_target": "postgres_source_snapshots+minio_raw_artifacts",
+      "mechanism_economic_usefulness_score": 92,
+      "runtime_integration_status": "runtime_integrated"
     },
     {
       "source_family": "arcgis_public_gis_dataset",
@@ -38,13 +50,19 @@
       "signup_or_key_link": "none_required",
       "free_status": "free_public",
       "api_or_raw_confirmed": "api",
-      "sample_endpoint_or_file_url": "https://services2.arcgis.com/9KdAx8qBsHiGXOEw/arcgis/rest/services/NFHL_Flood_Hazard_Zones_Dissolve/FeatureServer",
+      "sample_endpoint_or_file_url": "https://services2.arcgis.com/.../FeatureServer/0/query",
       "auth_required": "no",
       "recommendation": "structured_lane",
       "policy_mechanism_relevance": "contextual_only",
       "live_probe_status": "pass",
-      "evidence_summary": "selected_title='NFHL Flood Hazard Zones'; policy_specific_match=False. ArcGIS probe confirms public GIS API mechanics; policy-specific San Jose zoning/parcel/housing may require tighter curation.",
-      "downstream_economic_usefulness": "medium"
+      "evidence_summary": "Replay fixture confirms ArcGIS REST mechanics only; policy-specific zoning/parcel relevance not guaranteed.",
+      "downstream_economic_usefulness": "medium",
+      "access_method": "rest_api_feature_service",
+      "jurisdiction_coverage": "regional_multi_county",
+      "cadence_freshness": "dataset_defined_variable",
+      "storage_target": "postgres_source_snapshots+minio_raw_artifacts",
+      "mechanism_economic_usefulness_score": 62,
+      "runtime_integration_status": "poc_only"
     },
     {
       "source_family": "ca_ckan_open_data_catalog",
@@ -57,8 +75,14 @@
       "recommendation": "structured_lane",
       "policy_mechanism_relevance": "household_affordability",
       "live_probe_status": "pass",
-      "evidence_summary": "package_count=20",
-      "downstream_economic_usefulness": "medium"
+      "evidence_summary": "Replay fixture includes CKAN package_search response envelope.",
+      "downstream_economic_usefulness": "medium",
+      "access_method": "ckan_api",
+      "jurisdiction_coverage": "state_california",
+      "cadence_freshness": "dataset_defined_variable",
+      "storage_target": "postgres_source_snapshots+minio_raw_artifacts",
+      "mechanism_economic_usefulness_score": 70,
+      "runtime_integration_status": "poc_only"
     },
     {
       "source_family": "public_opendatasoft_catalog",
@@ -71,8 +95,14 @@
       "recommendation": "backlog",
       "policy_mechanism_relevance": "unknown",
       "live_probe_status": "pass",
-      "evidence_summary": "catalog_total_count=406; API reachable, but local policy-specific dataset binding not done.",
-      "downstream_economic_usefulness": "low"
+      "evidence_summary": "Replay fixture confirms ODS catalog API shape; local-jurisdiction dataset mapping still required.",
+      "downstream_economic_usefulness": "low",
+      "access_method": "catalog_api",
+      "jurisdiction_coverage": "multi_jurisdiction",
+      "cadence_freshness": "dataset_defined_variable",
+      "storage_target": "candidate_catalog_only",
+      "mechanism_economic_usefulness_score": 35,
+      "runtime_integration_status": "poc_only"
     },
     {
       "source_family": "official_static_xlsx_census",
@@ -85,8 +115,14 @@
       "recommendation": "backlog",
       "policy_mechanism_relevance": "contextual_only",
       "live_probe_status": "pass",
-      "evidence_summary": "http_status=206",
-      "downstream_economic_usefulness": "low"
+      "evidence_summary": "Replay fixture confirms direct XLSX retrieval from official Census domain.",
+      "downstream_economic_usefulness": "low",
+      "access_method": "raw_file_download",
+      "jurisdiction_coverage": "national_context",
+      "cadence_freshness": "annual_or_periodic_release",
+      "storage_target": "candidate_catalog_only",
+      "mechanism_economic_usefulness_score": 40,
+      "runtime_integration_status": "poc_only"
     },
     {
       "source_family": "socrata_open_data_portals",
@@ -99,8 +135,14 @@
       "recommendation": "backlog",
       "policy_mechanism_relevance": "direct_fiscal",
       "live_probe_status": "not_run",
-      "evidence_summary": "Explicitly excluded from this POC by user decision: no Socrata signup at this time.",
-      "downstream_economic_usefulness": "high"
+      "evidence_summary": "Excluded from this POC by explicit user constraint: no Socrata signup now.",
+      "downstream_economic_usefulness": "high",
+      "access_method": "socrata_api",
+      "jurisdiction_coverage": "city_county_varies",
+      "cadence_freshness": "dataset_defined_variable",
+      "storage_target": "candidate_catalog_only",
+      "mechanism_economic_usefulness_score": 76,
+      "runtime_integration_status": "poc_only"
     },
     {
       "source_family": "granicus_agenda_portals",
@@ -113,8 +155,14 @@
       "recommendation": "scrape_reader_lane",
       "policy_mechanism_relevance": "compliance_cost",
       "live_probe_status": "not_run",
-      "evidence_summary": "Portal-first HTML/PDF source; classify into scrape+reader lane.",
-      "downstream_economic_usefulness": "medium"
+      "evidence_summary": "Agenda portals are generally HTML/PDF-first and belong to scrape+reader lane.",
+      "downstream_economic_usefulness": "medium",
+      "access_method": "html_pdf_portal",
+      "jurisdiction_coverage": "city_county_varies",
+      "cadence_freshness": "meeting_event_driven",
+      "storage_target": "scrape_reader_lane_minio_raw_artifacts",
+      "mechanism_economic_usefulness_score": 58,
+      "runtime_integration_status": "poc_only"
     }
   ],
   "summary": {
@@ -128,6 +176,11 @@
       "pass": 6,
       "not_run": 2
     },
+    "by_runtime_integration_status": {
+      "runtime_integrated": 2,
+      "poc_only": 6
+    },
+    "average_mechanism_economic_usefulness_score": 66.0,
     "wave1_structured_feeds": [
       "legistar_sanjose",
       "ca_pubinfo_leginfo",

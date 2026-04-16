@@ -27,6 +27,7 @@ def test_replay_contract_has_required_envelope_fields():
     )
     report = module._run(config)
     assert report["envelopes"]
+    assert "economic_analysis_handoff_assessment" in report
     errors = module._validate_report(report)
     assert errors == []
 
@@ -46,6 +47,43 @@ def test_integration_proves_cross_lane_dedupe_and_provider_roles():
     assert role_map["private_searxng"] == "primary_scrape_search_lane"
     assert role_map["tavily"] == "hot_fallback"
     assert role_map["exa"] == "bakeoff_eval_only"
+    unified = report["unified_package_proof"]
+    assert unified["passed"] is True
+    assert unified["has_scraped_lane"] is True
+    assert unified["has_structured_lane"] is True
+    assert unified["structured_source_family_count"] >= 2
+
+
+def test_unified_package_proof_rejects_scraped_only_package() -> None:
+    config = module.VerifierConfig(
+        mode="replay",
+        out_json=Path("/tmp/scrape-structured-integration-scraped-only.json"),
+        out_md=Path("/tmp/scrape-structured-integration-scraped-only.md"),
+        self_check=False,
+    )
+    report = module._run(config)
+    scraped_only = [
+        envelope for envelope in report["envelopes"] if envelope["source_lane"] == "scrape_search"
+    ]
+    proof = module._unified_package_proof(scraped_only)
+    assert proof["passed"] is False
+    assert "missing_structured_lane" in proof["reasons"]
+
+
+def test_unified_package_proof_rejects_structured_only_package() -> None:
+    config = module.VerifierConfig(
+        mode="replay",
+        out_json=Path("/tmp/scrape-structured-integration-structured-only.json"),
+        out_md=Path("/tmp/scrape-structured-integration-structured-only.md"),
+        self_check=False,
+    )
+    report = module._run(config)
+    structured_only = [
+        envelope for envelope in report["envelopes"] if envelope["source_lane"] == "structured"
+    ]
+    proof = module._unified_package_proof(structured_only)
+    assert proof["passed"] is False
+    assert "missing_scraped_lane" in proof["reasons"]
 
 
 def test_impact_mode_to_mechanism_mapping_covers_required_modes():

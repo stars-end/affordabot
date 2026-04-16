@@ -110,6 +110,7 @@ def _write_readme(path: Path, *, scorecard: dict[str, Any]) -> None:
         "## Current verdict",
         "",
         f"- overall_verdict: `{scorecard['overall_verdict']}`",
+        f"- decision_grade_verdict: `{scorecard['decision_grade']['verdict']}`",
         f"- failed_categories: `{len(scorecard['failure_classification']['failed_categories'])}`",
         f"- not_proven_categories: `{', '.join(scorecard['failure_classification']['not_proven_categories']) or 'none'}`",
         f"- storage_readback_status: `{scorecard['taxonomy']['storage/read-back']['status']}`",
@@ -118,6 +119,8 @@ def _write_readme(path: Path, *, scorecard: dict[str, Any]) -> None:
         f"- windmill_orchestration_note: `{scorecard['taxonomy']['Windmill/orchestration']['details']}`",
         f"- llm_narrative_status: `{scorecard['taxonomy']['LLM narrative']['status']}`",
         f"- llm_narrative_note: `{scorecard['taxonomy']['LLM narrative']['details']}`",
+        f"- economic_quality_failing_dimensions: "
+        f"`{', '.join(scorecard['economic_quality_rubric']['failing_dimensions']) or 'none'}`",
         "",
         "The current deterministic quality-spine pass has no failed data/economic",
         "quality categories. Retry-3 adds strict category semantics: selected-artifact",

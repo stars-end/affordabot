@@ -1,6 +1,6 @@
 # Scrape + Structured Source Integration POC
 
-Date: 2026-04-14T17:52:45.616420+00:00
+Date: 2026-04-16T00:25:30.425868+00:00
 Feature key: `bd-2agbe.11`
 Mode: `replay`
 
@@ -21,6 +21,15 @@ Prove one backend-owned merged artifact/evidence contract across:
 - economic_handoff_ready: `3`
 - quantified-ready subset: `3`
 - quality assessment: `sufficient_for_quantified_handoff_in_subset`
+
+## Unified Package Proof
+
+- unified package passed: `True`
+- has scraped lane: `True`
+- has structured lane: `True`
+- structured source family count: `4`
+- cross-lane canonical-document overlap count: `1`
+- proof blockers: `none`
 
 ## Provider Role Recommendation
 
@@ -66,11 +75,19 @@ Prove one backend-owned merged artifact/evidence contract across:
 
 ## Schema Validation
 
-- mode: `local_contract_only`
-- validated ready evidence count: `0`
+- mode: `pydantic_economic_evidence`
+- validated ready evidence count: `3`
 - schema errors count: `0`
-- schema import error: `ModuleNotFoundError: No module named 'pydantic'`
+- schema import error: `None`
 
 ## Evidence Quality Note
 
 Merged contract is suitable for backend economic handoff in a subset; items marked reader_required/insufficient remain fail-closed or qualitative.
+
+## Economic Analysis Handoff Answer
+
+- sufficient for economic analysis handoff: `True`
+- handoff decision: `sufficient_for_controlled_backend_handoff`
+- why/why not: `quantified_subset_ready_with_proven_unified_package`
+- production decision-grade ready: `False`
+- production blockers: `reader_required_rows_remain, insufficient_rows_remain`
