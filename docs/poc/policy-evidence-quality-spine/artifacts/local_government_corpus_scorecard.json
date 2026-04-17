@@ -1,18 +1,17 @@
 {
   "artifact_inputs": {
     "overlay_applied": true,
-    "windmill_blocked_attempt_rows": [
-      "lgm-013",
-      "lgm-015"
-    ],
+    "windmill_blocked_attempt_rows": [],
     "windmill_live_attempt_rows": [
       "lgm-007",
+      "lgm-013",
+      "lgm-015",
       "lgm-018"
     ],
     "windmill_orchestration_artifact": "docs/poc/policy-evidence-quality-spine/artifacts/local_government_corpus_windmill_orchestration.json",
-    "windmill_orchestration_digest": "69aa1deacc3233340bc64284137ff69e8ceed3ad82bad3a81d388f08d55e1ef3",
-    "windmill_orchestration_generated_at": "2026-04-17T09:26:21+00:00",
-    "windmill_orchestration_verdict": "not_proven_blocked"
+    "windmill_orchestration_digest": "47bc6a63cf0c356283c586686ade610499bcd86c824b4d7fb2d2ad7e16785718",
+    "windmill_orchestration_generated_at": "2026-04-17T09:57:50+00:00",
+    "windmill_orchestration_verdict": "not_proven_unverified_live_refs"
   },
   "benchmark_id": "local_government_data_moat_benchmark_v0",
   "core_metrics": {
@@ -142,15 +141,26 @@
         "windmill_refs_seeded_not_live_proven"
       ],
       "metrics": {
-        "cli_only_share": 0.0222,
+        "blocked_backend_scope_rows": 0,
+        "cli_only_rows": 0,
+        "cli_only_share": 0.0,
+        "live_proven_rows": 4,
         "missing_live_refs_rows": 0,
         "missing_mode_rows": 0,
         "mode_counts": {
-          "cli_only": 2,
+          "cli_only": 0,
           "mixed": 42,
-          "windmill_live": 46
+          "windmill_live": 48
         },
         "row_count": 90,
+        "sample_blocked_backend_scope_rows": [],
+        "sample_cli_only_rows": [],
+        "sample_live_proven_rows": [
+          "lgm-007",
+          "lgm-013",
+          "lgm-015",
+          "lgm-018"
+        ],
         "sample_seeded_not_live_proven_rows": [
           "lgm-001",
           "lgm-002",
@@ -163,7 +173,9 @@
           "lgm-010",
           "lgm-011"
         ],
-        "seeded_not_live_proven_rows": 86
+        "sample_unsupported_scope_rows": [],
+        "seeded_not_live_proven_rows": 86,
+        "unsupported_scope_rows": 0
       },
       "reason": "C13 has orchestration intent metadata, but live Windmill run/job refs are not proven.",
       "status": "not_proven"
@@ -280,7 +292,7 @@
       "status": "pass"
     }
   },
-  "generated_at": "2026-04-17T09:28:55+00:00",
+  "generated_at": "2026-04-17T09:57:51+00:00",
   "matrix_digest": "27b1db98df46a04658af6b89ac35623e706cd979742810ba2a3eb3ec66b9eafa",
   "matrix_summary": {
     "corpus_readiness_target": "corpus_ready_with_gaps",

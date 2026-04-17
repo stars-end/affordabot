@@ -530,3 +530,65 @@ def test_backend_endpoint_mode_passes_fail_closed_job_id_contract(monkeypatch):
     assert backend_response["windmill_job_id_source"] == "windmill_flow_input_unverified"
     assert backend_response["windmill_job_id_missing_reason"] == "windmill_job_id_step_placeholder"
     assert backend_response["orchestration_refs"]["windmill_job_id"] is None
+
+
+def test_backend_endpoint_mode_preserves_typed_timeout_reason(monkeypatch):
+    class _FakeResponse:
+        status_code = 200
+
+        @staticmethod
+        def json():
+            return {
+                "status": "failed_retryable",
+                "decision_reason": "scope_timeout",
+                "idempotency_key": "run:backend-endpoint-portland",
+                "scope_idempotency_key": "run:backend-endpoint-portland::scope",
+                "windmill_run_id": "wm-run-portland",
+                "windmill_run_id_reported": "wm-run-portland",
+                "windmill_run_id_source": "windmill_flow_input",
+                "windmill_run_id_missing_reason": None,
+                "windmill_job_id": "wm-job-portland",
+                "windmill_job_id_reported": "wm-job-portland",
+                "windmill_job_id_source": "windmill_flow_input",
+                "windmill_job_id_missing_reason": None,
+                "orchestration_refs": {
+                    "idempotency_key": "run:backend-endpoint-portland",
+                    "scope_idempotency_key": "run:backend-endpoint-portland::scope",
+                    "windmill_run_id": "wm-run-portland",
+                    "windmill_job_id": "wm-job-portland",
+                },
+                "alerts": ["search_provider_timeout"],
+                "steps": {
+                    "search_materialize": {
+                        "status": "failed_retryable",
+                        "decision_reason": "search_provider_timeout",
+                    },
+                    "summarize_run": {"status": "failed_retryable"},
+                },
+                "storage_mode": "railway_runtime",
+                "missing_runtime_adapters": [],
+                "refs": {
+                    "fail_closed_reasons": [
+                        "search_materialize:search_provider_timeout",
+                    ]
+                },
+            }
+
+        text = '{"status":"failed_retryable"}'
+
+    monkeypatch.setattr(module.requests, "post", lambda *args, **kwargs: _FakeResponse())  # noqa: ARG005
+    result = module.main(
+        step="run_scope_pipeline",
+        scope_item={"jurisdiction": "Portland OR", "source_family": "short_term_rental"},
+        command_client="backend_endpoint",
+        backend_endpoint_url="https://backend.example/cron/pipeline/domain/run-scope",
+        backend_endpoint_auth_token="token-123",
+    )
+
+    assert result["status"] == "failed"
+    assert result["steps"]["search_materialize"]["decision_reason"] == "search_provider_timeout"
+    assert "search_provider_timeout" in result["alert"]
+    assert (
+        "search_materialize:search_provider_timeout"
+        in result["backend_response"]["refs"]["fail_closed_reasons"]
+    )

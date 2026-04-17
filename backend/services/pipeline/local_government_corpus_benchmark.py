@@ -2698,7 +2698,14 @@ class LocalGovernmentCorpusBenchmarkService:
                     if isinstance(value, str) and value:
                         overlaid_refs[key] = value
 
-            for key in ("flow_id", "run_id", "job_id", "proof_status", "proof_source"):
+            for key in (
+                "flow_id",
+                "run_id",
+                "job_id",
+                "proof_status",
+                "proof_source",
+                "blocker_class",
+            ):
                 value = row_overlay.get(key)
                 if isinstance(value, str) and value:
                     overlaid_refs[key] = value
@@ -2760,7 +2767,14 @@ class LocalGovernmentCorpusBenchmarkService:
                     if isinstance(value, str) and value
                 }
 
-            for key in ("flow_id", "run_id", "job_id", "proof_status", "proof_source"):
+            for key in (
+                "flow_id",
+                "run_id",
+                "job_id",
+                "proof_status",
+                "proof_source",
+                "blocker_class",
+            ):
                 value = payload.get(key)
                 if isinstance(value, str) and value:
                     normalized_payload[key] = value
@@ -2813,13 +2827,19 @@ class LocalGovernmentCorpusBenchmarkService:
             or payload.get("flow_id")
             or ""
         )
-        blocker_class = str(payload.get("blocker_class") or "")
+        blocker_class = str(payload.get("blocker_class") or payload.get("blocker") or "")
 
         if status == "blocked" or mode == "blocked" or blocker_class:
+            blocker_class_normalized = blocker_class.strip().lower()
+            proof_status = "blocked"
+            if "unsupported" in blocker_class_normalized:
+                proof_status = "unsupported_scope"
             blocked_overlay: dict[str, Any] = {
-                "proof_status": "blocked",
+                "proof_status": proof_status,
                 "proof_source": "windmill_orchestration_artifact",
             }
+            if blocker_class:
+                blocked_overlay["blocker_class"] = blocker_class
             if flow_id:
                 blocked_overlay["flow_id"] = flow_id
             if run_id:
@@ -2851,30 +2871,55 @@ class LocalGovernmentCorpusBenchmarkService:
         mode_counts = {"windmill_live": 0, "cli_only": 0, "mixed": 0}
         missing_mode_rows = []
         missing_live_refs_rows = []
+        live_proven_rows = []
         seeded_not_live_proven_rows = []
+        blocked_backend_scope_rows = []
+        unsupported_scope_rows = []
+        cli_only_rows = []
         for row in rows:
+            row_id = str(row.get("corpus_row_id") or "unknown")
             infra = row.get("infrastructure_status")
             if not isinstance(infra, dict):
-                missing_mode_rows.append(str(row.get("corpus_row_id") or "unknown"))
+                missing_mode_rows.append(row_id)
                 continue
             mode = str(infra.get("orchestration_mode") or "")
             if mode not in mode_counts:
-                missing_mode_rows.append(str(row.get("corpus_row_id") or "unknown"))
+                missing_mode_rows.append(row_id)
                 continue
             mode_counts[mode] += 1
+            refs = infra.get("windmill_refs")
+            if mode == "cli_only":
+                cli_only_rows.append(row_id)
+                if isinstance(refs, dict):
+                    scope_class = self._classify_windmill_scope_block(refs=refs)
+                    if scope_class == "blocked_backend_scope":
+                        blocked_backend_scope_rows.append(row_id)
+                    elif scope_class == "unsupported_scope":
+                        unsupported_scope_rows.append(row_id)
+                continue
             if mode in {"windmill_live", "mixed"}:
-                refs = infra.get("windmill_refs")
+                scope_class = (
+                    self._classify_windmill_scope_block(refs=refs)
+                    if isinstance(refs, dict)
+                    else None
+                )
+                if scope_class == "blocked_backend_scope":
+                    blocked_backend_scope_rows.append(row_id)
+                    seeded_not_live_proven_rows.append(row_id)
+                    continue
+                if scope_class == "unsupported_scope":
+                    unsupported_scope_rows.append(row_id)
+                    seeded_not_live_proven_rows.append(row_id)
+                    continue
                 if not isinstance(refs, dict) or not all(
                     refs.get(key) for key in {"flow_id", "run_id", "job_id"}
                 ):
-                    missing_live_refs_rows.append(
-                        str(row.get("corpus_row_id") or "unknown")
-                    )
+                    missing_live_refs_rows.append(row_id)
                     continue
                 if not self._windmill_refs_are_live_proven(refs=refs):
-                    seeded_not_live_proven_rows.append(
-                        str(row.get("corpus_row_id") or "unknown")
-                    )
+                    seeded_not_live_proven_rows.append(row_id)
+                    continue
+                live_proven_rows.append(row_id)
 
         total = len(rows)
         cli_share = (mode_counts["cli_only"] / total) if total else 0.0
@@ -2882,10 +2927,18 @@ class LocalGovernmentCorpusBenchmarkService:
             "row_count": total,
             "mode_counts": mode_counts,
             "cli_only_share": round(cli_share, 4),
+            "live_proven_rows": len(live_proven_rows),
+            "sample_live_proven_rows": live_proven_rows[:10],
+            "cli_only_rows": len(cli_only_rows),
+            "sample_cli_only_rows": cli_only_rows[:10],
             "missing_mode_rows": len(missing_mode_rows),
             "missing_live_refs_rows": len(missing_live_refs_rows),
             "seeded_not_live_proven_rows": len(seeded_not_live_proven_rows),
             "sample_seeded_not_live_proven_rows": seeded_not_live_proven_rows[:10],
+            "blocked_backend_scope_rows": len(blocked_backend_scope_rows),
+            "sample_blocked_backend_scope_rows": blocked_backend_scope_rows[:10],
+            "unsupported_scope_rows": len(unsupported_scope_rows),
+            "sample_unsupported_scope_rows": unsupported_scope_rows[:10],
         }
 
         blockers = []
@@ -2895,11 +2948,25 @@ class LocalGovernmentCorpusBenchmarkService:
             blockers.append("windmill_refs_missing_for_live_rows")
         if seeded_not_live_proven_rows:
             blockers.append("windmill_refs_seeded_not_live_proven")
+        if blocked_backend_scope_rows:
+            blockers.append("windmill_rows_blocked_backend_scope")
+        if unsupported_scope_rows:
+            blockers.append("windmill_rows_unsupported_scope")
         if blockers:
             if missing_mode_rows or missing_live_refs_rows:
                 return GateResult(
                     status="fail",
                     reason="C13 orchestration metadata is incomplete.",
+                    metrics=metrics,
+                    blockers=blockers,
+                )
+            if blocked_backend_scope_rows or unsupported_scope_rows:
+                return GateResult(
+                    status="not_proven",
+                    reason=(
+                        "C13 has blocked or unsupported backend-scope rows; "
+                        "live orchestration is not corpus-proven."
+                    ),
                     metrics=metrics,
                     blockers=blockers,
                 )
@@ -2960,6 +3027,22 @@ class LocalGovernmentCorpusBenchmarkService:
             "windmill_orchestration_artifact",
             "windmill_row_overlay",
         }
+
+    @staticmethod
+    def _classify_windmill_scope_block(*, refs: dict[str, Any]) -> str | None:
+        proof_status = str(refs.get("proof_status") or "").strip().lower()
+        blocker_class = str(refs.get("blocker_class") or refs.get("blocker") or "")
+        blocker_class = blocker_class.strip().lower()
+
+        if proof_status in {"unsupported_scope", "unsupported", "unsupported_backend_scope"}:
+            return "unsupported_scope"
+        if "unsupported" in blocker_class:
+            return "unsupported_scope"
+        if proof_status in {"blocked", "blocked_backend_scope"}:
+            return "blocked_backend_scope"
+        if "backend_scope" in blocker_class:
+            return "blocked_backend_scope"
+        return None
 
     def _evaluate_c14(
         self, *, matrix: dict[str, Any], rows: list[dict[str, Any]]

@@ -1,6 +1,7 @@
 from importlib.util import module_from_spec, spec_from_file_location
 import json
 from pathlib import Path
+import subprocess
 import sys
 
 import pytest
@@ -107,6 +108,15 @@ def _run_matrix_fixture() -> dict[str, object]:
 def _write_json(path: Path, payload: dict[str, object]) -> Path:
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return path
+
+
+def _completed_process(*, returncode: int, stdout: str = "", stderr: str = "") -> subprocess.CompletedProcess[str]:
+    return subprocess.CompletedProcess(
+        args=["windmill-cli"],
+        returncode=returncode,
+        stdout=stdout,
+        stderr=stderr,
+    )
 
 
 def _existing_output_with_proven_lgm_007() -> dict[str, object]:
@@ -286,6 +296,149 @@ def test_build_report_keeps_failed_flow_blocked_even_with_job_refs():
         "backend_scope_not_succeeded"
     )
     assert report["c13_verdict_candidate"] == "not_proven_blocked"
+
+
+def test_live_attempt_parses_nested_backend_failure_detail_for_blocked_flow(monkeypatch):
+    flow_result = {
+        "status": "failed",
+        "windmill_run_id": "019d9abc-8fb8-cbfd-67f0-3d3704e59614",
+        "windmill_job_id": "019d9abc-8fb8-cbfd-67f0-3d3704e59614",
+        "per_scope_pipeline": [
+            {
+                "status": "failed",
+                "alert": "run_scope_pipeline:backend_endpoint_http_error",
+                "backend_response": {
+                    "status": "failed",
+                    "scope_idempotency_key": "bd-3wefe.13.4.6:lgm-013:scope",
+                    "failure_codes": ["backend_endpoint_http_error"],
+                    "recommended_next_action": "rerun_after_backend_recovery",
+                    "error_details": {
+                        "http_status": 503,
+                        "detail": "upstream unavailable",
+                    },
+                    "steps": {
+                        "search_materialize": {"status": "succeeded"},
+                        "run_scope_pipeline": {
+                            "status": "failed",
+                            "error": "backend_endpoint_http_error",
+                            "error_details": {"detail": "backend endpoint returned 503"},
+                        },
+                        "summarize_run": {"status": "failed", "decision_reason": "backend_endpoint_http_error"},
+                    },
+                },
+                "steps": {
+                    "run_scope_pipeline": {"status": "failed"},
+                    "summarize_run": {"status": "failed"},
+                },
+            }
+        ],
+    }
+
+    def _fake_wmill(config_dir: str, workspace: str, *args: str) -> subprocess.CompletedProcess[str]:  # noqa: ARG001
+        if args[:2] == ("flow", "run"):
+            return _completed_process(returncode=0, stdout=json.dumps(flow_result))
+        if args[:2] == ("job", "list"):
+            return _completed_process(returncode=0, stdout="[]")
+        if args[:2] == ("job", "get"):
+            return _completed_process(
+                returncode=0,
+                stdout=json.dumps(
+                    {
+                        "id": args[2],
+                        "status": "failed",
+                        "result": {
+                            "error": {
+                                "code": "backend_endpoint_http_error",
+                                "exception": "HTTP 503 from backend endpoint",
+                            }
+                        },
+                    }
+                ),
+            )
+        raise AssertionError(f"unexpected windmill args: {args}")
+
+    monkeypatch.setattr(verify_module, "_wmill", _fake_wmill)
+    monkeypatch.setattr(verify_module.time, "sleep", lambda _: None)
+
+    attempt = verify_module._live_attempt_for_row(
+        row={
+            "corpus_row_id": "lgm-013",
+            "jurisdiction": {"id": "portland_or", "name": "Portland", "state": "OR"},
+            "policy_family": "short_term_rental",
+        },
+        context=verify_module.WindmillContext(
+            workspace="affordabot",
+            flow_path="f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+            script_path="f/affordabot/pipeline_daily_refresh_domain_boundary",
+            config_dir="/tmp/fake-config",
+        ),
+        command_client="backend_endpoint",
+        backend_timeout_seconds=180,
+    )
+
+    assert attempt.status == "blocked"
+    assert attempt.blocker_class == "backend_scope_not_succeeded"
+    assert attempt.backend_failure_detail is not None
+    assert attempt.backend_failure_detail["failure_domain"] == "infra_or_runtime"
+    assert attempt.backend_failure_detail["response_http_status"] == 503
+    assert attempt.backend_failure_detail["failing_step"] == "run_scope_pipeline"
+    assert "backend_endpoint_http_error" in attempt.backend_failure_codes
+    assert attempt.windmill_step_statuses == {
+        "run_scope_pipeline": "failed",
+        "search_materialize": "succeeded",
+        "summarize_run": "failed",
+    }
+    assert attempt.scope_id == "bd-3wefe.13.4.6:lgm-013:scope"
+    assert attempt.recommended_next_action == "rerun_after_backend_recovery"
+
+
+def test_live_attempt_marks_status_only_failures_when_cli_has_no_backend_detail(monkeypatch):
+    flow_result = {
+        "status": "failed",
+        "windmill_run_id": "019d9abc-8fb8-cbfd-67f0-3d3704e59614",
+        "windmill_job_id": "019d9abc-8fb8-cbfd-67f0-3d3704e59614",
+    }
+
+    def _fake_wmill(config_dir: str, workspace: str, *args: str) -> subprocess.CompletedProcess[str]:  # noqa: ARG001
+        if args[:2] == ("flow", "run"):
+            return _completed_process(returncode=0, stdout=json.dumps(flow_result))
+        if args[:2] == ("job", "list"):
+            return _completed_process(returncode=0, stdout="[]")
+        if args[:2] == ("job", "get"):
+            return _completed_process(returncode=0, stdout=json.dumps({"id": args[2], "status": "failed"}))
+        raise AssertionError(f"unexpected windmill args: {args}")
+
+    monkeypatch.setattr(verify_module, "_wmill", _fake_wmill)
+    monkeypatch.setattr(verify_module.time, "sleep", lambda _: None)
+
+    attempt = verify_module._live_attempt_for_row(
+        row={
+            "corpus_row_id": "lgm-015",
+            "jurisdiction": {"id": "king_county_wa", "name": "King County", "state": "WA"},
+            "policy_family": "meeting_action",
+        },
+        context=verify_module.WindmillContext(
+            workspace="affordabot",
+            flow_path="f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+            script_path="f/affordabot/pipeline_daily_refresh_domain_boundary",
+            config_dir="/tmp/fake-config",
+        ),
+        command_client="backend_endpoint",
+        backend_timeout_seconds=180,
+    )
+
+    assert attempt.status == "blocked"
+    assert attempt.blocker_class == "backend_scope_not_succeeded"
+    assert attempt.backend_failure_detail is not None
+    assert attempt.backend_failure_detail["failure_domain"] == "windmill_cli_status_only"
+    assert attempt.backend_failure_detail["detail"] == (
+        "Windmill CLI returned failed/succeeded status without backend failure detail."
+    )
+    assert attempt.backend_failure_codes == ()
+    assert attempt.windmill_step_statuses is None
+    assert attempt.recommended_next_action == (
+        "Windmill CLI exposed only failed/succeeded status; inspect run/job logs in Windmill UI and re-run."
+    )
 
 
 def test_extract_flow_refs_prefers_authoritative_values():

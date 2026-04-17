@@ -49,7 +49,7 @@ DEFAULT_OUTPUT_PATH = (
 DEFAULT_WINDMILL_FLOW_PATH = "f/affordabot/pipeline_daily_refresh_domain_boundary__flow"
 DEFAULT_WINDMILL_SCRIPT_PATH = "f/affordabot/pipeline_daily_refresh_domain_boundary"
 DEFAULT_WINDMILL_WORKSPACE = "affordabot"
-FEATURE_KEY = "bd-3wefe.13.4.4"
+FEATURE_KEY = "bd-3wefe.13.4.6"
 CONTRACT_VERSION = "2026-04-17.windmill-domain.v2"
 
 
@@ -79,6 +79,11 @@ class LiveAttempt:
     run_id_source: str | None
     job_id_source: str | None
     job_lookup_trace: tuple[str, ...]
+    backend_failure_detail: dict[str, Any] | None = None
+    backend_failure_codes: tuple[str, ...] = ()
+    windmill_step_statuses: dict[str, str] | None = None
+    scope_id: str | None = None
+    recommended_next_action: str | None = None
 
     def to_json(self) -> dict[str, Any]:
         return {
@@ -98,6 +103,11 @@ class LiveAttempt:
             "run_id_source": self.run_id_source,
             "job_id_source": self.job_id_source,
             "job_lookup_trace": list(self.job_lookup_trace),
+            "backend_failure_detail": self.backend_failure_detail,
+            "backend_failure_codes": list(self.backend_failure_codes),
+            "windmill_step_statuses": self.windmill_step_statuses,
+            "scope_id": self.scope_id,
+            "recommended_next_action": self.recommended_next_action,
         }
 
 
@@ -206,6 +216,257 @@ def _extract_backend_scope_status(flow_result: dict[str, Any]) -> str | None:
     if isinstance(run_scope, dict) and run_scope.get("status"):
         return str(run_scope["status"])
     return None
+
+
+def _normalize_step_statuses(payload: Any) -> dict[str, str]:
+    statuses: dict[str, str] = {}
+    if not isinstance(payload, dict):
+        return statuses
+    for raw_step, raw_step_payload in payload.items():
+        if not isinstance(raw_step_payload, dict):
+            continue
+        status = raw_step_payload.get("status")
+        if status is None:
+            continue
+        step = str(raw_step).strip()
+        if not step:
+            continue
+        statuses[step] = str(status)
+    return statuses
+
+
+def _first_value_for_key(payload: Any, key: str) -> Any:
+    if isinstance(payload, dict):
+        if key in payload:
+            return payload.get(key)
+        for value in payload.values():
+            found = _first_value_for_key(value, key)
+            if found is not None:
+                return found
+    elif isinstance(payload, list):
+        for value in payload:
+            found = _first_value_for_key(value, key)
+            if found is not None:
+                return found
+    return None
+
+
+def _first_nonempty_string_for_keys(payloads: list[Any], keys: list[str]) -> str | None:
+    for payload in payloads:
+        for key in keys:
+            raw = _first_value_for_key(payload, key)
+            if isinstance(raw, str):
+                value = raw.strip()
+                if value:
+                    return value
+    return None
+
+
+def _first_int_for_keys(payloads: list[Any], keys: list[str]) -> int | None:
+    for payload in payloads:
+        for key in keys:
+            raw = _first_value_for_key(payload, key)
+            if isinstance(raw, bool):
+                continue
+            if isinstance(raw, int):
+                return raw
+            if isinstance(raw, str) and raw.strip().isdigit():
+                return int(raw.strip())
+    return None
+
+
+def _collect_backend_failure_codes(payload: Any) -> tuple[str, ...]:
+    codes: list[str] = []
+    seen: set[str] = set()
+
+    def _add_code(raw: Any) -> None:
+        if not isinstance(raw, str):
+            return
+        code = raw.strip()
+        if not code:
+            return
+        if code in seen:
+            return
+        seen.add(code)
+        codes.append(code)
+
+    def _visit(value: Any) -> None:
+        if isinstance(value, dict):
+            for key, nested in value.items():
+                if key in {
+                    "failure_code",
+                    "failure_codes",
+                    "runtime_failure_codes",
+                    "reason_code",
+                    "error",
+                    "blocking_gate",
+                    "decision_reason",
+                    "retry_class",
+                }:
+                    if isinstance(nested, list):
+                        for item in nested:
+                            _add_code(item)
+                    else:
+                        _add_code(nested)
+                _visit(nested)
+            return
+        if isinstance(value, list):
+            for nested in value:
+                _visit(nested)
+
+    _visit(payload)
+    return tuple(codes)
+
+
+def _default_failure_next_action(failure_domain: str) -> str:
+    if failure_domain == "product_data_unsupported":
+        return "Gather missing authoritative policy evidence for this scope and re-run the backend endpoint flow."
+    if failure_domain == "infra_or_runtime":
+        return "Repair backend_endpoint/Windmill runtime failure, then re-run the same scope idempotency key."
+    if failure_domain == "windmill_cli_status_only":
+        return "Windmill CLI exposed only failed/succeeded status; inspect run/job logs in Windmill UI and re-run."
+    return "Inspect backend scope failure payload/logs for this run/job and re-run after the blocking cause is addressed."
+
+
+def _classify_backend_failure(
+    *,
+    failure_codes: tuple[str, ...],
+    exception_text: str | None,
+    failing_step: str | None,
+    backend_scope_status: str | None,
+    response_http_status: int | None,
+    has_step_statuses: bool,
+) -> str:
+    corpus = " ".join(
+        part
+        for part in (
+            " ".join(failure_codes),
+            exception_text or "",
+            failing_step or "",
+            backend_scope_status or "",
+        )
+        if part
+    ).lower()
+    if not corpus and response_http_status is None and not has_step_statuses:
+        return "windmill_cli_status_only"
+
+    product_markers = (
+        "unsupported",
+        "parameter_missing",
+        "parameter_unverifiable",
+        "no_quant_support_path",
+        "insufficient_evidence",
+        "blocking_gate_present",
+        "qualitative_only",
+        "policy_evidence_fail_closed",
+        "package_not_ready_for_economic_handoff",
+        "stale_blocked",
+        "empty_blocked",
+    )
+    infra_markers = (
+        "backend_endpoint_http_error",
+        "backend_endpoint_request_error",
+        "backend_endpoint_missing_configuration",
+        "backend_endpoint_invalid_response",
+        "timeout",
+        "connection",
+        "request error",
+        "service unavailable",
+        "unauthorized",
+        "forbidden",
+        "traceback",
+        "exception",
+        "module_not_found",
+    )
+
+    product_hit = any(marker in corpus for marker in product_markers)
+    infra_hit = any(marker in corpus for marker in infra_markers) or (
+        response_http_status is not None and response_http_status >= 400
+    )
+
+    if product_hit and not infra_hit:
+        return "product_data_unsupported"
+    if infra_hit:
+        return "infra_or_runtime"
+    return "unknown"
+
+
+def _extract_backend_failure_evidence(
+    *,
+    flow_result: dict[str, Any],
+    backend_scope_status: str | None,
+    job_detail: dict[str, Any] | None,
+) -> dict[str, Any]:
+    scope = _first_scope_result(flow_result)
+    backend_response = scope.get("backend_response") if isinstance(scope.get("backend_response"), dict) else {}
+    scope_steps = _normalize_step_statuses(scope.get("steps"))
+    backend_steps = _normalize_step_statuses(backend_response.get("steps"))
+    step_statuses = {**scope_steps, **backend_steps}
+
+    failing_step = next(
+        (
+            step
+            for step, status in step_statuses.items()
+            if status not in {"succeeded", "succeeded_with_alerts", "fresh", "ready", "pass", "none"}
+        ),
+        None,
+    )
+    payloads: list[Any] = [scope, backend_response, flow_result]
+    if isinstance(job_detail, dict):
+        payloads.append(job_detail)
+
+    failure_codes = _collect_backend_failure_codes(payloads)
+    scope_id = _first_nonempty_string_for_keys(
+        payloads,
+        [
+            "scope_idempotency_key",
+            "scope_id",
+            "scope_key",
+        ],
+    )
+    recommended_next_action = _first_nonempty_string_for_keys(payloads, ["recommended_next_action"])
+    exception_text = _first_nonempty_string_for_keys(
+        payloads,
+        ["exception", "traceback", "detail", "error"],
+    )
+    response_http_status = _first_int_for_keys(payloads, ["http_status", "status_code"])
+    response_status = _first_nonempty_string_for_keys(
+        [backend_response, scope, flow_result],
+        ["status", "flow_response_status"],
+    )
+    failing_module = _first_nonempty_string_for_keys(
+        payloads,
+        ["module", "module_id", "step", "step_id", "invoked_command"],
+    )
+    failure_domain = _classify_backend_failure(
+        failure_codes=failure_codes,
+        exception_text=exception_text,
+        failing_step=failing_step,
+        backend_scope_status=backend_scope_status,
+        response_http_status=response_http_status,
+        has_step_statuses=bool(step_statuses),
+    )
+    if not recommended_next_action:
+        recommended_next_action = _default_failure_next_action(failure_domain)
+
+    failure_detail: dict[str, Any] = {
+        "failure_domain": failure_domain,
+        "response_status": response_status,
+        "response_http_status": response_http_status,
+        "scope_id": scope_id,
+        "failing_step": failing_step,
+        "failing_module": failing_module,
+        "exception_text": exception_text,
+    }
+    if failure_domain == "windmill_cli_status_only":
+        failure_detail["detail"] = "Windmill CLI returned failed/succeeded status without backend failure detail."
+    return {
+        "backend_failure_detail": failure_detail,
+        "backend_failure_codes": failure_codes,
+        "windmill_step_statuses": step_statuses or None,
+        "scope_id": scope_id,
+        "recommended_next_action": recommended_next_action,
+    }
 
 
 def _extract_flow_refs(flow_result: dict[str, Any], *, idempotency_key: str) -> tuple[str | None, str | None]:
@@ -456,6 +717,11 @@ def _build_baseline_rows(matrix: dict[str, Any]) -> list[dict[str, Any]]:
                 "run_id_source": None,
                 "job_id_source": None,
                 "job_lookup_trace": [],
+                "backend_failure_detail": None,
+                "backend_failure_codes": [],
+                "windmill_step_statuses": None,
+                "scope_id": None,
+                "recommended_next_action": None,
             }
         )
     return baseline
@@ -559,6 +825,11 @@ def _carry_forward_proven_row(
         "run_id_source": existing_row.get("run_id_source"),
         "job_id_source": existing_row.get("job_id_source"),
         "job_lookup_trace": lookup_trace,
+        "backend_failure_detail": existing_row.get("backend_failure_detail"),
+        "backend_failure_codes": existing_row.get("backend_failure_codes"),
+        "windmill_step_statuses": existing_row.get("windmill_step_statuses"),
+        "scope_id": existing_row.get("scope_id"),
+        "recommended_next_action": existing_row.get("recommended_next_action"),
     }
 
 
@@ -599,6 +870,11 @@ def _index_proven_attempts(existing_report: dict[str, Any] | None) -> dict[str, 
             "run_id_source": attempt.get("run_id_source"),
             "job_id_source": attempt.get("job_id_source"),
             "job_lookup_trace": lookup_trace,
+            "backend_failure_detail": attempt.get("backend_failure_detail"),
+            "backend_failure_codes": attempt.get("backend_failure_codes"),
+            "windmill_step_statuses": attempt.get("windmill_step_statuses"),
+            "scope_id": attempt.get("scope_id"),
+            "recommended_next_action": attempt.get("recommended_next_action"),
         }
     return proven_attempts
 
@@ -676,6 +952,7 @@ def _live_attempt_for_row(
             blocker_class = "backend_endpoint_not_configured"
         elif "backend_endpoint_http_error" in stderr:
             blocker_class = "backend_endpoint_http_error"
+        failure_domain = "infra_or_runtime"
         return LiveAttempt(
             corpus_row_id=corpus_row_id,
             status="blocked",
@@ -693,6 +970,19 @@ def _live_attempt_for_row(
             run_id_source=None,
             job_id_source=None,
             job_lookup_trace=(),
+            backend_failure_detail={
+                "failure_domain": failure_domain,
+                "response_status": None,
+                "response_http_status": None,
+                "scope_id": None,
+                "failing_step": "flow_run",
+                "failing_module": "windmill-cli flow run",
+                "exception_text": stderr[-500:] if stderr else None,
+            },
+            backend_failure_codes=(blocker_class,),
+            windmill_step_statuses=None,
+            scope_id=None,
+            recommended_next_action=_default_failure_next_action(failure_domain),
         )
 
     flow_result = _extract_last_json_object(run_proc.stdout.strip())
@@ -707,6 +997,7 @@ def _live_attempt_for_row(
         lookup_trace.append("flow_run_output:windmill_run_id")
     if job_id:
         lookup_trace.append("flow_run_output:windmill_job_id")
+    matched_job_for_failure: dict[str, Any] | None = None
 
     for attempt_idx in range(10):
         jobs: list[dict[str, Any]] = []
@@ -730,6 +1021,7 @@ def _live_attempt_for_row(
             lookup_trace.append(f"job_list_all[{attempt_idx}]:count={len(jobs)}")
             matched_job = _find_job_for_idempotency(jobs, idempotency_key)
             if matched_job:
+                matched_job_for_failure = matched_job
                 candidate = _authoritative_windmill_ref(matched_job.get("id"), idempotency_key=idempotency_key)
                 if candidate:
                     job_id = candidate
@@ -781,6 +1073,7 @@ def _live_attempt_for_row(
             if not job_id:
                 recent_job = _find_recent_flow_job(jobs, flow_path=context.flow_path, run_started_at=run_started_at)
                 if recent_job:
+                    matched_job_for_failure = recent_job
                     candidate = _authoritative_windmill_ref(recent_job.get("id"), idempotency_key=idempotency_key)
                     if candidate:
                         job_id = candidate
@@ -798,6 +1091,38 @@ def _live_attempt_for_row(
         time.sleep(1.0)
 
     flow_blocked_or_failed = flow_status in {"failed", "blocked"}
+    job_detail: dict[str, Any] | None = None
+    if flow_blocked_or_failed and (job_id or run_id):
+        job_get_target = job_id or run_id
+        job_get_proc = _wmill(
+            context.config_dir,
+            context.workspace,
+            "job",
+            "get",
+            str(job_get_target),
+            "--json",
+        )
+        if job_get_proc.returncode == 0:
+            try:
+                parsed_job = json.loads(job_get_proc.stdout or "{}")
+            except json.JSONDecodeError:
+                parsed_job = {}
+            if isinstance(parsed_job, dict):
+                job_detail = parsed_job
+                lookup_trace.append("job_get:hydrated")
+        else:
+            lookup_trace.append("job_get:non_zero")
+    if not job_detail and isinstance(matched_job_for_failure, dict):
+        job_detail = matched_job_for_failure
+
+    failure_evidence: dict[str, Any] = {}
+    if flow_blocked_or_failed:
+        failure_evidence = _extract_backend_failure_evidence(
+            flow_result=flow_result,
+            backend_scope_status=backend_scope_status,
+            job_detail=job_detail,
+        )
+
     proven = bool(run_id and job_id and not flow_blocked_or_failed)
     if proven:
         mode = "windmill_live" if command_client == "backend_endpoint" else "mixed"
@@ -827,8 +1152,15 @@ def _live_attempt_for_row(
     )
     if flow_blocked_or_failed:
         blocker_class = "backend_scope_not_succeeded"
+        failure_detail_payload = failure_evidence.get("backend_failure_detail") or {}
+        failure_domain = failure_detail_payload.get("failure_domain")
+        failing_step = failure_detail_payload.get("failing_step")
+        failure_codes = failure_evidence.get("backend_failure_codes") or ()
+        failure_codes_display = ",".join(str(code) for code in failure_codes[:4]) if failure_codes else "none"
         blocker_detail = (
             f"flow_status={flow_status} backend_scope_status={backend_scope_status}; "
+            f"failure_domain={failure_domain or 'unknown'} failing_step={failing_step or 'unknown'} "
+            f"failure_codes={failure_codes_display}; "
             f"run_id_source={run_id_source or 'missing'} job_id_source={job_id_source or 'missing'}"
         )
     return LiveAttempt(
@@ -848,6 +1180,11 @@ def _live_attempt_for_row(
         run_id_source=run_id_source,
         job_id_source=job_id_source,
         job_lookup_trace=tuple(lookup_trace),
+        backend_failure_detail=failure_evidence.get("backend_failure_detail"),
+        backend_failure_codes=tuple(failure_evidence.get("backend_failure_codes") or ()),
+        windmill_step_statuses=failure_evidence.get("windmill_step_statuses"),
+        scope_id=failure_evidence.get("scope_id"),
+        recommended_next_action=failure_evidence.get("recommended_next_action"),
     )
 
 
@@ -887,6 +1224,11 @@ def _merge_rows_with_attempts(
                 "run_id_source": attempt.run_id_source,
                 "job_id_source": attempt.job_id_source,
                 "job_lookup_trace": list(attempt.job_lookup_trace),
+                "backend_failure_detail": attempt.backend_failure_detail,
+                "backend_failure_codes": list(attempt.backend_failure_codes),
+                "windmill_step_statuses": attempt.windmill_step_statuses,
+                "scope_id": attempt.scope_id,
+                "recommended_next_action": attempt.recommended_next_action,
             }
         )
     return merged
@@ -937,6 +1279,9 @@ def _build_report(
             "package_id": row.get("package_id"),
             "blocker_class": row.get("blocker_class"),
             "blocker_detail": row.get("blocker_detail"),
+            "backend_failure_codes": row.get("backend_failure_codes"),
+            "scope_id": row.get("scope_id"),
+            "recommended_next_action": row.get("recommended_next_action"),
         }
         for row in merged_rows
         if row.get("orchestration_mode") == "blocked" or row.get("blocker_class")

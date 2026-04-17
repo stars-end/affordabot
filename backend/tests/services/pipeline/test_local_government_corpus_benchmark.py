@@ -153,16 +153,100 @@ def test_c13_artifact_overlay_blocked_row_stays_not_proven() -> None:
         matrix=matrix,
         windmill_orchestration_artifact=artifact,
     )
+    c13 = scorecard["gates"]["C13"]
 
-    assert scorecard["gates"]["C13"]["status"] == "not_proven"
+    assert c13["status"] == "not_proven"
     assert (
-        scorecard["gates"]["C13"]["metrics"]["mode_counts"]["cli_only"]
+        c13["metrics"]["mode_counts"]["cli_only"]
         == baseline["gates"]["C13"]["metrics"]["mode_counts"]["cli_only"]
     )
     assert (
-        "windmill_refs_seeded_not_live_proven"
-        in scorecard["gates"]["C13"]["blockers"]
+        c13["metrics"]["seeded_not_live_proven_rows"]
+        == baseline["gates"]["C13"]["metrics"]["seeded_not_live_proven_rows"]
     )
+    assert c13["metrics"]["blocked_backend_scope_rows"] == 1
+    assert blocked_row_id in c13["metrics"]["sample_blocked_backend_scope_rows"]
+    assert "windmill_rows_blocked_backend_scope" in c13["blockers"]
+    assert "windmill_refs_seeded_not_live_proven" in c13["blockers"]
+
+
+def test_c13_artifact_overlay_blocked_live_row_does_not_reduce_seeded_count() -> None:
+    service = LocalGovernmentCorpusBenchmarkService()
+    matrix = build_local_government_corpus_matrix_seed()
+    baseline = service.evaluate(matrix=matrix)
+    rows = [row for row in matrix["rows"] if row.get("row_type") == "corpus_package"]
+    blocked_target = next(
+        row
+        for row in rows
+        if (row.get("infrastructure_status") or {}).get("orchestration_mode")
+        in {"windmill_live", "mixed"}
+    )
+    blocked_row_id = blocked_target["corpus_row_id"]
+
+    artifact = {
+        "rows": [
+            {
+                "corpus_row_id": blocked_row_id,
+                "row_status": "blocked",
+                "orchestration_mode": "blocked",
+                "blocker_class": "backend_scope_not_succeeded",
+                "windmill_run_id": "01J9KJ5FK0XQ7CG1WM89AZ6RY4",
+            }
+        ]
+    }
+    scorecard = service.evaluate(
+        matrix=matrix,
+        windmill_orchestration_artifact=artifact,
+    )
+    c13 = scorecard["gates"]["C13"]
+
+    assert c13["status"] == "not_proven"
+    assert (
+        c13["metrics"]["seeded_not_live_proven_rows"]
+        == baseline["gates"]["C13"]["metrics"]["seeded_not_live_proven_rows"]
+    )
+    assert c13["metrics"]["blocked_backend_scope_rows"] == 1
+    assert blocked_row_id in c13["metrics"]["sample_blocked_backend_scope_rows"]
+    assert "windmill_rows_blocked_backend_scope" in c13["blockers"]
+
+
+def test_c13_artifact_overlay_reports_unsupported_scope_rows() -> None:
+    service = LocalGovernmentCorpusBenchmarkService()
+    matrix = build_local_government_corpus_matrix_seed()
+    baseline = service.evaluate(matrix=matrix)
+    rows = [row for row in matrix["rows"] if row.get("row_type") == "corpus_package"]
+    unsupported_target = next(
+        row
+        for row in rows
+        if (row.get("infrastructure_status") or {}).get("orchestration_mode")
+        == "cli_only"
+    )
+    unsupported_row_id = unsupported_target["corpus_row_id"]
+
+    artifact = {
+        "rows": [
+            {
+                "corpus_row_id": unsupported_row_id,
+                "row_status": "blocked",
+                "orchestration_mode": "blocked",
+                "blocker_class": "unsupported_scope",
+            }
+        ]
+    }
+    scorecard = service.evaluate(
+        matrix=matrix,
+        windmill_orchestration_artifact=artifact,
+    )
+    c13 = scorecard["gates"]["C13"]
+
+    assert c13["status"] == "not_proven"
+    assert (
+        c13["metrics"]["seeded_not_live_proven_rows"]
+        == baseline["gates"]["C13"]["metrics"]["seeded_not_live_proven_rows"]
+    )
+    assert c13["metrics"]["unsupported_scope_rows"] == 1
+    assert unsupported_row_id in c13["metrics"]["sample_unsupported_scope_rows"]
+    assert "windmill_rows_unsupported_scope" in c13["blockers"]
 
 
 def test_c13_artifact_overlay_proven_row_upgrades_single_row() -> None:

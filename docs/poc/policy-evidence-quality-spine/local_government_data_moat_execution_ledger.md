@@ -573,3 +573,92 @@ Next blocker:
   live rows (`lgm-013`, `lgm-015`) or reclassify generated orchestration modes
   so C13 does not imply live Windmill proof for rows that the backend cannot
   actually execute.
+
+## Cycle 48: Non-San-Jose Live Proof Timeout Fix + C13 Failure Semantics
+
+Status: `completed_with_remaining_seeded_ref_gap`
+
+Started: 2026-04-17
+
+Scope:
+
+- Diagnose Cycle 47 non-San-Jose live Windmill failures for `lgm-013`
+  (`Portland OR`, `short_term_rental`) and `lgm-015` (`King County WA`,
+  `meeting_action`).
+- Determine whether the failures were product/source unsupported scopes or a
+  harness/runtime timeout artifact.
+- Harden C13 blocked-row reporting so future failures carry actionable backend
+  evidence rather than only `backend_scope_not_succeeded`.
+- Harden C13 scorecard metrics so blocked, unsupported, live-proven, seeded,
+  and CLI-only rows are separated.
+
+Manual live diagnosis:
+
+- Windmill job inspection showed both Cycle 47 blocked rows had real flow/job
+  UUIDs, but the backend request timed out at `180` seconds:
+  `backend_endpoint_request_error` with
+  `Read timed out. (read timeout=180)`.
+- Railway backend logs showed Portland was not unsupported: private SearXNG
+  returned `200 OK`, reader output was uploaded, and backend work continued
+  past the previous harness cutoff.
+
+Live commands attempted (non-destructive, Windmill dev):
+
+- `poetry run python scripts/verification/verify_local_government_corpus_windmill_orchestration.py --target-row-id lgm-013 --skip-proven-output-rows --backend-timeout-seconds 600 --out ../docs/poc/policy-evidence-quality-spine/artifacts/local_government_corpus_windmill_orchestration.json`
+- `poetry run python scripts/verification/verify_local_government_corpus_windmill_orchestration.py --target-row-id lgm-015 --skip-proven-output-rows --backend-timeout-seconds 600 --out ../docs/poc/policy-evidence-quality-spine/artifacts/local_government_corpus_windmill_orchestration.json`
+
+Observed live result:
+
+- `lgm-013` proved live through Windmill/backend with
+  `windmill_run_id=019d9aca-7303-854f-9b9f-d030fd5c2f43` and matching
+  `windmill_job_id`.
+- `lgm-015` proved live through Windmill/backend with
+  `windmill_run_id=019d9ad0-ce90-c22b-6830-b6f92772b9c2` and matching
+  `windmill_job_id`.
+- The Windmill artifact now has `post_metrics.cli_only_share=0.0`,
+  `post_metrics.mode_counts.cli_only=0`, and no `blocker_rows`.
+
+Material changes:
+
+- Updated
+  `backend/scripts/verification/verify_local_government_corpus_windmill_orchestration.py`:
+  - Cycle 48 feature key for new runs;
+  - structured backend failure extraction for blocked attempts;
+  - blocked attempts can now carry backend failure detail, failure codes,
+    Windmill step statuses, scope id, and recommended next action;
+  - failure classification separates product-data unsupported, infra/runtime,
+    and status-only Windmill CLI failures.
+- Updated
+  `backend/services/pipeline/local_government_corpus_benchmark.py`:
+  - C13 metrics now expose `live_proven_rows`, `seeded_not_live_proven_rows`,
+    `blocked_backend_scope_rows`, `unsupported_scope_rows`, and
+    `cli_only_rows`;
+  - blocked/unsupported overlays remain fail-closed and cannot reduce seeded
+    placeholder counts as if they passed.
+- Updated tests for verifier blocked-detail parsing and C13 blocked/unsupported
+  metric false-pass protection.
+- Regenerated the Windmill orchestration artifact, corpus scorecard, and corpus
+  report from the live overlay.
+
+Gate impact:
+
+- Live-proven corpus rows increased from `2` to `4`: `lgm-007`, `lgm-013`,
+  `lgm-015`, and `lgm-018`.
+- C13 `cli_only_share` improved from `0.0222` in the Cycle 47 scorecard to
+  `0.0`.
+- C13 remains `not_proven` because `86` generated `windmill_live` / `mixed`
+  rows still carry seeded `wm::` / `wm-job::` refs.
+- Final state remains `corpus_ready_with_gaps`, not
+  `decision_grade_corpus`.
+
+Validation:
+
+- `cd backend && poetry run pytest tests/verification/test_verify_local_government_corpus_windmill_orchestration.py tests/services/pipeline/test_local_government_corpus_benchmark.py` -> `29 passed`.
+- `cd backend && poetry run ruff check scripts/verification/verify_local_government_corpus_windmill_orchestration.py services/pipeline/local_government_corpus_benchmark.py tests/verification/test_verify_local_government_corpus_windmill_orchestration.py tests/services/pipeline/test_local_government_corpus_benchmark.py` -> pass.
+
+Next blocker:
+
+- Cycle 49 must resolve the remaining C13 seeded-ref gap by either batch-running
+  live proof for generated `windmill_live` / `mixed` rows or changing generated
+  corpus orchestration claims so only live-proven rows are labeled
+  `windmill_live` / `mixed`.

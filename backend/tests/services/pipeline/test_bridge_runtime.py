@@ -309,9 +309,11 @@ class FakeSearchClient:
 
     def __init__(self, results: list[dict[str, Any]]) -> None:
         self.results = results
+        self.queries: list[str] = []
 
     async def search(self, query: str, count: int = 10) -> list[dict[str, Any]]:
-        _ = (query, count)
+        _ = count
+        self.queries.append(query)
         return self.results
 
 
@@ -807,6 +809,46 @@ def test_runtime_bridge_idempotency_is_scoped_to_jurisdiction_and_source_family(
     assert len(storage.upload_calls) == 2
 
 
+def test_runtime_bridge_search_timeout_is_typed() -> None:
+    db = FakeDB()
+    storage = FakeStorage()
+    runtime = RailwayRuntimeBridge(db=db, storage=storage)  # type: ignore[arg-type]
+    runtime.reader_client = FakeReaderClient()
+    runtime._llm_client = FakeLLMClient()
+    runtime.zai_api_key = "x"
+
+    class TimeoutSearchClient:
+        provider_label = "private_searxng"
+
+        async def search(self, query: str, count: int = 10) -> list[dict[str, Any]]:
+            _ = (query, count)
+            raise RuntimeError("request timed out after 180 seconds")
+
+    runtime.search_client = TimeoutSearchClient()
+    response = asyncio.run(runtime.run_scope_pipeline(_request(idempotency_key="wm:run-scope:search-timeout")))
+
+    assert response["steps"]["search_materialize"]["decision_reason"] == "search_provider_timeout"
+    assert "search_provider_timeout" in response["steps"]["search_materialize"]["alerts"]
+
+
+def test_runtime_bridge_reader_timeout_is_typed() -> None:
+    db = FakeDB()
+    storage = FakeStorage()
+    runtime = RailwayRuntimeBridge(db=db, storage=storage)  # type: ignore[arg-type]
+    runtime.search_client = FakeSearchClient(
+        [{"url": "https://www.sanjoseca.gov/agenda/1", "title": "SJ Agenda", "snippet": "Housing"}]
+    )
+    runtime.reader_client = FakeReaderClient(fail="reader request timed out")
+    runtime._llm_client = FakeLLMClient()
+    runtime.zai_api_key = "x"
+
+    response = asyncio.run(runtime.run_scope_pipeline(_request(idempotency_key="wm:run-scope:reader-timeout")))
+
+    assert response["status"] == "failed_retryable"
+    assert response["steps"]["read_fetch"]["decision_reason"] == "reader_provider_timeout"
+    assert "reader_provider_timeout" in response["steps"]["read_fetch"]["alerts"]
+
+
 def test_runtime_bridge_stale_paths() -> None:
     db = FakeDB()
     storage = FakeStorage()
@@ -982,6 +1024,28 @@ def test_runtime_bridge_reader_and_llm_failures_classify() -> None:
     assert projection["canonical_pipeline_run_id"] == ""
     assert projection["canonical_pipeline_step_id"] == ""
     assert projection["canonical_breakdown_ref"] == ""
+
+
+def test_runtime_bridge_llm_timeout_is_typed() -> None:
+    db = FakeDB()
+    storage = FakeStorage()
+    runtime = RailwayRuntimeBridge(db=db, storage=storage)  # type: ignore[arg-type]
+    runtime.search_client = FakeSearchClient(
+        [{"url": "https://www.sanjoseca.gov/agenda/1", "title": "SJ Agenda", "snippet": "Housing"}]
+    )
+    runtime.reader_client = FakeReaderClient()
+    runtime._llm_client = FakeLLMClient(fail="analysis request timed out")
+    runtime.zai_api_key = "x"
+
+    response = asyncio.run(runtime.run_scope_pipeline(_request(idempotency_key="wm:run-scope:llm-timeout")))
+
+    analyze_step = response["steps"]["analyze"]
+    assert analyze_step["status"] == "succeeded_with_alerts"
+    assert analyze_step["decision_reason"] == "analysis_provider_timeout"
+    assert "analysis_provider_timeout" in analyze_step["alerts"]
+    assert "analysis_fail_closed_provider_timeout" in analyze_step["alerts"]
+    assert "read_fetch:raw_scrapes_materialized" not in response["refs"]["fail_closed_reasons"]
+    assert "analyze:analysis_provider_timeout" in response["refs"]["fail_closed_reasons"]
 
 
 def test_runtime_bridge_uses_minio_artifact_writer_probe_and_indirect_hint() -> None:

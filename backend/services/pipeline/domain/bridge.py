@@ -156,6 +156,14 @@ _NON_AUTHORITATIVE_WINDMILL_JOB_PREFIXES = (
     "blocked_or_failed_summary:",
     "windmill-job-id:",
 )
+_TIMEOUT_ERROR_SIGNALS = (
+    "timeout",
+    "timed out",
+    "read timeout",
+    "connect timeout",
+    "deadline exceeded",
+    "request timeout",
+)
 
 
 def _utc_now() -> datetime:
@@ -179,6 +187,15 @@ def _db_json(value: Any, fallback: Any) -> Any:
 
 def _hash(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def _is_timeout_error(exc: Exception) -> bool:
+    if isinstance(exc, TimeoutError):
+        return True
+    message = str(exc).strip().lower()
+    if not message:
+        return False
+    return any(signal in message for signal in _TIMEOUT_ERROR_SIGNALS)
 
 
 def _stable_uuid(*parts: str) -> str:
@@ -3813,12 +3830,17 @@ class RailwayRuntimeBridge:
         try:
             results = await self.search_client.search(query=request.search_query, count=10)
         except Exception as exc:
+            timeout = _is_timeout_error(exc)
+            decision_reason = "search_provider_timeout" if timeout else "search_transport_error"
+            alerts = [f"search_provider_error:{exc}"]
+            if timeout:
+                alerts.append("search_provider_timeout")
             response = CommandResponse(
                 command="search_materialize",
                 status="failed_retryable",
-                decision_reason="search_transport_error",
+                decision_reason=decision_reason,
                 retry_class="transport",
-                alerts=[f"search_provider_error:{exc}"],
+                alerts=alerts,
                 refs={"windmill_run_id": meta.run_id, "windmill_job_id": meta.job_id},
             )
             return await self._persist_response(run_id=run_id, request=request, response=response)
@@ -4097,6 +4119,7 @@ class RailwayRuntimeBridge:
                 reader_payload = await self.reader_client.fetch_content(url, timeout=60)
             except Exception as exc:
                 err = str(exc)
+                timeout_error = _is_timeout_error(exc)
                 candidate_is_official_artifact = _is_concrete_artifact_url(url)
                 reader_provider_errors.append(
                     {
@@ -4104,6 +4127,7 @@ class RailwayRuntimeBridge:
                         "rank": candidate["rank"],
                         "score": candidate["score"],
                         "error": err,
+                        "timeout": timeout_error,
                         "candidate_is_official_artifact": candidate_is_official_artifact,
                     }
                 )
@@ -4114,6 +4138,7 @@ class RailwayRuntimeBridge:
                         "score": candidate["score"],
                         "outcome": "reader_provider_error",
                         "error": err,
+                        "timeout": timeout_error,
                         "candidate_is_official_artifact": candidate_is_official_artifact,
                     }
                 )
@@ -4283,10 +4308,14 @@ class RailwayRuntimeBridge:
             *[f"reader_error:{item['error']}" for item in reader_provider_errors],
         ]
         if reader_provider_errors:
+            timeout_only = all(bool(item.get("timeout")) for item in reader_provider_errors)
+            decision_reason = "reader_provider_timeout" if timeout_only else "reader_provider_error"
+            if timeout_only:
+                alerts.append("reader_provider_timeout")
             response = CommandResponse(
                 command="read_fetch",
                 status="failed_retryable",
-                decision_reason="reader_provider_error",
+                decision_reason=decision_reason,
                 retry_class="provider_unavailable",
                 alerts=list(dict.fromkeys(alerts)),
                 refs={"windmill_run_id": meta.run_id, "windmill_job_id": meta.job_id},
@@ -4644,23 +4673,30 @@ class RailwayRuntimeBridge:
             )
             return await self._persist_response(run_id=run_id, request=request, response=response)
         except Exception as exc:
+            timeout = _is_timeout_error(exc)
+            fail_closed_reason = "analysis_provider_timeout" if timeout else "analysis_provider_unavailable"
             fail_closed_analysis = self._provider_unavailable_analysis_payload(
                 request=request,
-                reason="analysis_provider_unavailable",
+                reason=fail_closed_reason,
                 evidence_audit=evidence_audit,
                 evidence_chunk_count=len(evidence_chunks),
             )
+            alerts = [
+                fail_closed_reason,
+                (
+                    "analysis_fail_closed_provider_timeout"
+                    if timeout
+                    else "analysis_fail_closed_provider_unavailable"
+                ),
+                "canonical_llm_narrative_not_proven",
+                f"analysis_error:{exc}",
+            ]
             response = CommandResponse(
                 command="analyze",
                 status="succeeded_with_alerts",
-                decision_reason="analysis_provider_unavailable",
+                decision_reason=fail_closed_reason,
                 retry_class="provider_unavailable",
-                alerts=[
-                    "analysis_provider_unavailable",
-                    "analysis_fail_closed_provider_unavailable",
-                    "canonical_llm_narrative_not_proven",
-                    f"analysis_error:{exc}",
-                ],
+                alerts=alerts,
                 counts={"evidence_chunks": len(evidence_chunks)},
                 refs={"windmill_run_id": meta.run_id, "windmill_job_id": meta.job_id},
                 details={
@@ -4682,14 +4718,22 @@ class RailwayRuntimeBridge:
         evidence_audit: list[dict[str, Any]],
         evidence_chunk_count: int,
     ) -> dict[str, Any]:
+        timed_out = reason == "analysis_provider_timeout"
+        summary = (
+            "Economic analysis failed closed because the canonical LLM provider timed out."
+            if timed_out
+            else "Economic analysis failed closed because the canonical LLM provider was unavailable."
+        )
+        mode = "fail_closed_provider_timeout" if timed_out else "fail_closed_provider_unavailable"
+        alert_code = "analysis_provider_timeout" if timed_out else "analysis_provider_unavailable"
         return {
-            "summary": "Economic analysis failed closed because the canonical LLM provider was unavailable.",
+            "summary": summary,
             "key_points": [
                 "Evidence was ingested and selected for analysis, but no canonical model output was produced.",
                 "This run is not decision-grade and requires a provider-healthy rerun before quantitative conclusions.",
             ],
             "sufficiency_state": "provider_unavailable",
-            "analysis_mode": "fail_closed_provider_unavailable",
+            "analysis_mode": mode,
             "analysis_not_proven": True,
             "canonical_llm_narrative_proven": False,
             "decision_reason": reason,
@@ -4705,8 +4749,8 @@ class RailwayRuntimeBridge:
                 for chunk in evidence_audit
             ],
             "alerts": [
-                "analysis_provider_unavailable",
-                "analysis_fail_closed_provider_unavailable",
+                alert_code,
+                f"analysis_{mode}",
                 "canonical_llm_narrative_not_proven",
             ],
         }
