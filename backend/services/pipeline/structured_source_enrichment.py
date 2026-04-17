@@ -654,23 +654,45 @@ class StructuredSourceEnricher:
         return printable / len(sample) < 0.72
 
     @staticmethod
+    def _classify_pdf_parse_error(exc: Exception, *, phase: str) -> str:
+        if exc.__class__.__name__ == "PdfReadError":
+            return "unreadable_pdf"
+        phase_mapping = {
+            "reader_init": "pdf_reader_init_failed",
+            "page_iteration": "pdf_page_iteration_failed",
+            "page_extract": "pdf_page_extract_failed",
+        }
+        return phase_mapping.get(phase, "pdf_parse_failed")
+
+    @staticmethod
     def _extract_pdf_text(body: bytes) -> tuple[str | None, str | None]:
         if not body:
             return None, "empty_pdf_payload"
         try:
             from pypdf import PdfReader
         except Exception as exc:  # noqa: BLE001
-            return None, f"pdf_dependency_unavailable:{exc}"
+            _ = exc
+            return None, "pdf_dependency_unavailable"
         try:
             reader = PdfReader(BytesIO(body))
         except Exception as exc:  # noqa: BLE001
-            return None, str(exc)
+            return None, StructuredSourceEnricher._classify_pdf_parse_error(
+                exc, phase="reader_init"
+            )
+        try:
+            pages = list(reader.pages)
+        except Exception as exc:  # noqa: BLE001
+            return None, StructuredSourceEnricher._classify_pdf_parse_error(
+                exc, phase="page_iteration"
+            )
         page_text: list[str] = []
-        for page in reader.pages:
+        for page in pages:
             try:
                 extracted = page.extract_text() or ""
-            except Exception:  # noqa: BLE001
-                extracted = ""
+            except Exception as exc:  # noqa: BLE001
+                return None, StructuredSourceEnricher._classify_pdf_parse_error(
+                    exc, phase="page_extract"
+                )
             if extracted.strip():
                 page_text.append(extracted)
         return "\n".join(page_text).strip(), None

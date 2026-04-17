@@ -84,6 +84,7 @@ ECONOMIC_SIGNAL_BOOST = 8
 ECONOMIC_NUMERIC_SIGNAL_BOOST = 6
 ECONOMIC_OFFICIAL_SOURCE_BOOST = 4
 ECONOMIC_EXTERNAL_SOURCE_PENALTY = 10
+ECONOMIC_EXTERNAL_AGGREGATOR_SOURCE_PENALTY = 16
 
 CONCRETE_ARTIFACT_URL_SIGNALS = (
     "meetingdetail.aspx?id=",
@@ -290,6 +291,10 @@ ECONOMIC_PROCEDURAL_URL_SIGNALS = (
     "/agendas-minutes",
 )
 
+ECONOMIC_AGGREGATOR_HOST_SIGNALS = (
+    "legigram.com",
+)
+
 
 def _hash_text(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
@@ -455,13 +460,18 @@ def rank_reader_candidates(
             if any(signal in lowered_url for signal in ECONOMIC_VALUE_URL_SIGNALS):
                 score += ECONOMIC_SIGNAL_BOOST
                 reasons.append("economic_signal:url")
-            if _is_trusted_public_records_url(url):
-                if "sanjoseca.gov" in lowered_url:
-                    score += ECONOMIC_OFFICIAL_SOURCE_BOOST
-                    reasons.append("economic_signal:official_source")
+            if _is_sanjose_official_records_url(url):
+                score += ECONOMIC_OFFICIAL_SOURCE_BOOST
+                reasons.append("economic_signal:official_source")
+            elif _is_trusted_public_records_url(url):
+                score += max(1, ECONOMIC_OFFICIAL_SOURCE_BOOST // 2)
+                reasons.append("economic_signal:trusted_public_records_source")
             else:
                 score -= ECONOMIC_EXTERNAL_SOURCE_PENALTY
                 reasons.append("economic_penalty:external_source")
+                if _is_economic_aggregator_url(url):
+                    score -= ECONOMIC_EXTERNAL_AGGREGATOR_SOURCE_PENALTY
+                    reasons.append("economic_penalty:aggregator_source")
             if _has_economic_numeric_signal(combined_text):
                 score += ECONOMIC_NUMERIC_SIGNAL_BOOST
                 reasons.append("economic_signal:numeric")
@@ -507,6 +517,21 @@ def _is_trusted_public_records_url(url: str) -> bool:
         or "legistar.com" in host
         or "granicus.com" in host
     )
+
+
+def _is_sanjose_official_records_url(url: str) -> bool:
+    lowered_url = url.lower().strip()
+    host = urlsplit(url).netloc.lower()
+    if "sanjoseca.gov" in host:
+        return True
+    if "sanjose.legistar.com" in host:
+        return True
+    return "webapi.legistar.com" in host and "/v1/sanjose/" in lowered_url
+
+
+def _is_economic_aggregator_url(url: str) -> bool:
+    host = urlsplit(url).netloc.lower()
+    return any(signal in host for signal in ECONOMIC_AGGREGATOR_HOST_SIGNALS)
 
 
 def prefetch_skip_reason(url: str) -> str | None:

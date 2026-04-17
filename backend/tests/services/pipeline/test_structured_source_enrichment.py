@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 import asyncio
+import sys
+import types
 
 from services.pipeline.structured_source_catalog import san_jose_structured_source_catalog
 from services.pipeline.structured_source_enrichment import StructuredSourceEnricher
@@ -518,14 +520,80 @@ def test_legistar_attachment_probe_does_not_label_annual_report_dollars_as_sqft_
     assert facts == []
 
 
-def test_legistar_attachment_probe_unreadable_pdf_fails_closed() -> None:
+def test_extract_pdf_text_classifies_unreadable_pdf_page_iteration_failure(
+    monkeypatch: Any,
+) -> None:
+    class PdfReadError(Exception):
+        pass
+
+    class _PdfReader:
+        def __init__(self, stream: Any) -> None:
+            _ = stream
+
+        @property
+        def pages(self) -> list[Any]:
+            raise PdfReadError("Cannot find Root object in pdf")
+
+    monkeypatch.setitem(
+        sys.modules,
+        "pypdf",
+        types.SimpleNamespace(PdfReader=_PdfReader),
+    )
+
+    text, error = StructuredSourceEnricher._extract_pdf_text(b"%PDF-1.7 malformed-root")
+    assert text is None
+    assert error == "unreadable_pdf"
+
+
+def test_extract_pdf_text_classifies_page_extract_failure(monkeypatch: Any) -> None:
+    class _PdfReader:
+        def __init__(self, stream: Any) -> None:
+            _ = stream
+
+        @property
+        def pages(self) -> list[Any]:
+            class _Page:
+                def extract_text(self) -> str:
+                    raise ValueError("extract failed")
+
+            return [_Page()]
+
+    monkeypatch.setitem(
+        sys.modules,
+        "pypdf",
+        types.SimpleNamespace(PdfReader=_PdfReader),
+    )
+
+    text, error = StructuredSourceEnricher._extract_pdf_text(b"%PDF-1.7 malformed-content")
+    assert text is None
+    assert error == "pdf_page_extract_failed"
+
+
+def test_legistar_attachment_probe_unreadable_pdf_fails_closed(monkeypatch: Any) -> None:
     enricher = StructuredSourceEnricher()
     pdf_url = "https://legistar.granicus.com/sanjose/attachments/unreadable.pdf"
+
+    class PdfReadError(Exception):
+        pass
+
+    class _PdfReader:
+        def __init__(self, stream: Any) -> None:
+            _ = stream
+
+        @property
+        def pages(self) -> list[Any]:
+            raise PdfReadError("Cannot find Root object in pdf")
+
+    monkeypatch.setitem(
+        sys.modules,
+        "pypdf",
+        types.SimpleNamespace(PdfReader=_PdfReader),
+    )
 
     class _Response:
         def __init__(self) -> None:
             self.headers = {"content-type": "application/pdf"}
-            self.content = b"%PDF-1.7 broken"
+            self.content = b"%PDF-1.7 malformed-root"
 
         def raise_for_status(self) -> None:
             return None
@@ -554,6 +622,7 @@ def test_legistar_attachment_probe_unreadable_pdf_fails_closed() -> None:
     assert probe["status"] == "pdf_parse_failed"
     assert probe["read_status"] == "read_failed"
     assert probe["failure_class"] == "attachment_pdf_parse_failed"
+    assert probe["error"] == "unreadable_pdf"
     assert probe["content_ingested"] is False
     assert probe["economic_row_count"] == 0
     assert facts == []

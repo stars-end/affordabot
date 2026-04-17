@@ -1728,11 +1728,20 @@ def main() -> int:
     parser.add_argument("--flow-path", default=DEFAULT_FLOW_PATH)
     parser.add_argument("--script-path", default=DEFAULT_SCRIPT_PATH)
     parser.add_argument("--jurisdiction", default="San Jose CA")
-    parser.add_argument("--source-family", default="meeting_minutes")
-    parser.add_argument("--search-query", default="San Jose CA city council meeting minutes housing")
+    parser.add_argument("--source-family", default="commercial_linkage_fee")
+    parser.add_argument(
+        "--search-query",
+        default=(
+            "San Jose Commercial Linkage Fee per square foot ordinance "
+            "resolution fee schedule site:sanjose.legistar.com OR site:sanjoseca.gov"
+        ),
+    )
     parser.add_argument(
         "--analysis-question",
-        default="Summarize housing-related signals from recent San Jose meeting minutes.",
+        default=(
+            "Extract official San Jose Commercial Linkage Fee per-square-foot rates, "
+            "land-use categories, and adoption/resolution evidence from authoritative sources."
+        ),
     )
     parser.add_argument("--stale-status", default="fresh")
     parser.add_argument(
