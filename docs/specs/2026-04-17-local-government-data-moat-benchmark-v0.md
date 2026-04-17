@@ -56,6 +56,16 @@ The next super-reach implementation target is:
 
 `local_government_data_moat_benchmark_v0`
 
+The second ultra-reach `dx-review` explicitly supports this target but makes
+three items blocking before another implementation/eval cycle:
+
+1. official-source dominance must be implemented through a central
+   source/identity classification surface, not scattered heuristics;
+2. freshness, source-shape drift, update-cadence drift, and last-successful
+   refresh must be measured as moat durability signals;
+3. the corpus matrix and scorecard schema must exist before another live run so
+   the next cycle is not another San Jose vertical by accident.
+
 Required terminal states:
 
 - `decision_grade_corpus`: corpus and selected economic deep dives satisfy the
@@ -147,6 +157,18 @@ source-of-truth rule explicitly promotes them for a narrow use.
 
 Fail if external sources win primary selection without a hard failure verdict.
 
+Implementation requirement:
+
+- official-source classification must be produced by one backend-owned
+  source/identity service or ruleset;
+- ranker, package builder, bridge/read model, corpus scorecard, and manual audit
+  must consume the same classification result;
+- every candidate must carry `source_officialness`,
+  `source_of_truth_role`, `jurisdiction_match`, `policy_family_match`,
+  `external_context_allowed`, and `primary_evidence_allowed`;
+- external sources may be stored but must default to secondary context unless a
+  documented promotion rule applies.
+
 ### C2 Source-Family Diversity Gate
 
 Pass requires at least three source families in the corpus, including at least
@@ -207,6 +229,26 @@ class.
 Fail if future agents cannot rerun the scorecard and compare whether search,
 ranking, reader, structured enrichment, or package quality improved.
 
+### C7 Freshness And Drift Durability Gate
+
+Pass requires the corpus and every package to expose durability metadata:
+
+- source cadence or expected update interval when known;
+- `retrieved_at`;
+- `source_published_at`, `meeting_date`, `adoption_date`, `effective_date`, or
+  explicit `date_not_found`;
+- last successful refresh for the same canonical source identity;
+- source-shape version or schema fingerprint where available;
+- `source_shape_changed` when expected fields, attachment structures, or portal
+  layout change;
+- `update_cadence_drift` when the source has not refreshed as expected;
+- `stale_for_policy_use` when the source is too old for the package's stated
+  use;
+- next refresh recommendation.
+
+Fail if stale, drifted, or source-shape-changed data can still produce a pass
+without being surfaced in package status and the corpus scorecard.
+
 ## Package Gates
 
 Every package must still be evaluated by the D0-D11 data-moat gates and E1-E5
@@ -222,11 +264,31 @@ Define the machine-readable corpus matrix schema and seed target rows:
 jurisdiction, policy family, query family, expected source families, structured
 source candidates, and economic mechanism plausibility.
 
+This phase is the first executable task. It must finish before another live
+Windmill/Railway eval cycle. Required fields:
+
+- `corpus_row_id`;
+- jurisdiction name, type, state/region, and canonical id;
+- policy family and mechanism family;
+- target query families;
+- expected official source families;
+- expected structured source families;
+- known official domains/endpoints;
+- economic mechanism plausibility;
+- required package verdict floor;
+- manual audit sampling priority;
+- golden regression expectation.
+
 ### Phase 2: Official-Source Dominance
 
 Improve query templates, source classification, ranking, and portal/external
 demotion so official sources win primary selection. Private SearXNG remains the
 primary low-cost discovery path.
+
+This phase must add the central source/identity classification surface required
+by C1. It should absorb or wrap existing officialness, jurisdiction, and policy
+family heuristics so the ranker, builder, read model, corpus scorecard, and
+manual audit use one decision.
 
 ### Phase 3: Structured Source Breadth
 
@@ -238,6 +300,11 @@ claim structured economic depth unless it materially improves the package.
 
 Create or reuse one `PolicyEvidencePackage` per corpus row. Prove Postgres,
 MinIO, pgvector, Windmill run linkage, and admin/read-model visibility.
+
+Packages must carry C7 freshness/drift fields into storage/readback and the
+admin/read model. If the existing schema cannot carry these fields without
+validator bloat, add a domain-level gate report or source-quality record rather
+than forcing cross-field product logic into the Pydantic model.
 
 ### Phase 5: Economic Handoff Classification
 
@@ -267,6 +334,8 @@ Required artifacts:
 - `docs/poc/policy-evidence-quality-spine/local_government_corpus_report.md`
 - `docs/poc/policy-evidence-quality-spine/manual_audit_local_government_corpus.md`
 - `docs/poc/policy-evidence-quality-spine/golden_policy_regression_set.md`
+- `docs/poc/policy-evidence-quality-spine/artifacts/source_identity_rules.json`
+- `docs/poc/policy-evidence-quality-spine/artifacts/source_freshness_drift_scorecard.json`
 - updated source catalog artifact;
 - updated Beads notes and metadata.
 
@@ -276,3 +345,136 @@ Do not run another live cycle first. Start by implementing the corpus matrix and
 scorecard contract, then run the smallest real corpus pass that can expose
 whether the dominant failure is official-source selection, structured-source
 breadth, package identity, storage/readback, or economic handoff.
+
+First implementation wave:
+
+1. Build the corpus matrix and scorecard schema.
+2. Centralize source/identity/officialness classification and wire it into
+   ranker/package/read-model scoring.
+3. Add freshness/drift durability gates and artifacts.
+4. Only then run the first small real corpus pass and manual audit.
+
+## Implementation Work Packages
+
+These are the implementation-ready work packages for the next session. They are
+ordered so agents cannot accidentally run another narrow live cycle before the
+benchmark shape exists.
+
+### WP1: Corpus Matrix And Scorecard Contract
+
+Owner: data-moat/runtime agent.
+
+Inputs:
+
+- this spec;
+- `2026-04-16-data-moat-quality-gates.md`;
+- current policy evidence quality-spine artifacts;
+- source catalog artifacts and brownfield map.
+
+Outputs:
+
+- `local_government_corpus_matrix.json`;
+- `local_government_corpus_scorecard.json`;
+- `local_government_corpus_report.md`;
+- schema or Pydantic/dataclass definitions if needed;
+- validation command that can run without live infra against fixture rows.
+
+Acceptance:
+
+- matrix has 30 to 50 target rows, or a smaller seed set with explicit
+  `corpus_ready_with_gaps` status and expansion backlog;
+- rows cover the required jurisdiction, policy-family, and source-family axes;
+- every row has expected official source families and expected structured
+  sources or source-catalog absence;
+- scorecard computes C0-C7 and per-package D0-D11/E handoff status;
+- scorecard fails if manual-audit fields are missing for sampled rows.
+
+### WP2: Central Source/Identity Classification
+
+Owner: source-quality/ranker agent.
+
+Inputs:
+
+- Cycle 42/43 external-source failures;
+- current ranker/source-family code;
+- source catalog;
+- corpus matrix official-source expectations.
+
+Outputs:
+
+- backend-owned source/identity classification module, service, or ruleset;
+- one classification result consumed by ranker, builder, bridge/read model,
+  scorecard, and audit;
+- source identity rules artifact:
+  `artifacts/source_identity_rules.json`;
+- regression tests covering official San Jose/Legistar, non-Legistar official
+  sources, state/regional official sources, advocacy PDFs, news, vendor pages,
+  and ambiguous portals.
+
+Acceptance:
+
+- C1 cannot pass without this central classification result;
+- external sources cannot be primary evidence by default;
+- official source boost/demotion behavior is deterministic and test-covered;
+- package/read-model output exposes why a source was official primary evidence,
+  secondary context, or rejected.
+
+### WP3: Freshness, Drift, And Durability Gates
+
+Owner: package-quality/gates agent.
+
+Inputs:
+
+- D8 robustness gate;
+- source catalog cadence/freshness fields;
+- package storage/readback paths;
+- prior stale/stub artifact issues.
+
+Outputs:
+
+- `source_freshness_drift_scorecard.json`;
+- C7 corpus gate implementation;
+- package/read-model fields or gate-report entries for source cadence,
+  retrieved date, source date, last successful refresh, source-shape
+  fingerprint, source-shape drift, update-cadence drift, stale-for-policy-use,
+  and next refresh recommendation.
+
+Acceptance:
+
+- stale or drifted sources cannot silently pass;
+- unavailable or shape-changed structured sources become `not_proven`, `fail`,
+  or `cataloged_unavailable`, not `integrated`;
+- durability fields are persisted or included in queryable gate reports;
+- the admin/read model can display freshness/drift caveats without recomputing
+  truth.
+
+### WP4: First Small Corpus Pass And Manual Audit
+
+Owner: orchestrator plus implementation agents.
+
+Prerequisites:
+
+- WP1 complete;
+- WP2 complete enough to score official-source dominance;
+- WP3 complete enough to score freshness/drift.
+
+Outputs:
+
+- first real corpus pass over a seed subset;
+- `manual_audit_local_government_corpus.md`;
+- `golden_policy_regression_set.md`;
+- updated source catalog;
+- Beads comment with package ids, run ids, corpus status, and next blockers.
+
+Acceptance:
+
+- manual audit samples multiple jurisdictions, policy families, and source
+  families;
+- every sampled package has source officialness, structured contribution,
+  package identity, storage/readback, data-moat value classification, economic
+  handoff classification, and dominant failure class;
+- terminal state is one of `decision_grade_corpus`,
+  `corpus_ready_with_gaps`, `package_mechanics_only`, `fail`, or
+  `blocked_hitl`;
+- if the result is not at least `corpus_ready_with_gaps`, the next blockers are
+  implementation-specific, not narrative.

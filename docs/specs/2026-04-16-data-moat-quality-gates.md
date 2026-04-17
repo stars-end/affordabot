@@ -93,6 +93,12 @@ Fail if external advocacy, news, vendor, nonprofit, or campaign sources win
 primary selection without an explicit fail verdict or a narrow documented
 source-of-truth promotion rule.
 
+Pass also requires one backend-owned source/identity classification surface used
+by ranking, package building, read models, corpus scorecards, and manual audit.
+Every candidate must expose `source_officialness`, `source_of_truth_role`,
+`jurisdiction_match`, `policy_family_match`, `external_context_allowed`, and
+`primary_evidence_allowed`.
+
 ### C2 Source-Family Diversity Gate
 
 Pass requires at least three source families in the corpus, including at least
@@ -139,6 +145,23 @@ verdict, and failure class.
 
 Fail if future agents cannot rerun the scorecard and compare search, ranking,
 reader, structured enrichment, or package quality.
+
+### C7 Freshness And Drift Durability Gate
+
+Pass requires corpus/package durability metrics:
+- source cadence or expected update interval when known;
+- retrieval timestamp;
+- source publication, meeting, adoption, effective, or explicit unknown date;
+- last successful refresh for the canonical source identity;
+- schema or source-shape fingerprint where available;
+- source-shape drift status;
+- update-cadence drift status;
+- stale-for-policy-use status;
+- next refresh recommendation.
+
+Fail if stale, drifted, source-shape-changed, or cadence-missing data can still
+produce `decision_grade_corpus`, `corpus_ready_with_gaps`, or package-level pass
+without visible caveats in the scorecard and read model.
 
 ## Package-Level Data Moat Gates
 
@@ -414,7 +437,13 @@ Fail if:
 - D11 `pass`.
 
 The next 30-cycle run must end in one of these states:
-- `decision_grade_data_moat`: San Jose vertical satisfies the full standard.
+- `decision_grade_corpus`: corpus gates C0-C7 pass and selected package-level
+  deep dives satisfy the full D0-D11 and applicable E1-E5 standard.
+- `corpus_ready_with_gaps`: credible corpus exists, but exact missing
+  jurisdiction, policy-family, source-family, freshness/drift, or economic
+  handoff gaps are documented.
+- `decision_grade_data_moat`: an individual package satisfies the full
+  package-level standard.
 - `evidence_ready_with_gaps`: credible package exists, but exact missing lineage, structured-source, or economic-handoff gaps are documented.
 - `fail`: current architecture cannot produce the required data moat without a strategic change, with evidence.
 - `blocked_hitl`: only for real infra/API/key/vendor or architecture decisions that cannot be resolved non-destructively.
