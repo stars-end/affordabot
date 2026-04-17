@@ -378,14 +378,25 @@ def test_builder_marks_ambiguous_parameter_when_citation_sanity_fails() -> None:
             "unit": "usd_per_square_foot",
             "denominator": "per_square_foot",
             "category": "retail",
+            "land_use": "retail",
+            "subarea": "downtown",
+            "threshold": "<100,000 sq. ft.",
             "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120",
             "source_excerpt": "Commercial Linkage Fee table excerpt",
+            "source_locator": "reader_content:1:fee_table_row",
+            "table_locator": "commercial_linkage_fee_table",
+            "page_locator": "p.7",
+            "locator_quality": "table_row_chunk_locator",
+            "source_ref": "legistar::matter::7526::attachment::8758120",
+            "policy_match_key": "legistar::matter::7526",
             "source_hierarchy_status": "bill_or_reg_text",
             "currency_sanity": "invalid",
             "unit_sanity": "valid",
             "ambiguity_flag": True,
             "ambiguity_reason": "currency_format_anomaly",
             "effective_date": "2026-01-01",
+            "adoption_date": "2025-12-08",
+            "final_status": "adopted",
             "confidence": 0.33,
         }
     ]
@@ -404,3 +415,6 @@ def test_builder_marks_ambiguous_parameter_when_citation_sanity_fails() -> None:
     assert cards[0]["ambiguity_reason"] == "currency_format_anomaly"
     assert cards[0]["value"] is None
     assert "raw=$18.706.00" in cards[0]["source_excerpt"]
+    assert "subarea=downtown" in cards[0]["source_excerpt"]
+    assert "threshold=<100,000 sq. ft." in cards[0]["source_excerpt"]
+    assert "locator_quality=table_row_chunk_locator" in cards[0]["source_excerpt"]

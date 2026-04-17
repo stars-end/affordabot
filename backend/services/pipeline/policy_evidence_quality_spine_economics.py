@@ -451,6 +451,7 @@ class PolicyEvidenceQualitySpineEconomicsService:
             rubric=rubric,
         )
         parameter_inventory = self._build_parameter_inventory(package=package)
+        missing_parameters = parameter_inventory["missing_parameters"]
         assumption_needs = self._build_assumption_needs(
             package=package,
             mechanism_type=str(vertical.get("mechanism_type") or "direct"),
@@ -463,32 +464,52 @@ class PolicyEvidenceQualitySpineEconomicsService:
             secondary_research=secondary_research,
             required_evidence_gaps=required_evidence_gaps,
             canonical_binding=canonical_analysis_binding,
+            assumption_needs=assumption_needs,
+            analysis_status=analysis_status,
+            unsupported_claim_risks=unsupported_claim_risks,
+        )
+        economic_handoff_quality = self._build_economic_handoff_quality(
+            analysis_status=analysis_status,
+            decision_grade_verdict=decision_grade["verdict"],
+            readiness_level=readiness_level,
+            blocking_gate=blocking_gate,
+            canonical_binding_status=canonical_analysis_binding["status"],
+            mechanism_type=str(vertical.get("mechanism_type") or "direct"),
+            direct_fee_model_card=vertical.get("direct_fee_model_card") or {},
+            missing_parameters=missing_parameters,
+            assumption_needs=assumption_needs,
+            secondary_research_needs=secondary_research_needs,
+            unsupported_claim_risks=unsupported_claim_risks,
         )
         recommended_next_action = self._recommend_next_action(
             analysis_status=analysis_status,
             taxonomy=taxonomy,
             secondary_research=secondary_research,
             canonical_binding=canonical_analysis_binding,
+            economic_handoff_quality=economic_handoff_quality,
+            unsupported_claim_risks=unsupported_claim_risks,
         )
-        economic_handoff_quality = {
-            "status": (
-                "ready"
-                if analysis_status["status"] == "decision_grade"
-                and canonical_analysis_binding["status"] == "bound"
-                else "not_ready"
-            ),
-            "decision_grade_verdict": decision_grade["verdict"],
-            "readiness_level": readiness_level,
-            "analysis_status": analysis_status["status"],
-            "canonical_binding_status": canonical_analysis_binding["status"],
-            "mechanism_candidates": mechanism_candidates,
-            "parameter_inventory": parameter_inventory,
-            "missing_parameters": parameter_inventory["missing_parameters"],
-            "assumption_needs": assumption_needs,
-            "secondary_research_needs": secondary_research_needs,
-            "unsupported_claim_risks": unsupported_claim_risks,
-            "recommended_next_action": recommended_next_action,
-        }
+        economic_handoff_quality.update(
+            {
+                "decision_grade_verdict": decision_grade["verdict"],
+                "readiness_level": readiness_level,
+                "analysis_status": analysis_status["status"],
+                "canonical_binding_status": canonical_analysis_binding["status"],
+                "mechanism_candidates": mechanism_candidates,
+                "parameter_inventory": parameter_inventory,
+                "missing_parameters": missing_parameters,
+                "assumption_needs": assumption_needs,
+                "secondary_research_needs": secondary_research_needs,
+                "unsupported_claim_risks": unsupported_claim_risks,
+                "recommended_next_action": recommended_next_action,
+            }
+        )
+        data_moat_status = self._build_data_moat_status(
+            evidence_package_status=evidence_package_status,
+            decision_grade_verdict=decision_grade["verdict"],
+            required_evidence_gaps=required_evidence_gaps,
+            readiness_level=readiness_level,
+        )
         quant_model_payload = [
             {
                 "model_id": card.id,
@@ -534,6 +555,7 @@ class PolicyEvidenceQualitySpineEconomicsService:
             "jurisdiction": package.jurisdiction,
             "source_family": source_family,
             "evidence_package_status": evidence_package_status,
+            "data_moat_status": data_moat_status,
             "decision_grade_verdict": decision_grade["verdict"],
             "sufficiency_readiness_level": readiness_level,
             "economic_analysis_status": {
@@ -671,7 +693,7 @@ class PolicyEvidenceQualitySpineEconomicsService:
             "economic_handoff_quality": economic_handoff_quality,
             "mechanism_candidates": mechanism_candidates,
             "parameter_inventory": parameter_inventory,
-            "missing_parameters": parameter_inventory["missing_parameters"],
+            "missing_parameters": missing_parameters,
             "assumption_needs": assumption_needs,
             "secondary_research_needs": secondary_research_needs,
             "unsupported_claim_risks": unsupported_claim_risks,
@@ -890,10 +912,16 @@ class PolicyEvidenceQualitySpineEconomicsService:
         rubric: dict[str, Any],
     ) -> list[dict[str, Any]]:
         mechanism_type = str(vertical.get("mechanism_type") or "direct")
+        direct_fee_model_card = vertical.get("direct_fee_model_card") or {}
+        household_impact_readiness = (
+            direct_fee_model_card.get("household_impact_readiness")
+            if isinstance(direct_fee_model_card, dict)
+            else None
+        )
         direct_status = (
             "pass"
             if mechanism_type == "direct"
-            and str(((vertical.get("direct_fee_model_card") or {}).get("status") or "")) == "pass"
+            and str((direct_fee_model_card.get("status") or "")) == "pass"
             else "not_proven"
         )
         indirect_assumptions = [
@@ -907,11 +935,30 @@ class PolicyEvidenceQualitySpineEconomicsService:
                 "mechanism_type": "direct",
                 "status": direct_status,
                 "reason": str(
-                    ((vertical.get("direct_fee_model_card") or {}).get("reason") or "direct model card not proven")
+                    (direct_fee_model_card.get("reason") or "direct model card not proven")
                 ),
                 "supported_model_card_ids": [
                     card.id for card in package.model_cards if card.mechanism_family == MechanismFamily.DIRECT_FISCAL
                 ],
+                "direct_fee_model_candidate": {
+                    "status": str(direct_fee_model_card.get("status") or "not_proven"),
+                    "scope": str(direct_fee_model_card.get("scope") or "direct_developer_fee"),
+                    "formula": str(direct_fee_model_card.get("formula") or ""),
+                },
+                "household_pass_through_need": (
+                    {
+                        "status": str(household_impact_readiness.get("status") or "not_proven"),
+                        "reason": str(
+                            household_impact_readiness.get("reason")
+                            or "household pass-through/incidence assumptions missing"
+                        ),
+                    }
+                    if isinstance(household_impact_readiness, dict)
+                    else {
+                        "status": "not_proven",
+                        "reason": "household pass-through/incidence assumptions missing",
+                    }
+                ),
             },
             {
                 "mechanism_type": "indirect",
@@ -957,21 +1004,44 @@ class PolicyEvidenceQualitySpineEconomicsService:
 
     @staticmethod
     def _build_assumption_needs(*, package: PolicyEvidencePackage, mechanism_type: str) -> dict[str, Any]:
-        required_families = (
-            [MechanismFamily.FEE_OR_TAX_PASS_THROUGH, MechanismFamily.ADOPTION_TAKE_UP]
-            if mechanism_type == "indirect"
-            else [MechanismFamily.DIRECT_FISCAL]
-        )
+        required_families = [MechanismFamily.FEE_OR_TAX_PASS_THROUGH, MechanismFamily.ADOPTION_TAKE_UP]
         assumption_by_family = {card.family: card for card in package.assumption_cards}
         missing_families = [
             family.value for family in required_families if family not in assumption_by_family
         ]
+        direct_scope_status = (
+            "not_required"
+            if mechanism_type == "direct"
+            else ("pass" if not missing_families else "not_proven")
+        )
+        household_scope_status = "pass" if not missing_families else "not_proven"
         return {
             "status": "pass" if not missing_families else "not_proven",
             "required_families": [family.value for family in required_families],
             "missing_families": missing_families,
             "assumption_count": len(package.assumption_cards),
             "assumption_ids": [card.id for card in package.assumption_cards],
+            "direct_project_fee_scope": {
+                "status": direct_scope_status,
+                "reason": (
+                    "direct project-fee arithmetic does not require household incidence assumptions"
+                    if mechanism_type == "direct"
+                    else (
+                        "source-bound assumptions present"
+                        if direct_scope_status == "pass"
+                        else "indirect mechanism still requires source-bound assumptions"
+                    )
+                ),
+            },
+            "household_cost_of_living_scope": {
+                "status": household_scope_status,
+                "reason": (
+                    "source-bound pass-through/incidence assumptions present"
+                    if household_scope_status == "pass"
+                    else "pass-through/incidence assumptions missing"
+                ),
+                "missing_families": missing_families,
+            },
         }
 
     @staticmethod
@@ -980,19 +1050,61 @@ class PolicyEvidenceQualitySpineEconomicsService:
         secondary_research: dict[str, Any],
         required_evidence_gaps: list[str],
         canonical_binding: dict[str, Any],
+        assumption_needs: dict[str, Any],
+        analysis_status: dict[str, str],
+        unsupported_claim_risks: dict[str, Any],
     ) -> dict[str, Any]:
         status = str(secondary_research.get("status") or "not_required")
         request_contract = secondary_research.get("request_contract")
+        request_target_parameters = []
+        if isinstance(request_contract, dict):
+            targets = request_contract.get("target_parameters")
+            if isinstance(targets, list):
+                request_target_parameters = [
+                    str(item.get("name") or item.get("parameter_id") or "").strip()
+                    for item in targets
+                    if isinstance(item, dict)
+                    and str(item.get("name") or item.get("parameter_id") or "").strip()
+                ]
+        assumption_missing = [
+            str(family).strip()
+            for family in assumption_needs.get("missing_families", [])
+            if str(family).strip()
+        ]
+        needs_household_incidence = bool(
+            set(assumption_missing)
+            & {
+                MechanismFamily.FEE_OR_TAX_PASS_THROUGH.value,
+                MechanismFamily.ADOPTION_TAKE_UP.value,
+            }
+        )
+        analysis_state = str(analysis_status.get("status") or "")
+        unsupported_fail_closed = (
+            analysis_state == "fail_closed"
+            and str(unsupported_claim_risks.get("risk_level") or "") == "high"
+        )
+        effective_required = status == "required" or (
+            needs_household_incidence and not unsupported_fail_closed
+        )
+        reason_code = "not_required"
+        if effective_required and needs_household_incidence:
+            reason_code = "pass_through_incidence_assumptions_missing"
+        elif effective_required:
+            reason_code = "secondary_research_contract_required"
         return {
-            "status": "required" if status == "required" else "not_required",
+            "status": "required" if effective_required else "not_required",
             "reason": str(secondary_research.get("reason") or "secondary research not required"),
+            "reason_code": reason_code,
             "required_evidence_gaps": required_evidence_gaps,
             "request_contract_id": (
                 request_contract.get("request_id")
                 if isinstance(request_contract, dict)
                 else None
             ),
+            "request_target_parameters": request_target_parameters,
+            "household_incidence_assumptions_missing": needs_household_incidence,
             "canonical_binding_required": canonical_binding.get("status") == "bound",
+            "must_fail_closed_without_secondary_package": effective_required,
         }
 
     @staticmethod
@@ -1012,24 +1124,171 @@ class PolicyEvidenceQualitySpineEconomicsService:
         }
 
     @staticmethod
+    def _build_economic_handoff_quality(
+        *,
+        analysis_status: dict[str, str],
+        decision_grade_verdict: str,
+        readiness_level: str,
+        blocking_gate: str | None,
+        canonical_binding_status: str,
+        mechanism_type: str,
+        direct_fee_model_card: dict[str, Any],
+        missing_parameters: list[dict[str, Any]],
+        assumption_needs: dict[str, Any],
+        secondary_research_needs: dict[str, Any],
+        unsupported_claim_risks: dict[str, Any],
+    ) -> dict[str, Any]:
+        direct_fee_ready = mechanism_type == "direct" and str(direct_fee_model_card.get("status") or "") == "pass"
+        household_impact = direct_fee_model_card.get("household_impact_readiness")
+        household_impact_status = (
+            str(household_impact.get("status") or "").strip()
+            if isinstance(household_impact, dict)
+            else ""
+        )
+        household_incidence_missing = bool(
+            secondary_research_needs.get("household_incidence_assumptions_missing")
+        )
+
+        direct_scope_status = "not_analysis_ready"
+        direct_scope_reason = "source-bound direct project-fee path not established"
+        if direct_fee_ready:
+            direct_scope_status = "analysis_ready"
+            direct_scope_reason = "source-bound direct fee rows support project-fee exposure analysis"
+
+        household_scope_status = "not_analysis_ready"
+        household_scope_reason = "household cost-of-living incidence path is not source-bound"
+        if (
+            decision_grade_verdict == "decision_grade"
+            and analysis_status.get("status") == "decision_grade"
+            and canonical_binding_status == "bound"
+        ):
+            household_scope_status = "analysis_ready"
+            household_scope_reason = "household path is decision-grade and canonically bound"
+        elif household_impact_status == "pass" and not household_incidence_missing:
+            household_scope_status = "analysis_ready_with_gaps"
+            household_scope_reason = (
+                "household assumptions are present, but package still has unresolved non-decision-grade gates"
+            )
+
+        if household_scope_status != "analysis_ready":
+            household_scope_status = "not_analysis_ready"
+
+        status = "not_analysis_ready"
+        reason_code = "insufficient_source_grounding"
+        analysis_state = str(analysis_status.get("status") or "")
+        if (
+            decision_grade_verdict == "decision_grade"
+            and analysis_state == "decision_grade"
+            and canonical_binding_status == "bound"
+        ):
+            status = "analysis_ready"
+            reason_code = "decision_grade_bound"
+        elif direct_scope_status == "analysis_ready":
+            status = "analysis_ready_with_gaps"
+            reason_code = "direct_project_fee_ready_household_incidence_gap"
+        elif analysis_state == "qualitative_only":
+            status = "not_analysis_ready"
+            reason_code = "qualitative_only"
+        elif analysis_state == "fail_closed":
+            status = "not_analysis_ready"
+            reason_code = (
+                f"fail_closed_{blocking_gate}_blocking_gate" if blocking_gate else "fail_closed"
+            )
+        elif secondary_research_needs.get("status") == "required":
+            status = "not_analysis_ready"
+            reason_code = str(secondary_research_needs.get("reason_code") or "secondary_research_required")
+
+        if unsupported_claim_risks.get("risk_level") == "high" and status != "analysis_ready":
+            status = "not_analysis_ready"
+            reason_code = "unsupported_claim_risk_high"
+
+        return {
+            "status": status,
+            "legacy_status": "ready" if status == "analysis_ready" else "not_ready",
+            "reason_code": reason_code,
+            "quantification_paths": {
+                "direct_project_fee_exposure": {
+                    "status": direct_scope_status,
+                    "reason": direct_scope_reason,
+                },
+                "household_cost_of_living": {
+                    "status": household_scope_status,
+                    "reason": household_scope_reason,
+                },
+            },
+            "can_quantify_now": [path for path, value in {
+                "direct_project_fee_exposure": direct_scope_status,
+                "household_cost_of_living": household_scope_status,
+            }.items() if value == "analysis_ready"],
+            "missing_parameters_count": len(missing_parameters),
+            "missing_assumption_families": assumption_needs.get("missing_families", []),
+            "secondary_research_required": secondary_research_needs.get("status") == "required",
+            "fail_closed_specific": analysis_state == "fail_closed",
+            "fail_closed_blocking_gate": blocking_gate,
+            "analysis_state": analysis_state,
+            "readiness_level": readiness_level,
+        }
+
+    @staticmethod
+    def _build_data_moat_status(
+        *,
+        evidence_package_status: str,
+        decision_grade_verdict: str,
+        required_evidence_gaps: list[str],
+        readiness_level: str,
+    ) -> dict[str, Any]:
+        if decision_grade_verdict == "decision_grade":
+            status = "decision_grade_data_moat"
+            reason = "all D0-D11 quality gates resolved for this package"
+        elif evidence_package_status == "fail":
+            status = "fail"
+            reason = "package evidence quality failed one or more blocking gates"
+        else:
+            status = "evidence_ready_with_gaps"
+            reason = "package is usable but still has named missing evidence or readiness gaps"
+        return {
+            "status": status,
+            "evidence_package_status": evidence_package_status,
+            "decision_grade_verdict": decision_grade_verdict,
+            "readiness_level": readiness_level,
+            "named_gaps": required_evidence_gaps,
+            "named_gap_count": len(required_evidence_gaps),
+            "reason": reason,
+        }
+
+    @staticmethod
     def _recommend_next_action(
         *,
         analysis_status: dict[str, str],
         taxonomy: dict[str, dict[str, str]],
         secondary_research: dict[str, Any],
         canonical_binding: dict[str, Any],
+        economic_handoff_quality: dict[str, Any],
+        unsupported_claim_risks: dict[str, Any],
     ) -> str:
-        if analysis_status.get("status") == "decision_grade":
-            return "proceed_with_canonical_economic_analysis"
-        if taxonomy.get("storage/read-back", {}).get("status") != "pass":
-            return "resolve_storage_readback_and_replay_proof"
-        if taxonomy.get("Windmill/orchestration", {}).get("status") != "pass":
-            return "bind_current_windmill_run_ids_to_package_and_run_state"
-        if canonical_binding.get("status") != "bound":
-            return "bind_package_to_canonical_analysis_run_and_step"
+        handoff_status = str(economic_handoff_quality.get("status") or "not_analysis_ready")
+        if (
+            unsupported_claim_risks.get("risk_level") == "high"
+            and handoff_status != "analysis_ready"
+        ):
+            return "reject"
+        if handoff_status == "analysis_ready":
+            return "run_direct_analysis"
+        if bool(economic_handoff_quality.get("secondary_research_required")):
+            return "run_secondary_research"
         if secondary_research.get("status") == "required":
-            return "execute_secondary_research_request_contract"
-        return "complete_manual_audit_and_recheck_gates"
+            return "run_secondary_research"
+        if analysis_status.get("status") == "qualitative_only":
+            return "qualitative_summary_only"
+        if taxonomy.get("storage/read-back", {}).get("status") != "pass":
+            return "reject"
+        if taxonomy.get("Windmill/orchestration", {}).get("status") != "pass":
+            return "reject"
+        if canonical_binding.get("status") != "bound":
+            return "reject"
+        if handoff_status == "analysis_ready_with_gaps":
+            return "run_secondary_research"
+        return "reject"
 
     @staticmethod
     def _build_manual_audit_scaffold(

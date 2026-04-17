@@ -335,7 +335,19 @@ def _build_parameter_cards(candidate: dict[str, Any], evidence_id: str) -> list[
         unit = str(fact.get("unit") or "unitless")
         denominator = str(fact.get("denominator") or "").strip()
         category = str(fact.get("category") or "").strip()
+        land_use = str(fact.get("land_use") or "").strip()
+        subarea = str(fact.get("subarea") or "").strip()
+        geography = str(fact.get("geography") or "").strip()
         effective_date = str(fact.get("effective_date") or "").strip()
+        adoption_date = str(fact.get("adoption_date") or "").strip()
+        final_status = str(fact.get("final_status") or "").strip()
+        threshold = str(fact.get("threshold") or "").strip()
+        source_locator = str(fact.get("source_locator") or "").strip()
+        table_locator = str(fact.get("table_locator") or "").strip()
+        page_locator = str(fact.get("page_locator") or "").strip()
+        locator_quality = str(fact.get("locator_quality") or "").strip()
+        source_ref = str(fact.get("source_ref") or "").strip()
+        policy_match_key = str(fact.get("policy_match_key") or "").strip()
         confidence = fact.get("confidence")
         citation_parts: list[str] = []
         if raw_token:
@@ -346,10 +358,34 @@ def _build_parameter_cards(candidate: dict[str, Any], evidence_id: str) -> list[
             citation_parts.append(f"unit={unit}")
         if denominator:
             citation_parts.append(f"denominator={denominator}")
+        if land_use:
+            citation_parts.append(f"land_use={land_use}")
         if category:
             citation_parts.append(f"category={category}")
+        if subarea:
+            citation_parts.append(f"subarea={subarea}")
+        if geography:
+            citation_parts.append(f"geography={geography}")
+        if threshold:
+            citation_parts.append(f"threshold={threshold}")
         if effective_date:
             citation_parts.append(f"effective_date={effective_date}")
+        if adoption_date:
+            citation_parts.append(f"adoption_date={adoption_date}")
+        if final_status:
+            citation_parts.append(f"final_status={final_status}")
+        if source_locator:
+            citation_parts.append(f"source_locator={source_locator}")
+        if table_locator:
+            citation_parts.append(f"table_locator={table_locator}")
+        if page_locator:
+            citation_parts.append(f"page_locator={page_locator}")
+        if locator_quality:
+            citation_parts.append(f"locator_quality={locator_quality}")
+        if source_ref:
+            citation_parts.append(f"source_ref={source_ref}")
+        if policy_match_key:
+            citation_parts.append(f"policy_match_key={policy_match_key}")
         if isinstance(confidence, (int, float)):
             citation_parts.append(f"confidence={float(confidence):.2f}")
         source_excerpt = excerpt_base
@@ -377,7 +413,7 @@ def _build_parameter_cards(candidate: dict[str, Any], evidence_id: str) -> list[
                 state=state,
                 value=value if state == ParameterState.RESOLVED else None,
                 unit=unit,
-                time_horizon=effective_date or None,
+                time_horizon=effective_date or adoption_date or None,
                 source_url=source_url,
                 source_excerpt=source_excerpt,
                 source_hierarchy_status=hierarchy,
@@ -615,7 +651,6 @@ class PolicyEvidencePackageBuilder:
         if not evidence_cards:
             insufficiency_reasons.add(PackageFailureReason.NO_EVIDENCE_CARDS)
 
-        has_resolved_parameters = any(card.state == ParameterState.RESOLVED for card in parameter_cards)
         has_resolved_economic_parameters = any(
             card.state == ParameterState.RESOLVED and _is_economic_parameter_name(card.parameter_name)
             for card in parameter_cards

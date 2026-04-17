@@ -714,9 +714,68 @@ class RailwayRuntimeBridge:
         selected_url: str,
         source_locator_prefix: str,
     ) -> tuple[list[dict[str, Any]], list[str]]:
+        def _normalize_land_use(raw_category: str) -> tuple[str, str | None, str | None]:
+            category_text = " ".join(raw_category.lower().split())
+            subarea: str | None = None
+            if "downtown" in category_text:
+                subarea = "downtown"
+            elif "rest of city" in category_text:
+                subarea = "rest_of_city"
+            if "industrial" in category_text:
+                return ("industrial", subarea, subarea)
+            if "residential care" in category_text:
+                return ("residential_care", subarea, subarea)
+            if "office" in category_text:
+                return ("office", subarea, subarea)
+            if "retail" in category_text:
+                return ("retail", subarea, subarea)
+            if "hotel" in category_text:
+                return ("hotel", subarea, subarea)
+            if "warehouse" in category_text:
+                return ("warehouse", subarea, subarea)
+            return ("unknown", subarea, subarea)
+
+        def _infer_final_status(text: str) -> str:
+            lowered = text.lower()
+            if any(token in lowered for token in ("adopted", "approved", "enacted", "final")):
+                return "adopted"
+            if any(token in lowered for token in ("proposed", "draft", "recommend")):
+                return "proposed"
+            return "unknown"
+
+        def _extract_dates(text: str) -> tuple[str | None, str | None]:
+            month_date_pattern = re.compile(
+                r"(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{1,2},\s+\d{4}",
+                flags=re.IGNORECASE,
+            )
+            matches = list(month_date_pattern.finditer(text))
+            effective_date: str | None = None
+            adoption_date: str | None = None
+            lowered = text.lower()
+            for match in matches:
+                value = match.group(0)
+                window_start = max(0, match.start() - 40)
+                window_end = min(len(lowered), match.end() + 40)
+                window = lowered[window_start:window_end]
+                if effective_date is None and any(
+                    token in window for token in ("effective", "beginning", "commencing")
+                ):
+                    effective_date = value
+                if adoption_date is None and any(
+                    token in window for token in ("adopted", "approved", "final", "passed")
+                ):
+                    adoption_date = value
+            if matches and adoption_date is None and any(
+                token in lowered for token in ("adopted", "approved", "final", "passed")
+            ):
+                adoption_date = matches[0].group(0)
+            if matches and effective_date is None and "effective" in lowered:
+                effective_date = matches[0].group(0)
+            return effective_date, adoption_date
+
         facts: list[dict[str, Any]] = []
         alerts: list[str] = []
-        seen: set[tuple[float, str]] = set()
+        seen: set[tuple[str, str, str, str]] = set()
         fee_row_pattern = re.compile(
             r"(?P<category>Downtown\s+Office|Rest\s+of\s+City\s+Office|Office|Retail|Hotel|"
             r"Industrial/Research\s+and\s+Development|Warehouse|Residential\s+Care)"
@@ -725,31 +784,18 @@ class RailwayRuntimeBridge:
             re.IGNORECASE,
         )
 
-        def normalize_category(raw_category: str) -> str:
-            category_text = " ".join(raw_category.lower().split())
-            if "industrial" in category_text:
-                return "industrial"
-            if "residential care" in category_text:
-                return "residential_care"
-            if "office" in category_text:
-                return "office"
-            if "retail" in category_text:
-                return "retail"
-            if "hotel" in category_text:
-                return "hotel"
-            if "warehouse" in category_text:
-                return "warehouse"
-            return "unknown"
-
         for chunk_index, text in enumerate(text_parts, start=1):
             lowered = text.lower()
             if not any(signal in lowered for signal in ("fee", "fees", "per sq", "square foot", "sq. ft")):
                 continue
+            effective_date_hint, adoption_date_hint = _extract_dates(text)
+            final_status = _infer_final_status(text)
             row_match_found = False
             for row_match in fee_row_pattern.finditer(text):
                 row_match_found = True
                 raw_token = row_match.group("raw")
-                category = normalize_category(row_match.group("category"))
+                raw_category = " ".join(row_match.group("category").split())
+                land_use, subarea, geography = _normalize_land_use(raw_category)
                 threshold = " ".join((row_match.group("threshold") or "").split()) or None
                 context_start = max(0, row_match.start() - 120)
                 context_end = min(len(text), row_match.end() + 120)
@@ -773,8 +819,13 @@ class RailwayRuntimeBridge:
                     ambiguity = False
                     ambiguity_reason = None
                     confidence = 0.86
-                dedupe_value = value if value is not None else -1.0
-                dedupe_key = (dedupe_value, category)
+                dedupe_value = f"{value:.6f}" if value is not None else normalized_raw
+                dedupe_key = (
+                    "commercial_linkage_fee_rate_usd_per_sqft",
+                    dedupe_value,
+                    land_use,
+                    threshold or "",
+                )
                 if dedupe_key in seen:
                     continue
                 seen.add(dedupe_key)
@@ -786,11 +837,20 @@ class RailwayRuntimeBridge:
                         "normalized_value": value,
                         "unit": "usd_per_square_foot",
                         "denominator": "per_square_foot",
-                        "category": category,
+                        "category": land_use,
+                        "land_use": land_use,
+                        "raw_land_use_label": raw_category,
+                        "subarea": subarea,
+                        "geography": geography,
                         "threshold": threshold,
                         "source_url": selected_url,
+                        "source_ref": selected_url,
                         "source_excerpt": context_excerpt[:600],
                         "source_locator": f"{source_locator_prefix}:{chunk_index}:fee_table_row",
+                        "chunk_locator": f"{source_locator_prefix}:{chunk_index}",
+                        "table_locator": "commercial_linkage_fee_table",
+                        "page_locator": None,
+                        "locator_quality": "table_row_chunk_locator",
                         "provenance_lane": "primary_scraped_document",
                         "source_hierarchy_status": "bill_or_reg_text",
                         "confidence": confidence,
@@ -798,7 +858,9 @@ class RailwayRuntimeBridge:
                         "ambiguity_reason": ambiguity_reason,
                         "currency_sanity": "invalid" if ambiguity else "valid",
                         "unit_sanity": "valid",
-                        "effective_date": None,
+                        "effective_date": effective_date_hint,
+                        "adoption_date": adoption_date_hint,
+                        "final_status": final_status,
                     }
                 )
             if row_match_found:
@@ -815,9 +877,19 @@ class RailwayRuntimeBridge:
                             "unit": "usd_per_square_foot",
                             "denominator": "per_square_foot",
                             "category": "unknown",
+                            "land_use": "unknown",
+                            "raw_land_use_label": "unknown",
+                            "subarea": None,
+                            "geography": None,
+                            "threshold": None,
                             "source_url": selected_url,
+                            "source_ref": selected_url,
                             "source_excerpt": text[:600],
                             "source_locator": f"{source_locator_prefix}:{chunk_index}",
+                            "chunk_locator": f"{source_locator_prefix}:{chunk_index}",
+                            "table_locator": None,
+                            "page_locator": None,
+                            "locator_quality": "chunk_locator_only",
                             "provenance_lane": "primary_scraped_document",
                             "source_hierarchy_status": "bill_or_reg_text",
                             "confidence": 0.35,
@@ -825,7 +897,9 @@ class RailwayRuntimeBridge:
                             "ambiguity_reason": "currency_format_anomaly",
                             "currency_sanity": "invalid",
                             "unit_sanity": "valid",
-                            "effective_date": None,
+                            "effective_date": effective_date_hint,
+                            "adoption_date": adoption_date_hint,
+                            "final_status": final_status,
                         }
                     )
             for match in re.finditer(r"\$([0-9]+(?:\.[0-9]{1,2})?)(?![\d.])", text):
@@ -869,17 +943,15 @@ class RailwayRuntimeBridge:
                     category = "hotel"
                 elif "industrial" in context_window:
                     category = "industrial"
-                dedupe_key = (value, category)
+                dedupe_key = (
+                    "commercial_linkage_fee_rate_usd_per_sqft",
+                    f"{value:.6f}",
+                    category,
+                    "",
+                )
                 if dedupe_key in seen:
                     continue
                 seen.add(dedupe_key)
-                effective_date = None
-                date_match = re.search(
-                    r"(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{1,2},\s+\d{4}",
-                    lowered,
-                )
-                if date_match:
-                    effective_date = date_match.group(0)
                 facts.append(
                     {
                         "field": "commercial_linkage_fee_rate_usd_per_sqft",
@@ -889,9 +961,19 @@ class RailwayRuntimeBridge:
                         "unit": "usd_per_square_foot",
                         "denominator": "per_square_foot",
                         "category": category,
+                        "land_use": category,
+                        "raw_land_use_label": category,
+                        "subarea": None,
+                        "geography": None,
+                        "threshold": None,
                         "source_url": selected_url,
+                        "source_ref": selected_url,
                         "source_excerpt": (local_excerpt or context_excerpt)[:600],
                         "source_locator": f"{source_locator_prefix}:{chunk_index}",
+                        "chunk_locator": f"{source_locator_prefix}:{chunk_index}",
+                        "table_locator": None,
+                        "page_locator": None,
+                        "locator_quality": "chunk_locator_only",
                         "provenance_lane": "primary_scraped_document",
                         "source_hierarchy_status": "bill_or_reg_text",
                         "confidence": 0.82,
@@ -899,7 +981,9 @@ class RailwayRuntimeBridge:
                         "ambiguity_reason": None,
                         "currency_sanity": "valid",
                         "unit_sanity": "valid",
-                        "effective_date": effective_date,
+                        "effective_date": effective_date_hint,
+                        "adoption_date": adoption_date_hint,
+                        "final_status": final_status,
                     }
                 )
         return facts, sorted(set(alerts))
@@ -923,7 +1007,7 @@ class RailwayRuntimeBridge:
         *fact_groups: list[dict[str, Any]],
     ) -> list[dict[str, Any]]:
         merged: list[dict[str, Any]] = []
-        seen: set[tuple[str, str, str, str]] = set()
+        seen: set[tuple[str, str, str, str, str, str]] = set()
         categorized_ambiguous_raws = {
             (
                 str(fact.get("field") or ""),
@@ -934,14 +1018,14 @@ class RailwayRuntimeBridge:
             for fact in facts
             if fact.get("ambiguity_flag")
             and str(fact.get("raw_value") or "")
-            and str(fact.get("category") or "unknown") != "unknown"
+            and str(fact.get("land_use") or fact.get("category") or "unknown") != "unknown"
         }
         for facts in fact_groups:
             for fact in facts:
                 raw_value = str(fact.get("raw_value") or "")
                 if (
                     fact.get("ambiguity_flag")
-                    and str(fact.get("category") or "unknown") == "unknown"
+                    and str(fact.get("land_use") or fact.get("category") or "unknown") == "unknown"
                     and (str(fact.get("field") or ""), raw_value, str(fact.get("source_url") or ""))
                     in categorized_ambiguous_raws
                 ):
@@ -951,7 +1035,9 @@ class RailwayRuntimeBridge:
                 key = (
                     str(fact.get("field") or ""),
                     value_key,
-                    str(fact.get("category") or ""),
+                    str(fact.get("land_use") or fact.get("category") or ""),
+                    str(fact.get("subarea") or ""),
+                    str(fact.get("threshold") or ""),
                     str(fact.get("source_url") or ""),
                 )
                 if key in seen:
@@ -1009,15 +1095,86 @@ class RailwayRuntimeBridge:
             "fiscal" in str(item).lower() or "fee" in str(item).lower() or "budget" in str(item).lower()
             for item in structured_candidates
         )
-        related_artifacts = [
-            str(item.get("url") or "").strip()
-            for item in candidate_audit
-            if isinstance(item, dict)
-            and str(item.get("url") or "").strip()
-            and str(item.get("url") or "").strip() != selected_url
-            and _is_concrete_artifact_url(str(item.get("url") or ""))
-        ]
-        has_related_artifacts = bool(related_artifacts)
+        related_artifacts: list[str] = []
+        seen_related_artifacts: set[str] = set()
+        for item in candidate_audit:
+            if not isinstance(item, dict):
+                continue
+            url = str(item.get("url") or "").strip()
+            if (
+                not url
+                or url == selected_url
+                or not _is_concrete_artifact_url(url)
+                or url in seen_related_artifacts
+            ):
+                continue
+            seen_related_artifacts.add(url)
+            related_artifacts.append(url)
+
+        related_attachment_refs: list[dict[str, Any]] = []
+        seen_attachment_refs: set[tuple[str, str, str]] = set()
+        for candidate in structured_candidates:
+            if not isinstance(candidate, dict):
+                continue
+            attachment_groups: list[list[Any]] = []
+            direct_refs = candidate.get("related_attachment_refs")
+            if isinstance(direct_refs, list):
+                attachment_groups.append(direct_refs)
+            lineage_metadata = candidate.get("lineage_metadata")
+            if isinstance(lineage_metadata, dict):
+                lineage_refs = lineage_metadata.get("related_attachment_refs")
+                if isinstance(lineage_refs, list):
+                    attachment_groups.append(lineage_refs)
+            if not attachment_groups:
+                fallback_refs = candidate.get("linked_artifact_refs")
+                if isinstance(fallback_refs, list):
+                    attachment_groups.append(fallback_refs)
+
+            for group in attachment_groups:
+                for raw_ref in group:
+                    attachment_id = ""
+                    attachment_title = ""
+                    attachment_url = ""
+                    attachment_family = "unknown"
+
+                    if isinstance(raw_ref, dict):
+                        attachment_id = str(raw_ref.get("attachment_id") or raw_ref.get("id") or "").strip()
+                        attachment_title = str(raw_ref.get("title") or raw_ref.get("name") or "").strip()
+                        attachment_url = str(raw_ref.get("url") or raw_ref.get("attachment_url") or "").strip()
+                        attachment_family = str(
+                            raw_ref.get("source_family") or raw_ref.get("attachment_family") or "unknown"
+                        ).strip() or "unknown"
+                    elif isinstance(raw_ref, str):
+                        attachment_url = raw_ref.strip()
+                    else:
+                        continue
+
+                    if not attachment_id and not attachment_title and not attachment_url:
+                        continue
+                    dedupe_key = (attachment_id, attachment_title.lower(), attachment_url)
+                    if dedupe_key in seen_attachment_refs:
+                        continue
+                    seen_attachment_refs.add(dedupe_key)
+
+                    if (
+                        attachment_url
+                        and attachment_url != selected_url
+                        and _is_concrete_artifact_url(attachment_url)
+                        and attachment_url not in seen_related_artifacts
+                    ):
+                        seen_related_artifacts.add(attachment_url)
+                        related_artifacts.append(attachment_url)
+
+                    related_attachment_refs.append(
+                        {
+                            "attachment_id": attachment_id or None,
+                            "title": attachment_title or None,
+                            "url": attachment_url or None,
+                            "source_family": attachment_family,
+                        }
+                    )
+
+        has_related_artifacts = bool(related_artifacts) or bool(related_attachment_refs)
 
         found_flags = {
             "authoritative_policy_text": has_authoritative_text,
@@ -1038,7 +1195,14 @@ class RailwayRuntimeBridge:
             "selected_artifact_family": selected_family,
             "expected_source_families": expected_source_families,
             "lineage_presence": found_flags,
-            "related_artifacts": related_artifacts[:5],
+            "related_artifacts": related_artifacts[:10],
+            "related_attachment_refs": related_attachment_refs[:25],
+            "related_attachment_source_families": sorted(
+                {
+                    str(ref.get("source_family") or "unknown")
+                    for ref in related_attachment_refs
+                }
+            ),
             "negative_evidence": negative_evidence,
             "lineage_completeness_score": sum(1 for found in found_flags.values() if found) / len(found_flags),
         }
@@ -1050,6 +1214,7 @@ class RailwayRuntimeBridge:
             if not isinstance(candidate, dict):
                 continue
             source_family = str(candidate.get("source_family") or "").strip().lower()
+            is_true_structured = bool(candidate.get("true_structured", True))
             facts = candidate.get("structured_policy_facts")
             if not isinstance(facts, list):
                 continue
@@ -1082,76 +1247,388 @@ class RailwayRuntimeBridge:
                     {
                         "field": field,
                         "normalized_value": float(value),
+                        "raw_value": str(fact.get("raw_value") or "").strip() or None,
+                        "value": float(value),
                         "source_family": source_family or "unknown",
                         "source_url": str(fact.get("source_url") or candidate.get("artifact_url") or "").strip(),
                         "source_excerpt": str(fact.get("source_excerpt") or "").strip(),
+                        "source_locator": str(fact.get("source_locator") or "").strip() or None,
+                        "chunk_locator": str(fact.get("chunk_locator") or "").strip() or None,
+                        "table_locator": str(fact.get("table_locator") or "").strip() or None,
+                        "page_locator": str(fact.get("page_locator") or "").strip() or None,
+                        "locator_quality": str(fact.get("locator_quality") or "").strip() or "locator_not_available",
+                        "unit": str(fact.get("unit") or "").strip() or None,
+                        "denominator": str(fact.get("denominator") or "").strip() or None,
+                        "land_use": str(fact.get("land_use") or fact.get("category") or "").strip() or "unknown",
+                        "subarea": str(fact.get("subarea") or "").strip() or None,
+                        "geography": str(fact.get("geography") or "").strip() or None,
+                        "threshold": str(fact.get("threshold") or "").strip() or None,
+                        "effective_date": str(fact.get("effective_date") or "").strip() or None,
+                        "adoption_date": str(fact.get("adoption_date") or "").strip() or None,
+                        "final_status": str(fact.get("final_status") or "").strip() or "unknown",
+                        "source_hierarchy_status": str(fact.get("source_hierarchy_status") or "").strip()
+                        or "fiscal_or_reg_impact_analysis",
+                        "confidence": float(fact.get("confidence"))
+                        if isinstance(fact.get("confidence"), (int, float))
+                        else 0.5,
+                        "ambiguity_flag": bool(fact.get("ambiguity_flag")),
+                        "ambiguity_reason": str(fact.get("ambiguity_reason") or "").strip() or None,
+                        "currency_sanity": str(fact.get("currency_sanity") or "").strip().lower() or "valid",
+                        "unit_sanity": str(fact.get("unit_sanity") or "").strip().lower() or "valid",
+                        "policy_match_key": str(
+                            fact.get("policy_match_key")
+                            or candidate.get("policy_match_key")
+                            or ""
+                        ).strip()
+                        or None,
+                        "policy_match_confidence": float(candidate.get("policy_match_confidence"))
+                        if isinstance(candidate.get("policy_match_confidence"), (int, float))
+                        else None,
+                        "reconciliation_status": str(
+                            fact.get("reconciliation_status")
+                            or candidate.get("reconciliation_status")
+                            or ""
+                        ).strip()
+                        or None,
+                        "source_lane_classification": (
+                            "true_structured_source" if is_true_structured else "secondary_search_derived"
+                        ),
                     }
                 )
         return collected
 
     @staticmethod
+    def _to_float(value: Any) -> float | None:
+        if isinstance(value, (int, float)):
+            return float(value)
+        if isinstance(value, str):
+            cleaned = value.replace(",", "").strip()
+            try:
+                return float(cleaned)
+            except ValueError:
+                return None
+        return None
+
+    @staticmethod
+    def _economic_row_key(fact: dict[str, Any]) -> tuple[str, str, str, str]:
+        return (
+            str(fact.get("field") or "unknown_parameter").strip(),
+            str(fact.get("land_use") or fact.get("category") or "unknown").strip(),
+            str(fact.get("subarea") or "").strip(),
+            str(fact.get("threshold") or "").strip(),
+        )
+
+    @classmethod
+    def _build_normalized_economic_rows(
+        cls,
+        *,
+        canonical_document_key: str,
+        selected_url: str,
+        primary_facts: list[dict[str, Any]],
+        structured_facts: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        lane_rank = {
+            "primary_official": 0,
+            "true_structured_source": 1,
+            "secondary_search_derived": 2,
+        }
+        locator_rank = {
+            "table_row_chunk_locator": 0,
+            "chunk_locator_only": 1,
+            "locator_not_available": 2,
+        }
+
+        def _row_priority(row: dict[str, Any]) -> tuple[int, int, int, float]:
+            lane = str(row.get("source_lane_classification") or "secondary_search_derived")
+            ambiguity = 1 if bool(row.get("ambiguity_flag")) else 0
+            locator = str(row.get("locator_quality") or "locator_not_available")
+            confidence = float(row.get("confidence") or 0.0)
+            return (
+                lane_rank.get(lane, 3),
+                ambiguity,
+                locator_rank.get(locator, 3),
+                -confidence,
+            )
+
+        rows_by_key: dict[tuple[str, str, str, str, str, str], dict[str, Any]] = {}
+
+        def _ingest_fact(fact: dict[str, Any], *, default_lane: str) -> None:
+            source_url = str(fact.get("source_url") or selected_url).strip() or selected_url
+            source_lane = str(fact.get("source_lane_classification") or default_lane).strip() or default_lane
+            policy_key = (
+                str(fact.get("policy_match_key") or "").strip()
+                or canonical_document_key
+                or source_url
+            )
+            normalized_value = cls._to_float(fact.get("normalized_value", fact.get("value")))
+            raw_value = str(fact.get("raw_value") or "").strip() or None
+            land_use = str(fact.get("land_use") or fact.get("category") or "unknown").strip() or "unknown"
+            subarea = str(fact.get("subarea") or "").strip() or None
+            threshold = str(fact.get("threshold") or "").strip() or None
+            ambiguity_flag = bool(fact.get("ambiguity_flag")) or normalized_value is None
+            ambiguity_reason = str(fact.get("ambiguity_reason") or "").strip() or None
+            currency_sanity = str(fact.get("currency_sanity") or "").strip().lower() or "valid"
+            unit_sanity = str(fact.get("unit_sanity") or "").strip().lower() or "valid"
+            arithmetic_eligible = (
+                normalized_value is not None
+                and not ambiguity_flag
+                and currency_sanity != "invalid"
+                and unit_sanity != "invalid"
+            )
+            row_payload = {
+                "policy_key": policy_key,
+                "field": str(fact.get("field") or "unknown_parameter").strip(),
+                "source_url": source_url,
+                "source_ref": str(fact.get("source_ref") or source_url).strip() or source_url,
+                "source_locator": str(fact.get("source_locator") or "").strip() or None,
+                "chunk_locator": str(fact.get("chunk_locator") or "").strip() or None,
+                "table_locator": str(fact.get("table_locator") or "").strip() or None,
+                "page_locator": str(fact.get("page_locator") or "").strip() or None,
+                "locator_quality": str(fact.get("locator_quality") or "").strip() or "locator_not_available",
+                "land_use": land_use,
+                "category": land_use,
+                "subarea": subarea,
+                "geography": str(fact.get("geography") or "").strip() or None,
+                "threshold": threshold,
+                "raw_value": raw_value,
+                "normalized_value": normalized_value,
+                "unit": str(fact.get("unit") or "").strip() or None,
+                "denominator": str(fact.get("denominator") or "").strip() or None,
+                "effective_date": str(fact.get("effective_date") or "").strip() or None,
+                "adoption_date": str(fact.get("adoption_date") or "").strip() or None,
+                "final_status": str(fact.get("final_status") or "").strip() or "unknown",
+                "source_hierarchy_status": str(
+                    fact.get("source_hierarchy_status") or "bill_or_reg_text"
+                ).strip(),
+                "confidence": float(fact.get("confidence"))
+                if isinstance(fact.get("confidence"), (int, float))
+                else 0.5,
+                "ambiguity_flag": ambiguity_flag,
+                "ambiguity_reason": ambiguity_reason,
+                "currency_sanity": currency_sanity,
+                "unit_sanity": unit_sanity,
+                "sanity_checks": {
+                    "currency": currency_sanity,
+                    "unit": unit_sanity,
+                    "arithmetic_eligible": arithmetic_eligible,
+                },
+                "source_lane_classification": source_lane,
+            }
+            value_token = (
+                f"{normalized_value:.6f}"
+                if normalized_value is not None
+                else str(raw_value or "")
+            )
+            dedupe_key = (
+                policy_key,
+                row_payload["field"],
+                land_use,
+                str(subarea or ""),
+                str(threshold or ""),
+                value_token,
+            )
+            existing = rows_by_key.get(dedupe_key)
+            if existing is None or _row_priority(row_payload) < _row_priority(existing):
+                row_hash_input = "|".join(dedupe_key + (source_url,))
+                row_payload["row_id"] = f"econ-row-{_hash(row_hash_input)[:16]}"
+                rows_by_key[dedupe_key] = row_payload
+
+        for primary in primary_facts:
+            _ingest_fact(primary, default_lane="primary_official")
+        for structured in structured_facts:
+            _ingest_fact(
+                structured,
+                default_lane=str(
+                    structured.get("source_lane_classification") or "true_structured_source"
+                ).strip()
+                or "true_structured_source",
+            )
+
+        rows = list(rows_by_key.values())
+        return sorted(
+            rows,
+            key=lambda row: (
+                lane_rank.get(str(row.get("source_lane_classification") or ""), 3),
+                str(row.get("land_use") or ""),
+                str(row.get("subarea") or ""),
+                str(row.get("threshold") or ""),
+                str(row.get("source_url") or ""),
+            ),
+        )
+
+    @classmethod
     def _reconcile_parameter_sources(
+        cls,
         *,
         primary_facts: list[dict[str, Any]],
         secondary_facts: list[dict[str, Any]],
     ) -> dict[str, Any]:
-        primary_index: dict[str, float] = {}
+        primary_by_key: dict[tuple[str, str, str, str], dict[str, Any]] = {}
         for fact in primary_facts:
-            field = str(fact.get("field") or "unknown_parameter")
-            value = fact.get("normalized_value", fact.get("value"))
-            if isinstance(value, (int, float)):
-                primary_index[field] = float(value)
-        reconciliation: list[dict[str, Any]] = []
-        for secondary in secondary_facts:
-            field = str(secondary.get("field") or "unknown_parameter")
-            secondary_value = float(secondary.get("normalized_value"))
-            if field in primary_index:
-                primary_value = primary_index[field]
-                if abs(primary_value - secondary_value) < 1e-6:
-                    reconciliation.append(
-                        {
-                            "field": field,
-                            "status": "confirmed",
-                            "source_of_truth": "primary_scraped_document",
-                            "primary_value": primary_value,
-                            "secondary_value": secondary_value,
-                        }
-                    )
-                else:
-                    reconciliation.append(
-                        {
-                            "field": field,
-                            "status": "source_of_truth_selected",
-                            "source_of_truth": "primary_scraped_document",
-                            "primary_value": primary_value,
-                            "secondary_value": secondary_value,
-                            "decision_reason": "primary_artifact_precedence_over_secondary",
-                        }
-                    )
+            primary_by_key[cls._economic_row_key(fact)] = fact
+
+        true_structured_by_key: dict[tuple[str, str, str, str], list[dict[str, Any]]] = {}
+        secondary_snippet_by_key: dict[tuple[str, str, str, str], list[dict[str, Any]]] = {}
+        for fact in secondary_facts:
+            row_key = cls._economic_row_key(fact)
+            lane = str(fact.get("source_lane_classification") or "").strip()
+            if lane == "secondary_search_derived":
+                secondary_snippet_by_key.setdefault(row_key, []).append(fact)
             else:
-                reconciliation.append(
+                true_structured_by_key.setdefault(row_key, []).append(fact)
+
+        records: list[dict[str, Any]] = []
+        used_true: set[tuple[tuple[str, str, str, str], int]] = set()
+        used_secondary: set[tuple[tuple[str, str, str, str], int]] = set()
+
+        for row_key, primary in sorted(primary_by_key.items()):
+            primary_value = cls._to_float(primary.get("normalized_value", primary.get("value")))
+            true_matches = true_structured_by_key.get(row_key, [])
+            secondary_matches = secondary_snippet_by_key.get(row_key, [])
+            true_values = [
+                cls._to_float(item.get("normalized_value", item.get("value")))
+                for item in true_matches
+            ]
+            true_values = [value for value in true_values if value is not None]
+            for idx, _ in enumerate(true_matches):
+                used_true.add((row_key, idx))
+            for idx, _ in enumerate(secondary_matches):
+                used_secondary.add((row_key, idx))
+
+            status = "missing_structured_corroboration"
+            source_of_truth = "primary_scraped_document"
+            decision_reason = "primary_official_row_missing_true_structured_corroboration"
+            if primary_value is None:
+                status = "conflict_unresolved"
+                source_of_truth = "none"
+                decision_reason = "primary_value_ambiguous_manual_review_required"
+            elif true_values:
+                if any(abs(primary_value - value) < 1e-6 for value in true_values):
+                    status = "confirmed"
+                    decision_reason = "primary_official_confirmed_by_true_structured_source"
+                else:
+                    status = "source_of_truth_selected"
+                    decision_reason = "primary_artifact_precedence_over_true_structured_conflict"
+            elif secondary_matches:
+                status = "missing_structured_corroboration"
+                decision_reason = (
+                    "primary_artifact_precedence_over_secondary_search;"
+                    "true_structured_corroboration_missing"
+                )
+
+            records.append(
+                {
+                    "field": row_key[0],
+                    "land_use": row_key[1],
+                    "subarea": row_key[2] or None,
+                    "threshold": row_key[3] or None,
+                    "status": status,
+                    "source_of_truth": source_of_truth,
+                    "primary_value": primary_value,
+                    "secondary_value": true_values[0]
+                    if true_values
+                    else (
+                        cls._to_float(
+                            secondary_matches[0].get(
+                                "normalized_value",
+                                secondary_matches[0].get("value"),
+                            )
+                        )
+                        if secondary_matches
+                        else None
+                    ),
+                    "decision_reason": decision_reason,
+                    "source_url": str(primary.get("source_url") or "").strip() or None,
+                    "source_locator": str(primary.get("source_locator") or "").strip() or None,
+                    "true_structured_source_families": sorted(
+                        {
+                            str(item.get("source_family") or "").strip()
+                            for item in true_matches
+                            if str(item.get("source_family") or "").strip()
+                        }
+                    ),
+                    "secondary_source_families": sorted(
+                        {
+                            str(item.get("source_family") or "").strip()
+                            for item in secondary_matches
+                            if str(item.get("source_family") or "").strip()
+                        }
+                    ),
+                }
+            )
+
+        for row_key, matches in true_structured_by_key.items():
+            if row_key in primary_by_key:
+                continue
+            for idx, item in enumerate(matches):
+                if (row_key, idx) in used_true:
+                    continue
+                value = cls._to_float(item.get("normalized_value", item.get("value")))
+                records.append(
                     {
-                        "field": field,
-                        "status": "source_of_truth_selected",
-                        "source_of_truth": "secondary_search_derived",
+                        "field": row_key[0],
+                        "land_use": row_key[1],
+                        "subarea": row_key[2] or None,
+                        "threshold": row_key[3] or None,
+                        "status": "conflict_unresolved",
+                        "source_of_truth": "none",
                         "primary_value": None,
-                        "secondary_value": secondary_value,
-                        "decision_reason": "primary_value_missing_secondary_used_with_label",
+                        "secondary_value": value,
+                        "decision_reason": "true_structured_row_without_primary_official_match",
+                        "source_url": str(item.get("source_url") or "").strip() or None,
+                        "source_locator": str(item.get("source_locator") or "").strip() or None,
+                        "true_structured_source_families": [
+                            str(item.get("source_family") or "unknown")
+                        ],
+                        "secondary_source_families": [],
                     }
                 )
+
+        for row_key, matches in secondary_snippet_by_key.items():
+            if row_key in primary_by_key:
+                continue
+            for idx, item in enumerate(matches):
+                if (row_key, idx) in used_secondary:
+                    continue
+                value = cls._to_float(item.get("normalized_value", item.get("value")))
+                records.append(
+                    {
+                        "field": row_key[0],
+                        "land_use": row_key[1],
+                        "subarea": row_key[2] or None,
+                        "threshold": row_key[3] or None,
+                        "status": "secondary_only_not_authoritative",
+                        "source_of_truth": "none",
+                        "primary_value": None,
+                        "secondary_value": value,
+                        "decision_reason": "secondary_search_row_without_primary_official_match",
+                        "source_url": str(item.get("source_url") or "").strip() or None,
+                        "source_locator": str(item.get("source_locator") or "").strip() or None,
+                        "true_structured_source_families": [],
+                        "secondary_source_families": [
+                            str(item.get("source_family") or "unknown")
+                        ],
+                    }
+                )
+
         unresolved = [
             item
-            for item in reconciliation
-            if str(item.get("status") or "") == "conflict_unresolved"
+            for item in records
+            if str(item.get("status") or "") in {"conflict_unresolved", "missing_structured_corroboration"}
         ]
         return {
-            "records": reconciliation,
+            "records": records,
             "unresolved_count": len(unresolved),
             "source_of_truth_policy": "primary_artifact_precedence_then_labeled_secondary",
             "secondary_override_blocked": all(
                 str(item.get("source_of_truth") or "") != "secondary_search_derived"
-                or item.get("primary_value") is None
-                for item in reconciliation
+                for item in records
+            ),
+            "primary_official_row_count": len(primary_by_key),
+            "true_structured_row_count": sum(len(matches) for matches in true_structured_by_key.values()),
+            "secondary_snippet_row_count": sum(len(matches) for matches in secondary_snippet_by_key.values()),
+            "missing_true_structured_corroboration_count": sum(
+                1 for item in records if str(item.get("status") or "") == "missing_structured_corroboration"
             ),
         }
 
@@ -1373,10 +1850,16 @@ class RailwayRuntimeBridge:
         )
         primary_fee_facts = self._merge_primary_fee_facts(analysis_fee_facts, raw_fee_facts)
         primary_parameter_alerts = sorted(set(primary_parameter_alerts + raw_parameter_alerts))
-        secondary_numeric_facts = self._collect_secondary_numeric_facts(structured_enrichment.candidates)
+        structured_numeric_facts = self._collect_secondary_numeric_facts(structured_enrichment.candidates)
+        normalized_economic_rows = self._build_normalized_economic_rows(
+            canonical_document_key=canonical_document_key,
+            selected_url=selected_url,
+            primary_facts=primary_fee_facts,
+            structured_facts=structured_numeric_facts,
+        )
         source_reconciliation = self._reconcile_parameter_sources(
             primary_facts=primary_fee_facts,
-            secondary_facts=secondary_numeric_facts,
+            secondary_facts=structured_numeric_facts,
         )
         policy_lineage = self._build_policy_lineage(
             selected_url=selected_url,
@@ -1523,11 +2006,13 @@ class RailwayRuntimeBridge:
             "source_quality_metrics": source_quality_metrics,
             "policy_lineage": policy_lineage,
             "source_reconciliation": source_reconciliation,
+            "normalized_official_economic_rows": normalized_economic_rows,
             "search_provider_runtime": search_provider_runtime,
             "source_shape_drift": source_shape_drift,
             "primary_parameter_extraction": {
                 "source": "analyze.evidence_selection.selected_chunks",
                 "parameter_count": len(primary_fee_facts),
+                "normalized_row_count": len(normalized_economic_rows),
                 "alerts": primary_parameter_alerts,
                 "facts": primary_fee_facts,
             },
@@ -1556,6 +2041,7 @@ class RailwayRuntimeBridge:
         package_payload["source_quality_metrics"] = source_quality_metrics
         package_payload["policy_lineage"] = policy_lineage
         package_payload["source_reconciliation"] = source_reconciliation
+        package_payload["normalized_official_economic_rows"] = normalized_economic_rows
 
         idempotency_key = f"{_scope_idempotency_key(request)}::policy_evidence_package"
         store = self._resolve_package_store()

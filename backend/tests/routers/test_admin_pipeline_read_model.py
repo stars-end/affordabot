@@ -329,6 +329,12 @@ def test_policy_evidence_analysis_status_surfaces_provenance_and_not_proven_gate
     assert data["source_quality"]["status"] == "not_proven"
     assert data["source_quality"]["reason"] == "source_quality_metrics_missing"
     assert data["source_quality"]["selection_quality_status"] == "not_proven"
+    assert "data_moat_status" in data
+    assert data["data_moat_status"]["status"] in {
+        "decision_grade_data_moat",
+        "evidence_ready_with_gaps",
+        "fail",
+    }
     assert data["economic_analysis_status"]["status"] in {
         "secondary_research_needed",
         "qualitative_only",
@@ -347,6 +353,17 @@ def test_policy_evidence_analysis_status_surfaces_provenance_and_not_proven_gate
     assert "secondary_research_needs" in data
     assert "unsupported_claim_risks" in data
     assert "recommended_next_action" in data
+    assert data["economic_handoff_quality"]["status"] in {
+        "analysis_ready",
+        "analysis_ready_with_gaps",
+        "not_analysis_ready",
+    }
+    assert data["recommended_next_action"] in {
+        "run_direct_analysis",
+        "run_secondary_research",
+        "qualitative_summary_only",
+        "reject",
+    }
     assert data["manual_audit_scaffold"]["status"] == "required"
 
 
@@ -398,6 +415,16 @@ def test_policy_evidence_analysis_status_fail_closed_case_blocks_quantified_conc
     assert data["economic_output"]["status"] == "not_proven"
     assert data["economic_output"]["decision_grade_verdict"] == "not_decision_grade"
     assert data["economic_output"]["user_facing_conclusion"] is None
+    assert data["economic_handoff_quality"]["status"] == "not_analysis_ready"
+    if data["economic_analysis_status"]["status"] == "fail_closed":
+        assert data["economic_handoff_quality"]["fail_closed_specific"] is True
+        assert data["recommended_next_action"] == "reject"
+    else:
+        assert data["economic_handoff_quality"]["reason_code"] in {
+            "secondary_research_contract_required",
+            "pass_through_incidence_assumptions_missing",
+            "unsupported_claim_risk_high",
+        }
 
 
 def test_policy_evidence_analysis_status_rejects_missing_package_in_run(client, mock_db):

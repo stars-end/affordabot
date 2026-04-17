@@ -440,6 +440,39 @@ class StructuredSourceEnricher:
         return None
 
     @staticmethod
+    def _classify_legistar_attachment_family(
+        *,
+        attachment_name: str,
+        attachment_url: str,
+    ) -> str:
+        combined = f"{attachment_name} {attachment_url}".strip().lower()
+        if not combined:
+            return "unknown"
+        if "nexus" in combined:
+            return "nexus_study"
+        if (
+            "fee study" in combined
+            or ("impact fee" in combined and "study" in combined)
+            or "rate study" in combined
+        ):
+            return "fee_study"
+        if (
+            "staff report" in combined
+            or "staff memo" in combined
+            or "department report" in combined
+        ):
+            return "staff_report"
+        if "ordinance" in combined:
+            return "ordinance"
+        if "resolution" in combined:
+            return "resolution"
+        if "agenda" in combined or "minutes" in combined:
+            return "agenda/minutes"
+        if "exhibit" in combined or re.search(r"\bexh(?:ibit)?\b", combined):
+            return "exhibit"
+        return "unknown"
+
+    @staticmethod
     def _is_economic_dataset(
         *,
         dataset: dict[str, Any],
@@ -527,10 +560,41 @@ class StructuredSourceEnricher:
         matter_url = str(matter_payload.get("MatterInSiteURL") or matter_endpoint)
         matter_title = str(matter_payload.get("MatterTitle") or "").strip()
         file_refs: list[str] = []
+        related_attachment_refs: list[dict[str, Any]] = []
+        seen_attachment_refs: set[tuple[str, str, str]] = set()
         for attachment in attachments_payload:
+            attachment_name = str(attachment.get("MatterAttachmentName") or "").strip()
+            attachment_id_value = attachment.get("MatterAttachmentId")
+            attachment_id = (
+                str(attachment_id_value).strip()
+                if isinstance(attachment_id_value, (int, str))
+                else ""
+            )
             file_url = str(attachment.get("MatterAttachmentHyperlink") or "").strip()
             if file_url.startswith("http://") or file_url.startswith("https://"):
                 file_refs.append(file_url)
+            if not attachment_id and not attachment_name and not file_url:
+                continue
+            dedupe_key = (attachment_id, attachment_name.lower(), file_url)
+            if dedupe_key in seen_attachment_refs:
+                continue
+            seen_attachment_refs.add(dedupe_key)
+            related_attachment_refs.append(
+                {
+                    "attachment_id": attachment_id or None,
+                    "title": attachment_name or None,
+                    "url": file_url or None,
+                    "source_family": self._classify_legistar_attachment_family(
+                        attachment_name=attachment_name,
+                        attachment_url=file_url,
+                    ),
+                }
+            )
+
+        attachment_family_counts: dict[str, int] = {}
+        for attachment_ref in related_attachment_refs:
+            family = str(attachment_ref.get("source_family") or "unknown")
+            attachment_family_counts[family] = attachment_family_counts.get(family, 0) + 1
 
         structured_policy_facts = [
             {"field": "matter_attachment_count", "value": float(len(file_refs)), "unit": "count"},
@@ -554,12 +618,14 @@ class StructuredSourceEnricher:
             "query_text": search_query.strip() or "san jose matter metadata",
             "excerpt": (
                 "Structured Legistar matter metadata fetched from San Jose Web API; "
-                f"MatterTitle='{matter_title or 'unknown'}', attachments={len(file_refs)}."
+                f"MatterTitle='{matter_title or 'unknown'}', attachments={len(file_refs)}, "
+                f"classified_attachment_refs={len(related_attachment_refs)}."
             ),
             "structured_policy_facts": structured_policy_facts,
             "diagnostic_facts": [{"field": "matter_id", "value": float(matter_id), "unit": "count"}],
             "provider_run_id": str(matter_id),
             "linked_artifact_refs": file_refs,
+            "related_attachment_refs": related_attachment_refs,
             "reader_artifact_refs": [],
             "true_structured": True,
             "policy_match_key": _policy_match_key_for_url(selected_url or matter_url),
@@ -571,6 +637,8 @@ class StructuredSourceEnricher:
                 "event_date": None,
                 "event_body_id": None,
                 "source_identity": "legistar_web_api",
+                "related_attachment_refs": related_attachment_refs,
+                "attachment_family_counts": attachment_family_counts,
             },
         }
 

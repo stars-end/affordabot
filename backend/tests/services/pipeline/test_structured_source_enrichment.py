@@ -158,6 +158,18 @@ def test_extract_legistar_matter_id_ignores_view_attachment_id() -> None:
     assert matter_id is None
 
 
+def test_classify_legistar_attachment_source_family() -> None:
+    classify = StructuredSourceEnricher._classify_legistar_attachment_family
+    assert classify(attachment_name="Resolution No. 80069", attachment_url="") == "resolution"
+    assert classify(attachment_name="Ordinance 30710", attachment_url="") == "ordinance"
+    assert classify(attachment_name="Staff Report - Housing Department", attachment_url="") == "staff_report"
+    assert classify(attachment_name="Commercial Linkage Fee Study", attachment_url="") == "fee_study"
+    assert classify(attachment_name="Nexus Study Appendix", attachment_url="") == "nexus_study"
+    assert classify(attachment_name="City Council Minutes", attachment_url="") == "agenda/minutes"
+    assert classify(attachment_name="Exhibit A", attachment_url="") == "exhibit"
+    assert classify(attachment_name="Attachment", attachment_url="") == "unknown"
+
+
 def test_legistar_event_ids_are_diagnostic_not_economic_parameters() -> None:
     enricher = StructuredSourceEnricher()
 
@@ -221,6 +233,8 @@ def test_legistar_matter_metadata_includes_provenance_and_non_id_facts() -> None
                 return _Response(
                     [
                         {
+                            "MatterAttachmentId": 123,
+                            "MatterAttachmentName": "Resolution No. 80069",
                             "MatterAttachmentHyperlink": (
                                 "https://sanjoseca.legistar.com/View.ashx?M=F&ID=9988776"
                             )
@@ -245,6 +259,15 @@ def test_legistar_matter_metadata_includes_provenance_and_non_id_facts() -> None
     assert "matter_attachment_count" in fact_fields
     diag_fields = {fact["field"] for fact in candidate.get("diagnostic_facts", [])}
     assert "matter_id" in diag_fields
+    assert candidate["related_attachment_refs"] == [
+        {
+            "attachment_id": "123",
+            "title": "Resolution No. 80069",
+            "url": "https://sanjoseca.legistar.com/View.ashx?M=F&ID=9988776",
+            "source_family": "resolution",
+        }
+    ]
+    assert candidate["lineage_metadata"]["related_attachment_refs"] == candidate["related_attachment_refs"]
 
 
 def test_legistar_matter_metadata_resolves_view_attachment_via_context_search_fallback() -> None:
@@ -293,9 +316,18 @@ def test_legistar_matter_metadata_resolves_view_attachment_via_context_search_fa
                 return _Response(
                     [
                         {
+                            "MatterAttachmentId": 201,
+                            "MatterAttachmentName": "Resolution No. 80069",
                             "MatterAttachmentHyperlink": (
                                 "https://sanjoseca.legistar.com/View.ashx?M=F&ID=8758120"
                             )
+                        },
+                        {
+                            "MatterAttachmentId": 202,
+                            "MatterAttachmentName": "Commercial Linkage Nexus Study",
+                            "MatterAttachmentHyperlink": (
+                                "https://sanjoseca.legistar.com/View.ashx?M=F&ID=8758132"
+                            ),
                         }
                     ]
                 )
@@ -321,6 +353,14 @@ def test_legistar_matter_metadata_resolves_view_attachment_via_context_search_fa
     assert "matter_attachment_count" in fact_fields
     assert "matter_id" not in fact_fields
     assert candidate["linked_artifact_refs"]
+    attachment_refs = candidate["related_attachment_refs"]
+    assert len(attachment_refs) == 2
+    assert {item["source_family"] for item in attachment_refs} == {
+        "resolution",
+        "nexus_study",
+    }
+    assert all(item["attachment_id"] for item in attachment_refs)
+    assert all(item["title"] for item in attachment_refs)
 
 
 def test_legistar_matter_search_uses_policy_phrase_and_skips_deferred_item() -> None:

@@ -173,7 +173,24 @@ def test_endpoint_read_model_exposes_economic_handoff_contract_fields() -> None:
     assert "unsupported_claim_risks" in read_model
     assert "recommended_next_action" in read_model
     assert read_model["manual_audit_scaffold"]["status"] == "required"
-    assert read_model["economic_handoff_quality"]["status"] in {"ready", "not_ready"}
+    assert read_model["economic_handoff_quality"]["status"] in {
+        "analysis_ready",
+        "analysis_ready_with_gaps",
+        "not_analysis_ready",
+    }
+    assert read_model["economic_handoff_quality"]["legacy_status"] in {"ready", "not_ready"}
+    assert read_model["recommended_next_action"] in {
+        "run_direct_analysis",
+        "run_secondary_research",
+        "qualitative_summary_only",
+        "reject",
+    }
+    assert "data_moat_status" in read_model
+    assert read_model["data_moat_status"]["status"] in {
+        "decision_grade_data_moat",
+        "evidence_ready_with_gaps",
+        "fail",
+    }
 
 
 def test_fallback_vs_real_matrix_labeling() -> None:
@@ -1085,6 +1102,38 @@ def test_direct_model_card_keeps_household_conclusion_fail_closed_without_pass_t
     household_readiness = direct_model_card["household_impact_readiness"]
     assert household_readiness["status"] == "not_proven"
     assert "pass-through/incidence assumptions" in household_readiness["reason"]
+    handoff = endpoint["economic_handoff_quality"]
+    assert handoff["status"] == "analysis_ready_with_gaps"
+    assert handoff["quantification_paths"]["direct_project_fee_exposure"]["status"] == "analysis_ready"
+    assert handoff["quantification_paths"]["household_cost_of_living"]["status"] == "not_analysis_ready"
+    assert endpoint["secondary_research_needs"]["status"] == "required"
+    assert endpoint["secondary_research_needs"]["reason_code"] == "pass_through_incidence_assumptions_missing"
+    assert endpoint["recommended_next_action"] == "run_secondary_research"
     assert endpoint["decision_grade_verdict"] == "not_decision_grade"
     assert endpoint["economic_output"]["status"] == "not_proven"
     assert endpoint["economic_output"]["user_facing_conclusion"] is None
+
+
+def test_fail_closed_handoff_is_specific_and_machine_actionable() -> None:
+    bundle = PolicyEconomicMechanismCaseService().build_case_bundle()
+    control = _case(bundle, "unsupported_fail_closed_control")
+
+    service = PolicyEvidenceQualitySpineEconomicsService()
+    endpoint = service.build_endpoint_read_model(
+        matrix_input=MatrixInput(
+            payload=_real_matrix_from_case(control["primary_package"]),
+            source_path="horizontal_matrix.json",
+            source_mode="agent_a_horizontal_matrix",
+        ),
+        package_id=control["primary_package"]["package_id"],
+        source_family="meeting_minutes",
+    )
+
+    assert endpoint["economic_analysis_status"]["status"] == "fail_closed"
+    assert endpoint["economic_handoff_quality"]["status"] == "not_analysis_ready"
+    assert endpoint["economic_handoff_quality"]["reason_code"] == "unsupported_claim_risk_high"
+    assert endpoint["economic_handoff_quality"]["fail_closed_specific"] is True
+    assert endpoint["missing_parameters"]
+    assert endpoint["secondary_research_needs"]["status"] == "not_required"
+    assert endpoint["secondary_research_needs"]["reason_code"] == "not_required"
+    assert endpoint["recommended_next_action"] == "reject"

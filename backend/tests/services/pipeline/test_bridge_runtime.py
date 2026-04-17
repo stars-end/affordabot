@@ -546,6 +546,21 @@ def test_runtime_bridge_materializes_structured_sources_when_enrichment_availabl
             {"field": "event_item_count", "value": 16.0, "unit": "count"},
         ],
         "excerpt": "Structured event metadata for San Jose agenda cycle.",
+        "related_attachment_refs": [
+            {
+                "attachment_id": "201",
+                "title": "Resolution No. 80069",
+                "url": "https://sanjoseca.legistar.com/View.ashx?M=F&ID=8758120",
+                "source_family": "resolution",
+            },
+            {
+                "attachment_id": "202",
+                "title": "Commercial Linkage Nexus Study",
+                "url": "https://sanjoseca.legistar.com/View.ashx?M=F&ID=8758132",
+                "source_family": "nexus_study",
+            },
+        ],
+        "lineage_metadata": {"matter_id": "7526"},
     }
     runtime = RailwayRuntimeBridge(
         db=db,
@@ -585,6 +600,9 @@ def test_runtime_bridge_materializes_structured_sources_when_enrichment_availabl
     assert run_context["structured_enrichment_status"] == "integrated"
     assert run_context["structured_sources"]
     assert run_context["structured_source_catalog"][0]["source_family"] == "legistar_web_api"
+    assert run_context["policy_lineage"]["lineage_presence"]["related_attachments"] is True
+    assert len(run_context["policy_lineage"]["related_attachment_refs"]) >= 2
+    assert "resolution" in run_context["policy_lineage"]["related_attachment_source_families"]
 
 
 def test_runtime_bridge_extracts_primary_fee_facts_from_analysis_chunks() -> None:
@@ -624,6 +642,85 @@ def test_runtime_bridge_extracts_primary_fee_facts_from_analysis_chunks() -> Non
     )
     assert all(fact["source_hierarchy_status"] == "bill_or_reg_text" for fact in facts)
     assert "primary_parameter_money_format_anomaly" in alerts
+
+
+def test_runtime_bridge_extracts_primary_fee_rows_with_subarea_and_locator_quality() -> None:
+    facts, alerts = RailwayRuntimeBridge._extract_primary_fee_facts_from_text_parts(
+        text_parts=[
+            (
+                "Commercial Linkage Fee table. Downtown Office (<100,000 sq. ft.) $3.00 "
+                "Rest of City Office (<100,000 sq. ft.) $2.50. "
+                "Adopted December 8, 2025 and effective January 1, 2026."
+            )
+        ],
+        selected_url="https://sanjose.legistar.com/View.ashx?M=F&ID=8758120",
+        source_locator_prefix="reader_content",
+    )
+
+    assert alerts == []
+    assert len(facts) == 2
+    downtown = next(item for item in facts if item["subarea"] == "downtown")
+    assert downtown["land_use"] == "office"
+    assert downtown["threshold"] == "<100,000 sq. ft."
+    assert downtown["locator_quality"] == "table_row_chunk_locator"
+    assert downtown["table_locator"] == "commercial_linkage_fee_table"
+    assert downtown["adoption_date"] is not None
+    assert downtown["effective_date"] is not None
+    assert downtown["final_status"] == "adopted"
+
+
+def test_runtime_bridge_normalized_economic_rows_dedupe_and_keep_best_locator() -> None:
+    primary_facts = [
+        {
+            "field": "commercial_linkage_fee_rate_usd_per_sqft",
+            "raw_value": "$3.00",
+            "normalized_value": 3.0,
+            "unit": "usd_per_square_foot",
+            "denominator": "per_square_foot",
+            "land_use": "office",
+            "subarea": "downtown",
+            "threshold": "<100,000 sq. ft.",
+            "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120",
+            "source_locator": "analysis_chunk:1",
+            "locator_quality": "chunk_locator_only",
+            "source_hierarchy_status": "bill_or_reg_text",
+            "confidence": 0.80,
+            "ambiguity_flag": False,
+            "currency_sanity": "valid",
+            "unit_sanity": "valid",
+        },
+        {
+            "field": "commercial_linkage_fee_rate_usd_per_sqft",
+            "raw_value": "$3.00",
+            "normalized_value": 3.0,
+            "unit": "usd_per_square_foot",
+            "denominator": "per_square_foot",
+            "land_use": "office",
+            "subarea": "downtown",
+            "threshold": "<100,000 sq. ft.",
+            "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120",
+            "source_locator": "reader_content:1:fee_table_row",
+            "table_locator": "commercial_linkage_fee_table",
+            "locator_quality": "table_row_chunk_locator",
+            "source_hierarchy_status": "bill_or_reg_text",
+            "confidence": 0.90,
+            "ambiguity_flag": False,
+            "currency_sanity": "valid",
+            "unit_sanity": "valid",
+        },
+    ]
+    rows = RailwayRuntimeBridge._build_normalized_economic_rows(
+        canonical_document_key="v2|jurisdiction=san-jose-ca|family=policy_documents|doctype=fee_schedule|url=https://sanjose.legistar.com/View.ashx?M=F&ID=8758120",
+        selected_url="https://sanjose.legistar.com/View.ashx?M=F&ID=8758120",
+        primary_facts=primary_facts,
+        structured_facts=[],
+    )
+
+    assert len(rows) == 1
+    assert rows[0]["locator_quality"] == "table_row_chunk_locator"
+    assert rows[0]["sanity_checks"]["arithmetic_eligible"] is True
+    assert rows[0]["source_lane_classification"] == "primary_official"
+    assert rows[0]["row_id"].startswith("econ-row-")
 
 
 def test_runtime_bridge_prefers_categorized_ambiguous_fee_fact() -> None:
@@ -1300,7 +1397,80 @@ def test_runtime_bridge_records_lineage_negative_evidence_and_reconciliation_pol
     reconciliation = run_context["source_reconciliation"]
     assert reconciliation["source_of_truth_policy"] == "primary_artifact_precedence_then_labeled_secondary"
     assert reconciliation["secondary_override_blocked"] is True
-    assert any(record["status"] == "source_of_truth_selected" for record in reconciliation["records"])
+    assert reconciliation["records"]
+    assert all(
+        record.get("source_of_truth") != "secondary_search_derived"
+        for record in reconciliation["records"]
+    )
+
+
+def test_runtime_bridge_reconciliation_marks_secondary_only_as_missing_true_structured() -> None:
+    reconciliation = RailwayRuntimeBridge._reconcile_parameter_sources(
+        primary_facts=[
+            {
+                "field": "commercial_linkage_fee_rate_usd_per_sqft",
+                "land_use": "office",
+                "subarea": "downtown",
+                "threshold": "<100,000 sq. ft.",
+                "normalized_value": 3.0,
+                "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120",
+                "source_locator": "reader_content:1:fee_table_row",
+            }
+        ],
+        secondary_facts=[
+            {
+                "field": "commercial_linkage_fee_rate_usd_per_sqft",
+                "land_use": "office",
+                "subarea": "downtown",
+                "threshold": "<100,000 sq. ft.",
+                "normalized_value": 3.58,
+                "source_family": "tavily_secondary_search",
+                "source_lane_classification": "secondary_search_derived",
+                "source_url": "https://www.sanjoseca.gov/fees",
+            }
+        ],
+    )
+
+    assert reconciliation["missing_true_structured_corroboration_count"] == 1
+    assert reconciliation["secondary_override_blocked"] is True
+    assert reconciliation["records"][0]["status"] == "missing_structured_corroboration"
+    assert "true_structured_corroboration_missing" in reconciliation["records"][0]["decision_reason"]
+
+
+def test_runtime_bridge_build_policy_lineage_surfaces_matter_7526_attachment_refs() -> None:
+    lineage = RailwayRuntimeBridge._build_policy_lineage(
+        selected_url="https://sanjoseca.legistar.com/LegislationDetail.aspx?ID=7526",
+        source_family="meeting_minutes",
+        candidate_audit=[],
+        structured_candidates=[
+            {
+                "source_family": "legistar_web_api",
+                "lineage_metadata": {"matter_id": "7526"},
+                "related_attachment_refs": [
+                    {
+                        "attachment_id": "201",
+                        "title": "Resolution No. 80069",
+                        "url": "https://sanjoseca.legistar.com/View.ashx?M=F&ID=8758120",
+                        "source_family": "resolution",
+                    },
+                    {
+                        "attachment_id": "202",
+                        "title": "Commercial Linkage Nexus Study",
+                        "url": "https://sanjoseca.legistar.com/View.ashx?M=F&ID=8758132",
+                        "source_family": "nexus_study",
+                    },
+                ],
+            }
+        ],
+    )
+
+    assert lineage["lineage_presence"]["related_attachments"] is True
+    assert len(lineage["related_attachment_refs"]) == 2
+    assert {ref["source_family"] for ref in lineage["related_attachment_refs"]} == {
+        "resolution",
+        "nexus_study",
+    }
+    assert len(lineage["related_artifacts"]) == 2
 
 
 def test_runtime_bridge_reconciliation_ignores_structured_diagnostic_counts() -> None:
