@@ -239,9 +239,9 @@
   "c13_verdict_candidate": "not_proven_orchestration_intent_unverified",
   "command_client": "backend_endpoint",
   "commands_attempted": [],
-  "corpus_matrix_digest": "50a65046bd6c835d4aa806e561189e6a8948f03d30fa537f0edc83c4f71f18a6",
+  "corpus_matrix_digest": "bca1c6a3317ad8e942e6c1b2155a64d455dce018db6b3fd34084548b240df9d1",
   "feature_key": "bd-3wefe.13.4.6",
-  "generated_at": "2026-04-17T10:45:29+00:00",
+  "generated_at": "2026-04-17T11:02:14+00:00",
   "live_windmill_exercised": true,
   "post_metrics": {
     "blocker_rows": [],
@@ -3095,7 +3095,7 @@
     "c13_reason": "C13 has orchestration intent metadata, but live Windmill run/job refs are not proven.",
     "c13_row_count": 90,
     "c13_status": "not_proven",
-    "generated_at": "2026-04-17T10:39:15+00:00"
+    "generated_at": "2026-04-17T11:00:10+00:00"
   },
   "surface_blocker": {
     "blocker_class": "live_skipped_by_flag",

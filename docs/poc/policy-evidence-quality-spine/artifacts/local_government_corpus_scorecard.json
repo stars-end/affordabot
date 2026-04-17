@@ -13,8 +13,8 @@
       "lgm-018"
     ],
     "windmill_orchestration_artifact": "docs/poc/policy-evidence-quality-spine/artifacts/local_government_corpus_windmill_orchestration.json",
-    "windmill_orchestration_digest": "2d4ab7ae08324706776dc64a0499f8e4b17075b301a3ec1e0d016661bcc7fcd6",
-    "windmill_orchestration_generated_at": "2026-04-17T10:45:29+00:00",
+    "windmill_orchestration_digest": "995e7099553128ae760a2ef5b7ddb59300faf038dfbc17b6aec1516f2a0a2fcd",
+    "windmill_orchestration_generated_at": "2026-04-17T11:02:14+00:00",
     "windmill_orchestration_verdict": "not_proven_orchestration_intent_unverified",
     "windmill_overlay_burndown_summary": {
       "blocked_row_count": 0,
@@ -77,8 +77,8 @@
       "C11": "pass",
       "C12": "pass",
       "C13": "not_proven",
-      "C14": "pass",
-      "C2": "pass",
+      "C14": "not_proven",
+      "C2": "not_proven",
       "C3": "pass",
       "C4": "pass",
       "C5": "pass",
@@ -355,28 +355,41 @@
       "status": "not_proven"
     },
     "C14": {
-      "blockers": [],
+      "blockers": [
+        "non_fee_extraction_templates_cataloged_not_live_proven"
+      ],
       "metrics": {
+        "cataloged_non_fee_family_count": 6,
         "live_non_fee_family_count": 11,
         "non_fee_row_count": 70,
         "rows_missing_fact_fields": 0,
         "template_count": 4
       },
-      "reason": "C14 non-fee extraction templates and live exercised families satisfy depth contract.",
-      "status": "pass"
+      "reason": "C14 non-fee extraction depth is incomplete.",
+      "status": "not_proven"
     },
     "C2": {
-      "blockers": [],
+      "blockers": [
+        "live_structured_coverage_below_40_percent",
+        "structured_sources_cataloged_not_live_proven",
+        "non_primary_jurisdictions_without_structured_or_absence",
+        "non_primary_structured_sources_cataloged_not_live_proven"
+      ],
       "metrics": {
+        "cataloged_true_structured_family_count": 5,
         "coverage_ratio": 1.0,
+        "live_non_legistar_true_structured_present": true,
+        "live_structured_coverage_ratio": 0.1778,
+        "live_true_structured_family_count": 5,
         "non_legistar_true_structured_present": true,
+        "non_primary_cataloged_only_count": 6,
         "non_primary_jurisdiction_count": 13,
-        "non_primary_without_structured_or_absence": 0,
+        "non_primary_without_structured_or_absence": 6,
         "source_family_count": 8,
         "true_structured_family_count": 5
       },
-      "reason": "Structured-source diversity/depth satisfies C2.",
-      "status": "pass"
+      "reason": "C2 structured-source diversity/depth requirements not met.",
+      "status": "not_proven"
     },
     "C3": {
       "blockers": [],
@@ -466,8 +479,8 @@
       "status": "pass"
     }
   },
-  "generated_at": "2026-04-17T10:45:29+00:00",
-  "matrix_digest": "50a65046bd6c835d4aa806e561189e6a8948f03d30fa537f0edc83c4f71f18a6",
+  "generated_at": "2026-04-17T11:02:14+00:00",
+  "matrix_digest": "bca1c6a3317ad8e942e6c1b2155a64d455dce018db6b3fd34084548b240df9d1",
   "matrix_summary": {
     "corpus_readiness_target": "corpus_ready_with_gaps",
     "milestone_row_count": 2,
@@ -477,10 +490,13 @@
   },
   "next_eval_blocker": {
     "blockers": [
-      "windmill_refs_seeded_not_live_proven"
+      "live_structured_coverage_below_40_percent",
+      "structured_sources_cataloged_not_live_proven",
+      "non_primary_jurisdictions_without_structured_or_absence",
+      "non_primary_structured_sources_cataloged_not_live_proven"
     ],
-    "gate": "C13",
-    "reason": "C13 has orchestration intent metadata, but live Windmill run/job refs are not proven.",
+    "gate": "C2",
+    "reason": "C2 structured-source diversity/depth requirements not met.",
     "status": "not_proven"
   },
   "package_gate_projection": {

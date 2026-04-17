@@ -884,3 +884,88 @@ Next blocker:
   data moat quality: prove deeper scraped/structured source substance for a
   small set of high-value local-government policy families, while keeping C13
   intent/live-proof separation intact.
+
+## Cycle 52: Structured-Source Proof Reclassification
+
+Status: `completed_structured_proof_honesty_fix`
+
+Started: 2026-04-17
+
+Scope:
+
+- Stop allowing generated structured-source observations to satisfy C2/C14 as
+  live structured data.
+- Preserve expected structured source families and extraction templates as
+  acquisition targets, but label generated rows as `cataloged_intent` until a
+  runtime source probe proves them.
+- Keep the economic handoff honest: cataloged data can make a package valuable
+  as a moat target, but it cannot ground economic analysis as if it were
+  runtime-proven evidence.
+
+Subagent wave:
+
+- Rawls owned generator/data-shape semantics for structured proof fields.
+- Ampere owned C2/C14 evaluator semantics and regression tests.
+- Tesla owned documentation/audit boundaries and regeneration checklist.
+
+Implementation changes:
+
+- Structured observations now carry explicit proof fields:
+  `proof_status` and `proof_source`.
+- Generated expansion rows now mark structured observations as:
+  - `live_proven=false`;
+  - `proof_status=cataloged_intent`;
+  - `proof_source=generated_expansion_matrix`.
+- Generated expansion rows now use
+  `source_infrastructure_status=cataloged_intent` rather than
+  `live_integrated`.
+- Generated non-fee extraction depth rows now mark:
+  - `live_exercised=false`;
+  - `proof_status=cataloged_intent`;
+  - `proof_source=generated_expansion_matrix`.
+- C2 now separates:
+  - all true structured families;
+  - live-proven true structured families;
+  - cataloged/intent true structured families;
+  - live structured coverage ratio.
+- C14 now separates live non-fee extraction families from cataloged non-fee
+  extraction families.
+- The corpus report now includes a `Structured Proof Boundary` section.
+
+Artifact impact:
+
+- `local_government_corpus_scorecard.json` now reports:
+  - `C2.status=not_proven`;
+  - `C2.metrics.live_structured_coverage_ratio=0.1778`;
+  - `C2.metrics.live_true_structured_family_count=5`;
+  - `C2.metrics.cataloged_true_structured_family_count=5`;
+  - `C14.status=not_proven`;
+  - `C14.metrics.live_non_fee_family_count=11`;
+  - `C14.metrics.cataloged_non_fee_family_count=6`.
+- `local_government_corpus_report.md` now shows the structured proof split
+  before the C13 burn-down section.
+- `local_government_corpus_matrix.json` keeps generated structured targets in
+  the matrix, but no longer marks them as live-proven integrations.
+
+Gate impact:
+
+- C2 and C14 now correctly block decision-grade claims until the cataloged
+  structured targets are runtime-proven.
+- The corpus remains `corpus_ready_with_gaps` because this is a proof gap, not
+  a schema failure.
+- This cycle materially improves the data moat goal by preventing the corpus
+  from confusing source acquisition targets with proprietary runtime-proven
+  structured data.
+
+Validation:
+
+- `cd backend && poetry run pytest tests/services/pipeline/test_local_government_corpus_benchmark.py tests/verification/test_regenerate_local_government_corpus_scorecard.py tests/verification/test_verify_local_government_corpus_manual_audit.py` -> `28 passed`.
+- `cd backend && poetry run ruff check services/pipeline/local_government_corpus_benchmark.py tests/services/pipeline/test_local_government_corpus_benchmark.py tests/verification/test_regenerate_local_government_corpus_scorecard.py` -> pass.
+- `cd backend && poetry run python scripts/verification/verify_local_government_corpus_manual_audit.py` -> pass.
+- `cd backend && poetry run pytest` -> `863 passed, 70 warnings`.
+
+Next blocker:
+
+- Cycle 53 should prove at least one cataloged structured source target with a
+  runtime probe or ingestion path, then regenerate C2/C14 to reduce the
+  cataloged-not-live-proven backlog instead of only documenting it.

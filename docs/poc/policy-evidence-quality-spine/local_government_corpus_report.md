@@ -10,7 +10,7 @@
 
 - C0: `pass` - Corpus scope and composition satisfy C0.
 - C1: `pass` - Official-source dominance and Tavily/Exa primary caps satisfy C1.
-- C2: `pass` - Structured-source diversity/depth satisfies C2.
+- C2: `not_proven` - C2 structured-source diversity/depth requirements not met.
 - C3: `pass` - C3 package classifications reconcile cleanly with D11 handoff quality.
 - C4: `pass` - C4 economic handoff distribution thresholds are satisfied.
 - C5: `pass` - C5 manual audit sampling is stratified and complete.
@@ -23,7 +23,15 @@
 - C11: `pass` - C11 schema/taxonomy/gate version contract is explicit and aligned.
 - C12: `pass` - C12 known-policy coverage includes blind holdout and adequate coverage.
 - C13: `not_proven` - C13 has orchestration intent metadata, but live Windmill run/job refs are not proven.
-- C14: `pass` - C14 non-fee extraction templates and live exercised families satisfy depth contract.
+- C14: `not_proven` - C14 non-fee extraction depth is incomplete.
+
+## Structured Proof Boundary
+
+- C2 live structured coverage ratio: `0.1778`
+- C2 live true structured families: `5`
+- C2 cataloged true structured families: `5`
+- C14 live non-fee families: `11`
+- C14 cataloged non-fee families: `6`
 
 ## C13 Burn-down
 
@@ -36,10 +44,10 @@
 
 ## Current Gaps
 
-- non-pass gate count: `1`
-- next blocker gate: `C13`
-- next blocker reason: C13 has orchestration intent metadata, but live Windmill run/job refs are not proven.
+- non-pass gate count: `3`
+- next blocker gate: `C2`
+- next blocker reason: C2 structured-source diversity/depth requirements not met.
 
 ## Next Eval Blocker
 
-- Address C13 before next decision-grade assertion.
+- Address C2 before next decision-grade assertion.

@@ -52,6 +52,11 @@ def test_seed_matrix_has_decision_grade_scope_axes() -> None:
     assert any(row["evaluation_split"] == "tuning" for row in rows)
     assert any(row["evaluation_split"] == "blind_evaluation" for row in rows)
     assert all(row.get("known_policy_reference_id") for row in rows)
+    assert all("expected_structured_depth_targets" in row for row in rows)
+    assert all(
+        "expected_structured_depth_target" in reference
+        for reference in matrix["known_policy_references"]
+    )
 
 
 def test_seed_scorecard_encodes_c0_to_c14_without_false_pass() -> None:
@@ -80,7 +85,17 @@ def test_seed_scorecard_encodes_c0_to_c14_without_false_pass() -> None:
     }.issubset(gate_ids)
     assert scorecard["gates"]["C0"]["status"] == "pass"
     assert scorecard["gates"]["C1"]["status"] == "pass"
-    assert scorecard["gates"]["C2"]["status"] == "pass"
+    assert scorecard["gates"]["C2"]["status"] == "not_proven"
+    c2_metrics = scorecard["gates"]["C2"]["metrics"]
+    assert c2_metrics["true_structured_family_count"] >= 5
+    assert c2_metrics["live_true_structured_family_count"] >= 2
+    assert c2_metrics["cataloged_true_structured_family_count"] >= 2
+    assert "live_structured_coverage_below_40_percent" in scorecard["gates"]["C2"][
+        "blockers"
+    ]
+    assert "structured_sources_cataloged_not_live_proven" in scorecard["gates"]["C2"][
+        "blockers"
+    ]
     assert scorecard["gates"]["C13"]["status"] == "not_proven"
     c13_metrics = scorecard["gates"]["C13"]["metrics"]
     assert c13_metrics["mode_counts"]["windmill_live"] == 0
@@ -95,8 +110,88 @@ def test_seed_scorecard_encodes_c0_to_c14_without_false_pass() -> None:
     assert c13_metrics["next_seeded_ref_target_rows"] == c13_metrics[
         "remaining_seeded_ref_rows"
     ][:10]
-    assert scorecard["gates"]["C14"]["status"] == "pass"
+    assert scorecard["gates"]["C14"]["status"] == "not_proven"
+    assert (
+        "non_fee_extraction_templates_cataloged_not_live_proven"
+        in scorecard["gates"]["C14"]["blockers"]
+    )
     assert scorecard["corpus_state"] == "corpus_ready_with_gaps"
+
+
+def test_generated_structured_sources_are_cataloged_intent_not_live_proven() -> None:
+    matrix = build_local_government_corpus_matrix_seed()
+    rows = [row for row in matrix["rows"] if row.get("row_type") == "corpus_package"]
+    generated_rows = [row for row in rows if int(str(row["corpus_row_id"]).split("-")[1]) >= 19]
+    assert generated_rows
+
+    structured_observations = [
+        observation
+        for row in generated_rows
+        for observation in row.get("structured_source_observations", [])
+        if observation.get("true_structured")
+    ]
+    assert structured_observations
+    assert all(observation["live_proven"] is False for observation in structured_observations)
+    assert {
+        observation["proof_status"] for observation in structured_observations
+    } == {"cataloged_intent"}
+    assert {
+        observation["proof_source"] for observation in structured_observations
+    } == {"generated_expansion_matrix"}
+
+    generated_non_fee_extractions = [
+        row["extraction_depth"]
+        for row in generated_rows
+        if row.get("policy_family") in {
+            "housing_permits",
+            "zoning_land_use",
+            "parking_policy",
+            "transportation_demand_management",
+            "business_licensing_compliance",
+            "utilities_energy_building_standard",
+            "air_quality_electrification",
+            "short_term_rental",
+            "affordable_housing_mandate",
+            "code_enforcement",
+            "procurement_contract",
+            "public_safety",
+            "meeting_action",
+            "general_governance",
+        }
+    ]
+    assert generated_non_fee_extractions
+    assert all(
+        extraction["live_exercised"] is False
+        and extraction["proof_status"] == "cataloged_intent"
+        for extraction in generated_non_fee_extractions
+    )
+
+
+def test_live_proven_structured_sources_can_satisfy_c2_and_c14() -> None:
+    service = LocalGovernmentCorpusBenchmarkService()
+    matrix = build_local_government_corpus_matrix_seed()
+    mutated = deepcopy(matrix)
+    for row in mutated["rows"]:
+        if row.get("row_type") != "corpus_package":
+            continue
+        row["source_infrastructure_status"] = "live_integrated"
+        infra = row.get("infrastructure_status")
+        if isinstance(infra, dict):
+            infra["source_lane_status"] = "live_integrated"
+        for observation in row.get("structured_source_observations", []):
+            if observation.get("true_structured"):
+                observation["live_proven"] = True
+                observation["proof_status"] = "live_proven"
+                observation["proof_source"] = "runtime_structured_source_probe"
+        extraction = row.get("extraction_depth")
+        if isinstance(extraction, dict):
+            extraction["live_exercised"] = True
+            extraction["proof_status"] = "live_proven"
+            extraction["proof_source"] = "runtime_extraction_probe"
+
+    scorecard = service.evaluate(matrix=mutated)
+    assert scorecard["gates"]["C2"]["status"] == "pass"
+    assert scorecard["gates"]["C14"]["status"] == "pass"
 
 
 def test_live_proven_windmill_refs_satisfy_c13() -> None:

@@ -58,6 +58,7 @@ REQUIRED_MANUAL_AUDIT_FIELDS = {
     "economic_handoff_checked",
     "dominant_failure_class",
 }
+LIVE_STRUCTURED_PROOF_STATUSES = {"live_proven", "proven"}
 
 
 class DataMoatPackageClassification(StrEnum):
@@ -154,6 +155,52 @@ def _is_non_fee_policy_family(policy_family: str) -> bool:
     return policy_family in NON_FEE_POLICY_FAMILIES
 
 
+def _structured_observation_is_live_proven(observation: dict[str, Any]) -> bool:
+    proof_status = str(observation.get("proof_status") or "")
+    if proof_status:
+        return proof_status in LIVE_STRUCTURED_PROOF_STATUSES
+    return bool(observation.get("live_proven"))
+
+
+def _with_structured_proof_defaults(
+    observations: list[dict[str, Any]],
+    *,
+    default_proof_source: str,
+) -> list[dict[str, Any]]:
+    normalized: list[dict[str, Any]] = []
+    for observation in observations:
+        item = dict(observation)
+        if item.get("true_structured"):
+            if _structured_observation_is_live_proven(item):
+                item.setdefault("live_proven", True)
+                item.setdefault("proof_status", "live_proven")
+            else:
+                item["live_proven"] = False
+                item.setdefault("proof_status", "cataloged_intent")
+            item.setdefault("proof_source", default_proof_source)
+        else:
+            item["live_proven"] = False
+            item.setdefault("proof_status", "metadata_only")
+            item.setdefault("proof_source", default_proof_source)
+        normalized.append(item)
+    return normalized
+
+
+def _as_cataloged_structured_intent(
+    observations: list[dict[str, Any]],
+    *,
+    proof_source: str,
+) -> list[dict[str, Any]]:
+    cataloged: list[dict[str, Any]] = []
+    for observation in observations:
+        item = dict(observation)
+        item["live_proven"] = False
+        item["proof_status"] = "cataloged_intent"
+        item["proof_source"] = proof_source
+        cataloged.append(item)
+    return cataloged
+
+
 def _make_seed_row(
     *,
     corpus_row_id: str,
@@ -188,6 +235,10 @@ def _make_seed_row(
     exa_primary_selected: bool = False,
     external_source_promotion_rule_id: str | None = None,
 ) -> dict[str, Any]:
+    structured_observations = _with_structured_proof_defaults(
+        structured_observations,
+        default_proof_source="local_government_corpus_seed_matrix",
+    )
     has_true_structured = any(
         bool(item.get("true_structured")) for item in structured_observations
     )
@@ -252,6 +303,15 @@ def _make_seed_row(
         "query_families": query_families,
         "expected_official_source_families": expected_official_source_families,
         "expected_structured_source_families": expected_structured_source_families,
+        "expected_structured_depth_targets": [
+            {
+                "source_family": str(observation.get("source_family") or ""),
+                "depth": str(observation.get("depth") or ""),
+                "proof_status": str(observation.get("proof_status") or ""),
+            }
+            for observation in structured_observations
+            if observation.get("true_structured")
+        ],
         "known_official_domains": [
             f"{jurisdiction_id.replace('_', '')}.gov",
             "legistar.com",
@@ -1325,50 +1385,57 @@ def _build_cycle_45_expansion_rows() -> list[dict[str, Any]]:
                 if (jurisdiction_index + template_index) % 3 == 0
                 else "tuning"
             )
-            generated_rows.append(
-                _make_seed_row(
-                    corpus_row_id=row_id,
-                    jurisdiction_id=jurisdiction["id"],
-                    jurisdiction_name=jurisdiction["name"],
-                    jurisdiction_type=jurisdiction["type"],
-                    state=jurisdiction["state"],
-                    policy_family=template["policy_family"],
-                    mechanism_family=template["mechanism_family"],
-                    query_families=[
-                        f"{jurisdiction['name'].lower()} {template['query_stub']}"
-                    ],
-                    expected_official_source_families=template[
-                        "expected_official_source_families"
-                    ],
-                    expected_structured_source_families=template[
-                        "expected_structured_source_families"
-                    ],
-                    selected_primary_source_family=template[
-                        "selected_primary_source_family"
-                    ],
-                    selected_primary_source_url=template["source_url_template"].format(
-                        domain=jurisdiction["domain"],
-                        policy_code=template["policy_code"],
-                    ),
-                    source_officialness="official_primary",
-                    source_of_truth_role=template["source_of_truth_role"],
-                    evaluation_split=evaluation_split,
-                    blind_seed=evaluation_split == "blind_evaluation",
-                    known_policy_reference_id=(
-                        f"kp-{jurisdiction['slug']}-{template['policy_code']}-c45"
-                    ),
-                    data_moat_package_classification=template["classification"],
-                    d11_handoff_quality=template["d11_handoff_quality"],
-                    d11_reason=template["d11_reason"],
-                    structured_observations=template["structured_observations"],
-                    source_infrastructure_status="live_integrated",
-                    orchestration_mode=template["orchestration_mode"],
-                    manual_audit_priority="P1",
-                    manual_audit_sampled=generated_index < 24,
-                    deep_dive_type=template["deep_dive_type"],
-                    model_card_reuse_count=template["model_card_reuse_count"],
-                )
+            generated_row = _make_seed_row(
+                corpus_row_id=row_id,
+                jurisdiction_id=jurisdiction["id"],
+                jurisdiction_name=jurisdiction["name"],
+                jurisdiction_type=jurisdiction["type"],
+                state=jurisdiction["state"],
+                policy_family=template["policy_family"],
+                mechanism_family=template["mechanism_family"],
+                query_families=[
+                    f"{jurisdiction['name'].lower()} {template['query_stub']}"
+                ],
+                expected_official_source_families=template[
+                    "expected_official_source_families"
+                ],
+                expected_structured_source_families=template[
+                    "expected_structured_source_families"
+                ],
+                selected_primary_source_family=template[
+                    "selected_primary_source_family"
+                ],
+                selected_primary_source_url=template["source_url_template"].format(
+                    domain=jurisdiction["domain"],
+                    policy_code=template["policy_code"],
+                ),
+                source_officialness="official_primary",
+                source_of_truth_role=template["source_of_truth_role"],
+                evaluation_split=evaluation_split,
+                blind_seed=evaluation_split == "blind_evaluation",
+                known_policy_reference_id=(
+                    f"kp-{jurisdiction['slug']}-{template['policy_code']}-c45"
+                ),
+                data_moat_package_classification=template["classification"],
+                d11_handoff_quality=template["d11_handoff_quality"],
+                d11_reason=template["d11_reason"],
+                structured_observations=_as_cataloged_structured_intent(
+                    template["structured_observations"],
+                    proof_source="generated_expansion_matrix",
+                ),
+                source_infrastructure_status="cataloged_intent",
+                orchestration_mode=template["orchestration_mode"],
+                manual_audit_priority="P1",
+                manual_audit_sampled=generated_index < 24,
+                deep_dive_type=template["deep_dive_type"],
+                model_card_reuse_count=template["model_card_reuse_count"],
             )
+            extraction_depth = generated_row.get("extraction_depth")
+            if isinstance(extraction_depth, dict):
+                extraction_depth["live_exercised"] = False
+                extraction_depth["proof_status"] = "cataloged_intent"
+                extraction_depth["proof_source"] = "generated_expansion_matrix"
+            generated_rows.append(generated_row)
             generated_index += 1
     return generated_rows
 
@@ -1387,6 +1454,15 @@ def build_local_government_corpus_matrix_seed() -> dict[str, Any]:
                 row["expected_structured_source_families"][0]
                 if row["expected_structured_source_families"]
                 else "cataloged_absent"
+            ),
+            "expected_structured_depth_target": (
+                row["expected_structured_depth_targets"][0]
+                if row.get("expected_structured_depth_targets")
+                else {
+                    "source_family": "cataloged_absent",
+                    "depth": "cataloged_absent",
+                    "proof_status": "cataloged_absent",
+                }
             ),
             "expected_handoff_class": row["classification"][
                 "data_moat_package_classification"
@@ -1601,6 +1677,12 @@ class LocalGovernmentCorpusBenchmarkService:
         c13_metrics = c13_gate.get("metrics")
         if not isinstance(c13_metrics, dict):
             c13_metrics = {}
+        c2_metrics = (gates.get("C2", {}) or {}).get("metrics")
+        if not isinstance(c2_metrics, dict):
+            c2_metrics = {}
+        c14_metrics = (gates.get("C14", {}) or {}).get("metrics")
+        if not isinstance(c14_metrics, dict):
+            c14_metrics = {}
         c13_live_proven_rows = int(c13_metrics.get("live_proven_rows") or 0)
         c13_seeded_target_rows = int(
             c13_metrics.get("seeded_ref_target_rows")
@@ -1662,6 +1744,14 @@ class LocalGovernmentCorpusBenchmarkService:
 
         lines.extend(
             [
+                "",
+                "## Structured Proof Boundary",
+                "",
+                f"- C2 live structured coverage ratio: `{c2_metrics.get('live_structured_coverage_ratio')}`",
+                f"- C2 live true structured families: `{c2_metrics.get('live_true_structured_family_count')}`",
+                f"- C2 cataloged true structured families: `{c2_metrics.get('cataloged_true_structured_family_count')}`",
+                f"- C14 live non-fee families: `{c14_metrics.get('live_non_fee_family_count')}`",
+                f"- C14 cataloged non-fee families: `{c14_metrics.get('cataloged_non_fee_family_count')}`",
                 "",
                 "## C13 Burn-down",
                 "",
@@ -1963,8 +2053,12 @@ class LocalGovernmentCorpusBenchmarkService:
     def _evaluate_c2(self, *, rows: list[dict[str, Any]]) -> GateResult:
         source_families: set[str] = set()
         true_structured_families: set[str] = set()
+        live_true_structured_families: set[str] = set()
+        cataloged_true_structured_families: set[str] = set()
         true_structured_non_legistar = False
+        live_true_structured_non_legistar = False
         covered_cells = 0
+        live_covered_cells = 0
         uncovered_without_absence = 0
         non_primary_jurisdictions: dict[str, dict[str, bool]] = {}
 
@@ -1979,10 +2073,15 @@ class LocalGovernmentCorpusBenchmarkService:
             if jurisdiction_id and jurisdiction_id != "san_jose_ca":
                 non_primary_jurisdictions.setdefault(
                     jurisdiction_id,
-                    {"has_true_structured": False, "has_catalog_absence": False},
+                    {
+                        "has_live_true_structured": False,
+                        "has_cataloged_true_structured": False,
+                        "has_catalog_absence": False,
+                    },
                 )
 
             has_true_structured = False
+            has_live_true_structured = False
             for observation in row.get("structured_source_observations", []):
                 if not isinstance(observation, dict):
                     continue
@@ -1994,64 +2093,109 @@ class LocalGovernmentCorpusBenchmarkService:
                 if true_structured and family not in SECONDARY_SEARCH_FAMILIES:
                     has_true_structured = True
                     true_structured_families.add(family)
+                    live_proven = _structured_observation_is_live_proven(observation)
+                    if live_proven:
+                        has_live_true_structured = True
+                        live_true_structured_families.add(family)
+                    else:
+                        cataloged_true_structured_families.add(family)
                     if family not in LEGISTAR_LIKE_FAMILIES:
                         true_structured_non_legistar = True
+                        if live_proven:
+                            live_true_structured_non_legistar = True
                     if jurisdiction_id in non_primary_jurisdictions:
-                        non_primary_jurisdictions[jurisdiction_id][
-                            "has_true_structured"
-                        ] = True
+                        key = (
+                            "has_live_true_structured"
+                            if live_proven
+                            else "has_cataloged_true_structured"
+                        )
+                        non_primary_jurisdictions[jurisdiction_id][key] = True
 
             if has_true_structured:
                 covered_cells += 1
-            elif str(row.get("structured_cell_status") or "") == "cataloged_absent":
+            if has_live_true_structured:
+                live_covered_cells += 1
+            elif not has_true_structured and str(row.get("structured_cell_status") or "") == "cataloged_absent":
                 covered_cells += 1
                 if jurisdiction_id in non_primary_jurisdictions:
                     non_primary_jurisdictions[jurisdiction_id][
                         "has_catalog_absence"
                     ] = True
-            else:
+            elif not has_true_structured:
                 uncovered_without_absence += 1
 
         row_count = len(rows)
         coverage_ratio = covered_cells / row_count if row_count else 0.0
+        live_coverage_ratio = live_covered_cells / row_count if row_count else 0.0
         shallow_legistar_only = bool(
             true_structured_families
         ) and true_structured_families.issubset(LEGISTAR_LIKE_FAMILIES)
         missing_non_primary_structured = [
             jurisdiction
             for jurisdiction, status in non_primary_jurisdictions.items()
-            if not status["has_true_structured"] and not status["has_catalog_absence"]
+            if not status["has_live_true_structured"] and not status["has_catalog_absence"]
+        ]
+        non_primary_cataloged_only = [
+            jurisdiction
+            for jurisdiction, status in non_primary_jurisdictions.items()
+            if not status["has_live_true_structured"]
+            and status["has_cataloged_true_structured"]
         ]
         metrics = {
             "source_family_count": len(source_families),
             "true_structured_family_count": len(true_structured_families),
+            "live_true_structured_family_count": len(live_true_structured_families),
+            "cataloged_true_structured_family_count": len(
+                cataloged_true_structured_families
+            ),
             "coverage_ratio": round(coverage_ratio, 4),
+            "live_structured_coverage_ratio": round(live_coverage_ratio, 4),
             "non_legistar_true_structured_present": true_structured_non_legistar,
+            "live_non_legistar_true_structured_present": (
+                live_true_structured_non_legistar
+            ),
             "non_primary_jurisdiction_count": len(non_primary_jurisdictions),
             "non_primary_without_structured_or_absence": len(
                 missing_non_primary_structured
             ),
+            "non_primary_cataloged_only_count": len(non_primary_cataloged_only),
         }
 
         blockers: list[str] = []
         if len(source_families) < 5:
             blockers.append("source_family_count_below_5")
-        if len(true_structured_families) < 2:
-            blockers.append("true_structured_family_count_below_2")
-        if not true_structured_non_legistar:
-            blockers.append("non_legistar_true_structured_missing")
+        if len(live_true_structured_families) < 2:
+            blockers.append("live_true_structured_family_count_below_2")
+        if not live_true_structured_non_legistar:
+            blockers.append("live_non_legistar_true_structured_missing")
         if coverage_ratio < 0.4:
             blockers.append("structured_coverage_below_40_percent")
+        if live_coverage_ratio < 0.4:
+            blockers.append("live_structured_coverage_below_40_percent")
+        if cataloged_true_structured_families:
+            blockers.append("structured_sources_cataloged_not_live_proven")
         if uncovered_without_absence > 0:
             blockers.append("uncovered_cells_missing_catalog_absence_evidence")
         if missing_non_primary_structured:
             blockers.append("non_primary_jurisdictions_without_structured_or_absence")
+        if non_primary_cataloged_only:
+            blockers.append("non_primary_structured_sources_cataloged_not_live_proven")
         if shallow_legistar_only:
             blockers.append("shallow_legistar_only_structured_depth")
 
         if blockers:
+            status = (
+                "not_proven"
+                if cataloged_true_structured_families
+                and not {
+                    "source_family_count_below_5",
+                    "uncovered_cells_missing_catalog_absence_evidence",
+                    "shallow_legistar_only_structured_depth",
+                }.intersection(blockers)
+                else "fail"
+            )
             return GateResult(
-                status="fail",
+                status=status,
                 reason="C2 structured-source diversity/depth requirements not met.",
                 metrics=metrics,
                 blockers=blockers,
@@ -3176,6 +3320,7 @@ class LocalGovernmentCorpusBenchmarkService:
             if _is_non_fee_policy_family(str(row.get("policy_family") or ""))
         ]
         live_non_fee_families = set()
+        cataloged_non_fee_families = set()
         required_fact_fields = {
             "applicability_present",
             "effective_date_or_unknown_present",
@@ -3189,8 +3334,14 @@ class LocalGovernmentCorpusBenchmarkService:
             if not isinstance(extraction, dict):
                 rows_missing_facts.append(str(row.get("corpus_row_id") or "unknown"))
                 continue
-            if bool(extraction.get("live_exercised")):
+            proof_status = str(extraction.get("proof_status") or "")
+            live_exercised = bool(extraction.get("live_exercised")) and (
+                not proof_status or proof_status in LIVE_STRUCTURED_PROOF_STATUSES
+            )
+            if live_exercised:
                 live_non_fee_families.add(str(row.get("policy_family") or ""))
+            elif proof_status == "cataloged_intent":
+                cataloged_non_fee_families.add(str(row.get("policy_family") or ""))
             missing = [
                 field for field in required_fact_fields if field not in extraction
             ]
@@ -3203,6 +3354,7 @@ class LocalGovernmentCorpusBenchmarkService:
             "template_count": len(templates),
             "non_fee_row_count": len(non_fee_rows),
             "live_non_fee_family_count": len(live_non_fee_families),
+            "cataloged_non_fee_family_count": len(cataloged_non_fee_families),
             "rows_missing_fact_fields": len(rows_missing_facts),
         }
 
@@ -3211,12 +3363,15 @@ class LocalGovernmentCorpusBenchmarkService:
             blockers.append("non_fee_template_count_below_3")
         if len(live_non_fee_families) < 2:
             blockers.append("live_non_fee_family_count_below_2")
+        if cataloged_non_fee_families:
+            blockers.append("non_fee_extraction_templates_cataloged_not_live_proven")
         if rows_missing_facts:
             blockers.append("non_fee_extraction_fact_fields_missing")
         if blockers:
             status = (
                 "not_proven"
                 if "live_non_fee_family_count_below_2" in blockers
+                or "non_fee_extraction_templates_cataloged_not_live_proven" in blockers
                 else "fail"
             )
             return GateResult(

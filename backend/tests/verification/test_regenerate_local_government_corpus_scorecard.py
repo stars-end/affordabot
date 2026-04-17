@@ -146,6 +146,7 @@ def test_run_uses_overlay_and_records_artifact_inputs(tmp_path: Path) -> None:
     assert scorecard["corpus_state"] == "corpus_ready_with_gaps"
     report = report_path.read_text(encoding="utf-8")
     assert "C13: `not_proven`" in report
+    assert "## Structured Proof Boundary" in report
     assert "## C13 Burn-down" in report
     assert "orchestration-intent rows awaiting live proof" in report
     assert "remaining seeded ref rows" in report
