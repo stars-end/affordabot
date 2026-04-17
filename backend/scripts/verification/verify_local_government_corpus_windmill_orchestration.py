@@ -51,6 +51,7 @@ DEFAULT_WINDMILL_SCRIPT_PATH = "f/affordabot/pipeline_daily_refresh_domain_bound
 DEFAULT_WINDMILL_WORKSPACE = "affordabot"
 FEATURE_KEY = "bd-3wefe.13.4.6"
 CONTRACT_VERSION = "2026-04-17.windmill-domain.v2"
+TARGET_PROOF_STATUS_SEEDED_NOT_LIVE_PROVEN = "seeded_not_live_proven"
 
 
 @dataclass(frozen=True)
@@ -770,11 +771,31 @@ def _index_proven_rows(existing_report: dict[str, Any] | None) -> dict[str, dict
     return proven_by_id
 
 
+def _row_matches_target_proof_status(
+    *,
+    row: dict[str, Any],
+    target_proof_status: str,
+    windmill_proof_status: str | None,
+) -> bool:
+    if target_proof_status != TARGET_PROOF_STATUS_SEEDED_NOT_LIVE_PROVEN:
+        return False
+    if (
+        str(windmill_proof_status or "").strip()
+        == TARGET_PROOF_STATUS_SEEDED_NOT_LIVE_PROVEN
+    ):
+        return True
+    return _is_seeded_windmill_ref(row.get("windmill_run_id")) or _is_seeded_windmill_ref(
+        row.get("windmill_job_id")
+    )
+
+
 def _select_target_rows(
     *,
     baseline_rows: list[dict[str, Any]],
     max_cli_only_rows: int,
     target_row_ids: list[str],
+    target_proof_status: str | None,
+    windmill_proof_status_by_row_id: dict[str, str],
     skip_proven_output_rows: bool,
     existing_proven_row_ids: set[str],
 ) -> list[dict[str, Any]]:
@@ -794,7 +815,20 @@ def _select_target_rows(
             raise ValueError(f"Unknown --target-row-id value(s): {missing_display}")
         return [row_index[row_id] for row_id in deduped_ids]
 
-    targets = [row for row in baseline_rows if row.get("baseline_mode") == "cli_only"]
+    if target_proof_status:
+        targets = [
+            row
+            for row in baseline_rows
+            if _row_matches_target_proof_status(
+                row=row,
+                target_proof_status=target_proof_status,
+                windmill_proof_status=windmill_proof_status_by_row_id.get(
+                    str(row.get("corpus_row_id") or "")
+                ),
+            )
+        ]
+    else:
+        targets = [row for row in baseline_rows if row.get("baseline_mode") == "cli_only"]
     if skip_proven_output_rows:
         targets = [row for row in targets if row["corpus_row_id"] not in existing_proven_row_ids]
     return targets[: max(0, max_cli_only_rows)]
@@ -1374,6 +1408,7 @@ def run(
     max_cli_only_rows: int,
     skip_live: bool,
     target_row_ids: list[str] | None = None,
+    target_proof_status: str | None = None,
     skip_proven_output_rows: bool = True,
 ) -> dict[str, Any]:
     matrix = _load_json(matrix_path)
@@ -1385,10 +1420,31 @@ def run(
     existing_proven_attempts = _index_proven_attempts(existing_report)
 
     baseline_rows = _build_baseline_rows(matrix)
+    windmill_proof_status_by_row_id: dict[str, str] = {}
+    for row in matrix.get("rows", []):
+        if not isinstance(row, dict) or row.get("row_type") != "corpus_package":
+            continue
+        corpus_row_id = str(row.get("corpus_row_id") or "").strip()
+        if not corpus_row_id:
+            continue
+        infra = row.get("infrastructure_status")
+        if not isinstance(infra, dict):
+            continue
+        refs = infra.get("windmill_refs")
+        if not isinstance(refs, dict):
+            continue
+        proof_status = refs.get("proof_status")
+        if isinstance(proof_status, str) and proof_status.strip():
+            windmill_proof_status_by_row_id[corpus_row_id] = proof_status.strip()
+
     target_rows = _select_target_rows(
         baseline_rows=baseline_rows,
         max_cli_only_rows=max_cli_only_rows,
         target_row_ids=list(target_row_ids or []),
+        target_proof_status=(
+            str(target_proof_status).strip() if target_proof_status else None
+        ),
+        windmill_proof_status_by_row_id=windmill_proof_status_by_row_id,
         skip_proven_output_rows=bool(skip_proven_output_rows),
         existing_proven_row_ids=set(existing_proven_rows),
     )
@@ -1504,7 +1560,16 @@ def _parse_args() -> argparse.Namespace:
         "--skip-proven-output-rows",
         action=argparse.BooleanOptionalAction,
         default=True,
-        help="Skip cli_only rows already proven in the existing --out artifact.",
+        help="Skip selected target rows already proven in the existing --out artifact.",
+    )
+    parser.add_argument(
+        "--target-proof-status",
+        choices=[TARGET_PROOF_STATUS_SEEDED_NOT_LIVE_PROVEN],
+        default=None,
+        help=(
+            "Target rows by proof status; current selector includes rows with seeded "
+            "placeholder refs or proof_status=seeded_not_live_proven."
+        ),
     )
     parser.add_argument("--skip-live", action="store_true")
     return parser.parse_args()
@@ -1524,6 +1589,7 @@ def main() -> int:
         max_cli_only_rows=max(0, int(args.max_cli_only_rows)),
         skip_live=bool(args.skip_live),
         target_row_ids=list(args.target_row_id or []),
+        target_proof_status=args.target_proof_status,
         skip_proven_output_rows=bool(args.skip_proven_output_rows),
     )
     print(

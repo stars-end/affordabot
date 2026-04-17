@@ -63,6 +63,11 @@ def test_run_uses_overlay_and_records_artifact_inputs(tmp_path: Path) -> None:
     overlay_artifact = {
         "generated_at": "2026-04-17T09:02:17+00:00",
         "c13_verdict_candidate": "not_proven_unverified_live_refs",
+        "post_metrics": {
+            "seeded_placeholder_rows": ["lgm-seeded-a", "lgm-seeded-b"],
+            "missing_live_refs_rows": ["lgm-missing"],
+            "blocker_rows": [{"corpus_row_id": "lgm-blocked"}],
+        },
         "rows": [
             {
                 "corpus_row_id": row_id,
@@ -118,11 +123,27 @@ def test_run_uses_overlay_and_records_artifact_inputs(tmp_path: Path) -> None:
     )
     assert artifact_inputs["windmill_live_attempt_rows"] == [row_id]
     assert artifact_inputs["windmill_blocked_attempt_rows"] == ["lgm-blocked"]
+    assert artifact_inputs["windmill_overlay_burndown_summary"] == {
+        "seeded_placeholder_rows_remaining": 2,
+        "seeded_placeholder_rows_sample": ["lgm-seeded-a", "lgm-seeded-b"],
+        "missing_live_refs_rows_remaining": 1,
+        "blocked_row_count": 1,
+        "live_attempt_rows_proven": 1,
+        "next_seeded_ref_target_rows": ["lgm-seeded-a", "lgm-seeded-b"],
+    }
     assert scorecard["gates"]["C13"]["metrics"]["seeded_not_live_proven_rows"] == (
         baseline["gates"]["C13"]["metrics"]["seeded_not_live_proven_rows"] - 1
     )
+    assert (
+        scorecard["gates"]["C13"]["metrics"]["live_proof_coverage_ratio"]
+        > baseline["gates"]["C13"]["metrics"]["live_proof_coverage_ratio"]
+    )
+    assert row_id not in scorecard["gates"]["C13"]["metrics"]["next_seeded_ref_target_rows"]
     assert scorecard["corpus_state"] == "corpus_ready_with_gaps"
-    assert "C13: `not_proven`" in report_path.read_text(encoding="utf-8")
+    report = report_path.read_text(encoding="utf-8")
+    assert "C13: `not_proven`" in report
+    assert "## C13 Burn-down" in report
+    assert "remaining seeded ref rows" in report
 
 
 def test_run_keeps_c13_strict_when_overlay_contains_seeded_refs(tmp_path: Path) -> None:
@@ -175,4 +196,11 @@ def test_run_keeps_c13_strict_when_overlay_contains_seeded_refs(tmp_path: Path) 
     assert scorecard["gates"]["C13"]["metrics"]["seeded_not_live_proven_rows"] == (
         baseline["gates"]["C13"]["metrics"]["seeded_not_live_proven_rows"]
     )
+    assert (
+        scorecard["gates"]["C13"]["metrics"]["live_proof_coverage_ratio"]
+        == baseline["gates"]["C13"]["metrics"]["live_proof_coverage_ratio"]
+    )
+    assert scorecard["gates"]["C13"]["metrics"]["next_seeded_ref_target_rows"] == scorecard[
+        "gates"
+    ]["C13"]["metrics"]["remaining_seeded_ref_rows"][:10]
     assert scorecard["corpus_state"] == "corpus_ready_with_gaps"

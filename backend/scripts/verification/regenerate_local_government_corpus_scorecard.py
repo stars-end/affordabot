@@ -108,6 +108,40 @@ def _blocked_attempt_rows(artifact: dict[str, Any]) -> list[str]:
     return sorted(rows)
 
 
+def _row_id_list(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    rows: list[str] = []
+    for item in value:
+        row_id = str(item or "").strip()
+        if row_id:
+            rows.append(row_id)
+    return rows
+
+
+def _overlay_burndown_summary(artifact: dict[str, Any]) -> dict[str, Any]:
+    post_metrics = artifact.get("post_metrics")
+    if not isinstance(post_metrics, dict):
+        post_metrics = {}
+
+    seeded_placeholder_rows = _row_id_list(post_metrics.get("seeded_placeholder_rows"))
+    missing_live_refs_rows = _row_id_list(post_metrics.get("missing_live_refs_rows"))
+    blocker_rows = post_metrics.get("blocker_rows")
+    blocker_row_count = len(blocker_rows) if isinstance(blocker_rows, list) else 0
+    next_target_rows = seeded_placeholder_rows[:5]
+    if not next_target_rows:
+        next_target_rows = missing_live_refs_rows[:5]
+
+    return {
+        "seeded_placeholder_rows_remaining": len(seeded_placeholder_rows),
+        "seeded_placeholder_rows_sample": seeded_placeholder_rows[:10],
+        "missing_live_refs_rows_remaining": len(missing_live_refs_rows),
+        "blocked_row_count": blocker_row_count,
+        "live_attempt_rows_proven": len(_live_attempt_rows(artifact)),
+        "next_seeded_ref_target_rows": next_target_rows,
+    }
+
+
 def _build_artifact_inputs(
     *,
     windmill_orchestration_path: Path,
@@ -126,6 +160,9 @@ def _build_artifact_inputs(
             windmill_orchestration_artifact
         ),
         "windmill_blocked_attempt_rows": _blocked_attempt_rows(
+            windmill_orchestration_artifact
+        ),
+        "windmill_overlay_burndown_summary": _overlay_burndown_summary(
             windmill_orchestration_artifact
         ),
         "overlay_applied": True,

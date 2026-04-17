@@ -1,6 +1,6 @@
 {
   "schema_version": "manual_audit_local_government_corpus.v1",
-  "feature_key": "bd-3wefe.13.4.2",
+  "feature_key": "bd-3wefe.13.4.7",
   "benchmark_id": "local_government_data_moat_benchmark_v0",
   "taxonomy_version": "corpus_taxonomy_v1",
   "sample_strategy": {
@@ -8,8 +8,65 @@
     "matrix_package_count": 90,
     "required_sample_count": 30,
     "audited_package_count": 30,
-    "selection_note": "Cycle 45 stratified 30-row audit using six non-San-Jose jurisdictions with five packages each."
+    "selection_note": "Cycle 45 stratified 30-row sample retained; Cycle 49 adds lightweight live-proven Windmill row entries."
   },
+  "live_proven_audits": [
+    {
+      "corpus_row_id": "lgm-001",
+      "package_id": "pkg::lgm-001",
+      "jurisdiction_id": "san_jose_ca",
+      "policy_family": "commercial_linkage_fee",
+      "source_lane_status": "windmill_live",
+      "d11_economic_handoff_classification": "analysis_ready_with_gaps",
+      "manual_audit_status": "lightweight_live_proven_triage",
+      "evidence_boundary": "orchestration_proof_only_not_substantive_quality",
+      "manual_audit_note": "Live Windmill refs proven; substantive package quality still governed by C0-C14."
+    },
+    {
+      "corpus_row_id": "lgm-007",
+      "package_id": "pkg::lgm-007",
+      "jurisdiction_id": "oakland_ca",
+      "policy_family": "business_licensing_compliance",
+      "source_lane_status": "windmill_live",
+      "d11_economic_handoff_classification": "not_analysis_ready",
+      "manual_audit_status": "lightweight_live_proven_triage",
+      "evidence_boundary": "orchestration_proof_only_not_substantive_quality",
+      "manual_audit_note": "Live Windmill refs proven; substantive package quality still governed by C0-C14."
+    },
+    {
+      "corpus_row_id": "lgm-013",
+      "package_id": "pkg::lgm-013",
+      "jurisdiction_id": "portland_or",
+      "policy_family": "short_term_rental",
+      "source_lane_status": "windmill_live",
+      "d11_economic_handoff_classification": "not_analysis_ready",
+      "manual_audit_status": "lightweight_live_proven_triage",
+      "evidence_boundary": "orchestration_proof_only_not_substantive_quality",
+      "manual_audit_note": "Live Windmill refs proven; substantive package quality still governed by C0-C14."
+    },
+    {
+      "corpus_row_id": "lgm-015",
+      "package_id": "pkg::lgm-015",
+      "jurisdiction_id": "king_county_wa",
+      "policy_family": "meeting_action",
+      "source_lane_status": "windmill_live",
+      "d11_economic_handoff_classification": "not_analysis_ready",
+      "manual_audit_status": "lightweight_live_proven_triage",
+      "evidence_boundary": "orchestration_proof_only_not_substantive_quality",
+      "manual_audit_note": "Live Windmill refs proven; substantive package quality still governed by C0-C14."
+    },
+    {
+      "corpus_row_id": "lgm-018",
+      "package_id": "pkg::lgm-018",
+      "jurisdiction_id": "austin_tx",
+      "policy_family": "procurement_contract",
+      "source_lane_status": "windmill_live",
+      "d11_economic_handoff_classification": "not_analysis_ready",
+      "manual_audit_status": "lightweight_live_proven_triage",
+      "evidence_boundary": "orchestration_proof_only_not_substantive_quality",
+      "manual_audit_note": "Live Windmill refs proven; substantive package quality still governed by C0-C14."
+    }
+  ],
   "audits": [
     {
       "package_id": "pkg::lgm-019",

@@ -82,10 +82,16 @@ def test_seed_scorecard_encodes_c0_to_c14_without_false_pass() -> None:
     assert scorecard["gates"]["C1"]["status"] == "pass"
     assert scorecard["gates"]["C2"]["status"] == "pass"
     assert scorecard["gates"]["C13"]["status"] == "not_proven"
+    c13_metrics = scorecard["gates"]["C13"]["metrics"]
     assert (
         "windmill_refs_seeded_not_live_proven"
         in scorecard["gates"]["C13"]["blockers"]
     )
+    assert "live_proof_coverage_ratio" in c13_metrics
+    assert "next_seeded_ref_target_rows" in c13_metrics
+    assert c13_metrics["next_seeded_ref_target_rows"] == c13_metrics[
+        "remaining_seeded_ref_rows"
+    ][:10]
     assert scorecard["gates"]["C14"]["status"] == "pass"
     assert scorecard["corpus_state"] == "corpus_ready_with_gaps"
 
@@ -253,6 +259,7 @@ def test_c13_artifact_overlay_proven_row_upgrades_single_row() -> None:
     service = LocalGovernmentCorpusBenchmarkService()
     matrix = build_local_government_corpus_matrix_seed()
     baseline = service.evaluate(matrix=matrix)
+    baseline_c13_metrics = baseline["gates"]["C13"]["metrics"]
     rows = [row for row in matrix["rows"] if row.get("row_type") == "corpus_package"]
     proven_target = next(
         row
@@ -278,12 +285,29 @@ def test_c13_artifact_overlay_proven_row_upgrades_single_row() -> None:
         matrix=matrix,
         windmill_orchestration_artifact=artifact,
     )
+    c13_metrics = scorecard["gates"]["C13"]["metrics"]
 
     assert scorecard["gates"]["C13"]["status"] == "not_proven"
     assert (
-        scorecard["gates"]["C13"]["metrics"]["seeded_not_live_proven_rows"]
-        == baseline["gates"]["C13"]["metrics"]["seeded_not_live_proven_rows"] - 1
+        c13_metrics["seeded_not_live_proven_rows"]
+        == baseline_c13_metrics["seeded_not_live_proven_rows"] - 1
     )
+    assert (
+        c13_metrics["remaining_seeded_ref_row_count"]
+        == baseline_c13_metrics["remaining_seeded_ref_row_count"] - 1
+    )
+    assert c13_metrics["live_proof_coverage_ratio"] > baseline_c13_metrics[
+        "live_proof_coverage_ratio"
+    ]
+    assert (
+        c13_metrics["live_proof_coverage_ratio"]
+        == round(
+            c13_metrics["live_proven_rows"] / c13_metrics["seeded_ref_target_rows"],
+            4,
+        )
+    )
+    assert proven_row_id not in c13_metrics["remaining_seeded_ref_rows"]
+    assert proven_row_id not in c13_metrics["next_seeded_ref_target_rows"]
     assert (
         "windmill_refs_seeded_not_live_proven"
         in scorecard["gates"]["C13"]["blockers"]

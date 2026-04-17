@@ -662,3 +662,83 @@ Next blocker:
   live proof for generated `windmill_live` / `mixed` rows or changing generated
   corpus orchestration claims so only live-proven rows are labeled
   `windmill_live` / `mixed`.
+
+## Cycle 49: Seeded Windmill Ref Burn-Down + Live-Proven Audit Coverage
+
+Status: `completed_with_remaining_seeded_ref_gap`
+
+Started: 2026-04-17
+
+Scope:
+
+- Convert at least one generated `windmill_live` / `mixed` seeded row into a
+  live-proven row with authoritative Windmill run/job refs.
+- Add a repeatable verifier selector for `seeded_not_live_proven` rows so
+  future cycles can burn down C13 without hand-picking row ids.
+- Add scorecard/report burn-down metrics that show remaining seeded rows and
+  next target rows.
+- Ensure live-proven rows are represented in the manual audit surface without
+  confusing orchestration proof with substantive data-quality proof.
+
+Live command attempted (non-destructive, Windmill dev):
+
+- `poetry run python scripts/verification/verify_local_government_corpus_windmill_orchestration.py --target-row-id lgm-001 --skip-proven-output-rows --backend-timeout-seconds 600 --out ../docs/poc/policy-evidence-quality-spine/artifacts/local_government_corpus_windmill_orchestration.json`
+
+Observed live result:
+
+- `lgm-001` (`San Jose CA`, `commercial_linkage_fee`) proved live through
+  Windmill/backend with
+  `windmill_run_id=019d9ae2-497d-4eff-c8da-45fc7f1db924` and matching
+  `windmill_job_id`.
+- Live-proven corpus rows are now: `lgm-001`, `lgm-007`, `lgm-013`,
+  `lgm-015`, and `lgm-018`.
+
+Material changes:
+
+- Updated
+  `backend/scripts/verification/verify_local_government_corpus_windmill_orchestration.py`:
+  - added `--target-proof-status seeded_not_live_proven`;
+  - selector targets seeded placeholder refs or
+    `proof_status=seeded_not_live_proven`;
+  - existing `cli_only` default and explicit `--target-row-id` precedence are
+    preserved.
+- Updated
+  `backend/services/pipeline/local_government_corpus_benchmark.py` and
+  scorecard regeneration:
+  - added C13 burn-down metrics including `live_proof_coverage_ratio`,
+    `remaining_seeded_ref_row_count`, `remaining_seeded_ref_rows`, and
+    `next_seeded_ref_target_rows`;
+  - added `artifact_inputs.windmill_overlay_burndown_summary`;
+  - added a `C13 Burn-down` section to the corpus markdown report.
+- Updated manual-audit verifier/artifacts:
+  - verifier now derives live-proven rows from the scorecard and Windmill
+    overlay;
+  - `live_proven_audits` must cover live-proven rows;
+  - added lightweight entries for `lgm-001`, `lgm-007`, `lgm-013`, `lgm-015`,
+    and `lgm-018`;
+  - every live-proven audit row carries
+    `evidence_boundary=orchestration_proof_only_not_substantive_quality`.
+
+Gate impact:
+
+- `live_proven_rows` improved from `4` to `5`.
+- `live_proof_coverage_ratio=0.0556`.
+- `seeded_not_live_proven_rows` improved from `86` to `85`.
+- `cli_only_share` remains `0.0`.
+- C13 remains `not_proven` because `85` seeded rows remain.
+- Final state remains `corpus_ready_with_gaps`, not
+  `decision_grade_corpus`.
+
+Validation:
+
+- `cd backend && poetry run pytest tests/verification/test_verify_local_government_corpus_windmill_orchestration.py tests/services/pipeline/test_local_government_corpus_benchmark.py tests/verification/test_regenerate_local_government_corpus_scorecard.py tests/verification/test_verify_local_government_corpus_manual_audit.py` -> `40 passed`.
+- `cd backend && poetry run ruff check scripts/verification/verify_local_government_corpus_windmill_orchestration.py services/pipeline/local_government_corpus_benchmark.py scripts/verification/regenerate_local_government_corpus_scorecard.py scripts/verification/verify_local_government_corpus_manual_audit.py tests/verification/test_verify_local_government_corpus_windmill_orchestration.py tests/services/pipeline/test_local_government_corpus_benchmark.py tests/verification/test_regenerate_local_government_corpus_scorecard.py tests/verification/test_verify_local_government_corpus_manual_audit.py` -> pass.
+- `cd backend && poetry run python scripts/verification/verify_local_government_corpus_manual_audit.py --json` -> pass.
+
+Next blocker:
+
+- Cycle 50 should use `--target-proof-status seeded_not_live_proven` to run a
+  larger live batch from `next_seeded_ref_target_rows` and continue reducing
+  `remaining_seeded_ref_row_count`, or decide that running all 85 remaining
+  rows is not a useful local-cycle strategy and reclassify unproven generated
+  rows as orchestration intent rather than live-ready proof.

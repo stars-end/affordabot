@@ -1,6 +1,6 @@
-# Manual Audit: Local Government Corpus (Cycle 45)
+# Manual Audit: Local Government Corpus (Cycle 49)
 
-Feature-Key: `bd-3wefe.13.4.2`  
+Feature-Key: `bd-3wefe.13.4.7`
 Benchmark: `local_government_data_moat_benchmark_v0`
 
 ## Scope
@@ -33,7 +33,7 @@ Each audited package includes:
 12. product-surface/export status
 13. dominant failure class
 
-## Cycle 45 Stratified Sample
+## Stratified Sample
 
 - Matrix package count at audit time: `90`
 - Required C5 manual sample: `30` (>=30 rule)
@@ -63,7 +63,33 @@ Source-family stratification:
 
 Non-San-Jose jurisdictions with >=5 audited packages: `6` (requirement: `>=2`).
 
+## Live-Proven Windmill Rows (Lightweight Audit Surface)
+
+These rows are now represented explicitly in
+`live_proven_audits` inside the JSON artifact.
+
+This section is intentionally lightweight and does not upgrade corpus quality
+claims by itself.
+
+| corpus_row_id | jurisdiction_id | policy_family | source_lane_status | d11_handoff | manual_audit_status |
+| --- | --- | --- | --- | --- | --- |
+| `lgm-001` | `san_jose_ca` | `commercial_linkage_fee` | `windmill_live` | `analysis_ready_with_gaps` | `lightweight_live_proven_triage` |
+| `lgm-007` | `oakland_ca` | `business_licensing_compliance` | `windmill_live` | `not_analysis_ready` | `lightweight_live_proven_triage` |
+| `lgm-013` | `portland_or` | `short_term_rental` | `windmill_live` | `not_analysis_ready` | `lightweight_live_proven_triage` |
+| `lgm-015` | `king_county_wa` | `meeting_action` | `windmill_live` | `not_analysis_ready` | `lightweight_live_proven_triage` |
+| `lgm-018` | `austin_tx` | `procurement_contract` | `windmill_live` | `not_analysis_ready` | `lightweight_live_proven_triage` |
+
+Evidence boundary marker (required per row):
+
+- `evidence_boundary=orchestration_proof_only_not_substantive_quality`
+
+Interpretation:
+
+- `windmill_live` + concrete run/job refs proves orchestration evidence only.
+- Substantive policy quality and decision-grade handoff quality remain governed
+  by C0–C14 (not this lightweight list alone).
+
 ## Result
 
-Cycle 45 C5 manual-audit stratification status: `pass` under the verifier
-contract above.
+Cycle 49 manual-audit verification status: `pass` for C5 stratified sample plus
+live-proven row representation checks.

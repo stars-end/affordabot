@@ -105,6 +105,34 @@ def _build_compliant_payloads() -> tuple[dict, dict, dict]:
     return matrix_payload, manual_payload, golden_payload
 
 
+def _build_live_proven_audits(matrix_payload: dict, row_ids: list[str]) -> list[dict]:
+    rows_by_id = {
+        str(row.get("corpus_row_id") or ""): row
+        for row in matrix_payload.get("rows", [])
+        if isinstance(row, dict)
+    }
+    live_proven_audits: list[dict] = []
+    for row_id in row_ids:
+        row = rows_by_id[row_id]
+        classification = row.get("classification") or {}
+        jurisdiction = row.get("jurisdiction") or {}
+        live_proven_audits.append(
+            {
+                "corpus_row_id": row_id,
+                "package_id": row.get("package_id"),
+                "jurisdiction_id": jurisdiction.get("id"),
+                "policy_family": row.get("policy_family"),
+                "source_lane_status": "windmill_live",
+                "d11_economic_handoff_classification": classification.get(
+                    "d11_handoff_quality"
+                ),
+                "manual_audit_status": "lightweight_live_proven_triage",
+                "evidence_boundary": "orchestration_proof_only_not_substantive_quality",
+            }
+        )
+    return live_proven_audits
+
+
 def test_manual_audit_and_golden_pass_with_compliant_fixture() -> None:
     matrix_payload, manual_payload, golden_payload = _build_compliant_payloads()
     report = verify_manual_audit_and_golden(
@@ -117,6 +145,77 @@ def test_manual_audit_and_golden_pass_with_compliant_fixture() -> None:
     assert report["manual_audit"]["required_sample_count"] == 30
     assert report["manual_audit"]["audit_row_count"] == 30
     assert report["golden_regression"]["row_count"] == 30
+
+
+def test_live_proven_rows_from_scorecard_must_be_represented_in_manual_artifact() -> None:
+    matrix_payload, manual_payload, golden_payload = _build_compliant_payloads()
+    live_row_ids = [f"fixture-{index:03d}" for index in range(1, 5)]
+    mutated_manual = deepcopy(manual_payload)
+    mutated_manual["live_proven_audits"] = _build_live_proven_audits(
+        matrix_payload=matrix_payload,
+        row_ids=live_row_ids,
+    )
+    scorecard_payload = {"artifact_inputs": {"windmill_live_attempt_rows": live_row_ids}}
+
+    report = verify_manual_audit_and_golden(
+        matrix_payload=matrix_payload,
+        manual_audit_payload=mutated_manual,
+        golden_payload=golden_payload,
+        scorecard_payload=scorecard_payload,
+    )
+
+    assert report["status"] == "pass", report["failures"]
+    assert report["live_proven_manual_audit"]["missing_live_proven_row_ids"] == []
+
+    mutated_manual["live_proven_audits"] = mutated_manual["live_proven_audits"][:-1]
+    report_missing = verify_manual_audit_and_golden(
+        matrix_payload=matrix_payload,
+        manual_audit_payload=mutated_manual,
+        golden_payload=golden_payload,
+        scorecard_payload=scorecard_payload,
+    )
+
+    assert report_missing["status"] == "fail"
+    assert (
+        "live_proven_rows_missing_manual_audit_entries:fixture-004"
+        in report_missing["failures"]
+    )
+
+
+def test_live_proven_rows_can_be_detected_from_windmill_overlay() -> None:
+    matrix_payload, manual_payload, golden_payload = _build_compliant_payloads()
+    live_row_ids = [f"fixture-{index:03d}" for index in range(1, 3)]
+    mutated_manual = deepcopy(manual_payload)
+    mutated_manual["live_proven_audits"] = _build_live_proven_audits(
+        matrix_payload=matrix_payload,
+        row_ids=live_row_ids,
+    )
+    windmill_overlay_payload = {
+        "attempts": [
+            {
+                "corpus_row_id": live_row_ids[0],
+                "status": "proven",
+                "windmill_run_id": "019e0000-1111-2222-3333-444444444444",
+                "windmill_job_id": "019e0000-1111-2222-3333-444444444444",
+            },
+            {
+                "corpus_row_id": live_row_ids[1],
+                "status": "live_proven",
+                "windmill_run_id": "019e0000-1111-2222-3333-555555555555",
+                "windmill_job_id": "019e0000-1111-2222-3333-555555555555",
+            },
+        ]
+    }
+
+    report = verify_manual_audit_and_golden(
+        matrix_payload=matrix_payload,
+        manual_audit_payload=mutated_manual,
+        golden_payload=golden_payload,
+        windmill_overlay_payload=windmill_overlay_payload,
+    )
+
+    assert report["status"] == "pass", report["failures"]
+    assert report["live_proven_manual_audit"]["expected_live_proven_row_ids"] == live_row_ids
 
 
 def test_san_jose_only_audit_cannot_false_pass() -> None:
@@ -186,6 +285,7 @@ def test_missing_golden_required_field_fails() -> None:
 def test_repo_manual_audit_artifacts_have_required_fields() -> None:
     repo_root = Path(__file__).resolve().parents[3]
     artifact_dir = repo_root / "docs" / "poc" / "policy-evidence-quality-spine" / "artifacts"
+    expected_live_rows = ["lgm-001", "lgm-007", "lgm-013", "lgm-015", "lgm-018"]
 
     report = verify_local_government_manual_audit(
         matrix_path=artifact_dir / "local_government_corpus_matrix.json",
@@ -193,9 +293,20 @@ def test_repo_manual_audit_artifacts_have_required_fields() -> None:
         golden_path=artifact_dir / "golden_policy_regression_set.json",
     )
 
+    assert report["status"] == "pass", report["failures"]
     assert report["manual_audit"]["audit_row_count"] >= report["manual_audit"]["required_sample_count"]
     assert report["manual_audit"]["missing_required_field_count"] == 0
     assert report["golden_regression"]["missing_required_field_count"] == 0
+    assert report["live_proven_manual_audit"]["expected_live_proven_row_ids"] == expected_live_rows
+    assert report["live_proven_manual_audit"]["manual_live_proven_row_ids"] == expected_live_rows
+    assert report["live_proven_manual_audit"]["missing_live_proven_row_ids"] == []
 
     payload = json.loads((artifact_dir / "golden_policy_regression_set.json").read_text(encoding="utf-8"))
     assert payload.get("rows"), "golden policy regression set must not be empty"
+
+    manual_payload = json.loads(
+        (artifact_dir / "manual_audit_local_government_corpus.json").read_text(encoding="utf-8")
+    )
+    live_audits = manual_payload.get("live_proven_audits")
+    assert isinstance(live_audits, list) and live_audits
+    assert sorted(entry.get("corpus_row_id") for entry in live_audits) == expected_live_rows

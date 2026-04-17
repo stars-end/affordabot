@@ -1579,6 +1579,28 @@ class LocalGovernmentCorpusBenchmarkService:
         ]
         blocker = scorecard.get("next_eval_blocker") or {}
 
+        c13_gate = gates.get("C13", {})
+        c13_metrics = c13_gate.get("metrics")
+        if not isinstance(c13_metrics, dict):
+            c13_metrics = {}
+        c13_live_proven_rows = int(c13_metrics.get("live_proven_rows") or 0)
+        c13_seeded_target_rows = int(
+            c13_metrics.get("seeded_ref_target_rows")
+            or (c13_live_proven_rows + int(c13_metrics.get("seeded_not_live_proven_rows") or 0))
+        )
+        c13_remaining_seeded_rows = int(
+            c13_metrics.get("remaining_seeded_ref_row_count")
+            or c13_metrics.get("seeded_not_live_proven_rows")
+            or 0
+        )
+        c13_coverage_ratio = c13_metrics.get("live_proof_coverage_ratio")
+        c13_next_targets = c13_metrics.get("next_seeded_ref_target_rows")
+        if not isinstance(c13_next_targets, list):
+            c13_next_targets = []
+        c13_next_targets_display = ", ".join(
+            str(row_id) for row_id in c13_next_targets[:10]
+        ) or "none"
+
         lines = [
             "# Local Government Corpus Report",
             "",
@@ -1616,6 +1638,13 @@ class LocalGovernmentCorpusBenchmarkService:
 
         lines.extend(
             [
+                "",
+                "## C13 Burn-down",
+                "",
+                f"- live proof coverage ratio: `{c13_coverage_ratio}`",
+                f"- live proof progress: `{c13_live_proven_rows}/{c13_seeded_target_rows}`",
+                f"- remaining seeded ref rows: `{c13_remaining_seeded_rows}`",
+                f"- next seeded ref target rows: `{c13_next_targets_display}`",
                 "",
                 "## Current Gaps",
                 "",
@@ -2923,17 +2952,30 @@ class LocalGovernmentCorpusBenchmarkService:
 
         total = len(rows)
         cli_share = (mode_counts["cli_only"] / total) if total else 0.0
+        seeded_ref_target_rows = len(live_proven_rows) + len(seeded_not_live_proven_rows)
+        live_proof_coverage_ratio = (
+            round(len(live_proven_rows) / seeded_ref_target_rows, 4)
+            if seeded_ref_target_rows
+            else 1.0
+        )
+        remaining_seeded_ref_rows = list(seeded_not_live_proven_rows)
+        next_seeded_ref_target_rows = remaining_seeded_ref_rows[:10]
         metrics = {
             "row_count": total,
             "mode_counts": mode_counts,
             "cli_only_share": round(cli_share, 4),
             "live_proven_rows": len(live_proven_rows),
+            "seeded_ref_target_rows": seeded_ref_target_rows,
+            "live_proof_coverage_ratio": live_proof_coverage_ratio,
             "sample_live_proven_rows": live_proven_rows[:10],
             "cli_only_rows": len(cli_only_rows),
             "sample_cli_only_rows": cli_only_rows[:10],
             "missing_mode_rows": len(missing_mode_rows),
             "missing_live_refs_rows": len(missing_live_refs_rows),
             "seeded_not_live_proven_rows": len(seeded_not_live_proven_rows),
+            "remaining_seeded_ref_row_count": len(remaining_seeded_ref_rows),
+            "remaining_seeded_ref_rows": remaining_seeded_ref_rows,
+            "next_seeded_ref_target_rows": next_seeded_ref_target_rows,
             "sample_seeded_not_live_proven_rows": seeded_not_live_proven_rows[:10],
             "blocked_backend_scope_rows": len(blocked_backend_scope_rows),
             "sample_blocked_backend_scope_rows": blocked_backend_scope_rows[:10],

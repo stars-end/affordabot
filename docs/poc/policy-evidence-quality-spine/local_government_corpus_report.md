@@ -25,6 +25,13 @@
 - C13: `not_proven` - C13 has orchestration intent metadata, but live Windmill run/job refs are not proven.
 - C14: `pass` - C14 non-fee extraction templates and live exercised families satisfy depth contract.
 
+## C13 Burn-down
+
+- live proof coverage ratio: `0.0556`
+- live proof progress: `5/90`
+- remaining seeded ref rows: `85`
+- next seeded ref target rows: `lgm-002, lgm-003, lgm-004, lgm-005, lgm-006, lgm-008, lgm-009, lgm-010, lgm-011, lgm-012`
+
 ## Current Gaps
 
 - non-pass gate count: `1`

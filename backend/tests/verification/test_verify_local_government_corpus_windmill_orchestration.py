@@ -105,6 +105,56 @@ def _run_matrix_fixture() -> dict[str, object]:
     }
 
 
+def _run_matrix_fixture_with_seeded_targets() -> dict[str, object]:
+    return {
+        "benchmark_id": "local_government_data_moat_benchmark_v0",
+        "rows": [
+            {
+                "row_type": "corpus_package",
+                "corpus_row_id": "lgm-007",
+                "package_id": "pkg::lgm-007",
+                "jurisdiction": {"id": "oakland_ca", "name": "Oakland", "state": "CA"},
+                "policy_family": "business_licensing_compliance",
+                "infrastructure_status": {
+                    "orchestration_mode": "cli_only",
+                    "windmill_refs": None,
+                },
+            },
+            {
+                "row_type": "corpus_package",
+                "corpus_row_id": "lgm-008",
+                "package_id": "pkg::lgm-008",
+                "jurisdiction": {"id": "berkeley_ca", "name": "Berkeley", "state": "CA"},
+                "policy_family": "business_licensing_compliance",
+                "infrastructure_status": {
+                    "orchestration_mode": "windmill_live",
+                    "windmill_refs": {
+                        "flow_id": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+                        "run_id": "wm::lgm-008",
+                        "job_id": "wm-job::lgm-008",
+                    },
+                },
+            },
+            {
+                "row_type": "corpus_package",
+                "corpus_row_id": "lgm-009",
+                "package_id": "pkg::lgm-009",
+                "jurisdiction": {"id": "alameda_ca", "name": "Alameda", "state": "CA"},
+                "policy_family": "business_licensing_compliance",
+                "infrastructure_status": {
+                    "orchestration_mode": "mixed",
+                    "windmill_refs": {
+                        "flow_id": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+                        "run_id": "01J9KJ5FK0XQ7CG1WM89AZ6RY4",
+                        "job_id": "01J9KJ5FK0XQ7CG1WM89AZ6RY4",
+                        "proof_status": "seeded_not_live_proven",
+                    },
+                },
+            },
+        ],
+    }
+
+
 def _write_json(path: Path, payload: dict[str, object]) -> Path:
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return path
@@ -166,6 +216,16 @@ def _existing_output_with_proven_lgm_007() -> dict[str, object]:
             }
         ],
     }
+
+
+def _existing_output_with_proven_row(corpus_row_id: str) -> dict[str, object]:
+    payload = json.loads(json.dumps(_existing_output_with_proven_lgm_007()))
+    payload["rows"][0]["corpus_row_id"] = corpus_row_id
+    payload["rows"][0]["package_id"] = f"pkg::{corpus_row_id}"
+    payload["rows"][0]["idempotency_key"] = f"bd-3wefe.13.4.4:{corpus_row_id}:historical"
+    payload["attempts"][0]["corpus_row_id"] = corpus_row_id
+    payload["attempts"][0]["idempotency_key"] = f"bd-3wefe.13.4.4:{corpus_row_id}:historical"
+    return payload
 
 
 def test_build_report_pass_candidate_when_cli_only_is_eliminated():
@@ -553,10 +613,63 @@ def test_run_target_row_id_explicitly_selects_requested_row(tmp_path: Path):
         max_cli_only_rows=1,
         skip_live=True,
         target_row_ids=["lgm-007"],
+        target_proof_status=verify_module.TARGET_PROOF_STATUS_SEEDED_NOT_LIVE_PROVEN,
         skip_proven_output_rows=True,
     )
 
     assert report["surface_blocker"]["target_cli_only_rows"] == ["lgm-007"]
+
+
+def test_run_target_proof_status_selects_seeded_rows(tmp_path: Path):
+    matrix_path = _write_json(tmp_path / "matrix.json", _run_matrix_fixture_with_seeded_targets())
+    output_path = tmp_path / "orchestration.json"
+
+    report = verify_module.run(
+        matrix_path=matrix_path,
+        scorecard_path=None,
+        output_path=output_path,
+        workspace="affordabot",
+        flow_path="f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+        script_path="f/affordabot/pipeline_daily_refresh_domain_boundary",
+        command_client="backend_endpoint",
+        backend_timeout_seconds=180,
+        max_cli_only_rows=10,
+        skip_live=True,
+        target_row_ids=[],
+        target_proof_status=verify_module.TARGET_PROOF_STATUS_SEEDED_NOT_LIVE_PROVEN,
+        skip_proven_output_rows=True,
+    )
+
+    assert report["surface_blocker"]["target_cli_only_rows"] == ["lgm-008", "lgm-009"]
+
+
+def test_run_target_proof_status_skips_previously_proven_seeded_rows(tmp_path: Path):
+    matrix_path = _write_json(tmp_path / "matrix.json", _run_matrix_fixture_with_seeded_targets())
+    output_path = _write_json(
+        tmp_path / "orchestration.json",
+        _existing_output_with_proven_row("lgm-008"),
+    )
+
+    report = verify_module.run(
+        matrix_path=matrix_path,
+        scorecard_path=None,
+        output_path=output_path,
+        workspace="affordabot",
+        flow_path="f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+        script_path="f/affordabot/pipeline_daily_refresh_domain_boundary",
+        command_client="backend_endpoint",
+        backend_timeout_seconds=180,
+        max_cli_only_rows=10,
+        skip_live=True,
+        target_row_ids=[],
+        target_proof_status=verify_module.TARGET_PROOF_STATUS_SEEDED_NOT_LIVE_PROVEN,
+        skip_proven_output_rows=True,
+    )
+
+    assert report["surface_blocker"]["target_cli_only_rows"] == ["lgm-009"]
+    row_by_id = {row["corpus_row_id"]: row for row in report["rows"]}
+    assert row_by_id["lgm-008"]["row_status"] == "proven"
+    assert row_by_id["lgm-008"]["windmill_run_id"] == "01HISTORICALRUN0000000000000001"
 
 
 def test_run_fails_fast_on_unknown_target_row_id(tmp_path: Path):
