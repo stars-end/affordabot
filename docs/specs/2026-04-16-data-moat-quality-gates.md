@@ -53,7 +53,94 @@ Future agents start here:
 - Cycle 25 was a mechanics/narrow scraped pass, not a full data-moat pass.
 - The next POC must prove `decision_grade_data_moat`, or honestly classify the result as `evidence_ready_with_gaps`, `package_mechanics_only`, `fail`, or `blocked_hitl`.
 
-## Data Moat Gates
+## Corpus-Level Data Moat Gates
+
+The package gates below are necessary but not sufficient for the next
+super-reach goal. The next implementation pass targets
+`local_government_data_moat_benchmark_v0`, defined in
+[2026-04-17-local-government-data-moat-benchmark-v0.md](2026-04-17-local-government-data-moat-benchmark-v0.md).
+
+San Jose remains a calibrated fixture, not the product boundary. Before any
+architecture-lock claim, the corpus must be scored across multiple
+jurisdictions, policy families, and source families.
+
+Corpus result states:
+- `decision_grade_corpus`: corpus gates pass and selected packages satisfy
+  package/economic deep-dive gates.
+- `corpus_ready_with_gaps`: corpus is official-source-grounded and valuable,
+  but exact structured/economic/readiness gaps remain.
+- `package_mechanics_only`: storage/read-model mechanics work, but corpus data
+  substance is not proven.
+- `fail`: corpus evidence contradicts the data-moat standard.
+- `blocked_hitl`: only for real external or strategic blockers.
+
+### C0 Corpus Scope Gate
+
+Pass requires the corpus to cover at least 3 jurisdictions, 5 policy families,
+3 source families, and 30 to 50 evidence packages, or to document an exact
+evidence-backed shortfall.
+
+Fail if the proof remains San Jose-only, Legistar-only, CLF/fee-only, or
+single-source-family.
+
+### C1 Official-Source Dominance Gate
+
+Pass requires at least 80 percent of manually audited packages to select an
+official primary source: city, county, state, regulator, clerk, agenda system,
+official open data portal, or official attachment.
+
+Fail if external advocacy, news, vendor, nonprofit, or campaign sources win
+primary selection without an explicit fail verdict or a narrow documented
+source-of-truth promotion rule.
+
+### C2 Source-Family Diversity Gate
+
+Pass requires at least three source families in the corpus, including at least
+one true structured API/raw source where available.
+
+Fail if the corpus is effectively private SearXNG plus PDFs only, unless the
+source catalog proves structured-source absence for the selected jurisdictions
+and policy families.
+
+### C3 Package Reusability Gate
+
+Pass requires every package to carry standalone data-value classification:
+`economic_analysis_ready`, `economic_handoff_candidate`,
+`secondary_research_needed`, `qualitative_only`, `stored_not_economic`,
+`not_policy_evidence`, or `fail`.
+
+Packages can be data-moat assets even when not economic-ready if they are
+official, source-grounded, deduped, stored, auditable, and correctly classified.
+
+### C4 Economic Handoff Distribution Gate
+
+Pass requires at least 5 packages to be plausible economic-handoff candidates
+and at least 2 packages to reach deeper economic analysis or governed secondary
+research proof.
+
+Fail if the corpus has data value but the economic engine receives no clear
+handoff packets, missing-parameter inventory, or recommended next action.
+
+### C5 Manual Audit Sampling Gate
+
+Pass requires orchestrator manual audit across jurisdictions, policy families,
+and source families. The audit must inspect selected primary source,
+officialness, source family, structured contribution, package identity,
+storage/readback, data-moat classification, economic handoff classification,
+and dominant failure class.
+
+Fail if manual audit inspects only the best San Jose package.
+
+### C6 Golden Regression Gate
+
+Pass requires a reusable golden policy regression set with stable query inputs,
+expected jurisdiction, expected policy family, selected source URL, package id,
+verdict, and failure class.
+
+Fail if future agents cannot rerun the scorecard and compare search, ranking,
+reader, structured enrichment, or package quality.
+
+## Package-Level Data Moat Gates
 
 These are hard gates before architecture lock. Do not allow `pass` from narrative claims alone. Every pass must cite artifact path, package id/run id where applicable, and the concrete evidence.
 

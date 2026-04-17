@@ -49,9 +49,16 @@ economic input.
 
 ## Future Agent Start Here
 
-**STOP:** Do not launch another POC cycle before reading the [2026-04-16 data moat quality gates](../../specs/2026-04-16-data-moat-quality-gates.md). The original product gates (v2, described below) were passed mechanically but failed the data-moat substance bar (see `Current verdict` below for details). All future cycles must adhere to the hardened D0-D11 and E1-E5 gates in the new contract.
+**STOP:** Do not launch another POC cycle before reading the [2026-04-16 data moat quality gates](../../specs/2026-04-16-data-moat-quality-gates.md) and the [2026-04-17 local-government corpus benchmark](../../specs/2026-04-17-local-government-data-moat-benchmark-v0.md). The original product gates (v2, described below) were passed mechanically but failed the data-moat substance bar (see `Current verdict` below for details). All future cycles must adhere to the corpus C0-C6 gates, hardened D0-D11 package gates, and E1-E5 economic gates.
 
 The next cycle may not stop at "Windmill ran", "MinIO persisted", "admin read model displayed", "SearXNG found one PDF", "Tavily rescued parameters", or "economic analysis failed closed." Those are mechanics. The required target is a comprehensive, accurate, robust, fit-for-purpose data package that can honestly tell the economic engine whether to quantify, request secondary research, produce qualitative analysis, or fail closed.
+
+The next super-reach target is not another San Jose-only vertical. San Jose is a
+golden fixture. The target is `local_government_data_moat_benchmark_v0`: a
+multi-jurisdiction, multi-policy-family, multi-source-family corpus that proves
+official-source dominance, structured/scraped unification, package reusability,
+storage/readback, Windmill linkage, manual audit, and economic handoff
+classification.
 
 ### Cycle 25 Honest Verdict
 
