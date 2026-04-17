@@ -90,7 +90,7 @@ def test_seed_scorecard_encodes_c0_to_c14_without_false_pass() -> None:
     assert scorecard["corpus_state"] == "corpus_ready_with_gaps"
 
 
-def test_seeded_windmill_refs_do_not_satisfy_c13() -> None:
+def test_live_proven_windmill_refs_satisfy_c13() -> None:
     service = LocalGovernmentCorpusBenchmarkService()
     matrix = build_local_government_corpus_matrix_seed()
     rows = [row for row in matrix["rows"] if row.get("row_type") == "corpus_package"]
@@ -109,6 +109,163 @@ def test_seeded_windmill_refs_do_not_satisfy_c13() -> None:
 
     scorecard = service.evaluate(matrix=matrix)
     assert scorecard["gates"]["C13"]["status"] == "pass"
+
+
+def test_seeded_windmill_refs_fail_c13_for_decision_grade_target() -> None:
+    service = LocalGovernmentCorpusBenchmarkService()
+    matrix = build_local_government_corpus_matrix_seed()
+    matrix["corpus_readiness_target"] = "decision_grade_corpus"
+
+    scorecard = service.evaluate(matrix=matrix)
+    assert scorecard["gates"]["C13"]["status"] == "not_proven"
+    assert (
+        "windmill_refs_seeded_not_live_proven"
+        in scorecard["gates"]["C13"]["blockers"]
+    )
+
+
+def test_c13_artifact_overlay_blocked_row_stays_not_proven() -> None:
+    service = LocalGovernmentCorpusBenchmarkService()
+    matrix = build_local_government_corpus_matrix_seed()
+    baseline = service.evaluate(matrix=matrix)
+    rows = [row for row in matrix["rows"] if row.get("row_type") == "corpus_package"]
+    blocked_target = next(
+        row
+        for row in rows
+        if (row.get("infrastructure_status") or {}).get("orchestration_mode")
+        == "cli_only"
+    )
+    blocked_row_id = blocked_target["corpus_row_id"]
+
+    artifact = {
+        "rows": [
+            {
+                "corpus_row_id": blocked_row_id,
+                "row_status": "blocked",
+                "orchestration_mode": "blocked",
+                "blocker_class": "windmill_refs_incomplete",
+                "windmill_run_id": "01J9KJ5FK0XQ7CG1WM89AZ6RY4",
+                "windmill_job_id": None,
+            }
+        ]
+    }
+    scorecard = service.evaluate(
+        matrix=matrix,
+        windmill_orchestration_artifact=artifact,
+    )
+
+    assert scorecard["gates"]["C13"]["status"] == "not_proven"
+    assert (
+        scorecard["gates"]["C13"]["metrics"]["mode_counts"]["cli_only"]
+        == baseline["gates"]["C13"]["metrics"]["mode_counts"]["cli_only"]
+    )
+    assert (
+        "windmill_refs_seeded_not_live_proven"
+        in scorecard["gates"]["C13"]["blockers"]
+    )
+
+
+def test_c13_artifact_overlay_proven_row_upgrades_single_row() -> None:
+    service = LocalGovernmentCorpusBenchmarkService()
+    matrix = build_local_government_corpus_matrix_seed()
+    baseline = service.evaluate(matrix=matrix)
+    rows = [row for row in matrix["rows"] if row.get("row_type") == "corpus_package"]
+    proven_target = next(
+        row
+        for row in rows
+        if (row.get("infrastructure_status") or {}).get("orchestration_mode")
+        in {"windmill_live", "mixed"}
+    )
+    proven_row_id = proven_target["corpus_row_id"]
+
+    artifact = {
+        "rows": [
+            {
+                "corpus_row_id": proven_row_id,
+                "row_status": "proven",
+                "orchestration_mode": "windmill_live",
+                "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+                "windmill_run_id": "01J9KJ5FK0XQ7CG1WM89AZ6RY4",
+                "windmill_job_id": "01J9KJ5FK0XQ7CG1WM89AZ6RY4",
+            }
+        ]
+    }
+    scorecard = service.evaluate(
+        matrix=matrix,
+        windmill_orchestration_artifact=artifact,
+    )
+
+    assert scorecard["gates"]["C13"]["status"] == "not_proven"
+    assert (
+        scorecard["gates"]["C13"]["metrics"]["seeded_not_live_proven_rows"]
+        == baseline["gates"]["C13"]["metrics"]["seeded_not_live_proven_rows"] - 1
+    )
+    assert (
+        "windmill_refs_seeded_not_live_proven"
+        in scorecard["gates"]["C13"]["blockers"]
+    )
+
+
+def test_c13_artifact_overlay_can_satisfy_c13_with_live_proven_refs() -> None:
+    service = LocalGovernmentCorpusBenchmarkService()
+    matrix = build_local_government_corpus_matrix_seed()
+    rows = [row for row in matrix["rows"] if row.get("row_type") == "corpus_package"]
+    artifact_rows = []
+    for row in rows:
+        mode = (row.get("infrastructure_status") or {}).get("orchestration_mode")
+        if mode not in {"windmill_live", "mixed"}:
+            continue
+        row_id = str(row["corpus_row_id"])
+        artifact_rows.append(
+            {
+                "corpus_row_id": row_id,
+                "row_status": "proven",
+                "orchestration_mode": mode,
+                "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+                "windmill_run_id": f"live-run-{row_id}",
+                "windmill_job_id": f"live-job-{row_id}",
+            }
+        )
+    artifact = {"rows": artifact_rows}
+
+    scorecard = service.evaluate(
+        matrix=matrix,
+        windmill_orchestration_artifact=artifact,
+    )
+    assert scorecard["gates"]["C13"]["status"] == "pass"
+
+
+def test_decision_grade_c13_requires_proof_for_all_live_and_mixed_rows() -> None:
+    service = LocalGovernmentCorpusBenchmarkService()
+    matrix = build_local_government_corpus_matrix_seed()
+    matrix["corpus_readiness_target"] = "decision_grade_corpus"
+    rows = [row for row in matrix["rows"] if row.get("row_type") == "corpus_package"]
+    single_live_row = next(
+        row
+        for row in rows
+        if (row.get("infrastructure_status") or {}).get("orchestration_mode")
+        in {"windmill_live", "mixed"}
+    )
+    row_overlay = {
+        str(single_live_row["corpus_row_id"]): {
+            "orchestration_mode": "windmill_live",
+            "flow_id": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+            "run_id": "01J9KJ5FK0XQ7CG1WM89AZ6RY4",
+            "job_id": "01J9KJ5FK0XQ7CG1WM89AZ6RY4",
+            "proof_status": "live_proven",
+            "proof_source": "windmill_row_overlay",
+        }
+    }
+
+    scorecard = service.evaluate(
+        matrix=matrix,
+        windmill_row_proof_overlay=row_overlay,
+    )
+    assert scorecard["gates"]["C13"]["status"] == "not_proven"
+    assert (
+        "windmill_refs_seeded_not_live_proven"
+        in scorecard["gates"]["C13"]["blockers"]
+    )
 
 
 def test_san_jose_only_matrix_fails_c0() -> None:

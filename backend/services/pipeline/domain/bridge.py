@@ -140,6 +140,22 @@ _ROW_QUALITY_STRICT_LOCATOR_QUALITIES = {
     "page_locator_only",
 }
 _UNKNOWN_LAND_USE_VALUES = {"", "unknown", "other", "n/a", "na", "none", "null"}
+_NON_AUTHORITATIVE_WINDMILL_JOB_IDS = {
+    "run_scope_pipeline",
+    "build_scope_matrix",
+    "failure_handler",
+    "successful_summary",
+    "blocked_or_failed_summary",
+    "windmill-job-id",
+}
+_NON_AUTHORITATIVE_WINDMILL_JOB_PREFIXES = (
+    "run_scope_pipeline:",
+    "build_scope_matrix:",
+    "failure_handler:",
+    "successful_summary:",
+    "blocked_or_failed_summary:",
+    "windmill-job-id:",
+)
 
 
 def _utc_now() -> datetime:
@@ -178,6 +194,78 @@ def _scope_idempotency_key(request: "RunScopeRequest") -> str:
     """
     scope = f"{request.jurisdiction.strip().lower()}::{request.source_family.strip().lower()}"
     return f"{request.idempotency_key}::{_hash(scope)[:16]}"
+
+
+def _normalize_optional_string(value: Any) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+def _run_id_missing_reason(*, run_id_reported: str | None, idempotency_key: str) -> str | None:
+    if not run_id_reported:
+        return "windmill_run_id_not_provided"
+    if run_id_reported == "not_found":
+        return "windmill_run_id_not_found"
+    if run_id_reported == idempotency_key or run_id_reported.startswith(f"{idempotency_key}:"):
+        return "windmill_run_id_is_idempotency_fallback"
+    return None
+
+
+def _job_id_missing_reason(*, job_id_reported: str | None, idempotency_key: str) -> str | None:
+    if not job_id_reported:
+        return "windmill_job_id_not_provided"
+    lowered = job_id_reported.lower()
+    if (
+        lowered in _NON_AUTHORITATIVE_WINDMILL_JOB_IDS
+        or any(lowered.startswith(prefix) for prefix in _NON_AUTHORITATIVE_WINDMILL_JOB_PREFIXES)
+    ):
+        return "windmill_job_id_step_placeholder"
+    if job_id_reported == "not_found":
+        return "windmill_job_id_not_found"
+    if job_id_reported == idempotency_key or job_id_reported.startswith(f"{idempotency_key}:"):
+        return "windmill_job_id_is_idempotency_fallback"
+    return None
+
+
+def _orchestration_refs(request: "RunScopeRequest") -> dict[str, Any]:
+    idempotency_key = _normalize_optional_string(request.idempotency_key) or ""
+    run_id_reported = _normalize_optional_string(request.windmill_run_id)
+    job_id_reported = _normalize_optional_string(request.windmill_job_id)
+    scope_idempotency_key = _scope_idempotency_key(request)
+
+    run_missing_reason = _run_id_missing_reason(
+        run_id_reported=run_id_reported,
+        idempotency_key=idempotency_key,
+    )
+    job_missing_reason = _job_id_missing_reason(
+        job_id_reported=job_id_reported,
+        idempotency_key=idempotency_key,
+    )
+
+    return {
+        "windmill_workspace": _normalize_optional_string(request.windmill_workspace) or "",
+        "windmill_flow_path": _normalize_optional_string(request.windmill_flow_path) or "",
+        "idempotency_key": idempotency_key,
+        "scope_idempotency_key": scope_idempotency_key,
+        "windmill_run_id": None if run_missing_reason else run_id_reported,
+        "windmill_run_id_reported": run_id_reported,
+        "windmill_run_id_source": (
+            "windmill_flow_input"
+            if run_missing_reason is None
+            else ("missing" if run_id_reported is None else "windmill_flow_input_unverified")
+        ),
+        "windmill_run_id_missing_reason": run_missing_reason,
+        "windmill_job_id": None if job_missing_reason else job_id_reported,
+        "windmill_job_id_reported": job_id_reported,
+        "windmill_job_id_source": (
+            "windmill_flow_input"
+            if job_missing_reason is None
+            else ("missing" if job_id_reported is None else "windmill_flow_input_unverified")
+        ),
+        "windmill_job_id_missing_reason": job_missing_reason,
+    }
 
 
 @dataclass(frozen=True)
@@ -259,8 +347,8 @@ class RunScopeRequest:
     stale_status: str
     windmill_workspace: str
     windmill_flow_path: str
-    windmill_run_id: str
-    windmill_job_id: str
+    windmill_run_id: str | None
+    windmill_job_id: str | None
     search_query: str
     analysis_question: str
 
@@ -319,6 +407,7 @@ class RailwayRuntimeBridge:
         )
 
     async def run_scope_pipeline(self, request: RunScopeRequest) -> dict[str, Any]:
+        orchestration_refs = _orchestration_refs(request)
         run_id = await self._get_or_create_run_id(request)
         policy = FreshnessPolicy(
             fresh_hours=24,
@@ -326,10 +415,14 @@ class RailwayRuntimeBridge:
             fail_closed_ceiling_hours=168,
         )
         meta = WindmillMetadata(
-            run_id=request.windmill_run_id,
-            job_id=request.windmill_job_id,
-            workspace=request.windmill_workspace,
-            flow_path=request.windmill_flow_path,
+            run_id=(
+                str(orchestration_refs["windmill_run_id"])
+                if orchestration_refs["windmill_run_id"] is not None
+                else str(orchestration_refs["windmill_run_id_reported"] or request.idempotency_key)
+            ),
+            job_id=str(orchestration_refs["windmill_job_id_reported"] or ""),
+            workspace=str(orchestration_refs["windmill_workspace"]),
+            flow_path=str(orchestration_refs["windmill_flow_path"]),
         )
 
         responses: list[CommandResponse] = []
@@ -407,21 +500,28 @@ class RailwayRuntimeBridge:
             "status": summary.status,
             "decision_reason": summary.decision_reason,
             "idempotency_key": request.idempotency_key,
-            "scope_idempotency_key": _scope_idempotency_key(request),
+            "scope_idempotency_key": orchestration_refs["scope_idempotency_key"],
             "jurisdiction": request.jurisdiction,
             "source_family": request.source_family,
             "stale_status": freshness.decision_reason,
             "stale_status_requested": request.stale_status,
-            "windmill_workspace": request.windmill_workspace,
-            "windmill_flow_path": request.windmill_flow_path,
-            "windmill_run_id": request.windmill_run_id,
-            "windmill_job_id": request.windmill_job_id,
+            "windmill_workspace": orchestration_refs["windmill_workspace"],
+            "windmill_flow_path": orchestration_refs["windmill_flow_path"],
+            "windmill_run_id": orchestration_refs["windmill_run_id"],
+            "windmill_run_id_reported": orchestration_refs["windmill_run_id_reported"],
+            "windmill_run_id_source": orchestration_refs["windmill_run_id_source"],
+            "windmill_run_id_missing_reason": orchestration_refs["windmill_run_id_missing_reason"],
+            "windmill_job_id": orchestration_refs["windmill_job_id"],
+            "windmill_job_id_reported": orchestration_refs["windmill_job_id_reported"],
+            "windmill_job_id_source": orchestration_refs["windmill_job_id_source"],
+            "windmill_job_id_missing_reason": orchestration_refs["windmill_job_id_missing_reason"],
             "search_query": request.search_query,
             "analysis_question": request.analysis_question,
             "alerts": summary.alerts,
             "counts": summary.counts,
             "refs": summary.refs,
             "steps": steps,
+            "orchestration_refs": orchestration_refs,
             "storage_mode": "railway_runtime",
             "missing_runtime_adapters": [],
         }
@@ -3264,6 +3364,7 @@ class RailwayRuntimeBridge:
         elif not scraped_evidence_ready:
             reader_substance_reason = "empty_reader_output"
         package_artifact_uri = self._package_artifact_uri(package_id)
+        orchestration_refs = _orchestration_refs(request)
         package_payload = PolicyEvidencePackageBuilder().build(
             package_id=package_id,
             jurisdiction=request.jurisdiction,
@@ -3271,7 +3372,10 @@ class RailwayRuntimeBridge:
                 {
                     "source_lane": "scrape_search",
                     "provider": search_provider,
-                    "provider_run_id": request.windmill_run_id,
+                    "provider_run_id": (
+                        orchestration_refs["windmill_run_id"]
+                        or orchestration_refs["windmill_run_id_reported"]
+                    ),
                     "source_family": request.source_family,
                     "jurisdiction": request.jurisdiction,
                     "query_text": request.search_query,
@@ -3330,11 +3434,19 @@ class RailwayRuntimeBridge:
         package_payload["created_at"] = "1970-01-01T00:00:00+00:00"
         package_payload["run_context"] = {
             "backend_run_id": run_id,
-            "scope_idempotency_key": _scope_idempotency_key(request),
-            "windmill_run_id": request.windmill_run_id,
-            "windmill_job_id": request.windmill_job_id,
-            "windmill_workspace": request.windmill_workspace,
-            "windmill_flow_path": request.windmill_flow_path,
+            "idempotency_key": request.idempotency_key,
+            "scope_idempotency_key": orchestration_refs["scope_idempotency_key"],
+            "windmill_run_id": orchestration_refs["windmill_run_id"],
+            "windmill_run_id_reported": orchestration_refs["windmill_run_id_reported"],
+            "windmill_run_id_source": orchestration_refs["windmill_run_id_source"],
+            "windmill_run_id_missing_reason": orchestration_refs["windmill_run_id_missing_reason"],
+            "windmill_job_id": orchestration_refs["windmill_job_id"],
+            "windmill_job_id_reported": orchestration_refs["windmill_job_id_reported"],
+            "windmill_job_id_source": orchestration_refs["windmill_job_id_source"],
+            "windmill_job_id_missing_reason": orchestration_refs["windmill_job_id_missing_reason"],
+            "windmill_workspace": orchestration_refs["windmill_workspace"],
+            "windmill_flow_path": orchestration_refs["windmill_flow_path"],
+            "orchestration_refs": orchestration_refs,
             "canonical_document_key": canonical_document_key,
             "selected_url": selected_url,
             "reader_artifact_uri": reader_artifact_uri,
@@ -3465,6 +3577,12 @@ class RailwayRuntimeBridge:
         }
 
     async def _get_or_create_run_id(self, request: RunScopeRequest) -> str:
+        orchestration_refs = _orchestration_refs(request)
+        windmill_run_id_lookup = (
+            orchestration_refs["windmill_run_id"]
+            or orchestration_refs["windmill_run_id_reported"]
+            or request.idempotency_key
+        )
         existing = await self.db._fetchrow(
             """
             SELECT id
@@ -3475,7 +3593,7 @@ class RailwayRuntimeBridge:
             ORDER BY created_at DESC
             LIMIT 1
             """,
-            request.windmill_run_id,
+            windmill_run_id_lookup,
             request.source_family,
             request.jurisdiction,
         )
@@ -3496,9 +3614,9 @@ class RailwayRuntimeBridge:
             request.idempotency_key,
             request.jurisdiction,
             _json({}),
-            request.windmill_workspace,
-            request.windmill_run_id,
-            request.windmill_job_id,
+            orchestration_refs["windmill_workspace"],
+            windmill_run_id_lookup,
+            orchestration_refs["windmill_job_id"],
             request.source_family,
             request.contract_version,
             _scope_idempotency_key(request),
@@ -3605,6 +3723,7 @@ class RailwayRuntimeBridge:
     async def _persist_response(
         self, *, run_id: str, request: RunScopeRequest, response: CommandResponse
     ) -> CommandResponse:
+        orchestration_refs = _orchestration_refs(request)
         await self.db._execute(
             """
             INSERT INTO pipeline_command_results
@@ -3665,9 +3784,10 @@ class RailwayRuntimeBridge:
                 {
                     "contract_version": request.contract_version,
                     "idempotency_key": request.idempotency_key,
-                    "scope_idempotency_key": _scope_idempotency_key(request),
+                    "scope_idempotency_key": orchestration_refs["scope_idempotency_key"],
                     "jurisdiction": request.jurisdiction,
                     "source_family": request.source_family,
+                    "orchestration_refs": orchestration_refs,
                 }
             ),
             _json(response.to_dict()),
@@ -3676,7 +3796,7 @@ class RailwayRuntimeBridge:
             response.decision_reason,
             _json(response.alerts),
             _json(response.refs),
-            request.windmill_job_id,
+            orchestration_refs["windmill_job_id"],
             _scope_idempotency_key(request),
         )
         return response
@@ -4637,12 +4757,13 @@ class RailwayRuntimeBridge:
 
     @staticmethod
     def _step_payload(response: CommandResponse, request: RunScopeRequest) -> dict[str, Any]:
+        orchestration_refs = _orchestration_refs(request)
         payload = response.to_dict()
         payload["envelope"] = {
             "contract_version": request.contract_version,
             "orchestrator": "windmill",
             "idempotency_key": request.idempotency_key,
-            "scope_idempotency_key": _scope_idempotency_key(request),
+            "scope_idempotency_key": orchestration_refs["scope_idempotency_key"],
             "jurisdiction": request.jurisdiction,
             "source_family": request.source_family,
             "stale_status": request.stale_status,
@@ -4650,6 +4771,7 @@ class RailwayRuntimeBridge:
             "windmill_flow_path": request.windmill_flow_path,
             "windmill_run_id": request.windmill_run_id,
             "windmill_job_id": request.windmill_job_id,
+            "orchestration_refs": orchestration_refs,
             "search_query": request.search_query,
             "analysis_question": request.analysis_question,
         }
@@ -4685,6 +4807,7 @@ class PipelineDomainBridge:
         self, *, request: RunScopeRequest, runtime_missing: list[str]
     ) -> dict[str, Any]:
         with self._lock:
+            orchestration_refs = _orchestration_refs(request)
             self.state.now = _utc_now()
             service = self._build_service(
                 jurisdiction=request.jurisdiction,
@@ -4698,10 +4821,14 @@ class PipelineDomainBridge:
                 fail_closed_ceiling_hours=168,
             )
             meta = WindmillMetadata(
-                run_id=request.windmill_run_id,
-                job_id=request.windmill_job_id,
-                workspace=request.windmill_workspace,
-                flow_path=request.windmill_flow_path,
+                run_id=(
+                    str(orchestration_refs["windmill_run_id"])
+                    if orchestration_refs["windmill_run_id"] is not None
+                    else str(orchestration_refs["windmill_run_id_reported"] or request.idempotency_key)
+                ),
+                job_id=str(orchestration_refs["windmill_job_id_reported"] or ""),
+                workspace=str(orchestration_refs["windmill_workspace"]),
+                flow_path=str(orchestration_refs["windmill_flow_path"]),
             )
 
             search = service.search_materialize(
@@ -4754,20 +4881,28 @@ class PipelineDomainBridge:
                 "status": summary.status,
                 "decision_reason": summary.decision_reason,
                 "idempotency_key": request.idempotency_key,
+                "scope_idempotency_key": orchestration_refs["scope_idempotency_key"],
                 "jurisdiction": request.jurisdiction,
                 "source_family": request.source_family,
                 "stale_status": freshness.decision_reason,
                 "stale_status_requested": request.stale_status,
-                "windmill_workspace": request.windmill_workspace,
-                "windmill_flow_path": request.windmill_flow_path,
-                "windmill_run_id": request.windmill_run_id,
-                "windmill_job_id": request.windmill_job_id,
+                "windmill_workspace": orchestration_refs["windmill_workspace"],
+                "windmill_flow_path": orchestration_refs["windmill_flow_path"],
+                "windmill_run_id": orchestration_refs["windmill_run_id"],
+                "windmill_run_id_reported": orchestration_refs["windmill_run_id_reported"],
+                "windmill_run_id_source": orchestration_refs["windmill_run_id_source"],
+                "windmill_run_id_missing_reason": orchestration_refs["windmill_run_id_missing_reason"],
+                "windmill_job_id": orchestration_refs["windmill_job_id"],
+                "windmill_job_id_reported": orchestration_refs["windmill_job_id_reported"],
+                "windmill_job_id_source": orchestration_refs["windmill_job_id_source"],
+                "windmill_job_id_missing_reason": orchestration_refs["windmill_job_id_missing_reason"],
                 "search_query": request.search_query,
                 "analysis_question": request.analysis_question,
                 "alerts": summary.alerts,
                 "counts": summary.counts,
                 "refs": summary.refs,
                 "steps": steps,
+                "orchestration_refs": orchestration_refs,
                 "storage_mode": "in_memory_domain_ports",
                 "missing_runtime_adapters": runtime_missing,
             }
@@ -4861,12 +4996,13 @@ class PipelineDomainBridge:
         )
 
     def _step_payload(self, response: CommandResponse, request: RunScopeRequest) -> dict[str, Any]:
+        orchestration_refs = _orchestration_refs(request)
         payload = response.to_dict()
         payload["envelope"] = {
             "contract_version": request.contract_version,
             "orchestrator": "windmill",
             "idempotency_key": request.idempotency_key,
-            "scope_idempotency_key": _scope_idempotency_key(request),
+            "scope_idempotency_key": orchestration_refs["scope_idempotency_key"],
             "jurisdiction": request.jurisdiction,
             "source_family": request.source_family,
             "stale_status": request.stale_status,
@@ -4874,6 +5010,7 @@ class PipelineDomainBridge:
             "windmill_flow_path": request.windmill_flow_path,
             "windmill_run_id": request.windmill_run_id,
             "windmill_job_id": request.windmill_job_id,
+            "orchestration_refs": orchestration_refs,
             "search_query": request.search_query,
             "analysis_question": request.analysis_question,
         }

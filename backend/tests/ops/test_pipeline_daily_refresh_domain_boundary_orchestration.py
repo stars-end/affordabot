@@ -402,6 +402,23 @@ def test_backend_endpoint_mode_passthrough_success_payload(monkeypatch):
             return {
                 "status": "succeeded",
                 "decision_reason": "scope_completed",
+                "idempotency_key": "run:backend-endpoint-pass",
+                "scope_idempotency_key": "run:backend-endpoint-pass::scope",
+                "windmill_run_id": "01J9KJ5FK0XQ7CG1WM89AZ6RY4",
+                "windmill_run_id_reported": "01J9KJ5FK0XQ7CG1WM89AZ6RY4",
+                "windmill_run_id_source": "windmill_flow_input",
+                "windmill_run_id_missing_reason": None,
+                "windmill_job_id": "01J9KJ5FK0XQ7CG1WM89AZ6RY4",
+                "windmill_job_id_reported": "01J9KJ5FK0XQ7CG1WM89AZ6RY4",
+                "windmill_job_id_source": "windmill_flow_input",
+                "windmill_job_id_missing_reason": None,
+                "orchestration_refs": {
+                    "idempotency_key": "run:backend-endpoint-pass",
+                    "scope_idempotency_key": "run:backend-endpoint-pass::scope",
+                    "windmill_run_id": "01J9KJ5FK0XQ7CG1WM89AZ6RY4",
+                    "windmill_job_id": "01J9KJ5FK0XQ7CG1WM89AZ6RY4",
+                    "windmill_job_id_source": "windmill_flow_input",
+                },
                 "alerts": [],
                 "steps": {
                     "search_materialize": {"status": "succeeded"},
@@ -439,6 +456,9 @@ def test_backend_endpoint_mode_passthrough_success_payload(monkeypatch):
 
     assert result["status"] == "succeeded"
     assert result["backend_response"]["storage_mode"] == "in_memory_domain_ports"
+    assert result["backend_response"]["idempotency_key"] == "run:backend-endpoint-pass"
+    assert result["backend_response"]["scope_idempotency_key"] == "run:backend-endpoint-pass::scope"
+    assert result["backend_response"]["orchestration_refs"]["windmill_job_id"] == "01J9KJ5FK0XQ7CG1WM89AZ6RY4"
     assert "search_materialize" in result["steps"]
     assert captured
     first_call = captured[0]
@@ -450,3 +470,63 @@ def test_backend_endpoint_mode_passthrough_success_payload(monkeypatch):
     assert request_body["windmill_workspace"] == "affordabot"
     assert first_call["headers"]["Authorization"] == "Bearer token-123"
     assert first_call["headers"]["X-PR-CRON-SOURCE"] == "f/affordabot/pipeline_daily_refresh_domain_boundary__flow"
+
+
+def test_backend_endpoint_mode_passes_fail_closed_job_id_contract(monkeypatch):
+    class _FakeResponse:
+        status_code = 200
+
+        @staticmethod
+        def json():
+            return {
+                "status": "succeeded_with_alerts",
+                "decision_reason": "scope_completed_with_alerts",
+                "idempotency_key": "run:backend-endpoint-missing-job",
+                "scope_idempotency_key": "run:backend-endpoint-missing-job::scope",
+                "windmill_run_id": "01J9KJ5FK0XQ7CG1WM89AZ6RY4",
+                "windmill_run_id_reported": "01J9KJ5FK0XQ7CG1WM89AZ6RY4",
+                "windmill_run_id_source": "windmill_flow_input",
+                "windmill_run_id_missing_reason": None,
+                "windmill_job_id": None,
+                "windmill_job_id_reported": "run_scope_pipeline:0:run_scope_pipeline",
+                "windmill_job_id_source": "windmill_flow_input_unverified",
+                "windmill_job_id_missing_reason": "windmill_job_id_step_placeholder",
+                "orchestration_refs": {
+                    "idempotency_key": "run:backend-endpoint-missing-job",
+                    "scope_idempotency_key": "run:backend-endpoint-missing-job::scope",
+                    "windmill_run_id": "01J9KJ5FK0XQ7CG1WM89AZ6RY4",
+                    "windmill_job_id": None,
+                    "windmill_job_id_reported": "run_scope_pipeline:0:run_scope_pipeline",
+                    "windmill_job_id_source": "windmill_flow_input_unverified",
+                    "windmill_job_id_missing_reason": "windmill_job_id_step_placeholder",
+                },
+                "alerts": ["windmill_job_id_not_authoritative"],
+                "steps": {
+                    "search_materialize": {"status": "succeeded"},
+                    "freshness_gate": {"status": "succeeded", "decision_reason": "fresh"},
+                    "summarize_run": {"status": "succeeded_with_alerts"},
+                },
+                "storage_mode": "railway_runtime",
+                "missing_runtime_adapters": [],
+                "refs": {"windmill_run_id": "01J9KJ5FK0XQ7CG1WM89AZ6RY4"},
+            }
+
+        text = '{"status":"succeeded_with_alerts"}'
+
+    monkeypatch.setattr(module.requests, "post", lambda *args, **kwargs: _FakeResponse())  # noqa: ARG005
+    result = module.main(
+        step="run_scope_pipeline",
+        scope_item={"jurisdiction": "San Jose CA", "source_family": "meeting_minutes"},
+        command_client="backend_endpoint",
+        backend_endpoint_url="https://backend.example/cron/pipeline/domain/run-scope",
+        backend_endpoint_auth_token="token-123",
+    )
+
+    assert result["status"] == "succeeded"
+    backend_response = result["backend_response"]
+    assert backend_response["idempotency_key"] == "run:backend-endpoint-missing-job"
+    assert backend_response["scope_idempotency_key"] == "run:backend-endpoint-missing-job::scope"
+    assert backend_response["windmill_job_id"] is None
+    assert backend_response["windmill_job_id_source"] == "windmill_flow_input_unverified"
+    assert backend_response["windmill_job_id_missing_reason"] == "windmill_job_id_step_placeholder"
+    assert backend_response["orchestration_refs"]["windmill_job_id"] is None

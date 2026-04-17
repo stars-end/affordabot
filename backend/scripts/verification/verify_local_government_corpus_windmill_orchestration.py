@@ -42,15 +42,17 @@ DEFAULT_OUTPUT_PATH = (
     / "local_government_corpus_windmill_orchestration.json"
 )
 DEFAULT_WINDMILL_FLOW_PATH = "f/affordabot/pipeline_daily_refresh_domain_boundary__flow"
+DEFAULT_WINDMILL_SCRIPT_PATH = "f/affordabot/pipeline_daily_refresh_domain_boundary"
 DEFAULT_WINDMILL_WORKSPACE = "affordabot"
-FEATURE_KEY = "bd-3wefe.13.4.3"
-CONTRACT_VERSION = "2026-04-13.windmill-domain.v1"
+FEATURE_KEY = "bd-3wefe.13.4.4"
+CONTRACT_VERSION = "2026-04-17.windmill-domain.v2"
 
 
 @dataclass(frozen=True)
 class WindmillContext:
     workspace: str
     flow_path: str
+    script_path: str
     config_dir: str
 
 
@@ -69,6 +71,9 @@ class LiveAttempt:
     flow_response_status: str | None
     backend_scope_status: str | None
     idempotency_key: str
+    run_id_source: str | None
+    job_id_source: str | None
+    job_lookup_trace: tuple[str, ...]
 
     def to_json(self) -> dict[str, Any]:
         return {
@@ -85,11 +90,24 @@ class LiveAttempt:
             "flow_response_status": self.flow_response_status,
             "backend_scope_status": self.backend_scope_status,
             "idempotency_key": self.idempotency_key,
+            "run_id_source": self.run_id_source,
+            "job_id_source": self.job_id_source,
+            "job_lookup_trace": list(self.job_lookup_trace),
         }
 
 
 def _iso_now() -> str:
     return datetime.now(UTC).replace(microsecond=0).isoformat()
+
+
+def _parse_dt(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    text = value.replace("Z", "+00:00")
+    try:
+        return datetime.fromisoformat(text)
+    except ValueError:
+        return None
 
 
 def _matrix_digest(matrix: dict[str, Any]) -> str:
@@ -102,6 +120,14 @@ def _load_json(path: Path) -> dict[str, Any]:
 
 
 def _extract_last_json_object(text: str) -> dict[str, Any]:
+    raw_text = text.strip()
+    if raw_text:
+        try:
+            parsed = json.loads(raw_text)
+        except json.JSONDecodeError:
+            parsed = None
+        if isinstance(parsed, dict):
+            return parsed
     for line in reversed(text.splitlines()):
         raw = line.strip()
         if not raw.startswith("{"):
@@ -132,6 +158,28 @@ def _contains_string(payload: Any, needle: str) -> bool:
     return any(needle in item for item in _walk_strings(payload))
 
 
+def _is_seeded_windmill_ref(value: Any) -> bool:
+    if not isinstance(value, str):
+        return False
+    raw = value.strip()
+    return raw.startswith("wm::") or raw.startswith("wm-job::")
+
+
+def _authoritative_windmill_ref(value: Any, *, idempotency_key: str) -> str | None:
+    if not isinstance(value, str):
+        return None
+    raw = value.strip()
+    if not raw:
+        return None
+    if raw == idempotency_key:
+        return None
+    if raw == "not_found":
+        return None
+    if _is_seeded_windmill_ref(raw):
+        return None
+    return raw
+
+
 def _first_scope_result(flow_result: dict[str, Any]) -> dict[str, Any]:
     per_scope = flow_result.get("per_scope_pipeline")
     if isinstance(per_scope, list) and per_scope and isinstance(per_scope[0], dict):
@@ -155,18 +203,92 @@ def _extract_backend_scope_status(flow_result: dict[str, Any]) -> str | None:
     return None
 
 
-def _extract_windmill_run_id(flow_result: dict[str, Any], idempotency_key: str) -> str | None:
-    for key in ("windmill_run_id", "flow_job_id", "run_id", "id"):
-        value = flow_result.get(key)
-        if isinstance(value, str) and value:
-            return value
+def _extract_flow_refs(flow_result: dict[str, Any], *, idempotency_key: str) -> tuple[str | None, str | None]:
+    run_candidates: list[Any] = [
+        flow_result.get("windmill_run_id"),
+        flow_result.get("flow_job_id"),
+        flow_result.get("run_id"),
+        flow_result.get("id"),
+    ]
+    job_candidates: list[Any] = [
+        flow_result.get("windmill_job_id"),
+        flow_result.get("job_id"),
+    ]
+    for container_key in ("job", "flow_job", "flow_run"):
+        container = flow_result.get(container_key)
+        if isinstance(container, dict):
+            run_candidates.extend(
+                [container.get("windmill_run_id"), container.get("flow_job_id"), container.get("run_id"), container.get("id")]
+            )
+            job_candidates.extend([container.get("windmill_job_id"), container.get("job_id"), container.get("id")])
+
     scope = _first_scope_result(flow_result)
-    for candidate in _walk_strings(scope):
-        if "run_scope_pipeline" in candidate and idempotency_key in candidate:
-            return idempotency_key
-    if idempotency_key:
-        return idempotency_key
+    run_scope = (scope.get("steps") or {}).get("run_scope_pipeline")
+    if isinstance(run_scope, dict):
+        run_candidates.extend(
+            [run_scope.get("windmill_run_id"), run_scope.get("flow_job_id"), run_scope.get("run_id"), run_scope.get("id")]
+        )
+        job_candidates.extend([run_scope.get("windmill_job_id"), run_scope.get("job_id"), run_scope.get("id")])
+
+    run_id = next(
+        (
+            ref
+            for ref in (
+                _authoritative_windmill_ref(candidate, idempotency_key=idempotency_key) for candidate in run_candidates
+            )
+            if ref
+        ),
+        None,
+    )
+    job_id = next(
+        (
+            ref
+            for ref in (
+                _authoritative_windmill_ref(candidate, idempotency_key=idempotency_key) for candidate in job_candidates
+            )
+            if ref
+        ),
+        None,
+    )
+    return run_id, job_id
+
+
+def _job_matches_idempotency(job: dict[str, Any], idempotency_key: str) -> bool:
+    args = job.get("args")
+    if isinstance(args, dict):
+        raw = args.get("idempotency_key")
+        if isinstance(raw, str) and (raw == idempotency_key or raw.startswith(f"{idempotency_key}::")):
+            return True
+    return _contains_string(job, idempotency_key)
+
+
+def _find_job_for_idempotency(jobs: list[dict[str, Any]], idempotency_key: str) -> dict[str, Any] | None:
+    for job in jobs:
+        if _job_matches_idempotency(job, idempotency_key):
+            return job
     return None
+
+
+def _find_recent_flow_job(jobs: list[dict[str, Any]], *, flow_path: str, run_started_at: datetime) -> dict[str, Any] | None:
+    candidates: list[tuple[datetime, dict[str, Any]]] = []
+    for job in jobs:
+        if not isinstance(job, dict):
+            continue
+        if job.get("script_path") != flow_path:
+            continue
+        job_kind = job.get("job_kind")
+        if isinstance(job_kind, str) and job_kind and job_kind != "flow":
+            continue
+        created_at = _parse_dt(job.get("created_at"))
+        if not created_at:
+            continue
+        if created_at < run_started_at:
+            continue
+        candidates.append((created_at, job))
+    if not candidates:
+        return None
+    candidates.sort(key=lambda item: item[0], reverse=True)
+    return candidates[0][1]
 
 
 def _normalize_jurisdiction(row: dict[str, Any]) -> str:
@@ -231,7 +353,7 @@ def _wmill(config_dir: str, workspace: str, *args: str) -> subprocess.CompletedP
 
 
 @contextmanager
-def _windmill_context(*, workspace: str, flow_path: str) -> Any:
+def _windmill_context(*, workspace: str, flow_path: str, script_path: str) -> Any:
     with tempfile.TemporaryDirectory(prefix="lgm-c13-wmill-") as config_dir:
         token = _get_cached_secret("op://dev/Agent-Secrets-Production/WINDMILL_API_TOKEN")
         login_url = _get_cached_secret("op://dev/Agent-Secrets-Production/WINDMILL_DEV_LOGIN_URL")
@@ -281,7 +403,7 @@ def _windmill_context(*, workspace: str, flow_path: str) -> Any:
                 raise RuntimeError("windmill flow not deployed")
             raise RuntimeError("windmill flow get failed")
 
-        yield WindmillContext(workspace=workspace, flow_path=flow_path, config_dir=config_dir)
+        yield WindmillContext(workspace=workspace, flow_path=flow_path, script_path=script_path, config_dir=config_dir)
 
 
 def _build_mode_counts(rows: list[dict[str, Any]]) -> dict[str, int]:
@@ -326,6 +448,9 @@ def _build_baseline_rows(matrix: dict[str, Any]) -> list[dict[str, Any]]:
                 "command_client": None,
                 "command_attempted": None,
                 "idempotency_key": None,
+                "run_id_source": None,
+                "job_id_source": None,
+                "job_lookup_trace": [],
             }
         )
     return baseline
@@ -363,14 +488,16 @@ def _live_attempt_for_row(
     }
     command_attempted = (
         "windmill-cli flow run "
-        f"{context.flow_path} -d '{_safe_json(payload)}'"
+        f"{context.flow_path} -s -d '{_safe_json(payload)}'"
     )
+    run_started_at = datetime.now(UTC)
     run_proc = _wmill(
         context.config_dir,
         context.workspace,
         "flow",
         "run",
         context.flow_path,
+        "-s",
         "-d",
         _safe_json(payload),
     )
@@ -395,15 +522,26 @@ def _live_attempt_for_row(
             flow_response_status=None,
             backend_scope_status=None,
             idempotency_key=idempotency_key,
+            run_id_source=None,
+            job_id_source=None,
+            job_lookup_trace=(),
         )
 
     flow_result = _extract_last_json_object(run_proc.stdout.strip())
     flow_status = _extract_flow_response_status(flow_result)
     backend_scope_status = _extract_backend_scope_status(flow_result)
-    run_id = _extract_windmill_run_id(flow_result, idempotency_key=idempotency_key)
+    run_id, job_id = _extract_flow_refs(flow_result, idempotency_key=idempotency_key)
+    run_id_source = "flow_run_output" if run_id else None
+    job_id_source = "flow_run_output" if job_id else None
 
-    job_id: str | None = None
-    for _ in range(10):
+    lookup_trace: list[str] = []
+    if run_id:
+        lookup_trace.append("flow_run_output:windmill_run_id")
+    if job_id:
+        lookup_trace.append("flow_run_output:windmill_job_id")
+
+    for attempt_idx in range(10):
+        jobs: list[dict[str, Any]] = []
         job_proc = _wmill(
             context.config_dir,
             context.workspace,
@@ -416,21 +554,83 @@ def _live_attempt_for_row(
         )
         if job_proc.returncode == 0:
             try:
-                jobs = json.loads(job_proc.stdout or "[]")
+                parsed = json.loads(job_proc.stdout or "[]")
             except json.JSONDecodeError:
-                jobs = []
-            if isinstance(jobs, list):
-                for job in jobs:
-                    if isinstance(job, dict) and _contains_string(job, idempotency_key):
-                        candidate = job.get("id")
-                        if isinstance(candidate, str) and candidate:
+                parsed = []
+            if isinstance(parsed, list):
+                jobs = [job for job in parsed if isinstance(job, dict)]
+            lookup_trace.append(f"job_list_all[{attempt_idx}]:count={len(jobs)}")
+            matched_job = _find_job_for_idempotency(jobs, idempotency_key)
+            if matched_job:
+                candidate = _authoritative_windmill_ref(matched_job.get("id"), idempotency_key=idempotency_key)
+                if candidate:
+                    job_id = candidate
+                    job_id_source = "job_list_all:idempotency_match"
+                    lookup_trace.append(f"job_list_all[{attempt_idx}]:idempotency_match")
+                if not run_id and candidate:
+                    run_id = candidate
+                    run_id_source = "job_list_all:idempotency_match"
+                    lookup_trace.append(f"job_list_all[{attempt_idx}]:run_id_from_job_id")
+
+            if not job_id and attempt_idx in {0, 3, 6, 9}:
+                script_proc = _wmill(
+                    context.config_dir,
+                    context.workspace,
+                    "job",
+                    "list",
+                    "--script-path",
+                    context.script_path,
+                    "--all",
+                    "--limit",
+                    "120",
+                    "--json",
+                )
+                if script_proc.returncode == 0:
+                    try:
+                        parsed_script = json.loads(script_proc.stdout or "[]")
+                    except json.JSONDecodeError:
+                        parsed_script = []
+                    script_jobs: list[dict[str, Any]] = []
+                    if isinstance(parsed_script, list):
+                        script_jobs = [job for job in parsed_script if isinstance(job, dict)]
+                    lookup_trace.append(f"job_list_script_path[{attempt_idx}]:count={len(script_jobs)}")
+                    matched_script_job = _find_job_for_idempotency(script_jobs, idempotency_key)
+                    if matched_script_job:
+                        candidate = _authoritative_windmill_ref(
+                            matched_script_job.get("id"), idempotency_key=idempotency_key
+                        )
+                        if candidate:
                             job_id = candidate
-                            break
-        if job_id:
+                            job_id_source = "job_list_script_path:idempotency_match"
+                            lookup_trace.append(f"job_list_script_path[{attempt_idx}]:idempotency_match")
+                            if not run_id:
+                                run_id = candidate
+                                run_id_source = "job_list_script_path:idempotency_match"
+                                lookup_trace.append(f"job_list_script_path[{attempt_idx}]:run_id_from_job_id")
+                else:
+                    lookup_trace.append(f"job_list_script_path[{attempt_idx}]:non_zero")
+
+            if not job_id:
+                recent_job = _find_recent_flow_job(jobs, flow_path=context.flow_path, run_started_at=run_started_at)
+                if recent_job:
+                    candidate = _authoritative_windmill_ref(recent_job.get("id"), idempotency_key=idempotency_key)
+                    if candidate:
+                        job_id = candidate
+                        job_id_source = "job_list_all:recent_flow_job"
+                        lookup_trace.append(f"job_list_all[{attempt_idx}]:recent_flow_job")
+                        if not run_id:
+                            run_id = candidate
+                            run_id_source = "job_list_all:recent_flow_job"
+                            lookup_trace.append(f"job_list_all[{attempt_idx}]:run_id_from_recent_flow_job")
+        else:
+            lookup_trace.append(f"job_list_all[{attempt_idx}]:non_zero")
+
+        if run_id and job_id:
             break
         time.sleep(1.0)
 
-    proven = bool(run_id and job_id)
+    flow_blocked_or_failed = flow_status in {"failed", "blocked"}
+    proven = bool(run_id and job_id and not flow_blocked_or_failed)
     if proven:
         mode = "windmill_live" if command_client == "backend_endpoint" else "mixed"
         return LiveAttempt(
@@ -447,13 +647,22 @@ def _live_attempt_for_row(
             flow_response_status=flow_status,
             backend_scope_status=backend_scope_status,
             idempotency_key=idempotency_key,
+            run_id_source=run_id_source,
+            job_id_source=job_id_source,
+            job_lookup_trace=tuple(lookup_trace),
         )
 
     blocker_class = "windmill_refs_incomplete"
-    blocker_detail = "run did not return both windmill_run_id and windmill_job_id"
-    if flow_status in {"failed", "blocked"}:
+    blocker_detail = (
+        "run did not return both authoritative windmill_run_id and windmill_job_id; "
+        f"lookup_trace={'; '.join(lookup_trace[-6:]) if lookup_trace else 'none'}"
+    )
+    if flow_blocked_or_failed:
         blocker_class = "backend_scope_not_succeeded"
-        blocker_detail = f"flow_status={flow_status} backend_scope_status={backend_scope_status}"
+        blocker_detail = (
+            f"flow_status={flow_status} backend_scope_status={backend_scope_status}; "
+            f"run_id_source={run_id_source or 'missing'} job_id_source={job_id_source or 'missing'}"
+        )
     return LiveAttempt(
         corpus_row_id=corpus_row_id,
         status="blocked",
@@ -468,6 +677,9 @@ def _live_attempt_for_row(
         flow_response_status=flow_status,
         backend_scope_status=backend_scope_status,
         idempotency_key=idempotency_key,
+        run_id_source=run_id_source,
+        job_id_source=job_id_source,
+        job_lookup_trace=tuple(lookup_trace),
     )
 
 
@@ -497,6 +709,9 @@ def _merge_rows_with_attempts(
                 "command_client": attempt.command_client,
                 "command_attempted": attempt.command_attempted,
                 "idempotency_key": attempt.idempotency_key,
+                "run_id_source": attempt.run_id_source,
+                "job_id_source": attempt.job_id_source,
+                "job_lookup_trace": list(attempt.job_lookup_trace),
             }
         )
     return merged
@@ -520,6 +735,14 @@ def _build_report(
     baseline_cli_share = round((baseline_counts["cli_only"] / total_rows), 4) if total_rows else 0.0
     post_cli_share = round((post_counts["cli_only"] / total_rows), 4) if total_rows else 0.0
 
+    seeded_placeholder_rows = [
+        row["corpus_row_id"]
+        for row in merged_rows
+        if row.get("orchestration_mode") in {"windmill_live", "mixed"} and (
+            _is_seeded_windmill_ref(row.get("windmill_run_id"))
+            or _is_seeded_windmill_ref(row.get("windmill_job_id"))
+        )
+    ]
     missing_live_refs_rows = [
         row["corpus_row_id"]
         for row in merged_rows
@@ -528,6 +751,8 @@ def _build_report(
             not row.get("windmill_flow_path")
             or not row.get("windmill_run_id")
             or not row.get("windmill_job_id")
+            or _is_seeded_windmill_ref(row.get("windmill_run_id"))
+            or _is_seeded_windmill_ref(row.get("windmill_job_id"))
         )
     ]
     blocker_rows = [
@@ -550,6 +775,11 @@ def _build_report(
         verdict = "not_proven_blocked"
         next_action = (
             "Clear blocker rows (auth/deploy/runtime) and re-run this verifier with backend_endpoint mode."
+        )
+    elif missing_live_refs_rows:
+        verdict = "not_proven_unverified_live_refs"
+        next_action = (
+            "Replace seeded/placeholder refs with live-proven Windmill run/job ids for all windmill_live and mixed rows."
         )
     else:
         verdict = "not_proven_cli_only_share_above_cap"
@@ -587,6 +817,7 @@ def _build_report(
             "mode_counts": post_counts,
             "cli_only_share": post_cli_share,
             "missing_live_refs_rows": missing_live_refs_rows,
+            "seeded_placeholder_rows": seeded_placeholder_rows,
             "blocker_rows": blocker_rows,
         },
         "rows": merged_rows,
@@ -605,6 +836,7 @@ def run(
     output_path: Path,
     workspace: str,
     flow_path: str,
+    script_path: str,
     command_client: str,
     backend_timeout_seconds: int,
     max_cli_only_rows: int,
@@ -628,7 +860,7 @@ def run(
 
     if not skip_live and target_rows:
         try:
-            with _windmill_context(workspace=workspace, flow_path=flow_path) as context:
+            with _windmill_context(workspace=workspace, flow_path=flow_path, script_path=script_path) as context:
                 for target in target_rows:
                     source_row = next(
                         (
@@ -668,6 +900,9 @@ def run(
                         flow_response_status=None,
                         backend_scope_status=None,
                         idempotency_key=f"{FEATURE_KEY}:{target['corpus_row_id']}:surface-blocked",
+                        run_id_source=None,
+                        job_id_source=None,
+                        job_lookup_trace=(),
                     )
                 )
     elif skip_live:
@@ -702,6 +937,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--out", type=Path, default=DEFAULT_OUTPUT_PATH)
     parser.add_argument("--workspace", default=DEFAULT_WINDMILL_WORKSPACE)
     parser.add_argument("--flow-path", default=DEFAULT_WINDMILL_FLOW_PATH)
+    parser.add_argument("--script-path", default=DEFAULT_WINDMILL_SCRIPT_PATH)
     parser.add_argument(
         "--command-client",
         default="backend_endpoint",
@@ -721,6 +957,7 @@ def main() -> int:
         output_path=args.out,
         workspace=args.workspace,
         flow_path=args.flow_path,
+        script_path=args.script_path,
         command_client=args.command_client,
         backend_timeout_seconds=max(1, int(args.backend_timeout_seconds)),
         max_cli_only_rows=max(0, int(args.max_cli_only_rows)),

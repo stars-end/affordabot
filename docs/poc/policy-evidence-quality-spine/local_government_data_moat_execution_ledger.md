@@ -183,6 +183,48 @@ Next blocker:
   (or equivalent authoritative job ref extraction) so `windmill_job_id` is
   proven for attempted `cli_only` rows.
 
+## Cycle 46: C13 Run/Job Contract Hardening (Lane B)
+
+Status: `completed`
+
+Started: 2026-04-17
+
+Scope:
+
+- Harden backend-owned run/job orchestration contract for
+  `pipeline_daily_refresh_domain_boundary__flow` backend-endpoint mode.
+- Preserve backward-compatible raw refs while publishing explicit
+  authoritative-or-null refs with fail-closed diagnostics.
+
+Material changes:
+
+- Added backend `orchestration_refs` normalization in
+  `backend/services/pipeline/domain/bridge.py`.
+- Backend response now returns:
+  - authoritative-or-null `windmill_run_id` and `windmill_job_id`;
+  - `windmill_*_reported`, `windmill_*_source`, and
+    `windmill_*_missing_reason` diagnostics;
+  - top-level `orchestration_refs` with `idempotency_key` and
+    `scope_idempotency_key`.
+- Policy package `run_context` now records the same orchestration ref contract
+  and idempotency linkage fields.
+- Windmill script passthrough now preserves backend endpoint orchestration
+  metadata instead of dropping it into a minimal subset.
+
+Validation:
+
+- `cd backend && poetry run pytest tests/ops/test_pipeline_daily_refresh_domain_boundary_orchestration.py tests/ops/test_windmill_contract.py` -> pass.
+- `cd backend && poetry run ruff check services/pipeline/domain/bridge.py tests/ops/test_pipeline_daily_refresh_domain_boundary_orchestration.py tests/ops/test_windmill_contract.py` -> pass.
+- `git diff --check` -> pass.
+
+Outcome for C13 lane B:
+
+- Backend now fails closed with explicit diagnostics when `windmill_job_id`
+  cannot be proven authoritative (for example, step-placeholder values like
+  `run_scope_pipeline:0:run_scope_pipeline`).
+- Windmill/backend-endpoint orchestration surfaces now keep idempotency and
+  run/job reference provenance in the returned contract.
+
 ## Cycle 45: Corpus Expansion to 90 Packages (Worker D)
 
 Status: `completed`
@@ -316,3 +358,138 @@ Next blocker:
 - Cycle 46 must either extract authoritative Windmill job IDs for live
   backend-endpoint runs or change the Windmill flow/backend response contract
   so job/run refs are returned and persisted into the corpus matrix.
+
+## Cycle 46: C13 Live Ref Proof Hardening (Lane A)
+
+Status: `completed_with_blocker`
+
+Started: 2026-04-17
+
+Scope:
+
+- Harden C13 verifier Windmill run/job proof extraction so seeded placeholders
+  are never accepted as live proof.
+- Improve job lookup robustness after `flow run` using layered authoritative
+  lookups aligned with live-gate behavior.
+
+Material changes:
+
+- Updated
+  `backend/scripts/verification/verify_local_government_corpus_windmill_orchestration.py`:
+  - switched manual dispatch to `windmill-cli flow run ... -s -d ...`;
+  - added authoritative flow/run ref extraction and explicit seeded/idempotency
+    rejection for run/job refs;
+  - added layered job lookup: `job list --all`, `job list --script-path ...`,
+    and recent-flow fallback;
+  - added diagnostic trace fields (`run_id_source`, `job_id_source`,
+    `job_lookup_trace`) to attempts/rows;
+  - fail-closed verdict path for unverified live refs:
+    `not_proven_unverified_live_refs`;
+  - added `seeded_placeholder_rows` metric in post-metrics.
+- Updated
+  `backend/tests/verification/test_verify_local_government_corpus_windmill_orchestration.py`
+  with extraction-path coverage and false-pass regression coverage.
+
+Validation:
+
+- `cd backend && poetry run pytest tests/verification/test_verify_local_government_corpus_windmill_orchestration.py` -> `6 passed`.
+- `cd backend && poetry run ruff check scripts/verification/verify_local_government_corpus_windmill_orchestration.py tests/verification/test_verify_local_government_corpus_windmill_orchestration.py` -> pass.
+- `git diff --check` -> pass.
+
+Current C13 status:
+
+- Still `not_proven` unless a live run returns or can be correlated to an
+  authoritative `windmill_job_id` (and non-seeded run ref) under the hardened
+  checks.
+
+## Cycle 46: Lane C C13 Scorecard/Artifact Integration Hardening
+
+Status: `completed`
+
+Started: 2026-04-17
+
+Scope:
+
+- Make C13 scorecard evaluation ingest Windmill orchestration proof overlays
+  (artifact-level and row-level) without changing the Windmill verifier script.
+- Keep seeded `wm::` and `wm-job::` refs fail-closed.
+- Require live-proof coverage across all `windmill_live` / `mixed` rows before
+  a decision-grade C13 pass.
+
+Material changes:
+
+- Updated
+  `backend/services/pipeline/local_government_corpus_benchmark.py`:
+  - `evaluate()` now accepts optional
+    `windmill_orchestration_artifact` and `windmill_row_proof_overlay`;
+  - added C13-only overlay ingestion helpers that parse artifact `rows` and
+    `attempts`, normalize row overlays, and apply them to infrastructure refs;
+  - C13 proof acceptance still requires non-placeholder run/job ids plus
+    live-proof semantics.
+- Updated
+  `backend/tests/services/pipeline/test_local_government_corpus_benchmark.py`
+  with C13 regression coverage for:
+  - seeded refs fail under decision-grade target;
+  - blocked overlay row stays `not_proven`;
+  - proven overlay row upgrades only that row;
+  - artifact overlay can satisfy C13 when all live/mixed rows are proven;
+  - decision-grade C13 remains `not_proven` unless all live/mixed rows are proven.
+
+Gate/State impact:
+
+- Default Cycle 45 seed matrix remains `C13=not_proven`.
+- `corpus_state` remains `corpus_ready_with_gaps` until real live-proof refs
+  are present for all live/mixed rows.
+
+Validation:
+
+- `cd backend && poetry run pytest tests/services/pipeline/test_local_government_corpus_benchmark.py` -> `15 passed`.
+- `cd backend && poetry run ruff check services/pipeline/local_government_corpus_benchmark.py tests/services/pipeline/test_local_government_corpus_benchmark.py` -> pass.
+- `git diff --check` -> pass.
+
+## Cycle 46: Orchestrator Live Verification + Integration Review
+
+Status: `completed_with_remaining_c13_gap`
+
+Started: 2026-04-17
+
+Scope:
+
+- Integrate Cycle 46 lanes A/B/C into the PR worktree.
+- Rerun live Windmill C13 verification with the hardened synchronous verifier.
+- Regenerate corpus scorecard/report with the live Windmill proof artifact
+  overlaid into C13 scoring.
+
+Live command attempted (non-destructive, Windmill dev):
+
+- `poetry run python scripts/verification/verify_local_government_corpus_windmill_orchestration.py --backend-timeout-seconds 180 --max-cli-only-rows 1 --out ../docs/poc/policy-evidence-quality-spine/artifacts/local_government_corpus_windmill_orchestration.json`
+
+Observed live result:
+
+- Row exercised: `lgm-007` (`Oakland CA`, `business_licensing_compliance`).
+- `windmill_run_id=019d9aaa-aac1-7295-22b8-037eb393f686`.
+- `windmill_job_id=019d9aaa-aac1-7295-22b8-037eb393f686`.
+- `flow_response_status=succeeded`.
+- `run_id_source=job_list_all:recent_flow_job`.
+- `job_id_source=job_list_all:recent_flow_job`.
+- `job_lookup_trace` includes `job list --all`, `job list --script-path`,
+  and recent-flow fallback.
+
+Gate impact:
+
+- `C13` improved from no authoritative job refs to one live-proven corpus row.
+- `cli_only_share` improved from `0.0444` (`4/90`) to `0.0333` (`3/90`).
+- `C13` remains `not_proven` because `86` live/mixed rows still carry seeded
+  `wm::`/`wm-job::` placeholder refs.
+- Final state remains `corpus_ready_with_gaps`, not `decision_grade_corpus`.
+
+Validation:
+
+- `cd backend && poetry run pytest tests/verification/test_verify_local_government_corpus_windmill_orchestration.py tests/services/pipeline/test_local_government_corpus_benchmark.py tests/ops/test_pipeline_daily_refresh_domain_boundary_orchestration.py tests/ops/test_windmill_contract.py` -> `58 passed`.
+- `cd backend && poetry run ruff check scripts/verification/verify_local_government_corpus_windmill_orchestration.py services/pipeline/domain/bridge.py services/pipeline/local_government_corpus_benchmark.py tests/verification/test_verify_local_government_corpus_windmill_orchestration.py tests/services/pipeline/test_local_government_corpus_benchmark.py tests/ops/test_pipeline_daily_refresh_domain_boundary_orchestration.py tests/ops/test_windmill_contract.py ../ops/windmill/f/affordabot/pipeline_daily_refresh_domain_boundary.py` -> pass.
+
+Next blocker:
+
+- Cycle 47 must batch-run enough corpus rows through live Windmill or reduce
+  generated `windmill_live` / `mixed` claims until the C13 scorecard reflects
+  only live-proven refs. Seeded refs remain orchestration intent only.

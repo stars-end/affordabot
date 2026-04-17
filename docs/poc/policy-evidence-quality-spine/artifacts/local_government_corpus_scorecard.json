@@ -4,7 +4,7 @@
   "scorecard_schema_version": "local_government_corpus_scorecard_v1",
   "taxonomy_version": "corpus_taxonomy_v1",
   "gate_version": "data_moat_c0_c14_v1",
-  "generated_at": "2026-04-17T08:30:10+00:00",
+  "generated_at": "2026-04-17T09:02:41+00:00",
   "matrix_digest": "27b1db98df46a04658af6b89ac35623e706cd979742810ba2a3eb3ec66b9eafa",
   "matrix_summary": {
     "row_count_total": 92,
@@ -221,11 +221,11 @@
       "metrics": {
         "row_count": 90,
         "mode_counts": {
-          "windmill_live": 44,
-          "cli_only": 4,
+          "windmill_live": 45,
+          "cli_only": 3,
           "mixed": 42
         },
-        "cli_only_share": 0.0444,
+        "cli_only_share": 0.0333,
         "missing_mode_rows": 0,
         "missing_live_refs_rows": 0,
         "seeded_not_live_proven_rows": 86,
@@ -2732,5 +2732,12 @@
       "description": "Increase windmill_live share for policy families that still run in mixed mode.",
       "target_rows": 12
     }
-  ]
+  ],
+  "artifact_inputs": {
+    "windmill_orchestration_artifact": "docs/poc/policy-evidence-quality-spine/artifacts/local_government_corpus_windmill_orchestration.json",
+    "windmill_orchestration_verdict": "not_proven_unverified_live_refs",
+    "windmill_live_attempt_rows": [
+      "lgm-007"
+    ]
+  }
 }

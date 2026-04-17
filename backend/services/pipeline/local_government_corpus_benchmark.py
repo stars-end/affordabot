@@ -1500,12 +1500,24 @@ def build_local_government_corpus_matrix_seed() -> dict[str, Any]:
 class LocalGovernmentCorpusBenchmarkService:
     """Evaluate corpus matrix fixtures against C0-C14 gates without live infra."""
 
-    def evaluate(self, *, matrix: dict[str, Any]) -> dict[str, Any]:
+    def evaluate(
+        self,
+        *,
+        matrix: dict[str, Any],
+        windmill_orchestration_artifact: dict[str, Any] | None = None,
+        windmill_row_proof_overlay: dict[str, dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
         rows = [
             row
             for row in matrix.get("rows", [])
             if isinstance(row, dict) and row.get("row_type") == "corpus_package"
         ]
+        c13_rows = self._build_c13_rows_with_proof_overlay(
+            matrix=matrix,
+            rows=rows,
+            windmill_orchestration_artifact=windmill_orchestration_artifact,
+            windmill_row_proof_overlay=windmill_row_proof_overlay,
+        )
 
         gate_results: dict[str, GateResult] = {
             "C0": self._evaluate_c0(matrix=matrix, rows=rows),
@@ -1522,7 +1534,7 @@ class LocalGovernmentCorpusBenchmarkService:
             "C10": self._evaluate_c10(rows=rows),
             "C11": self._evaluate_c11(matrix=matrix, rows=rows),
             "C12": self._evaluate_c12(matrix=matrix, rows=rows),
-            "C13": self._evaluate_c13(matrix=matrix, rows=rows),
+            "C13": self._evaluate_c13(matrix=matrix, rows=c13_rows),
             "C14": self._evaluate_c14(matrix=matrix, rows=rows),
         }
 
@@ -2651,6 +2663,188 @@ class LocalGovernmentCorpusBenchmarkService:
             blockers=[],
         )
 
+    def _build_c13_rows_with_proof_overlay(
+        self,
+        *,
+        matrix: dict[str, Any],
+        rows: list[dict[str, Any]],
+        windmill_orchestration_artifact: dict[str, Any] | None,
+        windmill_row_proof_overlay: dict[str, dict[str, Any]] | None,
+    ) -> list[dict[str, Any]]:
+        overlay_by_row_id = self._collect_windmill_row_overlay(
+            matrix=matrix,
+            windmill_orchestration_artifact=windmill_orchestration_artifact,
+            windmill_row_proof_overlay=windmill_row_proof_overlay,
+        )
+        if not overlay_by_row_id:
+            return rows
+
+        overlaid_rows: list[dict[str, Any]] = []
+        for row in rows:
+            row_id = str(row.get("corpus_row_id") or "")
+            row_overlay = overlay_by_row_id.get(row_id)
+            if not row_overlay:
+                overlaid_rows.append(row)
+                continue
+
+            infra = row.get("infrastructure_status")
+            overlaid_infra = dict(infra) if isinstance(infra, dict) else {}
+            refs = overlaid_infra.get("windmill_refs")
+            overlaid_refs = dict(refs) if isinstance(refs, dict) else {}
+
+            refs_overlay = row_overlay.get("windmill_refs")
+            if isinstance(refs_overlay, dict):
+                for key, value in refs_overlay.items():
+                    if isinstance(value, str) and value:
+                        overlaid_refs[key] = value
+
+            for key in ("flow_id", "run_id", "job_id", "proof_status", "proof_source"):
+                value = row_overlay.get(key)
+                if isinstance(value, str) and value:
+                    overlaid_refs[key] = value
+
+            if overlaid_refs:
+                overlaid_infra["windmill_refs"] = overlaid_refs
+
+            mode = str(row_overlay.get("orchestration_mode") or "")
+            if mode in {"windmill_live", "mixed", "cli_only"}:
+                overlaid_infra["orchestration_mode"] = mode
+
+            overlaid_row = dict(row)
+            overlaid_row["infrastructure_status"] = overlaid_infra
+            overlaid_rows.append(overlaid_row)
+
+        return overlaid_rows
+
+    def _collect_windmill_row_overlay(
+        self,
+        *,
+        matrix: dict[str, Any],
+        windmill_orchestration_artifact: dict[str, Any] | None,
+        windmill_row_proof_overlay: dict[str, dict[str, Any]] | None,
+    ) -> dict[str, dict[str, Any]]:
+        artifact_payload = windmill_orchestration_artifact
+        if not isinstance(artifact_payload, dict):
+            matrix_artifact = matrix.get("windmill_orchestration_artifact")
+            artifact_payload = matrix_artifact if isinstance(matrix_artifact, dict) else None
+
+        overlay: dict[str, dict[str, Any]] = {}
+        if artifact_payload:
+            overlay.update(
+                self._extract_windmill_row_overlay_from_artifact(artifact=artifact_payload)
+            )
+
+        matrix_overlay = matrix.get("windmill_row_proof_overlay")
+        if isinstance(matrix_overlay, dict):
+            overlay.update(self._normalize_windmill_row_overlay(matrix_overlay))
+        if isinstance(windmill_row_proof_overlay, dict):
+            overlay.update(self._normalize_windmill_row_overlay(windmill_row_proof_overlay))
+
+        return overlay
+
+    def _normalize_windmill_row_overlay(
+        self, overlay: dict[str, dict[str, Any]]
+    ) -> dict[str, dict[str, Any]]:
+        normalized: dict[str, dict[str, Any]] = {}
+        for raw_row_id, payload in overlay.items():
+            row_id = str(raw_row_id or "")
+            if not row_id or not isinstance(payload, dict):
+                continue
+            normalized_payload: dict[str, Any] = {}
+
+            refs = payload.get("windmill_refs")
+            if isinstance(refs, dict):
+                normalized_payload["windmill_refs"] = {
+                    key: value
+                    for key, value in refs.items()
+                    if isinstance(value, str) and value
+                }
+
+            for key in ("flow_id", "run_id", "job_id", "proof_status", "proof_source"):
+                value = payload.get(key)
+                if isinstance(value, str) and value:
+                    normalized_payload[key] = value
+
+            mode = str(payload.get("orchestration_mode") or "")
+            if mode in {"windmill_live", "mixed", "cli_only"}:
+                normalized_payload["orchestration_mode"] = mode
+
+            if normalized_payload:
+                normalized[row_id] = normalized_payload
+        return normalized
+
+    def _extract_windmill_row_overlay_from_artifact(
+        self, *, artifact: dict[str, Any]
+    ) -> dict[str, dict[str, Any]]:
+        extracted: dict[str, dict[str, Any]] = {}
+        rows = artifact.get("rows")
+        if isinstance(rows, list):
+            for payload in rows:
+                parsed = self._overlay_entry_from_artifact_payload(payload=payload)
+                if parsed:
+                    row_id, row_payload = parsed
+                    extracted[row_id] = row_payload
+        attempts = artifact.get("attempts")
+        if isinstance(attempts, list):
+            for payload in attempts:
+                parsed = self._overlay_entry_from_artifact_payload(payload=payload)
+                if parsed:
+                    row_id, row_payload = parsed
+                    extracted[row_id] = row_payload
+        return extracted
+
+    def _overlay_entry_from_artifact_payload(
+        self, *, payload: Any
+    ) -> tuple[str, dict[str, Any]] | None:
+        if not isinstance(payload, dict):
+            return None
+
+        row_id = str(payload.get("corpus_row_id") or "")
+        if not row_id:
+            return None
+
+        status = str(payload.get("status") or payload.get("row_status") or "").lower()
+        mode = str(payload.get("orchestration_mode") or "")
+        run_id = str(payload.get("windmill_run_id") or payload.get("run_id") or "")
+        job_id = str(payload.get("windmill_job_id") or payload.get("job_id") or "")
+        flow_id = str(
+            payload.get("windmill_flow_path")
+            or payload.get("windmill_flow_id")
+            or payload.get("flow_id")
+            or ""
+        )
+        blocker_class = str(payload.get("blocker_class") or "")
+
+        if status == "blocked" or mode == "blocked" or blocker_class:
+            blocked_overlay: dict[str, Any] = {
+                "proof_status": "blocked",
+                "proof_source": "windmill_orchestration_artifact",
+            }
+            if flow_id:
+                blocked_overlay["flow_id"] = flow_id
+            if run_id:
+                blocked_overlay["run_id"] = run_id
+            if job_id:
+                blocked_overlay["job_id"] = job_id
+            return row_id, blocked_overlay
+
+        if not run_id or not job_id:
+            return None
+        if run_id.startswith("wm::") or job_id.startswith("wm-job::"):
+            return None
+
+        proven_overlay: dict[str, Any] = {
+            "run_id": run_id,
+            "job_id": job_id,
+            "proof_status": "live_proven",
+            "proof_source": "windmill_orchestration_artifact",
+        }
+        if flow_id:
+            proven_overlay["flow_id"] = flow_id
+        if mode in {"windmill_live", "mixed"}:
+            proven_overlay["orchestration_mode"] = mode
+        return row_id, proven_overlay
+
     def _evaluate_c13(
         self, *, matrix: dict[str, Any], rows: list[dict[str, Any]]
     ) -> GateResult:
@@ -2758,7 +2952,14 @@ class LocalGovernmentCorpusBenchmarkService:
         proof_source = str(refs.get("proof_source") or "")
         if proof_status in {"live_proven", "proven"}:
             return True
-        return proof_source in {"windmill_cli_live", "windmill_backend_live"}
+        if proof_status:
+            return False
+        return proof_source in {
+            "windmill_cli_live",
+            "windmill_backend_live",
+            "windmill_orchestration_artifact",
+            "windmill_row_overlay",
+        }
 
     def _evaluate_c14(
         self, *, matrix: dict[str, Any], rows: list[dict[str, Any]]
