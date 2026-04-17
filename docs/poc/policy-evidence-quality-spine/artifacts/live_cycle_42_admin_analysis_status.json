@@ -1,0 +1,814 @@
+{
+  "assumption_needs": {
+    "assumption_count": 0,
+    "assumption_ids": [],
+    "direct_project_fee_scope": {
+      "reason": "direct project-fee arithmetic does not require household incidence assumptions",
+      "status": "not_required"
+    },
+    "household_cost_of_living_scope": {
+      "missing_families": [
+        "fee_or_tax_pass_through",
+        "adoption_take_up"
+      ],
+      "reason": "pass-through/incidence assumptions missing",
+      "status": "not_proven"
+    },
+    "missing_families": [
+      "fee_or_tax_pass_through",
+      "adoption_take_up"
+    ],
+    "required_families": [
+      "fee_or_tax_pass_through",
+      "adoption_take_up"
+    ],
+    "status": "not_proven"
+  },
+  "backend_run_id": "835704d9-4ab0-4caa-a5a5-4e812f818359",
+  "canonical_analysis_binding": {
+    "observed": {
+      "canonical_pipeline_run_id": "835704d9-4ab0-4caa-a5a5-4e812f818359",
+      "canonical_pipeline_step_id": "6fd01dff-81b4-599c-9cdd-74b103488dc7",
+      "source": "policy_evidence_packages.package_payload + pipeline_runs.result.analysis"
+    },
+    "package_projection": {
+      "canonical_pipeline_run_id": "835704d9-4ab0-4caa-a5a5-4e812f818359",
+      "canonical_pipeline_step_id": "6fd01dff-81b4-599c-9cdd-74b103488dc7"
+    },
+    "reason": "canonical analysis run/step ids are linked to this package",
+    "route_run_id": "835704d9-4ab0-4caa-a5a5-4e812f818359",
+    "source_artifact_refs": [
+      {
+        "artifact_id": "v2|jurisdiction=san-jose-ca|family=parking_policy|doctype=meeting_minutes|url=https://siliconvalleyathome.org/wp-content/uploads/2022/06/June-14-SJ-Parking-Policy-Council-letter-Updated.pdf",
+        "content_hash": "d8cbd850574ba77f8c5b88ca1c65998cc8b12f582ad1ff1996a5b0255226f7e9",
+        "evidence_card_id": "ev-1",
+        "source_url": "https://siliconvalleyathome.org/wp-content/uploads/2022/06/June-14-SJ-Parking-Policy-Council-letter-Updated.pdf"
+      },
+      {
+        "artifact_id": "v2|jurisdiction=san-jose-ca|family=legistar-web-api|doctype=matter_metadata|url=https://webapi.legistar.com/v1/sanjose/Matters/15793",
+        "content_hash": "missing_hash::https://webapi.legistar.com/v1/sanjose/Matters/15793",
+        "evidence_card_id": "ev-2",
+        "source_url": "https://webapi.legistar.com/v1/sanjose/Matters/15793"
+      }
+    ],
+    "status": "bound"
+  },
+  "contract_version": "2026-04-13.windmill-domain.v1",
+  "data_moat_status": {
+    "attachment_content_ingested_count": 0,
+    "attachment_economic_row_count": 0,
+    "attachment_parse_failure_count": 1,
+    "attachment_probe_count": 1,
+    "attachment_ref_count": 1,
+    "blockers": [
+      {
+        "code": "true_structured_rows_missing",
+        "reason": "No true structured economic rows are available."
+      }
+    ],
+    "decision_grade_blocked_by": "row_quality_gap",
+    "decision_grade_verdict": "not_decision_grade",
+    "economic_handoff_blocked_by": "row_quality",
+    "economic_handoff_blocked_by_economic_assumptions": true,
+    "economic_handoff_blocked_by_row_quality": true,
+    "economic_handoff_ready": false,
+    "evidence_package_status": "fail",
+    "identity_blocker_code": null,
+    "identity_blocker_reason": null,
+    "identity_ready": true,
+    "identity_recommended_action": null,
+    "identity_signals_present": true,
+    "jurisdiction_identity_ready": true,
+    "missing_true_structured_corroboration_count": 0,
+    "named_gap_count": 6,
+    "named_gaps": [
+      "scraped/search",
+      "economic reasoning",
+      "rubric/parameter_provenance",
+      "rubric/arithmetic_integrity",
+      "rubric/uncertainty_sensitivity",
+      "sufficiency_readiness"
+    ],
+    "official_attachment_depth_clean": false,
+    "official_attachment_depth_ready": false,
+    "official_attachment_failure_counts": {
+      "attachment_pdf_parse_failed": 1
+    },
+    "official_attachment_parse_anomalies": [],
+    "official_attachment_parse_anomaly_count": 0,
+    "official_attachment_probe_count": 1,
+    "official_attachment_recognized_count": 1,
+    "official_attachment_ref_count": 1,
+    "official_attachment_refs_present": true,
+    "official_attachment_row_count": 0,
+    "official_attachment_rows_emitted": false,
+    "official_attachment_text_read_count": 0,
+    "official_pdf_probe_count": 1,
+    "official_pdf_text_extracted": false,
+    "official_pdf_text_extracted_count": 0,
+    "overall_ready": false,
+    "policy_identity_ready": true,
+    "readiness_level": "qualitative_only",
+    "reason": "stored source-grounded policy evidence is present; remaining named gaps are economic row/parameter depth for handoff readiness",
+    "recommended_next_action": "parse_official_attachment_pdfs",
+    "row_family_depth": {
+      "official_attachment": {
+        "row_count": 0,
+        "row_quality_gap": true,
+        "satisfies_depth": false,
+        "status": "missing_or_identity_unlinked"
+      },
+      "secondary_search": {
+        "row_count": 0,
+        "satisfies_depth": false,
+        "status": "non_authoritative"
+      },
+      "true_structured": {
+        "row_count": 0,
+        "satisfies_depth": false,
+        "status": "missing_or_unverified"
+      }
+    },
+    "row_quality_ambiguous_row_count": 0,
+    "row_quality_authoritative_row_count": 1,
+    "row_quality_gap": true,
+    "row_quality_gate_status": "fail",
+    "row_quality_locator_quality_distribution": {
+      "locator_not_available": 1
+    },
+    "row_quality_rejected_or_ambiguous_count": 0,
+    "row_quality_rejected_row_count": 0,
+    "row_quality_weak_row_count": 1,
+    "runtime_ready": true,
+    "secondary_search_row_count": 0,
+    "selected_artifact_family": "external_page",
+    "source_quality_ready": false,
+    "source_selection_blocker": false,
+    "source_selection_reason": "selected_external_page_candidate",
+    "status": "evidence_ready_with_gaps",
+    "structured_depth_ready": false,
+    "structured_depth_satisfied_by": [],
+    "top_n_artifact_recall_count": 0,
+    "true_structured_depth_ready": false,
+    "true_structured_row_count": 0
+  },
+  "data_moat_value": {
+    "economic_analysis_ready": false,
+    "economic_handoff_candidate": false,
+    "reason": "stored source-grounded policy evidence is useful but has no current economic handoff signals",
+    "signals": {
+      "economic_parameter_signal_count": 0,
+      "has_economic_parameter_signal": false,
+      "has_evidence_cards": true,
+      "has_policy_family_signal": false,
+      "has_source_lanes": true,
+      "has_storage_refs": true,
+      "identity_linked": true,
+      "mechanism_family_signals": [],
+      "reader_source_grounded": true,
+      "resolved_parameter_count": 0,
+      "selected_artifact_family": "external_page",
+      "source_selection_reason": "selected_external_page_candidate",
+      "storage_proven": true,
+      "true_structured_row_count": 0
+    },
+    "status": "stored_not_economic",
+    "stored_not_economic": true,
+    "stored_policy_evidence": true
+  },
+  "decision_grade_verdict": "not_decision_grade",
+  "economic_analysis_status": {
+    "reason": "additional evidence is required before quantitative conclusion",
+    "required_evidence_gaps": [
+      "scraped/search",
+      "economic reasoning",
+      "rubric/parameter_provenance",
+      "rubric/arithmetic_integrity",
+      "rubric/uncertainty_sensitivity",
+      "sufficiency_readiness"
+    ],
+    "status": "secondary_research_needed"
+  },
+  "economic_handoff_quality": {
+    "analysis_state": "secondary_research_needed",
+    "analysis_status": "secondary_research_needed",
+    "assumption_needs": {
+      "assumption_count": 0,
+      "assumption_ids": [],
+      "direct_project_fee_scope": {
+        "reason": "direct project-fee arithmetic does not require household incidence assumptions",
+        "status": "not_required"
+      },
+      "household_cost_of_living_scope": {
+        "missing_families": [
+          "fee_or_tax_pass_through",
+          "adoption_take_up"
+        ],
+        "reason": "pass-through/incidence assumptions missing",
+        "status": "not_proven"
+      },
+      "missing_families": [
+        "fee_or_tax_pass_through",
+        "adoption_take_up"
+      ],
+      "required_families": [
+        "fee_or_tax_pass_through",
+        "adoption_take_up"
+      ],
+      "status": "not_proven"
+    },
+    "attachment_parse_failure_count": 1,
+    "blocked_by": "row_quality",
+    "blocked_by_economic_assumptions": true,
+    "blocked_by_row_quality": true,
+    "can_quantify_now": [],
+    "canonical_binding_status": "bound",
+    "decision_grade_verdict": "not_decision_grade",
+    "fail_closed_blocking_gate": "parameter_readiness",
+    "fail_closed_specific": false,
+    "legacy_status": "not_ready",
+    "mechanism_candidates": [
+      {
+        "direct_fee_model_candidate": {
+          "formula": "",
+          "scope": "direct_developer_fee",
+          "status": "not_proven"
+        },
+        "household_pass_through_need": {
+          "reason": "household pass-through/incidence assumptions missing",
+          "status": "not_proven"
+        },
+        "mechanism_type": "direct",
+        "reason": "no source-bound direct fee/tax parameters with sqft units",
+        "status": "not_proven",
+        "supported_model_card_ids": []
+      },
+      {
+        "mechanism_type": "indirect",
+        "reason": "pass-through/adoption assumptions missing",
+        "status": "not_proven",
+        "supported_assumption_ids": []
+      },
+      {
+        "mechanism_type": "direct",
+        "reason": "nodes=3 edges=2",
+        "status": "pass"
+      }
+    ],
+    "missing_assumption_families": [
+      "fee_or_tax_pass_through",
+      "adoption_take_up"
+    ],
+    "missing_parameters": [],
+    "missing_parameters_count": 0,
+    "official_attachment_row_count": 0,
+    "parameter_inventory": {
+      "missing_count": 0,
+      "missing_parameters": [],
+      "resolved_count": 0,
+      "resolved_parameters": []
+    },
+    "quantification_paths": {
+      "direct_project_fee_exposure": {
+        "reason": "source-bound direct project-fee path not established",
+        "status": "not_analysis_ready"
+      },
+      "household_cost_of_living": {
+        "reason": "household cost-of-living incidence path is not source-bound",
+        "status": "not_analysis_ready"
+      }
+    },
+    "readiness_level": "qualitative_only",
+    "reason_code": "unsupported_claim_risk_high",
+    "recommended_next_action": "parse_official_attachment_pdfs",
+    "row_quality_gap": true,
+    "row_quality_rejected_or_ambiguous_count": 0,
+    "row_quality_weak_row_count": 1,
+    "secondary_research_needs": {
+      "canonical_binding_required": true,
+      "household_incidence_assumptions_missing": true,
+      "must_fail_closed_without_secondary_package": true,
+      "reason": "indirect or under-parameterized analysis path requires auditable secondary research package",
+      "reason_code": "pass_through_incidence_assumptions_missing",
+      "request_contract_id": "sec-research::pkg-5cc79df1e9a1067dd990eb9d",
+      "request_target_parameters": [],
+      "required_evidence_gaps": [
+        "scraped/search",
+        "economic reasoning",
+        "rubric/parameter_provenance",
+        "rubric/arithmetic_integrity",
+        "rubric/uncertainty_sensitivity",
+        "sufficiency_readiness"
+      ],
+      "status": "required"
+    },
+    "secondary_research_required": true,
+    "source_identity_blocker": false,
+    "source_identity_blocker_code": null,
+    "source_identity_blocker_reason": null,
+    "status": "not_analysis_ready",
+    "unsupported_claim_risks": {
+      "reason": "Unsupported quantitative claim blocked by gate_report verdict fail_closed.",
+      "risk_level": "high",
+      "status": "rejected",
+      "unsupported_claim_count": 1
+    }
+  },
+  "economic_output": {
+    "decision_grade_verdict": "not_decision_grade",
+    "missing_evidence": [
+      "scraped/search: Selected candidate did not meet artifact-quality threshold (artifact_grade=False, official_domain=False, provider=private_searxng, status=succeeded).",
+      "economic reasoning: No model cards found.",
+      "rubric/parameter_provenance: No economically meaningful resolved parameters with source-bound provenance; diagnostic_resolved_parameters_excluded=0.",
+      "rubric/arithmetic_integrity: Quantified model cards are missing arithmetic/unit validity or ordered scenario bounds.",
+      "rubric/uncertainty_sensitivity: Missing/invalid sensitivity range or uncertainty notes.",
+      "sufficiency_readiness: blocking_gate=parameter_readiness"
+    ],
+    "reason": "economic quality rubric not decision-grade",
+    "status": "not_proven",
+    "unsupported_claim_rejection": {
+      "reason": "Unsupported quantitative claim blocked by gate_report verdict fail_closed.",
+      "status": "rejected"
+    },
+    "user_facing_conclusion": null
+  },
+  "economic_readiness": {
+    "assumption_readiness": {
+      "reason": "No assumption cards required by this package.",
+      "status": "pass"
+    },
+    "direct_model_card_readiness": {
+      "reason": "no source-bound direct fee/tax parameters with sqft units",
+      "status": "not_proven"
+    },
+    "evidence_readiness": {
+      "reason": "evidence_cards=2",
+      "status": "pass"
+    },
+    "mechanism_readiness": {
+      "reason": "nodes=3 edges=2",
+      "status": "pass"
+    },
+    "model_readiness": {
+      "reason": "Quantified model cards are missing arithmetic/unit validity or ordered scenario bounds.",
+      "status": "fail"
+    },
+    "parameter_readiness": {
+      "reason": "No economically meaningful resolved parameters with source-bound provenance; diagnostic_resolved_parameters_excluded=0.",
+      "status": "fail"
+    },
+    "uncertainty_readiness": {
+      "reason": "Missing/invalid sensitivity range or uncertainty notes.",
+      "status": "fail"
+    },
+    "unsupported_claim_rejection": {
+      "reason": "Unsupported quantitative claim blocked by gate_report verdict fail_closed.",
+      "status": "rejected"
+    }
+  },
+  "economic_trace": {
+    "arithmetic_integrity": {
+      "reason": "Quantified model cards are missing arithmetic/unit validity or ordered scenario bounds.",
+      "status": "fail"
+    },
+    "assumption_cards": [],
+    "diagnostic_parameter_table": [],
+    "direct_fee_model_card": {
+      "reason": "no source-bound direct fee/tax parameters with sqft units",
+      "status": "not_proven"
+    },
+    "direct_indirect_classification": "direct",
+    "mechanism_graph": {
+      "edges": [
+        {
+          "evidence_refs": [
+            "ev-1",
+            "ev-2"
+          ],
+          "from": "policy_change",
+          "to": "economic_mechanism"
+        },
+        {
+          "evidence_refs": [],
+          "from": "economic_mechanism",
+          "to": "household_cost_of_living"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "policy_change",
+          "label": "v2|jurisdiction=san-jose-ca|family=parking_policy|doctype=meeting_minutes|url=https://siliconvalleyathome.org/wp-content/uploads/2022/06/June-14-SJ-Parking-Policy-Council-letter-Updated.pdf"
+        },
+        {
+          "id": "economic_mechanism",
+          "label": "unknown"
+        },
+        {
+          "id": "household_cost_of_living",
+          "label": "Household cost-of-living"
+        }
+      ]
+    },
+    "mechanism_type": "direct",
+    "model_cards": [],
+    "parameter_table": [],
+    "sensitivity_range": null,
+    "uncertainty_notes": [
+      "Range depends on parameter resolution quality and evidence recency.",
+      "Assumption transferability must remain within applicability tags."
+    ]
+  },
+  "evidence_package_status": "fail",
+  "gates": {
+    "LLM narrative": {
+      "reason": "Canonical LLM narrative run evidence present (run_id=835704d9-4ab0-4caa-a5a5-4e812f818359, step_id=6fd01dff-81b4-599c-9cdd-74b103488dc7, source=policy_evidence_packages.package_payload + pipeline_runs.result.analysis).",
+      "refs": [
+        {
+          "key": "canonical_pipeline_run_id",
+          "value": "835704d9-4ab0-4caa-a5a5-4e812f818359"
+        },
+        {
+          "key": "canonical_pipeline_step_id",
+          "value": "6fd01dff-81b4-599c-9cdd-74b103488dc7"
+        },
+        {
+          "key": "source",
+          "value": "policy_evidence_packages.package_payload + pipeline_runs.result.analysis"
+        }
+      ],
+      "status": "pass"
+    },
+    "Windmill/orchestration": {
+      "reason": "Current-run Windmill run id present with backend scope job id only (run_id=bd-3wefe.13-live-cycle-42-20260417061813, scope_job_id=run_scope_pipeline:0:run_scope_pipeline).",
+      "refs": [
+        {
+          "key": "windmill_flow_path",
+          "value": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow"
+        },
+        {
+          "key": "windmill_workspace",
+          "value": "affordabot"
+        },
+        {
+          "key": "windmill_run_id",
+          "value": "bd-3wefe.13-live-cycle-42-20260417061813"
+        },
+        {
+          "key": "source",
+          "value": "policy_evidence_packages.package_payload.run_context"
+        },
+        {
+          "key": "windmill_scope_job_id",
+          "value": "run_scope_pipeline:0:run_scope_pipeline"
+        }
+      ],
+      "status": "pass"
+    },
+    "economic_analysis_readiness": {
+      "blocked_by": "row_quality",
+      "blocked_by_economic_assumptions": true,
+      "blocked_by_row_quality": true,
+      "decision_grade_blocked_by": "row_quality_gap",
+      "direct_project_fee_exposure_status": "not_analysis_ready",
+      "household_cost_of_living_status": "not_analysis_ready",
+      "reason": "readiness=qualitative_only",
+      "reason_code": "unsupported_claim_risk_high",
+      "refs": [
+        {
+          "key": "blocking_gate",
+          "value": "parameter_readiness"
+        }
+      ],
+      "row_quality_gate_status": "fail",
+      "status": "not_proven"
+    },
+    "scraped/search": {
+      "reason": "Selected candidate did not meet artifact-quality threshold (artifact_grade=False, official_domain=False, provider=private_searxng, status=succeeded).",
+      "refs": [],
+      "status": "fail"
+    },
+    "storage/read-back": {
+      "direct_probe_available": false,
+      "proof_mode": "postgres_minio_live",
+      "reason": "Backend storage-service proof present with persisted row id and MinIO readback (mode=postgres_minio_live, record_id=7b12b1f0-69a6-5207-8097-2e2e6293bcfa, direct_probe_available=false).",
+      "refs": [
+        {
+          "content_hash": "d8cbd850574ba77f8c5b88ca1c65998cc8b12f582ad1ff1996a5b0255226f7e9",
+          "reference_id": "policy_evidence_packages:pkg-5cc79df1e9a1067dd990eb9d",
+          "storage_system": "postgres",
+          "truth_role": "source_of_truth",
+          "uri": null
+        },
+        {
+          "content_hash": "d8cbd850574ba77f8c5b88ca1c65998cc8b12f582ad1ff1996a5b0255226f7e9",
+          "reference_id": "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/parking_policy/reader_output/d8cbd850574ba77f8c5b88ca1c65998cc8b12f582ad1ff1996a5b0255226f7e9.md",
+          "storage_system": "minio",
+          "truth_role": "artifact_of_record",
+          "uri": "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/parking_policy/reader_output/d8cbd850574ba77f8c5b88ca1c65998cc8b12f582ad1ff1996a5b0255226f7e9.md"
+        },
+        {
+          "content_hash": "d8cbd850574ba77f8c5b88ca1c65998cc8b12f582ad1ff1996a5b0255226f7e9",
+          "reference_id": "document:cfa0937c-fc96-5d93-8e3f-baeb444990fc",
+          "storage_system": "pgvector",
+          "truth_role": "derived_index",
+          "uri": null
+        },
+        {
+          "content_hash": null,
+          "reference_id": "minio://affordabot-artifacts/policy-evidence/packages/pkg-5cc79df1e9a1067dd990eb9d.json",
+          "storage_system": "minio",
+          "truth_role": "artifact_of_record",
+          "uri": "minio://affordabot-artifacts/policy-evidence/packages/pkg-5cc79df1e9a1067dd990eb9d.json"
+        }
+      ],
+      "status": "pass"
+    }
+  },
+  "jurisdiction": "San Jose CA",
+  "manual_audit_scaffold": {
+    "canonical_binding_status": "bound",
+    "checklist": [
+      {
+        "description": "Verify canonical_document_key and every evidence/parameter card trace to source artifacts or rows.",
+        "gate": "D6",
+        "id": "audit_identity_and_provenance"
+      },
+      {
+        "description": "Verify Postgres row, MinIO readback, pgvector refs, and replay/idempotent proof mode.",
+        "gate": "D7",
+        "id": "audit_storage_readback_replay"
+      },
+      {
+        "description": "Verify current windmill run/job ids are linked to package and backend run state.",
+        "gate": "D9",
+        "id": "audit_windmill_binding"
+      },
+      {
+        "description": "Verify mechanism candidates, parameter inventory, assumptions, unsupported-claim risks, and next action are machine-actionable.",
+        "gate": "D11",
+        "id": "audit_economic_handoff_contract"
+      }
+    ],
+    "current_gate_status": {
+      "D11": "secondary_research_needed",
+      "D6": "pass",
+      "D7": "pass",
+      "D9": "pass"
+    },
+    "evidence_refs": [
+      {
+        "artifact_id": "v2|jurisdiction=san-jose-ca|family=parking_policy|doctype=meeting_minutes|url=https://siliconvalleyathome.org/wp-content/uploads/2022/06/June-14-SJ-Parking-Policy-Council-letter-Updated.pdf",
+        "evidence_card_id": "ev-1",
+        "source_url": "https://siliconvalleyathome.org/wp-content/uploads/2022/06/June-14-SJ-Parking-Policy-Council-letter-Updated.pdf"
+      },
+      {
+        "artifact_id": "v2|jurisdiction=san-jose-ca|family=legistar-web-api|doctype=matter_metadata|url=https://webapi.legistar.com/v1/sanjose/Matters/15793",
+        "evidence_card_id": "ev-2",
+        "source_url": "https://webapi.legistar.com/v1/sanjose/Matters/15793"
+      }
+    ],
+    "secondary_research_status": "required",
+    "status": "required"
+  },
+  "mechanism_candidates": [
+    {
+      "direct_fee_model_candidate": {
+        "formula": "",
+        "scope": "direct_developer_fee",
+        "status": "not_proven"
+      },
+      "household_pass_through_need": {
+        "reason": "household pass-through/incidence assumptions missing",
+        "status": "not_proven"
+      },
+      "mechanism_type": "direct",
+      "reason": "no source-bound direct fee/tax parameters with sqft units",
+      "status": "not_proven",
+      "supported_model_card_ids": []
+    },
+    {
+      "mechanism_type": "indirect",
+      "reason": "pass-through/adoption assumptions missing",
+      "status": "not_proven",
+      "supported_assumption_ids": []
+    },
+    {
+      "mechanism_type": "direct",
+      "reason": "nodes=3 edges=2",
+      "status": "pass"
+    }
+  ],
+  "missing_parameters": [],
+  "package_id": "pkg-5cc79df1e9a1067dd990eb9d",
+  "parameter_inventory": {
+    "missing_count": 0,
+    "missing_parameters": [],
+    "resolved_count": 0,
+    "resolved_parameters": []
+  },
+  "provenance": {
+    "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=parking_policy|doctype=meeting_minutes|url=https://siliconvalleyathome.org/wp-content/uploads/2022/06/June-14-SJ-Parking-Policy-Council-letter-Updated.pdf",
+    "policy_identifier": "v2|jurisdiction=san-jose-ca|family=parking_policy|doctype=meeting_minutes|url=https://siliconvalleyathome.org/wp-content/uploads/2022/06/June-14-SJ-Parking-Policy-Council-letter-Updated.pdf",
+    "scraped_sources": [
+      {
+        "query_family": "parking_policy",
+        "reader_artifact_url": null,
+        "reader_provenance_hydrated": false,
+        "reader_substance_observed": true,
+        "reader_substance_passed": true,
+        "search_provider": "private_searxng",
+        "search_snapshot_id": "a5bbdba3-3d9d-43b6-ba57-5e2764bfe271",
+        "selected_candidate_url": "https://siliconvalleyathome.org/wp-content/uploads/2022/06/June-14-SJ-Parking-Policy-Council-letter-Updated.pdf"
+      }
+    ],
+    "source_lanes": [
+      "scraped",
+      "structured"
+    ],
+    "structured_sources": [
+      {
+        "access_method": "public_api_json",
+        "endpoint_or_file_url": "https://webapi.legistar.com/v1/sanjose/Matters/15793",
+        "field_count": 2,
+        "provider_run_id": "15793",
+        "source_family": "legistar_web_api"
+      }
+    ]
+  },
+  "readiness_layers": {
+    "economic_handoff_readiness": "not_analysis_ready",
+    "economic_output_readiness": "not_proven",
+    "stored_policy_evidence_value": "stored_not_economic"
+  },
+  "recommended_next_action": "parse_official_attachment_pdfs",
+  "run_context": {
+    "completed_at": "2026-04-17 06:19:39.585375+00:00",
+    "run_id": "835704d9-4ab0-4caa-a5a5-4e812f818359",
+    "started_at": "2026-04-17 06:18:32.253659+00:00",
+    "status": "succeeded_with_alerts",
+    "windmill_run_id": "bd-3wefe.13-live-cycle-42-20260417061813"
+  },
+  "secondary_research": {
+    "output_contract": {
+      "canonical_analysis_binding_required": true,
+      "current_readiness": "qualitative_only",
+      "must_emit_fail_closed_if_missing": true,
+      "must_include_assumption_updates": true,
+      "must_include_model_card_updates": true,
+      "must_include_parameter_provenance": true,
+      "must_include_source_artifacts": true,
+      "must_link_package_id": "pkg-5cc79df1e9a1067dd990eb9d",
+      "readiness_target": "economic_handoff_ready",
+      "request_id": "sec-research::pkg-5cc79df1e9a1067dd990eb9d"
+    },
+    "reason": "indirect or under-parameterized analysis path requires auditable secondary research package",
+    "request_contract": {
+      "blocking_gate": "parameter_readiness",
+      "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=parking_policy|doctype=meeting_minutes|url=https://siliconvalleyathome.org/wp-content/uploads/2022/06/June-14-SJ-Parking-Policy-Council-letter-Updated.pdf",
+      "jurisdiction": "San Jose CA",
+      "mechanism_families": [],
+      "package_id": "pkg-5cc79df1e9a1067dd990eb9d",
+      "policy_identifier": "v2|jurisdiction=san-jose-ca|family=parking_policy|doctype=meeting_minutes|url=https://siliconvalleyathome.org/wp-content/uploads/2022/06/June-14-SJ-Parking-Policy-Council-letter-Updated.pdf",
+      "request_id": "sec-research::pkg-5cc79df1e9a1067dd990eb9d",
+      "required_evidence_gaps": [
+        "scraped/search",
+        "economic reasoning",
+        "rubric/parameter_provenance",
+        "rubric/arithmetic_integrity",
+        "rubric/uncertainty_sensitivity",
+        "sufficiency_readiness"
+      ],
+      "source_artifact_refs": [
+        {
+          "content_hash": "d8cbd850574ba77f8c5b88ca1c65998cc8b12f582ad1ff1996a5b0255226f7e9",
+          "evidence_card_id": "ev-1",
+          "source_type": "ordinance_text",
+          "source_url": "https://siliconvalleyathome.org/wp-content/uploads/2022/06/June-14-SJ-Parking-Policy-Council-letter-Updated.pdf"
+        },
+        {
+          "content_hash": "missing_hash::https://webapi.legistar.com/v1/sanjose/Matters/15793",
+          "evidence_card_id": "ev-2",
+          "source_type": "other",
+          "source_url": "https://webapi.legistar.com/v1/sanjose/Matters/15793"
+        }
+      ],
+      "target_parameters": []
+    },
+    "status": "required"
+  },
+  "secondary_research_needs": {
+    "canonical_binding_required": true,
+    "household_incidence_assumptions_missing": true,
+    "must_fail_closed_without_secondary_package": true,
+    "reason": "indirect or under-parameterized analysis path requires auditable secondary research package",
+    "reason_code": "pass_through_incidence_assumptions_missing",
+    "request_contract_id": "sec-research::pkg-5cc79df1e9a1067dd990eb9d",
+    "request_target_parameters": [],
+    "required_evidence_gaps": [
+      "scraped/search",
+      "economic reasoning",
+      "rubric/parameter_provenance",
+      "rubric/arithmetic_integrity",
+      "rubric/uncertainty_sensitivity",
+      "sufficiency_readiness"
+    ],
+    "status": "required"
+  },
+  "source_family": "meeting_minutes",
+  "source_quality": {
+    "attachment_content_ingested_count": 0,
+    "attachment_economic_row_count": 0,
+    "attachment_parse_failure_count": 1,
+    "attachment_probe_count": 1,
+    "attachment_ref_count": 1,
+    "identity_blocker_code": null,
+    "identity_blocker_reason": null,
+    "identity_ready": true,
+    "identity_recommended_action": null,
+    "jurisdiction_identity_ready": true,
+    "official_attachment_depth_clean": false,
+    "official_attachment_failure_counts": {
+      "attachment_pdf_parse_failed": 1
+    },
+    "official_attachment_parse_anomalies": [],
+    "official_attachment_parse_anomaly_count": 0,
+    "official_attachment_probe_count": 1,
+    "official_attachment_recognized_count": 1,
+    "official_attachment_ref_count": 1,
+    "official_attachment_refs_present": true,
+    "official_attachment_row_count": 0,
+    "official_attachment_rows_emitted": false,
+    "official_attachment_text_read_count": 0,
+    "official_pdf_probe_count": 1,
+    "official_pdf_text_extracted": false,
+    "official_pdf_text_extracted_count": 0,
+    "policy_identity_ready": true,
+    "provider_summary": {
+      "primary_provider": "private_searxng",
+      "provider_error_count": 1,
+      "provider_error_urls": [
+        "https://actionnetwork.org/user_files/user_files/000/077/644/original/SJ_Parking_Policy_Council_Letter.pdf"
+      ],
+      "quality_failure_count": 0,
+      "runtime": {
+        "client_class": "OssSearxngWebSearchClient",
+        "configured_provider": "searxng",
+        "endpoint_configured": true,
+        "endpoint_host": "searxng-private.railway.internal:8080",
+        "provider": "private_searxng",
+        "provider_source": "client_label"
+      }
+    },
+    "reader_substance_observed": true,
+    "reader_substance_selection_outcome": "materialized_raw_scrape",
+    "reason": "source_quality_metrics_present",
+    "row_family_depth": {
+      "official_attachment": {
+        "row_count": 0,
+        "row_quality_gap": true,
+        "satisfies_depth": false,
+        "status": "missing_or_identity_unlinked"
+      },
+      "secondary_search": {
+        "row_count": 0,
+        "satisfies_depth": false,
+        "status": "non_authoritative"
+      },
+      "true_structured": {
+        "row_count": 0,
+        "satisfies_depth": false,
+        "status": "missing_or_unverified"
+      }
+    },
+    "row_quality_ambiguous_row_count": 0,
+    "row_quality_authoritative_row_count": 1,
+    "row_quality_gap": true,
+    "row_quality_gate_status": "fail",
+    "row_quality_locator_quality_distribution": {
+      "locator_not_available": 1
+    },
+    "row_quality_rejected_or_ambiguous_count": 0,
+    "row_quality_rejected_row_count": 0,
+    "row_quality_weak_row_count": 1,
+    "secondary_numeric_parameter_count": 2,
+    "secondary_numeric_rescue_detected": false,
+    "selected_artifact_family": "external_page",
+    "selected_candidate_rank": 2,
+    "selected_candidate_url": "https://siliconvalleyathome.org/wp-content/uploads/2022/06/June-14-SJ-Parking-Policy-Council-letter-Updated.pdf",
+    "selection_quality_reason": "no_artifact_candidate_passed_quality_gate",
+    "selection_quality_status": "fail",
+    "status": "captured",
+    "structured_depth_ready": false,
+    "structured_depth_satisfied_by": [],
+    "top_n_artifact_recall_count": 0,
+    "top_n_official_recall_count": 1,
+    "top_n_window": 5
+  },
+  "sufficiency_readiness_level": "qualitative_only",
+  "unsupported_claim_risks": {
+    "reason": "Unsupported quantitative claim blocked by gate_report verdict fail_closed.",
+    "risk_level": "high",
+    "status": "rejected",
+    "unsupported_claim_count": 1
+  }
+}

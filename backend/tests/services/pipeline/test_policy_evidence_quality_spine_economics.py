@@ -1371,6 +1371,24 @@ def test_source_grounded_non_economic_package_is_stored_not_economic_not_failure
     }
 
 
+def test_stored_not_economic_external_source_selection_remains_fail() -> None:
+    moat_status = PolicyEvidenceQualitySpineEconomicsService._reconcile_data_moat_status_for_stored_policy_evidence(
+        data_moat_status={
+            "status": "fail",
+            "identity_ready": True,
+            "source_selection_blocker": False,
+            "selected_artifact_family": "external_page",
+            "source_selection_reason": "selected_external_page_candidate",
+            "blockers": [{"code": "true_structured_rows_missing"}],
+        },
+        data_moat_value={"status": "stored_not_economic"},
+        economic_handoff_quality={"status": "not_analysis_ready"},
+    )
+
+    assert moat_status["status"] == "fail"
+    assert moat_status["selected_artifact_family"] == "external_page"
+
+
 def test_wrong_jurisdiction_identity_blocks_economic_handoff_even_with_direct_fee_rows() -> None:
     bundle = PolicyEconomicMechanismCaseService().build_case_bundle()
     direct = _case(bundle, "direct_cost_case")

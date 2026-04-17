@@ -40,6 +40,7 @@ economic input.
 - `manual_audit_cycle_30_economic_analysis.md`
 - `manual_audit_cycle_41_data_moat_plan.md`
 - `manual_audit_cycle_41_data_moat.md`
+- `manual_audit_cycle_42_data_moat.md`
 - `product_target_cost_of_living_analysis_archetype.md`
 - `manual_gate_decision_cycle_30.md`
 - `cycle_08_gate_controller_upgrade.md`

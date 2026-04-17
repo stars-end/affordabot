@@ -1571,6 +1571,14 @@ class PolicyEvidenceQualitySpineEconomicsService:
             return data_moat_status
         if bool(data_moat_status.get("source_selection_blocker")):
             return data_moat_status
+        selected_family = str(data_moat_status.get("selected_artifact_family") or "").strip()
+        selection_reason = str(data_moat_status.get("source_selection_reason") or "").strip()
+        if (
+            not selected_family
+            or selected_family.startswith("external")
+            or selection_reason.startswith("selected_external")
+        ):
+            return data_moat_status
         if str(economic_handoff_quality.get("status") or "") == "analysis_ready":
             return data_moat_status
 
