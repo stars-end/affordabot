@@ -503,6 +503,13 @@ class PolicyEvidenceQualitySpineEconomicsService:
             source_quality_metrics=source_quality_metrics,
             source_reconciliation=source_reconciliation,
         )
+        data_moat_value = self._build_data_moat_value(
+            package=package,
+            taxonomy=taxonomy,
+            data_moat_status=data_moat_status,
+            economic_handoff_quality=economic_handoff_quality,
+            readiness_level=readiness_level,
+        )
         recommended_next_action = self._recommend_next_action(
             analysis_status=analysis_status,
             taxonomy=taxonomy,
@@ -574,6 +581,7 @@ class PolicyEvidenceQualitySpineEconomicsService:
             "source_family": source_family,
             "evidence_package_status": evidence_package_status,
             "data_moat_status": data_moat_status,
+            "data_moat_value": data_moat_value,
             "decision_grade_verdict": decision_grade["verdict"],
             "sufficiency_readiness_level": readiness_level,
             "economic_analysis_status": {
@@ -1431,6 +1439,111 @@ class PolicyEvidenceQualitySpineEconomicsService:
             "source_identity_blocker": identity_blocked,
             "source_identity_blocker_code": identity_blocker_code or None,
             "source_identity_blocker_reason": identity_blocker_reason or None,
+        }
+
+    @classmethod
+    def _build_data_moat_value(
+        cls,
+        *,
+        package: PolicyEvidencePackage,
+        taxonomy: dict[str, dict[str, str]],
+        data_moat_status: dict[str, Any],
+        economic_handoff_quality: dict[str, Any],
+        readiness_level: str,
+    ) -> dict[str, Any]:
+        storage_proven = taxonomy.get("storage/read-back", {}).get("status") == "pass"
+        identity_linked = taxonomy.get("identity/dedupe", {}).get("status") == "pass"
+        reader_source_grounded = taxonomy.get("reader", {}).get("status") == "pass"
+        has_source_lanes = bool(package.source_lanes)
+        has_evidence_cards = bool(package.evidence_cards)
+        has_storage_refs = bool(package.storage_refs)
+
+        stored_policy_evidence = bool(
+            storage_proven
+            and identity_linked
+            and reader_source_grounded
+            and has_source_lanes
+            and has_evidence_cards
+            and has_storage_refs
+        )
+
+        resolved_parameters = [
+            card for card in package.parameter_cards if card.state.value == "resolved"
+        ]
+        economic_parameters = [
+            card
+            for card in resolved_parameters
+            if cls._is_economically_meaningful_parameter(card=card)[0]
+        ]
+        mechanism_family_signals = sorted(
+            {model.mechanism_family.value for model in package.model_cards}
+            | {assumption.family.value for assumption in package.assumption_cards}
+        )
+        has_policy_family_signal = bool(mechanism_family_signals)
+        has_economic_parameter_signal = bool(economic_parameters)
+        handoff_status = str(economic_handoff_quality.get("status") or "not_analysis_ready")
+
+        economic_analysis_ready = bool(
+            stored_policy_evidence
+            and handoff_status == "analysis_ready"
+            and readiness_level == PackageReadinessLevel.ECONOMIC_HANDOFF_READY.value
+        )
+        economic_handoff_candidate = bool(
+            stored_policy_evidence
+            and not economic_analysis_ready
+            and (
+                handoff_status == "analysis_ready_with_gaps"
+                or has_policy_family_signal
+                or has_economic_parameter_signal
+            )
+        )
+        stored_not_economic = bool(
+            stored_policy_evidence
+            and not economic_analysis_ready
+            and not economic_handoff_candidate
+            and not has_policy_family_signal
+            and not has_economic_parameter_signal
+        )
+
+        if economic_analysis_ready:
+            status = "economic_analysis_ready"
+            reason = "stored evidence is source-grounded and currently analysis-ready for economic handoff"
+        elif economic_handoff_candidate:
+            status = "economic_handoff_candidate"
+            reason = "stored evidence has policy-family/parameter signals for economic handoff after additional work"
+        elif stored_not_economic:
+            status = "stored_not_economic"
+            reason = "stored source-grounded policy evidence is useful but has no current economic handoff signals"
+        elif stored_policy_evidence:
+            status = "stored_policy_evidence"
+            reason = "stored source-grounded policy evidence is present but handoff readiness remains unresolved"
+        else:
+            status = "not_stored_policy_evidence"
+            reason = "storage/identity/source-grounding signals are incomplete for durable policy evidence value"
+
+        return {
+            "status": status,
+            "reason": reason,
+            "stored_policy_evidence": stored_policy_evidence,
+            "economic_handoff_candidate": economic_handoff_candidate,
+            "economic_analysis_ready": economic_analysis_ready,
+            "stored_not_economic": stored_not_economic,
+            "signals": {
+                "storage_proven": storage_proven,
+                "identity_linked": identity_linked,
+                "reader_source_grounded": reader_source_grounded,
+                "has_source_lanes": has_source_lanes,
+                "has_evidence_cards": has_evidence_cards,
+                "has_storage_refs": has_storage_refs,
+                "has_policy_family_signal": has_policy_family_signal,
+                "has_economic_parameter_signal": has_economic_parameter_signal,
+                "mechanism_family_signals": mechanism_family_signals,
+                "economic_parameter_signal_count": len(economic_parameters),
+                "resolved_parameter_count": len(resolved_parameters),
+                "selected_artifact_family": data_moat_status.get("selected_artifact_family"),
+                "source_selection_reason": data_moat_status.get("source_selection_reason"),
+                "true_structured_row_count": data_moat_status.get("true_structured_row_count"),
+            },
         }
 
     @staticmethod

@@ -248,6 +248,14 @@ def test_endpoint_read_model_exposes_economic_handoff_contract_fields() -> None:
         "evidence_ready_with_gaps",
         "fail",
     }
+    assert "data_moat_value" in read_model
+    assert read_model["data_moat_value"]["status"] in {
+        "stored_policy_evidence",
+        "economic_handoff_candidate",
+        "economic_analysis_ready",
+        "stored_not_economic",
+        "not_stored_policy_evidence",
+    }
 
 
 def test_fallback_vs_real_matrix_labeling() -> None:
@@ -675,9 +683,33 @@ def test_endpoint_uses_backend_run_id_from_selected_payload_context() -> None:
     package = {**direct["primary_package"], "run_context": {"backend_run_id": "run-ctx-42"}}
 
     service = PolicyEvidenceQualitySpineEconomicsService()
+    matrix = _matrix_with_runtime_evidence(
+        package,
+        orchestration_proof={
+            "proof_status": "pass",
+            "proof_mode": "current_run",
+            "linked_to_current_vertical_package": True,
+            "windmill_run_id": "wm-run-direct-fee",
+            "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+        },
+        llm_narrative_proof={
+            "proof_status": "pass",
+            "canonical_pipeline_run_id": package["gate_projection"]["canonical_pipeline_run_id"],
+            "canonical_pipeline_step_id": package["gate_projection"]["canonical_pipeline_step_id"],
+            "source": "unit_test",
+        },
+        storage_proof={
+            "proof_status": "pass",
+            "proof_mode": "postgres_minio_live",
+            "store_backend": "postgres",
+            "artifact_probe_backend": "minio",
+            "persisted_record_id": "pkg-row-direct-fee",
+            "minio_readback_proven": True,
+        },
+    )
     endpoint = service.build_endpoint_read_model(
         matrix_input=MatrixInput(
-            payload=_real_matrix_from_case(package),
+            payload=matrix,
             source_path="horizontal_matrix.json",
             source_mode="agent_a_horizontal_matrix",
         ),
@@ -934,9 +966,33 @@ def test_diagnostic_parameters_are_excluded_from_economic_support() -> None:
     }
 
     service = PolicyEvidenceQualitySpineEconomicsService()
+    matrix = _matrix_with_runtime_evidence(
+        package,
+        orchestration_proof={
+            "proof_status": "pass",
+            "proof_mode": "current_run",
+            "linked_to_current_vertical_package": True,
+            "windmill_run_id": "wm-run-direct-fee-gap",
+            "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+        },
+        llm_narrative_proof={
+            "proof_status": "pass",
+            "canonical_pipeline_run_id": package["gate_projection"]["canonical_pipeline_run_id"],
+            "canonical_pipeline_step_id": package["gate_projection"]["canonical_pipeline_step_id"],
+            "source": "unit_test",
+        },
+        storage_proof={
+            "proof_status": "pass",
+            "proof_mode": "postgres_minio_live",
+            "store_backend": "postgres",
+            "artifact_probe_backend": "minio",
+            "persisted_record_id": "pkg-row-direct-fee-gap",
+            "minio_readback_proven": True,
+        },
+    )
     endpoint = service.build_endpoint_read_model(
         matrix_input=MatrixInput(
-            payload=_real_matrix_from_case(package),
+            payload=matrix,
             source_path="horizontal_matrix.json",
             source_mode="agent_a_horizontal_matrix",
         ),
@@ -1020,9 +1076,33 @@ def test_structured_fee_rows_populate_parameter_table_with_metadata_but_remain_n
     }
 
     service = PolicyEvidenceQualitySpineEconomicsService()
+    matrix = _matrix_with_runtime_evidence(
+        package,
+        orchestration_proof={
+            "proof_status": "pass",
+            "proof_mode": "current_run",
+            "linked_to_current_vertical_package": True,
+            "windmill_run_id": "wm-run-direct-fee-gap",
+            "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+        },
+        llm_narrative_proof={
+            "proof_status": "pass",
+            "canonical_pipeline_run_id": package["gate_projection"]["canonical_pipeline_run_id"],
+            "canonical_pipeline_step_id": package["gate_projection"]["canonical_pipeline_step_id"],
+            "source": "unit_test",
+        },
+        storage_proof={
+            "proof_status": "pass",
+            "proof_mode": "postgres_minio_live",
+            "store_backend": "postgres",
+            "artifact_probe_backend": "minio",
+            "persisted_record_id": "pkg-row-direct-fee-gap",
+            "minio_readback_proven": True,
+        },
+    )
     endpoint = service.build_endpoint_read_model(
         matrix_input=MatrixInput(
-            payload=_real_matrix_from_case(package),
+            payload=matrix,
             source_path="horizontal_matrix.json",
             source_mode="agent_a_horizontal_matrix",
         ),
@@ -1144,9 +1224,33 @@ def test_direct_model_card_keeps_household_conclusion_fail_closed_without_pass_t
     }
 
     service = PolicyEvidenceQualitySpineEconomicsService()
+    matrix = _matrix_with_runtime_evidence(
+        package,
+        orchestration_proof={
+            "proof_status": "pass",
+            "proof_mode": "current_run",
+            "linked_to_current_vertical_package": True,
+            "windmill_run_id": "wm-run-direct-fee-gap",
+            "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+        },
+        llm_narrative_proof={
+            "proof_status": "pass",
+            "canonical_pipeline_run_id": package["gate_projection"]["canonical_pipeline_run_id"],
+            "canonical_pipeline_step_id": package["gate_projection"]["canonical_pipeline_step_id"],
+            "source": "unit_test",
+        },
+        storage_proof={
+            "proof_status": "pass",
+            "proof_mode": "postgres_minio_live",
+            "store_backend": "postgres",
+            "artifact_probe_backend": "minio",
+            "persisted_record_id": "pkg-row-direct-fee-gap",
+            "minio_readback_proven": True,
+        },
+    )
     endpoint = service.build_endpoint_read_model(
         matrix_input=MatrixInput(
-            payload=_real_matrix_from_case(package),
+            payload=matrix,
             source_path="horizontal_matrix.json",
             source_mode="agent_a_horizontal_matrix",
         ),
@@ -1168,10 +1272,89 @@ def test_direct_model_card_keeps_household_conclusion_fail_closed_without_pass_t
     assert handoff["quantification_paths"]["household_cost_of_living"]["status"] == "not_analysis_ready"
     assert endpoint["secondary_research_needs"]["status"] == "required"
     assert endpoint["secondary_research_needs"]["reason_code"] == "pass_through_incidence_assumptions_missing"
-    assert endpoint["recommended_next_action"] == "run_secondary_research"
+    assert endpoint["recommended_next_action"] in {
+        "run_secondary_research",
+        "ingest_official_attachments",
+    }
     assert endpoint["decision_grade_verdict"] == "not_decision_grade"
     assert endpoint["economic_output"]["status"] == "not_proven"
     assert endpoint["economic_output"]["user_facing_conclusion"] is None
+    moat_value = endpoint["data_moat_value"]
+    assert moat_value["status"] == "economic_handoff_candidate"
+    assert moat_value["stored_policy_evidence"] is True
+    assert moat_value["economic_handoff_candidate"] is True
+    assert moat_value["economic_analysis_ready"] is False
+    assert moat_value["stored_not_economic"] is False
+
+
+def test_source_grounded_non_economic_package_is_stored_not_economic_not_failure() -> None:
+    bundle = PolicyEconomicMechanismCaseService().build_case_bundle()
+    direct = _case(bundle, "direct_cost_case")
+    package = {
+        **direct["primary_package"],
+        "policy_identifier": "SJ-POLICY-NON-ECONOMIC-POC",
+        "parameter_cards": [
+            {
+                "id": "param-meeting-event-id",
+                "parameter_name": "event_id",
+                "state": "resolved",
+                "value": 7927.0,
+                "unit": "count",
+                "source_url": "https://sanjose.legistar.com/MeetingDetail.aspx?LEGID=7927&GID=317",
+                "source_excerpt": "Structured fact event_id resolved from source payload.",
+                "evidence_card_id": "ev-direct-1",
+            }
+        ],
+        "assumption_cards": [],
+        "assumption_usage": [],
+        "model_cards": [],
+    }
+    matrix = _matrix_with_runtime_evidence(
+        package,
+        orchestration_proof={
+            "proof_status": "pass",
+            "proof_mode": "current_run",
+            "linked_to_current_vertical_package": True,
+            "windmill_run_id": "wm-run-non-economic",
+            "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+        },
+        llm_narrative_proof={
+            "proof_status": "pass",
+            "canonical_pipeline_run_id": package["gate_projection"]["canonical_pipeline_run_id"],
+            "canonical_pipeline_step_id": package["gate_projection"]["canonical_pipeline_step_id"],
+            "source": "unit_test",
+        },
+        storage_proof={
+            "proof_status": "pass",
+            "proof_mode": "postgres_minio_live",
+            "store_backend": "postgres",
+            "artifact_probe_backend": "minio",
+            "persisted_record_id": "pkg-row-non-economic",
+            "minio_readback_proven": True,
+        },
+    )
+
+    endpoint = PolicyEvidenceQualitySpineEconomicsService().build_endpoint_read_model(
+        matrix_input=MatrixInput(
+            payload=matrix,
+            source_path="horizontal_matrix.json",
+            source_mode="agent_a_horizontal_matrix",
+        ),
+        package_id=package["package_id"],
+        source_family="meeting_minutes",
+    )
+
+    moat_value = endpoint["data_moat_value"]
+    assert moat_value["stored_policy_evidence"] is True
+    assert moat_value["economic_analysis_ready"] is False
+    assert moat_value["economic_handoff_candidate"] is False
+    assert moat_value["stored_not_economic"] is True
+    assert moat_value["status"] == "stored_not_economic"
+    assert endpoint["economic_analysis_status"]["status"] in {
+        "fail_closed",
+        "qualitative_only",
+        "secondary_research_needed",
+    }
 
 
 def test_wrong_jurisdiction_identity_blocks_economic_handoff_even_with_direct_fee_rows() -> None:

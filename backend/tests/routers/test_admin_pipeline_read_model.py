@@ -330,10 +330,18 @@ def test_policy_evidence_analysis_status_surfaces_provenance_and_not_proven_gate
     assert data["source_quality"]["reason"] == "source_quality_metrics_missing"
     assert data["source_quality"]["selection_quality_status"] == "not_proven"
     assert "data_moat_status" in data
+    assert "data_moat_value" in data
     assert data["data_moat_status"]["status"] in {
         "decision_grade_data_moat",
         "evidence_ready_with_gaps",
         "fail",
+    }
+    assert data["data_moat_value"]["status"] in {
+        "stored_policy_evidence",
+        "economic_handoff_candidate",
+        "economic_analysis_ready",
+        "stored_not_economic",
+        "not_stored_policy_evidence",
     }
     assert data["economic_analysis_status"]["status"] in {
         "secondary_research_needed",
@@ -684,6 +692,16 @@ def test_policy_evidence_analysis_status_surfaces_selected_artifact_quality_metr
     assert moat["row_family_depth"]["secondary_search"]["satisfies_depth"] is False
     assert data["source_quality"]["row_family_depth"]["official_attachment"]["row_count"] == 0
     assert data["source_quality"]["structured_depth_ready"] is False
+    moat_value = data["data_moat_value"]
+    assert moat_value["status"] in {
+        "stored_policy_evidence",
+        "economic_handoff_candidate",
+        "economic_analysis_ready",
+        "stored_not_economic",
+        "not_stored_policy_evidence",
+    }
+    assert moat_value["stored_policy_evidence"] is True
+    assert moat_value["economic_analysis_ready"] is False
     assert data["recommended_next_action"] == "ingest_official_attachments"
 
 

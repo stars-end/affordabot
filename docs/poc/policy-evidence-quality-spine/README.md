@@ -3,6 +3,14 @@
 This lane evaluates whether a vertical package is ready to feed canonical
 economic analysis and admin/frontend read models.
 
+The lane also treats the evidence package as a standalone product asset:
+policy-grounded evidence should retain value even when `economic_handoff_ready`
+is false. Package/card metadata must classify `policy_family`,
+`evidence_use`, `economic_relevance`, and `moat_value_reason` so meeting
+records, compliance rules, permit signals, and other non-parameter evidence can
+be stored, audited, and reused without being misrepresented as quantified
+economic input.
+
 ## Artifacts
 
 - `artifacts/horizontal_matrix.json`
@@ -30,6 +38,7 @@ economic analysis and admin/frontend read models.
 - `agent_abc_30_cycle_integration_review.md`
 - `manual_audit_cycle_30_data_moat.md`
 - `manual_audit_cycle_30_economic_analysis.md`
+- `manual_audit_cycle_41_data_moat_plan.md`
 - `manual_gate_decision_cycle_30.md`
 - `cycle_08_gate_controller_upgrade.md`
 - `cycle_09_metadata_and_manual_audit_hooks.md`
@@ -145,6 +154,12 @@ by the live run. Storage remains `not_proven` because the exact
 `PolicyEvidencePackage` row/current-package linkage is still missing, the
 `documents` row for that document id was not present, and the live analysis id is
 not persisted in `analysis_history`.
+
+Cycle 41 expands the live-gate manual verification contract to include non-CLF
+San Jose policy families so moat proof is not constrained to
+economic-parameter-ready evidence. Use
+`manual_audit_cycle_41_data_moat_plan.md` before running broad evidence capture
+cycles.
 
 The eval-cycle harness now records per-cycle ledger rows with:
 - cycle number

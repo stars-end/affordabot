@@ -628,3 +628,71 @@ def test_builder_parameter_cards_keep_direct_line_rate_rows_with_land_use() -> N
     assert len(cards) == 1
     assert cards[0]["value"] == 14.31
     assert "Office projects pay $14.31 per square foot." in cards[0]["source_excerpt"]
+
+
+def test_builder_emits_meeting_action_contextual_metadata_for_non_economic_minutes() -> None:
+    minutes_candidate = {
+        "source_lane": "scrape_search",
+        "provider": "private_searxng",
+        "source_family": "official_minutes",
+        "query_family": "meeting_minutes",
+        "jurisdiction": "san_jose_ca",
+        "artifact_url": "https://www.sanjoseca.gov/home/showpublisheddocument/99999/638700000000000000",
+        "artifact_type": "meeting_minutes",
+        "source_tier": "tier_b",
+        "retrieved_at": "2026-04-16T00:00:00+00:00",
+        "reader_artifact_refs": [
+            "https://www.sanjoseca.gov/home/showpublisheddocument/99999/638700000000000000"
+        ],
+        "excerpt": "City council minutes recorded the vote to continue the item to a later meeting.",
+        "structured_policy_facts": [],
+    }
+
+    payload = PolicyEvidencePackageBuilder().build(
+        package_id="pkg-meeting-minutes-contextual",
+        jurisdiction="san_jose_ca",
+        scraped_candidates=[minutes_candidate],
+        structured_candidates=[],
+        freshness_gate={"freshness_status": "fresh"},
+    )
+
+    assert payload["policy_family"] == "meeting_action"
+    assert payload["economic_relevance"] in {"contextual", "none"}
+    assert payload["evidence_use"] == "meeting_record"
+    assert payload["moat_value_reason"]
+    assert payload["evidence_cards"][0]["policy_family"] == "meeting_action"
+    assert payload["evidence_cards"][0]["evidence_use"] == "meeting_record"
+
+
+def test_builder_represents_compliance_permit_signal_without_economic_parameter_role() -> None:
+    permit_candidate = {
+        "source_lane": "structured",
+        "provider": "city_open_data",
+        "source_family": "permit_registry",
+        "query_family": "housing_permit_activity",
+        "jurisdiction": "san_jose_ca",
+        "artifact_url": "https://data.sanjoseca.gov/api/permit-registry",
+        "artifact_type": "permit_registry_feed",
+        "source_tier": "tier_b",
+        "retrieved_at": "2026-04-16T00:00:00+00:00",
+        "true_structured": True,
+        "policy_match_key": "san_jose::permit::registry::housing",
+        "reconciliation_status": "contextual_metadata_linked_to_policy_query",
+        "lineage_metadata": {"event_date": "2026-04-10"},
+        "structured_policy_facts": [
+            {"field": "permit_application_count", "value": 482, "unit": "count"}
+        ],
+    }
+
+    payload = PolicyEvidencePackageBuilder().build(
+        package_id="pkg-permit-signal-context",
+        jurisdiction="san_jose_ca",
+        structured_candidates=[permit_candidate],
+        freshness_gate={"freshness_status": "fresh"},
+    )
+
+    assert payload["policy_family"] == "housing_permits"
+    assert payload["evidence_use"] in {"permit_or_project_signal", "policy_lineage_source"}
+    assert payload["evidence_use"] != "economic_parameter_source"
+    assert payload["economic_relevance"] in {"indirect", "contextual", "none"}
+    assert payload["evidence_cards"][0]["evidence_use"] != "economic_parameter_source"

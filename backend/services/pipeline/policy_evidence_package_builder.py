@@ -78,6 +78,57 @@ _ROW_QUALITY_STRICT_LOCATOR_QUALITIES = {
 
 _UNKNOWN_LAND_USE_VALUES = {"", "unknown", "other", "n/a", "na", "none", "null"}
 
+_POLICY_FAMILY_VALUES = {
+    "commercial_linkage_fee",
+    "parking_policy",
+    "housing_permits",
+    "business_compliance",
+    "meeting_action",
+    "zoning_land_use",
+    "procurement_contract",
+    "public_safety",
+    "general_governance",
+}
+
+_EVIDENCE_USE_VALUES = {
+    "economic_parameter_source",
+    "policy_lineage_source",
+    "meeting_record",
+    "compliance_rule_source",
+    "permit_or_project_signal",
+    "background_context",
+}
+
+_ECONOMIC_RELEVANCE_VALUES = {"direct", "indirect", "contextual", "none", "unknown"}
+
+_POLICY_FAMILY_KEYWORDS = (
+    ("commercial_linkage_fee", ("linkage fee", "commercial linkage", "clf", "usd_per_square_foot")),
+    ("parking_policy", ("parking", "parking minimum", "parking requirement")),
+    ("housing_permits", ("housing permit", "building permit", "permit issuance", "housing production", "permit_registry")),
+    ("business_compliance", ("compliance", "license", "inspection", "code enforcement", "regulatory requirement")),
+    ("meeting_action", ("minutes", "agenda", "meeting", "matter", "vote", "action item")),
+    ("zoning_land_use", ("zoning", "land use", "general plan", "rezoning", "overlay district")),
+    ("procurement_contract", ("procurement", "contract award", "rfp", "bid", "vendor selection")),
+    ("public_safety", ("public safety", "police", "fire department", "emergency response", "crime prevention")),
+)
+
+_EVIDENCE_USE_PRIORITY = {
+    "economic_parameter_source": 0,
+    "permit_or_project_signal": 1,
+    "compliance_rule_source": 2,
+    "policy_lineage_source": 3,
+    "meeting_record": 4,
+    "background_context": 5,
+}
+
+_ECONOMIC_RELEVANCE_PRIORITY = {
+    "direct": 0,
+    "indirect": 1,
+    "contextual": 2,
+    "none": 3,
+    "unknown": 4,
+}
+
 
 def _source_tier_rank(value: str) -> int:
     mapping = {"tier_a": 0, "tier_b": 1, "tier_c": 2}
@@ -283,6 +334,147 @@ def _map_mechanism_family(value: str | None) -> MechanismFamily | None:
     return mapping.get(value)
 
 
+def _normalize_policy_family(value: Any) -> str | None:
+    token = str(value or "").strip().lower().replace("-", "_").replace(" ", "_")
+    return token if token in _POLICY_FAMILY_VALUES else None
+
+
+def _normalize_evidence_use(value: Any) -> str | None:
+    token = str(value or "").strip().lower().replace("-", "_").replace(" ", "_")
+    return token if token in _EVIDENCE_USE_VALUES else None
+
+
+def _normalize_economic_relevance(value: Any) -> str | None:
+    token = str(value or "").strip().lower()
+    return token if token in _ECONOMIC_RELEVANCE_VALUES else None
+
+
+def _derive_policy_families(candidate: dict[str, Any]) -> list[str]:
+    families: set[str] = set()
+    explicit = _as_list(candidate.get("policy_families")) + [candidate.get("policy_family")]
+    for value in explicit:
+        normalized = _normalize_policy_family(value)
+        if normalized:
+            families.add(normalized)
+
+    text_parts = [
+        str(candidate.get("query_family") or ""),
+        str(candidate.get("source_family") or ""),
+        str(candidate.get("artifact_type") or ""),
+        str(candidate.get("title") or ""),
+        str(candidate.get("excerpt") or ""),
+        str(candidate.get("artifact_url") or ""),
+    ]
+    for fact in _as_list(candidate.get("structured_policy_facts")):
+        if isinstance(fact, dict):
+            text_parts.append(str(fact.get("field") or ""))
+            text_parts.append(str(fact.get("source_excerpt") or ""))
+            text_parts.append(str(fact.get("source_family") or ""))
+    haystack = " ".join(part.lower() for part in text_parts if part)
+    haystack = f"{haystack} {haystack.replace('_', ' ')}"
+    for family, keywords in _POLICY_FAMILY_KEYWORDS:
+        if any(keyword in haystack for keyword in keywords):
+            families.add(family)
+
+    if not families:
+        families.add("general_governance")
+    return sorted(families)
+
+
+def _derive_evidence_use(*, candidate: dict[str, Any], has_resolved_economic_parameters: bool) -> str:
+    explicit_values = _as_list(candidate.get("evidence_uses")) + [candidate.get("evidence_use")]
+    for value in explicit_values:
+        normalized = _normalize_evidence_use(value)
+        if normalized:
+            return normalized
+    if has_resolved_economic_parameters:
+        return "economic_parameter_source"
+
+    text = " ".join(
+        [
+            str(candidate.get("artifact_type") or ""),
+            str(candidate.get("source_family") or ""),
+            str(candidate.get("query_family") or ""),
+            str(candidate.get("title") or ""),
+        ]
+    ).lower()
+    lineage_metadata = candidate.get("lineage_metadata")
+    has_lineage = isinstance(lineage_metadata, dict) and bool(lineage_metadata)
+    has_policy_linkage = bool(str(candidate.get("policy_match_key") or "").strip()) or has_lineage
+    if any(token in text for token in ("minutes", "agenda", "meeting", "vote", "event", "matter")):
+        return "meeting_record"
+    if any(token in text for token in ("permit", "entitlement", "project")):
+        return "permit_or_project_signal"
+    if any(token in text for token in ("compliance", "inspection", "license", "enforcement", "regulation")):
+        return "compliance_rule_source"
+    if has_policy_linkage:
+        return "policy_lineage_source"
+    return "background_context"
+
+
+def _derive_economic_relevance(
+    *,
+    candidate: dict[str, Any],
+    evidence_use: str,
+    has_resolved_economic_parameters: bool,
+    policy_families: list[str],
+) -> str:
+    explicit = _normalize_economic_relevance(candidate.get("economic_relevance"))
+    if explicit:
+        return explicit
+    if has_resolved_economic_parameters or evidence_use == "economic_parameter_source":
+        return "direct"
+    if evidence_use in {"permit_or_project_signal", "compliance_rule_source"}:
+        return "indirect"
+    if evidence_use in {"meeting_record", "policy_lineage_source"}:
+        return "contextual"
+    if policy_families == ["general_governance"] and evidence_use == "background_context":
+        return "none"
+    return "unknown"
+
+
+def _build_moat_value_reason(
+    *,
+    candidate: dict[str, Any],
+    evidence_use: str,
+    economic_relevance: str,
+    policy_families: list[str],
+) -> str:
+    explicit = str(candidate.get("moat_value_reason") or "").strip()
+    if explicit:
+        return explicit
+    primary_family = policy_families[0] if policy_families else "general_governance"
+    if evidence_use == "economic_parameter_source":
+        return (
+            f"economic_parameter_source:{primary_family}:source includes quantified policy facts with citation "
+            "for direct economic modeling."
+        )
+    if evidence_use == "meeting_record":
+        return (
+            f"meeting_record:{primary_family}:captures formal action lineage and decision timing even when "
+            "quantitative extraction is not ready."
+        )
+    if evidence_use == "compliance_rule_source":
+        return (
+            f"compliance_rule_source:{primary_family}:records enforceable requirements and thresholds that can "
+            "drive downstream burden assumptions."
+        )
+    if evidence_use == "permit_or_project_signal":
+        return (
+            f"permit_or_project_signal:{primary_family}:provides project/permit signal useful for trend and "
+            "secondary research prioritization."
+        )
+    if evidence_use == "policy_lineage_source":
+        return (
+            f"policy_lineage_source:{primary_family}:anchors package identity/provenance so evidence can be "
+            "joined across source lanes."
+        )
+    return (
+        f"background_context:{primary_family}:retains policy context as durable evidence with "
+        f"economic_relevance={economic_relevance}."
+    )
+
+
 def _candidate_identity(candidate: dict[str, Any]) -> str:
     explicit = str(candidate.get("canonical_document_key", "")).strip()
     if explicit:
@@ -302,6 +494,15 @@ def _normalize_candidate(candidate: dict[str, Any]) -> dict[str, Any]:
     normalized["jurisdiction"] = str(candidate.get("jurisdiction") or "unknown")
     normalized["artifact_url"] = str(candidate.get("artifact_url") or "")
     normalized["artifact_type"] = str(candidate.get("artifact_type") or "unknown")
+    normalized["query_family"] = str(candidate.get("query_family") or "")
+    normalized["title"] = str(candidate.get("title") or "")
+    normalized["excerpt"] = str(candidate.get("excerpt") or "")
+    normalized["policy_family"] = candidate.get("policy_family")
+    normalized["policy_families"] = _as_list(candidate.get("policy_families"))
+    normalized["evidence_use"] = candidate.get("evidence_use")
+    normalized["evidence_uses"] = _as_list(candidate.get("evidence_uses"))
+    normalized["economic_relevance"] = candidate.get("economic_relevance")
+    normalized["moat_value_reason"] = candidate.get("moat_value_reason")
     normalized["source_tier"] = str(candidate.get("source_tier") or "tier_c")
     normalized["retrieved_at"] = str(candidate.get("retrieved_at") or "")
     normalized["linked_artifact_refs"] = _as_list(candidate.get("linked_artifact_refs"))
@@ -654,6 +855,7 @@ class PolicyEvidencePackageBuilder:
         canonical_candidates = list(canonical_by_dedupe.values())
         true_structured_resolved_parameters = False
         structured_depth_blocked = False
+        evidence_card_metadata: dict[str, dict[str, Any]] = {}
 
         for idx, normalized in enumerate(canonical_candidates, start=1):
             source_lane = _map_source_lane(normalized["source_lane"])
@@ -717,14 +919,38 @@ class PolicyEvidencePackageBuilder:
             evidence_cards.append(evidence)
             candidate_parameter_cards = _build_parameter_cards(normalized, evidence.id)
             parameter_cards.extend(candidate_parameter_cards)
+            candidate_has_resolved_parameters = any(
+                card.state == ParameterState.RESOLVED and _is_economic_parameter_name(card.parameter_name)
+                for card in candidate_parameter_cards
+            )
+            policy_families = _derive_policy_families(normalized)
+            evidence_use = _derive_evidence_use(
+                candidate=normalized,
+                has_resolved_economic_parameters=candidate_has_resolved_parameters,
+            )
+            economic_relevance = _derive_economic_relevance(
+                candidate=normalized,
+                evidence_use=evidence_use,
+                has_resolved_economic_parameters=candidate_has_resolved_parameters,
+                policy_families=policy_families,
+            )
+            moat_value_reason = _build_moat_value_reason(
+                candidate=normalized,
+                evidence_use=evidence_use,
+                economic_relevance=economic_relevance,
+                policy_families=policy_families,
+            )
+            evidence_card_metadata[evidence.id] = {
+                "policy_families": policy_families,
+                "policy_family": policy_families[0],
+                "evidence_use": evidence_use,
+                "economic_relevance": economic_relevance,
+                "moat_value_reason": moat_value_reason,
+            }
             if (
                 source_lane == SourceLane.STRUCTURED
                 and bool(normalized.get("true_structured", True))
-                and any(
-                    card.state == ParameterState.RESOLVED
-                    and _is_economic_parameter_name(card.parameter_name)
-                    for card in candidate_parameter_cards
-                )
+                and candidate_has_resolved_parameters
             ):
                 true_structured_resolved_parameters = True
             mechanism = _map_mechanism_family(str(normalized.get("mechanism_family") or ""))
@@ -890,4 +1116,36 @@ class PolicyEvidencePackageBuilder:
             economic_handoff_ready=(not has_blocking_gate),
             insufficiency_reasons=sorted(insufficiency_reasons, key=lambda reason: reason.value),
         )
-        return package.model_dump(mode="json")
+        payload = package.model_dump(mode="json")
+
+        package_policy_families: set[str] = set()
+        package_evidence_uses: set[str] = set()
+        package_relevance_values: set[str] = set()
+        moat_reason_candidates: list[str] = []
+        for card in payload.get("evidence_cards", []):
+            metadata = evidence_card_metadata.get(str(card.get("id") or ""))
+            if not metadata:
+                continue
+            card.update(metadata)
+            package_policy_families.update(metadata["policy_families"])
+            package_evidence_uses.add(str(metadata["evidence_use"]))
+            package_relevance_values.add(str(metadata["economic_relevance"]))
+            moat_reason_candidates.append(str(metadata["moat_value_reason"]))
+
+        policy_families = sorted(package_policy_families) or ["general_governance"]
+        ordered_uses = sorted(
+            package_evidence_uses or {"background_context"},
+            key=lambda value: _EVIDENCE_USE_PRIORITY.get(value, 999),
+        )
+        ordered_relevance = sorted(
+            package_relevance_values or {"unknown"},
+            key=lambda value: _ECONOMIC_RELEVANCE_PRIORITY.get(value, 999),
+        )
+        payload["policy_families"] = policy_families
+        payload["policy_family"] = policy_families[0]
+        payload["evidence_use"] = ordered_uses[0]
+        payload["economic_relevance"] = ordered_relevance[0]
+        payload["moat_value_reason"] = moat_reason_candidates[0] if moat_reason_candidates else (
+            f"background_context:{payload['policy_family']}:package preserves source-grounded policy evidence."
+        )
+        return payload

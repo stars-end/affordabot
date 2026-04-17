@@ -12,6 +12,27 @@ The data moat is not "we found a document." The data moat is a policy-specific, 
 
 Economic analysis is allowed to fail closed, but only after the upstream data package has been honestly classified as `analysis_ready`, `analysis_ready_with_gaps`, or `not_analysis_ready`.
 
+## Standalone Data-Moat Metadata Contract
+
+Each package and evidence card should carry explicit moat metadata, even when
+economic handoff is not ready:
+
+- `policy_family` / `policy_families`:
+  `commercial_linkage_fee`, `parking_policy`, `housing_permits`,
+  `business_compliance`, `meeting_action`, `zoning_land_use`,
+  `procurement_contract`, `public_safety`, `general_governance`.
+- `evidence_use`:
+  `economic_parameter_source`, `policy_lineage_source`, `meeting_record`,
+  `compliance_rule_source`, `permit_or_project_signal`, `background_context`.
+- `economic_relevance`:
+  `direct`, `indirect`, `contextual`, `none`, `unknown`.
+- `moat_value_reason`: short structured reason describing why the evidence is
+  durable and useful independently of immediate economic quantification.
+
+This metadata is part of the product moat itself: it preserves policy lineage,
+regulatory context, and reusable source grounding so future extraction and
+analysis can improve without re-running discovery from scratch.
+
 ## Important Product Context: Cycle 25 Did Not Pass
 
 **Cycle 25 did not pass the original product gates.** 
