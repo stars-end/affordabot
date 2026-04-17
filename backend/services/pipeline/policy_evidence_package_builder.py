@@ -10,8 +10,20 @@ from datetime import UTC, datetime
 import re
 from typing import Any
 
+from services.pipeline.source_identity import (
+    build_external_source_promotion_entry,
+    build_source_durability_profile,
+    classify_source_candidate,
+    compute_official_source_dominance,
+    source_identity_rules_snapshot,
+)
 from services.revision_identity import normalize_canonical_url
-from schemas.analysis import FailureCode, SourceHierarchyStatus, SourceTier, SufficiencyState
+from schemas.analysis import (
+    FailureCode,
+    SourceHierarchyStatus,
+    SourceTier,
+    SufficiencyState,
+)
 from schemas.economic_evidence import (
     AssumptionCard,
     EvidenceCard,
@@ -50,6 +62,7 @@ _INSUFFICIENT_REASONS = {
 _DIAGNOSTIC_PARAMETER_FIELDS = {
     "event_attachment_hint_count",
     "ckan_dataset_count",
+    "non_fee_policy_signal",
     "provider_result_count",
 }
 
@@ -102,14 +115,53 @@ _EVIDENCE_USE_VALUES = {
 _ECONOMIC_RELEVANCE_VALUES = {"direct", "indirect", "contextual", "none", "unknown"}
 
 _POLICY_FAMILY_KEYWORDS = (
-    ("commercial_linkage_fee", ("linkage fee", "commercial linkage", "clf", "usd_per_square_foot")),
+    (
+        "commercial_linkage_fee",
+        ("linkage fee", "commercial linkage", "clf", "usd_per_square_foot"),
+    ),
     ("parking_policy", ("parking", "parking minimum", "parking requirement")),
-    ("housing_permits", ("housing permit", "building permit", "permit issuance", "housing production", "permit_registry")),
-    ("business_compliance", ("compliance", "license", "inspection", "code enforcement", "regulatory requirement")),
-    ("meeting_action", ("minutes", "agenda", "meeting", "matter", "vote", "action item")),
-    ("zoning_land_use", ("zoning", "land use", "general plan", "rezoning", "overlay district")),
-    ("procurement_contract", ("procurement", "contract award", "rfp", "bid", "vendor selection")),
-    ("public_safety", ("public safety", "police", "fire department", "emergency response", "crime prevention")),
+    (
+        "housing_permits",
+        (
+            "housing permit",
+            "building permit",
+            "permit issuance",
+            "housing production",
+            "permit_registry",
+        ),
+    ),
+    (
+        "business_compliance",
+        (
+            "compliance",
+            "license",
+            "inspection",
+            "code enforcement",
+            "regulatory requirement",
+        ),
+    ),
+    (
+        "meeting_action",
+        ("minutes", "agenda", "meeting", "matter", "vote", "action item"),
+    ),
+    (
+        "zoning_land_use",
+        ("zoning", "land use", "general plan", "rezoning", "overlay district"),
+    ),
+    (
+        "procurement_contract",
+        ("procurement", "contract award", "rfp", "bid", "vendor selection"),
+    ),
+    (
+        "public_safety",
+        (
+            "public safety",
+            "police",
+            "fire department",
+            "emergency response",
+            "crime prevention",
+        ),
+    ),
 )
 
 _EVIDENCE_USE_PRIORITY = {
@@ -156,9 +208,10 @@ def _content_hash(candidate: dict[str, Any]) -> str:
     value = str(candidate.get("content_hash", "")).strip()
     if value:
         return value
-    fallback = str(candidate.get("canonical_document_key", "")).strip() or str(
-        candidate.get("artifact_url", "")
-    ).strip()
+    fallback = (
+        str(candidate.get("canonical_document_key", "")).strip()
+        or str(candidate.get("artifact_url", "")).strip()
+    )
     if fallback:
         return f"missing_hash::{fallback}"
     return "missing_hash::unknown"
@@ -176,7 +229,9 @@ def _is_economic_parameter_name(value: str) -> bool:
     return any(signal in normalized for signal in _ECONOMIC_PARAMETER_SIGNALS)
 
 
-def _has_per_square_foot_signal(*, fact: dict[str, Any], name: str, excerpt: str) -> bool:
+def _has_per_square_foot_signal(
+    *, fact: dict[str, Any], name: str, excerpt: str
+) -> bool:
     unit = str(fact.get("unit") or "").strip().lower()
     denominator = str(fact.get("denominator") or "").strip().lower()
     if "square_foot" in unit or "square foot" in unit:
@@ -222,21 +277,25 @@ def _commercial_linkage_fee_value_plausible(fact: dict[str, Any]) -> bool:
     return 0 <= numeric_value <= 100
 
 
-def _is_row_quality_approved_parameter_fact(*, fact: dict[str, Any], name: str, excerpt: str) -> bool:
+def _is_row_quality_approved_parameter_fact(
+    *, fact: dict[str, Any], name: str, excerpt: str
+) -> bool:
     locator_quality = str(fact.get("locator_quality") or "").strip().lower()
     source_locator = str(fact.get("source_locator") or "").strip().lower()
     has_strict_locator = (
-        locator_quality in _ROW_QUALITY_STRICT_LOCATOR_QUALITIES or source_locator.startswith("attachment_probe:")
+        locator_quality in _ROW_QUALITY_STRICT_LOCATOR_QUALITIES
+        or source_locator.startswith("attachment_probe:")
     )
     if not has_strict_locator:
         return True
 
     has_table_locator = bool(str(fact.get("table_locator") or "").strip())
     has_line_rate_locator = locator_quality == "attachment_probe_line_rate"
-    has_local_row_cue = has_table_locator or any(
-        cue in source_locator
-        for cue in ("fee_table_row", "table_row", "row")
-    ) or has_line_rate_locator
+    has_local_row_cue = (
+        has_table_locator
+        or any(cue in source_locator for cue in ("fee_table_row", "table_row", "row"))
+        or has_line_rate_locator
+    )
     if not has_local_row_cue:
         return False
     if not _has_per_square_foot_signal(fact=fact, name=name, excerpt=excerpt):
@@ -250,16 +309,24 @@ def _is_row_quality_approved_parameter_fact(*, fact: dict[str, Any], name: str, 
 
 def _build_canonical_key(candidate: dict[str, Any]) -> str:
     jurisdiction_slug = _slug(str(candidate.get("jurisdiction", "unknown")))
-    source_family_slug = _slug(str(candidate.get("source_family") or candidate.get("source_lane") or "unknown"))
-    document_type = _slug(str(candidate.get("artifact_type") or "unknown")).replace("-", "_")
+    source_family_slug = _slug(
+        str(candidate.get("source_family") or candidate.get("source_lane") or "unknown")
+    )
+    document_type = _slug(str(candidate.get("artifact_type") or "unknown")).replace(
+        "-", "_"
+    )
     canonical_url = normalize_canonical_url(str(candidate.get("artifact_url") or ""))
     if canonical_url:
         return (
             f"v2|jurisdiction={jurisdiction_slug}|family={source_family_slug}"
             f"|doctype={document_type}|url={canonical_url}"
         )
-    title = re.sub(r"\s+", " ", str(candidate.get("title") or "untitled")).strip().lower()
-    date_hint = str(candidate.get("published_date") or candidate.get("retrieved_at") or "unknown")
+    title = (
+        re.sub(r"\s+", " ", str(candidate.get("title") or "untitled")).strip().lower()
+    )
+    date_hint = str(
+        candidate.get("published_date") or candidate.get("retrieved_at") or "unknown"
+    )
     date_match = re.search(r"\d{4}-\d{2}-\d{2}", date_hint)
     normalized_date = date_match.group(0) if date_match else "unknown"
     return (
@@ -306,7 +373,15 @@ def _map_source_tier(value: str) -> SourceTier:
 
 
 def _map_evidence_source_type(candidate: dict[str, Any]) -> EvidenceSourceType:
-    raw = str(candidate.get("evidence_source_type") or candidate.get("artifact_type") or "other").strip().lower()
+    raw = (
+        str(
+            candidate.get("evidence_source_type")
+            or candidate.get("artifact_type")
+            or "other"
+        )
+        .strip()
+        .lower()
+    )
     mapping = {
         "bill_text": EvidenceSourceType.BILL_TEXT,
         "fiscal_note": EvidenceSourceType.FISCAL_NOTE,
@@ -351,7 +426,9 @@ def _normalize_economic_relevance(value: Any) -> str | None:
 
 def _derive_policy_families(candidate: dict[str, Any]) -> list[str]:
     families: set[str] = set()
-    explicit = _as_list(candidate.get("policy_families")) + [candidate.get("policy_family")]
+    explicit = _as_list(candidate.get("policy_families")) + [
+        candidate.get("policy_family")
+    ]
     for value in explicit:
         normalized = _normalize_policy_family(value)
         if normalized:
@@ -367,6 +444,9 @@ def _derive_policy_families(candidate: dict[str, Any]) -> list[str]:
     ]
     for fact in _as_list(candidate.get("structured_policy_facts")):
         if isinstance(fact, dict):
+            normalized = _normalize_policy_family(fact.get("policy_family"))
+            if normalized:
+                families.add(normalized)
             text_parts.append(str(fact.get("field") or ""))
             text_parts.append(str(fact.get("source_excerpt") or ""))
             text_parts.append(str(fact.get("source_family") or ""))
@@ -381,10 +461,20 @@ def _derive_policy_families(candidate: dict[str, Any]) -> list[str]:
     return sorted(families)
 
 
-def _derive_evidence_use(*, candidate: dict[str, Any], has_resolved_economic_parameters: bool) -> str:
-    explicit_values = _as_list(candidate.get("evidence_uses")) + [candidate.get("evidence_use")]
+def _derive_evidence_use(
+    *, candidate: dict[str, Any], has_resolved_economic_parameters: bool
+) -> str:
+    explicit_values = _as_list(candidate.get("evidence_uses")) + [
+        candidate.get("evidence_use")
+    ]
     for value in explicit_values:
         normalized = _normalize_evidence_use(value)
+        if normalized:
+            return normalized
+    for fact in _as_list(candidate.get("structured_policy_facts")):
+        if not isinstance(fact, dict):
+            continue
+        normalized = _normalize_evidence_use(fact.get("evidence_use"))
         if normalized:
             return normalized
     if has_resolved_economic_parameters:
@@ -400,12 +490,26 @@ def _derive_evidence_use(*, candidate: dict[str, Any], has_resolved_economic_par
     ).lower()
     lineage_metadata = candidate.get("lineage_metadata")
     has_lineage = isinstance(lineage_metadata, dict) and bool(lineage_metadata)
-    has_policy_linkage = bool(str(candidate.get("policy_match_key") or "").strip()) or has_lineage
-    if any(token in text for token in ("minutes", "agenda", "meeting", "vote", "event", "matter")):
+    has_policy_linkage = (
+        bool(str(candidate.get("policy_match_key") or "").strip()) or has_lineage
+    )
+    if any(
+        token in text
+        for token in ("minutes", "agenda", "meeting", "vote", "event", "matter")
+    ):
         return "meeting_record"
     if any(token in text for token in ("permit", "entitlement", "project")):
         return "permit_or_project_signal"
-    if any(token in text for token in ("compliance", "inspection", "license", "enforcement", "regulation")):
+    if any(
+        token in text
+        for token in (
+            "compliance",
+            "inspection",
+            "license",
+            "enforcement",
+            "regulation",
+        )
+    ):
         return "compliance_rule_source"
     if has_policy_linkage:
         return "policy_lineage_source"
@@ -422,13 +526,22 @@ def _derive_economic_relevance(
     explicit = _normalize_economic_relevance(candidate.get("economic_relevance"))
     if explicit:
         return explicit
+    for fact in _as_list(candidate.get("structured_policy_facts")):
+        if not isinstance(fact, dict):
+            continue
+        normalized = _normalize_economic_relevance(fact.get("economic_relevance"))
+        if normalized:
+            return normalized
     if has_resolved_economic_parameters or evidence_use == "economic_parameter_source":
         return "direct"
     if evidence_use in {"permit_or_project_signal", "compliance_rule_source"}:
         return "indirect"
     if evidence_use in {"meeting_record", "policy_lineage_source"}:
         return "contextual"
-    if policy_families == ["general_governance"] and evidence_use == "background_context":
+    if (
+        policy_families == ["general_governance"]
+        and evidence_use == "background_context"
+    ):
         return "none"
     return "unknown"
 
@@ -489,7 +602,9 @@ def _normalize_candidate(candidate: dict[str, Any]) -> dict[str, Any]:
     normalized["source_lane"] = str(candidate.get("source_lane") or "unknown")
     normalized["provider"] = str(candidate.get("provider") or "unknown")
     normalized["source_family"] = str(
-        candidate.get("source_family") or candidate.get("provider") or normalized["source_lane"]
+        candidate.get("source_family")
+        or candidate.get("provider")
+        or normalized["source_lane"]
     )
     normalized["jurisdiction"] = str(candidate.get("jurisdiction") or "unknown")
     normalized["artifact_url"] = str(candidate.get("artifact_url") or "")
@@ -507,14 +622,24 @@ def _normalize_candidate(candidate: dict[str, Any]) -> dict[str, Any]:
     normalized["retrieved_at"] = str(candidate.get("retrieved_at") or "")
     normalized["linked_artifact_refs"] = _as_list(candidate.get("linked_artifact_refs"))
     normalized["reader_artifact_refs"] = _as_list(candidate.get("reader_artifact_refs"))
-    normalized["structured_policy_facts"] = _as_list(candidate.get("structured_policy_facts"))
-    normalized["alerts"] = [str(item) for item in _as_list(candidate.get("alerts")) if str(item).strip()]
+    normalized["structured_policy_facts"] = _as_list(
+        candidate.get("structured_policy_facts")
+    )
+    normalized["alerts"] = [
+        str(item) for item in _as_list(candidate.get("alerts")) if str(item).strip()
+    ]
     raw_lane = str(candidate.get("source_lane") or "").strip().lower()
     default_true_structured = not raw_lane.startswith("structured_secondary")
-    normalized["true_structured"] = bool(candidate.get("true_structured", default_true_structured))
-    normalized["policy_match_key"] = str(candidate.get("policy_match_key") or "").strip()
+    normalized["true_structured"] = bool(
+        candidate.get("true_structured", default_true_structured)
+    )
+    normalized["policy_match_key"] = str(
+        candidate.get("policy_match_key") or ""
+    ).strip()
     normalized["policy_match_confidence"] = candidate.get("policy_match_confidence")
-    normalized["reconciliation_status"] = str(candidate.get("reconciliation_status") or "").strip()
+    normalized["reconciliation_status"] = str(
+        candidate.get("reconciliation_status") or ""
+    ).strip()
     lineage = candidate.get("lineage_metadata")
     normalized["lineage_metadata"] = lineage if isinstance(lineage, dict) else {}
     return normalized
@@ -525,13 +650,17 @@ def _classify_candidate(candidate: dict[str, Any]) -> tuple[bool, list[str]]:
     source_lane = str(candidate.get("source_lane", ""))
     has_structured_facts = bool(candidate.get("structured_policy_facts"))
     has_reader_artifact = bool(candidate.get("reader_artifact_refs"))
-    has_identity = bool(candidate.get("canonical_document_key")) and bool(candidate.get("artifact_url"))
+    has_identity = bool(candidate.get("canonical_document_key")) and bool(
+        candidate.get("artifact_url")
+    )
 
     prefetch_skip_reason = str(candidate.get("prefetch_skip_reason") or "").strip()
     if prefetch_skip_reason:
         fail_reasons.append("prefetch_skipped_low_value_portal")
 
-    reader_substance_reason = str(candidate.get("reader_substance_reason") or "").strip()
+    reader_substance_reason = str(
+        candidate.get("reader_substance_reason") or ""
+    ).strip()
     if reader_substance_reason in _INSUFFICIENT_REASONS:
         fail_reasons.append(reader_substance_reason)
 
@@ -541,7 +670,11 @@ def _classify_candidate(candidate: dict[str, Any]) -> tuple[bool, list[str]]:
     if not has_identity:
         fail_reasons.append("missing_identity")
 
-    if source_lane == "scrape_search" and not has_reader_artifact and not has_structured_facts:
+    if (
+        source_lane == "scrape_search"
+        and not has_reader_artifact
+        and not has_structured_facts
+    ):
         fail_reasons.append("reader_required_for_scraped_source")
     if source_lane.startswith("structured_secondary"):
         fail_reasons.append("secondary_search_not_true_structured")
@@ -558,7 +691,9 @@ def _policy_match_key(candidate: dict[str, Any]) -> str:
     return str(candidate.get("canonical_document_key") or "").strip()
 
 
-def _reconciles_with_primary(*, primary_keys: set[str], candidate: dict[str, Any]) -> bool:
+def _reconciles_with_primary(
+    *, primary_keys: set[str], candidate: dict[str, Any]
+) -> bool:
     if not primary_keys:
         return True
     candidate_keys = {
@@ -593,7 +728,9 @@ def _build_evidence_card(candidate: dict[str, Any], index: int) -> EvidenceCard:
     )
 
 
-def _build_parameter_cards(candidate: dict[str, Any], evidence_id: str) -> list[ParameterCard]:
+def _build_parameter_cards(
+    candidate: dict[str, Any], evidence_id: str
+) -> list[ParameterCard]:
     cards: list[ParameterCard] = []
     for fact in candidate.get("structured_policy_facts", []):
         raw_value = fact.get("normalized_value", fact.get("value"))
@@ -609,12 +746,18 @@ def _build_parameter_cards(candidate: dict[str, Any], evidence_id: str) -> list[
         name = str(fact.get("field") or "").strip() or "unknown_parameter"
         if not _is_economic_parameter_name(name):
             continue
-        source_url = str(fact.get("source_url") or candidate["artifact_url"] or "https://example.org/unknown")
+        source_url = str(
+            fact.get("source_url")
+            or candidate["artifact_url"]
+            or "https://example.org/unknown"
+        )
         excerpt_base = (
             str(fact.get("source_excerpt") or "").strip()
             or f"Structured fact {name} resolved from source payload."
         )
-        if not _is_row_quality_approved_parameter_fact(fact=fact, name=name, excerpt=excerpt_base):
+        if not _is_row_quality_approved_parameter_fact(
+            fact=fact, name=name, excerpt=excerpt_base
+        ):
             continue
         raw_token = str(fact.get("raw_value") or "").strip()
         unit = str(fact.get("unit") or "unitless")
@@ -629,7 +772,9 @@ def _build_parameter_cards(candidate: dict[str, Any], evidence_id: str) -> list[
         final_status = str(fact.get("final_status") or "").strip()
         threshold = str(fact.get("threshold") or "").strip()
         payment_timing = str(fact.get("payment_timing") or "").strip()
-        payment_reduction_context = str(fact.get("payment_reduction_context") or "").strip()
+        payment_reduction_context = str(
+            fact.get("payment_reduction_context") or ""
+        ).strip()
         payment_reduction_percent = fact.get("payment_reduction_percent")
         exemption_context = str(fact.get("exemption_context") or "").strip()
         source_locator = str(fact.get("source_locator") or "").strip()
@@ -637,12 +782,18 @@ def _build_parameter_cards(candidate: dict[str, Any], evidence_id: str) -> list[
         page_locator = str(fact.get("page_locator") or "").strip()
         locator_quality = str(fact.get("locator_quality") or "").strip()
         source_ref = str(fact.get("source_ref") or "").strip()
-        source_family = str(fact.get("source_family") or candidate.get("source_family") or "").strip()
+        source_family = str(
+            fact.get("source_family") or candidate.get("source_family") or ""
+        ).strip()
         attachment_id = str(fact.get("attachment_id") or "").strip()
         attachment_title = str(fact.get("attachment_title") or "").strip()
         policy_match_key = str(fact.get("policy_match_key") or "").strip()
         confidence = fact.get("confidence")
-        fail_closed_signals = [str(signal) for signal in _as_list(fact.get("fail_closed_signals")) if str(signal)]
+        fail_closed_signals = [
+            str(signal)
+            for signal in _as_list(fact.get("fail_closed_signals"))
+            if str(signal)
+        ]
         citation_parts: list[str] = []
         if raw_token:
             citation_parts.append(f"raw={raw_token}")
@@ -667,9 +818,13 @@ def _build_parameter_cards(candidate: dict[str, Any], evidence_id: str) -> list[
         if payment_timing:
             citation_parts.append(f"payment_timing={payment_timing}")
         if payment_reduction_context:
-            citation_parts.append(f"payment_reduction_context={payment_reduction_context}")
+            citation_parts.append(
+                f"payment_reduction_context={payment_reduction_context}"
+            )
         if isinstance(payment_reduction_percent, (int, float)):
-            citation_parts.append(f"payment_reduction_percent={float(payment_reduction_percent):.2f}")
+            citation_parts.append(
+                f"payment_reduction_percent={float(payment_reduction_percent):.2f}"
+            )
         if exemption_context:
             citation_parts.append(f"exemption_context={exemption_context}")
         if effective_date:
@@ -697,7 +852,9 @@ def _build_parameter_cards(candidate: dict[str, Any], evidence_id: str) -> list[
         if policy_match_key:
             citation_parts.append(f"policy_match_key={policy_match_key}")
         if fail_closed_signals:
-            citation_parts.append(f"fail_closed_signals={','.join(fail_closed_signals)}")
+            citation_parts.append(
+                f"fail_closed_signals={','.join(fail_closed_signals)}"
+            )
         if isinstance(confidence, (int, float)):
             citation_parts.append(f"confidence={float(confidence):.2f}")
         source_excerpt = excerpt_base
@@ -714,13 +871,20 @@ def _build_parameter_cards(candidate: dict[str, Any], evidence_id: str) -> list[
         unit_sanity = str(fact.get("unit_sanity") or "").strip().lower()
         ambiguity_reason = str(fact.get("ambiguity_reason") or "").strip()
         if not ambiguity_reason and (
-            value is None or ambiguity_flag or currency_sanity == "invalid" or unit_sanity == "invalid"
+            value is None
+            or ambiguity_flag
+            or currency_sanity == "invalid"
+            or unit_sanity == "invalid"
         ):
             ambiguity_reason = "parameter_requires_manual_reconciliation"
-        state = ParameterState.RESOLVED if value is not None and not ambiguity_reason else ParameterState.AMBIGUOUS
+        state = (
+            ParameterState.RESOLVED
+            if value is not None and not ambiguity_reason
+            else ParameterState.AMBIGUOUS
+        )
         cards.append(
             ParameterCard(
-                id=f"param-{len(cards)+1}-{_slug(name)}",
+                id=f"param-{len(cards) + 1}-{_slug(name)}",
                 parameter_name=name,
                 state=state,
                 value=value if state == ParameterState.RESOLVED else None,
@@ -798,8 +962,7 @@ class PolicyEvidencePackageBuilder:
         all_candidates.extend(scraped_candidates or [])
         all_candidates.extend(structured_candidates or [])
         primary_scraped = [
-            _normalize_candidate(item)
-            for item in (scraped_candidates or [])
+            _normalize_candidate(item) for item in (scraped_candidates or [])
         ]
         primary_policy_keys = {
             _policy_match_key(item)
@@ -820,7 +983,17 @@ class PolicyEvidencePackageBuilder:
         source_lanes: set[SourceLane] = set()
         insufficiency_reasons: set[PackageFailureReason] = set()
         reader_substance_passed = True
-        normalized_candidates = [_normalize_candidate(candidate) for candidate in all_candidates]
+        freshness_raw = (
+            str((freshness_gate or {}).get("freshness_status") or "unknown")
+            .strip()
+            .lower()
+        )
+        normalized_candidates = [
+            _normalize_candidate(candidate) for candidate in all_candidates
+        ]
+        source_identity_rows: list[dict[str, Any]] = []
+        source_durability_rows: list[dict[str, Any]] = []
+        external_source_promotion_register: list[dict[str, Any]] = []
 
         canonical_by_dedupe: dict[tuple[str, str, str], dict[str, Any]] = {}
         duplicate_count = 0
@@ -831,7 +1004,11 @@ class PolicyEvidencePackageBuilder:
                 str(normalized.get("source_lane") or "").strip(),
             )
             if not dedupe_key[0]:
-                dedupe_key = (f"missing_identity:{duplicate_count}", dedupe_key[1], dedupe_key[2])
+                dedupe_key = (
+                    f"missing_identity:{duplicate_count}",
+                    dedupe_key[1],
+                    dedupe_key[2],
+                )
             existing = canonical_by_dedupe.get(dedupe_key)
             if existing is None:
                 canonical_by_dedupe[dedupe_key] = normalized
@@ -860,12 +1037,48 @@ class PolicyEvidencePackageBuilder:
         for idx, normalized in enumerate(canonical_candidates, start=1):
             source_lane = _map_source_lane(normalized["source_lane"])
             source_lanes.add(source_lane)
+            policy_families = _derive_policy_families(normalized)
+            source_identity = classify_source_candidate(
+                candidate=normalized,
+                jurisdiction=jurisdiction,
+                policy_families=policy_families,
+            )
+            source_identity_rows.append(
+                {
+                    **source_identity,
+                    "candidate_rank": idx,
+                    "artifact_url": normalized.get("artifact_url"),
+                    "source_family": normalized.get("source_family"),
+                    "artifact_type": normalized.get("artifact_type"),
+                }
+            )
+            source_durability = build_source_durability_profile(
+                candidate=normalized,
+                freshness_status=freshness_raw,
+            )
+            source_durability_rows.append(
+                {
+                    **source_durability,
+                    "classification_id": source_identity.get("classification_id"),
+                    "source_url": source_identity.get("source_url"),
+                    "source_family": normalized.get("source_family"),
+                    "provider": normalized.get("provider"),
+                }
+            )
+            promotion_entry = build_external_source_promotion_entry(
+                classification=source_identity,
+                package_id=package_id,
+            )
+            if promotion_entry is not None:
+                external_source_promotion_register.append(promotion_entry)
             is_usable, fail_reasons = _classify_candidate(normalized)
 
             if source_lane == SourceLane.SCRAPED:
                 search_provider = _map_search_provider(normalized["provider"])
                 if search_provider == SearchProvider.OTHER:
-                    insufficiency_reasons.add(PackageFailureReason.SCRAPED_PROVIDER_IDENTITY_MISSING)
+                    insufficiency_reasons.add(
+                        PackageFailureReason.SCRAPED_PROVIDER_IDENTITY_MISSING
+                    )
                 reader_url = None
                 if normalized["reader_artifact_refs"]:
                     ref = str(normalized["reader_artifact_refs"][0])
@@ -876,42 +1089,72 @@ class PolicyEvidencePackageBuilder:
                 scraped_sources.append(
                     ScrapedSourceProvenance(
                         search_provider=search_provider,
-                        provider_run_id=str(normalized.get("provider_run_id") or "") or None,
+                        provider_run_id=str(normalized.get("provider_run_id") or "")
+                        or None,
                         query_family=str(normalized.get("source_family") or "unknown"),
-                        query_text=str(normalized.get("query_text") or normalized.get("artifact_url") or "unknown query"),
-                        search_snapshot_id=str(normalized.get("search_snapshot_id") or f"{package_id}-snapshot"),
+                        query_text=str(
+                            normalized.get("query_text")
+                            or normalized.get("artifact_url")
+                            or "unknown query"
+                        ),
+                        search_snapshot_id=str(
+                            normalized.get("search_snapshot_id")
+                            or f"{package_id}-snapshot"
+                        ),
                         candidate_rank=int(normalized.get("candidate_rank") or 1),
-                        selected_candidate_url=normalized["artifact_url"] or "https://example.org/unknown",
+                        selected_candidate_url=normalized["artifact_url"]
+                        or "https://example.org/unknown",
                         reader_artifact_url=reader_url,
                         reader_substance_passed=reader_passed,
                     )
                 )
             else:
-                reconciled = _reconciles_with_primary(primary_keys=primary_policy_keys, candidate=normalized)
-                reconciliation_status = (
-                    str(normalized.get("reconciliation_status") or "").strip()
-                    or ("confirmed" if reconciled else "conflict_unresolved")
+                reconciled = _reconciles_with_primary(
+                    primary_keys=primary_policy_keys, candidate=normalized
                 )
+                reconciliation_status = str(
+                    normalized.get("reconciliation_status") or ""
+                ).strip() or ("confirmed" if reconciled else "conflict_unresolved")
                 if not reconciled and primary_policy_keys:
-                    insufficiency_reasons.add(PackageFailureReason.BLOCKING_GATE_PRESENT)
+                    insufficiency_reasons.add(
+                        PackageFailureReason.BLOCKING_GATE_PRESENT
+                    )
                 structured_sources.append(
                     StructuredSourceProvenance(
                         source_family=normalized["source_family"],
-                        access_method=str(normalized.get("access_method") or "api_or_file"),
-                        endpoint_or_file_url=normalized["artifact_url"] or "https://example.org/unknown",
-                        provider_run_id=str(normalized.get("provider_run_id") or "") or None,
+                        access_method=str(
+                            normalized.get("access_method") or "api_or_file"
+                        ),
+                        endpoint_or_file_url=normalized["artifact_url"]
+                        or "https://example.org/unknown",
+                        provider_run_id=str(normalized.get("provider_run_id") or "")
+                        or None,
                         field_count=len(normalized.get("structured_policy_facts", [])),
                         true_structured=bool(normalized.get("true_structured", True)),
                         policy_match_key=_policy_match_key(normalized) or None,
                         policy_match_confidence=(
                             float(normalized["policy_match_confidence"])
-                            if isinstance(normalized.get("policy_match_confidence"), (int, float))
+                            if isinstance(
+                                normalized.get("policy_match_confidence"), (int, float)
+                            )
                             else None
                         ),
                         reconciliation_status=reconciliation_status,
-                        event_date=str(normalized.get("lineage_metadata", {}).get("event_date") or "") or None,
-                        event_body_id=str(normalized.get("lineage_metadata", {}).get("event_body_id") or "") or None,
-                        matter_id=str(normalized.get("lineage_metadata", {}).get("matter_id") or "") or None,
+                        event_date=str(
+                            normalized.get("lineage_metadata", {}).get("event_date")
+                            or ""
+                        )
+                        or None,
+                        event_body_id=str(
+                            normalized.get("lineage_metadata", {}).get("event_body_id")
+                            or ""
+                        )
+                        or None,
+                        matter_id=str(
+                            normalized.get("lineage_metadata", {}).get("matter_id")
+                            or ""
+                        )
+                        or None,
                     )
                 )
 
@@ -920,10 +1163,10 @@ class PolicyEvidencePackageBuilder:
             candidate_parameter_cards = _build_parameter_cards(normalized, evidence.id)
             parameter_cards.extend(candidate_parameter_cards)
             candidate_has_resolved_parameters = any(
-                card.state == ParameterState.RESOLVED and _is_economic_parameter_name(card.parameter_name)
+                card.state == ParameterState.RESOLVED
+                and _is_economic_parameter_name(card.parameter_name)
                 for card in candidate_parameter_cards
             )
-            policy_families = _derive_policy_families(normalized)
             evidence_use = _derive_evidence_use(
                 candidate=normalized,
                 has_resolved_economic_parameters=candidate_has_resolved_parameters,
@@ -946,6 +1189,20 @@ class PolicyEvidencePackageBuilder:
                 "evidence_use": evidence_use,
                 "economic_relevance": economic_relevance,
                 "moat_value_reason": moat_value_reason,
+                "source_officialness": source_identity.get("source_officialness"),
+                "source_of_truth_role": source_identity.get("source_of_truth_role"),
+                "jurisdiction_match": source_identity.get("jurisdiction_match"),
+                "policy_family_match": source_identity.get("policy_family_match"),
+                "external_context_allowed": source_identity.get(
+                    "external_context_allowed"
+                ),
+                "primary_evidence_allowed": source_identity.get(
+                    "primary_evidence_allowed"
+                ),
+                "source_identity_reason_codes": source_identity.get("reason_codes", []),
+                "source_retrieved_at": source_durability.get("retrieved_at"),
+                "source_shape_changed": source_durability.get("source_shape_changed"),
+                "stale_for_policy_use": source_durability.get("stale_for_policy_use"),
             }
             if (
                 source_lane == SourceLane.STRUCTURED
@@ -953,8 +1210,13 @@ class PolicyEvidencePackageBuilder:
                 and candidate_has_resolved_parameters
             ):
                 true_structured_resolved_parameters = True
-            mechanism = _map_mechanism_family(str(normalized.get("mechanism_family") or ""))
-            if mechanism and normalized.get("selected_impact_mode") != "qualitative_only":
+            mechanism = _map_mechanism_family(
+                str(normalized.get("mechanism_family") or "")
+            )
+            if (
+                mechanism
+                and normalized.get("selected_impact_mode") != "qualitative_only"
+            ):
                 assumption_cards.append(
                     AssumptionCard(
                         id=f"assump-{idx}-{mechanism.value}",
@@ -963,7 +1225,8 @@ class PolicyEvidencePackageBuilder:
                         central=0.65,
                         high=0.8,
                         unit="share",
-                        source_url=normalized["artifact_url"] or "https://example.org/unknown",
+                        source_url=normalized["artifact_url"]
+                        or "https://example.org/unknown",
                         source_excerpt="Mapped mechanism assumption from source evidence and policy context.",
                         applicability_tags=[jurisdiction, normalized["source_family"]],
                         external_validity_notes="POC placeholder assumption; validate with literature in bd-3wefe.5/.6.",
@@ -975,9 +1238,13 @@ class PolicyEvidencePackageBuilder:
 
             for reason in fail_reasons:
                 if reason in _INSUFFICIENT_REASONS:
-                    insufficiency_reasons.add(PackageFailureReason.BLOCKING_GATE_PRESENT)
+                    insufficiency_reasons.add(
+                        PackageFailureReason.BLOCKING_GATE_PRESENT
+                    )
                 if reason == "reader_required_for_scraped_source":
-                    insufficiency_reasons.add(PackageFailureReason.BLOCKING_GATE_PRESENT)
+                    insufficiency_reasons.add(
+                        PackageFailureReason.BLOCKING_GATE_PRESENT
+                    )
                 if reason == "missing_identity":
                     insufficiency_reasons.add(PackageFailureReason.NO_EVIDENCE_CARDS)
                 if reason == "secondary_search_not_true_structured":
@@ -989,28 +1256,62 @@ class PolicyEvidencePackageBuilder:
             insufficiency_reasons.add(PackageFailureReason.NO_EVIDENCE_CARDS)
 
         has_resolved_economic_parameters = any(
-            card.state == ParameterState.RESOLVED and _is_economic_parameter_name(card.parameter_name)
+            card.state == ParameterState.RESOLVED
+            and _is_economic_parameter_name(card.parameter_name)
             for card in parameter_cards
         )
         true_structured_sources = [
-            source
-            for source in structured_sources
-            if source.true_structured
+            source for source in structured_sources if source.true_structured
         ]
         if SourceLane.STRUCTURED in source_lanes and not true_structured_sources:
             structured_depth_blocked = True
             insufficiency_reasons.add(PackageFailureReason.BLOCKING_GATE_PRESENT)
         if SourceLane.STRUCTURED in source_lanes and true_structured_sources:
             has_structured_provenance_depth = any(
-                source.policy_match_key and source.reconciliation_status in {"confirmed", "contextual_metadata_linked_to_policy_query"}
+                source.policy_match_key
+                and source.reconciliation_status
+                in {"confirmed", "contextual_metadata_linked_to_policy_query"}
                 for source in true_structured_sources
             )
-            if not has_structured_provenance_depth or not true_structured_resolved_parameters:
+            if (
+                not has_structured_provenance_depth
+                or not true_structured_resolved_parameters
+            ):
                 structured_depth_blocked = True
                 insufficiency_reasons.add(PackageFailureReason.BLOCKING_GATE_PRESENT)
-        reader_gate_blocked = SourceLane.SCRAPED in source_lanes and not reader_substance_passed
+        reader_gate_blocked = (
+            SourceLane.SCRAPED in source_lanes and not reader_substance_passed
+        )
         if reader_gate_blocked:
             insufficiency_reasons.add(PackageFailureReason.BLOCKING_GATE_PRESENT)
+
+        primary_evidence_classifications = [
+            item
+            for item in source_identity_rows
+            if bool(item.get("primary_evidence_allowed"))
+        ]
+        if not primary_evidence_classifications:
+            insufficiency_reasons.add(PackageFailureReason.BLOCKING_GATE_PRESENT)
+
+        source_official_dominance = compute_official_source_dominance(
+            classifications=source_identity_rows
+        )
+        if str(source_official_dominance.get("status") or "") == "fail":
+            insufficiency_reasons.add(PackageFailureReason.BLOCKING_GATE_PRESENT)
+        if any(
+            str(item.get("audit_status") or "").strip().lower() == "fail"
+            for item in external_source_promotion_register
+        ):
+            insufficiency_reasons.add(PackageFailureReason.BLOCKING_GATE_PRESENT)
+
+        identity_and_dominance_ready = bool(primary_evidence_classifications) and (
+            str(source_official_dominance.get("status") or "") != "fail"
+        )
+        parameterization_ready = (
+            has_resolved_economic_parameters
+            and not structured_depth_blocked
+            and identity_and_dominance_ready
+        )
         if not has_resolved_economic_parameters:
             insufficiency_reasons.add(PackageFailureReason.NO_QUANT_SUPPORT_PATH)
         has_blocking_gate = bool(insufficiency_reasons)
@@ -1018,68 +1319,95 @@ class PolicyEvidencePackageBuilder:
             insufficiency_reasons.add(PackageFailureReason.BLOCKING_GATE_PRESENT)
 
         stage_results = [
-            GateStageResult(stage=QualityGateStage.SEARCH_RECALL, passed=bool(evidence_cards)),
+            GateStageResult(
+                stage=QualityGateStage.SEARCH_RECALL, passed=bool(evidence_cards)
+            ),
             GateStageResult(
                 stage=QualityGateStage.READER_SUBSTANCE,
-                passed=reader_substance_passed if SourceLane.SCRAPED in source_lanes else True,
+                passed=reader_substance_passed
+                if SourceLane.SCRAPED in source_lanes
+                else True,
                 failure_codes=[FailureCode.EXCERPT_VALIDATION_FAILED]
                 if (SourceLane.SCRAPED in source_lanes and not reader_substance_passed)
                 else [],
             ),
             GateStageResult(
                 stage=QualityGateStage.PARAMETERIZATION,
-                passed=has_resolved_economic_parameters and not structured_depth_blocked,
+                passed=parameterization_ready,
                 failure_codes=[]
-                if (has_resolved_economic_parameters and not structured_depth_blocked)
+                if parameterization_ready
                 else [FailureCode.PARAMETER_MISSING],
             ),
             GateStageResult(
                 stage=QualityGateStage.QUANTIFICATION,
-                passed=has_resolved_economic_parameters and not has_blocking_gate,
-                failure_codes=[] if (has_resolved_economic_parameters and not has_blocking_gate) else [FailureCode.PARAMETER_UNVERIFIABLE],
+                passed=parameterization_ready and not has_blocking_gate,
+                failure_codes=[]
+                if (parameterization_ready and not has_blocking_gate)
+                else [FailureCode.PARAMETER_UNVERIFIABLE],
             ),
         ]
         blocking_gate = None
         if SourceLane.SCRAPED in source_lanes and not reader_substance_passed:
             blocking_gate = QualityGateStage.READER_SUBSTANCE
-        elif not has_resolved_economic_parameters:
+        elif not parameterization_ready:
             blocking_gate = QualityGateStage.PARAMETERIZATION
         elif has_blocking_gate:
             blocking_gate = QualityGateStage.PARAMETERIZATION
 
         gate_report = GateReport(
             case_id=f"{package_id}-gate",
-            provider=str((scraped_candidates or [{}])[0].get("provider") or "structured_only"),
-            verdict=GateVerdict.QUANTIFIED_PASS if not has_blocking_gate else GateVerdict.FAIL_CLOSED,
+            provider=str(
+                (scraped_candidates or [{}])[0].get("provider") or "structured_only"
+            ),
+            verdict=GateVerdict.QUANTIFIED_PASS
+            if not has_blocking_gate
+            else GateVerdict.FAIL_CLOSED,
             stage_results=stage_results,
             blocking_gate=blocking_gate,
-            failure_codes=[] if not has_blocking_gate else [FailureCode.PARAMETER_MISSING],
+            failure_codes=[]
+            if not has_blocking_gate
+            else [FailureCode.PARAMETER_MISSING],
             artifact_counts={"evidence_cards": len(evidence_cards)},
             unsupported_claim_count=0 if not has_blocking_gate else 1,
             manual_audit_notes=(
                 "Builder payload with canonical identity dedupe and provenance linkage; "
-                f"deduped_candidates={duplicate_count}. Full durability/orchestration gates in bd-3wefe.10/.12."
+                f"deduped_candidates={duplicate_count}; "
+                f"official_dominance_status={source_official_dominance.get('status')}; "
+                f"official_primary_percent={source_official_dominance.get('corpus_official_primary_percent')}. "
+                "Full durability/orchestration gates in bd-3wefe.10/.12."
             ),
         )
 
-        freshness_raw = str((freshness_gate or {}).get("freshness_status") or "unknown")
         freshness_map = {
             "fresh": FreshnessStatus.FRESH,
             "stale_usable": FreshnessStatus.STALE_USABLE,
+            "stale_but_usable": FreshnessStatus.STALE_USABLE,
             "stale_blocked": FreshnessStatus.STALE_BLOCKED,
+            "empty_but_usable": FreshnessStatus.STALE_USABLE,
+            "empty_blocked": FreshnessStatus.STALE_BLOCKED,
             "unknown": FreshnessStatus.UNKNOWN,
         }
         runtime_state = (
-            SufficiencyState.QUANTIFIED if not has_blocking_gate else SufficiencyState.QUALITATIVE_ONLY
+            SufficiencyState.QUANTIFIED
+            if not has_blocking_gate
+            else SufficiencyState.QUALITATIVE_ONLY
         )
 
-        primary = canonical_candidates[0] if canonical_candidates else {
-            "canonical_document_key": f"{jurisdiction}::unknown",
-            "dedupe_group": "unknown",
-        }
-        policy_identifier = str(primary.get("dedupe_group") or primary["canonical_document_key"])
+        primary = (
+            canonical_candidates[0]
+            if canonical_candidates
+            else {
+                "canonical_document_key": f"{jurisdiction}::unknown",
+                "dedupe_group": "unknown",
+            }
+        )
+        policy_identifier = str(
+            primary.get("dedupe_group") or primary["canonical_document_key"]
+        )
 
-        created_at = _parse_datetime(str((economic_hints or {}).get("created_at") or ""))
+        created_at = _parse_datetime(
+            str((economic_hints or {}).get("created_at") or "")
+        )
 
         package = PolicyEvidencePackage(
             package_id=package_id,
@@ -1102,10 +1430,18 @@ class PolicyEvidencePackageBuilder:
                     if has_blocking_gate
                     else None
                 ),
-                runtime_failure_codes=[] if not has_blocking_gate else [FailureCode.PARAMETER_MISSING],
-                canonical_breakdown_ref=str((economic_hints or {}).get("canonical_breakdown_ref") or ""),
-                canonical_pipeline_run_id=str((economic_hints or {}).get("canonical_pipeline_run_id") or ""),
-                canonical_pipeline_step_id=str((economic_hints or {}).get("canonical_pipeline_step_id") or ""),
+                runtime_failure_codes=[]
+                if not has_blocking_gate
+                else [FailureCode.PARAMETER_MISSING],
+                canonical_breakdown_ref=str(
+                    (economic_hints or {}).get("canonical_breakdown_ref") or ""
+                ),
+                canonical_pipeline_run_id=str(
+                    (economic_hints or {}).get("canonical_pipeline_run_id") or ""
+                ),
+                canonical_pipeline_step_id=str(
+                    (economic_hints or {}).get("canonical_pipeline_step_id") or ""
+                ),
             ),
             assumption_usage=[],
             storage_refs=_build_storage_refs(
@@ -1114,7 +1450,9 @@ class PolicyEvidencePackageBuilder:
             ),
             freshness_status=freshness_map.get(freshness_raw, FreshnessStatus.UNKNOWN),
             economic_handoff_ready=(not has_blocking_gate),
-            insufficiency_reasons=sorted(insufficiency_reasons, key=lambda reason: reason.value),
+            insufficiency_reasons=sorted(
+                insufficiency_reasons, key=lambda reason: reason.value
+            ),
         )
         payload = package.model_dump(mode="json")
 
@@ -1145,7 +1483,153 @@ class PolicyEvidencePackageBuilder:
         payload["policy_family"] = policy_families[0]
         payload["evidence_use"] = ordered_uses[0]
         payload["economic_relevance"] = ordered_relevance[0]
-        payload["moat_value_reason"] = moat_reason_candidates[0] if moat_reason_candidates else (
-            f"background_context:{payload['policy_family']}:package preserves source-grounded policy evidence."
+        payload["moat_value_reason"] = (
+            moat_reason_candidates[0]
+            if moat_reason_candidates
+            else (
+                f"background_context:{payload['policy_family']}:package preserves source-grounded policy evidence."
+            )
         )
+
+        selected_identity = (
+            primary_evidence_classifications[0]
+            if primary_evidence_classifications
+            else (source_identity_rows[0] if source_identity_rows else {})
+        )
+        identity_failure_codes = list(
+            source_official_dominance.get("failure_codes") or []
+        )
+        source_identity_blocker_code = ""
+        source_identity_blocker_reason = ""
+        if not source_identity_rows:
+            source_identity_blocker_code = "source_identity_missing"
+            source_identity_blocker_reason = (
+                "No source identity classifications were emitted."
+            )
+        elif not primary_evidence_classifications:
+            source_identity_blocker_code = "no_primary_evidence_allowed_source"
+            source_identity_blocker_reason = "All sources were classified as secondary/discovery context; no primary evidence source was allowed."
+        elif str(source_official_dominance.get("status") or "") == "fail":
+            if any("cap_exceeded" in code for code in identity_failure_codes):
+                source_identity_blocker_code = "secondary_provider_primary_cap_exceeded"
+            else:
+                source_identity_blocker_code = "official_source_dominance_below_floor"
+            source_identity_blocker_reason = "Official-source dominance thresholds or Tavily/Exa primary caps were violated."
+
+        policy_identity_ready = bool(
+            primary_evidence_classifications
+            and any(
+                str(item.get("policy_family_match") or "") != "mismatch"
+                for item in primary_evidence_classifications
+            )
+        )
+        jurisdiction_identity_ready = bool(
+            primary_evidence_classifications
+            and any(
+                str(item.get("jurisdiction_match") or "") in {"exact", "partial"}
+                for item in primary_evidence_classifications
+            )
+        )
+
+        official_attachment_row_count = 0
+        true_structured_row_count = 0
+        secondary_snippet_row_count = 0
+        evidence_metadata_by_id = {
+            str(card.get("id") or ""): evidence_card_metadata.get(
+                str(card.get("id") or ""), {}
+            )
+            for card in payload.get("evidence_cards", [])
+        }
+        for parameter in payload.get("parameter_cards", []):
+            if str(parameter.get("state") or "") != ParameterState.RESOLVED.value:
+                continue
+            evidence_id = str(parameter.get("evidence_card_id") or "")
+            metadata = evidence_metadata_by_id.get(evidence_id, {})
+            role = str(metadata.get("source_of_truth_role") or "")
+            if role == "primary_official":
+                true_structured_row_count += 1
+            if "attachment_probe:" in str(parameter.get("source_excerpt") or ""):
+                official_attachment_row_count += 1
+        for item in source_identity_rows:
+            if bool(item.get("derived_via_secondary_search")) and not bool(
+                item.get("primary_evidence_allowed")
+            ):
+                secondary_snippet_row_count += 1
+
+        stale_source_count = sum(
+            1
+            for item in source_durability_rows
+            if bool(item.get("stale_for_policy_use"))
+        )
+        source_shape_changed_count = sum(
+            1
+            for item in source_durability_rows
+            if bool(item.get("source_shape_changed"))
+        )
+        update_cadence_drift_count = sum(
+            1
+            for item in source_durability_rows
+            if bool(item.get("update_cadence_drift"))
+        )
+
+        source_identity_rules = source_identity_rules_snapshot()
+        source_quality_metrics = {
+            "ruleset_version": source_identity_rules.get("ruleset_version"),
+            "policy_identity_ready": policy_identity_ready,
+            "jurisdiction_identity_ready": jurisdiction_identity_ready,
+            "identity_blocker_code": source_identity_blocker_code or None,
+            "identity_blocker_reason": source_identity_blocker_reason or None,
+            "selected_artifact_family": str(
+                selected_identity.get("source_family") or "unknown"
+            ),
+            "selected_candidate": {
+                "url": selected_identity.get("source_url"),
+                "provider": selected_identity.get("provider"),
+                "artifact_family": selected_identity.get("source_family"),
+                "official_domain": str(
+                    selected_identity.get("source_officialness") or ""
+                ).startswith("official_"),
+            },
+            "top_n_artifact_recall_count": len(primary_evidence_classifications),
+            "official_source_dominance": source_official_dominance,
+            "external_source_promotion_count": len(external_source_promotion_register),
+        }
+        source_reconciliation = {
+            "primary_official_row_count": sum(
+                1
+                for item in source_identity_rows
+                if str(item.get("source_of_truth_role") or "") == "primary_official"
+            ),
+            "secondary_snippet_row_count": secondary_snippet_row_count,
+            "external_primary_source_count": sum(
+                1
+                for item in source_identity_rows
+                if str(item.get("source_of_truth_role") or "")
+                == "primary_external_promoted"
+            ),
+            "true_structured_row_count": true_structured_row_count,
+            "official_attachment_row_count": official_attachment_row_count,
+            "stale_source_count": stale_source_count,
+            "source_shape_changed_count": source_shape_changed_count,
+            "update_cadence_drift_count": update_cadence_drift_count,
+            "external_source_promotion_count": len(external_source_promotion_register),
+            "identity_blocker_code": source_identity_blocker_code or None,
+            "identity_blocker_reason": source_identity_blocker_reason or None,
+        }
+
+        payload["source_identity_rules"] = source_identity_rules
+        payload["source_identity_classifications"] = source_identity_rows
+        payload["source_official_dominance"] = source_official_dominance
+        payload["external_source_promotion_register"] = (
+            external_source_promotion_register
+        )
+        payload["source_freshness_drift"] = {
+            "records": source_durability_rows,
+            "stale_source_count": stale_source_count,
+            "source_shape_changed_count": source_shape_changed_count,
+            "update_cadence_drift_count": update_cadence_drift_count,
+            "freshness_gate_status": freshness_raw,
+        }
+        payload["source_quality_metrics"] = source_quality_metrics
+        payload["source_reconciliation"] = source_reconciliation
         return payload

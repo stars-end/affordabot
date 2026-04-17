@@ -1,0 +1,104 @@
+{
+  "schema_version": "source_licensing_tos_register_v1",
+  "taxonomy_version": "corpus_taxonomy_v1",
+  "gate_version": "data_moat_c0_c14_v1",
+  "purpose": "Redistribution and crawler-posture register for source families used by local_government_data_moat_benchmark_v0. C10 cannot pass while a material source family has licensing_status=unknown.",
+  "review_rule": {
+    "decision_grade_corpus_unknown_license_max_share": 0,
+    "secondary_search_cards_must_not_be_redistributed_as_primary": true,
+    "robots_or_tos_conflict_requires_blocked_hitl": true
+  },
+  "source_families": [
+    {
+      "source_family": "private_searxng_discovered_official_html_pdf",
+      "licensing_status": "source_specific_official_public",
+      "redistribution_posture": "store_excerpts_metadata_and_artifact_refs_by_default",
+      "crawler_posture": "respect_origin_robots_and_rate_limits",
+      "requires_human_legal_review_before_resale": true
+    },
+    {
+      "source_family": "official_pdf_html_attachment",
+      "licensing_status": "official_public_document",
+      "redistribution_posture": "store_artifact_of_record_when permitted; export citations and hashes by default",
+      "crawler_posture": "respect_origin_robots_and_rate_limits",
+      "requires_human_legal_review_before_resale": true
+    },
+    {
+      "source_family": "agenda_meeting_api",
+      "licensing_status": "public_api_terms_vary_by_vendor_and_jurisdiction",
+      "redistribution_posture": "store normalized metadata and source refs; avoid bulk redistribution until source terms reviewed",
+      "crawler_posture": "api_rate_limits_required",
+      "requires_human_legal_review_before_resale": true
+    },
+    {
+      "source_family": "state_legislation_api_or_raw",
+      "licensing_status": "official_public_or_open_data_by_feed",
+      "redistribution_posture": "store normalized rows, source refs, and hashes",
+      "crawler_posture": "follow feed cadence",
+      "requires_human_legal_review_before_resale": true
+    },
+    {
+      "source_family": "openstates_api",
+      "licensing_status": "third_party_api_terms_apply",
+      "redistribution_posture": "store derived linkage metadata; do not resell raw API payloads without terms review",
+      "crawler_posture": "api_key_and_rate_limits_required",
+      "requires_human_legal_review_before_resale": true
+    },
+    {
+      "source_family": "ckan_api",
+      "licensing_status": "dataset_license_required_per_package",
+      "redistribution_posture": "export only rows with explicit open license or official-public posture",
+      "crawler_posture": "api_rate_limits_and_dataset_cadence",
+      "requires_human_legal_review_before_resale": false
+    },
+    {
+      "source_family": "socrata_api",
+      "licensing_status": "dataset_license_required_per_dataset",
+      "redistribution_posture": "export only rows with explicit open license or official-public posture",
+      "crawler_posture": "api_rate_limits_and_app_token_when_available",
+      "requires_human_legal_review_before_resale": false
+    },
+    {
+      "source_family": "arcgis_rest",
+      "licensing_status": "item_license_required_per_layer",
+      "redistribution_posture": "export normalized attributes only when item license permits; otherwise export source refs",
+      "crawler_posture": "api_rate_limits_and_layer_pagination",
+      "requires_human_legal_review_before_resale": false
+    },
+    {
+      "source_family": "opendatasoft_api",
+      "licensing_status": "dataset_license_required_per_dataset",
+      "redistribution_posture": "export normalized rows only when dataset license permits",
+      "crawler_posture": "api_rate_limits_and_dataset_cadence",
+      "requires_human_legal_review_before_resale": false
+    },
+    {
+      "source_family": "static_csv_json_raw",
+      "licensing_status": "source_specific",
+      "redistribution_posture": "store raw only when source license permits; otherwise store hashes and metadata",
+      "crawler_posture": "follow published cadence",
+      "requires_human_legal_review_before_resale": true
+    },
+    {
+      "source_family": "official_clerk_or_code_portal",
+      "licensing_status": "source_specific_official_public",
+      "redistribution_posture": "store citations, excerpts, hashes, and normalized metadata by default",
+      "crawler_posture": "respect_origin_robots_and_rate_limits",
+      "requires_human_legal_review_before_resale": true
+    },
+    {
+      "source_family": "secondary_search_tavily",
+      "licensing_status": "third_party_search_api_terms_apply",
+      "redistribution_posture": "context_only; never primary evidence; store query metadata and source refs",
+      "crawler_posture": "api_terms_and_rate_limits_required",
+      "requires_human_legal_review_before_resale": true
+    },
+    {
+      "source_family": "secondary_search_exa",
+      "licensing_status": "third_party_search_api_terms_apply",
+      "redistribution_posture": "context_only; never primary evidence; store query metadata and source refs",
+      "crawler_posture": "api_terms_and_rate_limits_required",
+      "requires_human_legal_review_before_resale": true
+    }
+  ]
+}

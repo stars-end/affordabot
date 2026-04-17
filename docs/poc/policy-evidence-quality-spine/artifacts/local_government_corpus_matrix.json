@@ -1,0 +1,3248 @@
+{
+  "benchmark_id": "local_government_data_moat_benchmark_v0",
+  "feature_key": "bd-3wefe.13.1",
+  "schema_version": "local_government_corpus_matrix_v1",
+  "taxonomy_version": "corpus_taxonomy_v1",
+  "gate_version": "data_moat_c0_c14_v1",
+  "generated_at": "2026-04-17T00:00:00+00:00",
+  "seed_mode": "seed_with_expansion_backlog",
+  "target_row_range": {
+    "min": 75,
+    "max": 120
+  },
+  "corpus_readiness_target": "corpus_ready_with_gaps",
+  "expansion_backlog": [
+    {
+      "backlog_id": "expand-non-ca-coverage",
+      "description": "Add 36 rows across OR/WA/TX county and state policy families.",
+      "target_rows": 36
+    },
+    {
+      "backlog_id": "expand-manual-audit-sample",
+      "description": "Increase stratified manual audit to all seed rows before live pass claim.",
+      "target_rows": 18
+    },
+    {
+      "backlog_id": "windmill-live-share",
+      "description": "Reduce cli_only share below 10 percent before decision-grade claim.",
+      "target_rows": 20
+    }
+  ],
+  "product_surface": {
+    "read_api_endpoint": "/api/policy-evidence/corpus",
+    "export_artifact_path": "docs/poc/policy-evidence-quality-spine/artifacts/local_government_corpus_scorecard.json",
+    "schema_fields": [
+      "package_id",
+      "corpus_row_id",
+      "jurisdiction.id",
+      "policy_family",
+      "selected_primary_source.source_family",
+      "classification.data_moat_package_classification",
+      "classification.d11_handoff_quality",
+      "freshness.retrieved_at",
+      "infrastructure_status.orchestration_mode"
+    ],
+    "access_control": {
+      "internal_admin": "required",
+      "customer_beta": "planned"
+    },
+    "query_examples": [
+      {
+        "dimension": "jurisdiction",
+        "example": "jurisdiction.id=portland_or"
+      },
+      {
+        "dimension": "policy_family",
+        "example": "policy_family=zoning_land_use"
+      },
+      {
+        "dimension": "source_family",
+        "example": "selected_primary_source.source_family=official_pdf_html_attachment"
+      },
+      {
+        "dimension": "officialness",
+        "example": "selected_primary_source.source_officialness=official_primary"
+      },
+      {
+        "dimension": "freshness",
+        "example": "freshness.stale_for_policy_use=false"
+      },
+      {
+        "dimension": "classification",
+        "example": "classification.data_moat_package_classification=economic_handoff_candidate"
+      }
+    ]
+  },
+  "schema_contract": {
+    "package_schema_version": "policy_evidence_package_v1",
+    "source_taxonomy_version": "corpus_taxonomy_v1",
+    "gate_version": "data_moat_c0_c14_v1",
+    "migration_backfill_notes": "v1 baseline no backfill yet",
+    "field_change_rules": "additive fields only until corpus_v2",
+    "unknown_field_handling": "ignore_and_log"
+  },
+  "non_fee_extraction_templates": [
+    {
+      "template_id": "non_fee_template::zoning_land_use",
+      "policy_family": "zoning_land_use"
+    },
+    {
+      "template_id": "non_fee_template::short_term_rental",
+      "policy_family": "short_term_rental"
+    },
+    {
+      "template_id": "non_fee_template::code_enforcement",
+      "policy_family": "code_enforcement"
+    },
+    {
+      "template_id": "non_fee_template::housing_permits",
+      "policy_family": "housing_permits"
+    }
+  ],
+  "known_policy_references": [
+    {
+      "known_policy_reference_id": "kp-sj-clf-001",
+      "jurisdiction_id": "san_jose_ca",
+      "policy_family": "commercial_linkage_fee",
+      "expected_official_source_family": "official_pdf_html_attachment",
+      "expected_structured_source_family": "agenda_meeting_api",
+      "expected_handoff_class": "economic_handoff_candidate",
+      "evaluation_split": "tuning"
+    },
+    {
+      "known_policy_reference_id": "kp-sj-parking-001",
+      "jurisdiction_id": "san_jose_ca",
+      "policy_family": "parking_policy",
+      "expected_official_source_family": "official_pdf_html_attachment",
+      "expected_structured_source_family": "agenda_meeting_api",
+      "expected_handoff_class": "economic_handoff_candidate",
+      "evaluation_split": "tuning"
+    },
+    {
+      "known_policy_reference_id": "kp-sj-str-001",
+      "jurisdiction_id": "san_jose_ca",
+      "policy_family": "short_term_rental",
+      "expected_official_source_family": "official_clerk_or_code_portal",
+      "expected_structured_source_family": "ckan_api",
+      "expected_handoff_class": "qualitative_only",
+      "evaluation_split": "blind_evaluation"
+    },
+    {
+      "known_policy_reference_id": "kp-la-ih-001",
+      "jurisdiction_id": "los_angeles_ca",
+      "policy_family": "affordable_housing_mandate",
+      "expected_official_source_family": "official_pdf_html_attachment",
+      "expected_structured_source_family": "socrata_api",
+      "expected_handoff_class": "secondary_research_needed",
+      "evaluation_split": "tuning"
+    },
+    {
+      "known_policy_reference_id": "kp-la-zoning-001",
+      "jurisdiction_id": "los_angeles_ca",
+      "policy_family": "zoning_land_use",
+      "expected_official_source_family": "official_clerk_or_code_portal",
+      "expected_structured_source_family": "arcgis_rest",
+      "expected_handoff_class": "stored_not_economic",
+      "evaluation_split": "blind_evaluation"
+    },
+    {
+      "known_policy_reference_id": "kp-oak-code-001",
+      "jurisdiction_id": "oakland_ca",
+      "policy_family": "code_enforcement",
+      "expected_official_source_family": "official_pdf_html_attachment",
+      "expected_structured_source_family": "socrata_api",
+      "expected_handoff_class": "economic_handoff_candidate",
+      "evaluation_split": "tuning"
+    },
+    {
+      "known_policy_reference_id": "kp-oak-biz-001",
+      "jurisdiction_id": "oakland_ca",
+      "policy_family": "business_licensing_compliance",
+      "expected_official_source_family": "official_clerk_or_code_portal",
+      "expected_structured_source_family": "ckan_api",
+      "expected_handoff_class": "stored_not_economic",
+      "evaluation_split": "tuning"
+    },
+    {
+      "known_policy_reference_id": "kp-scc-permit-001",
+      "jurisdiction_id": "santa_clara_county_ca",
+      "policy_family": "housing_permits",
+      "expected_official_source_family": "official_pdf_html_attachment",
+      "expected_structured_source_family": "opendatasoft_api",
+      "expected_handoff_class": "economic_handoff_candidate",
+      "evaluation_split": "blind_evaluation"
+    },
+    {
+      "known_policy_reference_id": "kp-scc-tax-001",
+      "jurisdiction_id": "santa_clara_county_ca",
+      "policy_family": "local_tax_fee",
+      "expected_official_source_family": "official_pdf_html_attachment",
+      "expected_structured_source_family": "state_legislation_api_or_raw",
+      "expected_handoff_class": "economic_analysis_ready",
+      "evaluation_split": "tuning"
+    },
+    {
+      "known_policy_reference_id": "kp-ca-energy-001",
+      "jurisdiction_id": "california_state",
+      "policy_family": "utilities_energy_building_standard",
+      "expected_official_source_family": "state_legislation_api_or_raw",
+      "expected_structured_source_family": "state_legislation_api_or_raw",
+      "expected_handoff_class": "secondary_research_needed",
+      "evaluation_split": "tuning"
+    },
+    {
+      "known_policy_reference_id": "kp-ca-air-001",
+      "jurisdiction_id": "california_state",
+      "policy_family": "air_quality_electrification",
+      "expected_official_source_family": "state_legislation_api_or_raw",
+      "expected_structured_source_family": "state_legislation_api_or_raw",
+      "expected_handoff_class": "economic_handoff_candidate",
+      "evaluation_split": "blind_evaluation"
+    },
+    {
+      "known_policy_reference_id": "kp-por-parking-001",
+      "jurisdiction_id": "portland_or",
+      "policy_family": "parking_policy",
+      "expected_official_source_family": "official_clerk_or_code_portal",
+      "expected_structured_source_family": "arcgis_rest",
+      "expected_handoff_class": "economic_handoff_candidate",
+      "evaluation_split": "tuning"
+    },
+    {
+      "known_policy_reference_id": "kp-por-str-001",
+      "jurisdiction_id": "portland_or",
+      "policy_family": "short_term_rental",
+      "expected_official_source_family": "official_clerk_or_code_portal",
+      "expected_structured_source_family": "ckan_api",
+      "expected_handoff_class": "stored_not_economic",
+      "evaluation_split": "blind_evaluation"
+    },
+    {
+      "known_policy_reference_id": "kp-king-zoning-001",
+      "jurisdiction_id": "king_county_wa",
+      "policy_family": "zoning_land_use",
+      "expected_official_source_family": "official_pdf_html_attachment",
+      "expected_structured_source_family": "arcgis_rest",
+      "expected_handoff_class": "secondary_research_needed",
+      "evaluation_split": "tuning"
+    },
+    {
+      "known_policy_reference_id": "kp-king-meeting-001",
+      "jurisdiction_id": "king_county_wa",
+      "policy_family": "meeting_action",
+      "expected_official_source_family": "agenda_meeting_api",
+      "expected_structured_source_family": "agenda_meeting_api",
+      "expected_handoff_class": "qualitative_only",
+      "evaluation_split": "tuning"
+    },
+    {
+      "known_policy_reference_id": "kp-aus-afford-001",
+      "jurisdiction_id": "austin_tx",
+      "policy_family": "affordable_housing_mandate",
+      "expected_official_source_family": "official_clerk_or_code_portal",
+      "expected_structured_source_family": "socrata_api",
+      "expected_handoff_class": "economic_handoff_candidate",
+      "evaluation_split": "tuning"
+    },
+    {
+      "known_policy_reference_id": "kp-aus-code-001",
+      "jurisdiction_id": "austin_tx",
+      "policy_family": "code_enforcement",
+      "expected_official_source_family": "official_clerk_or_code_portal",
+      "expected_structured_source_family": "ckan_api",
+      "expected_handoff_class": "stored_not_economic",
+      "evaluation_split": "blind_evaluation"
+    },
+    {
+      "known_policy_reference_id": "kp-aus-proc-001",
+      "jurisdiction_id": "austin_tx",
+      "policy_family": "procurement_contract",
+      "expected_official_source_family": "official_pdf_html_attachment",
+      "expected_structured_source_family": "cataloged_unavailable",
+      "expected_handoff_class": "not_policy_evidence",
+      "evaluation_split": "tuning"
+    }
+  ],
+  "rows": [
+    {
+      "row_type": "corpus_package",
+      "corpus_row_id": "lgm-001",
+      "package_id": "pkg::lgm-001",
+      "jurisdiction": {
+        "id": "san_jose_ca",
+        "name": "San Jose",
+        "type": "city",
+        "state": "CA",
+        "region": "us"
+      },
+      "policy_family": "commercial_linkage_fee",
+      "mechanism_family": "direct_fee_or_tax",
+      "query_families": [
+        "san jose commercial linkage fee ordinance adopted rate"
+      ],
+      "expected_official_source_families": [
+        "official_pdf_html_attachment"
+      ],
+      "expected_structured_source_families": [
+        "agenda_meeting_api",
+        "socrata_api"
+      ],
+      "known_official_domains": [
+        "sanjoseca.gov",
+        "legistar.com"
+      ],
+      "evaluation_split": "tuning",
+      "blind_seed": false,
+      "known_policy_reference_id": "kp-sj-clf-001",
+      "required_package_verdict_floor": "stored_not_economic",
+      "manual_audit_priority": "P0",
+      "golden_regression_expectation": {
+        "stable_query_input": "san jose commercial linkage fee ordinance adopted rate",
+        "expected_jurisdiction_id": "san_jose_ca",
+        "expected_policy_family": "commercial_linkage_fee",
+        "selected_source_url": "https://www.sanjoseca.gov/housing/commercial-linkage-fee.pdf",
+        "package_id": "pkg::lgm-001",
+        "verdict": "corpus_ready_with_gaps",
+        "failure_class": "none"
+      },
+      "selected_primary_source": {
+        "source_family": "official_pdf_html_attachment",
+        "source_url": "https://www.sanjoseca.gov/housing/commercial-linkage-fee.pdf",
+        "source_officialness": "official_primary",
+        "source_of_truth_role": "policy_text",
+        "jurisdiction_match": true,
+        "policy_family_match": true,
+        "external_context_allowed": false,
+        "primary_evidence_allowed": true
+      },
+      "provider_usage": {
+        "primary_discovery_provider": "private_searxng",
+        "tavily_primary_selected": false,
+        "exa_primary_selected": false
+      },
+      "structured_source_observations": [
+        {
+          "source_family": "agenda_meeting_api",
+          "true_structured": false,
+          "depth": "metadata",
+          "live_proven": true
+        },
+        {
+          "source_family": "socrata_api",
+          "true_structured": true,
+          "depth": "economic_rows",
+          "live_proven": true
+        }
+      ],
+      "structured_cell_status": "covered",
+      "source_infrastructure_status": "live_integrated",
+      "infrastructure_status": {
+        "source_lane_status": "live_integrated",
+        "orchestration_mode": "windmill_live",
+        "windmill_refs": {
+          "flow_id": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+          "run_id": "wm::lgm-001",
+          "job_id": "wm-job::lgm-001"
+        }
+      },
+      "economic_handoff_plausibility": {
+        "classification_target": "economic_handoff_candidate",
+        "deep_dive_type": "direct",
+        "deep_dive_performed": true,
+        "model_card_reuse_count": 2
+      },
+      "classification": {
+        "data_moat_package_classification": "economic_handoff_candidate",
+        "d11_handoff_quality": "analysis_ready_with_gaps",
+        "d11_reason": "parameter inventory present with bounded assumptions"
+      },
+      "package_gate_status": {
+        "D0": "pass",
+        "D1": "pass",
+        "D2": "pass",
+        "D3": "pass",
+        "D4": "pass",
+        "D5": "pass",
+        "D6": "pass",
+        "D7": "pass",
+        "D8": "pass",
+        "D9": "pass",
+        "D10": "pass",
+        "D11": "pass",
+        "E1": "not_proven",
+        "E2": "not_proven",
+        "E3": "not_proven",
+        "E4": "not_proven",
+        "E5": "not_proven"
+      },
+      "manual_audit": {
+        "sampled": true,
+        "audit_id": "audit::lgm-001",
+        "selected_primary_source_checked": true,
+        "source_officialness_checked": true,
+        "source_family_checked": true,
+        "structured_contribution_checked": true,
+        "package_identity_checked": true,
+        "storage_readback_checked": true,
+        "data_moat_classification_checked": true,
+        "economic_handoff_checked": true,
+        "dominant_failure_class": "none"
+      },
+      "freshness": {
+        "expected_update_interval_days": 30,
+        "retrieved_at": "2026-04-16T00:00:00+00:00",
+        "source_published_at": "2026-03-31T00:00:00+00:00",
+        "date_not_found": false,
+        "last_successful_refresh_at": "2026-04-16T00:00:00+00:00",
+        "source_shape_fingerprint": "shape::lgm-001",
+        "source_shape_changed": false,
+        "update_cadence_drift": false,
+        "stale_for_policy_use": false,
+        "next_refresh_recommendation": "refresh_within_30_days"
+      },
+      "identity": {
+        "canonical_policy_key": "policy::san_jose_ca::commercial_linkage_fee",
+        "canonical_source_key": "source::official_pdf_html_attachment::san_jose_ca",
+        "canonical_document_key": "doc::lgm-001",
+        "canonical_attachment_key": "attachment::lgm-001",
+        "dedupe_cluster_id": "cluster::san_jose_ca::commercial_linkage_fee",
+        "version_state": "active"
+      },
+      "normalization": {
+        "currency_normalized": true,
+        "percent_normalized": true,
+        "count_normalized": true,
+        "date_normalized": true,
+        "unit_normalized": true,
+        "geography_fields": [
+          "jurisdiction",
+          "state"
+        ],
+        "export_ready": true
+      },
+      "licensing": {
+        "license_posture": "public_record_or_open_data",
+        "robots_tos_posture": "allowed_with_rate_limit",
+        "rate_limit_notes": "respect source published limits",
+        "attribution_notes": "retain source URL attribution",
+        "allowed_storage_export_posture": "internal_plus_customer_export"
+      },
+      "schema_contract": {
+        "package_schema_version": "policy_evidence_package_v1",
+        "taxonomy_version": "corpus_taxonomy_v1",
+        "gate_version": "data_moat_c0_c14_v1"
+      },
+      "extraction_depth": {
+        "template_id": "non_fee_template::commercial_linkage_fee",
+        "live_exercised": false,
+        "applicability_present": false,
+        "effective_date_or_unknown_present": true,
+        "jurisdiction_geography_present": true,
+        "source_locator_present": true,
+        "policy_action_type_present": true
+      }
+    },
+    {
+      "row_type": "corpus_package",
+      "corpus_row_id": "lgm-002",
+      "package_id": "pkg::lgm-002",
+      "jurisdiction": {
+        "id": "san_jose_ca",
+        "name": "San Jose",
+        "type": "city",
+        "state": "CA",
+        "region": "us"
+      },
+      "policy_family": "parking_policy",
+      "mechanism_family": "direct_compliance_cost",
+      "query_families": [
+        "san jose multifamily parking minimum amendment"
+      ],
+      "expected_official_source_families": [
+        "official_pdf_html_attachment",
+        "official_clerk_or_code_portal"
+      ],
+      "expected_structured_source_families": [
+        "agenda_meeting_api",
+        "arcgis_rest"
+      ],
+      "known_official_domains": [
+        "sanjoseca.gov",
+        "legistar.com"
+      ],
+      "evaluation_split": "tuning",
+      "blind_seed": false,
+      "known_policy_reference_id": "kp-sj-parking-001",
+      "required_package_verdict_floor": "stored_not_economic",
+      "manual_audit_priority": "P0",
+      "golden_regression_expectation": {
+        "stable_query_input": "san jose multifamily parking minimum amendment",
+        "expected_jurisdiction_id": "san_jose_ca",
+        "expected_policy_family": "parking_policy",
+        "selected_source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13050001",
+        "package_id": "pkg::lgm-002",
+        "verdict": "corpus_ready_with_gaps",
+        "failure_class": "none"
+      },
+      "selected_primary_source": {
+        "source_family": "official_pdf_html_attachment",
+        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13050001",
+        "source_officialness": "official_primary",
+        "source_of_truth_role": "policy_text",
+        "jurisdiction_match": true,
+        "policy_family_match": true,
+        "external_context_allowed": false,
+        "primary_evidence_allowed": true
+      },
+      "provider_usage": {
+        "primary_discovery_provider": "private_searxng",
+        "tavily_primary_selected": false,
+        "exa_primary_selected": false
+      },
+      "structured_source_observations": [
+        {
+          "source_family": "agenda_meeting_api",
+          "true_structured": false,
+          "depth": "metadata",
+          "live_proven": true
+        },
+        {
+          "source_family": "arcgis_rest",
+          "true_structured": true,
+          "depth": "geospatial_policy_rows",
+          "live_proven": true
+        }
+      ],
+      "structured_cell_status": "covered",
+      "source_infrastructure_status": "live_integrated",
+      "infrastructure_status": {
+        "source_lane_status": "live_integrated",
+        "orchestration_mode": "windmill_live",
+        "windmill_refs": {
+          "flow_id": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+          "run_id": "wm::lgm-002",
+          "job_id": "wm-job::lgm-002"
+        }
+      },
+      "economic_handoff_plausibility": {
+        "classification_target": "economic_handoff_candidate",
+        "deep_dive_type": "direct",
+        "deep_dive_performed": true,
+        "model_card_reuse_count": 1
+      },
+      "classification": {
+        "data_moat_package_classification": "economic_handoff_candidate",
+        "d11_handoff_quality": "analysis_ready_with_gaps",
+        "d11_reason": "structured facts include permit and cost proxies"
+      },
+      "package_gate_status": {
+        "D0": "pass",
+        "D1": "pass",
+        "D2": "pass",
+        "D3": "pass",
+        "D4": "pass",
+        "D5": "pass",
+        "D6": "pass",
+        "D7": "pass",
+        "D8": "pass",
+        "D9": "pass",
+        "D10": "pass",
+        "D11": "pass",
+        "E1": "not_proven",
+        "E2": "not_proven",
+        "E3": "not_proven",
+        "E4": "not_proven",
+        "E5": "not_proven"
+      },
+      "manual_audit": {
+        "sampled": true,
+        "audit_id": "audit::lgm-002",
+        "selected_primary_source_checked": true,
+        "source_officialness_checked": true,
+        "source_family_checked": true,
+        "structured_contribution_checked": true,
+        "package_identity_checked": true,
+        "storage_readback_checked": true,
+        "data_moat_classification_checked": true,
+        "economic_handoff_checked": true,
+        "dominant_failure_class": "none"
+      },
+      "freshness": {
+        "expected_update_interval_days": 30,
+        "retrieved_at": "2026-04-16T00:00:00+00:00",
+        "source_published_at": "2026-03-31T00:00:00+00:00",
+        "date_not_found": false,
+        "last_successful_refresh_at": "2026-04-16T00:00:00+00:00",
+        "source_shape_fingerprint": "shape::lgm-002",
+        "source_shape_changed": false,
+        "update_cadence_drift": false,
+        "stale_for_policy_use": false,
+        "next_refresh_recommendation": "refresh_within_30_days"
+      },
+      "identity": {
+        "canonical_policy_key": "policy::san_jose_ca::parking_policy",
+        "canonical_source_key": "source::official_pdf_html_attachment::san_jose_ca",
+        "canonical_document_key": "doc::lgm-002",
+        "canonical_attachment_key": "attachment::lgm-002",
+        "dedupe_cluster_id": "cluster::san_jose_ca::parking_policy",
+        "version_state": "active"
+      },
+      "normalization": {
+        "currency_normalized": true,
+        "percent_normalized": true,
+        "count_normalized": true,
+        "date_normalized": true,
+        "unit_normalized": true,
+        "geography_fields": [
+          "jurisdiction",
+          "state"
+        ],
+        "export_ready": true
+      },
+      "licensing": {
+        "license_posture": "public_record_or_open_data",
+        "robots_tos_posture": "allowed_with_rate_limit",
+        "rate_limit_notes": "respect source published limits",
+        "attribution_notes": "retain source URL attribution",
+        "allowed_storage_export_posture": "internal_plus_customer_export"
+      },
+      "schema_contract": {
+        "package_schema_version": "policy_evidence_package_v1",
+        "taxonomy_version": "corpus_taxonomy_v1",
+        "gate_version": "data_moat_c0_c14_v1"
+      },
+      "extraction_depth": {
+        "template_id": "non_fee_template::parking_policy",
+        "live_exercised": true,
+        "applicability_present": true,
+        "effective_date_or_unknown_present": true,
+        "jurisdiction_geography_present": true,
+        "source_locator_present": true,
+        "policy_action_type_present": true
+      }
+    },
+    {
+      "row_type": "corpus_package",
+      "corpus_row_id": "lgm-003",
+      "package_id": "pkg::lgm-003",
+      "jurisdiction": {
+        "id": "san_jose_ca",
+        "name": "San Jose",
+        "type": "city",
+        "state": "CA",
+        "region": "us"
+      },
+      "policy_family": "short_term_rental",
+      "mechanism_family": "direct_compliance_cost",
+      "query_families": [
+        "san jose short term rental permit ordinance"
+      ],
+      "expected_official_source_families": [
+        "official_clerk_or_code_portal"
+      ],
+      "expected_structured_source_families": [
+        "ckan_api"
+      ],
+      "known_official_domains": [
+        "sanjoseca.gov",
+        "legistar.com"
+      ],
+      "evaluation_split": "blind_evaluation",
+      "blind_seed": true,
+      "known_policy_reference_id": "kp-sj-str-001",
+      "required_package_verdict_floor": "stored_not_economic",
+      "manual_audit_priority": "P1",
+      "golden_regression_expectation": {
+        "stable_query_input": "san jose short term rental permit ordinance",
+        "expected_jurisdiction_id": "san_jose_ca",
+        "expected_policy_family": "short_term_rental",
+        "selected_source_url": "https://library.municode.com/ca/san_jose/codes/code_of_ordinances",
+        "package_id": "pkg::lgm-003",
+        "verdict": "corpus_ready_with_gaps",
+        "failure_class": "none"
+      },
+      "selected_primary_source": {
+        "source_family": "official_clerk_or_code_portal",
+        "source_url": "https://library.municode.com/ca/san_jose/codes/code_of_ordinances",
+        "source_officialness": "official_primary",
+        "source_of_truth_role": "policy_text",
+        "jurisdiction_match": true,
+        "policy_family_match": true,
+        "external_context_allowed": false,
+        "primary_evidence_allowed": true
+      },
+      "provider_usage": {
+        "primary_discovery_provider": "private_searxng",
+        "tavily_primary_selected": false,
+        "exa_primary_selected": false
+      },
+      "structured_source_observations": [
+        {
+          "source_family": "ckan_api",
+          "true_structured": true,
+          "depth": "permit_status_rows",
+          "live_proven": true
+        }
+      ],
+      "structured_cell_status": "covered",
+      "source_infrastructure_status": "live_integrated",
+      "infrastructure_status": {
+        "source_lane_status": "live_integrated",
+        "orchestration_mode": "mixed",
+        "windmill_refs": {
+          "flow_id": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+          "run_id": "wm::lgm-003",
+          "job_id": "wm-job::lgm-003"
+        }
+      },
+      "economic_handoff_plausibility": {
+        "classification_target": "qualitative_only",
+        "deep_dive_type": null,
+        "deep_dive_performed": false,
+        "model_card_reuse_count": 0
+      },
+      "classification": {
+        "data_moat_package_classification": "qualitative_only",
+        "d11_handoff_quality": "not_analysis_ready",
+        "d11_reason": "qualitative context only no source-bound unitized parameters"
+      },
+      "package_gate_status": {
+        "D0": "pass",
+        "D1": "pass",
+        "D2": "pass",
+        "D3": "pass",
+        "D4": "pass",
+        "D5": "pass",
+        "D6": "pass",
+        "D7": "pass",
+        "D8": "pass",
+        "D9": "pass",
+        "D10": "pass",
+        "D11": "not_proven",
+        "E1": "not_proven",
+        "E2": "not_proven",
+        "E3": "not_proven",
+        "E4": "not_proven",
+        "E5": "not_proven"
+      },
+      "manual_audit": {
+        "sampled": true,
+        "audit_id": "audit::lgm-003",
+        "selected_primary_source_checked": true,
+        "source_officialness_checked": true,
+        "source_family_checked": true,
+        "structured_contribution_checked": true,
+        "package_identity_checked": true,
+        "storage_readback_checked": true,
+        "data_moat_classification_checked": true,
+        "economic_handoff_checked": true,
+        "dominant_failure_class": "none"
+      },
+      "freshness": {
+        "expected_update_interval_days": 30,
+        "retrieved_at": "2026-04-16T00:00:00+00:00",
+        "source_published_at": "2026-03-31T00:00:00+00:00",
+        "date_not_found": false,
+        "last_successful_refresh_at": "2026-04-16T00:00:00+00:00",
+        "source_shape_fingerprint": "shape::lgm-003",
+        "source_shape_changed": false,
+        "update_cadence_drift": false,
+        "stale_for_policy_use": false,
+        "next_refresh_recommendation": "refresh_within_30_days"
+      },
+      "identity": {
+        "canonical_policy_key": "policy::san_jose_ca::short_term_rental",
+        "canonical_source_key": "source::official_clerk_or_code_portal::san_jose_ca",
+        "canonical_document_key": "doc::lgm-003",
+        "canonical_attachment_key": "attachment::lgm-003",
+        "dedupe_cluster_id": "cluster::san_jose_ca::short_term_rental",
+        "version_state": "active"
+      },
+      "normalization": {
+        "currency_normalized": true,
+        "percent_normalized": true,
+        "count_normalized": true,
+        "date_normalized": true,
+        "unit_normalized": true,
+        "geography_fields": [
+          "jurisdiction",
+          "state"
+        ],
+        "export_ready": true
+      },
+      "licensing": {
+        "license_posture": "public_record_or_open_data",
+        "robots_tos_posture": "allowed_with_rate_limit",
+        "rate_limit_notes": "respect source published limits",
+        "attribution_notes": "retain source URL attribution",
+        "allowed_storage_export_posture": "internal_plus_customer_export"
+      },
+      "schema_contract": {
+        "package_schema_version": "policy_evidence_package_v1",
+        "taxonomy_version": "corpus_taxonomy_v1",
+        "gate_version": "data_moat_c0_c14_v1"
+      },
+      "extraction_depth": {
+        "template_id": "non_fee_template::short_term_rental",
+        "live_exercised": true,
+        "applicability_present": true,
+        "effective_date_or_unknown_present": true,
+        "jurisdiction_geography_present": true,
+        "source_locator_present": true,
+        "policy_action_type_present": true
+      }
+    },
+    {
+      "row_type": "corpus_package",
+      "corpus_row_id": "lgm-004",
+      "package_id": "pkg::lgm-004",
+      "jurisdiction": {
+        "id": "los_angeles_ca",
+        "name": "Los Angeles",
+        "type": "city",
+        "state": "CA",
+        "region": "us"
+      },
+      "policy_family": "affordable_housing_mandate",
+      "mechanism_family": "indirect_housing_cost_pass_through",
+      "query_families": [
+        "los angeles inclusionary housing ordinance affordability"
+      ],
+      "expected_official_source_families": [
+        "official_pdf_html_attachment",
+        "official_clerk_or_code_portal"
+      ],
+      "expected_structured_source_families": [
+        "socrata_api"
+      ],
+      "known_official_domains": [
+        "losangelesca.gov",
+        "legistar.com"
+      ],
+      "evaluation_split": "tuning",
+      "blind_seed": false,
+      "known_policy_reference_id": "kp-la-ih-001",
+      "required_package_verdict_floor": "stored_not_economic",
+      "manual_audit_priority": "P0",
+      "golden_regression_expectation": {
+        "stable_query_input": "los angeles inclusionary housing ordinance affordability",
+        "expected_jurisdiction_id": "los_angeles_ca",
+        "expected_policy_family": "affordable_housing_mandate",
+        "selected_source_url": "https://planning.lacity.gov/ordinances/inclusionary-housing.pdf",
+        "package_id": "pkg::lgm-004",
+        "verdict": "corpus_ready_with_gaps",
+        "failure_class": "none"
+      },
+      "selected_primary_source": {
+        "source_family": "official_pdf_html_attachment",
+        "source_url": "https://planning.lacity.gov/ordinances/inclusionary-housing.pdf",
+        "source_officialness": "official_primary",
+        "source_of_truth_role": "policy_text",
+        "jurisdiction_match": true,
+        "policy_family_match": true,
+        "external_context_allowed": false,
+        "primary_evidence_allowed": true
+      },
+      "provider_usage": {
+        "primary_discovery_provider": "private_searxng",
+        "tavily_primary_selected": false,
+        "exa_primary_selected": false
+      },
+      "structured_source_observations": [
+        {
+          "source_family": "socrata_api",
+          "true_structured": true,
+          "depth": "affordability_units",
+          "live_proven": true
+        }
+      ],
+      "structured_cell_status": "covered",
+      "source_infrastructure_status": "live_integrated",
+      "infrastructure_status": {
+        "source_lane_status": "live_integrated",
+        "orchestration_mode": "windmill_live",
+        "windmill_refs": {
+          "flow_id": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+          "run_id": "wm::lgm-004",
+          "job_id": "wm-job::lgm-004"
+        }
+      },
+      "economic_handoff_plausibility": {
+        "classification_target": "secondary_research_needed",
+        "deep_dive_type": "indirect",
+        "deep_dive_performed": true,
+        "model_card_reuse_count": 1
+      },
+      "classification": {
+        "data_moat_package_classification": "secondary_research_needed",
+        "d11_handoff_quality": "analysis_ready_with_gaps",
+        "d11_reason": "indirect mechanism requires secondary incidence assumptions"
+      },
+      "package_gate_status": {
+        "D0": "pass",
+        "D1": "pass",
+        "D2": "pass",
+        "D3": "pass",
+        "D4": "pass",
+        "D5": "pass",
+        "D6": "pass",
+        "D7": "pass",
+        "D8": "pass",
+        "D9": "pass",
+        "D10": "pass",
+        "D11": "pass",
+        "E1": "not_proven",
+        "E2": "not_proven",
+        "E3": "not_proven",
+        "E4": "not_proven",
+        "E5": "not_proven"
+      },
+      "manual_audit": {
+        "sampled": true,
+        "audit_id": "audit::lgm-004",
+        "selected_primary_source_checked": true,
+        "source_officialness_checked": true,
+        "source_family_checked": true,
+        "structured_contribution_checked": true,
+        "package_identity_checked": true,
+        "storage_readback_checked": true,
+        "data_moat_classification_checked": true,
+        "economic_handoff_checked": true,
+        "dominant_failure_class": "none"
+      },
+      "freshness": {
+        "expected_update_interval_days": 30,
+        "retrieved_at": "2026-04-16T00:00:00+00:00",
+        "source_published_at": "2026-03-31T00:00:00+00:00",
+        "date_not_found": false,
+        "last_successful_refresh_at": "2026-04-16T00:00:00+00:00",
+        "source_shape_fingerprint": "shape::lgm-004",
+        "source_shape_changed": false,
+        "update_cadence_drift": false,
+        "stale_for_policy_use": false,
+        "next_refresh_recommendation": "refresh_within_30_days"
+      },
+      "identity": {
+        "canonical_policy_key": "policy::los_angeles_ca::affordable_housing_mandate",
+        "canonical_source_key": "source::official_pdf_html_attachment::los_angeles_ca",
+        "canonical_document_key": "doc::lgm-004",
+        "canonical_attachment_key": "attachment::lgm-004",
+        "dedupe_cluster_id": "cluster::los_angeles_ca::affordable_housing_mandate",
+        "version_state": "active"
+      },
+      "normalization": {
+        "currency_normalized": true,
+        "percent_normalized": true,
+        "count_normalized": true,
+        "date_normalized": true,
+        "unit_normalized": true,
+        "geography_fields": [
+          "jurisdiction",
+          "state"
+        ],
+        "export_ready": true
+      },
+      "licensing": {
+        "license_posture": "public_record_or_open_data",
+        "robots_tos_posture": "allowed_with_rate_limit",
+        "rate_limit_notes": "respect source published limits",
+        "attribution_notes": "retain source URL attribution",
+        "allowed_storage_export_posture": "internal_plus_customer_export"
+      },
+      "schema_contract": {
+        "package_schema_version": "policy_evidence_package_v1",
+        "taxonomy_version": "corpus_taxonomy_v1",
+        "gate_version": "data_moat_c0_c14_v1"
+      },
+      "extraction_depth": {
+        "template_id": "non_fee_template::affordable_housing_mandate",
+        "live_exercised": true,
+        "applicability_present": true,
+        "effective_date_or_unknown_present": true,
+        "jurisdiction_geography_present": true,
+        "source_locator_present": true,
+        "policy_action_type_present": true
+      }
+    },
+    {
+      "row_type": "corpus_package",
+      "corpus_row_id": "lgm-005",
+      "package_id": "pkg::lgm-005",
+      "jurisdiction": {
+        "id": "los_angeles_ca",
+        "name": "Los Angeles",
+        "type": "city",
+        "state": "CA",
+        "region": "us"
+      },
+      "policy_family": "zoning_land_use",
+      "mechanism_family": "indirect_supply_constraint",
+      "query_families": [
+        "los angeles zoning ordinance floor area ratio update"
+      ],
+      "expected_official_source_families": [
+        "official_clerk_or_code_portal"
+      ],
+      "expected_structured_source_families": [
+        "arcgis_rest"
+      ],
+      "known_official_domains": [
+        "losangelesca.gov",
+        "legistar.com"
+      ],
+      "evaluation_split": "blind_evaluation",
+      "blind_seed": true,
+      "known_policy_reference_id": "kp-la-zoning-001",
+      "required_package_verdict_floor": "stored_not_economic",
+      "manual_audit_priority": "P1",
+      "golden_regression_expectation": {
+        "stable_query_input": "los angeles zoning ordinance floor area ratio update",
+        "expected_jurisdiction_id": "los_angeles_ca",
+        "expected_policy_family": "zoning_land_use",
+        "selected_source_url": "https://planning.lacity.gov/odocument/zoning-code",
+        "package_id": "pkg::lgm-005",
+        "verdict": "corpus_ready_with_gaps",
+        "failure_class": "none"
+      },
+      "selected_primary_source": {
+        "source_family": "official_clerk_or_code_portal",
+        "source_url": "https://planning.lacity.gov/odocument/zoning-code",
+        "source_officialness": "official_primary",
+        "source_of_truth_role": "policy_text",
+        "jurisdiction_match": true,
+        "policy_family_match": true,
+        "external_context_allowed": false,
+        "primary_evidence_allowed": true
+      },
+      "provider_usage": {
+        "primary_discovery_provider": "private_searxng",
+        "tavily_primary_selected": false,
+        "exa_primary_selected": false
+      },
+      "structured_source_observations": [
+        {
+          "source_family": "arcgis_rest",
+          "true_structured": true,
+          "depth": "zoning_parcel_rows",
+          "live_proven": true
+        }
+      ],
+      "structured_cell_status": "covered",
+      "source_infrastructure_status": "live_integrated",
+      "infrastructure_status": {
+        "source_lane_status": "live_integrated",
+        "orchestration_mode": "mixed",
+        "windmill_refs": {
+          "flow_id": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+          "run_id": "wm::lgm-005",
+          "job_id": "wm-job::lgm-005"
+        }
+      },
+      "economic_handoff_plausibility": {
+        "classification_target": "stored_not_economic",
+        "deep_dive_type": null,
+        "deep_dive_performed": false,
+        "model_card_reuse_count": 0
+      },
+      "classification": {
+        "data_moat_package_classification": "stored_not_economic",
+        "d11_handoff_quality": "not_analysis_ready",
+        "d11_reason": "non-economic planning context preserved for downstream joins"
+      },
+      "package_gate_status": {
+        "D0": "pass",
+        "D1": "pass",
+        "D2": "pass",
+        "D3": "pass",
+        "D4": "pass",
+        "D5": "pass",
+        "D6": "pass",
+        "D7": "pass",
+        "D8": "pass",
+        "D9": "pass",
+        "D10": "not_proven",
+        "D11": "not_proven",
+        "E1": "not_proven",
+        "E2": "not_proven",
+        "E3": "not_proven",
+        "E4": "not_proven",
+        "E5": "not_proven"
+      },
+      "manual_audit": {
+        "sampled": false
+      },
+      "freshness": {
+        "expected_update_interval_days": 30,
+        "retrieved_at": "2026-04-16T00:00:00+00:00",
+        "source_published_at": "2026-03-31T00:00:00+00:00",
+        "date_not_found": false,
+        "last_successful_refresh_at": "2026-04-16T00:00:00+00:00",
+        "source_shape_fingerprint": "shape::lgm-005",
+        "source_shape_changed": false,
+        "update_cadence_drift": false,
+        "stale_for_policy_use": false,
+        "next_refresh_recommendation": "refresh_within_30_days"
+      },
+      "identity": {
+        "canonical_policy_key": "policy::los_angeles_ca::zoning_land_use",
+        "canonical_source_key": "source::official_clerk_or_code_portal::los_angeles_ca",
+        "canonical_document_key": "doc::lgm-005",
+        "canonical_attachment_key": "attachment::lgm-005",
+        "dedupe_cluster_id": "cluster::los_angeles_ca::zoning_land_use",
+        "version_state": "active"
+      },
+      "normalization": {
+        "currency_normalized": true,
+        "percent_normalized": true,
+        "count_normalized": true,
+        "date_normalized": true,
+        "unit_normalized": true,
+        "geography_fields": [
+          "jurisdiction",
+          "state"
+        ],
+        "export_ready": true
+      },
+      "licensing": {
+        "license_posture": "public_record_or_open_data",
+        "robots_tos_posture": "allowed_with_rate_limit",
+        "rate_limit_notes": "respect source published limits",
+        "attribution_notes": "retain source URL attribution",
+        "allowed_storage_export_posture": "internal_plus_customer_export"
+      },
+      "schema_contract": {
+        "package_schema_version": "policy_evidence_package_v1",
+        "taxonomy_version": "corpus_taxonomy_v1",
+        "gate_version": "data_moat_c0_c14_v1"
+      },
+      "extraction_depth": {
+        "template_id": "non_fee_template::zoning_land_use",
+        "live_exercised": true,
+        "applicability_present": true,
+        "effective_date_or_unknown_present": true,
+        "jurisdiction_geography_present": true,
+        "source_locator_present": true,
+        "policy_action_type_present": true
+      }
+    },
+    {
+      "row_type": "corpus_package",
+      "corpus_row_id": "lgm-006",
+      "package_id": "pkg::lgm-006",
+      "jurisdiction": {
+        "id": "oakland_ca",
+        "name": "Oakland",
+        "type": "city",
+        "state": "CA",
+        "region": "us"
+      },
+      "policy_family": "code_enforcement",
+      "mechanism_family": "direct_compliance_cost",
+      "query_families": [
+        "oakland code enforcement penalty schedule housing"
+      ],
+      "expected_official_source_families": [
+        "official_pdf_html_attachment"
+      ],
+      "expected_structured_source_families": [
+        "socrata_api"
+      ],
+      "known_official_domains": [
+        "oaklandca.gov",
+        "legistar.com"
+      ],
+      "evaluation_split": "tuning",
+      "blind_seed": false,
+      "known_policy_reference_id": "kp-oak-code-001",
+      "required_package_verdict_floor": "stored_not_economic",
+      "manual_audit_priority": "P1",
+      "golden_regression_expectation": {
+        "stable_query_input": "oakland code enforcement penalty schedule housing",
+        "expected_jurisdiction_id": "oakland_ca",
+        "expected_policy_family": "code_enforcement",
+        "selected_source_url": "https://cao-94612.s3.amazonaws.com/documents/code-enforcement-fees.pdf",
+        "package_id": "pkg::lgm-006",
+        "verdict": "corpus_ready_with_gaps",
+        "failure_class": "none"
+      },
+      "selected_primary_source": {
+        "source_family": "official_pdf_html_attachment",
+        "source_url": "https://cao-94612.s3.amazonaws.com/documents/code-enforcement-fees.pdf",
+        "source_officialness": "official_primary",
+        "source_of_truth_role": "policy_text",
+        "jurisdiction_match": true,
+        "policy_family_match": true,
+        "external_context_allowed": false,
+        "primary_evidence_allowed": true
+      },
+      "provider_usage": {
+        "primary_discovery_provider": "private_searxng",
+        "tavily_primary_selected": false,
+        "exa_primary_selected": false
+      },
+      "structured_source_observations": [
+        {
+          "source_family": "socrata_api",
+          "true_structured": true,
+          "depth": "citation_rows",
+          "live_proven": true
+        }
+      ],
+      "structured_cell_status": "covered",
+      "source_infrastructure_status": "live_integrated",
+      "infrastructure_status": {
+        "source_lane_status": "live_integrated",
+        "orchestration_mode": "windmill_live",
+        "windmill_refs": {
+          "flow_id": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+          "run_id": "wm::lgm-006",
+          "job_id": "wm-job::lgm-006"
+        }
+      },
+      "economic_handoff_plausibility": {
+        "classification_target": "economic_handoff_candidate",
+        "deep_dive_type": "direct",
+        "deep_dive_performed": true,
+        "model_card_reuse_count": 1
+      },
+      "classification": {
+        "data_moat_package_classification": "economic_handoff_candidate",
+        "d11_handoff_quality": "analysis_ready_with_gaps",
+        "d11_reason": "policy penalties and applicability extracted with caveats"
+      },
+      "package_gate_status": {
+        "D0": "pass",
+        "D1": "pass",
+        "D2": "pass",
+        "D3": "pass",
+        "D4": "pass",
+        "D5": "pass",
+        "D6": "pass",
+        "D7": "pass",
+        "D8": "pass",
+        "D9": "pass",
+        "D10": "pass",
+        "D11": "pass",
+        "E1": "not_proven",
+        "E2": "not_proven",
+        "E3": "not_proven",
+        "E4": "not_proven",
+        "E5": "not_proven"
+      },
+      "manual_audit": {
+        "sampled": true,
+        "audit_id": "audit::lgm-006",
+        "selected_primary_source_checked": true,
+        "source_officialness_checked": true,
+        "source_family_checked": true,
+        "structured_contribution_checked": true,
+        "package_identity_checked": true,
+        "storage_readback_checked": true,
+        "data_moat_classification_checked": true,
+        "economic_handoff_checked": true,
+        "dominant_failure_class": "none"
+      },
+      "freshness": {
+        "expected_update_interval_days": 30,
+        "retrieved_at": "2026-04-16T00:00:00+00:00",
+        "source_published_at": "2026-03-31T00:00:00+00:00",
+        "date_not_found": false,
+        "last_successful_refresh_at": "2026-04-16T00:00:00+00:00",
+        "source_shape_fingerprint": "shape::lgm-006",
+        "source_shape_changed": false,
+        "update_cadence_drift": false,
+        "stale_for_policy_use": false,
+        "next_refresh_recommendation": "refresh_within_30_days"
+      },
+      "identity": {
+        "canonical_policy_key": "policy::oakland_ca::code_enforcement",
+        "canonical_source_key": "source::official_pdf_html_attachment::oakland_ca",
+        "canonical_document_key": "doc::lgm-006",
+        "canonical_attachment_key": "attachment::lgm-006",
+        "dedupe_cluster_id": "cluster::oakland_ca::code_enforcement",
+        "version_state": "active"
+      },
+      "normalization": {
+        "currency_normalized": true,
+        "percent_normalized": true,
+        "count_normalized": true,
+        "date_normalized": true,
+        "unit_normalized": true,
+        "geography_fields": [
+          "jurisdiction",
+          "state"
+        ],
+        "export_ready": true
+      },
+      "licensing": {
+        "license_posture": "public_record_or_open_data",
+        "robots_tos_posture": "allowed_with_rate_limit",
+        "rate_limit_notes": "respect source published limits",
+        "attribution_notes": "retain source URL attribution",
+        "allowed_storage_export_posture": "internal_plus_customer_export"
+      },
+      "schema_contract": {
+        "package_schema_version": "policy_evidence_package_v1",
+        "taxonomy_version": "corpus_taxonomy_v1",
+        "gate_version": "data_moat_c0_c14_v1"
+      },
+      "extraction_depth": {
+        "template_id": "non_fee_template::code_enforcement",
+        "live_exercised": true,
+        "applicability_present": true,
+        "effective_date_or_unknown_present": true,
+        "jurisdiction_geography_present": true,
+        "source_locator_present": true,
+        "policy_action_type_present": true
+      }
+    },
+    {
+      "row_type": "corpus_package",
+      "corpus_row_id": "lgm-007",
+      "package_id": "pkg::lgm-007",
+      "jurisdiction": {
+        "id": "oakland_ca",
+        "name": "Oakland",
+        "type": "city",
+        "state": "CA",
+        "region": "us"
+      },
+      "policy_family": "business_licensing_compliance",
+      "mechanism_family": "direct_compliance_cost",
+      "query_families": [
+        "oakland business licensing compliance ordinance fees"
+      ],
+      "expected_official_source_families": [
+        "official_clerk_or_code_portal"
+      ],
+      "expected_structured_source_families": [
+        "ckan_api"
+      ],
+      "known_official_domains": [
+        "oaklandca.gov",
+        "legistar.com"
+      ],
+      "evaluation_split": "tuning",
+      "blind_seed": false,
+      "known_policy_reference_id": "kp-oak-biz-001",
+      "required_package_verdict_floor": "stored_not_economic",
+      "manual_audit_priority": "P2",
+      "golden_regression_expectation": {
+        "stable_query_input": "oakland business licensing compliance ordinance fees",
+        "expected_jurisdiction_id": "oakland_ca",
+        "expected_policy_family": "business_licensing_compliance",
+        "selected_source_url": "https://library.municode.com/ca/oakland/codes/code_of_ordinances",
+        "package_id": "pkg::lgm-007",
+        "verdict": "corpus_ready_with_gaps",
+        "failure_class": "none"
+      },
+      "selected_primary_source": {
+        "source_family": "official_clerk_or_code_portal",
+        "source_url": "https://library.municode.com/ca/oakland/codes/code_of_ordinances",
+        "source_officialness": "official_primary",
+        "source_of_truth_role": "policy_text",
+        "jurisdiction_match": true,
+        "policy_family_match": true,
+        "external_context_allowed": false,
+        "primary_evidence_allowed": true
+      },
+      "provider_usage": {
+        "primary_discovery_provider": "private_searxng",
+        "tavily_primary_selected": false,
+        "exa_primary_selected": false
+      },
+      "structured_source_observations": [
+        {
+          "source_family": "ckan_api",
+          "true_structured": true,
+          "depth": "license_classes",
+          "live_proven": true
+        }
+      ],
+      "structured_cell_status": "covered",
+      "source_infrastructure_status": "live_integrated",
+      "infrastructure_status": {
+        "source_lane_status": "live_integrated",
+        "orchestration_mode": "cli_only",
+        "windmill_refs": null
+      },
+      "economic_handoff_plausibility": {
+        "classification_target": "stored_not_economic",
+        "deep_dive_type": null,
+        "deep_dive_performed": false,
+        "model_card_reuse_count": 0
+      },
+      "classification": {
+        "data_moat_package_classification": "stored_not_economic",
+        "d11_handoff_quality": "not_analysis_ready",
+        "d11_reason": "non-economic licensing evidence preserved for filtering"
+      },
+      "package_gate_status": {
+        "D0": "pass",
+        "D1": "pass",
+        "D2": "pass",
+        "D3": "pass",
+        "D4": "pass",
+        "D5": "pass",
+        "D6": "pass",
+        "D7": "pass",
+        "D8": "pass",
+        "D9": "not_proven",
+        "D10": "not_proven",
+        "D11": "not_proven",
+        "E1": "not_proven",
+        "E2": "not_proven",
+        "E3": "not_proven",
+        "E4": "not_proven",
+        "E5": "not_proven"
+      },
+      "manual_audit": {
+        "sampled": false
+      },
+      "freshness": {
+        "expected_update_interval_days": 30,
+        "retrieved_at": "2026-04-16T00:00:00+00:00",
+        "source_published_at": "2026-03-31T00:00:00+00:00",
+        "date_not_found": false,
+        "last_successful_refresh_at": "2026-04-16T00:00:00+00:00",
+        "source_shape_fingerprint": "shape::lgm-007",
+        "source_shape_changed": false,
+        "update_cadence_drift": false,
+        "stale_for_policy_use": false,
+        "next_refresh_recommendation": "refresh_within_30_days"
+      },
+      "identity": {
+        "canonical_policy_key": "policy::oakland_ca::business_licensing_compliance",
+        "canonical_source_key": "source::official_clerk_or_code_portal::oakland_ca",
+        "canonical_document_key": "doc::lgm-007",
+        "canonical_attachment_key": "attachment::lgm-007",
+        "dedupe_cluster_id": "cluster::oakland_ca::business_licensing_compliance",
+        "version_state": "active"
+      },
+      "normalization": {
+        "currency_normalized": true,
+        "percent_normalized": true,
+        "count_normalized": true,
+        "date_normalized": true,
+        "unit_normalized": true,
+        "geography_fields": [
+          "jurisdiction",
+          "state"
+        ],
+        "export_ready": true
+      },
+      "licensing": {
+        "license_posture": "public_record_or_open_data",
+        "robots_tos_posture": "allowed_with_rate_limit",
+        "rate_limit_notes": "respect source published limits",
+        "attribution_notes": "retain source URL attribution",
+        "allowed_storage_export_posture": "internal_plus_customer_export"
+      },
+      "schema_contract": {
+        "package_schema_version": "policy_evidence_package_v1",
+        "taxonomy_version": "corpus_taxonomy_v1",
+        "gate_version": "data_moat_c0_c14_v1"
+      },
+      "extraction_depth": {
+        "template_id": "non_fee_template::business_licensing_compliance",
+        "live_exercised": true,
+        "applicability_present": true,
+        "effective_date_or_unknown_present": true,
+        "jurisdiction_geography_present": true,
+        "source_locator_present": true,
+        "policy_action_type_present": true
+      }
+    },
+    {
+      "row_type": "corpus_package",
+      "corpus_row_id": "lgm-008",
+      "package_id": "pkg::lgm-008",
+      "jurisdiction": {
+        "id": "santa_clara_county_ca",
+        "name": "Santa Clara County",
+        "type": "county",
+        "state": "CA",
+        "region": "us"
+      },
+      "policy_family": "housing_permits",
+      "mechanism_family": "indirect_supply_constraint",
+      "query_families": [
+        "santa clara county permit timeline housing"
+      ],
+      "expected_official_source_families": [
+        "official_pdf_html_attachment",
+        "official_clerk_or_code_portal"
+      ],
+      "expected_structured_source_families": [
+        "opendatasoft_api",
+        "ckan_api"
+      ],
+      "known_official_domains": [
+        "santaclaracountyca.gov",
+        "legistar.com"
+      ],
+      "evaluation_split": "blind_evaluation",
+      "blind_seed": true,
+      "known_policy_reference_id": "kp-scc-permit-001",
+      "required_package_verdict_floor": "stored_not_economic",
+      "manual_audit_priority": "P1",
+      "golden_regression_expectation": {
+        "stable_query_input": "santa clara county permit timeline housing",
+        "expected_jurisdiction_id": "santa_clara_county_ca",
+        "expected_policy_family": "housing_permits",
+        "selected_source_url": "https://plandev.sccgov.org/permit-center",
+        "package_id": "pkg::lgm-008",
+        "verdict": "corpus_ready_with_gaps",
+        "failure_class": "none"
+      },
+      "selected_primary_source": {
+        "source_family": "official_clerk_or_code_portal",
+        "source_url": "https://plandev.sccgov.org/permit-center",
+        "source_officialness": "official_primary",
+        "source_of_truth_role": "policy_text",
+        "jurisdiction_match": true,
+        "policy_family_match": true,
+        "external_context_allowed": false,
+        "primary_evidence_allowed": true
+      },
+      "provider_usage": {
+        "primary_discovery_provider": "private_searxng",
+        "tavily_primary_selected": false,
+        "exa_primary_selected": false
+      },
+      "structured_source_observations": [
+        {
+          "source_family": "opendatasoft_api",
+          "true_structured": true,
+          "depth": "permit_duration_rows",
+          "live_proven": true
+        }
+      ],
+      "structured_cell_status": "covered",
+      "source_infrastructure_status": "live_integrated",
+      "infrastructure_status": {
+        "source_lane_status": "live_integrated",
+        "orchestration_mode": "mixed",
+        "windmill_refs": {
+          "flow_id": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+          "run_id": "wm::lgm-008",
+          "job_id": "wm-job::lgm-008"
+        }
+      },
+      "economic_handoff_plausibility": {
+        "classification_target": "economic_handoff_candidate",
+        "deep_dive_type": "indirect",
+        "deep_dive_performed": true,
+        "model_card_reuse_count": 1
+      },
+      "classification": {
+        "data_moat_package_classification": "economic_handoff_candidate",
+        "d11_handoff_quality": "analysis_ready_with_gaps",
+        "d11_reason": "permit duration data supports indirect lag modeling"
+      },
+      "package_gate_status": {
+        "D0": "pass",
+        "D1": "pass",
+        "D2": "pass",
+        "D3": "pass",
+        "D4": "pass",
+        "D5": "pass",
+        "D6": "pass",
+        "D7": "pass",
+        "D8": "pass",
+        "D9": "pass",
+        "D10": "pass",
+        "D11": "pass",
+        "E1": "not_proven",
+        "E2": "not_proven",
+        "E3": "not_proven",
+        "E4": "not_proven",
+        "E5": "not_proven"
+      },
+      "manual_audit": {
+        "sampled": true,
+        "audit_id": "audit::lgm-008",
+        "selected_primary_source_checked": true,
+        "source_officialness_checked": true,
+        "source_family_checked": true,
+        "structured_contribution_checked": true,
+        "package_identity_checked": true,
+        "storage_readback_checked": true,
+        "data_moat_classification_checked": true,
+        "economic_handoff_checked": true,
+        "dominant_failure_class": "none"
+      },
+      "freshness": {
+        "expected_update_interval_days": 30,
+        "retrieved_at": "2026-04-16T00:00:00+00:00",
+        "source_published_at": "2026-03-31T00:00:00+00:00",
+        "date_not_found": false,
+        "last_successful_refresh_at": "2026-04-16T00:00:00+00:00",
+        "source_shape_fingerprint": "shape::lgm-008",
+        "source_shape_changed": false,
+        "update_cadence_drift": false,
+        "stale_for_policy_use": false,
+        "next_refresh_recommendation": "refresh_within_30_days"
+      },
+      "identity": {
+        "canonical_policy_key": "policy::santa_clara_county_ca::housing_permits",
+        "canonical_source_key": "source::official_clerk_or_code_portal::santa_clara_county_ca",
+        "canonical_document_key": "doc::lgm-008",
+        "canonical_attachment_key": "attachment::lgm-008",
+        "dedupe_cluster_id": "cluster::santa_clara_county_ca::housing_permits",
+        "version_state": "active"
+      },
+      "normalization": {
+        "currency_normalized": true,
+        "percent_normalized": true,
+        "count_normalized": true,
+        "date_normalized": true,
+        "unit_normalized": true,
+        "geography_fields": [
+          "jurisdiction",
+          "state"
+        ],
+        "export_ready": true
+      },
+      "licensing": {
+        "license_posture": "public_record_or_open_data",
+        "robots_tos_posture": "allowed_with_rate_limit",
+        "rate_limit_notes": "respect source published limits",
+        "attribution_notes": "retain source URL attribution",
+        "allowed_storage_export_posture": "internal_plus_customer_export"
+      },
+      "schema_contract": {
+        "package_schema_version": "policy_evidence_package_v1",
+        "taxonomy_version": "corpus_taxonomy_v1",
+        "gate_version": "data_moat_c0_c14_v1"
+      },
+      "extraction_depth": {
+        "template_id": "non_fee_template::housing_permits",
+        "live_exercised": true,
+        "applicability_present": true,
+        "effective_date_or_unknown_present": true,
+        "jurisdiction_geography_present": true,
+        "source_locator_present": true,
+        "policy_action_type_present": true
+      }
+    },
+    {
+      "row_type": "corpus_package",
+      "corpus_row_id": "lgm-009",
+      "package_id": "pkg::lgm-009",
+      "jurisdiction": {
+        "id": "santa_clara_county_ca",
+        "name": "Santa Clara County",
+        "type": "county",
+        "state": "CA",
+        "region": "us"
+      },
+      "policy_family": "local_tax_fee",
+      "mechanism_family": "direct_fee_or_tax",
+      "query_families": [
+        "santa clara county documentary transfer tax ordinance"
+      ],
+      "expected_official_source_families": [
+        "official_pdf_html_attachment"
+      ],
+      "expected_structured_source_families": [
+        "state_legislation_api_or_raw"
+      ],
+      "known_official_domains": [
+        "santaclaracountyca.gov",
+        "legistar.com"
+      ],
+      "evaluation_split": "tuning",
+      "blind_seed": false,
+      "known_policy_reference_id": "kp-scc-tax-001",
+      "required_package_verdict_floor": "stored_not_economic",
+      "manual_audit_priority": "P0",
+      "golden_regression_expectation": {
+        "stable_query_input": "santa clara county documentary transfer tax ordinance",
+        "expected_jurisdiction_id": "santa_clara_county_ca",
+        "expected_policy_family": "local_tax_fee",
+        "selected_source_url": "https://board.sccgov.org/sites/g/files/exjcpb956/files/doc-transfer-tax.pdf",
+        "package_id": "pkg::lgm-009",
+        "verdict": "corpus_ready_with_gaps",
+        "failure_class": "none"
+      },
+      "selected_primary_source": {
+        "source_family": "official_pdf_html_attachment",
+        "source_url": "https://board.sccgov.org/sites/g/files/exjcpb956/files/doc-transfer-tax.pdf",
+        "source_officialness": "official_primary",
+        "source_of_truth_role": "policy_text",
+        "jurisdiction_match": true,
+        "policy_family_match": true,
+        "external_context_allowed": false,
+        "primary_evidence_allowed": true
+      },
+      "provider_usage": {
+        "primary_discovery_provider": "private_searxng",
+        "tavily_primary_selected": false,
+        "exa_primary_selected": false
+      },
+      "structured_source_observations": [
+        {
+          "source_family": "state_legislation_api_or_raw",
+          "true_structured": true,
+          "depth": "tax_rate_rows",
+          "live_proven": true
+        }
+      ],
+      "structured_cell_status": "covered",
+      "source_infrastructure_status": "live_integrated",
+      "infrastructure_status": {
+        "source_lane_status": "live_integrated",
+        "orchestration_mode": "windmill_live",
+        "windmill_refs": {
+          "flow_id": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+          "run_id": "wm::lgm-009",
+          "job_id": "wm-job::lgm-009"
+        }
+      },
+      "economic_handoff_plausibility": {
+        "classification_target": "economic_analysis_ready",
+        "deep_dive_type": "direct",
+        "deep_dive_performed": true,
+        "model_card_reuse_count": 2
+      },
+      "classification": {
+        "data_moat_package_classification": "economic_analysis_ready",
+        "d11_handoff_quality": "analysis_ready",
+        "d11_reason": "direct tax schedule and units fully source-grounded"
+      },
+      "package_gate_status": {
+        "D0": "pass",
+        "D1": "pass",
+        "D2": "pass",
+        "D3": "pass",
+        "D4": "pass",
+        "D5": "pass",
+        "D6": "pass",
+        "D7": "pass",
+        "D8": "pass",
+        "D9": "pass",
+        "D10": "pass",
+        "D11": "pass",
+        "E1": "not_proven",
+        "E2": "not_proven",
+        "E3": "not_proven",
+        "E4": "not_proven",
+        "E5": "not_proven"
+      },
+      "manual_audit": {
+        "sampled": true,
+        "audit_id": "audit::lgm-009",
+        "selected_primary_source_checked": true,
+        "source_officialness_checked": true,
+        "source_family_checked": true,
+        "structured_contribution_checked": true,
+        "package_identity_checked": true,
+        "storage_readback_checked": true,
+        "data_moat_classification_checked": true,
+        "economic_handoff_checked": true,
+        "dominant_failure_class": "none"
+      },
+      "freshness": {
+        "expected_update_interval_days": 30,
+        "retrieved_at": "2026-04-16T00:00:00+00:00",
+        "source_published_at": "2026-03-31T00:00:00+00:00",
+        "date_not_found": false,
+        "last_successful_refresh_at": "2026-04-16T00:00:00+00:00",
+        "source_shape_fingerprint": "shape::lgm-009",
+        "source_shape_changed": false,
+        "update_cadence_drift": false,
+        "stale_for_policy_use": false,
+        "next_refresh_recommendation": "refresh_within_30_days"
+      },
+      "identity": {
+        "canonical_policy_key": "policy::santa_clara_county_ca::local_tax_fee",
+        "canonical_source_key": "source::official_pdf_html_attachment::santa_clara_county_ca",
+        "canonical_document_key": "doc::lgm-009",
+        "canonical_attachment_key": "attachment::lgm-009",
+        "dedupe_cluster_id": "cluster::santa_clara_county_ca::local_tax_fee",
+        "version_state": "active"
+      },
+      "normalization": {
+        "currency_normalized": true,
+        "percent_normalized": true,
+        "count_normalized": true,
+        "date_normalized": true,
+        "unit_normalized": true,
+        "geography_fields": [
+          "jurisdiction",
+          "state"
+        ],
+        "export_ready": true
+      },
+      "licensing": {
+        "license_posture": "public_record_or_open_data",
+        "robots_tos_posture": "allowed_with_rate_limit",
+        "rate_limit_notes": "respect source published limits",
+        "attribution_notes": "retain source URL attribution",
+        "allowed_storage_export_posture": "internal_plus_customer_export"
+      },
+      "schema_contract": {
+        "package_schema_version": "policy_evidence_package_v1",
+        "taxonomy_version": "corpus_taxonomy_v1",
+        "gate_version": "data_moat_c0_c14_v1"
+      },
+      "extraction_depth": {
+        "template_id": "non_fee_template::local_tax_fee",
+        "live_exercised": false,
+        "applicability_present": false,
+        "effective_date_or_unknown_present": true,
+        "jurisdiction_geography_present": true,
+        "source_locator_present": true,
+        "policy_action_type_present": true
+      }
+    },
+    {
+      "row_type": "corpus_package",
+      "corpus_row_id": "lgm-010",
+      "package_id": "pkg::lgm-010",
+      "jurisdiction": {
+        "id": "california_state",
+        "name": "California",
+        "type": "state",
+        "state": "CA",
+        "region": "us"
+      },
+      "policy_family": "utilities_energy_building_standard",
+      "mechanism_family": "indirect_energy_or_utility_cost",
+      "query_families": [
+        "california building electrification code update title 24"
+      ],
+      "expected_official_source_families": [
+        "state_legislation_api_or_raw"
+      ],
+      "expected_structured_source_families": [
+        "state_legislation_api_or_raw"
+      ],
+      "known_official_domains": [
+        "californiastate.gov",
+        "legistar.com"
+      ],
+      "evaluation_split": "tuning",
+      "blind_seed": false,
+      "known_policy_reference_id": "kp-ca-energy-001",
+      "required_package_verdict_floor": "stored_not_economic",
+      "manual_audit_priority": "P1",
+      "golden_regression_expectation": {
+        "stable_query_input": "california building electrification code update title 24",
+        "expected_jurisdiction_id": "california_state",
+        "expected_policy_family": "utilities_energy_building_standard",
+        "selected_source_url": "https://leginfo.legislature.ca.gov/faces/billTextClient.xhtml?bill_id=202520260SB49",
+        "package_id": "pkg::lgm-010",
+        "verdict": "corpus_ready_with_gaps",
+        "failure_class": "none"
+      },
+      "selected_primary_source": {
+        "source_family": "state_legislation_api_or_raw",
+        "source_url": "https://leginfo.legislature.ca.gov/faces/billTextClient.xhtml?bill_id=202520260SB49",
+        "source_officialness": "official_primary",
+        "source_of_truth_role": "policy_text",
+        "jurisdiction_match": true,
+        "policy_family_match": true,
+        "external_context_allowed": false,
+        "primary_evidence_allowed": true
+      },
+      "provider_usage": {
+        "primary_discovery_provider": "private_searxng",
+        "tavily_primary_selected": false,
+        "exa_primary_selected": false
+      },
+      "structured_source_observations": [
+        {
+          "source_family": "state_legislation_api_or_raw",
+          "true_structured": true,
+          "depth": "section_text_rows",
+          "live_proven": true
+        }
+      ],
+      "structured_cell_status": "covered",
+      "source_infrastructure_status": "live_integrated",
+      "infrastructure_status": {
+        "source_lane_status": "live_integrated",
+        "orchestration_mode": "windmill_live",
+        "windmill_refs": {
+          "flow_id": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+          "run_id": "wm::lgm-010",
+          "job_id": "wm-job::lgm-010"
+        }
+      },
+      "economic_handoff_plausibility": {
+        "classification_target": "secondary_research_needed",
+        "deep_dive_type": "secondary",
+        "deep_dive_performed": true,
+        "model_card_reuse_count": 1
+      },
+      "classification": {
+        "data_moat_package_classification": "secondary_research_needed",
+        "d11_handoff_quality": "analysis_ready_with_gaps",
+        "d11_reason": "statewide effects require localized incidence adjustments"
+      },
+      "package_gate_status": {
+        "D0": "pass",
+        "D1": "pass",
+        "D2": "pass",
+        "D3": "pass",
+        "D4": "pass",
+        "D5": "pass",
+        "D6": "pass",
+        "D7": "pass",
+        "D8": "pass",
+        "D9": "pass",
+        "D10": "not_proven",
+        "D11": "pass",
+        "E1": "not_proven",
+        "E2": "not_proven",
+        "E3": "not_proven",
+        "E4": "not_proven",
+        "E5": "not_proven"
+      },
+      "manual_audit": {
+        "sampled": false
+      },
+      "freshness": {
+        "expected_update_interval_days": 30,
+        "retrieved_at": "2026-04-16T00:00:00+00:00",
+        "source_published_at": "2026-03-31T00:00:00+00:00",
+        "date_not_found": false,
+        "last_successful_refresh_at": "2026-04-16T00:00:00+00:00",
+        "source_shape_fingerprint": "shape::lgm-010",
+        "source_shape_changed": false,
+        "update_cadence_drift": false,
+        "stale_for_policy_use": false,
+        "next_refresh_recommendation": "refresh_within_30_days"
+      },
+      "identity": {
+        "canonical_policy_key": "policy::california_state::utilities_energy_building_standard",
+        "canonical_source_key": "source::state_legislation_api_or_raw::california_state",
+        "canonical_document_key": "doc::lgm-010",
+        "canonical_attachment_key": "attachment::lgm-010",
+        "dedupe_cluster_id": "cluster::california_state::utilities_energy_building_standard",
+        "version_state": "active"
+      },
+      "normalization": {
+        "currency_normalized": true,
+        "percent_normalized": true,
+        "count_normalized": true,
+        "date_normalized": true,
+        "unit_normalized": true,
+        "geography_fields": [
+          "jurisdiction",
+          "state"
+        ],
+        "export_ready": true
+      },
+      "licensing": {
+        "license_posture": "public_record_or_open_data",
+        "robots_tos_posture": "allowed_with_rate_limit",
+        "rate_limit_notes": "respect source published limits",
+        "attribution_notes": "retain source URL attribution",
+        "allowed_storage_export_posture": "internal_plus_customer_export"
+      },
+      "schema_contract": {
+        "package_schema_version": "policy_evidence_package_v1",
+        "taxonomy_version": "corpus_taxonomy_v1",
+        "gate_version": "data_moat_c0_c14_v1"
+      },
+      "extraction_depth": {
+        "template_id": "non_fee_template::utilities_energy_building_standard",
+        "live_exercised": true,
+        "applicability_present": true,
+        "effective_date_or_unknown_present": true,
+        "jurisdiction_geography_present": true,
+        "source_locator_present": true,
+        "policy_action_type_present": true
+      }
+    },
+    {
+      "row_type": "corpus_package",
+      "corpus_row_id": "lgm-011",
+      "package_id": "pkg::lgm-011",
+      "jurisdiction": {
+        "id": "california_state",
+        "name": "California",
+        "type": "state",
+        "state": "CA",
+        "region": "us"
+      },
+      "policy_family": "air_quality_electrification",
+      "mechanism_family": "indirect_energy_or_utility_cost",
+      "query_families": [
+        "california air resources board electrification rule local compliance"
+      ],
+      "expected_official_source_families": [
+        "state_legislation_api_or_raw",
+        "official_pdf_html_attachment"
+      ],
+      "expected_structured_source_families": [
+        "state_legislation_api_or_raw"
+      ],
+      "known_official_domains": [
+        "californiastate.gov",
+        "legistar.com"
+      ],
+      "evaluation_split": "blind_evaluation",
+      "blind_seed": true,
+      "known_policy_reference_id": "kp-ca-air-001",
+      "required_package_verdict_floor": "stored_not_economic",
+      "manual_audit_priority": "P1",
+      "golden_regression_expectation": {
+        "stable_query_input": "california air resources board electrification rule local compliance",
+        "expected_jurisdiction_id": "california_state",
+        "expected_policy_family": "air_quality_electrification",
+        "selected_source_url": "https://ww2.arb.ca.gov/sites/default/files/2026-01/electrification-rule.pdf",
+        "package_id": "pkg::lgm-011",
+        "verdict": "corpus_ready_with_gaps",
+        "failure_class": "none"
+      },
+      "selected_primary_source": {
+        "source_family": "official_pdf_html_attachment",
+        "source_url": "https://ww2.arb.ca.gov/sites/default/files/2026-01/electrification-rule.pdf",
+        "source_officialness": "official_primary",
+        "source_of_truth_role": "implementation_guidance",
+        "jurisdiction_match": true,
+        "policy_family_match": true,
+        "external_context_allowed": false,
+        "primary_evidence_allowed": true
+      },
+      "provider_usage": {
+        "primary_discovery_provider": "private_searxng",
+        "tavily_primary_selected": false,
+        "exa_primary_selected": false
+      },
+      "structured_source_observations": [
+        {
+          "source_family": "state_legislation_api_or_raw",
+          "true_structured": true,
+          "depth": "compliance_schedule_rows",
+          "live_proven": true
+        }
+      ],
+      "structured_cell_status": "covered",
+      "source_infrastructure_status": "live_integrated",
+      "infrastructure_status": {
+        "source_lane_status": "live_integrated",
+        "orchestration_mode": "mixed",
+        "windmill_refs": {
+          "flow_id": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+          "run_id": "wm::lgm-011",
+          "job_id": "wm-job::lgm-011"
+        }
+      },
+      "economic_handoff_plausibility": {
+        "classification_target": "economic_handoff_candidate",
+        "deep_dive_type": null,
+        "deep_dive_performed": false,
+        "model_card_reuse_count": 0
+      },
+      "classification": {
+        "data_moat_package_classification": "economic_handoff_candidate",
+        "d11_handoff_quality": "analysis_ready_with_gaps",
+        "d11_reason": "source-grounded compliance timetable with partial cost ranges"
+      },
+      "package_gate_status": {
+        "D0": "pass",
+        "D1": "pass",
+        "D2": "pass",
+        "D3": "pass",
+        "D4": "pass",
+        "D5": "pass",
+        "D6": "pass",
+        "D7": "pass",
+        "D8": "pass",
+        "D9": "pass",
+        "D10": "not_proven",
+        "D11": "pass",
+        "E1": "not_proven",
+        "E2": "not_proven",
+        "E3": "not_proven",
+        "E4": "not_proven",
+        "E5": "not_proven"
+      },
+      "manual_audit": {
+        "sampled": false
+      },
+      "freshness": {
+        "expected_update_interval_days": 30,
+        "retrieved_at": "2026-04-16T00:00:00+00:00",
+        "source_published_at": "2026-03-31T00:00:00+00:00",
+        "date_not_found": false,
+        "last_successful_refresh_at": "2026-04-16T00:00:00+00:00",
+        "source_shape_fingerprint": "shape::lgm-011",
+        "source_shape_changed": false,
+        "update_cadence_drift": false,
+        "stale_for_policy_use": false,
+        "next_refresh_recommendation": "refresh_within_30_days"
+      },
+      "identity": {
+        "canonical_policy_key": "policy::california_state::air_quality_electrification",
+        "canonical_source_key": "source::official_pdf_html_attachment::california_state",
+        "canonical_document_key": "doc::lgm-011",
+        "canonical_attachment_key": "attachment::lgm-011",
+        "dedupe_cluster_id": "cluster::california_state::air_quality_electrification",
+        "version_state": "active"
+      },
+      "normalization": {
+        "currency_normalized": true,
+        "percent_normalized": true,
+        "count_normalized": true,
+        "date_normalized": true,
+        "unit_normalized": true,
+        "geography_fields": [
+          "jurisdiction",
+          "state"
+        ],
+        "export_ready": true
+      },
+      "licensing": {
+        "license_posture": "public_record_or_open_data",
+        "robots_tos_posture": "allowed_with_rate_limit",
+        "rate_limit_notes": "respect source published limits",
+        "attribution_notes": "retain source URL attribution",
+        "allowed_storage_export_posture": "internal_plus_customer_export"
+      },
+      "schema_contract": {
+        "package_schema_version": "policy_evidence_package_v1",
+        "taxonomy_version": "corpus_taxonomy_v1",
+        "gate_version": "data_moat_c0_c14_v1"
+      },
+      "extraction_depth": {
+        "template_id": "non_fee_template::air_quality_electrification",
+        "live_exercised": true,
+        "applicability_present": true,
+        "effective_date_or_unknown_present": true,
+        "jurisdiction_geography_present": true,
+        "source_locator_present": true,
+        "policy_action_type_present": true
+      }
+    },
+    {
+      "row_type": "corpus_package",
+      "corpus_row_id": "lgm-012",
+      "package_id": "pkg::lgm-012",
+      "jurisdiction": {
+        "id": "portland_or",
+        "name": "Portland",
+        "type": "city",
+        "state": "OR",
+        "region": "us"
+      },
+      "policy_family": "parking_policy",
+      "mechanism_family": "direct_compliance_cost",
+      "query_families": [
+        "portland parking reform code 33.266"
+      ],
+      "expected_official_source_families": [
+        "official_clerk_or_code_portal"
+      ],
+      "expected_structured_source_families": [
+        "arcgis_rest"
+      ],
+      "known_official_domains": [
+        "portlandor.gov",
+        "legistar.com"
+      ],
+      "evaluation_split": "tuning",
+      "blind_seed": false,
+      "known_policy_reference_id": "kp-por-parking-001",
+      "required_package_verdict_floor": "stored_not_economic",
+      "manual_audit_priority": "P1",
+      "golden_regression_expectation": {
+        "stable_query_input": "portland parking reform code 33.266",
+        "expected_jurisdiction_id": "portland_or",
+        "expected_policy_family": "parking_policy",
+        "selected_source_url": "https://www.portland.gov/code/33/266",
+        "package_id": "pkg::lgm-012",
+        "verdict": "corpus_ready_with_gaps",
+        "failure_class": "none"
+      },
+      "selected_primary_source": {
+        "source_family": "official_clerk_or_code_portal",
+        "source_url": "https://www.portland.gov/code/33/266",
+        "source_officialness": "official_primary",
+        "source_of_truth_role": "policy_text",
+        "jurisdiction_match": true,
+        "policy_family_match": true,
+        "external_context_allowed": false,
+        "primary_evidence_allowed": true
+      },
+      "provider_usage": {
+        "primary_discovery_provider": "private_searxng",
+        "tavily_primary_selected": false,
+        "exa_primary_selected": false
+      },
+      "structured_source_observations": [
+        {
+          "source_family": "arcgis_rest",
+          "true_structured": true,
+          "depth": "zone_mapping_rows",
+          "live_proven": true
+        }
+      ],
+      "structured_cell_status": "covered",
+      "source_infrastructure_status": "live_integrated",
+      "infrastructure_status": {
+        "source_lane_status": "live_integrated",
+        "orchestration_mode": "windmill_live",
+        "windmill_refs": {
+          "flow_id": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+          "run_id": "wm::lgm-012",
+          "job_id": "wm-job::lgm-012"
+        }
+      },
+      "economic_handoff_plausibility": {
+        "classification_target": "economic_handoff_candidate",
+        "deep_dive_type": "direct",
+        "deep_dive_performed": true,
+        "model_card_reuse_count": 1
+      },
+      "classification": {
+        "data_moat_package_classification": "economic_handoff_candidate",
+        "d11_handoff_quality": "analysis_ready_with_gaps",
+        "d11_reason": "policy text and geospatial applicability available"
+      },
+      "package_gate_status": {
+        "D0": "pass",
+        "D1": "pass",
+        "D2": "pass",
+        "D3": "pass",
+        "D4": "pass",
+        "D5": "pass",
+        "D6": "pass",
+        "D7": "pass",
+        "D8": "pass",
+        "D9": "pass",
+        "D10": "not_proven",
+        "D11": "pass",
+        "E1": "not_proven",
+        "E2": "not_proven",
+        "E3": "not_proven",
+        "E4": "not_proven",
+        "E5": "not_proven"
+      },
+      "manual_audit": {
+        "sampled": false
+      },
+      "freshness": {
+        "expected_update_interval_days": 30,
+        "retrieved_at": "2026-04-16T00:00:00+00:00",
+        "source_published_at": "2026-03-31T00:00:00+00:00",
+        "date_not_found": false,
+        "last_successful_refresh_at": "2026-04-16T00:00:00+00:00",
+        "source_shape_fingerprint": "shape::lgm-012",
+        "source_shape_changed": false,
+        "update_cadence_drift": false,
+        "stale_for_policy_use": false,
+        "next_refresh_recommendation": "refresh_within_30_days"
+      },
+      "identity": {
+        "canonical_policy_key": "policy::portland_or::parking_policy",
+        "canonical_source_key": "source::official_clerk_or_code_portal::portland_or",
+        "canonical_document_key": "doc::lgm-012",
+        "canonical_attachment_key": "attachment::lgm-012",
+        "dedupe_cluster_id": "cluster::portland_or::parking_policy",
+        "version_state": "active"
+      },
+      "normalization": {
+        "currency_normalized": true,
+        "percent_normalized": true,
+        "count_normalized": true,
+        "date_normalized": true,
+        "unit_normalized": true,
+        "geography_fields": [
+          "jurisdiction",
+          "state"
+        ],
+        "export_ready": true
+      },
+      "licensing": {
+        "license_posture": "public_record_or_open_data",
+        "robots_tos_posture": "allowed_with_rate_limit",
+        "rate_limit_notes": "respect source published limits",
+        "attribution_notes": "retain source URL attribution",
+        "allowed_storage_export_posture": "internal_plus_customer_export"
+      },
+      "schema_contract": {
+        "package_schema_version": "policy_evidence_package_v1",
+        "taxonomy_version": "corpus_taxonomy_v1",
+        "gate_version": "data_moat_c0_c14_v1"
+      },
+      "extraction_depth": {
+        "template_id": "non_fee_template::parking_policy",
+        "live_exercised": true,
+        "applicability_present": true,
+        "effective_date_or_unknown_present": true,
+        "jurisdiction_geography_present": true,
+        "source_locator_present": true,
+        "policy_action_type_present": true
+      }
+    },
+    {
+      "row_type": "corpus_package",
+      "corpus_row_id": "lgm-013",
+      "package_id": "pkg::lgm-013",
+      "jurisdiction": {
+        "id": "portland_or",
+        "name": "Portland",
+        "type": "city",
+        "state": "OR",
+        "region": "us"
+      },
+      "policy_family": "short_term_rental",
+      "mechanism_family": "direct_compliance_cost",
+      "query_families": [
+        "portland short term rental licensing code 33.207"
+      ],
+      "expected_official_source_families": [
+        "official_clerk_or_code_portal"
+      ],
+      "expected_structured_source_families": [
+        "ckan_api"
+      ],
+      "known_official_domains": [
+        "portlandor.gov",
+        "legistar.com"
+      ],
+      "evaluation_split": "blind_evaluation",
+      "blind_seed": true,
+      "known_policy_reference_id": "kp-por-str-001",
+      "required_package_verdict_floor": "stored_not_economic",
+      "manual_audit_priority": "P2",
+      "golden_regression_expectation": {
+        "stable_query_input": "portland short term rental licensing code 33.207",
+        "expected_jurisdiction_id": "portland_or",
+        "expected_policy_family": "short_term_rental",
+        "selected_source_url": "https://www.portland.gov/code/33/207",
+        "package_id": "pkg::lgm-013",
+        "verdict": "corpus_ready_with_gaps",
+        "failure_class": "none"
+      },
+      "selected_primary_source": {
+        "source_family": "official_clerk_or_code_portal",
+        "source_url": "https://www.portland.gov/code/33/207",
+        "source_officialness": "official_primary",
+        "source_of_truth_role": "policy_text",
+        "jurisdiction_match": true,
+        "policy_family_match": true,
+        "external_context_allowed": false,
+        "primary_evidence_allowed": true
+      },
+      "provider_usage": {
+        "primary_discovery_provider": "private_searxng",
+        "tavily_primary_selected": false,
+        "exa_primary_selected": false
+      },
+      "structured_source_observations": [
+        {
+          "source_family": "ckan_api",
+          "true_structured": true,
+          "depth": "permit_registration_rows",
+          "live_proven": true
+        }
+      ],
+      "structured_cell_status": "covered",
+      "source_infrastructure_status": "live_integrated",
+      "infrastructure_status": {
+        "source_lane_status": "live_integrated",
+        "orchestration_mode": "cli_only",
+        "windmill_refs": null
+      },
+      "economic_handoff_plausibility": {
+        "classification_target": "stored_not_economic",
+        "deep_dive_type": null,
+        "deep_dive_performed": false,
+        "model_card_reuse_count": 0
+      },
+      "classification": {
+        "data_moat_package_classification": "stored_not_economic",
+        "d11_handoff_quality": "not_analysis_ready",
+        "d11_reason": "non-economic value for compliance and risk filters"
+      },
+      "package_gate_status": {
+        "D0": "pass",
+        "D1": "pass",
+        "D2": "pass",
+        "D3": "pass",
+        "D4": "pass",
+        "D5": "pass",
+        "D6": "pass",
+        "D7": "pass",
+        "D8": "pass",
+        "D9": "not_proven",
+        "D10": "not_proven",
+        "D11": "not_proven",
+        "E1": "not_proven",
+        "E2": "not_proven",
+        "E3": "not_proven",
+        "E4": "not_proven",
+        "E5": "not_proven"
+      },
+      "manual_audit": {
+        "sampled": false
+      },
+      "freshness": {
+        "expected_update_interval_days": 30,
+        "retrieved_at": "2026-04-16T00:00:00+00:00",
+        "source_published_at": "2026-03-31T00:00:00+00:00",
+        "date_not_found": false,
+        "last_successful_refresh_at": "2026-04-16T00:00:00+00:00",
+        "source_shape_fingerprint": "shape::lgm-013",
+        "source_shape_changed": false,
+        "update_cadence_drift": false,
+        "stale_for_policy_use": false,
+        "next_refresh_recommendation": "refresh_within_30_days"
+      },
+      "identity": {
+        "canonical_policy_key": "policy::portland_or::short_term_rental",
+        "canonical_source_key": "source::official_clerk_or_code_portal::portland_or",
+        "canonical_document_key": "doc::lgm-013",
+        "canonical_attachment_key": "attachment::lgm-013",
+        "dedupe_cluster_id": "cluster::portland_or::short_term_rental",
+        "version_state": "active"
+      },
+      "normalization": {
+        "currency_normalized": true,
+        "percent_normalized": true,
+        "count_normalized": true,
+        "date_normalized": true,
+        "unit_normalized": true,
+        "geography_fields": [
+          "jurisdiction",
+          "state"
+        ],
+        "export_ready": true
+      },
+      "licensing": {
+        "license_posture": "public_record_or_open_data",
+        "robots_tos_posture": "allowed_with_rate_limit",
+        "rate_limit_notes": "respect source published limits",
+        "attribution_notes": "retain source URL attribution",
+        "allowed_storage_export_posture": "internal_plus_customer_export"
+      },
+      "schema_contract": {
+        "package_schema_version": "policy_evidence_package_v1",
+        "taxonomy_version": "corpus_taxonomy_v1",
+        "gate_version": "data_moat_c0_c14_v1"
+      },
+      "extraction_depth": {
+        "template_id": "non_fee_template::short_term_rental",
+        "live_exercised": true,
+        "applicability_present": true,
+        "effective_date_or_unknown_present": true,
+        "jurisdiction_geography_present": true,
+        "source_locator_present": true,
+        "policy_action_type_present": true
+      }
+    },
+    {
+      "row_type": "corpus_package",
+      "corpus_row_id": "lgm-014",
+      "package_id": "pkg::lgm-014",
+      "jurisdiction": {
+        "id": "king_county_wa",
+        "name": "King County",
+        "type": "county",
+        "state": "WA",
+        "region": "us"
+      },
+      "policy_family": "zoning_land_use",
+      "mechanism_family": "indirect_supply_constraint",
+      "query_families": [
+        "king county zoning map amendment multifamily"
+      ],
+      "expected_official_source_families": [
+        "official_pdf_html_attachment",
+        "official_clerk_or_code_portal"
+      ],
+      "expected_structured_source_families": [
+        "arcgis_rest"
+      ],
+      "known_official_domains": [
+        "kingcountywa.gov",
+        "legistar.com"
+      ],
+      "evaluation_split": "tuning",
+      "blind_seed": false,
+      "known_policy_reference_id": "kp-king-zoning-001",
+      "required_package_verdict_floor": "stored_not_economic",
+      "manual_audit_priority": "P1",
+      "golden_regression_expectation": {
+        "stable_query_input": "king county zoning map amendment multifamily",
+        "expected_jurisdiction_id": "king_county_wa",
+        "expected_policy_family": "zoning_land_use",
+        "selected_source_url": "https://kingcounty.gov/council/legislation/zoning-amendment-2026.pdf",
+        "package_id": "pkg::lgm-014",
+        "verdict": "corpus_ready_with_gaps",
+        "failure_class": "none"
+      },
+      "selected_primary_source": {
+        "source_family": "official_pdf_html_attachment",
+        "source_url": "https://kingcounty.gov/council/legislation/zoning-amendment-2026.pdf",
+        "source_officialness": "official_primary",
+        "source_of_truth_role": "policy_text",
+        "jurisdiction_match": true,
+        "policy_family_match": true,
+        "external_context_allowed": false,
+        "primary_evidence_allowed": true
+      },
+      "provider_usage": {
+        "primary_discovery_provider": "private_searxng",
+        "tavily_primary_selected": false,
+        "exa_primary_selected": false
+      },
+      "structured_source_observations": [
+        {
+          "source_family": "arcgis_rest",
+          "true_structured": true,
+          "depth": "parcel_zone_rows",
+          "live_proven": true
+        }
+      ],
+      "structured_cell_status": "covered",
+      "source_infrastructure_status": "live_integrated",
+      "infrastructure_status": {
+        "source_lane_status": "live_integrated",
+        "orchestration_mode": "mixed",
+        "windmill_refs": {
+          "flow_id": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+          "run_id": "wm::lgm-014",
+          "job_id": "wm-job::lgm-014"
+        }
+      },
+      "economic_handoff_plausibility": {
+        "classification_target": "secondary_research_needed",
+        "deep_dive_type": "indirect",
+        "deep_dive_performed": true,
+        "model_card_reuse_count": 1
+      },
+      "classification": {
+        "data_moat_package_classification": "secondary_research_needed",
+        "d11_handoff_quality": "analysis_ready_with_gaps",
+        "d11_reason": "needs localized conversion assumptions for incidence"
+      },
+      "package_gate_status": {
+        "D0": "pass",
+        "D1": "pass",
+        "D2": "pass",
+        "D3": "pass",
+        "D4": "pass",
+        "D5": "pass",
+        "D6": "pass",
+        "D7": "pass",
+        "D8": "pass",
+        "D9": "pass",
+        "D10": "not_proven",
+        "D11": "pass",
+        "E1": "not_proven",
+        "E2": "not_proven",
+        "E3": "not_proven",
+        "E4": "not_proven",
+        "E5": "not_proven"
+      },
+      "manual_audit": {
+        "sampled": false
+      },
+      "freshness": {
+        "expected_update_interval_days": 30,
+        "retrieved_at": "2026-04-16T00:00:00+00:00",
+        "source_published_at": "2026-03-31T00:00:00+00:00",
+        "date_not_found": false,
+        "last_successful_refresh_at": "2026-04-16T00:00:00+00:00",
+        "source_shape_fingerprint": "shape::lgm-014",
+        "source_shape_changed": false,
+        "update_cadence_drift": false,
+        "stale_for_policy_use": false,
+        "next_refresh_recommendation": "refresh_within_30_days"
+      },
+      "identity": {
+        "canonical_policy_key": "policy::king_county_wa::zoning_land_use",
+        "canonical_source_key": "source::official_pdf_html_attachment::king_county_wa",
+        "canonical_document_key": "doc::lgm-014",
+        "canonical_attachment_key": "attachment::lgm-014",
+        "dedupe_cluster_id": "cluster::king_county_wa::zoning_land_use",
+        "version_state": "active"
+      },
+      "normalization": {
+        "currency_normalized": true,
+        "percent_normalized": true,
+        "count_normalized": true,
+        "date_normalized": true,
+        "unit_normalized": true,
+        "geography_fields": [
+          "jurisdiction",
+          "state"
+        ],
+        "export_ready": true
+      },
+      "licensing": {
+        "license_posture": "public_record_or_open_data",
+        "robots_tos_posture": "allowed_with_rate_limit",
+        "rate_limit_notes": "respect source published limits",
+        "attribution_notes": "retain source URL attribution",
+        "allowed_storage_export_posture": "internal_plus_customer_export"
+      },
+      "schema_contract": {
+        "package_schema_version": "policy_evidence_package_v1",
+        "taxonomy_version": "corpus_taxonomy_v1",
+        "gate_version": "data_moat_c0_c14_v1"
+      },
+      "extraction_depth": {
+        "template_id": "non_fee_template::zoning_land_use",
+        "live_exercised": true,
+        "applicability_present": true,
+        "effective_date_or_unknown_present": true,
+        "jurisdiction_geography_present": true,
+        "source_locator_present": true,
+        "policy_action_type_present": true
+      }
+    },
+    {
+      "row_type": "corpus_package",
+      "corpus_row_id": "lgm-015",
+      "package_id": "pkg::lgm-015",
+      "jurisdiction": {
+        "id": "king_county_wa",
+        "name": "King County",
+        "type": "county",
+        "state": "WA",
+        "region": "us"
+      },
+      "policy_family": "meeting_action",
+      "mechanism_family": "qualitative_policy_context",
+      "query_families": [
+        "king county council action housing work program"
+      ],
+      "expected_official_source_families": [
+        "agenda_meeting_api"
+      ],
+      "expected_structured_source_families": [
+        "agenda_meeting_api"
+      ],
+      "known_official_domains": [
+        "kingcountywa.gov",
+        "legistar.com"
+      ],
+      "evaluation_split": "tuning",
+      "blind_seed": false,
+      "known_policy_reference_id": "kp-king-meeting-001",
+      "required_package_verdict_floor": "stored_not_economic",
+      "manual_audit_priority": "P2",
+      "golden_regression_expectation": {
+        "stable_query_input": "king county council action housing work program",
+        "expected_jurisdiction_id": "king_county_wa",
+        "expected_policy_family": "meeting_action",
+        "selected_source_url": "https://kingcounty.legistar.com/LegislationDetail.aspx?ID=1234567",
+        "package_id": "pkg::lgm-015",
+        "verdict": "corpus_ready_with_gaps",
+        "failure_class": "none"
+      },
+      "selected_primary_source": {
+        "source_family": "agenda_meeting_api",
+        "source_url": "https://kingcounty.legistar.com/LegislationDetail.aspx?ID=1234567",
+        "source_officialness": "official_primary",
+        "source_of_truth_role": "adoption_action",
+        "jurisdiction_match": true,
+        "policy_family_match": true,
+        "external_context_allowed": false,
+        "primary_evidence_allowed": true
+      },
+      "provider_usage": {
+        "primary_discovery_provider": "private_searxng",
+        "tavily_primary_selected": false,
+        "exa_primary_selected": false
+      },
+      "structured_source_observations": [
+        {
+          "source_family": "agenda_meeting_api",
+          "true_structured": false,
+          "depth": "meeting_metadata",
+          "live_proven": true
+        }
+      ],
+      "structured_cell_status": "cataloged_absent",
+      "source_infrastructure_status": "cataloged_unavailable",
+      "infrastructure_status": {
+        "source_lane_status": "cataloged_unavailable",
+        "orchestration_mode": "cli_only",
+        "windmill_refs": null
+      },
+      "economic_handoff_plausibility": {
+        "classification_target": "qualitative_only",
+        "deep_dive_type": null,
+        "deep_dive_performed": false,
+        "model_card_reuse_count": 0
+      },
+      "classification": {
+        "data_moat_package_classification": "qualitative_only",
+        "d11_handoff_quality": "not_analysis_ready",
+        "d11_reason": "qualitative meeting action no quantifiable cost parameters"
+      },
+      "package_gate_status": {
+        "D0": "pass",
+        "D1": "pass",
+        "D2": "pass",
+        "D3": "not_proven",
+        "D4": "pass",
+        "D5": "pass",
+        "D6": "pass",
+        "D7": "pass",
+        "D8": "pass",
+        "D9": "not_proven",
+        "D10": "not_proven",
+        "D11": "not_proven",
+        "E1": "not_proven",
+        "E2": "not_proven",
+        "E3": "not_proven",
+        "E4": "not_proven",
+        "E5": "not_proven"
+      },
+      "manual_audit": {
+        "sampled": false
+      },
+      "freshness": {
+        "expected_update_interval_days": 30,
+        "retrieved_at": "2026-04-16T00:00:00+00:00",
+        "source_published_at": "2026-03-31T00:00:00+00:00",
+        "date_not_found": false,
+        "last_successful_refresh_at": "2026-04-16T00:00:00+00:00",
+        "source_shape_fingerprint": "shape::lgm-015",
+        "source_shape_changed": false,
+        "update_cadence_drift": false,
+        "stale_for_policy_use": false,
+        "next_refresh_recommendation": "refresh_within_30_days"
+      },
+      "identity": {
+        "canonical_policy_key": "policy::king_county_wa::meeting_action",
+        "canonical_source_key": "source::agenda_meeting_api::king_county_wa",
+        "canonical_document_key": "doc::lgm-015",
+        "canonical_attachment_key": "attachment::lgm-015",
+        "dedupe_cluster_id": "cluster::king_county_wa::meeting_action",
+        "version_state": "active"
+      },
+      "normalization": {
+        "currency_normalized": true,
+        "percent_normalized": true,
+        "count_normalized": true,
+        "date_normalized": true,
+        "unit_normalized": true,
+        "geography_fields": [
+          "jurisdiction",
+          "state"
+        ],
+        "export_ready": true
+      },
+      "licensing": {
+        "license_posture": "public_record_or_open_data",
+        "robots_tos_posture": "allowed_with_rate_limit",
+        "rate_limit_notes": "respect source published limits",
+        "attribution_notes": "retain source URL attribution",
+        "allowed_storage_export_posture": "internal_plus_customer_export"
+      },
+      "schema_contract": {
+        "package_schema_version": "policy_evidence_package_v1",
+        "taxonomy_version": "corpus_taxonomy_v1",
+        "gate_version": "data_moat_c0_c14_v1"
+      },
+      "extraction_depth": {
+        "template_id": "non_fee_template::meeting_action",
+        "live_exercised": true,
+        "applicability_present": true,
+        "effective_date_or_unknown_present": true,
+        "jurisdiction_geography_present": true,
+        "source_locator_present": true,
+        "policy_action_type_present": true
+      }
+    },
+    {
+      "row_type": "corpus_package",
+      "corpus_row_id": "lgm-016",
+      "package_id": "pkg::lgm-016",
+      "jurisdiction": {
+        "id": "austin_tx",
+        "name": "Austin",
+        "type": "city",
+        "state": "TX",
+        "region": "us"
+      },
+      "policy_family": "affordable_housing_mandate",
+      "mechanism_family": "indirect_housing_cost_pass_through",
+      "query_families": [
+        "austin density bonus affordability ordinance"
+      ],
+      "expected_official_source_families": [
+        "official_clerk_or_code_portal",
+        "official_pdf_html_attachment"
+      ],
+      "expected_structured_source_families": [
+        "socrata_api"
+      ],
+      "known_official_domains": [
+        "austintx.gov",
+        "legistar.com"
+      ],
+      "evaluation_split": "tuning",
+      "blind_seed": false,
+      "known_policy_reference_id": "kp-aus-afford-001",
+      "required_package_verdict_floor": "stored_not_economic",
+      "manual_audit_priority": "P1",
+      "golden_regression_expectation": {
+        "stable_query_input": "austin density bonus affordability ordinance",
+        "expected_jurisdiction_id": "austin_tx",
+        "expected_policy_family": "affordable_housing_mandate",
+        "selected_source_url": "https://www.austintexas.gov/edims/document.cfm?id=456789",
+        "package_id": "pkg::lgm-016",
+        "verdict": "corpus_ready_with_gaps",
+        "failure_class": "none"
+      },
+      "selected_primary_source": {
+        "source_family": "official_pdf_html_attachment",
+        "source_url": "https://www.austintexas.gov/edims/document.cfm?id=456789",
+        "source_officialness": "official_primary",
+        "source_of_truth_role": "policy_text",
+        "jurisdiction_match": true,
+        "policy_family_match": true,
+        "external_context_allowed": false,
+        "primary_evidence_allowed": true
+      },
+      "provider_usage": {
+        "primary_discovery_provider": "private_searxng",
+        "tavily_primary_selected": false,
+        "exa_primary_selected": false
+      },
+      "structured_source_observations": [
+        {
+          "source_family": "socrata_api",
+          "true_structured": true,
+          "depth": "incentive_program_rows",
+          "live_proven": true
+        }
+      ],
+      "structured_cell_status": "covered",
+      "source_infrastructure_status": "live_integrated",
+      "infrastructure_status": {
+        "source_lane_status": "live_integrated",
+        "orchestration_mode": "windmill_live",
+        "windmill_refs": {
+          "flow_id": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+          "run_id": "wm::lgm-016",
+          "job_id": "wm-job::lgm-016"
+        }
+      },
+      "economic_handoff_plausibility": {
+        "classification_target": "economic_handoff_candidate",
+        "deep_dive_type": "indirect",
+        "deep_dive_performed": true,
+        "model_card_reuse_count": 1
+      },
+      "classification": {
+        "data_moat_package_classification": "economic_handoff_candidate",
+        "d11_handoff_quality": "analysis_ready_with_gaps",
+        "d11_reason": "quantification path exists with incidence uncertainty"
+      },
+      "package_gate_status": {
+        "D0": "pass",
+        "D1": "pass",
+        "D2": "pass",
+        "D3": "pass",
+        "D4": "pass",
+        "D5": "pass",
+        "D6": "pass",
+        "D7": "pass",
+        "D8": "pass",
+        "D9": "pass",
+        "D10": "not_proven",
+        "D11": "pass",
+        "E1": "not_proven",
+        "E2": "not_proven",
+        "E3": "not_proven",
+        "E4": "not_proven",
+        "E5": "not_proven"
+      },
+      "manual_audit": {
+        "sampled": false
+      },
+      "freshness": {
+        "expected_update_interval_days": 30,
+        "retrieved_at": "2026-04-16T00:00:00+00:00",
+        "source_published_at": "2026-03-31T00:00:00+00:00",
+        "date_not_found": false,
+        "last_successful_refresh_at": "2026-04-16T00:00:00+00:00",
+        "source_shape_fingerprint": "shape::lgm-016",
+        "source_shape_changed": false,
+        "update_cadence_drift": false,
+        "stale_for_policy_use": false,
+        "next_refresh_recommendation": "refresh_within_30_days"
+      },
+      "identity": {
+        "canonical_policy_key": "policy::austin_tx::affordable_housing_mandate",
+        "canonical_source_key": "source::official_pdf_html_attachment::austin_tx",
+        "canonical_document_key": "doc::lgm-016",
+        "canonical_attachment_key": "attachment::lgm-016",
+        "dedupe_cluster_id": "cluster::austin_tx::affordable_housing_mandate",
+        "version_state": "active"
+      },
+      "normalization": {
+        "currency_normalized": true,
+        "percent_normalized": true,
+        "count_normalized": true,
+        "date_normalized": true,
+        "unit_normalized": true,
+        "geography_fields": [
+          "jurisdiction",
+          "state"
+        ],
+        "export_ready": true
+      },
+      "licensing": {
+        "license_posture": "public_record_or_open_data",
+        "robots_tos_posture": "allowed_with_rate_limit",
+        "rate_limit_notes": "respect source published limits",
+        "attribution_notes": "retain source URL attribution",
+        "allowed_storage_export_posture": "internal_plus_customer_export"
+      },
+      "schema_contract": {
+        "package_schema_version": "policy_evidence_package_v1",
+        "taxonomy_version": "corpus_taxonomy_v1",
+        "gate_version": "data_moat_c0_c14_v1"
+      },
+      "extraction_depth": {
+        "template_id": "non_fee_template::affordable_housing_mandate",
+        "live_exercised": true,
+        "applicability_present": true,
+        "effective_date_or_unknown_present": true,
+        "jurisdiction_geography_present": true,
+        "source_locator_present": true,
+        "policy_action_type_present": true
+      }
+    },
+    {
+      "row_type": "corpus_package",
+      "corpus_row_id": "lgm-017",
+      "package_id": "pkg::lgm-017",
+      "jurisdiction": {
+        "id": "austin_tx",
+        "name": "Austin",
+        "type": "city",
+        "state": "TX",
+        "region": "us"
+      },
+      "policy_family": "code_enforcement",
+      "mechanism_family": "direct_compliance_cost",
+      "query_families": [
+        "austin code enforcement fee schedule"
+      ],
+      "expected_official_source_families": [
+        "official_clerk_or_code_portal"
+      ],
+      "expected_structured_source_families": [
+        "ckan_api"
+      ],
+      "known_official_domains": [
+        "austintx.gov",
+        "legistar.com"
+      ],
+      "evaluation_split": "blind_evaluation",
+      "blind_seed": true,
+      "known_policy_reference_id": "kp-aus-code-001",
+      "required_package_verdict_floor": "stored_not_economic",
+      "manual_audit_priority": "P2",
+      "golden_regression_expectation": {
+        "stable_query_input": "austin code enforcement fee schedule",
+        "expected_jurisdiction_id": "austin_tx",
+        "expected_policy_family": "code_enforcement",
+        "selected_source_url": "https://library.municode.com/tx/austin/codes/code_of_ordinances",
+        "package_id": "pkg::lgm-017",
+        "verdict": "corpus_ready_with_gaps",
+        "failure_class": "none"
+      },
+      "selected_primary_source": {
+        "source_family": "official_clerk_or_code_portal",
+        "source_url": "https://library.municode.com/tx/austin/codes/code_of_ordinances",
+        "source_officialness": "official_primary",
+        "source_of_truth_role": "policy_text",
+        "jurisdiction_match": true,
+        "policy_family_match": true,
+        "external_context_allowed": false,
+        "primary_evidence_allowed": true
+      },
+      "provider_usage": {
+        "primary_discovery_provider": "private_searxng",
+        "tavily_primary_selected": false,
+        "exa_primary_selected": false
+      },
+      "structured_source_observations": [
+        {
+          "source_family": "ckan_api",
+          "true_structured": true,
+          "depth": "inspection_rows",
+          "live_proven": true
+        }
+      ],
+      "structured_cell_status": "covered",
+      "source_infrastructure_status": "live_integrated",
+      "infrastructure_status": {
+        "source_lane_status": "live_integrated",
+        "orchestration_mode": "mixed",
+        "windmill_refs": {
+          "flow_id": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+          "run_id": "wm::lgm-017",
+          "job_id": "wm-job::lgm-017"
+        }
+      },
+      "economic_handoff_plausibility": {
+        "classification_target": "stored_not_economic",
+        "deep_dive_type": null,
+        "deep_dive_performed": false,
+        "model_card_reuse_count": 0
+      },
+      "classification": {
+        "data_moat_package_classification": "stored_not_economic",
+        "d11_handoff_quality": "not_analysis_ready",
+        "d11_reason": "non-economic evidence retained for compliance product surface"
+      },
+      "package_gate_status": {
+        "D0": "pass",
+        "D1": "pass",
+        "D2": "pass",
+        "D3": "pass",
+        "D4": "pass",
+        "D5": "pass",
+        "D6": "pass",
+        "D7": "pass",
+        "D8": "pass",
+        "D9": "pass",
+        "D10": "not_proven",
+        "D11": "not_proven",
+        "E1": "not_proven",
+        "E2": "not_proven",
+        "E3": "not_proven",
+        "E4": "not_proven",
+        "E5": "not_proven"
+      },
+      "manual_audit": {
+        "sampled": false
+      },
+      "freshness": {
+        "expected_update_interval_days": 30,
+        "retrieved_at": "2026-04-16T00:00:00+00:00",
+        "source_published_at": "2026-03-31T00:00:00+00:00",
+        "date_not_found": false,
+        "last_successful_refresh_at": "2026-04-16T00:00:00+00:00",
+        "source_shape_fingerprint": "shape::lgm-017",
+        "source_shape_changed": false,
+        "update_cadence_drift": false,
+        "stale_for_policy_use": false,
+        "next_refresh_recommendation": "refresh_within_30_days"
+      },
+      "identity": {
+        "canonical_policy_key": "policy::austin_tx::code_enforcement",
+        "canonical_source_key": "source::official_clerk_or_code_portal::austin_tx",
+        "canonical_document_key": "doc::lgm-017",
+        "canonical_attachment_key": "attachment::lgm-017",
+        "dedupe_cluster_id": "cluster::austin_tx::code_enforcement",
+        "version_state": "active"
+      },
+      "normalization": {
+        "currency_normalized": true,
+        "percent_normalized": true,
+        "count_normalized": true,
+        "date_normalized": true,
+        "unit_normalized": true,
+        "geography_fields": [
+          "jurisdiction",
+          "state"
+        ],
+        "export_ready": true
+      },
+      "licensing": {
+        "license_posture": "public_record_or_open_data",
+        "robots_tos_posture": "allowed_with_rate_limit",
+        "rate_limit_notes": "respect source published limits",
+        "attribution_notes": "retain source URL attribution",
+        "allowed_storage_export_posture": "internal_plus_customer_export"
+      },
+      "schema_contract": {
+        "package_schema_version": "policy_evidence_package_v1",
+        "taxonomy_version": "corpus_taxonomy_v1",
+        "gate_version": "data_moat_c0_c14_v1"
+      },
+      "extraction_depth": {
+        "template_id": "non_fee_template::code_enforcement",
+        "live_exercised": true,
+        "applicability_present": true,
+        "effective_date_or_unknown_present": true,
+        "jurisdiction_geography_present": true,
+        "source_locator_present": true,
+        "policy_action_type_present": true
+      }
+    },
+    {
+      "row_type": "corpus_package",
+      "corpus_row_id": "lgm-018",
+      "package_id": "pkg::lgm-018",
+      "jurisdiction": {
+        "id": "austin_tx",
+        "name": "Austin",
+        "type": "city",
+        "state": "TX",
+        "region": "us"
+      },
+      "policy_family": "procurement_contract",
+      "mechanism_family": "not_economic",
+      "query_families": [
+        "austin council procurement contract local preference"
+      ],
+      "expected_official_source_families": [
+        "official_pdf_html_attachment"
+      ],
+      "expected_structured_source_families": [
+        "cataloged_unavailable"
+      ],
+      "known_official_domains": [
+        "austintx.gov",
+        "legistar.com"
+      ],
+      "evaluation_split": "tuning",
+      "blind_seed": false,
+      "known_policy_reference_id": "kp-aus-proc-001",
+      "required_package_verdict_floor": "stored_not_economic",
+      "manual_audit_priority": "P2",
+      "golden_regression_expectation": {
+        "stable_query_input": "austin council procurement contract local preference",
+        "expected_jurisdiction_id": "austin_tx",
+        "expected_policy_family": "procurement_contract",
+        "selected_source_url": "https://www.austintexas.gov/edims/document.cfm?id=457890",
+        "package_id": "pkg::lgm-018",
+        "verdict": "corpus_ready_with_gaps",
+        "failure_class": "none"
+      },
+      "selected_primary_source": {
+        "source_family": "official_pdf_html_attachment",
+        "source_url": "https://www.austintexas.gov/edims/document.cfm?id=457890",
+        "source_officialness": "external_advocacy",
+        "source_of_truth_role": "background_only",
+        "jurisdiction_match": true,
+        "policy_family_match": true,
+        "external_context_allowed": true,
+        "primary_evidence_allowed": false
+      },
+      "provider_usage": {
+        "primary_discovery_provider": "private_searxng",
+        "tavily_primary_selected": false,
+        "exa_primary_selected": false
+      },
+      "structured_source_observations": [],
+      "structured_cell_status": "cataloged_absent",
+      "source_infrastructure_status": "cataloged_unavailable",
+      "infrastructure_status": {
+        "source_lane_status": "cataloged_unavailable",
+        "orchestration_mode": "cli_only",
+        "windmill_refs": null
+      },
+      "economic_handoff_plausibility": {
+        "classification_target": "not_policy_evidence",
+        "deep_dive_type": null,
+        "deep_dive_performed": false,
+        "model_card_reuse_count": 0
+      },
+      "classification": {
+        "data_moat_package_classification": "not_policy_evidence",
+        "d11_handoff_quality": "not_analysis_ready",
+        "d11_reason": "false-positive off-topic procurement commentary"
+      },
+      "package_gate_status": {
+        "D0": "pass",
+        "D1": "pass",
+        "D2": "pass",
+        "D3": "not_proven",
+        "D4": "pass",
+        "D5": "pass",
+        "D6": "pass",
+        "D7": "pass",
+        "D8": "pass",
+        "D9": "not_proven",
+        "D10": "not_proven",
+        "D11": "not_proven",
+        "E1": "not_proven",
+        "E2": "not_proven",
+        "E3": "not_proven",
+        "E4": "not_proven",
+        "E5": "not_proven"
+      },
+      "manual_audit": {
+        "sampled": false
+      },
+      "freshness": {
+        "expected_update_interval_days": 30,
+        "retrieved_at": "2026-04-16T00:00:00+00:00",
+        "source_published_at": "2026-03-31T00:00:00+00:00",
+        "date_not_found": false,
+        "last_successful_refresh_at": "2026-04-16T00:00:00+00:00",
+        "source_shape_fingerprint": "shape::lgm-018",
+        "source_shape_changed": false,
+        "update_cadence_drift": false,
+        "stale_for_policy_use": false,
+        "next_refresh_recommendation": "refresh_within_30_days"
+      },
+      "identity": {
+        "canonical_policy_key": "policy::austin_tx::procurement_contract",
+        "canonical_source_key": "source::official_pdf_html_attachment::austin_tx",
+        "canonical_document_key": "doc::lgm-018",
+        "canonical_attachment_key": "attachment::lgm-018",
+        "dedupe_cluster_id": "cluster::austin_tx::procurement_contract",
+        "version_state": "active"
+      },
+      "normalization": {
+        "currency_normalized": true,
+        "percent_normalized": true,
+        "count_normalized": true,
+        "date_normalized": true,
+        "unit_normalized": true,
+        "geography_fields": [
+          "jurisdiction",
+          "state"
+        ],
+        "export_ready": true
+      },
+      "licensing": {
+        "license_posture": "public_record_or_open_data",
+        "robots_tos_posture": "allowed_with_rate_limit",
+        "rate_limit_notes": "respect source published limits",
+        "attribution_notes": "retain source URL attribution",
+        "allowed_storage_export_posture": "internal_plus_customer_export"
+      },
+      "schema_contract": {
+        "package_schema_version": "policy_evidence_package_v1",
+        "taxonomy_version": "corpus_taxonomy_v1",
+        "gate_version": "data_moat_c0_c14_v1"
+      },
+      "extraction_depth": {
+        "template_id": "non_fee_template::procurement_contract",
+        "live_exercised": true,
+        "applicability_present": true,
+        "effective_date_or_unknown_present": true,
+        "jurisdiction_geography_present": true,
+        "source_locator_present": true,
+        "policy_action_type_present": true
+      }
+    },
+    {
+      "row_type": "infrastructure_milestone",
+      "corpus_row_id": "infra-001",
+      "name": "source-identity-classifier",
+      "status": "in_progress",
+      "owner": "bd-3wefe.13.2"
+    },
+    {
+      "row_type": "infrastructure_milestone",
+      "corpus_row_id": "infra-002",
+      "name": "non-san-jose-structured-runtime",
+      "status": "in_progress",
+      "owner": "bd-3wefe.13.6"
+    }
+  ]
+}

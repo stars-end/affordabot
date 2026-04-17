@@ -68,11 +68,11 @@ def test_san_jose_structured_source_catalog_contract_fields() -> None:
         assert isinstance(row["economic_usefulness_score"], float)
 
 
-def test_structured_source_enricher_skips_non_san_jose_jurisdiction() -> None:
+def test_structured_source_enricher_skips_unsupported_jurisdiction() -> None:
     enricher = StructuredSourceEnricher(timeout_seconds=0.01)
     result = asyncio.run(
         enricher.enrich(
-            jurisdiction="california_state",
+            jurisdiction="texas_state",
             source_family="meeting_minutes",
             search_query="housing impact fee",
             selected_url="https://example.org/a",
@@ -80,8 +80,82 @@ def test_structured_source_enricher_skips_non_san_jose_jurisdiction() -> None:
     )
     assert result.status == "not_applicable"
     assert result.candidates == []
-    assert "structured_enrichment_skipped_non_san_jose_jurisdiction" in result.alerts
+    assert "structured_enrichment_skipped_unsupported_jurisdiction" in result.alerts
     assert len(result.source_catalog) >= 2
+
+
+def test_structured_source_enricher_activates_non_san_jose_runtime_path(
+    monkeypatch: Any,
+) -> None:
+    enricher = StructuredSourceEnricher(timeout_seconds=0.01)
+
+    async def _fake_california(
+        *,
+        client: Any,
+        jurisdiction: str,
+        search_query: str,
+        selected_url: str,
+        selected_candidate_context: str,
+    ) -> dict[str, Any]:
+        _ = (client, search_query, selected_url, selected_candidate_context)
+        return {
+            "source_lane": "structured",
+            "provider": "california_open_data_ckan",
+            "source_family": "california_open_data_ckan",
+            "access_method": "ckan_api_json",
+            "jurisdiction": jurisdiction,
+            "artifact_url": "https://data.ca.gov/dataset/zoning-and-land-use",
+            "artifact_type": "open_data_catalog_metadata",
+            "source_tier": "tier_b",
+            "retrieved_at": "2026-04-16T00:00:00+00:00",
+            "query_text": "zoning parking tdm",
+            "excerpt": "California CKAN metadata candidate",
+            "structured_policy_facts": [
+                {
+                    "field": "non_fee_policy_signal",
+                    "policy_family": "zoning_land_use",
+                    "evidence_use": "policy_lineage_source",
+                    "economic_relevance": "indirect",
+                    "source_locator": "structured_template:california_open_data_ckan:tmpl-zoning-land-use-v1",
+                    "effective_date": "unknown",
+                    "adoption_date": "unknown",
+                    "retrieved_at": "2026-04-16T00:00:00+00:00",
+                }
+            ],
+            "policy_family": "zoning_land_use",
+            "evidence_use": "policy_lineage_source",
+            "economic_relevance": "indirect",
+            "moat_value_reason": "policy_lineage_source:zoning_land_use:durable non-fee lineage.",
+            "true_structured": True,
+            "policy_match_key": "california::zoning_land_use",
+            "policy_match_confidence": 0.45,
+            "reconciliation_status": "contextual_metadata_linked_to_policy_query",
+        }
+
+    monkeypatch.setattr(
+        enricher,
+        "_fetch_california_ckan_metadata",
+        _fake_california,
+    )
+
+    result = asyncio.run(
+        enricher.enrich(
+            jurisdiction="california_state",
+            source_family="policy_documents",
+            search_query="statewide zoning and parking standards",
+            selected_url="https://data.ca.gov/",
+            selected_candidate_context="non-san-jose validation",
+        )
+    )
+
+    assert result.status == "integrated"
+    assert len(result.candidates) == 1
+    candidate = result.candidates[0]
+    assert candidate["source_family"] == "california_open_data_ckan"
+    assert candidate["true_structured"] is True
+    assert candidate["policy_family"] == "zoning_land_use"
+    catalog_by_family = {row["source_family"]: row for row in result.source_catalog}
+    assert catalog_by_family["california_open_data_ckan"]["live_proven"] is True
 
 
 def test_structured_source_enricher_returns_integrated_status_when_candidates_exist(
@@ -1047,6 +1121,71 @@ def test_ckan_metadata_uses_only_economic_datasets_with_urls() -> None:
     assert facts["relevant_dataset_count"] == 3.0
     assert facts["relevant_dataset_with_resource_url_count"] == 2.0
     assert facts["top_dataset_resource_count"] == 1.0
+
+
+def test_california_ckan_metadata_emits_non_fee_template_facts() -> None:
+    enricher = StructuredSourceEnricher()
+
+    class _Response:
+        def __init__(self, payload: Any) -> None:
+            self._payload = payload
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> Any:
+            return self._payload
+
+    class _Client:
+        async def get(self, endpoint: str) -> _Response:
+            _ = endpoint
+            return _Response(
+                {
+                    "success": True,
+                    "result": {
+                        "count": 2,
+                        "results": [
+                            {
+                                "title": "Short-Term Rental Registration and Business Licensing",
+                                "name": "short-term-rental-licensing",
+                                "notes": (
+                                    "Business license and compliance inspection rules with parking and TDM standards."
+                                ),
+                                "resources": [{"url": "https://data.ca.gov/dataset/str-licensing.csv"}],
+                            },
+                            {
+                                "title": "Zoning Overlay District Actions",
+                                "name": "zoning-overlay-actions",
+                                "notes": "City council meeting actions for rezoning and overlay district changes.",
+                                "resources": [{"url": "https://data.ca.gov/dataset/zoning-overlay.csv"}],
+                            },
+                        ],
+                    },
+                }
+            )
+
+    candidate = asyncio.run(
+        enricher._fetch_california_ckan_metadata(
+            client=_Client(),
+            jurisdiction="california_state",
+            search_query="short term rental parking tdm zoning",
+            selected_url="https://data.ca.gov/",
+            selected_candidate_context="meeting action and business licensing",
+        )
+    )
+    assert candidate is not None
+    assert candidate["source_family"] == "california_open_data_ckan"
+    assert candidate["true_structured"] is True
+    fact_families = {
+        str(fact.get("policy_family") or "")
+        for fact in candidate["structured_policy_facts"]
+        if str(fact.get("field") or "") == "non_fee_policy_signal"
+    }
+    assert {"zoning_land_use", "parking_policy", "business_compliance", "meeting_action"}.issubset(
+        fact_families
+    )
+    assert candidate["evidence_use"] in {"compliance_rule_source", "policy_lineage_source", "meeting_record"}
+    assert candidate["economic_relevance"] in {"indirect", "contextual"}
 
 
 def test_tavily_secondary_fee_metadata_extracts_official_facts() -> None:

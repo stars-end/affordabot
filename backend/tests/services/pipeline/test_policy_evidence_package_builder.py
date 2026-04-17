@@ -4,26 +4,40 @@ import json
 from pathlib import Path
 from typing import Any
 
-from services.pipeline.policy_evidence_package_builder import PolicyEvidencePackageBuilder
+from services.pipeline.policy_evidence_package_builder import (
+    PolicyEvidencePackageBuilder,
+)
 from schemas.policy_evidence_package import PolicyEvidencePackage
 
 
 ROOT = Path(__file__).resolve().parents[4]
 INTEGRATION_REPORT = (
-    ROOT / "docs" / "poc" / "source-integration" / "artifacts" / "scrape_structured_integration_report.json"
+    ROOT
+    / "docs"
+    / "poc"
+    / "source-integration"
+    / "artifacts"
+    / "scrape_structured_integration_report.json"
 )
 
 
 def _load_integration_envelopes() -> list[dict[str, Any]]:
     payload = json.loads(INTEGRATION_REPORT.read_text(encoding="utf-8"))
-    return [dict(item) for item in payload.get("envelopes", []) if isinstance(item, dict)]
+    return [
+        dict(item) for item in payload.get("envelopes", []) if isinstance(item, dict)
+    ]
 
 
 def _find_envelope(*, source_lane: str, provider: str) -> dict[str, Any]:
     for envelope in _load_integration_envelopes():
-        if envelope.get("source_lane") == source_lane and envelope.get("provider") == provider:
+        if (
+            envelope.get("source_lane") == source_lane
+            and envelope.get("provider") == provider
+        ):
             return envelope
-    raise AssertionError(f"missing fixture envelope: lane={source_lane} provider={provider}")
+    raise AssertionError(
+        f"missing fixture envelope: lane={source_lane} provider={provider}"
+    )
 
 
 def test_builder_preserves_scraped_and_structured_lineage_happy_path() -> None:
@@ -75,13 +89,20 @@ def test_builder_fails_closed_for_portal_or_reader_insufficient_scraped_input() 
 
     assert payload["economic_handoff_ready"] is False
     assert payload["gate_report"]["verdict"] == "fail_closed"
-    assert payload["gate_report"]["blocking_gate"] in {"reader_substance", "parameterization"}
+    assert payload["gate_report"]["blocking_gate"] in {
+        "reader_substance",
+        "parameterization",
+    }
     reasons = set(payload["insufficiency_reasons"])
     assert "blocking_gate_present" in reasons
 
 
-def test_builder_fails_closed_instead_of_schema_error_when_reader_gate_blocks_quantified_candidate() -> None:
-    bad_scraped = _find_envelope(source_lane="scrape_search", provider="private_searxng")
+def test_builder_fails_closed_instead_of_schema_error_when_reader_gate_blocks_quantified_candidate() -> (
+    None
+):
+    bad_scraped = _find_envelope(
+        source_lane="scrape_search", provider="private_searxng"
+    )
     bad_scraped["reader_artifact_refs"] = []
 
     payload = PolicyEvidencePackageBuilder().build(
@@ -98,7 +119,9 @@ def test_builder_fails_closed_instead_of_schema_error_when_reader_gate_blocks_qu
     assert "blocking_gate_present" in set(payload["insufficiency_reasons"])
 
 
-def test_builder_allows_structured_only_package_when_fields_are_economic_relevant() -> None:
+def test_builder_allows_structured_only_package_when_fields_are_economic_relevant() -> (
+    None
+):
     structured = _find_envelope(source_lane="structured", provider="ckan")
     payload = PolicyEvidencePackageBuilder().build(
         package_id="pkg-structured-only",
@@ -150,9 +173,13 @@ def test_builder_keeps_structured_secondary_search_out_of_scraped_provenance() -
     assert len(payload["scraped_sources"]) == 1
     assert payload["scraped_sources"][0]["search_provider"] == "private_searxng"
     assert len(payload["structured_sources"]) == 1
-    assert payload["structured_sources"][0]["source_family"] == "tavily_secondary_search"
+    assert (
+        payload["structured_sources"][0]["source_family"] == "tavily_secondary_search"
+    )
     assert payload["structured_sources"][0]["true_structured"] is False
-    assert "scraped_provider_identity_missing" not in set(payload["insufficiency_reasons"])
+    assert "scraped_provider_identity_missing" not in set(
+        payload["insufficiency_reasons"]
+    )
     assert payload["economic_handoff_ready"] is False
 
 
@@ -167,11 +194,17 @@ def test_builder_does_not_let_secondary_search_rescue_true_structured_depth() ->
         "artifact_type": "meeting_metadata",
         "source_tier": "tier_b",
         "retrieved_at": "2026-04-16T00:00:00+00:00",
-        "structured_policy_facts": [{"field": "event_attachment_hint_count", "value": 0.0, "unit": "count"}],
+        "structured_policy_facts": [
+            {"field": "event_attachment_hint_count", "value": 0.0, "unit": "count"}
+        ],
         "policy_match_key": scraped["canonical_document_key"],
         "policy_match_confidence": 0.9,
         "reconciliation_status": "confirmed",
-        "lineage_metadata": {"event_date": "2026-04-16", "event_body_id": "258", "matter_id": "14575"},
+        "lineage_metadata": {
+            "event_date": "2026-04-16",
+            "event_body_id": "258",
+            "matter_id": "14575",
+        },
     }
     secondary = {
         "source_lane": "structured_secondary_source",
@@ -215,7 +248,9 @@ def test_builder_does_not_let_secondary_search_rescue_true_structured_depth() ->
     )
 
 
-def test_builder_does_not_emit_diagnostic_structured_counts_as_parameter_cards() -> None:
+def test_builder_does_not_emit_diagnostic_structured_counts_as_parameter_cards() -> (
+    None
+):
     structured = {
         "source_lane": "structured",
         "provider": "legistar_web_api",
@@ -272,11 +307,17 @@ def test_builder_blocks_unreconciled_structured_latest_event_fallback() -> None:
         "artifact_type": "meeting_metadata",
         "source_tier": "tier_b",
         "retrieved_at": "2026-04-16T00:00:00+00:00",
-        "structured_policy_facts": [{"field": "event_attachment_hint_count", "value": 0.0, "unit": "count"}],
+        "structured_policy_facts": [
+            {"field": "event_attachment_hint_count", "value": 0.0, "unit": "count"}
+        ],
         "policy_match_key": "legistar::event::99999",
         "policy_match_confidence": 0.2,
         "reconciliation_status": "latest_event_fallback_unreconciled",
-        "lineage_metadata": {"event_date": "2026-04-16", "event_body_id": "258", "matter_id": None},
+        "lineage_metadata": {
+            "event_date": "2026-04-16",
+            "event_body_id": "258",
+            "matter_id": None,
+        },
     }
 
     payload = PolicyEvidencePackageBuilder().build(
@@ -400,7 +441,9 @@ def test_builder_marks_ambiguous_parameter_when_citation_sanity_fails() -> None:
             "unit_sanity": "valid",
             "ambiguity_flag": True,
             "ambiguity_reason": "currency_format_anomaly",
-            "fail_closed_signals": ["locator_precision_insufficient_for_artifact_grade"],
+            "fail_closed_signals": [
+                "locator_precision_insufficient_for_artifact_grade"
+            ],
             "effective_date": "2026-01-01",
             "adoption_date": "2025-12-08",
             "final_status": "adopted",
@@ -424,13 +467,22 @@ def test_builder_marks_ambiguous_parameter_when_citation_sanity_fails() -> None:
     assert "raw=$18.706.00" in cards[0]["source_excerpt"]
     assert "subarea=downtown" in cards[0]["source_excerpt"]
     assert "threshold=<100,000 sq. ft." in cards[0]["source_excerpt"]
-    assert "payment_timing=paid_before_building_permit_issuance" in cards[0]["source_excerpt"]
+    assert (
+        "payment_timing=paid_before_building_permit_issuance"
+        in cards[0]["source_excerpt"]
+    )
     assert "payment_reduction_percent=20.00" in cards[0]["source_excerpt"]
-    assert "exemption_context=no_fee_for_threshold:<100,000 sq. ft." in cards[0]["source_excerpt"]
+    assert (
+        "exemption_context=no_fee_for_threshold:<100,000 sq. ft."
+        in cards[0]["source_excerpt"]
+    )
     assert "raw_land_use_label=Downtown Office" in cards[0]["source_excerpt"]
     assert "source_family=official_page" in cards[0]["source_excerpt"]
     assert "locator_quality=table_row_chunk_locator" in cards[0]["source_excerpt"]
-    assert "fail_closed_signals=locator_precision_insufficient_for_artifact_grade" in cards[0]["source_excerpt"]
+    assert (
+        "fail_closed_signals=locator_precision_insufficient_for_artifact_grade"
+        in cards[0]["source_excerpt"]
+    )
 
 
 def test_builder_parameter_cards_capture_official_attachment_metadata() -> None:
@@ -484,7 +536,9 @@ def test_builder_parameter_cards_capture_official_attachment_metadata() -> None:
     assert "source_family=resolution" in card["source_excerpt"]
     assert "attachment_id=301" in card["source_excerpt"]
     assert "attachment_title=Resolution No. 80069" in card["source_excerpt"]
-    assert "source_locator=attachment_probe:301:1:fee_table_row" in card["source_excerpt"]
+    assert (
+        "source_locator=attachment_probe:301:1:fee_table_row" in card["source_excerpt"]
+    )
 
 
 def test_builder_parameter_cards_filter_weak_attachment_excerpt_rows() -> None:
@@ -630,7 +684,9 @@ def test_builder_parameter_cards_keep_direct_line_rate_rows_with_land_use() -> N
     assert "Office projects pay $14.31 per square foot." in cards[0]["source_excerpt"]
 
 
-def test_builder_emits_meeting_action_contextual_metadata_for_non_economic_minutes() -> None:
+def test_builder_emits_meeting_action_contextual_metadata_for_non_economic_minutes() -> (
+    None
+):
     minutes_candidate = {
         "source_lane": "scrape_search",
         "provider": "private_searxng",
@@ -664,7 +720,9 @@ def test_builder_emits_meeting_action_contextual_metadata_for_non_economic_minut
     assert payload["evidence_cards"][0]["evidence_use"] == "meeting_record"
 
 
-def test_builder_represents_compliance_permit_signal_without_economic_parameter_role() -> None:
+def test_builder_represents_compliance_permit_signal_without_economic_parameter_role() -> (
+    None
+):
     permit_candidate = {
         "source_lane": "structured",
         "provider": "city_open_data",
@@ -692,7 +750,215 @@ def test_builder_represents_compliance_permit_signal_without_economic_parameter_
     )
 
     assert payload["policy_family"] == "housing_permits"
-    assert payload["evidence_use"] in {"permit_or_project_signal", "policy_lineage_source"}
+    assert payload["evidence_use"] in {
+        "permit_or_project_signal",
+        "policy_lineage_source",
+    }
     assert payload["evidence_use"] != "economic_parameter_source"
     assert payload["economic_relevance"] in {"indirect", "contextual", "none"}
     assert payload["evidence_cards"][0]["evidence_use"] != "economic_parameter_source"
+
+
+def test_builder_treats_legistar_metadata_only_as_non_material_structured_depth() -> (
+    None
+):
+    scraped = _find_envelope(source_lane="scrape_search", provider="private_searxng")
+    metadata_only_structured = {
+        "source_lane": "structured",
+        "provider": "legistar_web_api",
+        "source_family": "legistar_web_api",
+        "jurisdiction": "san_jose_ca",
+        "artifact_url": "https://webapi.legistar.com/v1/sanjose/Events/13001",
+        "artifact_type": "meeting_metadata",
+        "source_tier": "tier_b",
+        "retrieved_at": "2026-04-16T00:00:00+00:00",
+        "structured_policy_facts": [
+            {"field": "event_attachment_hint_count", "value": 0.0, "unit": "count"},
+            {"field": "matter_attachment_count", "value": 3.0, "unit": "count"},
+        ],
+        "true_structured": True,
+        "policy_match_key": scraped["canonical_document_key"],
+        "policy_match_confidence": 0.8,
+        "reconciliation_status": "confirmed",
+        "lineage_metadata": {"matter_id": "7526", "event_date": "2026-04-16"},
+    }
+
+    payload = PolicyEvidencePackageBuilder().build(
+        package_id="pkg-legistar-metadata-only-depth",
+        jurisdiction="san_jose_ca",
+        scraped_candidates=[scraped],
+        structured_candidates=[metadata_only_structured],
+        freshness_gate={"freshness_status": "fresh"},
+    )
+
+    assert payload["structured_sources"][0]["field_count"] == 2
+    assert payload["parameter_cards"] == []
+    assert payload["economic_handoff_ready"] is False
+    assert "blocking_gate_present" in set(payload["insufficiency_reasons"])
+
+
+def test_builder_preserves_non_fee_structured_facts_without_fee_parameters() -> None:
+    non_fee_structured = {
+        "source_lane": "structured",
+        "provider": "california_open_data_ckan",
+        "source_family": "california_open_data_ckan",
+        "jurisdiction": "california_state",
+        "artifact_url": "https://data.ca.gov/dataset/local-policy-actions.csv",
+        "artifact_type": "open_data_catalog_metadata",
+        "source_tier": "tier_b",
+        "retrieved_at": "2026-04-16T00:00:00+00:00",
+        "true_structured": True,
+        "policy_match_key": "california::local-policy-actions",
+        "policy_match_confidence": 0.41,
+        "reconciliation_status": "contextual_metadata_linked_to_policy_query",
+        "structured_policy_facts": [
+            {
+                "field": "non_fee_policy_signal",
+                "value": 1.0,
+                "unit": "count",
+                "policy_family": "meeting_action",
+                "evidence_use": "meeting_record",
+                "economic_relevance": "contextual",
+                "source_locator": "structured_template:california_open_data_ckan:tmpl-meeting-action-lineage-v1",
+                "effective_date": "unknown",
+                "adoption_date": "unknown",
+                "retrieved_at": "2026-04-16T00:00:00+00:00",
+                "moat_value_reason": "meeting_record:meeting_action:durable lineage.",
+            },
+            {
+                "field": "non_fee_policy_signal",
+                "value": 1.0,
+                "unit": "count",
+                "policy_family": "zoning_land_use",
+                "evidence_use": "policy_lineage_source",
+                "economic_relevance": "indirect",
+                "source_locator": "structured_template:california_open_data_ckan:tmpl-zoning-land-use-v1",
+                "effective_date": "unknown",
+                "adoption_date": "unknown",
+                "retrieved_at": "2026-04-16T00:00:00+00:00",
+                "moat_value_reason": "policy_lineage_source:zoning_land_use:durable non-fee lineage.",
+            },
+            {
+                "field": "non_fee_policy_signal",
+                "value": 1.0,
+                "unit": "count",
+                "policy_family": "parking_policy",
+                "evidence_use": "compliance_rule_source",
+                "economic_relevance": "indirect",
+                "source_locator": "structured_template:california_open_data_ckan:tmpl-parking-tdm-v1",
+                "effective_date": "unknown",
+                "adoption_date": "unknown",
+                "retrieved_at": "2026-04-16T00:00:00+00:00",
+                "moat_value_reason": "compliance_rule_source:parking_policy:preserve TDM standards.",
+            },
+        ],
+    }
+
+    payload = PolicyEvidencePackageBuilder().build(
+        package_id="pkg-non-fee-structured-value",
+        jurisdiction="california_state",
+        structured_candidates=[non_fee_structured],
+        freshness_gate={"freshness_status": "fresh"},
+    )
+
+    assert payload["parameter_cards"] == []
+    assert payload["economic_handoff_ready"] is False
+    assert payload["policy_families"] == [
+        "meeting_action",
+        "parking_policy",
+        "zoning_land_use",
+    ]
+    assert payload["evidence_cards"][0]["policy_family"] == "meeting_action"
+    assert payload["evidence_cards"][0]["evidence_use"] == "meeting_record"
+    assert payload["evidence_cards"][0]["moat_value_reason"]
+
+
+def test_builder_external_only_candidate_cannot_silently_pass_primary_evidence() -> (
+    None
+):
+    external_scraped = {
+        "source_lane": "scrape_search",
+        "provider": "private_searxng",
+        "source_family": "news_article",
+        "jurisdiction": "san_jose_ca",
+        "artifact_url": "https://www.planetizen.com/news/2026/01/local-fee-update",
+        "artifact_type": "staff_report",
+        "source_tier": "tier_a",
+        "retrieved_at": "2026-04-16T00:00:00+00:00",
+        "reader_artifact_refs": [
+            "https://backend.artifacts/scrape/external-news-reader.txt"
+        ],
+        "structured_policy_facts": [
+            {
+                "field": "commercial_linkage_fee_rate_usd_per_sqft",
+                "value": 12.5,
+                "normalized_value": 12.5,
+                "unit": "usd_per_square_foot",
+                "source_url": "https://www.planetizen.com/news/2026/01/local-fee-update",
+                "source_excerpt": "News recap references $12.50 per square foot.",
+            }
+        ],
+    }
+
+    payload = PolicyEvidencePackageBuilder().build(
+        package_id="pkg-external-only-blocked",
+        jurisdiction="san_jose_ca",
+        scraped_candidates=[external_scraped],
+        freshness_gate={"freshness_status": "fresh"},
+    )
+
+    assert payload["economic_handoff_ready"] is False
+    assert payload["source_official_dominance"]["status"] == "fail"
+    assert payload["source_quality_metrics"]["identity_blocker_code"] in {
+        "no_primary_evidence_allowed_source",
+        "official_source_dominance_below_floor",
+    }
+    assert "blocking_gate_present" in set(payload["insufficiency_reasons"])
+
+
+def test_builder_records_external_promotion_register_shape() -> None:
+    promoted_external = {
+        "source_lane": "scrape_search",
+        "provider": "tavily",
+        "source_family": "secondary_research",
+        "jurisdiction": "san_jose_ca",
+        "artifact_url": "https://www.sierraclub.org/policy/municipal-fee-impact-study.pdf",
+        "artifact_type": "staff_report",
+        "source_tier": "tier_c",
+        "retrieved_at": "2026-04-16T00:00:00+00:00",
+        "reader_artifact_refs": [
+            "https://backend.artifacts/scrape/external-advocacy-reader.txt"
+        ],
+        "structured_policy_facts": [
+            {
+                "field": "commercial_linkage_fee_rate_usd_per_sqft",
+                "value": 11.0,
+                "normalized_value": 11.0,
+                "unit": "usd_per_square_foot",
+                "source_url": "https://www.sierraclub.org/policy/municipal-fee-impact-study.pdf",
+                "source_excerpt": "Advocacy report references $11.00 per square foot.",
+            }
+        ],
+        "source_identity_promotion_rule_id": "ext-promote-001",
+        "source_identity_promotion_reason": "Documented archival-only source exception.",
+        "source_identity_promotion_audit_status": "approved",
+    }
+
+    payload = PolicyEvidencePackageBuilder().build(
+        package_id="pkg-external-promotion-register",
+        jurisdiction="san_jose_ca",
+        scraped_candidates=[promoted_external],
+        freshness_gate={"freshness_status": "fresh"},
+    )
+
+    register = payload["external_source_promotion_register"]
+    assert len(register) == 1
+    assert register[0]["package_id"] == "pkg-external-promotion-register"
+    assert register[0]["rule_id"] == "ext-promote-001"
+    assert register[0]["source_url"] == promoted_external["artifact_url"]
+    assert register[0]["audit_status"] == "approved"
+    assert (
+        payload["source_identity_classifications"][0]["source_of_truth_role"]
+        == "primary_external_promoted"
+    )
+    assert payload["source_official_dominance"]["status"] == "fail"

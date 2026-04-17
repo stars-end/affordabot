@@ -10,6 +10,57 @@
     "special_district",
     "federal_context"
   ],
+  "jurisdictions": [
+    {
+      "id": "san_jose_ca",
+      "display_name": "San Jose, CA",
+      "jurisdiction_type": "city",
+      "state": "CA",
+      "benchmark_role": "calibrated_fixture"
+    },
+    {
+      "id": "santa_clara_county_ca",
+      "display_name": "Santa Clara County, CA",
+      "jurisdiction_type": "county",
+      "state": "CA",
+      "benchmark_role": "non_san_jose_county"
+    },
+    {
+      "id": "bay_area_air_district_ca",
+      "display_name": "Bay Area Air District, CA",
+      "jurisdiction_type": "regional_regulator",
+      "state": "CA",
+      "benchmark_role": "regional_regulator"
+    },
+    {
+      "id": "california_state",
+      "display_name": "California State",
+      "jurisdiction_type": "state",
+      "state": "CA",
+      "benchmark_role": "state_context"
+    },
+    {
+      "id": "seattle_wa",
+      "display_name": "Seattle, WA",
+      "jurisdiction_type": "city",
+      "state": "WA",
+      "benchmark_role": "non_ca_city"
+    },
+    {
+      "id": "denver_co",
+      "display_name": "Denver, CO",
+      "jurisdiction_type": "city",
+      "state": "CO",
+      "benchmark_role": "non_ca_city"
+    },
+    {
+      "id": "king_county_wa",
+      "display_name": "King County, WA",
+      "jurisdiction_type": "county",
+      "state": "WA",
+      "benchmark_role": "non_ca_county"
+    }
+  ],
   "policy_families": [
     "commercial_linkage_fee",
     "housing_permits",
@@ -65,6 +116,15 @@
     "rejected"
   ],
   "handoff_classes": [
+    "economic_analysis_ready",
+    "economic_handoff_candidate",
+    "secondary_research_needed",
+    "qualitative_only",
+    "stored_not_economic",
+    "not_policy_evidence",
+    "fail"
+  ],
+  "classification_values": [
     "economic_analysis_ready",
     "economic_handoff_candidate",
     "secondary_research_needed",

@@ -1,0 +1,50 @@
+{
+  "records": [
+    {
+      "cadence": "unknown",
+      "classification_id": "cb56f5a9f6e0d0c8c2ee58e885955b1a28c81263354e389ba8e5835dd4eea2fa",
+      "last_successful_refresh": "2026-04-15T00:00:00+00:00",
+      "next_refresh_recommendation": "set_source_cadence_or_manual_review",
+      "provider": "private_searxng",
+      "retrieved_at": "2026-04-15T00:00:00+00:00",
+      "source_date_fields": {
+        "adoption_date": null,
+        "effective_date": null,
+        "event_date": null,
+        "meeting_date": null,
+        "published_date": null
+      },
+      "source_family": "meeting_minutes",
+      "source_shape_changed": false,
+      "source_shape_fingerprint": "c90eaf4e617859947967d9fecff20554d133f21aa80edfefaad2dce8db86209e",
+      "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13050001&GUID=PK-1",
+      "stale_for_policy_use": false,
+      "update_cadence_drift": false
+    },
+    {
+      "cadence": "weekly",
+      "classification_id": "af04f7974b85d070e795df206c0291caf640f92527698f1192a7b4e9c87aeb43",
+      "last_successful_refresh": "2026-04-15T00:05:00+00:00",
+      "next_refresh_recommendation": "2026-04-22T00:05:00+00:00",
+      "provider": "legistar",
+      "retrieved_at": "2026-04-15T00:05:00+00:00",
+      "source_date_fields": {
+        "adoption_date": null,
+        "effective_date": null,
+        "event_date": null,
+        "meeting_date": null,
+        "published_date": null
+      },
+      "source_family": "legistar",
+      "source_shape_changed": false,
+      "source_shape_fingerprint": "48454e91b74c5d97dac872735115b9bbc6eac2dec7175a700a860ce8e2735639",
+      "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13050001&GUID=PK-1",
+      "stale_for_policy_use": false,
+      "update_cadence_drift": false
+    }
+  ],
+  "stale_source_count": 0,
+  "source_shape_changed_count": 0,
+  "update_cadence_drift_count": 0,
+  "freshness_gate_status": "fresh"
+}

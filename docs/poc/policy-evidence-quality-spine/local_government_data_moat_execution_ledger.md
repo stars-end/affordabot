@@ -22,7 +22,7 @@ blocker, or stop for HITL guidance.
 
 ## Cycle 44: C0-C14 Infrastructure Implementation Wave
 
-Status: `in_progress`
+Status: `completed`
 
 Started: 2026-04-17
 
@@ -62,6 +62,63 @@ Pre-cycle changes already landed:
 
 Stop/continue decision:
 
-- Continue while the worker patches make material code/product changes.
-- Stop for HITL if one or two cycles in a row produce only documentation,
-  reshuffling, or diagnosis without better data-moat capability.
+- Continue. Cycle 44 made material code/product progress and did not hit a
+  strategic HITL blocker.
+- Do not claim `decision_grade_corpus` yet. The current corpus scorecard is
+  `corpus_ready_with_gaps`.
+
+Material changes integrated:
+
+- Added `LocalGovernmentCorpusBenchmarkService` and generated
+  `local_government_corpus_matrix.json`, `local_government_corpus_scorecard.json`,
+  and `local_government_corpus_report.md`.
+- Added backend source identity/durability primitives and wired them into
+  candidate ranking, package building, quality-spine scorecards, and artifact
+  generation.
+- Added official-source dominance/cap enforcement so Tavily/Exa cannot silently
+  count as primary evidence.
+- Corrected deterministic fixtures so official artifacts available through
+  private SearXNG remain private-SearXNG primary selections rather than Tavily
+  primary rescues.
+- Added non-San-Jose structured runtime enrichment for California CKAN and
+  non-fee extraction templates for zoning/land-use, parking/TDM, business
+  compliance, and meeting-action lineage.
+- Added product-surface artifacts:
+  `known_policy_reference_list.json`, `source_licensing_tos_register.json`,
+  `package_schema_version_contract.json`, and
+  `data_product_surface_contract.json`.
+
+Gate movement:
+
+- `C1` now has executable official-source dominance and secondary-primary caps.
+- `C2` now has non-Legistar/non-San-Jose structured runtime coverage and
+  non-fee template depth.
+- `C3` now has a first-class corpus classification enum plus C3-to-D11
+  reconciliation checks.
+- `C7-C12` now have product-surface artifacts and a verifier for freshness,
+  identity, exportability, licensing, schema versioning, and known-policy
+  coverage prerequisites.
+- `C14` now has concrete non-fee extraction templates and tests.
+
+Current corpus verdict:
+
+- `local_government_corpus_scorecard.json`: `corpus_ready_with_gaps`.
+- Passing gates: `C1`, `C2`, `C3`, `C4`, `C6`, `C7`, `C8`, `C9`, `C9a`, `C10`,
+  `C11`, `C12`, `C14`.
+- Remaining non-pass gates: `C0` corpus size/scope below 75 package target,
+  `C5` manual audit not yet stratified enough, `C13` live Windmill orchestration
+  share not yet decision-grade.
+
+Validation:
+
+- `cd backend && poetry run pytest` -> `820 passed`.
+- `cd backend && poetry run ruff check ...` on touched Python files -> pass.
+- `cd backend && poetry run python scripts/verification/verify_policy_evidence_quality_spine_data.py --attempt-id bd-3wefe.13-cycle44 --retry-round 44 --targeted-tweak private_searxng_primary_source_identity` -> pass.
+- `cd backend && poetry run python scripts/verification/verify_policy_evidence_quality_spine_economics.py --max-cycles 80` -> `verdict=partial`, `failed=0`.
+- `python backend/scripts/verification/verify_local_government_data_product_surface.py --json` -> pass.
+
+Next blocker:
+
+- Cycle 45 should expand the corpus toward the 75-120 package target and shift
+  generation from deterministic seed/CLI artifacts to live Windmill-orchestrated
+  rows, while preserving the C1/C2/C14 quality gates.

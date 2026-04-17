@@ -17,6 +17,12 @@ from urllib.parse import urlparse
 
 from schemas.economic_evidence import GateVerdict, MechanismFamily
 from schemas.policy_evidence_package import PolicyEvidencePackage, StorageSystem
+from services.pipeline.source_identity import (
+    build_external_source_promotion_entry,
+    classify_source_candidate,
+    compute_official_source_dominance,
+    source_identity_rules_snapshot,
+)
 from services.pipeline.policy_economic_mechanism_cases import (
     PolicyEconomicMechanismCaseService,
 )
@@ -161,7 +167,7 @@ class PolicyEvidenceQualitySpineEconomicsService:
         max_cycles: int = 10,
         preferred_package_id: str | None = None,
     ) -> dict[str, Any]:
-        bounded_max_cycles = max(1, min(int(max_cycles), 10))
+        bounded_max_cycles = max(1, min(int(max_cycles), 80))
         matrix_packages = self._extract_package_candidates(matrix_input.payload)
         used_fallback = not matrix_packages
         package_payload: dict[str, Any]
@@ -187,13 +193,16 @@ class PolicyEvidenceQualitySpineEconomicsService:
 
         category_results = self._build_taxonomy(
             package=package,
+            selected_payload=package_payload,
             matrix_payload=matrix_input.payload or {},
             matrix_source_mode=matrix_source_mode,
             storage_eval=storage_eval,
             sufficiency=sufficiency,
         )
         category_failures = [
-            bucket for bucket, result in category_results.items() if result["status"] == "fail"
+            bucket
+            for bucket, result in category_results.items()
+            if result["status"] == "fail"
         ]
         category_not_proven = [
             bucket
@@ -201,7 +210,9 @@ class PolicyEvidenceQualitySpineEconomicsService:
             if result["status"] == "not_proven"
         ]
 
-        vertical_output = self._build_vertical_economic_output(package=package, sufficiency=sufficiency)
+        vertical_output = self._build_vertical_economic_output(
+            package=package, sufficiency=sufficiency
+        )
         economic_quality = self._build_economic_quality_rubric(
             package=package,
             sufficiency=sufficiency,
@@ -231,9 +242,36 @@ class PolicyEvidenceQualitySpineEconomicsService:
                 not category_failures
                 and not category_not_proven
                 and economic_quality["verdict"] == "decision_grade"
-                and sufficiency.readiness_level == PackageReadinessLevel.ECONOMIC_HANDOFF_READY
+                and sufficiency.readiness_level
+                == PackageReadinessLevel.ECONOMIC_HANDOFF_READY
             )
             else "not_decision_grade"
+        )
+        source_identity_rules = self._extract_source_identity_rules(
+            selected_payload=package_payload
+        )
+        source_identity_classifications = self._extract_source_identity_classifications(
+            selected_payload=package_payload,
+            package=package,
+        )
+        official_source_dominance = self._build_official_source_dominance_summary(
+            selected_payload=package_payload,
+            matrix_payload=matrix_input.payload
+            if isinstance(matrix_input.payload, dict)
+            else {},
+            package=package,
+            source_identity_classifications=source_identity_classifications,
+        )
+        source_freshness_drift = self._extract_source_freshness_drift_summary(
+            selected_payload=package_payload,
+            source_identity_classifications=source_identity_classifications,
+        )
+        external_source_promotion_register = (
+            self._extract_external_source_promotion_register(
+                selected_payload=package_payload,
+                source_identity_classifications=source_identity_classifications,
+                package_id=package.package_id,
+            )
         )
         scorecard = {
             "feature_key": "bd-3wefe.13",
@@ -258,7 +296,9 @@ class PolicyEvidenceQualitySpineEconomicsService:
             "sufficiency_result": {
                 "passed": sufficiency.passed,
                 "readiness_level": sufficiency.readiness_level.value,
-                "blocking_gate": None if sufficiency.blocking_gate is None else sufficiency.blocking_gate.value,
+                "blocking_gate": None
+                if sufficiency.blocking_gate is None
+                else sufficiency.blocking_gate.value,
                 "failure_reasons": sufficiency.failure_reasons,
             },
             "overall_verdict": self._overall_verdict(
@@ -278,8 +318,15 @@ class PolicyEvidenceQualitySpineEconomicsService:
             "evaluation_cycle_policy": {
                 "max_cycles": bounded_max_cycles,
             },
+            "source_identity_rules": source_identity_rules,
+            "source_identity_classifications": source_identity_classifications,
+            "official_source_dominance": official_source_dominance,
+            "source_freshness_drift": source_freshness_drift,
+            "external_source_promotion_register": external_source_promotion_register,
         }
-        retry_ledger = self._build_retry_ledger(scorecard=scorecard, max_cycles=bounded_max_cycles)
+        retry_ledger = self._build_retry_ledger(
+            scorecard=scorecard, max_cycles=bounded_max_cycles
+        )
         return {
             "scorecard": scorecard,
             "vertical_economic_output": vertical_output,
@@ -301,7 +348,9 @@ class PolicyEvidenceQualitySpineEconomicsService:
             matrix_input=matrix_input,
             preferred_package_id=package_id,
         )
-        package = PolicyEvidencePackage.model_validate(evaluation["selected_package_payload"])
+        package = PolicyEvidencePackage.model_validate(
+            evaluation["selected_package_payload"]
+        )
         scorecard = evaluation["scorecard"]
         vertical = evaluation["vertical_economic_output"]
         handoff = evaluation["read_model_audit_output"]["analysis_handoff"]
@@ -311,6 +360,48 @@ class PolicyEvidenceQualitySpineEconomicsService:
         quality_verdict = scorecard["economic_quality_rubric"]["verdict"]
         rubric = scorecard["economic_quality_rubric"]["dimensions"]
         selected_payload = evaluation["selected_package_payload"]
+        source_identity_rules = (
+            scorecard.get("source_identity_rules")
+            if isinstance(scorecard.get("source_identity_rules"), dict)
+            else self._extract_source_identity_rules(selected_payload=selected_payload)
+        )
+        source_identity_classifications = (
+            scorecard.get("source_identity_classifications")
+            if isinstance(scorecard.get("source_identity_classifications"), list)
+            else self._extract_source_identity_classifications(
+                selected_payload=selected_payload,
+                package=package,
+            )
+        )
+        official_source_dominance = (
+            scorecard.get("official_source_dominance")
+            if isinstance(scorecard.get("official_source_dominance"), dict)
+            else self._build_official_source_dominance_summary(
+                selected_payload=selected_payload,
+                matrix_payload=matrix_input.payload
+                if isinstance(matrix_input.payload, dict)
+                else {},
+                package=package,
+                source_identity_classifications=source_identity_classifications,
+            )
+        )
+        source_freshness_drift = (
+            scorecard.get("source_freshness_drift")
+            if isinstance(scorecard.get("source_freshness_drift"), dict)
+            else self._extract_source_freshness_drift_summary(
+                selected_payload=selected_payload,
+                source_identity_classifications=source_identity_classifications,
+            )
+        )
+        external_source_promotion_register = (
+            scorecard.get("external_source_promotion_register")
+            if isinstance(scorecard.get("external_source_promotion_register"), list)
+            else self._extract_external_source_promotion_register(
+                selected_payload=selected_payload,
+                source_identity_classifications=source_identity_classifications,
+                package_id=package.package_id,
+            )
+        )
         runtime = self._extract_runtime_evidence(matrix_input.payload or {})
         orchestration_proof = runtime.get("orchestration_proof")
         if not isinstance(orchestration_proof, dict):
@@ -325,7 +416,9 @@ class PolicyEvidenceQualitySpineEconomicsService:
                         "windmill_workspace": run_context.get("windmill_workspace"),
                         "windmill_run_id": run_context.get("windmill_run_id"),
                         "windmill_job_id": run_context.get("windmill_job_id"),
-                        "windmill_platform_job_id": run_context.get("windmill_platform_job_id")
+                        "windmill_platform_job_id": run_context.get(
+                            "windmill_platform_job_id"
+                        )
                         or run_context.get("windmill_job_id_platform"),
                         "source": "vertical_package_payload.run_context",
                     }
@@ -350,14 +443,21 @@ class PolicyEvidenceQualitySpineEconomicsService:
             for ref in package.storage_refs
         ]
         windmill_refs: list[dict[str, Any]] = []
-        for key in ("windmill_flow_path", "windmill_workspace", "windmill_run_id", "source"):
+        for key in (
+            "windmill_flow_path",
+            "windmill_workspace",
+            "windmill_run_id",
+            "source",
+        ):
             value = orchestration_proof.get(key)
             if value:
                 windmill_refs.append({"key": key, "value": value})
         platform_job_id = orchestration_proof.get("windmill_platform_job_id")
         scope_job_id = orchestration_proof.get("windmill_job_id")
         if platform_job_id:
-            windmill_refs.append({"key": "windmill_platform_job_id", "value": platform_job_id})
+            windmill_refs.append(
+                {"key": "windmill_platform_job_id", "value": platform_job_id}
+            )
         if scope_job_id:
             scope_key = (
                 "windmill_scope_job_id"
@@ -397,7 +497,9 @@ class PolicyEvidenceQualitySpineEconomicsService:
         evidence_package_status = (
             "pass"
             if overall_verdict == "pass"
-            else "fail" if overall_verdict == "fail" else "not_proven"
+            else "fail"
+            if overall_verdict == "fail"
+            else "not_proven"
         )
         required_evidence_gaps = self._extract_evidence_gap_categories(
             missing_evidence=decision_grade["missing_evidence"]
@@ -475,7 +577,9 @@ class PolicyEvidenceQualitySpineEconomicsService:
         )
         source_reconciliation = self._extract_source_reconciliation(
             selected_payload=selected_payload,
-            matrix_payload=matrix_input.payload if isinstance(matrix_input.payload, dict) else {},
+            matrix_payload=matrix_input.payload
+            if isinstance(matrix_input.payload, dict)
+            else {},
         )
         economic_handoff_quality = self._build_economic_handoff_quality(
             analysis_status=analysis_status,
@@ -614,11 +718,13 @@ class PolicyEvidenceQualitySpineEconomicsService:
                             if source.reader_artifact_url is not None
                             else None
                         ),
-                        "reader_substance_passed": reader_provenance["per_source"][index]["effective_passed"],
+                        "reader_substance_passed": reader_provenance["per_source"][
+                            index
+                        ]["effective_passed"],
                         "reader_substance_observed": source.reader_substance_passed,
-                        "reader_provenance_hydrated": reader_provenance["per_source"][index][
-                            "hydrated_by_storage_proof"
-                        ],
+                        "reader_provenance_hydrated": reader_provenance["per_source"][
+                            index
+                        ]["hydrated_by_storage_proof"],
                     }
                     for index, source in enumerate(package.scraped_sources)
                 ],
@@ -669,8 +775,12 @@ class PolicyEvidenceQualitySpineEconomicsService:
                     "blocked_by_economic_assumptions": economic_handoff_quality.get(
                         "blocked_by_economic_assumptions"
                     ),
-                    "row_quality_gate_status": data_moat_status.get("row_quality_gate_status"),
-                    "decision_grade_blocked_by": data_moat_status.get("decision_grade_blocked_by"),
+                    "row_quality_gate_status": data_moat_status.get(
+                        "row_quality_gate_status"
+                    ),
+                    "decision_grade_blocked_by": data_moat_status.get(
+                        "decision_grade_blocked_by"
+                    ),
                     "direct_project_fee_exposure_status": (
                         economic_handoff_quality.get("quantification_paths", {})
                         .get("direct_project_fee_exposure", {})
@@ -731,10 +841,14 @@ class PolicyEvidenceQualitySpineEconomicsService:
             },
             "economic_trace": {
                 "mechanism_type": vertical["mechanism_type"],
-                "direct_indirect_classification": vertical["direct_indirect_classification"],
+                "direct_indirect_classification": vertical[
+                    "direct_indirect_classification"
+                ],
                 "mechanism_graph": vertical["mechanism_graph"],
                 "parameter_table": vertical["parameter_table"],
-                "diagnostic_parameter_table": vertical.get("diagnostic_parameter_table", []),
+                "diagnostic_parameter_table": vertical.get(
+                    "diagnostic_parameter_table", []
+                ),
                 "direct_fee_model_card": vertical.get("direct_fee_model_card"),
                 "assumption_cards": assumption_payload,
                 "model_cards": quant_model_payload,
@@ -763,6 +877,11 @@ class PolicyEvidenceQualitySpineEconomicsService:
             ),
             "canonical_analysis_binding": canonical_analysis_binding,
             "economic_output": economic_output,
+            "source_identity_rules": source_identity_rules,
+            "source_identity_classifications": source_identity_classifications,
+            "official_source_dominance": official_source_dominance,
+            "source_freshness_drift": source_freshness_drift,
+            "external_source_promotion_register": external_source_promotion_register,
         }
 
     @staticmethod
@@ -898,8 +1017,12 @@ class PolicyEvidenceQualitySpineEconomicsService:
     ) -> dict[str, Any]:
         blocking_gate = str(sufficiency.get("blocking_gate") or "").strip() or None
         readiness_level = str(sufficiency.get("readiness_level") or "").strip()
-        requires_secondary = analysis_status.get("status") == "secondary_research_needed"
-        mechanism_families = sorted({model.mechanism_family.value for model in package.model_cards})
+        requires_secondary = (
+            analysis_status.get("status") == "secondary_research_needed"
+        )
+        mechanism_families = sorted(
+            {model.mechanism_family.value for model in package.model_cards}
+        )
         unresolved_parameters = [
             {
                 "parameter_id": card.id,
@@ -954,7 +1077,8 @@ class PolicyEvidenceQualitySpineEconomicsService:
                 "must_include_assumption_updates": True,
                 "must_include_model_card_updates": True,
                 "must_emit_fail_closed_if_missing": True,
-                "canonical_analysis_binding_required": canonical_binding["status"] == "bound",
+                "canonical_analysis_binding_required": canonical_binding["status"]
+                == "bound",
                 "readiness_target": PackageReadinessLevel.ECONOMIC_HANDOFF_READY.value,
                 "current_readiness": readiness_level,
             },
@@ -983,7 +1107,11 @@ class PolicyEvidenceQualitySpineEconomicsService:
         indirect_assumptions = [
             card
             for card in package.assumption_cards
-            if card.family in {MechanismFamily.FEE_OR_TAX_PASS_THROUGH, MechanismFamily.ADOPTION_TAKE_UP}
+            if card.family
+            in {
+                MechanismFamily.FEE_OR_TAX_PASS_THROUGH,
+                MechanismFamily.ADOPTION_TAKE_UP,
+            }
         ]
         indirect_status = "pass" if indirect_assumptions else "not_proven"
         return [
@@ -991,19 +1119,28 @@ class PolicyEvidenceQualitySpineEconomicsService:
                 "mechanism_type": "direct",
                 "status": direct_status,
                 "reason": str(
-                    (direct_fee_model_card.get("reason") or "direct model card not proven")
+                    (
+                        direct_fee_model_card.get("reason")
+                        or "direct model card not proven"
+                    )
                 ),
                 "supported_model_card_ids": [
-                    card.id for card in package.model_cards if card.mechanism_family == MechanismFamily.DIRECT_FISCAL
+                    card.id
+                    for card in package.model_cards
+                    if card.mechanism_family == MechanismFamily.DIRECT_FISCAL
                 ],
                 "direct_fee_model_candidate": {
                     "status": str(direct_fee_model_card.get("status") or "not_proven"),
-                    "scope": str(direct_fee_model_card.get("scope") or "direct_developer_fee"),
+                    "scope": str(
+                        direct_fee_model_card.get("scope") or "direct_developer_fee"
+                    ),
                     "formula": str(direct_fee_model_card.get("formula") or ""),
                 },
                 "household_pass_through_need": (
                     {
-                        "status": str(household_impact_readiness.get("status") or "not_proven"),
+                        "status": str(
+                            household_impact_readiness.get("status") or "not_proven"
+                        ),
                         "reason": str(
                             household_impact_readiness.get("reason")
                             or "household pass-through/incidence assumptions missing"
@@ -1028,8 +1165,14 @@ class PolicyEvidenceQualitySpineEconomicsService:
             },
             {
                 "mechanism_type": mechanism_type,
-                "status": str(rubric.get("mechanism_graph_validity", {}).get("status") or "not_proven"),
-                "reason": str(rubric.get("mechanism_graph_validity", {}).get("details") or "mechanism graph not proven"),
+                "status": str(
+                    rubric.get("mechanism_graph_validity", {}).get("status")
+                    or "not_proven"
+                ),
+                "reason": str(
+                    rubric.get("mechanism_graph_validity", {}).get("details")
+                    or "mechanism graph not proven"
+                ),
             },
         ]
 
@@ -1059,11 +1202,18 @@ class PolicyEvidenceQualitySpineEconomicsService:
         }
 
     @staticmethod
-    def _build_assumption_needs(*, package: PolicyEvidencePackage, mechanism_type: str) -> dict[str, Any]:
-        required_families = [MechanismFamily.FEE_OR_TAX_PASS_THROUGH, MechanismFamily.ADOPTION_TAKE_UP]
+    def _build_assumption_needs(
+        *, package: PolicyEvidencePackage, mechanism_type: str
+    ) -> dict[str, Any]:
+        required_families = [
+            MechanismFamily.FEE_OR_TAX_PASS_THROUGH,
+            MechanismFamily.ADOPTION_TAKE_UP,
+        ]
         assumption_by_family = {card.family: card for card in package.assumption_cards}
         missing_families = [
-            family.value for family in required_families if family not in assumption_by_family
+            family.value
+            for family in required_families
+            if family not in assumption_by_family
         ]
         direct_scope_status = (
             "not_required"
@@ -1149,7 +1299,9 @@ class PolicyEvidenceQualitySpineEconomicsService:
             reason_code = "secondary_research_contract_required"
         return {
             "status": "required" if effective_required else "not_required",
-            "reason": str(secondary_research.get("reason") or "secondary research not required"),
+            "reason": str(
+                secondary_research.get("reason") or "secondary research not required"
+            ),
             "reason_code": reason_code,
             "required_evidence_gaps": required_evidence_gaps,
             "request_contract_id": (
@@ -1186,18 +1338,22 @@ class PolicyEvidenceQualitySpineEconomicsService:
         source_reconciliation: dict[str, Any],
     ) -> dict[str, Any]:
         policy_identity_ready_raw = source_quality_metrics.get("policy_identity_ready")
-        jurisdiction_identity_ready_raw = source_quality_metrics.get("jurisdiction_identity_ready")
+        jurisdiction_identity_ready_raw = source_quality_metrics.get(
+            "jurisdiction_identity_ready"
+        )
         policy_identity_ready = (
-            bool(policy_identity_ready_raw) if isinstance(policy_identity_ready_raw, bool) else True
+            bool(policy_identity_ready_raw)
+            if isinstance(policy_identity_ready_raw, bool)
+            else True
         )
         jurisdiction_identity_ready = (
             bool(jurisdiction_identity_ready_raw)
             if isinstance(jurisdiction_identity_ready_raw, bool)
             else True
         )
-        identity_signals_present = isinstance(policy_identity_ready_raw, bool) or isinstance(
-            jurisdiction_identity_ready_raw, bool
-        )
+        identity_signals_present = isinstance(
+            policy_identity_ready_raw, bool
+        ) or isinstance(jurisdiction_identity_ready_raw, bool)
         identity_blocker_code = str(
             source_quality_metrics.get("identity_blocker_code")
             or source_reconciliation.get("identity_blocker_code")
@@ -1214,7 +1370,11 @@ class PolicyEvidenceQualitySpineEconomicsService:
             elif not policy_identity_ready:
                 identity_blocker_code = "policy_identity_mismatch"
 
-        identity_ready = policy_identity_ready and jurisdiction_identity_ready and not identity_blocker_code
+        identity_ready = (
+            policy_identity_ready
+            and jurisdiction_identity_ready
+            and not identity_blocker_code
+        )
         if identity_blocker_code == "policy_identity_mismatch":
             identity_recommended_action = "improve_policy_identity_matching"
         elif identity_blocker_code:
@@ -1249,12 +1409,16 @@ class PolicyEvidenceQualitySpineEconomicsService:
         source_quality_metrics: dict[str, Any],
         source_reconciliation: dict[str, Any],
     ) -> dict[str, Any]:
-        identity_status = PolicyEvidenceQualitySpineEconomicsService._derive_source_identity_status(
-            source_quality_metrics=source_quality_metrics,
-            source_reconciliation=source_reconciliation,
+        identity_status = (
+            PolicyEvidenceQualitySpineEconomicsService._derive_source_identity_status(
+                source_quality_metrics=source_quality_metrics,
+                source_reconciliation=source_reconciliation,
+            )
         )
         identity_blocker_code = str(identity_status.get("identity_blocker_code") or "")
-        identity_blocker_reason = str(identity_status.get("identity_blocker_reason") or "")
+        identity_blocker_reason = str(
+            identity_status.get("identity_blocker_reason") or ""
+        )
         identity_blocked = bool(identity_blocker_code)
         weak_row_count = max(
             0,
@@ -1286,7 +1450,9 @@ class PolicyEvidenceQualitySpineEconomicsService:
             ).items()
             if str(key).strip()
         }
-        attachment_parse_failure_count = sum(official_attachment_failure_counts.values())
+        attachment_parse_failure_count = sum(
+            official_attachment_failure_counts.values()
+        )
         row_quality_gap = (
             weak_row_count > 0
             or rejected_or_ambiguous_count > 0
@@ -1299,9 +1465,14 @@ class PolicyEvidenceQualitySpineEconomicsService:
                 source_reconciliation.get("official_attachment_row_count")
             ),
         )
-        official_attachment_depth_ready = official_attachment_row_count > 0 and not identity_blocked
+        official_attachment_depth_ready = (
+            official_attachment_row_count > 0 and not identity_blocked
+        )
 
-        direct_fee_ready = mechanism_type == "direct" and str(direct_fee_model_card.get("status") or "") == "pass"
+        direct_fee_ready = (
+            mechanism_type == "direct"
+            and str(direct_fee_model_card.get("status") or "") == "pass"
+        )
         household_impact = direct_fee_model_card.get("household_impact_readiness")
         household_impact_status = (
             str(household_impact.get("status") or "").strip()
@@ -1327,10 +1498,14 @@ class PolicyEvidenceQualitySpineEconomicsService:
             )
         elif direct_fee_ready:
             direct_scope_status = "analysis_ready"
-            direct_scope_reason = "source-bound direct fee rows support project-fee exposure analysis"
+            direct_scope_reason = (
+                "source-bound direct fee rows support project-fee exposure analysis"
+            )
 
         household_scope_status = "not_analysis_ready"
-        household_scope_reason = "household cost-of-living incidence path is not source-bound"
+        household_scope_reason = (
+            "household cost-of-living incidence path is not source-bound"
+        )
         if identity_blocked:
             household_scope_reason = (
                 identity_blocker_reason
@@ -1342,12 +1517,12 @@ class PolicyEvidenceQualitySpineEconomicsService:
             and canonical_binding_status == "bound"
         ):
             household_scope_status = "analysis_ready"
-            household_scope_reason = "household path is decision-grade and canonically bound"
+            household_scope_reason = (
+                "household path is decision-grade and canonically bound"
+            )
         elif household_impact_status == "pass" and not household_incidence_missing:
             household_scope_status = "analysis_ready_with_gaps"
-            household_scope_reason = (
-                "household assumptions are present, but package still has unresolved non-decision-grade gates"
-            )
+            household_scope_reason = "household assumptions are present, but package still has unresolved non-decision-grade gates"
 
         if household_scope_status != "analysis_ready":
             household_scope_status = "not_analysis_ready"
@@ -1377,11 +1552,16 @@ class PolicyEvidenceQualitySpineEconomicsService:
         elif analysis_state == "fail_closed":
             status = "not_analysis_ready"
             reason_code = (
-                f"fail_closed_{blocking_gate}_blocking_gate" if blocking_gate else "fail_closed"
+                f"fail_closed_{blocking_gate}_blocking_gate"
+                if blocking_gate
+                else "fail_closed"
             )
         elif secondary_research_needs.get("status") == "required":
             status = "not_analysis_ready"
-            reason_code = str(secondary_research_needs.get("reason_code") or "secondary_research_required")
+            reason_code = str(
+                secondary_research_needs.get("reason_code")
+                or "secondary_research_required"
+            )
 
         if (
             not identity_blocked
@@ -1430,13 +1610,18 @@ class PolicyEvidenceQualitySpineEconomicsService:
                     "reason": household_scope_reason,
                 },
             },
-            "can_quantify_now": [path for path, value in {
-                "direct_project_fee_exposure": direct_scope_status,
-                "household_cost_of_living": household_scope_status,
-            }.items() if value == "analysis_ready"],
+            "can_quantify_now": [
+                path
+                for path, value in {
+                    "direct_project_fee_exposure": direct_scope_status,
+                    "household_cost_of_living": household_scope_status,
+                }.items()
+                if value == "analysis_ready"
+            ],
             "missing_parameters_count": len(missing_parameters),
             "missing_assumption_families": assumption_needs.get("missing_families", []),
-            "secondary_research_required": secondary_research_needs.get("status") == "required",
+            "secondary_research_required": secondary_research_needs.get("status")
+            == "required",
             "fail_closed_specific": analysis_state == "fail_closed",
             "fail_closed_blocking_gate": blocking_gate,
             "analysis_state": analysis_state,
@@ -1491,7 +1676,9 @@ class PolicyEvidenceQualitySpineEconomicsService:
         )
         has_policy_family_signal = bool(mechanism_family_signals)
         has_economic_parameter_signal = bool(economic_parameters)
-        handoff_status = str(economic_handoff_quality.get("status") or "not_analysis_ready")
+        handoff_status = str(
+            economic_handoff_quality.get("status") or "not_analysis_ready"
+        )
 
         economic_analysis_ready = bool(
             stored_policy_evidence
@@ -1550,9 +1737,15 @@ class PolicyEvidenceQualitySpineEconomicsService:
                 "mechanism_family_signals": mechanism_family_signals,
                 "economic_parameter_signal_count": len(economic_parameters),
                 "resolved_parameter_count": len(resolved_parameters),
-                "selected_artifact_family": data_moat_status.get("selected_artifact_family"),
-                "source_selection_reason": data_moat_status.get("source_selection_reason"),
-                "true_structured_row_count": data_moat_status.get("true_structured_row_count"),
+                "selected_artifact_family": data_moat_status.get(
+                    "selected_artifact_family"
+                ),
+                "source_selection_reason": data_moat_status.get(
+                    "source_selection_reason"
+                ),
+                "true_structured_row_count": data_moat_status.get(
+                    "true_structured_row_count"
+                ),
             },
         }
 
@@ -1571,8 +1764,12 @@ class PolicyEvidenceQualitySpineEconomicsService:
             return data_moat_status
         if bool(data_moat_status.get("source_selection_blocker")):
             return data_moat_status
-        selected_family = str(data_moat_status.get("selected_artifact_family") or "").strip()
-        selection_reason = str(data_moat_status.get("source_selection_reason") or "").strip()
+        selected_family = str(
+            data_moat_status.get("selected_artifact_family") or ""
+        ).strip()
+        selection_reason = str(
+            data_moat_status.get("source_selection_reason") or ""
+        ).strip()
         if (
             not selected_family
             or selected_family.startswith("external")
@@ -1624,16 +1821,22 @@ class PolicyEvidenceQualitySpineEconomicsService:
         source_quality_metrics: dict[str, Any],
         source_reconciliation: dict[str, Any],
     ) -> dict[str, Any]:
-        identity_status = PolicyEvidenceQualitySpineEconomicsService._derive_source_identity_status(
-            source_quality_metrics=source_quality_metrics,
-            source_reconciliation=source_reconciliation,
+        identity_status = (
+            PolicyEvidenceQualitySpineEconomicsService._derive_source_identity_status(
+                source_quality_metrics=source_quality_metrics,
+                source_reconciliation=source_reconciliation,
+            )
         )
         policy_identity_ready = bool(identity_status.get("policy_identity_ready"))
-        jurisdiction_identity_ready = bool(identity_status.get("jurisdiction_identity_ready"))
+        jurisdiction_identity_ready = bool(
+            identity_status.get("jurisdiction_identity_ready")
+        )
         identity_signals_present = bool(identity_status.get("identity_signals_present"))
         identity_ready = bool(identity_status.get("identity_ready"))
         identity_blocker_code = str(identity_status.get("identity_blocker_code") or "")
-        identity_blocker_reason = str(identity_status.get("identity_blocker_reason") or "")
+        identity_blocker_reason = str(
+            identity_status.get("identity_blocker_reason") or ""
+        )
         identity_recommended_action = identity_status.get("identity_recommended_action")
 
         selected_family = str(
@@ -1648,10 +1851,54 @@ class PolicyEvidenceQualitySpineEconomicsService:
         top_n_artifact_recall_count = int(
             source_quality_metrics.get("top_n_artifact_recall_count") or 0
         )
+        official_source_dominance_payload = source_quality_metrics.get(
+            "official_source_dominance"
+        )
+        official_source_dominance_status = "not_proven"
+        official_source_dominance_failure_codes: list[str] = []
+        if isinstance(official_source_dominance_payload, dict):
+            official_source_dominance_status = str(
+                official_source_dominance_payload.get("status") or "not_proven"
+            )
+            official_source_dominance_failure_codes = [
+                str(code)
+                for code in official_source_dominance_payload.get("failure_codes", [])
+                if str(code).strip()
+            ]
+        stale_source_count = max(
+            0,
+            PolicyEvidenceQualitySpineEconomicsService._to_non_negative_int(
+                source_reconciliation.get("stale_source_count")
+            ),
+        )
+        source_shape_changed_count = max(
+            0,
+            PolicyEvidenceQualitySpineEconomicsService._to_non_negative_int(
+                source_reconciliation.get("source_shape_changed_count")
+            ),
+        )
+        update_cadence_drift_count = max(
+            0,
+            PolicyEvidenceQualitySpineEconomicsService._to_non_negative_int(
+                source_reconciliation.get("update_cadence_drift_count")
+            ),
+        )
+        freshness_drift_blocked = (
+            stale_source_count > 0
+            or source_shape_changed_count > 0
+            or update_cadence_drift_count > 0
+        )
+        has_secondary_provider_cap_failure = any(
+            "secondary_provider_primary_cap_exceeded" in code
+            for code in official_source_dominance_failure_codes
+        )
         selection_reason = "selected_candidate_quality_unknown"
         source_selection_blocker = False
         if identity_blocker_code:
             selection_reason = identity_blocker_code
+            source_selection_blocker = True
+        elif official_source_dominance_status == "fail":
+            selection_reason = "official_source_dominance_failed"
             source_selection_blocker = True
         elif selected_family == "artifact":
             selection_reason = "selected_artifact_grade_candidate"
@@ -1665,9 +1912,12 @@ class PolicyEvidenceQualitySpineEconomicsService:
         elif selected_family:
             selection_reason = f"selected_{selected_family}_candidate"
 
-        true_structured_row_count = int(source_reconciliation.get("true_structured_row_count") or 0)
+        true_structured_row_count = int(
+            source_reconciliation.get("true_structured_row_count") or 0
+        )
         missing_true_structured_corroboration_count = int(
-            source_reconciliation.get("missing_true_structured_corroboration_count") or 0
+            source_reconciliation.get("missing_true_structured_corroboration_count")
+            or 0
         )
         official_attachment_row_count = max(
             0,
@@ -1747,7 +1997,9 @@ class PolicyEvidenceQualitySpineEconomicsService:
         }
         official_attachment_parse_anomalies = [
             item
-            for item in source_reconciliation.get("official_attachment_parse_anomalies", [])
+            for item in source_reconciliation.get(
+                "official_attachment_parse_anomalies", []
+            )
             if isinstance(item, dict)
         ]
         official_attachment_parse_anomaly_count = max(
@@ -1756,8 +2008,13 @@ class PolicyEvidenceQualitySpineEconomicsService:
                 source_reconciliation.get("official_attachment_parse_anomaly_count")
             ),
         )
-        if official_attachment_parse_anomaly_count == 0 and official_attachment_parse_anomalies:
-            official_attachment_parse_anomaly_count = len(official_attachment_parse_anomalies)
+        if (
+            official_attachment_parse_anomaly_count == 0
+            and official_attachment_parse_anomalies
+        ):
+            official_attachment_parse_anomaly_count = len(
+                official_attachment_parse_anomalies
+            )
         row_quality_weak_row_count = max(
             0,
             PolicyEvidenceQualitySpineEconomicsService._to_non_negative_int(
@@ -1805,7 +2062,9 @@ class PolicyEvidenceQualitySpineEconomicsService:
             ).items()
             if str(key).strip()
         }
-        attachment_parse_failure_count = sum(official_attachment_failure_counts.values())
+        attachment_parse_failure_count = sum(
+            official_attachment_failure_counts.values()
+        )
         row_quality_gap = (
             row_quality_weak_row_count > 0
             or row_quality_rejected_or_ambiguous_count > 0
@@ -1830,9 +2089,15 @@ class PolicyEvidenceQualitySpineEconomicsService:
             true_structured_row_count > 0
             and missing_true_structured_corroboration_count == 0
         )
-        official_attachment_depth_ready = official_attachment_row_count > 0 and identity_ready
-        official_attachment_depth_clean = official_attachment_depth_ready and not row_quality_gap
-        structured_depth_ready = true_structured_depth_ready or official_attachment_depth_ready
+        official_attachment_depth_ready = (
+            official_attachment_row_count > 0 and identity_ready
+        )
+        official_attachment_depth_clean = (
+            official_attachment_depth_ready and not row_quality_gap
+        )
+        structured_depth_ready = (
+            true_structured_depth_ready or official_attachment_depth_ready
+        )
         runtime_ready = (
             taxonomy.get("storage/read-back", {}).get("status") == "pass"
             and taxonomy.get("Windmill/orchestration", {}).get("status") == "pass"
@@ -1843,6 +2108,8 @@ class PolicyEvidenceQualitySpineEconomicsService:
             taxonomy.get("scraped/search", {}).get("status") == "pass"
             and not source_selection_blocker
             and identity_ready
+            and official_source_dominance_status != "fail"
+            and not freshness_drift_blocked
         )
         economic_handoff_ready = (
             str(economic_handoff_quality.get("status") or "") == "analysis_ready"
@@ -1878,7 +2145,43 @@ class PolicyEvidenceQualitySpineEconomicsService:
                     "reason": "Selected source is official page while artifact candidates exist.",
                 }
             )
-        if identity_ready and selected_family == "official_page" and official_attachment_row_count == 0:
+        if official_source_dominance_status == "fail":
+            moat_blockers.append(
+                {
+                    "code": "official_source_dominance_failed",
+                    "reason": (
+                        "Official-source dominance gate failed: "
+                        + ", ".join(
+                            official_source_dominance_failure_codes or ["unknown"]
+                        )
+                    ),
+                }
+            )
+        if has_secondary_provider_cap_failure:
+            moat_blockers.append(
+                {
+                    "code": "secondary_provider_primary_cap_exceeded",
+                    "reason": (
+                        "Tavily/Exa-derived primary selection exceeded allowed dominance caps."
+                    ),
+                }
+            )
+        if freshness_drift_blocked:
+            moat_blockers.append(
+                {
+                    "code": "freshness_or_source_shape_drift_blocker",
+                    "reason": (
+                        "Freshness/drift gate failed with stale or shape-changed sources "
+                        f"(stale={stale_source_count}, shape_changed={source_shape_changed_count}, "
+                        f"cadence_drift={update_cadence_drift_count})."
+                    ),
+                }
+            )
+        if (
+            identity_ready
+            and selected_family == "official_page"
+            and official_attachment_row_count == 0
+        ):
             moat_blockers.append(
                 {
                     "code": "official_attachment_rows_missing",
@@ -1924,9 +2227,7 @@ class PolicyEvidenceQualitySpineEconomicsService:
             and official_attachment_depth_ready
         ):
             status = "evidence_ready_with_gaps"
-            reason = (
-                "authoritative official attachment rows are present, but non-decision-grade gates remain"
-            )
+            reason = "authoritative official attachment rows are present, but non-decision-grade gates remain"
             decision_grade_blocked_by = None
         elif evidence_package_status == "fail" or moat_blockers:
             status = "fail"
@@ -1970,6 +2271,11 @@ class PolicyEvidenceQualitySpineEconomicsService:
             "source_selection_reason": selection_reason,
             "selected_artifact_family": selected_family or "unknown",
             "top_n_artifact_recall_count": top_n_artifact_recall_count,
+            "official_source_dominance_status": official_source_dominance_status,
+            "official_source_dominance_failure_codes": official_source_dominance_failure_codes,
+            "stale_source_count": stale_source_count,
+            "source_shape_changed_count": source_shape_changed_count,
+            "update_cadence_drift_count": update_cadence_drift_count,
             "policy_identity_ready": policy_identity_ready,
             "jurisdiction_identity_ready": jurisdiction_identity_ready,
             "identity_signals_present": identity_signals_present,
@@ -2018,7 +2324,9 @@ class PolicyEvidenceQualitySpineEconomicsService:
                 "true_structured": {
                     "row_count": true_structured_row_count,
                     "satisfies_depth": true_structured_depth_ready,
-                    "status": "satisfied" if true_structured_depth_ready else "missing_or_unverified",
+                    "status": "satisfied"
+                    if true_structured_depth_ready
+                    else "missing_or_unverified",
                 },
                 "official_attachment": {
                     "row_count": official_attachment_row_count,
@@ -2053,26 +2361,40 @@ class PolicyEvidenceQualitySpineEconomicsService:
         unsupported_claim_risks: dict[str, Any],
         data_moat_status: dict[str, Any],
     ) -> str:
-        handoff_status = str(economic_handoff_quality.get("status") or "not_analysis_ready")
+        handoff_status = str(
+            economic_handoff_quality.get("status") or "not_analysis_ready"
+        )
         runtime_ready = bool(data_moat_status.get("runtime_ready"))
         source_quality_ready = bool(data_moat_status.get("source_quality_ready"))
         structured_depth_ready = bool(data_moat_status.get("structured_depth_ready"))
-        true_structured_row_count = int(data_moat_status.get("true_structured_row_count") or 0)
-        official_attachment_row_count = int(data_moat_status.get("official_attachment_row_count") or 0)
+        true_structured_row_count = int(
+            data_moat_status.get("true_structured_row_count") or 0
+        )
+        official_attachment_row_count = int(
+            data_moat_status.get("official_attachment_row_count") or 0
+        )
         attachment_content_ingested_count = int(
             data_moat_status.get("attachment_content_ingested_count") or 0
         )
         official_attachment_refs_present = bool(
             data_moat_status.get("official_attachment_refs_present")
         )
-        official_pdf_text_extracted = bool(data_moat_status.get("official_pdf_text_extracted"))
+        official_pdf_text_extracted = bool(
+            data_moat_status.get("official_pdf_text_extracted")
+        )
         missing_true_structured_corroboration_count = int(
             data_moat_status.get("missing_true_structured_corroboration_count") or 0
         )
-        selected_artifact_family = str(data_moat_status.get("selected_artifact_family") or "").strip()
+        selected_artifact_family = str(
+            data_moat_status.get("selected_artifact_family") or ""
+        ).strip()
         identity_ready = bool(data_moat_status.get("identity_ready"))
-        source_selection_blocker = bool(data_moat_status.get("source_selection_blocker"))
-        identity_recommended_action = str(data_moat_status.get("identity_recommended_action") or "").strip()
+        source_selection_blocker = bool(
+            data_moat_status.get("source_selection_blocker")
+        )
+        identity_recommended_action = str(
+            data_moat_status.get("identity_recommended_action") or ""
+        ).strip()
 
         if identity_recommended_action:
             return identity_recommended_action
@@ -2084,18 +2406,19 @@ class PolicyEvidenceQualitySpineEconomicsService:
             and official_attachment_row_count == 0
         ):
             if official_attachment_refs_present and (
-                attachment_content_ingested_count == 0 or not official_pdf_text_extracted
+                attachment_content_ingested_count == 0
+                or not official_pdf_text_extracted
             ):
                 return "parse_official_attachment_pdfs"
             return "ingest_official_attachments"
 
         if runtime_ready and (not source_quality_ready or not structured_depth_ready):
             if (
-                (true_structured_row_count == 0 and official_attachment_row_count == 0)
-                or missing_true_structured_corroboration_count > 0
-            ):
+                true_structured_row_count == 0 and official_attachment_row_count == 0
+            ) or missing_true_structured_corroboration_count > 0:
                 if official_attachment_refs_present and (
-                    attachment_content_ingested_count == 0 or not official_pdf_text_extracted
+                    attachment_content_ingested_count == 0
+                    or not official_pdf_text_extracted
                 ):
                     return "parse_official_attachment_pdfs"
                 return "ingest_official_attachments"
@@ -2125,7 +2448,265 @@ class PolicyEvidenceQualitySpineEconomicsService:
         return "reject"
 
     @staticmethod
-    def _extract_source_quality_metrics(*, selected_payload: dict[str, Any]) -> dict[str, Any]:
+    def _extract_source_identity_rules(
+        *, selected_payload: dict[str, Any]
+    ) -> dict[str, Any]:
+        direct = selected_payload.get("source_identity_rules")
+        if isinstance(direct, dict) and direct:
+            return dict(direct)
+        return source_identity_rules_snapshot()
+
+    @staticmethod
+    def _extract_source_identity_classifications(
+        *,
+        selected_payload: dict[str, Any],
+        package: PolicyEvidencePackage,
+    ) -> list[dict[str, Any]]:
+        direct = selected_payload.get("source_identity_classifications")
+        if isinstance(direct, list):
+            output = [dict(item) for item in direct if isinstance(item, dict)]
+            if output:
+                return output
+
+        fallback_policy_families = [
+            str(selected_payload.get("policy_family") or "general_governance")
+        ]
+        fallback: list[dict[str, Any]] = []
+        for source in package.scraped_sources:
+            fallback.append(
+                classify_source_candidate(
+                    candidate={
+                        "artifact_url": str(source.selected_candidate_url),
+                        "provider": source.search_provider.value,
+                        "source_lane": "scrape_search",
+                        "source_family": source.query_family,
+                    },
+                    jurisdiction=package.jurisdiction,
+                    policy_families=fallback_policy_families,
+                )
+            )
+        for source in package.structured_sources:
+            fallback.append(
+                classify_source_candidate(
+                    candidate={
+                        "artifact_url": str(source.endpoint_or_file_url),
+                        "provider": source.access_method,
+                        "source_lane": "structured",
+                        "source_family": source.source_family,
+                    },
+                    jurisdiction=package.jurisdiction,
+                    policy_families=fallback_policy_families,
+                )
+            )
+        return fallback
+
+    @staticmethod
+    def _build_official_source_dominance_summary(
+        *,
+        selected_payload: dict[str, Any],
+        matrix_payload: dict[str, Any],
+        package: PolicyEvidencePackage,
+        source_identity_classifications: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        package_dominance_raw = selected_payload.get("source_official_dominance")
+        if isinstance(package_dominance_raw, dict) and package_dominance_raw:
+            package_dominance = dict(package_dominance_raw)
+        else:
+            package_dominance = compute_official_source_dominance(
+                classifications=source_identity_classifications
+            )
+
+        row_classifications: list[dict[str, Any]] = []
+        audited_ids: set[str] = set()
+        rows = matrix_payload.get("rows")
+        if isinstance(rows, list):
+            for row in rows:
+                if not isinstance(row, dict):
+                    continue
+                selected_candidate = row.get("selected_candidate")
+                if not isinstance(selected_candidate, dict):
+                    continue
+                url = str(selected_candidate.get("url") or "").strip()
+                if not url:
+                    continue
+                provider = str(selected_candidate.get("provider") or "unknown").strip()
+                row_policy_families = (
+                    PolicyEvidenceQualitySpineEconomicsService._row_policy_families(
+                        row=row,
+                        fallback_family=str(
+                            selected_payload.get("policy_family")
+                            or "general_governance"
+                        ),
+                    )
+                )
+                classification = classify_source_candidate(
+                    candidate={
+                        "artifact_url": url,
+                        "provider": provider,
+                        "source_lane": "scrape_search",
+                        "source_family": str(
+                            row.get("source_family")
+                            or selected_candidate.get("artifact_family")
+                            or "unknown"
+                        ),
+                        "source_identity_promotion_rule_id": selected_candidate.get(
+                            "source_identity_promotion_rule_id"
+                        ),
+                        "source_identity_promotion_reason": selected_candidate.get(
+                            "source_identity_promotion_reason"
+                        ),
+                        "source_identity_promotion_audit_status": selected_candidate.get(
+                            "source_identity_promotion_audit_status"
+                        ),
+                    },
+                    jurisdiction=str(row.get("jurisdiction") or package.jurisdiction),
+                    policy_families=row_policy_families,
+                )
+                row_classifications.append(classification)
+                priority_raw = (
+                    str(
+                        row.get("priority")
+                        or row.get("audit_priority")
+                        or row.get("manual_audit_priority")
+                        or ""
+                    )
+                    .strip()
+                    .lower()
+                )
+                if priority_raw in {"p0", "p1", "0", "1"}:
+                    audited_ids.add(str(classification.get("classification_id") or ""))
+
+        if not row_classifications:
+            row_classifications = list(source_identity_classifications)
+        corpus_dominance = compute_official_source_dominance(
+            classifications=row_classifications,
+            audited_classification_ids=audited_ids or None,
+        )
+
+        failure_codes = sorted(
+            set(
+                list(package_dominance.get("failure_codes") or [])
+                + list(corpus_dominance.get("failure_codes") or [])
+            )
+        )
+        if (
+            str(package_dominance.get("status") or "") == "fail"
+            or str(corpus_dominance.get("status") or "") == "fail"
+        ):
+            status = "fail"
+        elif (
+            str(package_dominance.get("status") or "") == "pass"
+            and str(corpus_dominance.get("status") or "") == "pass"
+        ):
+            status = "pass"
+        else:
+            status = "not_proven"
+
+        return {
+            "status": status,
+            "failure_codes": failure_codes,
+            "package": package_dominance,
+            "corpus": corpus_dominance,
+        }
+
+    @staticmethod
+    def _extract_source_freshness_drift_summary(
+        *,
+        selected_payload: dict[str, Any],
+        source_identity_classifications: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        direct = selected_payload.get("source_freshness_drift")
+        records: list[dict[str, Any]] = []
+        if isinstance(direct, dict):
+            direct_records = direct.get("records")
+            if isinstance(direct_records, list):
+                records = [
+                    dict(item) for item in direct_records if isinstance(item, dict)
+                ]
+        if not records:
+            # Fall back to an explicit unknown profile so downstream consumers
+            # always receive durable freshness/drift keys.
+            for classification in source_identity_classifications:
+                records.append(
+                    {
+                        "classification_id": classification.get("classification_id"),
+                        "source_url": classification.get("source_url"),
+                        "retrieved_at": None,
+                        "source_date_fields": {
+                            "published_date": None,
+                            "meeting_date": None,
+                            "event_date": None,
+                            "adoption_date": None,
+                            "effective_date": None,
+                        },
+                        "cadence": "unknown",
+                        "last_successful_refresh": None,
+                        "source_shape_fingerprint": None,
+                        "source_shape_changed": False,
+                        "update_cadence_drift": False,
+                        "stale_for_policy_use": False,
+                        "next_refresh_recommendation": "set_source_cadence_or_manual_review",
+                    }
+                )
+        stale_source_count = sum(
+            1 for item in records if bool(item.get("stale_for_policy_use"))
+        )
+        source_shape_changed_count = sum(
+            1 for item in records if bool(item.get("source_shape_changed"))
+        )
+        update_cadence_drift_count = sum(
+            1 for item in records if bool(item.get("update_cadence_drift"))
+        )
+        return {
+            "records": records,
+            "stale_source_count": stale_source_count,
+            "source_shape_changed_count": source_shape_changed_count,
+            "update_cadence_drift_count": update_cadence_drift_count,
+            "freshness_gate_status": str(
+                selected_payload.get("freshness_status") or "unknown"
+            ).strip(),
+        }
+
+    @staticmethod
+    def _extract_external_source_promotion_register(
+        *,
+        selected_payload: dict[str, Any],
+        source_identity_classifications: list[dict[str, Any]],
+        package_id: str,
+    ) -> list[dict[str, Any]]:
+        direct = selected_payload.get("external_source_promotion_register")
+        if isinstance(direct, list):
+            output = [dict(item) for item in direct if isinstance(item, dict)]
+            if output:
+                return output
+        generated: list[dict[str, Any]] = []
+        for classification in source_identity_classifications:
+            entry = build_external_source_promotion_entry(
+                classification=classification,
+                package_id=package_id,
+            )
+            if entry is not None:
+                generated.append(entry)
+        return generated
+
+    @staticmethod
+    def _row_policy_families(*, row: dict[str, Any], fallback_family: str) -> list[str]:
+        value = row.get("policy_families")
+        if isinstance(value, list):
+            families = [
+                str(item).strip().lower() for item in value if str(item).strip()
+            ]
+            if families:
+                return families
+        policy_family = str(row.get("policy_family") or "").strip().lower()
+        if policy_family:
+            return [policy_family]
+        return [str(fallback_family or "general_governance").strip().lower()]
+
+    @staticmethod
+    def _extract_source_quality_metrics(
+        *, selected_payload: dict[str, Any]
+    ) -> dict[str, Any]:
         direct = selected_payload.get("source_quality_metrics")
         if isinstance(direct, dict) and direct:
             return direct
@@ -2210,15 +2791,19 @@ class PolicyEvidenceQualitySpineEconomicsService:
         if not isinstance(attachment_content_probes, list):
             attachment_content_probes = []
 
-        attachment_ref_count = PolicyEvidenceQualitySpineEconomicsService._to_non_negative_int(
-            payload.get("attachment_ref_count")
-            or attachment_state.get("attachment_ref_count")
-            or len(related_attachment_refs)
+        attachment_ref_count = (
+            PolicyEvidenceQualitySpineEconomicsService._to_non_negative_int(
+                payload.get("attachment_ref_count")
+                or attachment_state.get("attachment_ref_count")
+                or len(related_attachment_refs)
+            )
         )
-        attachment_probe_count = PolicyEvidenceQualitySpineEconomicsService._to_non_negative_int(
-            payload.get("attachment_probe_count")
-            or attachment_state.get("attachment_probe_count")
-            or len(attachment_content_probes)
+        attachment_probe_count = (
+            PolicyEvidenceQualitySpineEconomicsService._to_non_negative_int(
+                payload.get("attachment_probe_count")
+                or attachment_state.get("attachment_probe_count")
+                or len(attachment_content_probes)
+            )
         )
         attachment_content_ingested_count = (
             PolicyEvidenceQualitySpineEconomicsService._to_non_negative_int(
@@ -2235,9 +2820,11 @@ class PolicyEvidenceQualitySpineEconomicsService:
                 if isinstance(probe, dict) and bool(probe.get("content_ingested"))
             )
 
-        attachment_economic_row_count = PolicyEvidenceQualitySpineEconomicsService._to_non_negative_int(
-            payload.get("attachment_economic_row_count")
-            or attachment_state.get("attachment_economic_row_count")
+        attachment_economic_row_count = (
+            PolicyEvidenceQualitySpineEconomicsService._to_non_negative_int(
+                payload.get("attachment_economic_row_count")
+                or attachment_state.get("attachment_economic_row_count")
+            )
         )
         if attachment_economic_row_count == 0 and attachment_content_probes:
             attachment_economic_row_count = sum(
@@ -2252,7 +2839,9 @@ class PolicyEvidenceQualitySpineEconomicsService:
         if "attachment_probe_count" not in payload:
             payload["attachment_probe_count"] = attachment_probe_count
         if "attachment_content_ingested_count" not in payload:
-            payload["attachment_content_ingested_count"] = attachment_content_ingested_count
+            payload["attachment_content_ingested_count"] = (
+                attachment_content_ingested_count
+            )
         if "attachment_economic_row_count" not in payload:
             payload["attachment_economic_row_count"] = attachment_economic_row_count
 
@@ -2276,7 +2865,9 @@ class PolicyEvidenceQualitySpineEconomicsService:
                     "pdf_text_extracted",
                 }:
                     official_text_read_count += 1
-                if PolicyEvidenceQualitySpineEconomicsService._is_pdf_like_probe(probe=raw_probe):
+                if PolicyEvidenceQualitySpineEconomicsService._is_pdf_like_probe(
+                    probe=raw_probe
+                ):
                     official_pdf_probe_count += 1
                     if bool(raw_probe.get("content_ingested")) or read_status in {
                         "read_text",
@@ -2298,8 +2889,10 @@ class PolicyEvidenceQualitySpineEconomicsService:
             if normalized_failure:
                 failure_counts[normalized_failure] += 1
 
-        official_attachment_ref_count = PolicyEvidenceQualitySpineEconomicsService._to_non_negative_int(
-            payload.get("official_attachment_ref_count")
+        official_attachment_ref_count = (
+            PolicyEvidenceQualitySpineEconomicsService._to_non_negative_int(
+                payload.get("official_attachment_ref_count")
+            )
         )
         if official_attachment_ref_count == 0:
             official_attachment_ref_count = sum(
@@ -2314,22 +2907,28 @@ class PolicyEvidenceQualitySpineEconomicsService:
             official_attachment_ref_count = official_recognized_count
 
         payload.setdefault("official_attachment_probe_count", official_recognized_count)
-        payload.setdefault("official_attachment_ref_count", official_attachment_ref_count)
-        payload.setdefault("official_attachment_recognized_count", official_recognized_count)
-        payload.setdefault("official_attachment_text_read_count", official_text_read_count)
+        payload.setdefault(
+            "official_attachment_ref_count", official_attachment_ref_count
+        )
+        payload.setdefault(
+            "official_attachment_recognized_count", official_recognized_count
+        )
+        payload.setdefault(
+            "official_attachment_text_read_count", official_text_read_count
+        )
         payload.setdefault("official_pdf_probe_count", official_pdf_probe_count)
         payload.setdefault(
             "official_pdf_text_extracted_count", official_pdf_text_extracted_count
         )
         payload.setdefault("official_attachment_failure_counts", dict(failure_counts))
 
-        parse_anomalies = (
-            PolicyEvidenceQualitySpineEconomicsService._extract_attachment_parse_anomalies(
-                matrix_payload=matrix_payload
-            )
+        parse_anomalies = PolicyEvidenceQualitySpineEconomicsService._extract_attachment_parse_anomalies(
+            matrix_payload=matrix_payload
         )
         payload.setdefault("official_attachment_parse_anomalies", parse_anomalies)
-        payload.setdefault("official_attachment_parse_anomaly_count", len(parse_anomalies))
+        payload.setdefault(
+            "official_attachment_parse_anomaly_count", len(parse_anomalies)
+        )
         row_quality_summary = (
             PolicyEvidenceQualitySpineEconomicsService._extract_row_quality_summary(
                 matrix_payload=matrix_payload
@@ -2339,7 +2938,9 @@ class PolicyEvidenceQualitySpineEconomicsService:
             "row_quality_authoritative_row_count",
             row_quality_summary["authoritative_row_count"],
         )
-        payload.setdefault("row_quality_weak_row_count", row_quality_summary["weak_row_count"])
+        payload.setdefault(
+            "row_quality_weak_row_count", row_quality_summary["weak_row_count"]
+        )
         payload.setdefault(
             "row_quality_rejected_or_ambiguous_count",
             row_quality_summary["rejected_or_ambiguous_count"],
@@ -2412,7 +3013,9 @@ class PolicyEvidenceQualitySpineEconomicsService:
 
     @staticmethod
     def _is_pdf_like_probe(*, probe: dict[str, Any]) -> bool:
-        source_url = str(probe.get("source_url") or probe.get("url") or "").strip().lower()
+        source_url = (
+            str(probe.get("source_url") or probe.get("url") or "").strip().lower()
+        )
         if source_url.endswith(".pdf"):
             return True
         if "view.ashx" in source_url and ("m=f" in source_url or "m%3df" in source_url):
@@ -2443,9 +3046,15 @@ class PolicyEvidenceQualitySpineEconomicsService:
 
     @staticmethod
     def _is_official_attachment_row(*, row: dict[str, Any]) -> bool:
-        if str(row.get("source_lane_classification") or "").strip() == "secondary_search_derived":
+        if (
+            str(row.get("source_lane_classification") or "").strip()
+            == "secondary_search_derived"
+        ):
             return False
-        if str(row.get("provenance_lane") or "").strip() == "structured_attachment_probe":
+        if (
+            str(row.get("provenance_lane") or "").strip()
+            == "structured_attachment_probe"
+        ):
             return True
         source_locator = str(row.get("source_locator") or "").strip()
         if source_locator.startswith("attachment_probe:"):
@@ -2484,7 +3093,9 @@ class PolicyEvidenceQualitySpineEconomicsService:
                 continue
             ambiguity_flag = bool(item.get("ambiguity_flag"))
             ambiguity_reason = str(item.get("ambiguity_reason") or "").strip() or None
-            currency_sanity = str(item.get("currency_sanity") or "").strip().lower() or None
+            currency_sanity = (
+                str(item.get("currency_sanity") or "").strip().lower() or None
+            )
             unit_sanity = str(item.get("unit_sanity") or "").strip().lower() or None
             if (
                 not ambiguity_flag
@@ -2505,12 +3116,17 @@ class PolicyEvidenceQualitySpineEconomicsService:
                     "ambiguity_reason": ambiguity_reason,
                     "currency_sanity": currency_sanity or "unknown",
                     "unit_sanity": unit_sanity or "unknown",
-                    "source_family": str(item.get("source_family") or "").strip() or None,
+                    "source_family": str(item.get("source_family") or "").strip()
+                    or None,
                     "source_url": str(item.get("source_url") or "").strip() or None,
                     "source_ref": str(item.get("source_ref") or "").strip() or None,
-                    "attachment_id": str(item.get("attachment_id") or "").strip() or None,
-                    "attachment_title": str(item.get("attachment_title") or "").strip() or None,
-                    "source_excerpt_preview": source_excerpt[:240] if source_excerpt else None,
+                    "attachment_id": str(item.get("attachment_id") or "").strip()
+                    or None,
+                    "attachment_title": str(item.get("attachment_title") or "").strip()
+                    or None,
+                    "source_excerpt_preview": source_excerpt[:240]
+                    if source_excerpt
+                    else None,
                 }
             )
             if len(anomalies) >= 25:
@@ -2542,7 +3158,9 @@ class PolicyEvidenceQualitySpineEconomicsService:
         for item in rows:
             if not isinstance(item, dict):
                 continue
-            source_lane = str(item.get("source_lane_classification") or "").strip().lower()
+            source_lane = (
+                str(item.get("source_lane_classification") or "").strip().lower()
+            )
             if source_lane == "secondary_search_derived":
                 continue
             authoritative_row_count += 1
@@ -2563,8 +3181,12 @@ class PolicyEvidenceQualitySpineEconomicsService:
             rejected_flag = bool(item.get("rejected")) or bool(
                 {"rejected", "invalid", "discarded", "excluded"} & row_statuses
             )
-            currency_invalid = str(item.get("currency_sanity") or "").strip().lower() == "invalid"
-            unit_invalid = str(item.get("unit_sanity") or "").strip().lower() == "invalid"
+            currency_invalid = (
+                str(item.get("currency_sanity") or "").strip().lower() == "invalid"
+            )
+            unit_invalid = (
+                str(item.get("unit_sanity") or "").strip().lower() == "invalid"
+            )
             normalized_value = item.get("normalized_value", item.get("value"))
             weak_flag = (
                 ambiguity_flag
@@ -2663,7 +3285,9 @@ class PolicyEvidenceQualitySpineEconomicsService:
             candidate = package_payload.get("run_context")
             if isinstance(candidate, dict):
                 run_context = candidate
-        run_context_reader_ref = str(run_context.get("reader_artifact_uri") or "").strip()
+        run_context_reader_ref = str(
+            run_context.get("reader_artifact_uri") or ""
+        ).strip()
         has_reader_storage_ref = any(
             (
                 ref.storage_system == StorageSystem.MINIO
@@ -2685,7 +3309,9 @@ class PolicyEvidenceQualitySpineEconomicsService:
                 and storage_proven
                 and (explicit_reader_ref or inferred_reader_ref)
             )
-            effective_passed = bool(source.reader_substance_passed or hydrated_by_storage)
+            effective_passed = bool(
+                source.reader_substance_passed or hydrated_by_storage
+            )
             per_source.append(
                 {
                     "effective_passed": effective_passed,
@@ -2696,7 +3322,9 @@ class PolicyEvidenceQualitySpineEconomicsService:
             )
 
         return {
-            "all_effective_passed": all(item["effective_passed"] for item in per_source),
+            "all_effective_passed": all(
+                item["effective_passed"] for item in per_source
+            ),
             "per_source": per_source,
         }
 
@@ -2779,7 +3407,9 @@ class PolicyEvidenceQualitySpineEconomicsService:
         )
         return "\n".join(lines) + "\n"
 
-    def _extract_package_candidates(self, payload: dict[str, Any] | None) -> list[dict[str, Any]]:
+    def _extract_package_candidates(
+        self, payload: dict[str, Any] | None
+    ) -> list[dict[str, Any]]:
         if not isinstance(payload, dict):
             return []
         candidates: dict[str, dict[str, Any]] = {}
@@ -2788,7 +3418,9 @@ class PolicyEvidenceQualitySpineEconomicsService:
             node = stack.pop()
             if isinstance(node, dict):
                 if self._looks_like_package(node):
-                    package_id = str(node.get("package_id") or f"pkg-{len(candidates)+1}")
+                    package_id = str(
+                        node.get("package_id") or f"pkg-{len(candidates) + 1}"
+                    )
                     candidates[package_id] = node
                 stack.extend(node.values())
             elif isinstance(node, list):
@@ -2843,7 +3475,9 @@ class PolicyEvidenceQualitySpineEconomicsService:
         return best[1]
 
     def _persist_for_readback(self, package_payload: dict[str, Any]) -> dict[str, Any]:
-        known_uris = {f"minio://policy-evidence/packages/{package_payload['package_id']}.json"}
+        known_uris = {
+            f"minio://policy-evidence/packages/{package_payload['package_id']}.json"
+        }
         for ref in package_payload.get("storage_refs", []):
             if ref.get("storage_system") != "minio":
                 continue
@@ -2870,6 +3504,7 @@ class PolicyEvidenceQualitySpineEconomicsService:
         self,
         *,
         package: PolicyEvidencePackage,
+        selected_payload: dict[str, Any],
         matrix_payload: dict[str, Any],
         matrix_source_mode: str,
         storage_eval: dict[str, Any],
@@ -2911,6 +3546,25 @@ class PolicyEvidenceQualitySpineEconomicsService:
             if frontend_ready
             else "No canonical pipeline run id yet; frontend display link not proven."
         )
+        source_identity_classifications = self._extract_source_identity_classifications(
+            selected_payload=selected_payload,
+            package=package,
+        )
+        official_source_dominance = self._build_official_source_dominance_summary(
+            selected_payload=selected_payload,
+            matrix_payload=matrix_payload,
+            package=package,
+            source_identity_classifications=source_identity_classifications,
+        )
+        source_freshness_drift = self._extract_source_freshness_drift_summary(
+            selected_payload=selected_payload,
+            source_identity_classifications=source_identity_classifications,
+        )
+        identity_ready = (
+            str(official_source_dominance.get("status") or "") != "fail"
+            and int(source_freshness_drift.get("stale_source_count") or 0) == 0
+            and int(source_freshness_drift.get("source_shape_changed_count") or 0) == 0
+        )
 
         taxonomy = {
             "scraped/search": {
@@ -2934,11 +3588,19 @@ class PolicyEvidenceQualitySpineEconomicsService:
                 ),
             },
             "identity/dedupe": {
-                "status": "pass" if package.canonical_document_key else "fail",
+                "status": "pass"
+                if (package.canonical_document_key and identity_ready)
+                else "fail",
                 "details": (
-                    "Canonical document key present for dedupe/identity join."
-                    if package.canonical_document_key
-                    else "Missing canonical_document_key."
+                    "Canonical identity present with official-source dominance/freshness gates passing."
+                    if (package.canonical_document_key and identity_ready)
+                    else (
+                        "Identity gate failed: "
+                        f"canonical_key_present={bool(package.canonical_document_key)}; "
+                        f"official_dominance_status={official_source_dominance.get('status')}; "
+                        f"stale_sources={source_freshness_drift.get('stale_source_count')}; "
+                        f"source_shape_changed={source_freshness_drift.get('source_shape_changed_count')}."
+                    )
                 ),
             },
             "storage/read-back": {
@@ -2954,7 +3616,9 @@ class PolicyEvidenceQualitySpineEconomicsService:
                 "details": orchestration_eval["details"],
             },
             "sufficiency gate": {
-                "status": "pass" if sufficiency.readiness_level != PackageReadinessLevel.FAIL_CLOSED else "fail",
+                "status": "pass"
+                if sufficiency.readiness_level != PackageReadinessLevel.FAIL_CLOSED
+                else "fail",
                 "details": (
                     f"readiness={sufficiency.readiness_level.value}"
                     if sufficiency.readiness_level != PackageReadinessLevel.FAIL_CLOSED
@@ -2966,8 +3630,11 @@ class PolicyEvidenceQualitySpineEconomicsService:
                     "pass"
                     if package.model_cards
                     and (
-                        any(card.quantification_eligible for card in package.model_cards)
-                        or verdict in {GateVerdict.QUALITATIVE_ONLY, GateVerdict.FAIL_CLOSED}
+                        any(
+                            card.quantification_eligible for card in package.model_cards
+                        )
+                        or verdict
+                        in {GateVerdict.QUALITATIVE_ONLY, GateVerdict.FAIL_CLOSED}
                     )
                     else "fail"
                 ),
@@ -2977,7 +3644,10 @@ class PolicyEvidenceQualitySpineEconomicsService:
                     else "No model cards found."
                 ),
             },
-            "LLM narrative": {"status": llm_eval["status"], "details": llm_eval["details"]},
+            "LLM narrative": {
+                "status": llm_eval["status"],
+                "details": llm_eval["details"],
+            },
             "frontend/read-model auditability": {
                 "status": frontend_status,
                 "details": frontend_detail,
@@ -3014,7 +3684,9 @@ class PolicyEvidenceQualitySpineEconomicsService:
             ),
         }
 
-        resolved_cards = [card for card in package.parameter_cards if card.state.value == "resolved"]
+        resolved_cards = [
+            card for card in package.parameter_cards if card.state.value == "resolved"
+        ]
         economic_resolved_cards: list[Any] = []
         diagnostic_resolved_cards: list[Any] = []
         for card in resolved_cards:
@@ -3024,7 +3696,9 @@ class PolicyEvidenceQualitySpineEconomicsService:
             else:
                 diagnostic_resolved_cards.append(card)
         parameter_provenance_ok = bool(economic_resolved_cards) and all(
-            card.source_url is not None and bool(card.source_excerpt) and bool(card.evidence_card_id)
+            card.source_url is not None
+            and bool(card.source_excerpt)
+            and bool(card.evidence_card_id)
             for card in economic_resolved_cards
         )
         dimensions["parameter_provenance"] = {
@@ -3042,7 +3716,9 @@ class PolicyEvidenceQualitySpineEconomicsService:
             ),
         }
 
-        assumption_usage = {item.assumption_id: item for item in package.assumption_usage}
+        assumption_usage = {
+            item.assumption_id: item for item in package.assumption_usage
+        }
         assumptions_ok = True
         assumption_detail = "No assumption cards required by this package."
         if package.assumption_cards:
@@ -3087,7 +3763,9 @@ class PolicyEvidenceQualitySpineEconomicsService:
         direct_fee_model_ready = (
             mechanism_type == "direct" and direct_fee_model_card.get("status") == "pass"
         )
-        quant_models = [model for model in package.model_cards if model.quantification_eligible]
+        quant_models = [
+            model for model in package.model_cards if model.quantification_eligible
+        ]
         arithmetic_ok = bool(quant_models) and all(
             model.arithmetic_valid and model.unit_validation_status.value == "valid"
             for model in quant_models
@@ -3102,13 +3780,15 @@ class PolicyEvidenceQualitySpineEconomicsService:
                     arithmetic_ok = False
                     break
         if not arithmetic_ok and direct_fee_model_ready:
-            totals = (
-                direct_fee_model_card.get("arithmetic", {})
-                .get("total_direct_fee_usd", {})
+            totals = direct_fee_model_card.get("arithmetic", {}).get(
+                "total_direct_fee_usd", {}
             )
             arithmetic_ok = (
                 isinstance(totals, dict)
-                and all(isinstance(totals.get(k), (int, float)) for k in ("low", "base", "high"))
+                and all(
+                    isinstance(totals.get(k), (int, float))
+                    for k in ("low", "base", "high")
+                )
                 and totals["low"] <= totals["base"] <= totals["high"]
             )
         dimensions["arithmetic_integrity"] = {
@@ -3180,7 +3860,8 @@ class PolicyEvidenceQualitySpineEconomicsService:
             "decision_grade"
             if (
                 not failing_dimensions
-                and sufficiency.readiness_level == PackageReadinessLevel.ECONOMIC_HANDOFF_READY
+                and sufficiency.readiness_level
+                == PackageReadinessLevel.ECONOMIC_HANDOFF_READY
             )
             else "not_decision_grade"
         )
@@ -3216,15 +3897,39 @@ class PolicyEvidenceQualitySpineEconomicsService:
                 return False, "diagnostic_name_pattern"
         if unit in {"id", "identifier"}:
             return False, "diagnostic_unit_identifier"
-        has_economic_name_hint = any(token in name for token in ECONOMIC_PARAMETER_NAME_HINTS)
-        has_economic_unit_hint = any(token in unit for token in ECONOMIC_PARAMETER_UNIT_HINTS)
-        has_economic_excerpt_hint = any(
-            token in excerpt for token in ("cost", "fee", "tax", "rent", "price", "income", "benefit", "burden")
+        has_economic_name_hint = any(
+            token in name for token in ECONOMIC_PARAMETER_NAME_HINTS
         )
-        has_economic_signal = has_economic_name_hint or has_economic_unit_hint or has_economic_excerpt_hint
-        if "structured fact" in excerpt and "resolved from source payload" in excerpt and not has_economic_signal:
+        has_economic_unit_hint = any(
+            token in unit for token in ECONOMIC_PARAMETER_UNIT_HINTS
+        )
+        has_economic_excerpt_hint = any(
+            token in excerpt
+            for token in (
+                "cost",
+                "fee",
+                "tax",
+                "rent",
+                "price",
+                "income",
+                "benefit",
+                "burden",
+            )
+        )
+        has_economic_signal = (
+            has_economic_name_hint
+            or has_economic_unit_hint
+            or has_economic_excerpt_hint
+        )
+        if (
+            "structured fact" in excerpt
+            and "resolved from source payload" in excerpt
+            and not has_economic_signal
+        ):
             return False, "diagnostic_structured_fact_excerpt"
-        if unit == "count" and not (has_economic_name_hint or has_economic_excerpt_hint):
+        if unit == "count" and not (
+            has_economic_name_hint or has_economic_excerpt_hint
+        ):
             return False, "non_economic_count_metric"
         if not has_economic_signal:
             return False, "missing_economic_semantic_signal"
@@ -3235,7 +3940,10 @@ class PolicyEvidenceQualitySpineEconomicsService:
         name = str(getattr(card, "parameter_name", "") or "").strip().lower()
         excerpt = str(getattr(card, "source_excerpt", "") or "").strip().lower()
         time_horizon = getattr(card, "time_horizon", None)
-        category = next((hint for hint in FEE_CATEGORY_HINTS if hint in name or hint in excerpt), None)
+        category = next(
+            (hint for hint in FEE_CATEGORY_HINTS if hint in name or hint in excerpt),
+            None,
+        )
 
         effective_date = None
         date_match = re.search(r"\b(20\d{2}-\d{2}-\d{2})\b", excerpt)
@@ -3262,7 +3970,9 @@ class PolicyEvidenceQualitySpineEconomicsService:
         }
         coverage: list[dict[str, Any]] = []
         for case_id, case_type in required.items():
-            matched = next((case for case in bundle["cases"] if case["case_id"] == case_id), None)
+            matched = next(
+                (case for case in bundle["cases"] if case["case_id"] == case_id), None
+            )
             if matched is None:
                 coverage.append(
                     {
@@ -3298,7 +4008,9 @@ class PolicyEvidenceQualitySpineEconomicsService:
             )
         return {
             "required_case_count": len(required),
-            "covered_case_count": sum(1 for item in coverage if item["status"] == "pass"),
+            "covered_case_count": sum(
+                1 for item in coverage if item["status"] == "pass"
+            ),
             "cases": coverage,
         }
 
@@ -3421,22 +4133,22 @@ class PolicyEvidenceQualitySpineEconomicsService:
         if not package.scraped_sources:
             return {"status": "fail", "details": "No scraped provenance found."}
 
-        runtime_evidence = PolicyEvidenceQualitySpineEconomicsService._extract_runtime_evidence(
-            matrix_payload
+        runtime_evidence = (
+            PolicyEvidenceQualitySpineEconomicsService._extract_runtime_evidence(
+                matrix_payload
+            )
         )
         package_payload = runtime_evidence.get("vertical_package_payload")
         source_identity_status: dict[str, Any] = {}
         if isinstance(package_payload, dict):
-            source_identity_status = (
-                PolicyEvidenceQualitySpineEconomicsService._derive_source_identity_status(
-                    source_quality_metrics=PolicyEvidenceQualitySpineEconomicsService._extract_source_quality_metrics(
-                        selected_payload=package_payload
-                    ),
-                    source_reconciliation=PolicyEvidenceQualitySpineEconomicsService._extract_source_reconciliation(
-                        selected_payload=package_payload,
-                        matrix_payload=matrix_payload,
-                    ),
-                )
+            source_identity_status = PolicyEvidenceQualitySpineEconomicsService._derive_source_identity_status(
+                source_quality_metrics=PolicyEvidenceQualitySpineEconomicsService._extract_source_quality_metrics(
+                    selected_payload=package_payload
+                ),
+                source_reconciliation=PolicyEvidenceQualitySpineEconomicsService._extract_source_reconciliation(
+                    selected_payload=package_payload,
+                    matrix_payload=matrix_payload,
+                ),
             )
         identity_blocker_code = str(
             source_identity_status.get("identity_blocker_code") or ""
@@ -3467,19 +4179,25 @@ class PolicyEvidenceQualitySpineEconomicsService:
                 continue
             selected_candidate = row.get("selected_candidate")
             provider_results = row.get("provider_results")
-            if not isinstance(selected_candidate, dict) or not isinstance(provider_results, dict):
+            if not isinstance(selected_candidate, dict) or not isinstance(
+                provider_results, dict
+            ):
                 continue
 
             selected_url = str(selected_candidate.get("url") or "").strip()
             selected_provider = str(selected_candidate.get("provider") or "").strip()
             selected_rank = selected_candidate.get("rank")
-            selection_reason = str(selected_candidate.get("selection_reason") or "").strip()
+            selection_reason = str(
+                selected_candidate.get("selection_reason") or ""
+            ).strip()
             if not selected_url or not selected_provider:
                 continue
 
             provider_entry = provider_results.get(selected_provider)
             if selected_provider == "tavily":
-                provider_entry = provider_entry or provider_results.get("tavily_fallback")
+                provider_entry = provider_entry or provider_results.get(
+                    "tavily_fallback"
+                )
             if not isinstance(provider_entry, dict):
                 selected_metrics = {
                     "status": "not_proven",
@@ -3499,7 +4217,10 @@ class PolicyEvidenceQualitySpineEconomicsService:
                     if not isinstance(candidate, dict):
                         continue
                     same_url = str(candidate.get("url") or "").strip() == selected_url
-                    same_rank = selected_rank is not None and candidate.get("rank") == selected_rank
+                    same_rank = (
+                        selected_rank is not None
+                        and candidate.get("rank") == selected_rank
+                    )
                     if same_url or same_rank:
                         artifact_grade = bool(candidate.get("artifact_grade"))
                         official_domain = bool(candidate.get("official_domain"))
@@ -3546,7 +4267,9 @@ class PolicyEvidenceQualitySpineEconomicsService:
         return {}
 
     @staticmethod
-    def _evaluate_orchestration_proof(runtime_evidence: dict[str, Any]) -> dict[str, str]:
+    def _evaluate_orchestration_proof(
+        runtime_evidence: dict[str, Any],
+    ) -> dict[str, str]:
         proof = runtime_evidence.get("orchestration_proof")
         if not isinstance(proof, dict):
             proof = {}
@@ -3559,10 +4282,9 @@ class PolicyEvidenceQualitySpineEconomicsService:
                     run_context = candidate
             context_run_id = run_context.get("windmill_run_id")
             context_scope_job_id = run_context.get("windmill_job_id")
-            context_platform_job_id = (
-                run_context.get("windmill_platform_job_id")
-                or run_context.get("windmill_job_id_platform")
-            )
+            context_platform_job_id = run_context.get(
+                "windmill_platform_job_id"
+            ) or run_context.get("windmill_job_id_platform")
             if context_run_id or context_scope_job_id or context_platform_job_id:
                 proof = {
                     "proof_status": "not_proven",
@@ -3602,7 +4324,12 @@ class PolicyEvidenceQualitySpineEconomicsService:
             )
             return {"status": "not_proven", "details": details}
 
-        if linked and has_run_id and has_any_job_id and proof_status in {"pass", "not_proven"}:
+        if (
+            linked
+            and has_run_id
+            and has_any_job_id
+            and proof_status in {"pass", "not_proven"}
+        ):
             if has_platform_job_id:
                 return {
                     "status": "pass",
@@ -3730,8 +4457,12 @@ class PolicyEvidenceQualitySpineEconomicsService:
                     "exclusion_reason": reason,
                 }
             )
-        mechanism_family = package.model_cards[0].mechanism_family if package.model_cards else None
-        mechanism_type = self._classify_mechanism_type(package=package, mechanism_family=mechanism_family)
+        mechanism_family = (
+            package.model_cards[0].mechanism_family if package.model_cards else None
+        )
+        mechanism_type = self._classify_mechanism_type(
+            package=package, mechanism_family=mechanism_family
+        )
         direct_fee_model_card = self._build_direct_fee_model_card(
             package=package,
             parameter_table=parameter_table,
@@ -3740,16 +4471,29 @@ class PolicyEvidenceQualitySpineEconomicsService:
 
         graph_nodes = [
             {"id": "policy_change", "label": package.policy_identifier},
-            {"id": "economic_mechanism", "label": mechanism_family.value if mechanism_family else "unknown"},
+            {
+                "id": "economic_mechanism",
+                "label": mechanism_family.value if mechanism_family else "unknown",
+            },
             {"id": "household_cost_of_living", "label": "Household cost-of-living"},
         ]
         graph_edges = [
-            {"from": "policy_change", "to": "economic_mechanism", "evidence_refs": [item.id for item in package.evidence_cards]},
-            {"from": "economic_mechanism", "to": "household_cost_of_living", "evidence_refs": [item["parameter_id"] for item in parameter_table]},
+            {
+                "from": "policy_change",
+                "to": "economic_mechanism",
+                "evidence_refs": [item.id for item in package.evidence_cards],
+            },
+            {
+                "from": "economic_mechanism",
+                "to": "household_cost_of_living",
+                "evidence_refs": [item["parameter_id"] for item in parameter_table],
+            },
         ]
 
         scenario = None
-        quant_models = [model for model in package.model_cards if model.quantification_eligible]
+        quant_models = [
+            model for model in package.model_cards if model.quantification_eligible
+        ]
         if quant_models:
             bounds = quant_models[0].scenario_bounds
             if bounds is not None:
@@ -3764,11 +4508,15 @@ class PolicyEvidenceQualitySpineEconomicsService:
             "status": "none",
             "reason": None,
         }
-        if package.gate_report.unsupported_claim_count > 0 or package.gate_report.verdict in {
-            GateVerdict.FAIL_CLOSED,
-            GateVerdict.QUALITATIVE_ONLY_DUE_TO_UNSUPPORTED_CLAIMS,
-            GateVerdict.FAIL_CLOSED_QUALITATIVE_ONLY,
-        }:
+        if (
+            package.gate_report.unsupported_claim_count > 0
+            or package.gate_report.verdict
+            in {
+                GateVerdict.FAIL_CLOSED,
+                GateVerdict.QUALITATIVE_ONLY_DUE_TO_UNSUPPORTED_CLAIMS,
+                GateVerdict.FAIL_CLOSED_QUALITATIVE_ONLY,
+            }
+        ):
             unsupported = {
                 "status": "rejected",
                 "reason": (
@@ -3831,7 +4579,10 @@ class PolicyEvidenceQualitySpineEconomicsService:
             MechanismFamily.ADOPTION_TAKE_UP,
         }:
             return "indirect"
-        if mechanism_family in {MechanismFamily.DIRECT_FISCAL, MechanismFamily.COMPLIANCE_COST}:
+        if mechanism_family in {
+            MechanismFamily.DIRECT_FISCAL,
+            MechanismFamily.COMPLIANCE_COST,
+        }:
             return "direct"
         for assumption in package.assumption_cards:
             if assumption.family in {
@@ -3841,7 +4592,10 @@ class PolicyEvidenceQualitySpineEconomicsService:
                 return "indirect"
         for parameter in package.parameter_cards:
             name = str(parameter.parameter_name or "").lower()
-            if any(token in name for token in ("pass_through", "incidence", "take_up", "adoption")):
+            if any(
+                token in name
+                for token in ("pass_through", "incidence", "take_up", "adoption")
+            ):
                 return "indirect"
         return "direct"
 
@@ -3893,7 +4647,8 @@ class PolicyEvidenceQualitySpineEconomicsService:
                 "name": row["name"],
                 "rate_per_sqft": float(row["value"]),
                 "project_size_sqft": scenario_bounds["base"],
-                "estimated_direct_fee_usd": scenario_bounds["base"] * float(row["value"]),
+                "estimated_direct_fee_usd": scenario_bounds["base"]
+                * float(row["value"]),
                 "unit": "usd",
                 "source_url": row.get("source_url"),
                 "evidence_card_id": row.get("evidence_card_id"),
@@ -3912,7 +4667,10 @@ class PolicyEvidenceQualitySpineEconomicsService:
 
         has_pass_through_assumption = any(
             card.family
-            in {MechanismFamily.FEE_OR_TAX_PASS_THROUGH, MechanismFamily.ADOPTION_TAKE_UP}
+            in {
+                MechanismFamily.FEE_OR_TAX_PASS_THROUGH,
+                MechanismFamily.ADOPTION_TAKE_UP,
+            }
             and not self._looks_placeholder_assumption_text(card.source_excerpt)
             for card in package.assumption_cards
         )
@@ -3972,7 +4730,11 @@ class PolicyEvidenceQualitySpineEconomicsService:
         taxonomy: dict[str, dict[str, str]],
         economic_quality: dict[str, Any],
     ) -> dict[str, Any]:
-        blocking_gate = None if sufficiency.blocking_gate is None else sufficiency.blocking_gate.value
+        blocking_gate = (
+            None
+            if sufficiency.blocking_gate is None
+            else sufficiency.blocking_gate.value
+        )
         frontend_payload = {
             "package_id": package.package_id,
             "canonical_document_key": package.canonical_document_key,
@@ -3983,7 +4745,9 @@ class PolicyEvidenceQualitySpineEconomicsService:
             "taxonomy": taxonomy,
             "economic_quality_rubric": economic_quality,
             "user_facing_conclusion": vertical_output["user_facing_conclusion"],
-            "unsupported_claim_rejection": vertical_output["unsupported_claim_rejection"],
+            "unsupported_claim_rejection": vertical_output[
+                "unsupported_claim_rejection"
+            ],
             "requires_recomputation": False,
         }
         admin_payload = {
@@ -3993,7 +4757,9 @@ class PolicyEvidenceQualitySpineEconomicsService:
                 "canonical_pipeline_run_id": package.gate_projection.canonical_pipeline_run_id,
                 "canonical_pipeline_step_id": package.gate_projection.canonical_pipeline_step_id,
             },
-            "storage_refs": [ref.model_dump(mode="json") for ref in package.storage_refs],
+            "storage_refs": [
+                ref.model_dump(mode="json") for ref in package.storage_refs
+            ],
             "evidence_card_ids": [card.id for card in package.evidence_cards],
             "parameter_card_ids": [card.id for card in package.parameter_cards],
             "assumption_card_ids": [card.id for card in package.assumption_cards],
@@ -4009,7 +4775,9 @@ class PolicyEvidenceQualitySpineEconomicsService:
                 "parallel_engine_created": False,
                 "llm_narrative_proof": {
                     "proof_status": (
-                        "pass" if taxonomy["LLM narrative"]["status"] == "pass" else "not_proven"
+                        "pass"
+                        if taxonomy["LLM narrative"]["status"] == "pass"
+                        else "not_proven"
                     ),
                     "canonical_pipeline_run_id": package.gate_projection.canonical_pipeline_run_id,
                     "canonical_pipeline_step_id": package.gate_projection.canonical_pipeline_step_id,
@@ -4023,7 +4791,9 @@ class PolicyEvidenceQualitySpineEconomicsService:
             },
         }
 
-    def _build_retry_ledger(self, *, scorecard: dict[str, Any], max_cycles: int) -> dict[str, Any]:
+    def _build_retry_ledger(
+        self, *, scorecard: dict[str, Any], max_cycles: int
+    ) -> dict[str, Any]:
         failed = scorecard["failure_classification"]["failed_categories"]
         not_proven = scorecard["failure_classification"]["not_proven_categories"]
         proposed_tweaks = self._proposed_tweaks(failed=failed, not_proven=not_proven)
@@ -4165,7 +4935,9 @@ class PolicyEvidenceQualitySpineEconomicsService:
         return [mapping[item] for item in ordered if item in mapping]
 
     @staticmethod
-    def _overall_verdict(*, category_failures: list[str], category_not_proven: list[str]) -> str:
+    def _overall_verdict(
+        *, category_failures: list[str], category_not_proven: list[str]
+    ) -> str:
         if category_failures:
             return "fail"
         if category_not_proven:

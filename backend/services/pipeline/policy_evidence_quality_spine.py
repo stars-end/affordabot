@@ -251,10 +251,10 @@ def _case_fixtures() -> list[dict[str, Any]]:
                 "exa_eval": {"executed": False, "reason_code": "subset_cap_not_selected"},
             },
             "selected_candidate": {
-                "provider": "tavily",
-                "rank": 1,
+                "provider": "private_searxng",
+                "rank": 3,
                 "url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13050001&GUID=PK-1",
-                "selection_reason": "artifact_pdf_after_portal_penalty",
+                "selection_reason": "artifact_pdf_after_portal_penalty_private_searxng",
             },
             "reader_status": {
                 "status": "passed",
@@ -373,10 +373,10 @@ def _case_fixtures() -> list[dict[str, Any]]:
                 "exa_eval": {"executed": False, "reason_code": "subset_cap_not_selected"},
             },
             "selected_candidate": {
-                "provider": "tavily",
-                "rank": 1,
+                "provider": "private_searxng",
+                "rank": 2,
                 "url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13052222&GUID=TR-1",
-                "selection_reason": "artifact_selected_after_ambiguity",
+                "selection_reason": "private_searxng_artifact_selected_after_ambiguity_guardrail",
             },
             "reader_status": {
                 "status": "passed",
@@ -484,10 +484,10 @@ def _case_fixtures() -> list[dict[str, Any]]:
                 "exa_eval": {"executed": False, "reason_code": "subset_cap_not_selected"},
             },
             "selected_candidate": {
-                "provider": "tavily",
-                "rank": 1,
+                "provider": "private_searxng",
+                "rank": 4,
                 "url": "https://leginfo.legislature.ca.gov/faces/billTextClient.xhtml?bill_id=202520260SB684",
-                "selection_reason": "fallback_promoted_official_text",
+                "selection_reason": "private_searxng_official_text_rank_recovered_after_portal_penalty",
             },
             "reader_status": {
                 "status": "passed",

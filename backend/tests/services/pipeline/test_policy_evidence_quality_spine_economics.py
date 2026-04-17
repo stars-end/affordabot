@@ -126,6 +126,25 @@ def test_taxonomy_contains_all_required_quality_buckets() -> None:
     }
 
 
+def test_scorecard_exposes_source_identity_and_freshness_drift_contracts() -> None:
+    service = PolicyEvidenceQualitySpineEconomicsService()
+    result = service.evaluate(
+        matrix_input=MatrixInput(
+            payload=None,
+            source_path="horizontal_matrix.json",
+            source_mode="missing",
+        )
+    )
+    scorecard = result["scorecard"]
+    assert isinstance(scorecard["source_identity_rules"], dict)
+    assert isinstance(scorecard["source_identity_classifications"], list)
+    assert isinstance(scorecard["official_source_dominance"], dict)
+    assert isinstance(scorecard["source_freshness_drift"], dict)
+    assert isinstance(scorecard["external_source_promotion_register"], list)
+    assert "status" in scorecard["official_source_dominance"]
+    assert "stale_source_count" in scorecard["source_freshness_drift"]
+
+
 def test_fail_closed_unsupported_claims_are_rejected() -> None:
     bundle = PolicyEconomicMechanismCaseService().build_case_bundle()
     control = _case(bundle, "unsupported_fail_closed_control")
@@ -194,8 +213,12 @@ def test_endpoint_read_model_exposes_economic_handoff_contract_fields() -> None:
         },
         llm_narrative_proof={
             "proof_status": "pass",
-            "canonical_pipeline_run_id": package["gate_projection"]["canonical_pipeline_run_id"],
-            "canonical_pipeline_step_id": package["gate_projection"]["canonical_pipeline_step_id"],
+            "canonical_pipeline_run_id": package["gate_projection"][
+                "canonical_pipeline_run_id"
+            ],
+            "canonical_pipeline_step_id": package["gate_projection"][
+                "canonical_pipeline_step_id"
+            ],
             "source": "unit_test",
         },
         storage_proof={
@@ -232,7 +255,10 @@ def test_endpoint_read_model_exposes_economic_handoff_contract_fields() -> None:
         "analysis_ready_with_gaps",
         "not_analysis_ready",
     }
-    assert read_model["economic_handoff_quality"]["legacy_status"] in {"ready", "not_ready"}
+    assert read_model["economic_handoff_quality"]["legacy_status"] in {
+        "ready",
+        "not_ready",
+    }
     assert read_model["recommended_next_action"] in {
         "run_direct_analysis",
         "run_secondary_research",
@@ -392,7 +418,9 @@ def test_storage_readback_requires_non_memory_storage_proof() -> None:
 
     storage = result["scorecard"]["taxonomy"]["storage/read-back"]
     assert storage["status"] == "not_proven"
-    assert "non-memory Postgres/MinIO storage proof is not provided" in storage["details"]
+    assert (
+        "non-memory Postgres/MinIO storage proof is not provided" in storage["details"]
+    )
 
 
 def test_storage_readback_passes_with_non_memory_storage_proof() -> None:
@@ -566,8 +594,12 @@ def test_not_decision_grade_contains_explicit_missing_evidence() -> None:
 
     decision_grade = result["scorecard"]["decision_grade"]
     assert decision_grade["verdict"] == "not_decision_grade"
-    assert any("storage/read-back:" in item for item in decision_grade["missing_evidence"])
-    assert any("Windmill/orchestration:" in item for item in decision_grade["missing_evidence"])
+    assert any(
+        "storage/read-back:" in item for item in decision_grade["missing_evidence"]
+    )
+    assert any(
+        "Windmill/orchestration:" in item for item in decision_grade["missing_evidence"]
+    )
     assert result["scorecard"]["taxonomy"]["LLM narrative"]["status"] == "pass"
     endpoint = service.build_endpoint_read_model(
         matrix_input=MatrixInput(
@@ -685,7 +717,10 @@ def test_decision_grade_requires_full_runtime_proofs() -> None:
 def test_endpoint_uses_backend_run_id_from_selected_payload_context() -> None:
     bundle = PolicyEconomicMechanismCaseService().build_case_bundle()
     direct = _case(bundle, "direct_cost_case")
-    package = {**direct["primary_package"], "run_context": {"backend_run_id": "run-ctx-42"}}
+    package = {
+        **direct["primary_package"],
+        "run_context": {"backend_run_id": "run-ctx-42"},
+    }
 
     service = PolicyEvidenceQualitySpineEconomicsService()
     matrix = _matrix_with_runtime_evidence(
@@ -699,8 +734,12 @@ def test_endpoint_uses_backend_run_id_from_selected_payload_context() -> None:
         },
         llm_narrative_proof={
             "proof_status": "pass",
-            "canonical_pipeline_run_id": package["gate_projection"]["canonical_pipeline_run_id"],
-            "canonical_pipeline_step_id": package["gate_projection"]["canonical_pipeline_step_id"],
+            "canonical_pipeline_run_id": package["gate_projection"][
+                "canonical_pipeline_run_id"
+            ],
+            "canonical_pipeline_step_id": package["gate_projection"][
+                "canonical_pipeline_step_id"
+            ],
             "source": "unit_test",
         },
         storage_proof={
@@ -781,7 +820,9 @@ def test_endpoint_reader_provenance_hydrates_when_storage_is_proven() -> None:
     assert scraped["reader_provenance_hydrated"] is True
     assert endpoint["gates"]["Windmill/orchestration"]["status"] == "pass"
     assert "scope job id only" in endpoint["gates"]["Windmill/orchestration"]["reason"]
-    windmill_refs = {item["key"] for item in endpoint["gates"]["Windmill/orchestration"]["refs"]}
+    windmill_refs = {
+        item["key"] for item in endpoint["gates"]["Windmill/orchestration"]["refs"]
+    }
     assert "windmill_scope_job_id" in windmill_refs
 
 
@@ -820,7 +861,10 @@ def test_endpoint_includes_economic_trace_and_canonical_binding_diagnostics() ->
     assert "arithmetic_integrity" in trace
     binding = endpoint["canonical_analysis_binding"]
     assert binding["status"] == "not_proven"
-    assert binding["blocker"] == "analysis_step_succeeded_but_no_canonical_analysis_history"
+    assert (
+        binding["blocker"]
+        == "analysis_step_succeeded_but_no_canonical_analysis_history"
+    )
     assert "missing_code_path" in binding
 
 
@@ -845,7 +889,10 @@ def test_secondary_research_contract_is_required_for_indirect_secondary_case() -
     assert secondary_contract["status"] == "required"
     assert secondary_contract["request_contract"]["package_id"] == package["package_id"]
     assert secondary_contract["request_contract"]["target_parameters"]
-    assert secondary_contract["output_contract"]["must_include_parameter_provenance"] is True
+    assert (
+        secondary_contract["output_contract"]["must_include_parameter_provenance"]
+        is True
+    )
     assert endpoint["economic_trace"]["direct_indirect_classification"] == "indirect"
 
 
@@ -982,8 +1029,12 @@ def test_diagnostic_parameters_are_excluded_from_economic_support() -> None:
         },
         llm_narrative_proof={
             "proof_status": "pass",
-            "canonical_pipeline_run_id": package["gate_projection"]["canonical_pipeline_run_id"],
-            "canonical_pipeline_step_id": package["gate_projection"]["canonical_pipeline_step_id"],
+            "canonical_pipeline_run_id": package["gate_projection"][
+                "canonical_pipeline_run_id"
+            ],
+            "canonical_pipeline_step_id": package["gate_projection"][
+                "canonical_pipeline_step_id"
+            ],
             "source": "unit_test",
         },
         storage_proof={
@@ -1008,17 +1059,22 @@ def test_diagnostic_parameters_are_excluded_from_economic_support() -> None:
     assert endpoint["economic_trace"]["parameter_table"] == []
     assert len(endpoint["economic_trace"]["diagnostic_parameter_table"]) == 2
     assert endpoint["economic_readiness"]["parameter_readiness"]["status"] == "fail"
-    assert "diagnostic_resolved_parameters_excluded=2" in endpoint["economic_readiness"][
-        "parameter_readiness"
-    ]["reason"]
+    assert (
+        "diagnostic_resolved_parameters_excluded=2"
+        in endpoint["economic_readiness"]["parameter_readiness"]["reason"]
+    )
 
 
-def test_indirect_mechanism_requires_non_placeholder_assumption_or_secondary_research() -> None:
+def test_indirect_mechanism_requires_non_placeholder_assumption_or_secondary_research() -> (
+    None
+):
     bundle = PolicyEconomicMechanismCaseService().build_case_bundle()
     indirect = _case(bundle, "indirect_pass_through_case")
     package = {**indirect["primary_package"]}
     assumption = dict(package["assumption_cards"][0])
-    assumption["source_excerpt"] = "Mapped mechanism assumption from source evidence and policy context."
+    assumption["source_excerpt"] = (
+        "Mapped mechanism assumption from source evidence and policy context."
+    )
     package["assumption_cards"] = [assumption]
 
     service = PolicyEvidenceQualitySpineEconomicsService()
@@ -1034,16 +1090,20 @@ def test_indirect_mechanism_requires_non_placeholder_assumption_or_secondary_res
 
     assert endpoint["economic_trace"]["direct_indirect_classification"] == "indirect"
     assert endpoint["economic_readiness"]["assumption_readiness"]["status"] == "fail"
-    assert "source-bound pass-through/incidence assumptions" in endpoint["economic_readiness"][
-        "assumption_readiness"
-    ]["reason"]
+    assert (
+        "source-bound pass-through/incidence assumptions"
+        in endpoint["economic_readiness"]["assumption_readiness"]["reason"]
+    )
     assert endpoint["secondary_research"]["status"] == "required"
-    assert "rubric/assumption_governance" in endpoint["economic_analysis_status"][
-        "required_evidence_gaps"
-    ]
+    assert (
+        "rubric/assumption_governance"
+        in endpoint["economic_analysis_status"]["required_evidence_gaps"]
+    )
 
 
-def test_structured_fee_rows_populate_parameter_table_with_metadata_but_remain_not_decision_grade() -> None:
+def test_structured_fee_rows_populate_parameter_table_with_metadata_but_remain_not_decision_grade() -> (
+    None
+):
     bundle = PolicyEconomicMechanismCaseService().build_case_bundle()
     secondary = _case(bundle, "secondary_research_required_case")
     package = {
@@ -1092,8 +1152,12 @@ def test_structured_fee_rows_populate_parameter_table_with_metadata_but_remain_n
         },
         llm_narrative_proof={
             "proof_status": "pass",
-            "canonical_pipeline_run_id": package["gate_projection"]["canonical_pipeline_run_id"],
-            "canonical_pipeline_step_id": package["gate_projection"]["canonical_pipeline_step_id"],
+            "canonical_pipeline_run_id": package["gate_projection"][
+                "canonical_pipeline_run_id"
+            ],
+            "canonical_pipeline_step_id": package["gate_projection"][
+                "canonical_pipeline_step_id"
+            ],
             "source": "unit_test",
         },
         storage_proof={
@@ -1117,9 +1181,10 @@ def test_structured_fee_rows_populate_parameter_table_with_metadata_but_remain_n
 
     parameter_rows = endpoint["economic_trace"]["parameter_table"]
     assert len(parameter_rows) == 2
-    assert {
-        row["name"] for row in parameter_rows
-    } == {"commercial_linkage_fee_office_large", "commercial_linkage_fee_retail"}
+    assert {row["name"] for row in parameter_rows} == {
+        "commercial_linkage_fee_office_large",
+        "commercial_linkage_fee_retail",
+    }
     for row in parameter_rows:
         assert row["metadata"]["category"] in {"office_large", "retail"}
         assert row["metadata"]["effective_date"] == "2020-09-01"
@@ -1127,7 +1192,10 @@ def test_structured_fee_rows_populate_parameter_table_with_metadata_but_remain_n
         assert row["metadata"]["time_horizon"] == "effective_2020-09-01"
 
     assert endpoint["economic_readiness"]["parameter_readiness"]["status"] == "pass"
-    assert endpoint["economic_readiness"]["assumption_readiness"]["status"] in {"pass", "fail"}
+    assert endpoint["economic_readiness"]["assumption_readiness"]["status"] in {
+        "pass",
+        "fail",
+    }
     assert endpoint["economic_readiness"]["model_readiness"]["status"] == "pass"
     assert endpoint["economic_readiness"]["uncertainty_readiness"]["status"] == "fail"
     assert endpoint["decision_grade_verdict"] == "not_decision_grade"
@@ -1146,7 +1214,10 @@ def test_direct_sqft_fee_parameters_generate_source_bound_model_card() -> None:
         "model_cards": [
             {
                 **model_card,
-                "input_parameter_ids": ["param-fee-office-small", "param-fee-office-large"],
+                "input_parameter_ids": [
+                    "param-fee-office-small",
+                    "param-fee-office-large",
+                ],
             }
         ],
         "parameter_cards": [
@@ -1197,10 +1268,15 @@ def test_direct_sqft_fee_parameters_generate_source_bound_model_card() -> None:
     totals = direct_model_card["arithmetic"]["total_direct_fee_usd"]
     assert totals["low"] <= totals["base"] <= totals["high"]
     assert len(direct_model_card["source_refs"]) == 2
-    assert endpoint["economic_readiness"]["direct_model_card_readiness"]["status"] == "pass"
+    assert (
+        endpoint["economic_readiness"]["direct_model_card_readiness"]["status"]
+        == "pass"
+    )
 
 
-def test_direct_model_card_keeps_household_conclusion_fail_closed_without_pass_through_assumptions() -> None:
+def test_direct_model_card_keeps_household_conclusion_fail_closed_without_pass_through_assumptions() -> (
+    None
+):
     bundle = PolicyEconomicMechanismCaseService().build_case_bundle()
     direct = _case(bundle, "direct_cost_case")
     model_card = dict(direct["primary_package"]["model_cards"][0])
@@ -1240,8 +1316,12 @@ def test_direct_model_card_keeps_household_conclusion_fail_closed_without_pass_t
         },
         llm_narrative_proof={
             "proof_status": "pass",
-            "canonical_pipeline_run_id": package["gate_projection"]["canonical_pipeline_run_id"],
-            "canonical_pipeline_step_id": package["gate_projection"]["canonical_pipeline_step_id"],
+            "canonical_pipeline_run_id": package["gate_projection"][
+                "canonical_pipeline_run_id"
+            ],
+            "canonical_pipeline_step_id": package["gate_projection"][
+                "canonical_pipeline_step_id"
+            ],
             "source": "unit_test",
         },
         storage_proof={
@@ -1274,9 +1354,15 @@ def test_direct_model_card_keeps_household_conclusion_fail_closed_without_pass_t
         handoff["quantification_paths"]["direct_project_fee_exposure"]["status"]
         == "analysis_ready"
     )
-    assert handoff["quantification_paths"]["household_cost_of_living"]["status"] == "not_analysis_ready"
+    assert (
+        handoff["quantification_paths"]["household_cost_of_living"]["status"]
+        == "not_analysis_ready"
+    )
     assert endpoint["secondary_research_needs"]["status"] == "required"
-    assert endpoint["secondary_research_needs"]["reason_code"] == "pass_through_incidence_assumptions_missing"
+    assert (
+        endpoint["secondary_research_needs"]["reason_code"]
+        == "pass_through_incidence_assumptions_missing"
+    )
     assert endpoint["recommended_next_action"] in {
         "run_secondary_research",
         "ingest_official_attachments",
@@ -1292,7 +1378,9 @@ def test_direct_model_card_keeps_household_conclusion_fail_closed_without_pass_t
     assert moat_value["stored_not_economic"] is False
 
 
-def test_source_grounded_non_economic_package_is_stored_not_economic_not_failure() -> None:
+def test_source_grounded_non_economic_package_is_stored_not_economic_not_failure() -> (
+    None
+):
     bundle = PolicyEconomicMechanismCaseService().build_case_bundle()
     direct = _case(bundle, "direct_cost_case")
     package = {
@@ -1325,8 +1413,12 @@ def test_source_grounded_non_economic_package_is_stored_not_economic_not_failure
         },
         llm_narrative_proof={
             "proof_status": "pass",
-            "canonical_pipeline_run_id": package["gate_projection"]["canonical_pipeline_run_id"],
-            "canonical_pipeline_step_id": package["gate_projection"]["canonical_pipeline_step_id"],
+            "canonical_pipeline_run_id": package["gate_projection"][
+                "canonical_pipeline_run_id"
+            ],
+            "canonical_pipeline_step_id": package["gate_projection"][
+                "canonical_pipeline_step_id"
+            ],
             "source": "unit_test",
         },
         storage_proof={
@@ -1361,8 +1453,14 @@ def test_source_grounded_non_economic_package_is_stored_not_economic_not_failure
         "row_quality_gap",
         "economic_row_parameter_depth",
     }
-    assert endpoint["readiness_layers"]["stored_policy_evidence_value"] == "stored_not_economic"
-    assert endpoint["readiness_layers"]["economic_handoff_readiness"] == "not_analysis_ready"
+    assert (
+        endpoint["readiness_layers"]["stored_policy_evidence_value"]
+        == "stored_not_economic"
+    )
+    assert (
+        endpoint["readiness_layers"]["economic_handoff_readiness"]
+        == "not_analysis_ready"
+    )
     assert endpoint["readiness_layers"]["economic_output_readiness"] == "not_proven"
     assert endpoint["economic_analysis_status"]["status"] in {
         "fail_closed",
@@ -1389,7 +1487,9 @@ def test_stored_not_economic_external_source_selection_remains_fail() -> None:
     assert moat_status["selected_artifact_family"] == "external_page"
 
 
-def test_wrong_jurisdiction_identity_blocks_economic_handoff_even_with_direct_fee_rows() -> None:
+def test_wrong_jurisdiction_identity_blocks_economic_handoff_even_with_direct_fee_rows() -> (
+    None
+):
     bundle = PolicyEconomicMechanismCaseService().build_case_bundle()
     direct = _case(bundle, "direct_cost_case")
     package = {
@@ -1421,8 +1521,12 @@ def test_wrong_jurisdiction_identity_blocks_economic_handoff_even_with_direct_fe
         },
         llm_narrative_proof={
             "proof_status": "pass",
-            "canonical_pipeline_run_id": package["gate_projection"]["canonical_pipeline_run_id"],
-            "canonical_pipeline_step_id": package["gate_projection"]["canonical_pipeline_step_id"],
+            "canonical_pipeline_run_id": package["gate_projection"][
+                "canonical_pipeline_run_id"
+            ],
+            "canonical_pipeline_step_id": package["gate_projection"][
+                "canonical_pipeline_step_id"
+            ],
             "source": "unit_test",
         },
         storage_proof={
@@ -1449,7 +1553,10 @@ def test_wrong_jurisdiction_identity_blocks_economic_handoff_even_with_direct_fe
     assert handoff["status"] == "not_analysis_ready"
     assert handoff["reason_code"] == "jurisdiction_identity_mismatch"
     assert handoff["source_identity_blocker"] is True
-    assert handoff["quantification_paths"]["direct_project_fee_exposure"]["status"] == "not_analysis_ready"
+    assert (
+        handoff["quantification_paths"]["direct_project_fee_exposure"]["status"]
+        == "not_analysis_ready"
+    )
 
     moat = endpoint["data_moat_status"]
     assert moat["runtime_ready"] is True
@@ -1478,7 +1585,10 @@ def test_fail_closed_handoff_is_specific_and_machine_actionable() -> None:
 
     assert endpoint["economic_analysis_status"]["status"] == "fail_closed"
     assert endpoint["economic_handoff_quality"]["status"] == "not_analysis_ready"
-    assert endpoint["economic_handoff_quality"]["reason_code"] == "unsupported_claim_risk_high"
+    assert (
+        endpoint["economic_handoff_quality"]["reason_code"]
+        == "unsupported_claim_risk_high"
+    )
     assert endpoint["economic_handoff_quality"]["fail_closed_specific"] is True
     assert endpoint["missing_parameters"]
     assert endpoint["secondary_research_needs"]["status"] == "not_required"
@@ -1517,8 +1627,12 @@ def test_data_moat_status_runtime_ready_but_quality_depth_fail_is_explicit() -> 
         },
         llm_narrative_proof={
             "proof_status": "pass",
-            "canonical_pipeline_run_id": package["gate_projection"]["canonical_pipeline_run_id"],
-            "canonical_pipeline_step_id": package["gate_projection"]["canonical_pipeline_step_id"],
+            "canonical_pipeline_run_id": package["gate_projection"][
+                "canonical_pipeline_run_id"
+            ],
+            "canonical_pipeline_step_id": package["gate_projection"][
+                "canonical_pipeline_step_id"
+            ],
             "source": "unit_test",
         },
         storage_proof={
@@ -1548,7 +1662,10 @@ def test_data_moat_status_runtime_ready_but_quality_depth_fail_is_explicit() -> 
     assert moat["source_quality_ready"] is False
     assert moat["structured_depth_ready"] is False
     assert moat["source_selection_blocker"] is True
-    assert moat["source_selection_reason"] == "official_page_selected_while_artifact_candidates_exist"
+    assert (
+        moat["source_selection_reason"]
+        == "official_page_selected_while_artifact_candidates_exist"
+    )
     assert moat["true_structured_row_count"] == 0
     assert moat["missing_true_structured_corroboration_count"] == 2
     blocker_codes = {item["code"] for item in moat["blockers"]}
@@ -1561,7 +1678,9 @@ def test_data_moat_status_runtime_ready_but_quality_depth_fail_is_explicit() -> 
     assert endpoint["data_moat_value"]["economic_analysis_ready"] is False
 
 
-def test_cycle_33_identity_ready_official_page_without_attachment_rows_requires_ingest() -> None:
+def test_cycle_33_identity_ready_official_page_without_attachment_rows_requires_ingest() -> (
+    None
+):
     bundle = PolicyEconomicMechanismCaseService().build_case_bundle()
     direct = _case(bundle, "direct_cost_case")
     package = {
@@ -1596,8 +1715,12 @@ def test_cycle_33_identity_ready_official_page_without_attachment_rows_requires_
         },
         llm_narrative_proof={
             "proof_status": "pass",
-            "canonical_pipeline_run_id": package["gate_projection"]["canonical_pipeline_run_id"],
-            "canonical_pipeline_step_id": package["gate_projection"]["canonical_pipeline_step_id"],
+            "canonical_pipeline_run_id": package["gate_projection"][
+                "canonical_pipeline_run_id"
+            ],
+            "canonical_pipeline_step_id": package["gate_projection"][
+                "canonical_pipeline_step_id"
+            ],
             "source": "unit_test",
         },
         storage_proof={
@@ -1633,7 +1756,9 @@ def test_cycle_33_identity_ready_official_page_without_attachment_rows_requires_
     assert endpoint["recommended_next_action"] == "ingest_official_attachments"
 
 
-def test_attachment_rows_can_satisfy_structured_depth_without_secondary_search_credit() -> None:
+def test_attachment_rows_can_satisfy_structured_depth_without_secondary_search_credit() -> (
+    None
+):
     bundle = PolicyEconomicMechanismCaseService().build_case_bundle()
     direct = _case(bundle, "direct_cost_case")
     package = {
@@ -1710,8 +1835,12 @@ def test_attachment_rows_can_satisfy_structured_depth_without_secondary_search_c
         },
         llm_narrative_proof={
             "proof_status": "pass",
-            "canonical_pipeline_run_id": package["gate_projection"]["canonical_pipeline_run_id"],
-            "canonical_pipeline_step_id": package["gate_projection"]["canonical_pipeline_step_id"],
+            "canonical_pipeline_run_id": package["gate_projection"][
+                "canonical_pipeline_run_id"
+            ],
+            "canonical_pipeline_step_id": package["gate_projection"][
+                "canonical_pipeline_step_id"
+            ],
             "source": "unit_test",
         },
         storage_proof={
@@ -1773,12 +1902,17 @@ def test_attachment_rows_can_satisfy_structured_depth_without_secondary_search_c
     assert moat["attachment_economic_row_count"] == 3
     assert moat["official_attachment_failure_counts"]["binary_pdf_unparsed"] == 1
     assert moat["official_attachment_parse_anomaly_count"] == 1
-    assert moat["official_attachment_parse_anomalies"][0]["raw_value"] == "Residential Care $ 18.706.00"
+    assert (
+        moat["official_attachment_parse_anomalies"][0]["raw_value"]
+        == "Residential Care $ 18.706.00"
+    )
     assert endpoint["economic_handoff_quality"]["status"] == "analysis_ready_with_gaps"
     assert endpoint["recommended_next_action"] != "ingest_official_attachments"
 
 
-def test_cycle_34_official_attachment_refs_without_content_or_rows_requires_pdf_parse() -> None:
+def test_cycle_34_official_attachment_refs_without_content_or_rows_requires_pdf_parse() -> (
+    None
+):
     bundle = PolicyEconomicMechanismCaseService().build_case_bundle()
     direct = _case(bundle, "direct_cost_case")
     package = {
@@ -1868,8 +2002,12 @@ def test_cycle_34_official_attachment_refs_without_content_or_rows_requires_pdf_
         },
         llm_narrative_proof={
             "proof_status": "pass",
-            "canonical_pipeline_run_id": package["gate_projection"]["canonical_pipeline_run_id"],
-            "canonical_pipeline_step_id": package["gate_projection"]["canonical_pipeline_step_id"],
+            "canonical_pipeline_run_id": package["gate_projection"][
+                "canonical_pipeline_run_id"
+            ],
+            "canonical_pipeline_step_id": package["gate_projection"][
+                "canonical_pipeline_step_id"
+            ],
             "source": "unit_test",
         },
         storage_proof={
@@ -1907,7 +2045,9 @@ def test_cycle_34_official_attachment_refs_without_content_or_rows_requires_pdf_
     assert endpoint["recommended_next_action"] == "parse_official_attachment_pdfs"
 
 
-def test_cycle_38_row_quality_gaps_are_explicit_and_block_decision_grade_cleanliness() -> None:
+def test_cycle_38_row_quality_gaps_are_explicit_and_block_decision_grade_cleanliness() -> (
+    None
+):
     bundle = PolicyEconomicMechanismCaseService().build_case_bundle()
     direct = _case(bundle, "direct_cost_case")
     package = {
@@ -1976,8 +2116,12 @@ def test_cycle_38_row_quality_gaps_are_explicit_and_block_decision_grade_cleanli
         },
         llm_narrative_proof={
             "proof_status": "pass",
-            "canonical_pipeline_run_id": package["gate_projection"]["canonical_pipeline_run_id"],
-            "canonical_pipeline_step_id": package["gate_projection"]["canonical_pipeline_step_id"],
+            "canonical_pipeline_run_id": package["gate_projection"][
+                "canonical_pipeline_run_id"
+            ],
+            "canonical_pipeline_step_id": package["gate_projection"][
+                "canonical_pipeline_step_id"
+            ],
             "source": "unit_test",
         },
         storage_proof={
@@ -2072,7 +2216,10 @@ def test_cycle_38_row_quality_gaps_are_explicit_and_block_decision_grade_cleanli
         handoff["quantification_paths"]["household_cost_of_living"]["status"]
         == "not_analysis_ready"
     )
-    assert endpoint["gates"]["economic_analysis_readiness"]["row_quality_gate_status"] == "fail"
+    assert (
+        endpoint["gates"]["economic_analysis_readiness"]["row_quality_gate_status"]
+        == "fail"
+    )
     assert endpoint["recommended_next_action"] != "run_direct_analysis"
 
 
@@ -2133,9 +2280,15 @@ def test_artifact_grade_is_not_sufficient_without_identity_ready() -> None:
     assert moat["source_quality_ready"] is False
 
 
-def test_identity_confirmed_official_or_matter_sources_can_pass_identity_quality() -> None:
-    official_page_moat = _build_identity_data_moat("cycle_32_identity_confirmed_official_page")
-    matter_moat = _build_identity_data_moat("cycle_32_identity_confirmed_matter_7526_artifact")
+def test_identity_confirmed_official_or_matter_sources_can_pass_identity_quality() -> (
+    None
+):
+    official_page_moat = _build_identity_data_moat(
+        "cycle_32_identity_confirmed_official_page"
+    )
+    matter_moat = _build_identity_data_moat(
+        "cycle_32_identity_confirmed_matter_7526_artifact"
+    )
 
     for moat in (official_page_moat, matter_moat):
         assert moat["source_selection_blocker"] is False
@@ -2146,7 +2299,9 @@ def test_identity_confirmed_official_or_matter_sources_can_pass_identity_quality
         }
 
 
-def test_wrong_jurisdiction_parameter_cards_do_not_count_as_source_grounded_handoff() -> None:
+def test_wrong_jurisdiction_parameter_cards_do_not_count_as_source_grounded_handoff() -> (
+    None
+):
     moat = _build_identity_data_moat("cycle_32_wrong_jurisdiction_artifact")
 
     assert moat["source_selection_blocker"] is True
@@ -2165,3 +2320,106 @@ def test_data_moat_surfaces_named_identity_mismatch_blocker_code() -> None:
         "repair_source_identity",
         "improve_policy_identity_matching",
     }
+
+
+def test_data_moat_blocks_when_official_dominance_or_freshness_drift_fails() -> None:
+    bundle = PolicyEconomicMechanismCaseService().build_case_bundle()
+    direct = _case(bundle, "direct_cost_case")
+    package = {
+        **direct["primary_package"],
+        "source_identity_rules": {"ruleset_version": "test-rules.v1"},
+        "source_identity_classifications": [
+            {
+                "classification_id": "cls-1",
+                "source_url": "https://www.planetizen.com/news/2026/01/local-fee-update",
+                "source_officialness": "external_news",
+                "source_of_truth_role": "primary_external_promoted",
+                "jurisdiction_match": "exact",
+                "policy_family_match": "exact",
+                "external_context_allowed": True,
+                "primary_evidence_allowed": True,
+                "derived_via_secondary_search": True,
+                "promotion_rule_id": "ext-promote-002",
+                "promotion_audit_status": "approved",
+                "reason_codes": ["external_promotion_audit_approved"],
+            }
+        ],
+        "source_official_dominance": {
+            "status": "fail",
+            "failure_codes": [
+                "official_dominance_corpus_hard_fail",
+                "secondary_provider_primary_cap_exceeded_corpus",
+            ],
+        },
+        "source_freshness_drift": {
+            "records": [
+                {
+                    "classification_id": "cls-1",
+                    "source_url": "https://www.planetizen.com/news/2026/01/local-fee-update",
+                    "retrieved_at": "2026-01-01T00:00:00+00:00",
+                    "source_date_fields": {"published_date": "2026-01-01"},
+                    "cadence": "weekly",
+                    "last_successful_refresh": "2026-01-01T00:00:00+00:00",
+                    "source_shape_fingerprint": "abc",
+                    "source_shape_changed": True,
+                    "update_cadence_drift": True,
+                    "stale_for_policy_use": True,
+                    "next_refresh_recommendation": "refresh_immediately",
+                }
+            ],
+            "stale_source_count": 1,
+            "source_shape_changed_count": 1,
+            "update_cadence_drift_count": 1,
+            "freshness_gate_status": "stale_blocked",
+        },
+        "external_source_promotion_register": [
+            {
+                "package_id": direct["primary_package"]["package_id"],
+                "source_url": "https://www.planetizen.com/news/2026/01/local-fee-update",
+                "rule_id": "ext-promote-002",
+                "reason": "Documented legal publication exception.",
+                "audit_status": "approved",
+            }
+        ],
+        "source_quality_metrics": {
+            "policy_identity_ready": True,
+            "jurisdiction_identity_ready": True,
+            "selected_artifact_family": "news_article",
+            "top_n_artifact_recall_count": 1,
+            "official_source_dominance": {
+                "status": "fail",
+                "failure_codes": [
+                    "official_dominance_corpus_hard_fail",
+                    "secondary_provider_primary_cap_exceeded_corpus",
+                ],
+            },
+        },
+        "source_reconciliation": {
+            "true_structured_row_count": 0,
+            "official_attachment_row_count": 0,
+            "stale_source_count": 1,
+            "source_shape_changed_count": 1,
+            "update_cadence_drift_count": 1,
+        },
+    }
+    endpoint = PolicyEvidenceQualitySpineEconomicsService().build_endpoint_read_model(
+        matrix_input=MatrixInput(
+            payload=_matrix_with_runtime_evidence(package),
+            source_path="horizontal_matrix.json",
+            source_mode="agent_a_horizontal_matrix",
+        ),
+        package_id=package["package_id"],
+        source_family="meeting_minutes",
+    )
+
+    moat = endpoint["data_moat_status"]
+    blocker_codes = {
+        item["code"]
+        for item in moat["blockers"]
+        if isinstance(item, dict) and "code" in item
+    }
+    assert "official_source_dominance_failed" in blocker_codes
+    assert "freshness_or_source_shape_drift_blocker" in blocker_codes
+    assert moat["source_quality_ready"] is False
+    assert endpoint["official_source_dominance"]["status"] == "fail"
+    assert endpoint["source_freshness_drift"]["stale_source_count"] == 1

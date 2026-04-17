@@ -13,6 +13,7 @@ from urllib.parse import parse_qs, quote_plus, unquote, urljoin, urlparse
 
 import httpx
 
+from services.pipeline.non_fee_extraction_templates import extract_non_fee_policy_facts
 from services.pipeline.structured_source_catalog import san_jose_structured_source_catalog
 
 
@@ -23,6 +24,11 @@ def _utc_now_iso() -> str:
 def _is_san_jose_jurisdiction(value: str) -> bool:
     normalized = value.strip().lower().replace(" ", "_")
     return "san_jose" in normalized or "san-jose" in normalized
+
+
+def _is_california_state_jurisdiction(value: str) -> bool:
+    normalized = value.strip().lower().replace(" ", "_")
+    return normalized in {"california", "california_state", "ca_state"} or "california" in normalized
 
 
 def _policy_match_key_for_url(value: str) -> str:
@@ -132,7 +138,7 @@ class StructuredEnrichmentResult:
 
 
 class StructuredSourceEnricher:
-    """Runtime structured-source collector for San Jose source families."""
+    """Runtime structured-source collector for jurisdiction-aware source families."""
 
     def __init__(
         self, *, timeout_seconds: float = 4.0, tavily_api_key: str | None = None
@@ -150,63 +156,73 @@ class StructuredSourceEnricher:
         selected_candidate_context: str = "",
     ) -> StructuredEnrichmentResult:
         catalog = san_jose_structured_source_catalog()
-        if not _is_san_jose_jurisdiction(jurisdiction):
-            return StructuredEnrichmentResult(
-                status="not_applicable",
-                candidates=[],
-                alerts=["structured_enrichment_skipped_non_san_jose_jurisdiction"],
-                source_catalog=catalog,
-            )
-
         candidates: list[dict[str, Any]] = []
         alerts: list[str] = []
+        supported_jurisdiction = _is_san_jose_jurisdiction(jurisdiction) or _is_california_state_jurisdiction(
+            jurisdiction
+        )
+        if supported_jurisdiction:
+            async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
+                if _is_san_jose_jurisdiction(jurisdiction):
+                    legistar_matter_candidate = await self._fetch_legistar_matter_metadata(
+                        client=client,
+                        selected_url=selected_url,
+                        search_query=search_query,
+                        selected_candidate_context=selected_candidate_context,
+                    )
+                    if legistar_matter_candidate:
+                        candidates.append(legistar_matter_candidate)
+                    else:
+                        legistar_event_candidate = await self._fetch_legistar_event_metadata(client=client)
+                        if legistar_event_candidate:
+                            candidates.append(legistar_event_candidate)
+                        else:
+                            alerts.append("structured_enrichment_legistar_unavailable")
 
-        async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
-            legistar_matter_candidate = await self._fetch_legistar_matter_metadata(
-                client=client,
-                selected_url=selected_url,
-                search_query=search_query,
-                selected_candidate_context=selected_candidate_context,
-            )
-            if legistar_matter_candidate:
-                candidates.append(legistar_matter_candidate)
-            else:
-                legistar_event_candidate = await self._fetch_legistar_event_metadata(client=client)
-                if legistar_event_candidate:
-                    candidates.append(legistar_event_candidate)
+                    ckan_candidate = await self._fetch_san_jose_ckan_metadata(
+                        client=client,
+                        search_query=search_query,
+                        selected_url=selected_url,
+                    )
+                    if ckan_candidate:
+                        candidates.append(ckan_candidate)
+                    else:
+                        alerts.append("structured_enrichment_ckan_unavailable")
+
+                    if self._should_probe_tavily_secondary(
+                        source_family=source_family,
+                        search_query=search_query,
+                        selected_url=selected_url,
+                    ):
+                        tavily_candidate = await self._fetch_tavily_secondary_fee_metadata(
+                            client=client,
+                            source_family=source_family,
+                            search_query=search_query,
+                            selected_url=selected_url,
+                        )
+                        if tavily_candidate:
+                            candidates.append(tavily_candidate)
+                        else:
+                            alerts.append("structured_enrichment_tavily_secondary_unavailable")
                 else:
-                    alerts.append("structured_enrichment_legistar_unavailable")
+                    california_candidate = await self._fetch_california_ckan_metadata(
+                        client=client,
+                        jurisdiction=jurisdiction,
+                        search_query=search_query,
+                        selected_url=selected_url,
+                        selected_candidate_context=selected_candidate_context,
+                    )
+                    if california_candidate:
+                        candidates.append(california_candidate)
+                    else:
+                        alerts.append("structured_enrichment_california_ckan_unavailable")
+        else:
+            alerts.append("structured_enrichment_skipped_unsupported_jurisdiction")
 
-            ckan_candidate = await self._fetch_san_jose_ckan_metadata(
-                client=client,
-                search_query=search_query,
-                selected_url=selected_url,
-            )
-            if ckan_candidate:
-                candidates.append(ckan_candidate)
-            else:
-                alerts.append("structured_enrichment_ckan_unavailable")
-
-            if self._should_probe_tavily_secondary(
-                source_family=source_family,
-                search_query=search_query,
-                selected_url=selected_url,
-            ):
-                tavily_candidate = await self._fetch_tavily_secondary_fee_metadata(
-                    client=client,
-                    source_family=source_family,
-                    search_query=search_query,
-                    selected_url=selected_url,
-                )
-                if tavily_candidate:
-                    candidates.append(tavily_candidate)
-                else:
-                    alerts.append("structured_enrichment_tavily_secondary_unavailable")
-
-        status = "integrated" if candidates else "unavailable"
-        if not candidates and selected_url:
+        status = "integrated" if candidates else ("unavailable" if supported_jurisdiction else "not_applicable")
+        if not candidates and selected_url and supported_jurisdiction:
             alerts.append("structured_enrichment_no_candidates_for_selected_url_context")
-        _ = source_family
+        _ = source_family  # reserved for runtime route selection
         source_catalog = self._annotate_source_catalog(
             catalog=catalog,
             candidates=candidates,
@@ -235,6 +251,7 @@ class StructuredSourceEnricher:
         unavailable_by_alert = {
             "san_jose_open_data_ckan": "structured_enrichment_ckan_unavailable",
             "legistar_web_api": "structured_enrichment_legistar_unavailable",
+            "california_open_data_ckan": "structured_enrichment_california_ckan_unavailable",
         }
         alert_set = set(alerts)
         annotated: list[dict[str, Any]] = []
@@ -555,6 +572,44 @@ class StructuredSourceEnricher:
             if url.startswith("http://") or url.startswith("https://"):
                 urls.append(url)
         return urls
+
+    @staticmethod
+    def _non_fee_template_metadata(
+        facts: list[dict[str, Any]],
+    ) -> tuple[list[str], list[str], str, str | None]:
+        policy_families = sorted(
+            {
+                str(fact.get("policy_family") or "").strip()
+                for fact in facts
+                if str(fact.get("policy_family") or "").strip()
+            }
+        )
+        evidence_uses = sorted(
+            {
+                str(fact.get("evidence_use") or "").strip()
+                for fact in facts
+                if str(fact.get("evidence_use") or "").strip()
+            }
+        )
+        relevance_values = [
+            str(fact.get("economic_relevance") or "").strip()
+            for fact in facts
+            if str(fact.get("economic_relevance") or "").strip()
+        ]
+        relevance_priority = {"direct": 0, "indirect": 1, "contextual": 2, "none": 3, "unknown": 4}
+        economic_relevance = sorted(
+            relevance_values,
+            key=lambda value: relevance_priority.get(value, 99),
+        )[0] if relevance_values else "unknown"
+        moat_reason = next(
+            (
+                str(fact.get("moat_value_reason") or "").strip()
+                for fact in facts
+                if str(fact.get("moat_value_reason") or "").strip()
+            ),
+            None,
+        )
+        return policy_families, evidence_uses, economic_relevance, moat_reason
 
     @staticmethod
     def _is_high_value_attachment_ref(attachment_ref: dict[str, Any]) -> bool:
@@ -1575,6 +1630,27 @@ class StructuredSourceEnricher:
         top_dataset_urls = self._resource_urls(top_dataset)
         top_dataset_url = top_dataset_urls[0]
         resource_count = len(top_dataset_urls)
+        retrieved_at = _utc_now_iso()
+        template_context = " ".join(
+            [
+                safe_query,
+                str(top_dataset.get("title") or ""),
+                str(top_dataset.get("notes") or ""),
+                " ".join(str(row.get("title") or "") for row in relevant_rows[:3]),
+            ]
+        ).strip()
+        non_fee_facts = extract_non_fee_policy_facts(
+            text=template_context,
+            source_url=top_dataset_url,
+            source_family="san_jose_open_data_ckan",
+            jurisdiction="san_jose_ca",
+            retrieved_at=retrieved_at,
+            source_locator_prefix="structured_template:san_jose_open_data_ckan",
+            geography="san_jose_ca",
+        )
+        policy_families, evidence_uses, economic_relevance, moat_reason = self._non_fee_template_metadata(
+            non_fee_facts
+        )
         facts: list[dict[str, Any]] = [
             {"field": "relevant_dataset_count", "value": float(len(relevant_rows)), "unit": "count"},
             {
@@ -1584,6 +1660,7 @@ class StructuredSourceEnricher:
             },
         ]
         facts.append({"field": "top_dataset_resource_count", "value": float(resource_count), "unit": "count"})
+        facts.extend(non_fee_facts)
 
         return {
             "source_lane": "structured",
@@ -1594,12 +1671,13 @@ class StructuredSourceEnricher:
             "artifact_url": top_dataset_url if top_dataset_url.startswith("http") else endpoint,
             "artifact_type": "open_data_catalog_metadata",
             "source_tier": "tier_b",
-            "retrieved_at": _utc_now_iso(),
+            "retrieved_at": retrieved_at,
             "query_text": safe_query,
             "excerpt": (
                 "Structured CKAN metadata from San Jose Open Data; "
                 f"query='{safe_query}', relevant_datasets={len(relevant_rows)}, "
-                f"relevant_with_resource_urls={len(with_resource_urls)}."
+                f"relevant_with_resource_urls={len(with_resource_urls)}, "
+                f"non_fee_template_facts={len(non_fee_facts)}."
             ),
             "structured_policy_facts": facts,
             "diagnostic_facts": [
@@ -1611,11 +1689,148 @@ class StructuredSourceEnricher:
             "policy_match_key": _policy_match_key_for_url(selected_url),
             "policy_match_confidence": 0.45,
             "reconciliation_status": "contextual_metadata_linked_to_policy_query",
+            "policy_families": policy_families,
+            "policy_family": policy_families[0] if policy_families else None,
+            "evidence_uses": evidence_uses,
+            "evidence_use": evidence_uses[0] if evidence_uses else None,
+            "economic_relevance": economic_relevance,
+            "moat_value_reason": moat_reason,
             "lineage_metadata": {
                 "jurisdiction": "san_jose_ca",
                 "matter_id": None,
                 "event_date": None,
                 "event_body_id": None,
                 "source_identity": "san_jose_open_data_ckan",
+            },
+        }
+
+    async def _fetch_california_ckan_metadata(
+        self,
+        *,
+        client: httpx.AsyncClient,
+        jurisdiction: str,
+        search_query: str,
+        selected_url: str,
+        selected_candidate_context: str,
+    ) -> dict[str, Any] | None:
+        safe_query = search_query.strip() or "zoning policy"
+        endpoint = (
+            "https://data.ca.gov/api/3/action/package_search"
+            f"?q={quote_plus(safe_query)}&rows=5"
+        )
+        try:
+            response = await client.get(endpoint)
+            response.raise_for_status()
+            payload = response.json()
+        except (httpx.HTTPError, ValueError):
+            return None
+        if not isinstance(payload, dict) or payload.get("success") is not True:
+            return None
+        result = payload.get("result")
+        if not isinstance(result, dict):
+            return None
+        total_count = result.get("count")
+        rows = result.get("results")
+        if not isinstance(total_count, int) or not isinstance(rows, list):
+            return None
+
+        row_dicts = [row for row in rows if isinstance(row, dict)]
+        relevant_rows = [
+            row
+            for row in row_dicts
+            if self._is_economic_dataset(
+                dataset=row,
+                search_query=f"{search_query} {selected_candidate_context}",
+                selected_url=selected_url,
+            )
+        ]
+        with_resource_urls = [row for row in relevant_rows if self._resource_urls(row)]
+        if not with_resource_urls:
+            return None
+
+        top_dataset = with_resource_urls[0]
+        top_dataset_urls = self._resource_urls(top_dataset)
+        top_dataset_url = top_dataset_urls[0]
+        retrieved_at = _utc_now_iso()
+        template_context = " ".join(
+            [
+                safe_query,
+                selected_candidate_context,
+                str(top_dataset.get("title") or ""),
+                str(top_dataset.get("notes") or ""),
+                " ".join(str(row.get("title") or "") for row in relevant_rows[:3]),
+            ]
+        ).strip()
+        non_fee_facts = extract_non_fee_policy_facts(
+            text=template_context,
+            source_url=top_dataset_url,
+            source_family="california_open_data_ckan",
+            jurisdiction=jurisdiction,
+            retrieved_at=retrieved_at,
+            source_locator_prefix="structured_template:california_open_data_ckan",
+            geography="california_state",
+        )
+        policy_families, evidence_uses, economic_relevance, moat_reason = self._non_fee_template_metadata(
+            non_fee_facts
+        )
+
+        facts: list[dict[str, Any]] = [
+            {
+                "field": "relevant_dataset_count",
+                "value": float(len(relevant_rows)),
+                "unit": "count",
+            },
+            {
+                "field": "relevant_dataset_with_resource_url_count",
+                "value": float(len(with_resource_urls)),
+                "unit": "count",
+            },
+            {
+                "field": "top_dataset_resource_count",
+                "value": float(len(top_dataset_urls)),
+                "unit": "count",
+            },
+        ]
+        facts.extend(non_fee_facts)
+
+        return {
+            "source_lane": "structured",
+            "provider": "california_open_data_ckan",
+            "source_family": "california_open_data_ckan",
+            "access_method": "ckan_api_json",
+            "jurisdiction": jurisdiction,
+            "artifact_url": top_dataset_url if top_dataset_url.startswith("http") else endpoint,
+            "artifact_type": "open_data_catalog_metadata",
+            "source_tier": "tier_b",
+            "retrieved_at": retrieved_at,
+            "query_text": safe_query,
+            "excerpt": (
+                "Structured CKAN metadata from California Open Data; "
+                f"query='{safe_query}', relevant_datasets={len(relevant_rows)}, "
+                f"relevant_with_resource_urls={len(with_resource_urls)}, "
+                f"non_fee_template_facts={len(non_fee_facts)}."
+            ),
+            "structured_policy_facts": facts,
+            "diagnostic_facts": [
+                {"field": "dataset_match_count_raw", "value": float(total_count), "unit": "count"}
+            ],
+            "provider_run_id": str(total_count),
+            "linked_artifact_refs": top_dataset_urls,
+            "true_structured": True,
+            "policy_match_key": _policy_match_key_for_url(selected_url or top_dataset_url),
+            "policy_match_confidence": 0.4,
+            "reconciliation_status": "contextual_metadata_linked_to_policy_query",
+            "policy_families": policy_families,
+            "policy_family": policy_families[0] if policy_families else None,
+            "evidence_uses": evidence_uses,
+            "evidence_use": evidence_uses[0] if evidence_uses else None,
+            "economic_relevance": economic_relevance,
+            "moat_value_reason": moat_reason,
+            "lineage_metadata": {
+                "jurisdiction": jurisdiction,
+                "matter_id": None,
+                "event_date": None,
+                "event_body_id": None,
+                "source_identity": "california_open_data_ckan",
             },
         }
