@@ -134,6 +134,12 @@ _IDENTITY_LINKED_ATTACHMENT_FAMILIES = {
     "fee_schedule",
 }
 _JURISDICTION_BLOCKLIST_SIGNALS = ("los altos",)
+_ROW_QUALITY_STRICT_LOCATOR_QUALITIES = {
+    "attachment_probe_excerpt",
+    "chunk_locator_only",
+    "page_locator_only",
+}
+_UNKNOWN_LAND_USE_VALUES = {"", "unknown", "other", "n/a", "na", "none", "null"}
 
 
 def _utc_now() -> datetime:
@@ -2395,6 +2401,64 @@ class RailwayRuntimeBridge:
         return signals
 
     @staticmethod
+    def _has_per_square_foot_signal_for_row(fact: dict[str, Any]) -> bool:
+        unit = str(fact.get("unit") or "").strip().lower()
+        denominator = str(fact.get("denominator") or "").strip().lower()
+        if "square_foot" in unit or "square foot" in unit:
+            return True
+        if denominator in {"per_square_foot", "per_sq_ft", "per_sqft"}:
+            return True
+        signal_text = " ".join(
+            [
+                str(fact.get("field") or "").strip().lower(),
+                str(fact.get("source_excerpt") or "").strip().lower(),
+                str(fact.get("raw_value") or "").strip().lower(),
+                str(fact.get("source_locator") or "").strip().lower(),
+                str(fact.get("table_locator") or "").strip().lower(),
+            ]
+        )
+        return any(
+            token in signal_text
+            for token in (
+                "per square foot",
+                "per sq ft",
+                "per sq. ft",
+                "usd_per_square_foot",
+                "/sf",
+                "psf",
+            )
+        )
+
+    @staticmethod
+    def _land_use_known_for_row(fact: dict[str, Any]) -> bool:
+        land_use = str(fact.get("land_use") or fact.get("category") or "").strip().lower()
+        return land_use not in _UNKNOWN_LAND_USE_VALUES
+
+    @classmethod
+    def _is_row_quality_approved_official_attachment(cls, fact: dict[str, Any]) -> bool:
+        locator_quality = str(fact.get("locator_quality") or "").strip().lower()
+        source_locator = str(fact.get("source_locator") or "").strip().lower()
+        has_strict_locator = (
+            locator_quality in _ROW_QUALITY_STRICT_LOCATOR_QUALITIES
+            or source_locator.startswith("attachment_probe:")
+        )
+        if not has_strict_locator:
+            return cls._land_use_known_for_row(fact)
+
+        has_table_locator = bool(str(fact.get("table_locator") or "").strip())
+        has_line_rate_locator = locator_quality == "attachment_probe_line_rate"
+        has_local_row_cue = has_table_locator or any(
+            cue in source_locator for cue in ("fee_table_row", "table_row", "row")
+        ) or has_line_rate_locator
+        if not has_local_row_cue:
+            return False
+        if not cls._has_per_square_foot_signal_for_row(fact):
+            return False
+        if not cls._land_use_known_for_row(fact):
+            return False
+        return True
+
+    @staticmethod
     def _sort_row_key(fact: dict[str, Any]) -> tuple[str, ...]:
         return (
             str(fact.get("field") or "").strip(),
@@ -2440,6 +2504,8 @@ class RailwayRuntimeBridge:
             return False
         locator_quality = str(fact.get("locator_quality") or "").strip().lower()
         if locator_quality == "locator_not_available":
+            return False
+        if not cls._is_row_quality_approved_official_attachment(fact):
             return False
         source_family = str(fact.get("source_family") or "").strip().lower()
         if source_family in {"tavily_secondary_search", "exa_secondary_search"}:
@@ -2570,6 +2636,17 @@ class RailwayRuntimeBridge:
                 "source_family": str(fact.get("source_family") or "").strip() or None,
             }
             row_payload["fail_closed_signals"] = cls._locator_fail_closed_signals(row_payload)
+            row_quality_approved = cls._is_row_quality_approved_official_attachment(row_payload)
+            if not row_quality_approved:
+                row_payload["fail_closed_signals"] = list(
+                    dict.fromkeys(
+                        [
+                            *row_payload["fail_closed_signals"],
+                            "row_quality_not_approved_for_economic_handoff",
+                        ]
+                    )
+                )
+            row_payload["row_quality_approved"] = row_quality_approved
             value_token = (
                 f"{normalized_value:.6f}"
                 if normalized_value is not None

@@ -643,6 +643,26 @@ class PolicyEvidenceQualitySpineEconomicsService:
                 "economic_analysis_readiness": {
                     "status": readiness_status,
                     "reason": readiness_reason,
+                    "reason_code": economic_handoff_quality.get("reason_code"),
+                    "blocked_by": economic_handoff_quality.get("blocked_by"),
+                    "blocked_by_row_quality": economic_handoff_quality.get(
+                        "blocked_by_row_quality"
+                    ),
+                    "blocked_by_economic_assumptions": economic_handoff_quality.get(
+                        "blocked_by_economic_assumptions"
+                    ),
+                    "row_quality_gate_status": data_moat_status.get("row_quality_gate_status"),
+                    "decision_grade_blocked_by": data_moat_status.get("decision_grade_blocked_by"),
+                    "direct_project_fee_exposure_status": (
+                        economic_handoff_quality.get("quantification_paths", {})
+                        .get("direct_project_fee_exposure", {})
+                        .get("status")
+                    ),
+                    "household_cost_of_living_status": (
+                        economic_handoff_quality.get("quantification_paths", {})
+                        .get("household_cost_of_living", {})
+                        .get("status")
+                    ),
                     "refs": (
                         [{"key": "blocking_gate", "value": blocking_gate}]
                         if blocking_gate
@@ -1218,6 +1238,43 @@ class PolicyEvidenceQualitySpineEconomicsService:
         identity_blocker_code = str(identity_status.get("identity_blocker_code") or "")
         identity_blocker_reason = str(identity_status.get("identity_blocker_reason") or "")
         identity_blocked = bool(identity_blocker_code)
+        weak_row_count = max(
+            0,
+            PolicyEvidenceQualitySpineEconomicsService._to_non_negative_int(
+                source_reconciliation.get("row_quality_weak_row_count")
+                or source_reconciliation.get("weak_row_count")
+            ),
+        )
+        rejected_or_ambiguous_count = max(
+            0,
+            PolicyEvidenceQualitySpineEconomicsService._to_non_negative_int(
+                source_reconciliation.get("row_quality_rejected_or_ambiguous_count")
+                or source_reconciliation.get("rejected_or_ambiguous_row_count")
+            ),
+        )
+        official_attachment_parse_anomaly_count = max(
+            0,
+            PolicyEvidenceQualitySpineEconomicsService._to_non_negative_int(
+                source_reconciliation.get("official_attachment_parse_anomaly_count")
+            ),
+        )
+        official_attachment_failure_counts = {
+            str(key): max(
+                0,
+                PolicyEvidenceQualitySpineEconomicsService._to_non_negative_int(value),
+            )
+            for key, value in dict(
+                source_reconciliation.get("official_attachment_failure_counts") or {}
+            ).items()
+            if str(key).strip()
+        }
+        attachment_parse_failure_count = sum(official_attachment_failure_counts.values())
+        row_quality_gap = (
+            weak_row_count > 0
+            or rejected_or_ambiguous_count > 0
+            or official_attachment_parse_anomaly_count > 0
+            or attachment_parse_failure_count > 0
+        )
         official_attachment_row_count = max(
             0,
             PolicyEvidenceQualitySpineEconomicsService._to_non_negative_int(
@@ -1235,6 +1292,12 @@ class PolicyEvidenceQualitySpineEconomicsService:
         )
         household_incidence_missing = bool(
             secondary_research_needs.get("household_incidence_assumptions_missing")
+        )
+        assumption_gap = bool(
+            missing_parameters
+            or assumption_needs.get("missing_families")
+            or household_incidence_missing
+            or secondary_research_needs.get("status") == "required"
         )
 
         direct_scope_status = "not_analysis_ready"
@@ -1309,11 +1372,36 @@ class PolicyEvidenceQualitySpineEconomicsService:
         ):
             status = "not_analysis_ready"
             reason_code = "unsupported_claim_risk_high"
+        if (
+            row_quality_gap
+            and status == "analysis_ready_with_gaps"
+            and reason_code
+            in {
+                "direct_project_fee_ready_household_incidence_gap",
+                "official_attachment_rows_present_non_decision_grade",
+            }
+        ):
+            reason_code = "row_quality_gap_non_decision_grade"
+        blocked_by_row_quality = row_quality_gap and status != "analysis_ready"
+        blocked_by_economic_assumptions = assumption_gap and status != "analysis_ready"
+        if status == "analysis_ready":
+            blocked_by = "none"
+        elif identity_blocked:
+            blocked_by = "source_identity"
+        elif blocked_by_row_quality:
+            blocked_by = "row_quality"
+        elif blocked_by_economic_assumptions:
+            blocked_by = "economic_assumptions"
+        else:
+            blocked_by = "runtime_or_binding"
 
         return {
             "status": status,
             "legacy_status": "ready" if status == "analysis_ready" else "not_ready",
             "reason_code": reason_code,
+            "blocked_by": blocked_by,
+            "blocked_by_row_quality": blocked_by_row_quality,
+            "blocked_by_economic_assumptions": blocked_by_economic_assumptions,
             "quantification_paths": {
                 "direct_project_fee_exposure": {
                     "status": direct_scope_status,
@@ -1336,6 +1424,10 @@ class PolicyEvidenceQualitySpineEconomicsService:
             "analysis_state": analysis_state,
             "readiness_level": readiness_level,
             "official_attachment_row_count": official_attachment_row_count,
+            "row_quality_gap": row_quality_gap,
+            "row_quality_weak_row_count": weak_row_count,
+            "row_quality_rejected_or_ambiguous_count": rejected_or_ambiguous_count,
+            "attachment_parse_failure_count": attachment_parse_failure_count,
             "source_identity_blocker": identity_blocked,
             "source_identity_blocker_code": identity_blocker_code or None,
             "source_identity_blocker_reason": identity_blocker_reason or None,
@@ -1488,6 +1580,60 @@ class PolicyEvidenceQualitySpineEconomicsService:
         )
         if official_attachment_parse_anomaly_count == 0 and official_attachment_parse_anomalies:
             official_attachment_parse_anomaly_count = len(official_attachment_parse_anomalies)
+        row_quality_weak_row_count = max(
+            0,
+            PolicyEvidenceQualitySpineEconomicsService._to_non_negative_int(
+                source_reconciliation.get("row_quality_weak_row_count")
+                or source_reconciliation.get("weak_row_count")
+            ),
+        )
+        row_quality_rejected_or_ambiguous_count = max(
+            0,
+            PolicyEvidenceQualitySpineEconomicsService._to_non_negative_int(
+                source_reconciliation.get("row_quality_rejected_or_ambiguous_count")
+                or source_reconciliation.get("rejected_or_ambiguous_row_count")
+            ),
+        )
+        row_quality_ambiguous_count = max(
+            0,
+            PolicyEvidenceQualitySpineEconomicsService._to_non_negative_int(
+                source_reconciliation.get("row_quality_ambiguous_count")
+                or source_reconciliation.get("ambiguous_row_count")
+            ),
+        )
+        row_quality_rejected_count = max(
+            0,
+            PolicyEvidenceQualitySpineEconomicsService._to_non_negative_int(
+                source_reconciliation.get("row_quality_rejected_row_count")
+                or source_reconciliation.get("rejected_row_count")
+            ),
+        )
+        row_quality_authoritative_row_count = max(
+            0,
+            PolicyEvidenceQualitySpineEconomicsService._to_non_negative_int(
+                source_reconciliation.get("row_quality_authoritative_row_count")
+                or source_reconciliation.get("authoritative_row_count")
+            ),
+        )
+        row_quality_locator_quality_distribution = {
+            str(key): max(
+                0,
+                PolicyEvidenceQualitySpineEconomicsService._to_non_negative_int(value),
+            )
+            for key, value in dict(
+                source_reconciliation.get("row_quality_locator_quality_distribution")
+                or source_reconciliation.get("locator_quality_distribution")
+                or {}
+            ).items()
+            if str(key).strip()
+        }
+        attachment_parse_failure_count = sum(official_attachment_failure_counts.values())
+        row_quality_gap = (
+            row_quality_weak_row_count > 0
+            or row_quality_rejected_or_ambiguous_count > 0
+            or official_attachment_parse_anomaly_count > 0
+            or attachment_parse_failure_count > 0
+        )
         official_attachment_refs_present = (
             official_attachment_ref_count > 0
             or attachment_ref_count > 0
@@ -1507,6 +1653,7 @@ class PolicyEvidenceQualitySpineEconomicsService:
             and missing_true_structured_corroboration_count == 0
         )
         official_attachment_depth_ready = official_attachment_row_count > 0 and identity_ready
+        official_attachment_depth_clean = official_attachment_depth_ready and not row_quality_gap
         structured_depth_ready = true_structured_depth_ready or official_attachment_depth_ready
         runtime_ready = (
             taxonomy.get("storage/read-back", {}).get("status") == "pass"
@@ -1580,12 +1727,18 @@ class PolicyEvidenceQualitySpineEconomicsService:
                 }
             )
 
-        if decision_grade_verdict == "decision_grade":
+        if decision_grade_verdict == "decision_grade" and not row_quality_gap:
             status = "decision_grade_data_moat"
             reason = "all D0-D11 quality gates resolved for this package"
+            decision_grade_blocked_by = None
+        elif decision_grade_verdict == "decision_grade" and row_quality_gap:
+            status = "evidence_ready_with_gaps"
+            reason = "row-quality gaps block decision-grade data moat despite quantified package readiness"
+            decision_grade_blocked_by = "row_quality_gap"
         elif data_moat_component_ready:
             status = "evidence_ready_with_gaps"
             reason = "runtime and source depth requirements are met with non-decision-grade economic gaps"
+            decision_grade_blocked_by = None
         elif (
             runtime_ready
             and not source_selection_blocker
@@ -1596,15 +1749,20 @@ class PolicyEvidenceQualitySpineEconomicsService:
             reason = (
                 "authoritative official attachment rows are present, but non-decision-grade gates remain"
             )
+            decision_grade_blocked_by = None
         elif evidence_package_status == "fail" or moat_blockers:
             status = "fail"
             if moat_blockers:
                 reason = "package failed explicit data moat blockers despite runtime readiness"
             else:
                 reason = "package evidence quality failed one or more blocking gates"
+            decision_grade_blocked_by = None
         else:
             status = "evidence_ready_with_gaps"
             reason = "package is usable but still has named missing evidence or readiness gaps"
+            decision_grade_blocked_by = None
+        if row_quality_gap and decision_grade_blocked_by is None:
+            decision_grade_blocked_by = "row_quality_gap"
         return {
             "status": status,
             "overall_ready": status == "decision_grade_data_moat",
@@ -1613,9 +1771,20 @@ class PolicyEvidenceQualitySpineEconomicsService:
             "structured_depth_ready": structured_depth_ready,
             "true_structured_depth_ready": true_structured_depth_ready,
             "official_attachment_depth_ready": official_attachment_depth_ready,
+            "official_attachment_depth_clean": official_attachment_depth_clean,
             "economic_handoff_ready": economic_handoff_ready,
+            "economic_handoff_blocked_by_row_quality": bool(
+                economic_handoff_quality.get("blocked_by_row_quality")
+            ),
+            "economic_handoff_blocked_by_economic_assumptions": bool(
+                economic_handoff_quality.get("blocked_by_economic_assumptions")
+            ),
+            "economic_handoff_blocked_by": str(
+                economic_handoff_quality.get("blocked_by") or "runtime_or_binding"
+            ),
             "evidence_package_status": evidence_package_status,
             "decision_grade_verdict": decision_grade_verdict,
+            "decision_grade_blocked_by": decision_grade_blocked_by,
             "readiness_level": readiness_level,
             "named_gaps": required_evidence_gaps,
             "named_gap_count": len(required_evidence_gaps),
@@ -1643,6 +1812,7 @@ class PolicyEvidenceQualitySpineEconomicsService:
             "official_attachment_failure_counts": official_attachment_failure_counts,
             "official_attachment_parse_anomaly_count": official_attachment_parse_anomaly_count,
             "official_attachment_parse_anomalies": official_attachment_parse_anomalies,
+            "attachment_parse_failure_count": attachment_parse_failure_count,
             "official_attachment_refs_present": official_attachment_refs_present,
             "official_pdf_text_extracted": official_pdf_text_extracted,
             "official_attachment_rows_emitted": official_attachment_rows_emitted,
@@ -1650,6 +1820,14 @@ class PolicyEvidenceQualitySpineEconomicsService:
             "official_attachment_row_count": official_attachment_row_count,
             "secondary_search_row_count": secondary_search_row_count,
             "missing_true_structured_corroboration_count": missing_true_structured_corroboration_count,
+            "row_quality_gate_status": "fail" if row_quality_gap else "pass",
+            "row_quality_gap": row_quality_gap,
+            "row_quality_weak_row_count": row_quality_weak_row_count,
+            "row_quality_rejected_or_ambiguous_count": row_quality_rejected_or_ambiguous_count,
+            "row_quality_ambiguous_row_count": row_quality_ambiguous_count,
+            "row_quality_rejected_row_count": row_quality_rejected_count,
+            "row_quality_authoritative_row_count": row_quality_authoritative_row_count,
+            "row_quality_locator_quality_distribution": row_quality_locator_quality_distribution,
             "structured_depth_satisfied_by": [
                 family
                 for family, ready in (
@@ -1667,8 +1845,11 @@ class PolicyEvidenceQualitySpineEconomicsService:
                 "official_attachment": {
                     "row_count": official_attachment_row_count,
                     "satisfies_depth": official_attachment_depth_ready,
+                    "row_quality_gap": row_quality_gap,
                     "status": (
                         "satisfied"
+                        if official_attachment_depth_clean
+                        else "satisfied_with_row_quality_gaps"
                         if official_attachment_depth_ready
                         else "missing_or_identity_unlinked"
                     ),
@@ -1971,6 +2152,32 @@ class PolicyEvidenceQualitySpineEconomicsService:
         )
         payload.setdefault("official_attachment_parse_anomalies", parse_anomalies)
         payload.setdefault("official_attachment_parse_anomaly_count", len(parse_anomalies))
+        row_quality_summary = (
+            PolicyEvidenceQualitySpineEconomicsService._extract_row_quality_summary(
+                matrix_payload=matrix_payload
+            )
+        )
+        payload.setdefault(
+            "row_quality_authoritative_row_count",
+            row_quality_summary["authoritative_row_count"],
+        )
+        payload.setdefault("row_quality_weak_row_count", row_quality_summary["weak_row_count"])
+        payload.setdefault(
+            "row_quality_rejected_or_ambiguous_count",
+            row_quality_summary["rejected_or_ambiguous_count"],
+        )
+        payload.setdefault(
+            "row_quality_ambiguous_count",
+            row_quality_summary["ambiguous_count"],
+        )
+        payload.setdefault(
+            "row_quality_rejected_row_count",
+            row_quality_summary["rejected_count"],
+        )
+        payload.setdefault(
+            "row_quality_locator_quality_distribution",
+            row_quality_summary["locator_quality_distribution"],
+        )
         return payload
 
     @staticmethod
@@ -2131,6 +2338,78 @@ class PolicyEvidenceQualitySpineEconomicsService:
             if len(anomalies) >= 25:
                 break
         return anomalies
+
+    @staticmethod
+    def _extract_row_quality_summary(
+        *,
+        matrix_payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        rows = matrix_payload.get("rows")
+        if not isinstance(rows, list):
+            return {
+                "authoritative_row_count": 0,
+                "weak_row_count": 0,
+                "rejected_or_ambiguous_count": 0,
+                "ambiguous_count": 0,
+                "rejected_count": 0,
+                "locator_quality_distribution": {},
+            }
+
+        weak_row_count = 0
+        ambiguous_count = 0
+        rejected_count = 0
+        authoritative_row_count = 0
+        locator_quality_distribution: Counter[str] = Counter()
+
+        for item in rows:
+            if not isinstance(item, dict):
+                continue
+            source_lane = str(item.get("source_lane_classification") or "").strip().lower()
+            if source_lane == "secondary_search_derived":
+                continue
+            authoritative_row_count += 1
+            locator_quality = (
+                str(item.get("locator_quality") or "").strip().lower()
+                or "locator_not_available"
+            )
+            locator_quality_distribution[locator_quality] += 1
+
+            ambiguity_flag = bool(item.get("ambiguity_flag")) or bool(
+                str(item.get("ambiguity_reason") or "").strip()
+            )
+            row_statuses = {
+                str(item.get("row_status") or "").strip().lower(),
+                str(item.get("row_quality_status") or "").strip().lower(),
+                str(item.get("status") or "").strip().lower(),
+            }
+            rejected_flag = bool(item.get("rejected")) or bool(
+                {"rejected", "invalid", "discarded", "excluded"} & row_statuses
+            )
+            currency_invalid = str(item.get("currency_sanity") or "").strip().lower() == "invalid"
+            unit_invalid = str(item.get("unit_sanity") or "").strip().lower() == "invalid"
+            normalized_value = item.get("normalized_value", item.get("value"))
+            weak_flag = (
+                ambiguity_flag
+                or rejected_flag
+                or currency_invalid
+                or unit_invalid
+                or normalized_value is None
+            )
+            if weak_flag:
+                weak_row_count += 1
+            if ambiguity_flag:
+                ambiguous_count += 1
+            if rejected_flag:
+                rejected_count += 1
+
+        return {
+            "authoritative_row_count": authoritative_row_count,
+            "weak_row_count": weak_row_count,
+            "rejected_or_ambiguous_count": ambiguous_count + rejected_count,
+            "ambiguous_count": ambiguous_count,
+            "rejected_count": rejected_count,
+            "locator_quality_distribution": dict(locator_quality_distribution),
+        }
 
     @staticmethod
     def _build_manual_audit_scaffold(

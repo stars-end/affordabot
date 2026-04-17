@@ -1866,10 +1866,20 @@ async def get_policy_evidence_analysis_status(
             "official_attachment_failure_counts",
             "official_attachment_parse_anomaly_count",
             "official_attachment_parse_anomalies",
+            "attachment_parse_failure_count",
             "official_attachment_refs_present",
             "official_pdf_text_extracted",
             "official_attachment_rows_emitted",
             "official_attachment_row_count",
+            "official_attachment_depth_clean",
+            "row_quality_gate_status",
+            "row_quality_gap",
+            "row_quality_weak_row_count",
+            "row_quality_rejected_or_ambiguous_count",
+            "row_quality_ambiguous_row_count",
+            "row_quality_rejected_row_count",
+            "row_quality_authoritative_row_count",
+            "row_quality_locator_quality_distribution",
         ):
             if field in data_moat_status:
                 source_quality[field] = data_moat_status.get(field)

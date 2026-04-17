@@ -485,3 +485,129 @@ def test_builder_parameter_cards_capture_official_attachment_metadata() -> None:
     assert "attachment_id=301" in card["source_excerpt"]
     assert "attachment_title=Resolution No. 80069" in card["source_excerpt"]
     assert "source_locator=attachment_probe:301:1:fee_table_row" in card["source_excerpt"]
+
+
+def test_builder_parameter_cards_filter_weak_attachment_excerpt_rows() -> None:
+    structured = {
+        "source_lane": "structured",
+        "provider": "legistar_web_api",
+        "source_family": "legistar_web_api",
+        "jurisdiction": "san_jose_ca",
+        "artifact_url": "https://webapi.legistar.com/v1/sanjose/Matters/7526",
+        "artifact_type": "matter_metadata",
+        "source_tier": "tier_b",
+        "retrieved_at": "2026-04-16T00:00:00+00:00",
+        "true_structured": True,
+        "policy_match_key": "legistar::matter::7526",
+        "reconciliation_status": "confirmed",
+        "structured_policy_facts": [
+            {
+                "field": "commercial_linkage_fee_rate_usd_per_sqft",
+                "raw_value": "$6.00",
+                "normalized_value": 6.0,
+                "value": 6.0,
+                "unit": "usd_per_square_foot",
+                "denominator": "per_square_foot",
+                "land_use": "office",
+                "raw_land_use_label": "Downtown Office",
+                "source_excerpt": "Downtown Office (>=100,000 sq. ft.) $6.00 per square foot.",
+                "source_locator": "attachment_probe:301:1:fee_table_row",
+                "chunk_locator": "attachment_probe:301:1",
+                "table_locator": "commercial_linkage_fee_table",
+                "locator_quality": "chunk_locator_only",
+                "source_url": "https://sanjoseca.legistar.com/View.ashx?M=F&ID=8758120",
+                "source_family": "resolution",
+                "attachment_id": "301",
+            },
+            {
+                "field": "commercial_linkage_fee_rate_usd_per_sqft",
+                "raw_value": "$600",
+                "normalized_value": 600.0,
+                "value": 600.0,
+                "unit": "usd",
+                "land_use": "unknown",
+                "category": "unknown",
+                "source_excerpt": "Memorandum excerpt says $600.",
+                "source_locator": "attachment_probe:excerpt",
+                "locator_quality": "attachment_probe_excerpt",
+                "source_url": "https://sanjoseca.legistar.com/View.ashx?M=F&ID=8758121",
+                "source_family": "memorandum",
+                "attachment_id": "302",
+            },
+            {
+                "field": "commercial_linkage_fee_rate_usd_per_sqft",
+                "raw_value": "$52.30",
+                "normalized_value": 52.3,
+                "value": 52.3,
+                "unit": "usd",
+                "land_use": "unknown",
+                "category": "unknown",
+                "source_excerpt": "Excerpt-only mention of $52.30 with no table row cue.",
+                "source_locator": "attachment_probe:302:excerpt",
+                "locator_quality": "attachment_probe_excerpt",
+                "source_url": "https://sanjoseca.legistar.com/View.ashx?M=F&ID=8758122",
+                "source_family": "memorandum",
+                "attachment_id": "303",
+            },
+        ],
+    }
+
+    payload = PolicyEvidencePackageBuilder().build(
+        package_id="pkg-attachment-row-quality-gate",
+        jurisdiction="san_jose_ca",
+        structured_candidates=[structured],
+        freshness_gate={"freshness_status": "fresh"},
+    )
+
+    cards = payload["parameter_cards"]
+    assert len(cards) == 1
+    assert cards[0]["state"] == "resolved"
+    assert cards[0]["value"] == 6.0
+    assert "attachment_probe:301:1:fee_table_row" in cards[0]["source_excerpt"]
+    assert "$600" not in cards[0]["source_excerpt"]
+    assert "$52.30" not in cards[0]["source_excerpt"]
+
+
+def test_builder_parameter_cards_keep_direct_line_rate_rows_with_land_use() -> None:
+    structured = {
+        "source_lane": "structured",
+        "provider": "legistar_web_api",
+        "source_family": "legistar_web_api",
+        "jurisdiction": "san_jose_ca",
+        "artifact_url": "https://webapi.legistar.com/v1/sanjose/Matters/7526",
+        "artifact_type": "matter_metadata",
+        "source_tier": "tier_b",
+        "retrieved_at": "2026-04-16T00:00:00+00:00",
+        "true_structured": True,
+        "policy_match_key": "legistar::matter::7526",
+        "reconciliation_status": "confirmed",
+        "structured_policy_facts": [
+            {
+                "field": "commercial_linkage_fee_rate_usd_per_sqft",
+                "raw_value": "$14.31",
+                "normalized_value": 14.31,
+                "value": 14.31,
+                "unit": "usd_per_square_foot",
+                "land_use": "office",
+                "raw_land_use_label": "Office",
+                "source_excerpt": "Office projects pay $14.31 per square foot.",
+                "source_locator": "attachment_probe:line_segment",
+                "locator_quality": "attachment_probe_line_rate",
+                "source_url": "https://sanjoseca.legistar.com/View.ashx?M=F&ID=8758123",
+                "source_family": "memorandum",
+                "attachment_id": "304",
+            }
+        ],
+    }
+
+    payload = PolicyEvidencePackageBuilder().build(
+        package_id="pkg-attachment-line-rate-quality-gate",
+        jurisdiction="san_jose_ca",
+        structured_candidates=[structured],
+        freshness_gate={"freshness_status": "fresh"},
+    )
+
+    cards = payload["parameter_cards"]
+    assert len(cards) == 1
+    assert cards[0]["value"] == 14.31
+    assert "Office projects pay $14.31 per square foot." in cards[0]["source_excerpt"]

@@ -1161,7 +1161,10 @@ def test_direct_model_card_keeps_household_conclusion_fail_closed_without_pass_t
     assert "pass-through/incidence assumptions" in household_readiness["reason"]
     handoff = endpoint["economic_handoff_quality"]
     assert handoff["status"] == "analysis_ready_with_gaps"
-    assert handoff["quantification_paths"]["direct_project_fee_exposure"]["status"] == "analysis_ready"
+    assert (
+        handoff["quantification_paths"]["direct_project_fee_exposure"]["status"]
+        == "analysis_ready"
+    )
     assert handoff["quantification_paths"]["household_cost_of_living"]["status"] == "not_analysis_ready"
     assert endpoint["secondary_research_needs"]["status"] == "required"
     assert endpoint["secondary_research_needs"]["reason_code"] == "pass_through_incidence_assumptions_missing"
@@ -1684,6 +1687,175 @@ def test_cycle_34_official_attachment_refs_without_content_or_rows_requires_pdf_
     assert moat["official_attachment_failure_counts"]["binary_pdf_unparsed"] == 1
     assert moat["official_attachment_failure_counts"]["fetch_failed"] == 1
     assert endpoint["recommended_next_action"] == "parse_official_attachment_pdfs"
+
+
+def test_cycle_38_row_quality_gaps_are_explicit_and_block_decision_grade_cleanliness() -> None:
+    bundle = PolicyEconomicMechanismCaseService().build_case_bundle()
+    direct = _case(bundle, "direct_cost_case")
+    package = {
+        **direct["primary_package"],
+        "run_context": {
+            **direct["primary_package"].get("run_context", {}),
+            "source_quality_metrics": {
+                "selected_artifact_family": "official_page",
+                "top_n_artifact_recall_count": 0,
+                "policy_identity_ready": True,
+                "jurisdiction_identity_ready": True,
+                "selected_candidate": {"artifact_family": "official_page"},
+            },
+            "source_reconciliation": {
+                "true_structured_row_count": 0,
+                "missing_true_structured_corroboration_count": 0,
+                "official_attachment_row_count": 3,
+            },
+            "policy_lineage": {
+                "attachment_state": {
+                    "attachment_ref_count": 2,
+                    "attachment_probe_count": 2,
+                    "attachment_ingested_count": 1,
+                    "attachment_economic_row_count": 3,
+                },
+                "related_attachment_refs": [
+                    {
+                        "attachment_id": "301",
+                        "url": "https://sanjoseca.legistar.com/View.ashx?M=F&ID=8758120",
+                        "source_family": "resolution",
+                    }
+                ],
+                "attachment_content_probes": [
+                    {
+                        "attachment_id": "301",
+                        "source_family": "resolution",
+                        "source_url": "https://sanjoseca.legistar.com/View.ashx?M=F&ID=8758120.pdf",
+                        "status": "read_text",
+                        "read_status": "read_text",
+                        "failure_class": None,
+                        "content_ingested": True,
+                        "economic_row_count": 3,
+                    },
+                    {
+                        "attachment_id": "302",
+                        "source_family": "memorandum",
+                        "source_url": "https://sanjoseca.legistar.com/View.ashx?M=F&ID=8758121.pdf",
+                        "status": "binary_pdf_unparsed",
+                        "read_status": "binary_unparsed",
+                        "failure_class": "binary_pdf_unparsed",
+                        "content_ingested": False,
+                        "economic_row_count": 0,
+                    },
+                ],
+            },
+        },
+    }
+    matrix = _matrix_with_runtime_evidence(
+        package,
+        orchestration_proof={
+            "proof_status": "pass",
+            "proof_mode": "current_run",
+            "linked_to_current_vertical_package": True,
+            "windmill_run_id": "wm-run-cycle-38",
+            "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+        },
+        llm_narrative_proof={
+            "proof_status": "pass",
+            "canonical_pipeline_run_id": package["gate_projection"]["canonical_pipeline_run_id"],
+            "canonical_pipeline_step_id": package["gate_projection"]["canonical_pipeline_step_id"],
+            "source": "unit_test",
+        },
+        storage_proof={
+            "proof_status": "pass",
+            "proof_mode": "postgres_minio_live",
+            "store_backend": "postgres",
+            "artifact_probe_backend": "minio",
+            "persisted_record_id": "pkg-row-cycle-38",
+            "minio_readback_proven": True,
+        },
+    )
+    matrix["rows"] = [
+        {
+            "field": "commercial_linkage_fee_rate_usd_per_sqft",
+            "normalized_value": 18.7,
+            "value": 18.7,
+            "locator_quality": "table_row_chunk_locator",
+            "source_family": "resolution",
+            "source_locator": "attachment_probe:301:1:fee_table_row",
+            "provenance_lane": "structured_attachment_probe",
+            "attachment_id": "301",
+        },
+        {
+            "field": "commercial_linkage_fee_rate_usd_per_sqft",
+            "normalized_value": None,
+            "value": None,
+            "ambiguity_flag": True,
+            "ambiguity_reason": "currency_format_anomaly",
+            "currency_sanity": "invalid",
+            "unit_sanity": "valid",
+            "locator_quality": "chunk_locator_only",
+            "source_family": "resolution",
+            "source_locator": "attachment_probe:301:2:fee_table_row",
+            "provenance_lane": "structured_attachment_probe",
+            "attachment_id": "301",
+        },
+        {
+            "field": "commercial_linkage_fee_rate_usd_per_sqft",
+            "normalized_value": None,
+            "value": None,
+            "row_status": "rejected",
+            "locator_quality": "locator_not_available",
+            "source_family": "resolution",
+            "source_locator": "attachment_probe:301:3:fee_table_row",
+            "provenance_lane": "structured_attachment_probe",
+            "attachment_id": "301",
+        },
+    ]
+
+    endpoint = PolicyEvidenceQualitySpineEconomicsService().build_endpoint_read_model(
+        matrix_input=MatrixInput(
+            payload=matrix,
+            source_path="horizontal_matrix.json",
+            source_mode="agent_a_horizontal_matrix",
+        ),
+        package_id=package["package_id"],
+        source_family="meeting_minutes",
+    )
+
+    moat = endpoint["data_moat_status"]
+    assert moat["status"] == "evidence_ready_with_gaps"
+    assert moat["structured_depth_ready"] is True
+    assert moat["official_attachment_depth_ready"] is True
+    assert moat["official_attachment_depth_clean"] is False
+    assert moat["row_quality_gate_status"] == "fail"
+    assert moat["row_quality_gap"] is True
+    assert moat["row_quality_weak_row_count"] == 2
+    assert moat["row_quality_rejected_or_ambiguous_count"] == 2
+    assert moat["row_quality_locator_quality_distribution"] == {
+        "chunk_locator_only": 1,
+        "locator_not_available": 1,
+        "table_row_chunk_locator": 1,
+    }
+    assert moat["attachment_parse_failure_count"] >= 1
+    assert moat["decision_grade_blocked_by"] == "row_quality_gap"
+    assert moat["row_family_depth"]["official_attachment"]["row_quality_gap"] is True
+    assert (
+        moat["row_family_depth"]["official_attachment"]["status"]
+        == "satisfied_with_row_quality_gaps"
+    )
+
+    handoff = endpoint["economic_handoff_quality"]
+    assert handoff["status"] == "analysis_ready_with_gaps"
+    assert handoff["reason_code"] == "row_quality_gap_non_decision_grade"
+    assert handoff["blocked_by"] == "row_quality"
+    assert handoff["blocked_by_row_quality"] is True
+    assert (
+        handoff["quantification_paths"]["direct_project_fee_exposure"]["status"]
+        == "not_analysis_ready"
+    )
+    assert (
+        handoff["quantification_paths"]["household_cost_of_living"]["status"]
+        == "not_analysis_ready"
+    )
+    assert endpoint["gates"]["economic_analysis_readiness"]["row_quality_gate_status"] == "fail"
+    assert endpoint["recommended_next_action"] != "run_direct_analysis"
 
 
 def test_tavily_only_rows_do_not_satisfy_structured_depth() -> None:

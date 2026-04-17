@@ -520,6 +520,64 @@ def test_legistar_attachment_probe_does_not_label_annual_report_dollars_as_sqft_
     assert facts == []
 
 
+def test_extract_attachment_economic_rows_cycle38_supplemental_memo_filters_context_values() -> None:
+    text = (
+        "Attachment 15523 supplemental memorandum. Context discussed monthly costs including $600 "
+        "and market assumptions around $52.30. "
+        "Land Use | Rate Unit | Fee Amount\n"
+        "Residential Care | per square foot | $6\n"
+        "Memo discussion continues with unrelated budget context."
+    )
+
+    facts = StructuredSourceEnricher._extract_attachment_economic_rows(
+        text=text,
+        source_url="https://legistar.granicus.com/sanjose/attachments/15523.pdf",
+        source_family="memorandum",
+        source_title="Supplemental Memo",
+        attachment_id="15523",
+        content_hash="hash-cycle-38",
+    )
+
+    assert len(facts) == 1
+    fact = facts[0]
+    assert fact["value"] == 6.0
+    assert fact["unit"] == "usd_per_square_foot"
+    assert fact["source_locator"] in {
+        "attachment_probe:table_row",
+        "attachment_probe:line_segment",
+    }
+    assert fact["locator_quality"] in {
+        "attachment_probe_table_row",
+        "attachment_probe_line_rate",
+    }
+    assert fact["locator_quality"] != "attachment_probe_excerpt"
+    assert fact["land_use"] == "residential_care"
+
+
+def test_extract_attachment_economic_rows_keeps_direct_memo_per_sqft_rows() -> None:
+    text = (
+        "Mayor/Jones/Diep/Davis/Foley memorandum on CLF implementation. "
+        "Office projects pay $14.31 per square foot. "
+        "Industrial projects pay $3.58/SF. "
+        "No additional context needed."
+    )
+
+    facts = StructuredSourceEnricher._extract_attachment_economic_rows(
+        text=text,
+        source_url="https://legistar.granicus.com/sanjose/attachments/memo.pdf",
+        source_family="memorandum",
+        source_title="Mayor/Jones/Diep/Davis/Foley Memo",
+        attachment_id="20001",
+        content_hash="hash-memo",
+    )
+
+    values = sorted(fact["value"] for fact in facts)
+    assert values == [3.58, 14.31]
+    assert all(fact["locator_quality"] != "attachment_probe_excerpt" for fact in facts)
+    land_uses_by_value = {fact["value"]: fact["land_use"] for fact in facts}
+    assert land_uses_by_value == {3.58: "industrial", 14.31: "office"}
+
+
 def test_extract_pdf_text_classifies_unreadable_pdf_page_iteration_failure(
     monkeypatch: Any,
 ) -> None:

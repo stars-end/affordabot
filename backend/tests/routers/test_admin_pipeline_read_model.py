@@ -1128,3 +1128,192 @@ def test_policy_evidence_analysis_status_cycle_34_attachment_failure_surfaces_pa
     assert data["source_quality"]["official_attachment_refs_present"] is True
     assert data["source_quality"]["official_pdf_text_extracted"] is False
     assert data["recommended_next_action"] == "parse_official_attachment_pdfs"
+
+
+def test_policy_evidence_analysis_status_cycle_38_surfaces_row_quality_gap_signals(client, mock_db):
+    package = _case_package("direct_cost_case")
+    source_quality_metrics = {
+        "selected_artifact_family": "official_page",
+        "top_n_artifact_recall_count": 0,
+        "policy_identity_ready": True,
+        "jurisdiction_identity_ready": True,
+        "selected_candidate": {
+            "url": "https://www.sanjoseca.gov/Home/Components/News/News/1683/4765",
+            "provider": "private_searxng",
+            "rank": 1,
+            "artifact_family": "official_page",
+        },
+    }
+    mock_db._fetchrow.side_effect = [
+        {
+            "id": "run-q38",
+            "bill_id": "SJ-2026-CLF",
+            "jurisdiction": "San Jose CA",
+            "status": "completed",
+            "error": None,
+            "models": {},
+            "trigger_source": "windmill",
+            "windmill_run_id": "wm-run-q38",
+            "started_at": "2026-04-16T09:00:00Z",
+            "completed_at": "2026-04-16T09:05:00Z",
+            "result": {
+                "policy_evidence_package": package,
+                "rows": [
+                    {
+                        "field": "commercial_linkage_fee_rate_usd_per_sqft",
+                        "normalized_value": 18.7,
+                        "value": 18.7,
+                        "locator_quality": "table_row_chunk_locator",
+                        "source_family": "resolution",
+                        "source_url": "https://sanjoseca.legistar.com/View.ashx?M=F&ID=8758120",
+                        "source_ref": "legistar::matter::7526::attachment::301",
+                        "source_locator": "attachment_probe:301:1:fee_table_row",
+                        "provenance_lane": "structured_attachment_probe",
+                        "attachment_id": "301",
+                    },
+                    {
+                        "field": "commercial_linkage_fee_rate_usd_per_sqft",
+                        "normalized_value": None,
+                        "value": None,
+                        "ambiguity_flag": True,
+                        "ambiguity_reason": "currency_format_anomaly",
+                        "currency_sanity": "invalid",
+                        "unit_sanity": "valid",
+                        "locator_quality": "chunk_locator_only",
+                        "source_family": "resolution",
+                        "source_url": "https://sanjoseca.legistar.com/View.ashx?M=F&ID=8758120",
+                        "source_ref": "legistar::matter::7526::attachment::301",
+                        "source_locator": "attachment_probe:301:2:fee_table_row",
+                        "provenance_lane": "structured_attachment_probe",
+                        "attachment_id": "301",
+                    },
+                    {
+                        "field": "commercial_linkage_fee_rate_usd_per_sqft",
+                        "normalized_value": None,
+                        "value": None,
+                        "row_status": "rejected",
+                        "locator_quality": "locator_not_available",
+                        "source_family": "resolution",
+                        "source_url": "https://sanjoseca.legistar.com/View.ashx?M=F&ID=8758120",
+                        "source_ref": "legistar::matter::7526::attachment::301",
+                        "source_locator": "attachment_probe:301:3:fee_table_row",
+                        "provenance_lane": "structured_attachment_probe",
+                        "attachment_id": "301",
+                    },
+                ],
+                "analysis": {"summary": "Narrative generated from selected artifact."},
+            },
+        },
+        {
+            "id": "pkg-row-q38",
+            "package_id": package["package_id"],
+            "package_payload": {
+                **package,
+                "gate_projection": {
+                    **package["gate_projection"],
+                    "canonical_pipeline_run_id": "run-q38",
+                    "canonical_pipeline_step_id": "analysis-q38",
+                    "canonical_breakdown_ref": "analysis:analysis-q38",
+                },
+                "run_context": {
+                    "backend_run_id": "run-q38",
+                    "windmill_run_id": "wm-run-q38",
+                    "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+                    "windmill_workspace": "affordabot",
+                    "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+                    "source_quality_metrics": source_quality_metrics,
+                    "source_reconciliation": {
+                        "true_structured_row_count": 0,
+                        "missing_true_structured_corroboration_count": 0,
+                        "official_attachment_row_count": 3,
+                    },
+                    "policy_lineage": {
+                        "related_attachment_refs": [
+                            {
+                                "attachment_id": "301",
+                                "title": "Resolution No. 80069",
+                                "url": "https://sanjoseca.legistar.com/View.ashx?M=F&ID=8758120",
+                                "source_family": "resolution",
+                            }
+                        ],
+                        "attachment_state": {
+                            "attachment_ref_count": 1,
+                            "attachment_probe_count": 2,
+                            "attachment_ingested_count": 1,
+                            "attachment_economic_row_count": 3,
+                        },
+                        "attachment_content_probes": [
+                            {
+                                "attachment_id": "301",
+                                "title": "Resolution No. 80069",
+                                "source_family": "resolution",
+                                "source_url": "https://sanjoseca.legistar.com/View.ashx?M=F&ID=8758120.pdf",
+                                "status": "ingested_excerpt",
+                                "read_status": "read_text",
+                                "failure_class": None,
+                                "content_ingested": True,
+                                "economic_row_count": 3,
+                            },
+                            {
+                                "attachment_id": "302",
+                                "title": "Memo",
+                                "source_family": "memorandum",
+                                "source_url": "https://sanjoseca.legistar.com/View.ashx?M=F&ID=8758121.pdf",
+                                "status": "binary_pdf_unparsed",
+                                "read_status": "binary_unparsed",
+                                "failure_class": "binary_pdf_unparsed",
+                                "content_ingested": False,
+                                "economic_row_count": 0,
+                            },
+                        ],
+                    },
+                },
+            },
+            "artifact_readback_status": "proven",
+            "fail_closed": False,
+            "gate_state": "qualitative_only",
+            "created_at": "2026-04-16T09:00:00Z",
+            "updated_at": "2026-04-16T09:05:00Z",
+        },
+    ]
+
+    client.set_auth("admin")
+    response = client.get(
+        f"/api/admin/pipeline/policy-evidence/packages/{package['package_id']}/analysis-status?run_id=run-q38"
+    )
+    assert response.status_code == 200, response.text
+    data = response.json()
+    moat = data["data_moat_status"]
+    assert moat["status"] == "evidence_ready_with_gaps"
+    assert moat["official_attachment_depth_ready"] is True
+    assert moat["official_attachment_depth_clean"] is False
+    assert moat["row_quality_gate_status"] == "fail"
+    assert moat["row_quality_gap"] is True
+    assert moat["row_quality_weak_row_count"] == 2
+    assert moat["row_quality_rejected_or_ambiguous_count"] == 2
+    assert moat["row_quality_locator_quality_distribution"] == {
+        "chunk_locator_only": 1,
+        "locator_not_available": 1,
+        "table_row_chunk_locator": 1,
+    }
+    assert moat["attachment_parse_failure_count"] >= 1
+    assert moat["economic_handoff_blocked_by_row_quality"] is True
+    assert moat["economic_handoff_blocked_by"] == "row_quality"
+    assert moat["decision_grade_blocked_by"] == "row_quality_gap"
+    assert (
+        moat["row_family_depth"]["official_attachment"]["status"]
+        == "satisfied_with_row_quality_gaps"
+    )
+    assert data["economic_handoff_quality"]["status"] == "analysis_ready_with_gaps"
+    assert data["economic_handoff_quality"]["reason_code"] == "row_quality_gap_non_decision_grade"
+    assert (
+        data["economic_handoff_quality"]["quantification_paths"]["direct_project_fee_exposure"]["status"]
+        == "not_analysis_ready"
+    )
+    assert (
+        data["economic_handoff_quality"]["quantification_paths"]["household_cost_of_living"]["status"]
+        == "not_analysis_ready"
+    )
+    assert data["gates"]["economic_analysis_readiness"]["row_quality_gate_status"] == "fail"
+    assert data["source_quality"]["row_quality_weak_row_count"] == 2
+    assert data["recommended_next_action"] != "run_direct_analysis"

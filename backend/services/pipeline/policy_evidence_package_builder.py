@@ -70,6 +70,14 @@ _ECONOMIC_PARAMETER_SIGNALS = {
     "wage",
 }
 
+_ROW_QUALITY_STRICT_LOCATOR_QUALITIES = {
+    "attachment_probe_excerpt",
+    "chunk_locator_only",
+    "page_locator_only",
+}
+
+_UNKNOWN_LAND_USE_VALUES = {"", "unknown", "other", "n/a", "na", "none", "null"}
+
 
 def _source_tier_rank(value: str) -> int:
     mapping = {"tier_a": 0, "tier_b": 1, "tier_c": 2}
@@ -115,6 +123,64 @@ def _is_economic_parameter_name(value: str) -> bool:
     if not normalized or normalized in _DIAGNOSTIC_PARAMETER_FIELDS:
         return False
     return any(signal in normalized for signal in _ECONOMIC_PARAMETER_SIGNALS)
+
+
+def _has_per_square_foot_signal(*, fact: dict[str, Any], name: str, excerpt: str) -> bool:
+    unit = str(fact.get("unit") or "").strip().lower()
+    denominator = str(fact.get("denominator") or "").strip().lower()
+    if "square_foot" in unit or "square foot" in unit:
+        return True
+    if denominator in {"per_square_foot", "per_sq_ft", "per_sqft"}:
+        return True
+    signal_text = " ".join(
+        [
+            name.lower(),
+            excerpt.lower(),
+            str(fact.get("source_locator") or "").strip().lower(),
+            str(fact.get("table_locator") or "").strip().lower(),
+            str(fact.get("raw_value") or "").strip().lower(),
+        ]
+    )
+    return any(
+        token in signal_text
+        for token in (
+            "per square foot",
+            "per sq ft",
+            "per sq. ft",
+            "usd_per_square_foot",
+            "/sf",
+            "psf",
+        )
+    )
+
+
+def _land_use_known(fact: dict[str, Any]) -> bool:
+    value = str(fact.get("land_use") or fact.get("category") or "").strip().lower()
+    return value not in _UNKNOWN_LAND_USE_VALUES
+
+
+def _is_row_quality_approved_parameter_fact(*, fact: dict[str, Any], name: str, excerpt: str) -> bool:
+    locator_quality = str(fact.get("locator_quality") or "").strip().lower()
+    source_locator = str(fact.get("source_locator") or "").strip().lower()
+    has_strict_locator = (
+        locator_quality in _ROW_QUALITY_STRICT_LOCATOR_QUALITIES or source_locator.startswith("attachment_probe:")
+    )
+    if not has_strict_locator:
+        return True
+
+    has_table_locator = bool(str(fact.get("table_locator") or "").strip())
+    has_line_rate_locator = locator_quality == "attachment_probe_line_rate"
+    has_local_row_cue = has_table_locator or any(
+        cue in source_locator
+        for cue in ("fee_table_row", "table_row", "row")
+    ) or has_line_rate_locator
+    if not has_local_row_cue:
+        return False
+    if not _has_per_square_foot_signal(fact=fact, name=name, excerpt=excerpt):
+        return False
+    if not _land_use_known(fact):
+        return False
+    return True
 
 
 def _build_canonical_key(candidate: dict[str, Any]) -> str:
@@ -333,6 +399,8 @@ def _build_parameter_cards(candidate: dict[str, Any], evidence_id: str) -> list[
             str(fact.get("source_excerpt") or "").strip()
             or f"Structured fact {name} resolved from source payload."
         )
+        if not _is_row_quality_approved_parameter_fact(fact=fact, name=name, excerpt=excerpt_base):
+            continue
         raw_token = str(fact.get("raw_value") or "").strip()
         unit = str(fact.get("unit") or "unitless")
         denominator = str(fact.get("denominator") or "").strip()

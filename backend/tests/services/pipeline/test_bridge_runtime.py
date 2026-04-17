@@ -1880,6 +1880,105 @@ def test_runtime_bridge_tavily_attachment_like_rows_do_not_satisfy_official_atta
     assert reconciliation["records"][0]["status"] == "secondary_only_not_authoritative"
 
 
+def test_runtime_bridge_row_quality_gate_blocks_excerpt_only_attachment_rows_from_authoritative_depth() -> None:
+    structured_facts = [
+        {
+            "field": "commercial_linkage_fee_rate_usd_per_sqft",
+            "normalized_value": 6.0,
+            "raw_value": "$6.00",
+            "unit": "usd_per_square_foot",
+            "denominator": "per_square_foot",
+            "land_use": "office",
+            "raw_land_use_label": "Downtown Office",
+            "source_url": "https://sanjoseca.legistar.com/View.ashx?M=F&ID=8758120",
+            "source_family": "resolution",
+            "attachment_id": "301",
+            "attachment_title": "Resolution No. 80069",
+            "source_excerpt": "Downtown Office (>=100,000 sq. ft.) $6.00 per square foot.",
+            "source_locator": "attachment_probe:301:1:fee_table_row",
+            "chunk_locator": "attachment_probe:301:1",
+            "table_locator": "commercial_linkage_fee_table",
+            "locator_quality": "chunk_locator_only",
+            "source_lane_classification": "true_structured_source",
+        },
+        {
+            "field": "commercial_linkage_fee_rate_usd_per_sqft",
+            "normalized_value": 600.0,
+            "raw_value": "$600",
+            "unit": "usd",
+            "land_use": "unknown",
+            "category": "unknown",
+            "source_url": "https://sanjoseca.legistar.com/View.ashx?M=F&ID=8758121",
+            "source_family": "memorandum",
+            "attachment_id": "302",
+            "attachment_title": "Memorandum",
+            "source_excerpt": "Excerpt-only memorandum claim: $600",
+            "source_locator": "attachment_probe:excerpt",
+            "locator_quality": "attachment_probe_excerpt",
+            "source_lane_classification": "true_structured_source",
+        },
+        {
+            "field": "commercial_linkage_fee_rate_usd_per_sqft",
+            "normalized_value": 52.3,
+            "raw_value": "$52.30",
+            "unit": "usd",
+            "land_use": "unknown",
+            "category": "unknown",
+            "source_url": "https://sanjoseca.legistar.com/View.ashx?M=F&ID=8758122",
+            "source_family": "memorandum",
+            "attachment_id": "303",
+            "attachment_title": "Memorandum",
+            "source_excerpt": "Excerpt-only memorandum claim: $52.30",
+            "source_locator": "attachment_probe:302:excerpt",
+            "locator_quality": "attachment_probe_excerpt",
+            "source_lane_classification": "true_structured_source",
+        },
+        {
+            "field": "commercial_linkage_fee_rate_usd_per_sqft",
+            "normalized_value": 14.31,
+            "raw_value": "$14.31",
+            "unit": "usd_per_square_foot",
+            "land_use": "office",
+            "raw_land_use_label": "Office",
+            "source_url": "https://sanjoseca.legistar.com/View.ashx?M=F&ID=8758123",
+            "source_family": "memorandum",
+            "attachment_id": "304",
+            "attachment_title": "Mayor/Jones/Diep/Davis/Foley Memo",
+            "source_excerpt": "Office projects pay $14.31 per square foot.",
+            "source_locator": "attachment_probe:line_segment",
+            "locator_quality": "attachment_probe_line_rate",
+            "source_lane_classification": "true_structured_source",
+        },
+    ]
+
+    normalized_rows = RailwayRuntimeBridge._build_normalized_economic_rows(
+        canonical_document_key="legistar::matter::7526",
+        selected_url="https://sanjoseca.legistar.com/View.ashx?M=F&ID=8758120",
+        primary_facts=[],
+        structured_facts=structured_facts,
+    )
+    assert len(normalized_rows) == 4
+    approved_rows = [row for row in normalized_rows if row.get("row_quality_approved")]
+    rejected_rows = [row for row in normalized_rows if not row.get("row_quality_approved")]
+    assert [row["normalized_value"] for row in approved_rows] == [6.0, 14.31]
+    assert len(rejected_rows) == 2
+    assert all(
+        "row_quality_not_approved_for_economic_handoff" in (row.get("fail_closed_signals") or [])
+        for row in rejected_rows
+    )
+
+    reconciliation = RailwayRuntimeBridge._reconcile_parameter_sources(
+        primary_facts=[],
+        secondary_facts=structured_facts,
+    )
+    assert reconciliation["true_structured_row_count"] == 4
+    assert reconciliation["official_attachment_row_count"] == 2
+    assert reconciliation["official_attachment_authoritative_row_count"] == 2
+    statuses = {record["status"] for record in reconciliation["records"]}
+    assert "authoritative_structured_attachment" in statuses
+    assert "conflict_unresolved" in statuses
+
+
 def test_runtime_bridge_reconciliation_keeps_distinct_primary_rows_by_value_timing_threshold_locator() -> None:
     reconciliation = RailwayRuntimeBridge._reconcile_parameter_sources(
         primary_facts=[

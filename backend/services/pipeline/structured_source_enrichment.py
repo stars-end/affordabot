@@ -741,70 +741,128 @@ class StructuredSourceEnricher:
         content_hash: str | None,
     ) -> list[dict[str, Any]]:
         lowered = text.lower()
-        if "fee" not in lowered and "rate" not in lowered:
+        if not re.search(r"(fee|rate|commercial\s+linkage|\bclf\b)", lowered):
             return []
         if not re.search(r"(per\s+square\s+foot|per\s+sq\.?\s*ft|sq\.?\s*ft)", lowered):
             return []
+
+        land_use_pattern = re.compile(
+            r"(non-residential\s+use|downtown|rest\s+of\s+city|office|retail|hotel|"
+            r"industrial|warehouse|residential\s+care)",
+            re.IGNORECASE,
+        )
+        land_use_extractors = (
+            ("residential_care", re.compile(r"\bresidential\s+care\b", re.IGNORECASE)),
+            ("warehouse", re.compile(r"\bwarehouse\b", re.IGNORECASE)),
+            ("industrial", re.compile(r"\bindustrial\b", re.IGNORECASE)),
+            ("office", re.compile(r"\boffice\b", re.IGNORECASE)),
+            ("retail", re.compile(r"\bretail\b", re.IGNORECASE)),
+            ("hotel", re.compile(r"\bhotel\b", re.IGNORECASE)),
+            ("non_residential_use", re.compile(r"\bnon-residential\s+use\b", re.IGNORECASE)),
+        )
+        fee_signal_pattern = re.compile(
+            r"(commercial\s+linkage|linkage\s+fee|\bclf\b|impact\s+fee|\bfee\b|\brate\b)",
+            re.IGNORECASE,
+        )
+        unit_pattern = re.compile(
+            r"(per\s+square\s+foot|per\s+sq\.?\s*ft|/\s*(?:sq\.?\s*ft|sf)\b)",
+            re.IGNORECASE,
+        )
+        direct_rate_pattern = re.compile(
+            r"^\$\s*[0-9]+(?:,[0-9]{3})*(?:\.[0-9]{1,2})?\s*"
+            r"(?:per\s+(?:square\s+foot|sq\.?\s*ft)|/\s*(?:sq\.?\s*ft|sf)\b)",
+            re.IGNORECASE,
+        )
+
+        segments: list[str] = []
+        for raw_line in re.split(r"[\r\n]+", text):
+            line = raw_line.strip()
+            if not line:
+                continue
+            parts = [part.strip() for part in re.split(r"(?<=[.;])\s+", line) if part.strip()]
+            if len(parts) <= 1 and len(line) <= 260:
+                segments.append(line)
+                continue
+            for part in parts:
+                if len(part) <= 260:
+                    segments.append(part)
+                    continue
+                subparts = [subpart.strip() for subpart in re.split(r"(?<=,)\s+", part) if subpart.strip()]
+                segments.extend(subparts or [part])
 
         facts: list[dict[str, Any]] = []
         seen_values: set[float] = set()
         value_pattern = re.compile(
             r"\$\s*(?P<value>[0-9]+(?:,[0-9]{3})*(?:\.[0-9]{1,2})?)(?![0-9]|\.[0-9])"
         )
-        for match in value_pattern.finditer(text):
-            raw = match.group("value")
-            context_start = max(0, match.start() - 220)
-            context_end = min(len(text), match.end() + 220)
-            local_context = text[context_start:context_end].lower()
-            if not re.search(
-                r"(fee\s+per\s+sq\.?\s*ft|per\s+square\s+foot|per\s+sq\.?\s*ft|sq\.?\s*ft\.)",
-                local_context,
-            ):
+        for segment in segments:
+            if "$" not in segment:
                 continue
-            has_rate_context = bool(
-                re.search(
-                    r"\$\s*[0-9]+(?:,[0-9]{3})*(?:\.[0-9]{1,2})?\s+per\s+"
-                    r"(?:square\s+foot|sq\.?\s*ft)",
-                    local_context,
+            segment_lower = segment.lower()
+            if "rent" in segment_lower and "fee" not in segment_lower:
+                continue
+            has_fee_signal = bool(fee_signal_pattern.search(segment))
+            has_land_use = bool(land_use_pattern.search(segment))
+            has_unit_signal = bool(unit_pattern.search(segment))
+            if not has_unit_signal:
+                continue
+            if not has_fee_signal and not has_land_use:
+                continue
+
+            matches = list(value_pattern.finditer(segment))
+            if not matches:
+                continue
+            table_row_candidate = has_land_use and has_unit_signal and len(segment) <= 240
+            table_like = "|" in segment or bool(re.search(r"\s{2,}", segment))
+
+            for match in matches:
+                raw = match.group("value")
+                local_after_value = segment[match.start() : min(len(segment), match.end() + 48)]
+                has_direct_rate_cue = bool(direct_rate_pattern.search(local_after_value))
+                is_table_row_rate = table_row_candidate and len(matches) == 1
+                if not has_direct_rate_cue and not is_table_row_rate:
+                    continue
+                value = float(raw.replace(",", ""))
+                if value in seen_values:
+                    continue
+                seen_values.add(value)
+                source_locator = "attachment_probe:table_row" if table_like else "attachment_probe:line_segment"
+                locator_quality = "attachment_probe_table_row" if table_like else "attachment_probe_line_rate"
+                land_use = "unknown"
+                raw_land_use_label = None
+                land_use_context = segment[max(0, match.start() - 120) : min(len(segment), match.end() + 80)]
+                for candidate, pattern in land_use_extractors:
+                    land_use_match = pattern.search(land_use_context)
+                    if land_use_match is not None:
+                        land_use = candidate
+                        raw_land_use_label = land_use_match.group(0)
+                        break
+                facts.append(
+                    {
+                        "field": "commercial_linkage_fee_rate_usd_per_sqft",
+                        "value": value,
+                        "normalized_value": value,
+                        "unit": "usd_per_square_foot",
+                        "land_use": land_use,
+                        "raw_land_use_label": raw_land_use_label,
+                        "source_url": source_url,
+                        "source_excerpt": segment[:420],
+                        "source_locator": source_locator,
+                        "locator_quality": locator_quality,
+                        "provenance_lane": "structured_attachment_probe",
+                        "source_family": source_family,
+                        "source_hierarchy_status": "fiscal_or_reg_impact_analysis",
+                        "source_title": source_title,
+                        "attachment_id": attachment_id,
+                        "content_hash": content_hash,
+                        "source_ref": (
+                            f"legistar::attachment::{attachment_id}"
+                            if attachment_id
+                            else source_url
+                        ),
+                        "confidence": 0.78 if has_direct_rate_cue else 0.74,
+                    }
                 )
-            )
-            has_fee_table_context = bool(
-                re.search(
-                    r"(non-residential\s+use|downtown|rest\s+of\s+city|office|retail|"
-                    r"hotel|industrial|warehouse|residential\s+care)",
-                    local_context,
-                )
-            )
-            if not has_rate_context and not has_fee_table_context:
-                continue
-            value = float(raw.replace(",", ""))
-            if value in seen_values:
-                continue
-            seen_values.add(value)
-            facts.append(
-                {
-                    "field": "commercial_linkage_fee_rate_usd_per_sqft",
-                    "value": value,
-                    "normalized_value": value,
-                    "unit": "usd_per_square_foot",
-                    "source_url": source_url,
-                    "source_excerpt": StructuredSourceEnricher._extract_attachment_excerpt(text),
-                    "source_locator": "attachment_probe:excerpt",
-                    "locator_quality": "attachment_probe_excerpt",
-                    "provenance_lane": "structured_attachment_probe",
-                    "source_family": source_family,
-                    "source_hierarchy_status": "fiscal_or_reg_impact_analysis",
-                    "source_title": source_title,
-                    "attachment_id": attachment_id,
-                    "content_hash": content_hash,
-                    "source_ref": (
-                        f"legistar::attachment::{attachment_id}"
-                        if attachment_id
-                        else source_url
-                    ),
-                    "confidence": 0.7,
-                }
-            )
         return facts
 
     async def _probe_legistar_attachment_contents(
