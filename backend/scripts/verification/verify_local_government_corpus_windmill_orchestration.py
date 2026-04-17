@@ -6,7 +6,12 @@ from __future__ import annotations
 import argparse
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import UTC, datetime
+try:
+    from datetime import UTC, datetime
+except ImportError:  # pragma: no cover - Python < 3.11 compatibility
+    from datetime import datetime, timezone
+
+    UTC = timezone.utc
 import hashlib
 import json
 from pathlib import Path
@@ -456,6 +461,169 @@ def _build_baseline_rows(matrix: dict[str, Any]) -> list[dict[str, Any]]:
     return baseline
 
 
+def _has_authoritative_live_refs(*, run_id: Any, job_id: Any) -> bool:
+    if not isinstance(run_id, str) or not run_id.strip():
+        return False
+    if not isinstance(job_id, str) or not job_id.strip():
+        return False
+    if _is_seeded_windmill_ref(run_id) or _is_seeded_windmill_ref(job_id):
+        return False
+    return True
+
+
+def _row_is_proven(row: dict[str, Any]) -> bool:
+    if str(row.get("row_status") or "") != "proven":
+        return False
+    return _has_authoritative_live_refs(
+        run_id=row.get("windmill_run_id"),
+        job_id=row.get("windmill_job_id"),
+    )
+
+
+def _load_existing_report(output_path: Path) -> dict[str, Any] | None:
+    if not output_path.exists():
+        return None
+    existing = _load_json(output_path)
+    if not isinstance(existing, dict):
+        return None
+    return existing
+
+
+def _index_proven_rows(existing_report: dict[str, Any] | None) -> dict[str, dict[str, Any]]:
+    if not isinstance(existing_report, dict):
+        return {}
+    proven_by_id: dict[str, dict[str, Any]] = {}
+    for row in existing_report.get("rows", []):
+        if not isinstance(row, dict):
+            continue
+        corpus_row_id = str(row.get("corpus_row_id") or "").strip()
+        if not corpus_row_id:
+            continue
+        if _row_is_proven(row):
+            proven_by_id[corpus_row_id] = row
+    return proven_by_id
+
+
+def _select_target_rows(
+    *,
+    baseline_rows: list[dict[str, Any]],
+    max_cli_only_rows: int,
+    target_row_ids: list[str],
+    skip_proven_output_rows: bool,
+    existing_proven_row_ids: set[str],
+) -> list[dict[str, Any]]:
+    row_index = {row["corpus_row_id"]: row for row in baseline_rows}
+    if target_row_ids:
+        deduped_ids: list[str] = []
+        seen: set[str] = set()
+        for raw_row_id in target_row_ids:
+            row_id = str(raw_row_id).strip()
+            if not row_id or row_id in seen:
+                continue
+            seen.add(row_id)
+            deduped_ids.append(row_id)
+        missing = [row_id for row_id in deduped_ids if row_id not in row_index]
+        if missing:
+            missing_display = ", ".join(sorted(missing))
+            raise ValueError(f"Unknown --target-row-id value(s): {missing_display}")
+        return [row_index[row_id] for row_id in deduped_ids]
+
+    targets = [row for row in baseline_rows if row.get("baseline_mode") == "cli_only"]
+    if skip_proven_output_rows:
+        targets = [row for row in targets if row["corpus_row_id"] not in existing_proven_row_ids]
+    return targets[: max(0, max_cli_only_rows)]
+
+
+def _carry_forward_proven_row(
+    *,
+    baseline_row: dict[str, Any],
+    existing_row: dict[str, Any],
+) -> dict[str, Any]:
+    lookup_trace = existing_row.get("job_lookup_trace")
+    if not isinstance(lookup_trace, list):
+        lookup_trace = []
+    return {
+        **baseline_row,
+        "orchestration_mode": str(existing_row.get("orchestration_mode") or baseline_row.get("orchestration_mode") or ""),
+        "windmill_flow_path": existing_row.get("windmill_flow_path") or baseline_row.get("windmill_flow_path"),
+        "windmill_run_id": existing_row.get("windmill_run_id"),
+        "windmill_job_id": existing_row.get("windmill_job_id"),
+        "row_status": "proven",
+        "blocker_class": None,
+        "blocker_detail": None,
+        "flow_response_status": existing_row.get("flow_response_status"),
+        "backend_scope_status": existing_row.get("backend_scope_status"),
+        "command_client": existing_row.get("command_client"),
+        "command_attempted": existing_row.get("command_attempted"),
+        "idempotency_key": existing_row.get("idempotency_key"),
+        "run_id_source": existing_row.get("run_id_source"),
+        "job_id_source": existing_row.get("job_id_source"),
+        "job_lookup_trace": lookup_trace,
+    }
+
+
+def _index_proven_attempts(existing_report: dict[str, Any] | None) -> dict[str, dict[str, Any]]:
+    if not isinstance(existing_report, dict):
+        return {}
+    proven_attempts: dict[str, dict[str, Any]] = {}
+    for attempt in existing_report.get("attempts", []):
+        if not isinstance(attempt, dict):
+            continue
+        if str(attempt.get("status") or "") != "proven":
+            continue
+        corpus_row_id = str(attempt.get("corpus_row_id") or "").strip()
+        if not corpus_row_id:
+            continue
+        if not _has_authoritative_live_refs(
+            run_id=attempt.get("windmill_run_id"),
+            job_id=attempt.get("windmill_job_id"),
+        ):
+            continue
+        lookup_trace = attempt.get("job_lookup_trace")
+        if not isinstance(lookup_trace, list):
+            lookup_trace = []
+        proven_attempts[corpus_row_id] = {
+            "corpus_row_id": corpus_row_id,
+            "status": "proven",
+            "orchestration_mode": attempt.get("orchestration_mode"),
+            "windmill_run_id": attempt.get("windmill_run_id"),
+            "windmill_job_id": attempt.get("windmill_job_id"),
+            "windmill_flow_path": attempt.get("windmill_flow_path"),
+            "blocker_class": attempt.get("blocker_class"),
+            "blocker_detail": attempt.get("blocker_detail"),
+            "command_client": attempt.get("command_client"),
+            "command_attempted": attempt.get("command_attempted"),
+            "flow_response_status": attempt.get("flow_response_status"),
+            "backend_scope_status": attempt.get("backend_scope_status"),
+            "idempotency_key": attempt.get("idempotency_key"),
+            "run_id_source": attempt.get("run_id_source"),
+            "job_id_source": attempt.get("job_id_source"),
+            "job_lookup_trace": lookup_trace,
+        }
+    return proven_attempts
+
+
+def _merge_attempt_payloads(
+    *,
+    existing_proven_attempts: dict[str, dict[str, Any]],
+    new_attempts: list[LiveAttempt],
+) -> list[dict[str, Any]]:
+    ordered: list[str] = []
+    merged: dict[str, dict[str, Any]] = {}
+
+    for corpus_row_id, payload in existing_proven_attempts.items():
+        ordered.append(corpus_row_id)
+        merged[corpus_row_id] = payload
+
+    for attempt in new_attempts:
+        corpus_row_id = attempt.corpus_row_id
+        if corpus_row_id not in merged:
+            ordered.append(corpus_row_id)
+        merged[corpus_row_id] = attempt.to_json()
+
+    return [merged[row_id] for row_id in ordered]
+
+
 def _live_attempt_for_row(
     *,
     row: dict[str, Any],
@@ -686,12 +854,19 @@ def _live_attempt_for_row(
 def _merge_rows_with_attempts(
     baseline_rows: list[dict[str, Any]],
     attempts: dict[str, LiveAttempt],
+    *,
+    existing_proven_rows: dict[str, dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     merged: list[dict[str, Any]] = []
+    carried_forward = existing_proven_rows or {}
     for row in baseline_rows:
         corpus_row_id = row["corpus_row_id"]
         attempt = attempts.get(corpus_row_id)
         if not attempt:
+            prior = carried_forward.get(corpus_row_id)
+            if prior:
+                merged.append(_carry_forward_proven_row(baseline_row=row, existing_row=prior))
+                continue
             merged.append(row)
             continue
         merged.append(
@@ -724,6 +899,7 @@ def _build_report(
     baseline_rows: list[dict[str, Any]],
     merged_rows: list[dict[str, Any]],
     attempts: list[LiveAttempt],
+    attempts_payload: list[dict[str, Any]] | None = None,
     flow_path: str,
     command_client: str,
     command_log: list[str],
@@ -765,7 +941,18 @@ def _build_report(
         for row in merged_rows
         if row.get("orchestration_mode") == "blocked" or row.get("blocker_class")
     ]
+    materialized_attempts = (
+        attempts_payload
+        if isinstance(attempts_payload, list)
+        else [attempt.to_json() for attempt in attempts]
+    )
     live_exercised = any(attempt.status in {"proven", "blocked"} for attempt in attempts)
+    if not live_exercised:
+        live_exercised = any(
+            str(attempt.get("status") or "") in {"proven", "blocked"}
+            for attempt in materialized_attempts
+            if isinstance(attempt, dict)
+        )
     if post_cli_share <= 0.1 and not missing_live_refs_rows and not blocker_rows:
         verdict = "pass_candidate"
         next_action = (
@@ -821,7 +1008,7 @@ def _build_report(
             "blocker_rows": blocker_rows,
         },
         "rows": merged_rows,
-        "attempts": [attempt.to_json() for attempt in attempts],
+        "attempts": materialized_attempts,
         "commands_attempted": command_log,
         "surface_blocker": surface_blocker,
         "c13_verdict_candidate": verdict,
@@ -841,17 +1028,25 @@ def run(
     backend_timeout_seconds: int,
     max_cli_only_rows: int,
     skip_live: bool,
+    target_row_ids: list[str] | None = None,
+    skip_proven_output_rows: bool = True,
 ) -> dict[str, Any]:
     matrix = _load_json(matrix_path)
     scorecard = None
     if scorecard_path and scorecard_path.exists():
         scorecard = _load_json(scorecard_path)
+    existing_report = _load_existing_report(output_path)
+    existing_proven_rows = _index_proven_rows(existing_report)
+    existing_proven_attempts = _index_proven_attempts(existing_report)
+
     baseline_rows = _build_baseline_rows(matrix)
-    target_rows = [
-        row
-        for row in baseline_rows
-        if row.get("baseline_mode") == "cli_only"
-    ][: max(0, max_cli_only_rows)]
+    target_rows = _select_target_rows(
+        baseline_rows=baseline_rows,
+        max_cli_only_rows=max_cli_only_rows,
+        target_row_ids=list(target_row_ids or []),
+        skip_proven_output_rows=bool(skip_proven_output_rows),
+        existing_proven_row_ids=set(existing_proven_rows),
+    )
     row_index = {row["corpus_row_id"]: row for row in baseline_rows}
 
     attempts: list[LiveAttempt] = []
@@ -913,13 +1108,22 @@ def run(
         }
 
     attempts_by_row = {attempt.corpus_row_id: attempt for attempt in attempts}
-    merged_rows = _merge_rows_with_attempts(baseline_rows, attempts_by_row)
+    merged_rows = _merge_rows_with_attempts(
+        baseline_rows,
+        attempts_by_row,
+        existing_proven_rows=existing_proven_rows,
+    )
+    attempts_payload = _merge_attempt_payloads(
+        existing_proven_attempts=existing_proven_attempts,
+        new_attempts=attempts,
+    )
     report = _build_report(
         matrix=matrix,
         scorecard=scorecard,
         baseline_rows=baseline_rows,
         merged_rows=merged_rows,
         attempts=attempts,
+        attempts_payload=attempts_payload,
         flow_path=flow_path,
         command_client=command_client,
         command_log=command_log,
@@ -945,6 +1149,18 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--backend-timeout-seconds", type=int, default=180)
     parser.add_argument("--max-cli-only-rows", type=int, default=4)
+    parser.add_argument(
+        "--target-row-id",
+        action="append",
+        default=[],
+        help="Target a specific corpus_row_id. Repeat this flag to target multiple rows.",
+    )
+    parser.add_argument(
+        "--skip-proven-output-rows",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Skip cli_only rows already proven in the existing --out artifact.",
+    )
     parser.add_argument("--skip-live", action="store_true")
     return parser.parse_args()
 
@@ -962,6 +1178,8 @@ def main() -> int:
         backend_timeout_seconds=max(1, int(args.backend_timeout_seconds)),
         max_cli_only_rows=max(0, int(args.max_cli_only_rows)),
         skip_live=bool(args.skip_live),
+        target_row_ids=list(args.target_row_id or []),
+        skip_proven_output_rows=bool(args.skip_proven_output_rows),
     )
     print(
         "local_government_corpus_windmill_orchestration complete: "

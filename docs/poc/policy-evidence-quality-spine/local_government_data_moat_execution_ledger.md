@@ -493,3 +493,83 @@ Next blocker:
 - Cycle 47 must batch-run enough corpus rows through live Windmill or reduce
   generated `windmill_live` / `mixed` claims until the C13 scorecard reflects
   only live-proven refs. Seeded refs remain orchestration intent only.
+
+## Cycle 47: Batch Windmill Proof + Regeneration Contract
+
+Status: `completed_with_live_blockers`
+
+Started: 2026-04-17
+
+Scope:
+
+- Make C13 proof iteration materially faster by allowing explicit multi-row
+  live Windmill target batches.
+- Preserve already proven rows across verifier runs so each cycle can
+  incrementally improve corpus proof instead of overwriting prior evidence.
+- Add a reproducible scorecard/report regeneration command that consumes the
+  Windmill orchestration artifact as the C13 overlay source of truth.
+
+Material changes:
+
+- Updated
+  `backend/scripts/verification/verify_local_government_corpus_windmill_orchestration.py`:
+  - added repeatable `--target-row-id`;
+  - added `--skip-proven-output-rows` and
+    `--no-skip-proven-output-rows`;
+  - carried forward prior live-proven attempts from the output artifact;
+  - fail-fast target validation blocks unknown corpus row ids.
+- Added
+  `backend/scripts/verification/regenerate_local_government_corpus_scorecard.py`
+  to regenerate the corpus scorecard/report from the matrix plus live Windmill
+  orchestration overlay.
+- Added focused tests for target-row selection, already-proven row skipping,
+  unknown target rejection, scorecard regeneration, seeded-ref rejection, and
+  blocked-attempt artifact input reporting.
+
+Live command attempted (non-destructive, Windmill dev):
+
+- `poetry run python scripts/verification/verify_local_government_corpus_windmill_orchestration.py --target-row-id lgm-013 --target-row-id lgm-015 --target-row-id lgm-018 --skip-proven-output-rows --backend-timeout-seconds 180 --out ../docs/poc/policy-evidence-quality-spine/artifacts/local_government_corpus_windmill_orchestration.json`
+
+Observed live result:
+
+- Carried forward prior proof for `lgm-007` (`Oakland CA`,
+  `business_licensing_compliance`) with
+  `windmill_run_id=019d9aaa-aac1-7295-22b8-037eb393f686`.
+- Proved `lgm-018` (`Austin TX`, `procurement_contract`) with
+  `windmill_run_id=019d9ac2-3217-1279-30cf-04652c4b2042` and matching
+  `windmill_job_id`.
+- Blocked `lgm-013` (`Portland OR`, `short_term_rental`) with real
+  `windmill_run_id=019d9abc-8fb8-cbfd-67f0-3d3704e59614`,
+  `flow_response_status=failed`, and
+  `blocker_class=backend_scope_not_succeeded`.
+- Blocked `lgm-015` (`King County WA`, `meeting_action`) with real
+  `windmill_run_id=019d9abf-60ed-bf1a-700a-a0a0522c6f5b`,
+  `flow_response_status=failed`, and
+  `blocker_class=backend_scope_not_succeeded`.
+
+Gate impact:
+
+- Live-proven corpus rows increased from `1` to `2`: `lgm-007`, `lgm-018`.
+- The Windmill orchestration artifact now records blocked rows explicitly:
+  `lgm-013`, `lgm-015`.
+- The regenerated scorecard records
+  `windmill_live_attempt_rows=["lgm-007","lgm-018"]` and
+  `windmill_blocked_attempt_rows=["lgm-013","lgm-015"]` under
+  `artifact_inputs`.
+- `C13` remains `not_proven` with blocker
+  `windmill_refs_seeded_not_live_proven`; `86` live/mixed rows still carry
+  seeded placeholder refs.
+- Final state remains `corpus_ready_with_gaps`, not
+  `decision_grade_corpus`.
+
+Validation:
+
+- `cd backend && poetry run pytest tests/verification/test_verify_local_government_corpus_windmill_orchestration.py tests/verification/test_regenerate_local_government_corpus_scorecard.py` -> `12 passed`.
+- `cd backend && poetry run ruff check scripts/verification/verify_local_government_corpus_windmill_orchestration.py scripts/verification/regenerate_local_government_corpus_scorecard.py tests/verification/test_verify_local_government_corpus_windmill_orchestration.py tests/verification/test_regenerate_local_government_corpus_scorecard.py` -> pass.
+
+Next blocker:
+
+- Cycle 48 must diagnose and fix the backend scope failures for non-San-Jose
+  live rows (`lgm-013`, `lgm-015`) or reclassify generated orchestration modes
+  so C13 does not imply live Windmill proof for rows that the backend cannot
+  actually execute.

@@ -1,6 +1,9 @@
 from importlib.util import module_from_spec, spec_from_file_location
+import json
 from pathlib import Path
 import sys
+
+import pytest
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -67,6 +70,90 @@ def _matrix_fixture() -> dict[str, object]:
                     },
                 },
             },
+        ],
+    }
+
+
+def _run_matrix_fixture() -> dict[str, object]:
+    return {
+        "benchmark_id": "local_government_data_moat_benchmark_v0",
+        "rows": [
+            {
+                "row_type": "corpus_package",
+                "corpus_row_id": "lgm-007",
+                "package_id": "pkg::lgm-007",
+                "jurisdiction": {"id": "oakland_ca", "name": "Oakland", "state": "CA"},
+                "policy_family": "business_licensing_compliance",
+                "infrastructure_status": {
+                    "orchestration_mode": "cli_only",
+                    "windmill_refs": None,
+                },
+            },
+            {
+                "row_type": "corpus_package",
+                "corpus_row_id": "lgm-008",
+                "package_id": "pkg::lgm-008",
+                "jurisdiction": {"id": "berkeley_ca", "name": "Berkeley", "state": "CA"},
+                "policy_family": "business_licensing_compliance",
+                "infrastructure_status": {
+                    "orchestration_mode": "cli_only",
+                    "windmill_refs": None,
+                },
+            },
+        ],
+    }
+
+
+def _write_json(path: Path, payload: dict[str, object]) -> Path:
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return path
+
+
+def _existing_output_with_proven_lgm_007() -> dict[str, object]:
+    return {
+        "rows": [
+            {
+                "corpus_row_id": "lgm-007",
+                "package_id": "pkg::lgm-007",
+                "jurisdiction_id": "oakland_ca",
+                "policy_family": "business_licensing_compliance",
+                "baseline_mode": "cli_only",
+                "orchestration_mode": "windmill_live",
+                "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+                "windmill_run_id": "01HISTORICALRUN0000000000000001",
+                "windmill_job_id": "01HISTORICALRUN0000000000000001",
+                "row_status": "proven",
+                "blocker_class": None,
+                "blocker_detail": None,
+                "flow_response_status": "succeeded",
+                "backend_scope_status": "succeeded_with_alerts",
+                "command_client": "backend_endpoint",
+                "command_attempted": "windmill-cli flow run ...",
+                "idempotency_key": "bd-3wefe.13.4.4:lgm-007:historical",
+                "run_id_source": "job_list_all:recent_flow_job",
+                "job_id_source": "job_list_all:recent_flow_job",
+                "job_lookup_trace": ["job_list_all[0]:recent_flow_job"],
+            }
+        ],
+        "attempts": [
+            {
+                "corpus_row_id": "lgm-007",
+                "status": "proven",
+                "orchestration_mode": "windmill_live",
+                "windmill_run_id": "01HISTORICALRUN0000000000000001",
+                "windmill_job_id": "01HISTORICALRUN0000000000000001",
+                "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+                "blocker_class": None,
+                "blocker_detail": None,
+                "command_client": "backend_endpoint",
+                "command_attempted": "windmill-cli flow run ...",
+                "flow_response_status": "succeeded",
+                "backend_scope_status": "succeeded_with_alerts",
+                "idempotency_key": "bd-3wefe.13.4.4:lgm-007:historical",
+                "run_id_source": "job_list_all:recent_flow_job",
+                "job_id_source": "job_list_all:recent_flow_job",
+                "job_lookup_trace": ["job_list_all[0]:recent_flow_job"],
+            }
         ],
     }
 
@@ -266,3 +353,75 @@ def test_build_report_fail_closes_seeded_placeholder_refs():
     assert "lgm-002" in report["post_metrics"]["seeded_placeholder_rows"]
     assert "lgm-002" in report["post_metrics"]["missing_live_refs_rows"]
     assert report["c13_verdict_candidate"] == "not_proven_unverified_live_refs"
+
+
+def test_run_skips_previously_proven_row_and_preserves_existing_proof(tmp_path: Path):
+    matrix_path = _write_json(tmp_path / "matrix.json", _run_matrix_fixture())
+    output_path = _write_json(tmp_path / "orchestration.json", _existing_output_with_proven_lgm_007())
+
+    report = verify_module.run(
+        matrix_path=matrix_path,
+        scorecard_path=None,
+        output_path=output_path,
+        workspace="affordabot",
+        flow_path="f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+        script_path="f/affordabot/pipeline_daily_refresh_domain_boundary",
+        command_client="backend_endpoint",
+        backend_timeout_seconds=180,
+        max_cli_only_rows=1,
+        skip_live=True,
+        target_row_ids=[],
+        skip_proven_output_rows=True,
+    )
+
+    assert report["surface_blocker"]["target_cli_only_rows"] == ["lgm-008"]
+    row_by_id = {row["corpus_row_id"]: row for row in report["rows"]}
+    assert row_by_id["lgm-007"]["row_status"] == "proven"
+    assert row_by_id["lgm-007"]["windmill_run_id"] == "01HISTORICALRUN0000000000000001"
+    assert any(
+        attempt.get("corpus_row_id") == "lgm-007" and attempt.get("status") == "proven"
+        for attempt in report["attempts"]
+    )
+
+
+def test_run_target_row_id_explicitly_selects_requested_row(tmp_path: Path):
+    matrix_path = _write_json(tmp_path / "matrix.json", _run_matrix_fixture())
+    output_path = _write_json(tmp_path / "orchestration.json", _existing_output_with_proven_lgm_007())
+
+    report = verify_module.run(
+        matrix_path=matrix_path,
+        scorecard_path=None,
+        output_path=output_path,
+        workspace="affordabot",
+        flow_path="f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+        script_path="f/affordabot/pipeline_daily_refresh_domain_boundary",
+        command_client="backend_endpoint",
+        backend_timeout_seconds=180,
+        max_cli_only_rows=1,
+        skip_live=True,
+        target_row_ids=["lgm-007"],
+        skip_proven_output_rows=True,
+    )
+
+    assert report["surface_blocker"]["target_cli_only_rows"] == ["lgm-007"]
+
+
+def test_run_fails_fast_on_unknown_target_row_id(tmp_path: Path):
+    matrix_path = _write_json(tmp_path / "matrix.json", _run_matrix_fixture())
+    output_path = _write_json(tmp_path / "orchestration.json", _existing_output_with_proven_lgm_007())
+
+    with pytest.raises(ValueError, match="Unknown --target-row-id"):
+        verify_module.run(
+            matrix_path=matrix_path,
+            scorecard_path=None,
+            output_path=output_path,
+            workspace="affordabot",
+            flow_path="f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+            script_path="f/affordabot/pipeline_daily_refresh_domain_boundary",
+            command_client="backend_endpoint",
+            backend_timeout_seconds=180,
+            max_cli_only_rows=1,
+            skip_live=True,
+            target_row_ids=["lgm-999"],
+            skip_proven_output_rows=True,
+        )
