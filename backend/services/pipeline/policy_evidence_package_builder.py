@@ -159,6 +159,18 @@ def _land_use_known(fact: dict[str, Any]) -> bool:
     return value not in _UNKNOWN_LAND_USE_VALUES
 
 
+def _commercial_linkage_fee_value_plausible(fact: dict[str, Any]) -> bool:
+    field = str(fact.get("field") or "").strip().lower()
+    if field != "commercial_linkage_fee_rate_usd_per_sqft":
+        return True
+    value = fact.get("normalized_value", fact.get("value"))
+    try:
+        numeric_value = float(value)
+    except (TypeError, ValueError):
+        return False
+    return 0 <= numeric_value <= 100
+
+
 def _is_row_quality_approved_parameter_fact(*, fact: dict[str, Any], name: str, excerpt: str) -> bool:
     locator_quality = str(fact.get("locator_quality") or "").strip().lower()
     source_locator = str(fact.get("source_locator") or "").strip().lower()
@@ -179,6 +191,8 @@ def _is_row_quality_approved_parameter_fact(*, fact: dict[str, Any], name: str, 
     if not _has_per_square_foot_signal(fact=fact, name=name, excerpt=excerpt):
         return False
     if not _land_use_known(fact):
+        return False
+    if not _commercial_linkage_fee_value_plausible(fact):
         return False
     return True
 

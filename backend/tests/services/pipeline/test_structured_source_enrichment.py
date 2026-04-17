@@ -578,6 +578,26 @@ def test_extract_attachment_economic_rows_keeps_direct_memo_per_sqft_rows() -> N
     assert land_uses_by_value == {3.58: "industrial", 14.31: "office"}
 
 
+def test_extract_attachment_economic_rows_excludes_construction_cost_assumptions() -> None:
+    text = (
+        "The recommended fee level for Residential Care Facilities is $6 per square foot. "
+        "The cost of development for residential care on a per square foot basis "
+        "(assuming $600 per square foot for construction) is discussed separately."
+    )
+
+    facts = StructuredSourceEnricher._extract_attachment_economic_rows(
+        text=text,
+        source_url="https://legistar.granicus.com/sanjose/attachments/supplemental.pdf",
+        source_family="memorandum",
+        source_title="Supplemental Memorandum",
+        attachment_id="15523",
+        content_hash="hash-supplemental",
+    )
+
+    assert [fact["value"] for fact in facts] == [6.0]
+    assert facts[0]["land_use"] == "residential_care"
+
+
 def test_extract_pdf_text_classifies_unreadable_pdf_page_iteration_failure(
     monkeypatch: Any,
 ) -> None:

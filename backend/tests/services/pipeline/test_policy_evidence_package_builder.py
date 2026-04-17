@@ -549,6 +549,23 @@ def test_builder_parameter_cards_filter_weak_attachment_excerpt_rows() -> None:
                 "source_family": "memorandum",
                 "attachment_id": "303",
             },
+            {
+                "field": "commercial_linkage_fee_rate_usd_per_sqft",
+                "raw_value": "$600",
+                "normalized_value": 600.0,
+                "value": 600.0,
+                "unit": "usd_per_square_foot",
+                "land_use": "residential_care",
+                "raw_land_use_label": "Residential Care",
+                "source_excerpt": (
+                    "Cost of development for residential care assumes $600 per square foot."
+                ),
+                "source_locator": "attachment_probe:line_segment",
+                "locator_quality": "attachment_probe_line_rate",
+                "source_url": "https://sanjoseca.legistar.com/View.ashx?M=F&ID=8758124",
+                "source_family": "memorandum",
+                "attachment_id": "304",
+            },
         ],
     }
 

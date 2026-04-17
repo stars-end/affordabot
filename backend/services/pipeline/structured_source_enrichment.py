@@ -773,6 +773,15 @@ class StructuredSourceEnricher:
             r"(?:per\s+(?:square\s+foot|sq\.?\s*ft)|/\s*(?:sq\.?\s*ft|sf)\b)",
             re.IGNORECASE,
         )
+        fee_action_pattern = re.compile(
+            r"(fee|rate|pay|charge|assessment|recommended\s+fee\s+level)",
+            re.IGNORECASE,
+        )
+        non_fee_cost_assumption_pattern = re.compile(
+            r"(cost\s+of\s+development|development\s+cost|construction\s+cost|"
+            r"market\s+rent|monthly\s+rent|\brents?\b|assuming\s+\$)",
+            re.IGNORECASE,
+        )
 
         segments: list[str] = []
         for raw_line in re.split(r"[\r\n]+", text):
@@ -818,11 +827,23 @@ class StructuredSourceEnricher:
             for match in matches:
                 raw = match.group("value")
                 local_after_value = segment[match.start() : min(len(segment), match.end() + 48)]
+                local_around_value = segment[
+                    max(0, match.start() - 120) : min(len(segment), match.end() + 80)
+                ]
                 has_direct_rate_cue = bool(direct_rate_pattern.search(local_after_value))
                 is_table_row_rate = table_row_candidate and len(matches) == 1
                 if not has_direct_rate_cue and not is_table_row_rate:
                     continue
+                if has_direct_rate_cue and not is_table_row_rate:
+                    has_fee_action_near_value = bool(fee_action_pattern.search(local_around_value))
+                    has_non_fee_assumption_near_value = bool(
+                        non_fee_cost_assumption_pattern.search(local_around_value)
+                    )
+                    if has_non_fee_assumption_near_value and not has_fee_action_near_value:
+                        continue
                 value = float(raw.replace(",", ""))
+                if value > 100:
+                    continue
                 if value in seen_values:
                     continue
                 seen_values.add(value)

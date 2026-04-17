@@ -2434,6 +2434,18 @@ class RailwayRuntimeBridge:
         land_use = str(fact.get("land_use") or fact.get("category") or "").strip().lower()
         return land_use not in _UNKNOWN_LAND_USE_VALUES
 
+    @staticmethod
+    def _commercial_linkage_fee_value_plausible_for_row(fact: dict[str, Any]) -> bool:
+        field = str(fact.get("field") or "").strip().lower()
+        if field != "commercial_linkage_fee_rate_usd_per_sqft":
+            return True
+        value = fact.get("normalized_value", fact.get("value"))
+        try:
+            numeric_value = float(value)
+        except (TypeError, ValueError):
+            return False
+        return 0 <= numeric_value <= 100
+
     @classmethod
     def _is_row_quality_approved_official_attachment(cls, fact: dict[str, Any]) -> bool:
         locator_quality = str(fact.get("locator_quality") or "").strip().lower()
@@ -2455,6 +2467,8 @@ class RailwayRuntimeBridge:
         if not cls._has_per_square_foot_signal_for_row(fact):
             return False
         if not cls._land_use_known_for_row(fact):
+            return False
+        if not cls._commercial_linkage_fee_value_plausible_for_row(fact):
             return False
         return True
 

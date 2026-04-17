@@ -1949,6 +1949,22 @@ def test_runtime_bridge_row_quality_gate_blocks_excerpt_only_attachment_rows_fro
             "locator_quality": "attachment_probe_line_rate",
             "source_lane_classification": "true_structured_source",
         },
+        {
+            "field": "commercial_linkage_fee_rate_usd_per_sqft",
+            "normalized_value": 600.0,
+            "raw_value": "$600",
+            "unit": "usd_per_square_foot",
+            "land_use": "residential_care",
+            "raw_land_use_label": "Residential Care",
+            "source_url": "https://sanjoseca.legistar.com/View.ashx?M=F&ID=8758124",
+            "source_family": "memorandum",
+            "attachment_id": "305",
+            "attachment_title": "Supplemental Memo",
+            "source_excerpt": "Cost of development assumes $600 per square foot.",
+            "source_locator": "attachment_probe:line_segment",
+            "locator_quality": "attachment_probe_line_rate",
+            "source_lane_classification": "true_structured_source",
+        },
     ]
 
     normalized_rows = RailwayRuntimeBridge._build_normalized_economic_rows(
@@ -1957,11 +1973,11 @@ def test_runtime_bridge_row_quality_gate_blocks_excerpt_only_attachment_rows_fro
         primary_facts=[],
         structured_facts=structured_facts,
     )
-    assert len(normalized_rows) == 4
+    assert len(normalized_rows) == 5
     approved_rows = [row for row in normalized_rows if row.get("row_quality_approved")]
     rejected_rows = [row for row in normalized_rows if not row.get("row_quality_approved")]
     assert [row["normalized_value"] for row in approved_rows] == [6.0, 14.31]
-    assert len(rejected_rows) == 2
+    assert len(rejected_rows) == 3
     assert all(
         "row_quality_not_approved_for_economic_handoff" in (row.get("fail_closed_signals") or [])
         for row in rejected_rows
@@ -1971,7 +1987,7 @@ def test_runtime_bridge_row_quality_gate_blocks_excerpt_only_attachment_rows_fro
         primary_facts=[],
         secondary_facts=structured_facts,
     )
-    assert reconciliation["true_structured_row_count"] == 4
+    assert reconciliation["true_structured_row_count"] == 5
     assert reconciliation["official_attachment_row_count"] == 2
     assert reconciliation["official_attachment_authoritative_row_count"] == 2
     statuses = {record["status"] for record in reconciliation["records"]}
