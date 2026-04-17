@@ -742,3 +742,61 @@ Next blocker:
   `remaining_seeded_ref_row_count`, or decide that running all 85 remaining
   rows is not a useful local-cycle strategy and reclassify unproven generated
   rows as orchestration intent rather than live-ready proof.
+
+## Cycle 50: Seeded Windmill Batch Burn-Down
+
+Status: `completed_with_remaining_seeded_ref_gap`
+
+Started: 2026-04-17
+
+Scope:
+
+- Use the Cycle 49 `--target-proof-status seeded_not_live_proven` selector to
+  run a bounded live batch from the next seeded target rows.
+- Regenerate the Windmill overlay, scorecard/report, and manual-audit live row
+  coverage from actual live results.
+
+Live command attempted (non-destructive, Windmill dev):
+
+- `poetry run python scripts/verification/verify_local_government_corpus_windmill_orchestration.py --target-proof-status seeded_not_live_proven --max-cli-only-rows 3 --skip-proven-output-rows --backend-timeout-seconds 600 --out ../docs/poc/policy-evidence-quality-spine/artifacts/local_government_corpus_windmill_orchestration.json`
+
+Observed live result:
+
+- `lgm-002` (`San Jose CA`, `parking_policy`) proved live with
+  `windmill_run_id=019d9af3-e1f3-f31b-096f-69184b575aa6`.
+- `lgm-003` (`San Jose CA`, `short_term_rental`) proved live with
+  `windmill_run_id=019d9af9-914d-a0d4-bc32-bc653b566ec6`.
+- `lgm-004` (`Los Angeles CA`, `affordable_housing_mandate`) proved live with
+  `windmill_run_id=019d9afa-8d01-8174-197f-018b5f67d64b`.
+- Railway logs showed reader-output uploads and backend `200 OK` responses for
+  the batch, including a MinIO retry that eventually succeeded.
+
+Gate impact:
+
+- Live-proven corpus rows increased from `5` to `8`: `lgm-001`, `lgm-002`,
+  `lgm-003`, `lgm-004`, `lgm-007`, `lgm-013`, `lgm-015`, and `lgm-018`.
+- `seeded_not_live_proven_rows` improved from `85` to `82`.
+- `remaining_seeded_ref_row_count=82`.
+- `cli_only_share` remains `0.0`.
+- C13 remains `not_proven` because seeded refs remain.
+- Final state remains `corpus_ready_with_gaps`.
+
+Manual audit impact:
+
+- Added lightweight live-proven audit entries for `lgm-002`, `lgm-003`, and
+  `lgm-004`.
+- Live-proven audit rows still carry
+  `evidence_boundary=orchestration_proof_only_not_substantive_quality`; this
+  does not upgrade substantive policy quality by itself.
+
+Validation:
+
+- `cd backend && poetry run pytest` -> `860 passed, 70 warnings`.
+- Cycle 50 targeted validation is expected to include the manual audit verifier
+  after the live-proven audit entries are updated.
+
+Next blocker:
+
+- Continue seeded-ref burn-down with bounded batches, or reclassify the
+  remaining generated seeded rows as orchestration intent if running all `82`
+  remaining rows is not a good use of local eval cycles.

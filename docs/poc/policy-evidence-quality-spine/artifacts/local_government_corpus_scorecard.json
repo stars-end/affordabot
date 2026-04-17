@@ -4,38 +4,41 @@
     "windmill_blocked_attempt_rows": [],
     "windmill_live_attempt_rows": [
       "lgm-001",
+      "lgm-002",
+      "lgm-003",
+      "lgm-004",
       "lgm-007",
       "lgm-013",
       "lgm-015",
       "lgm-018"
     ],
     "windmill_orchestration_artifact": "docs/poc/policy-evidence-quality-spine/artifacts/local_government_corpus_windmill_orchestration.json",
-    "windmill_orchestration_digest": "7865a193c25287ba1e10516a6062c309d08cba966d5b015fe884951dac92d067",
-    "windmill_orchestration_generated_at": "2026-04-17T10:07:05+00:00",
+    "windmill_orchestration_digest": "b1a75009d32cfa0ed4e6f41aaa2bc100822a859f544e45c80509305b9c45a2af",
+    "windmill_orchestration_generated_at": "2026-04-17T10:28:01+00:00",
     "windmill_orchestration_verdict": "not_proven_unverified_live_refs",
     "windmill_overlay_burndown_summary": {
       "blocked_row_count": 0,
-      "live_attempt_rows_proven": 5,
-      "missing_live_refs_rows_remaining": 85,
+      "live_attempt_rows_proven": 8,
+      "missing_live_refs_rows_remaining": 82,
       "next_seeded_ref_target_rows": [
-        "lgm-002",
-        "lgm-003",
-        "lgm-004",
         "lgm-005",
-        "lgm-006"
+        "lgm-006",
+        "lgm-008",
+        "lgm-009",
+        "lgm-010"
       ],
-      "seeded_placeholder_rows_remaining": 85,
+      "seeded_placeholder_rows_remaining": 82,
       "seeded_placeholder_rows_sample": [
-        "lgm-002",
-        "lgm-003",
-        "lgm-004",
         "lgm-005",
         "lgm-006",
         "lgm-008",
         "lgm-009",
         "lgm-010",
         "lgm-011",
-        "lgm-012"
+        "lgm-012",
+        "lgm-014",
+        "lgm-016",
+        "lgm-017"
       ]
     }
   },
@@ -170,32 +173,29 @@
         "blocked_backend_scope_rows": 0,
         "cli_only_rows": 0,
         "cli_only_share": 0.0,
-        "live_proof_coverage_ratio": 0.0556,
-        "live_proven_rows": 5,
+        "live_proof_coverage_ratio": 0.0889,
+        "live_proven_rows": 8,
         "missing_live_refs_rows": 0,
         "missing_mode_rows": 0,
         "mode_counts": {
           "cli_only": 0,
-          "mixed": 42,
-          "windmill_live": 48
+          "mixed": 41,
+          "windmill_live": 49
         },
         "next_seeded_ref_target_rows": [
-          "lgm-002",
-          "lgm-003",
-          "lgm-004",
           "lgm-005",
           "lgm-006",
           "lgm-008",
           "lgm-009",
           "lgm-010",
           "lgm-011",
-          "lgm-012"
+          "lgm-012",
+          "lgm-014",
+          "lgm-016",
+          "lgm-017"
         ],
-        "remaining_seeded_ref_row_count": 85,
+        "remaining_seeded_ref_row_count": 82,
         "remaining_seeded_ref_rows": [
-          "lgm-002",
-          "lgm-003",
-          "lgm-004",
           "lgm-005",
           "lgm-006",
           "lgm-008",
@@ -284,25 +284,28 @@
         "sample_cli_only_rows": [],
         "sample_live_proven_rows": [
           "lgm-001",
+          "lgm-002",
+          "lgm-003",
+          "lgm-004",
           "lgm-007",
           "lgm-013",
           "lgm-015",
           "lgm-018"
         ],
         "sample_seeded_not_live_proven_rows": [
-          "lgm-002",
-          "lgm-003",
-          "lgm-004",
           "lgm-005",
           "lgm-006",
           "lgm-008",
           "lgm-009",
           "lgm-010",
           "lgm-011",
-          "lgm-012"
+          "lgm-012",
+          "lgm-014",
+          "lgm-016",
+          "lgm-017"
         ],
         "sample_unsupported_scope_rows": [],
-        "seeded_not_live_proven_rows": 85,
+        "seeded_not_live_proven_rows": 82,
         "seeded_ref_target_rows": 90,
         "unsupported_scope_rows": 0
       },
@@ -421,7 +424,7 @@
       "status": "pass"
     }
   },
-  "generated_at": "2026-04-17T10:15:03+00:00",
+  "generated_at": "2026-04-17T10:28:13+00:00",
   "matrix_digest": "27b1db98df46a04658af6b89ac35623e706cd979742810ba2a3eb3ec66b9eafa",
   "matrix_summary": {
     "corpus_readiness_target": "corpus_ready_with_gaps",

@@ -285,7 +285,16 @@ def test_missing_golden_required_field_fails() -> None:
 def test_repo_manual_audit_artifacts_have_required_fields() -> None:
     repo_root = Path(__file__).resolve().parents[3]
     artifact_dir = repo_root / "docs" / "poc" / "policy-evidence-quality-spine" / "artifacts"
-    expected_live_rows = ["lgm-001", "lgm-007", "lgm-013", "lgm-015", "lgm-018"]
+    expected_live_rows = [
+        "lgm-001",
+        "lgm-002",
+        "lgm-003",
+        "lgm-004",
+        "lgm-007",
+        "lgm-013",
+        "lgm-015",
+        "lgm-018",
+    ]
 
     report = verify_local_government_manual_audit(
         matrix_path=artifact_dir / "local_government_corpus_matrix.json",

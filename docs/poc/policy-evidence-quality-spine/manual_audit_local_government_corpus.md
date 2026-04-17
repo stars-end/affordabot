@@ -74,6 +74,9 @@ claims by itself.
 | corpus_row_id | jurisdiction_id | policy_family | source_lane_status | d11_handoff | manual_audit_status |
 | --- | --- | --- | --- | --- | --- |
 | `lgm-001` | `san_jose_ca` | `commercial_linkage_fee` | `windmill_live` | `analysis_ready_with_gaps` | `lightweight_live_proven_triage` |
+| `lgm-002` | `san_jose_ca` | `parking_policy` | `windmill_live` | `analysis_ready_with_gaps` | `lightweight_live_proven_triage` |
+| `lgm-003` | `san_jose_ca` | `short_term_rental` | `windmill_live` | `not_analysis_ready` | `lightweight_live_proven_triage` |
+| `lgm-004` | `los_angeles_ca` | `affordable_housing_mandate` | `windmill_live` | `analysis_ready_with_gaps` | `lightweight_live_proven_triage` |
 | `lgm-007` | `oakland_ca` | `business_licensing_compliance` | `windmill_live` | `not_analysis_ready` | `lightweight_live_proven_triage` |
 | `lgm-013` | `portland_or` | `short_term_rental` | `windmill_live` | `not_analysis_ready` | `lightweight_live_proven_triage` |
 | `lgm-015` | `king_county_wa` | `meeting_action` | `windmill_live` | `not_analysis_ready` | `lightweight_live_proven_triage` |

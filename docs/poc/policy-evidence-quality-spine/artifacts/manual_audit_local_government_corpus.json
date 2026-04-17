@@ -23,6 +23,39 @@
       "manual_audit_note": "Live Windmill refs proven; substantive package quality still governed by C0-C14."
     },
     {
+      "corpus_row_id": "lgm-002",
+      "package_id": "pkg::lgm-002",
+      "jurisdiction_id": "san_jose_ca",
+      "policy_family": "parking_policy",
+      "source_lane_status": "windmill_live",
+      "d11_economic_handoff_classification": "analysis_ready_with_gaps",
+      "manual_audit_status": "lightweight_live_proven_triage",
+      "evidence_boundary": "orchestration_proof_only_not_substantive_quality",
+      "manual_audit_note": "Live Windmill refs proven; substantive package quality still governed by C0-C14."
+    },
+    {
+      "corpus_row_id": "lgm-003",
+      "package_id": "pkg::lgm-003",
+      "jurisdiction_id": "san_jose_ca",
+      "policy_family": "short_term_rental",
+      "source_lane_status": "windmill_live",
+      "d11_economic_handoff_classification": "not_analysis_ready",
+      "manual_audit_status": "lightweight_live_proven_triage",
+      "evidence_boundary": "orchestration_proof_only_not_substantive_quality",
+      "manual_audit_note": "Live Windmill refs proven; substantive package quality still governed by C0-C14."
+    },
+    {
+      "corpus_row_id": "lgm-004",
+      "package_id": "pkg::lgm-004",
+      "jurisdiction_id": "los_angeles_ca",
+      "policy_family": "affordable_housing_mandate",
+      "source_lane_status": "windmill_live",
+      "d11_economic_handoff_classification": "analysis_ready_with_gaps",
+      "manual_audit_status": "lightweight_live_proven_triage",
+      "evidence_boundary": "orchestration_proof_only_not_substantive_quality",
+      "manual_audit_note": "Live Windmill refs proven; substantive package quality still governed by C0-C14."
+    },
+    {
       "corpus_row_id": "lgm-007",
       "package_id": "pkg::lgm-007",
       "jurisdiction_id": "oakland_ca",

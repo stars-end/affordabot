@@ -27,10 +27,10 @@
 
 ## C13 Burn-down
 
-- live proof coverage ratio: `0.0556`
-- live proof progress: `5/90`
-- remaining seeded ref rows: `85`
-- next seeded ref target rows: `lgm-002, lgm-003, lgm-004, lgm-005, lgm-006, lgm-008, lgm-009, lgm-010, lgm-011, lgm-012`
+- live proof coverage ratio: `0.0889`
+- live proof progress: `8/90`
+- remaining seeded ref rows: `82`
+- next seeded ref target rows: `lgm-005, lgm-006, lgm-008, lgm-009, lgm-010, lgm-011, lgm-012, lgm-014, lgm-016, lgm-017`
 
 ## Current Gaps
 
