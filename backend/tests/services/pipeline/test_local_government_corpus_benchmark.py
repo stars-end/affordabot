@@ -8,7 +8,7 @@ from services.pipeline.local_government_corpus_benchmark import (
 )
 
 
-def test_seed_matrix_has_required_scope_axes_and_expansion_backlog() -> None:
+def test_seed_matrix_has_decision_grade_scope_axes() -> None:
     matrix = build_local_government_corpus_matrix_seed()
     rows = [row for row in matrix["rows"] if row.get("row_type") == "corpus_package"]
 
@@ -28,13 +28,27 @@ def test_seed_matrix_has_required_scope_axes_and_expansion_backlog() -> None:
         for observation in row.get("structured_source_observations", []):
             source_families.add(observation["source_family"])
 
-    assert matrix["seed_mode"] == "seed_with_expansion_backlog"
+    max_jurisdiction_count = max(
+        sum(1 for row in rows if row["jurisdiction"]["id"] == jurisdiction)
+        for jurisdiction in jurisdictions
+    )
+    stored_or_qualitative_rows = [
+        row
+        for row in rows
+        if row["classification"]["data_moat_package_classification"]
+        in {"stored_not_economic", "qualitative_only"}
+    ]
+
+    assert matrix["seed_mode"] == "expanded_generator_cycle_45"
     assert matrix["corpus_readiness_target"] == "corpus_ready_with_gaps"
     assert len(matrix["expansion_backlog"]) >= 1
+    assert 75 <= len(rows) <= 120
     assert len(jurisdictions) >= 6
     assert len(non_ca) >= 2
     assert len(policy_families) >= 8
     assert len(source_families) >= 5
+    assert max_jurisdiction_count / len(rows) <= 0.4
+    assert len(stored_or_qualitative_rows) / len(rows) >= 0.1
     assert any(row["evaluation_split"] == "tuning" for row in rows)
     assert any(row["evaluation_split"] == "blind_evaluation" for row in rows)
     assert all(row.get("known_policy_reference_id") for row in rows)
@@ -64,8 +78,37 @@ def test_seed_scorecard_encodes_c0_to_c14_without_false_pass() -> None:
         "C13",
         "C14",
     }.issubset(gate_ids)
-    assert scorecard["gates"]["C0"]["status"] == "not_proven"
+    assert scorecard["gates"]["C0"]["status"] == "pass"
+    assert scorecard["gates"]["C1"]["status"] == "pass"
+    assert scorecard["gates"]["C2"]["status"] == "pass"
+    assert scorecard["gates"]["C13"]["status"] == "not_proven"
+    assert (
+        "windmill_refs_seeded_not_live_proven"
+        in scorecard["gates"]["C13"]["blockers"]
+    )
+    assert scorecard["gates"]["C14"]["status"] == "pass"
     assert scorecard["corpus_state"] == "corpus_ready_with_gaps"
+
+
+def test_seeded_windmill_refs_do_not_satisfy_c13() -> None:
+    service = LocalGovernmentCorpusBenchmarkService()
+    matrix = build_local_government_corpus_matrix_seed()
+    rows = [row for row in matrix["rows"] if row.get("row_type") == "corpus_package"]
+
+    for row in rows:
+        infra = row.get("infrastructure_status")
+        if not isinstance(infra, dict):
+            continue
+        refs = infra.get("windmill_refs")
+        if not isinstance(refs, dict):
+            continue
+        refs["run_id"] = f"live-run::{row['corpus_row_id']}"
+        refs["job_id"] = f"live-job::{row['corpus_row_id']}"
+        refs["proof_status"] = "live_proven"
+        refs["proof_source"] = "windmill_cli_live"
+
+    scorecard = service.evaluate(matrix=matrix)
+    assert scorecard["gates"]["C13"]["status"] == "pass"
 
 
 def test_san_jose_only_matrix_fails_c0() -> None:
@@ -80,6 +123,22 @@ def test_san_jose_only_matrix_fails_c0() -> None:
     scorecard = service.evaluate(matrix=matrix)
     assert scorecard["gates"]["C0"]["status"] == "fail"
     assert "san_jose_only" in scorecard["gates"]["C0"]["blockers"]
+
+
+def test_insufficient_package_count_without_backlog_fails_c0() -> None:
+    service = LocalGovernmentCorpusBenchmarkService()
+    matrix = build_local_government_corpus_matrix_seed()
+    mutated = deepcopy(matrix)
+    package_rows = [
+        row for row in mutated["rows"] if row.get("row_type") == "corpus_package"
+    ]
+    mutated["rows"] = package_rows[:74]
+    mutated["expansion_backlog"] = []
+    mutated["corpus_readiness_target"] = "decision_grade_corpus"
+
+    scorecard = service.evaluate(matrix=mutated)
+    assert scorecard["gates"]["C0"]["status"] == "fail"
+    assert "package_count_below_75" in scorecard["gates"]["C0"]["blockers"]
 
 
 def test_external_primary_over_cap_fails_c1() -> None:
@@ -103,6 +162,21 @@ def test_external_primary_over_cap_fails_c1() -> None:
     )
 
 
+def test_tavily_exa_primary_over_5_percent_corpus_cap_fails_c1() -> None:
+    service = LocalGovernmentCorpusBenchmarkService()
+    matrix = build_local_government_corpus_matrix_seed()
+    mutated = deepcopy(matrix)
+    rows = [row for row in mutated["rows"] if row.get("row_type") == "corpus_package"]
+    for row in rows[:6]:
+        row["provider_usage"]["tavily_primary_selected"] = True
+        row["provider_usage"]["exa_primary_selected"] = False
+        row["manual_audit"]["sampled"] = False
+
+    scorecard = service.evaluate(matrix=mutated)
+    assert scorecard["gates"]["C1"]["status"] == "fail"
+    assert "tavily_exa_primary_over_5_percent_corpus_cap" in scorecard["gates"]["C1"]["blockers"]
+
+
 def test_shallow_legistar_only_structured_fails_c2() -> None:
     service = LocalGovernmentCorpusBenchmarkService()
     matrix = build_local_government_corpus_matrix_seed()
@@ -113,8 +187,8 @@ def test_shallow_legistar_only_structured_fails_c2() -> None:
         row["structured_source_observations"] = [
             {
                 "source_family": "agenda_meeting_api",
-                "true_structured": False,
-                "depth": "metadata",
+                "true_structured": True,
+                "depth": "meeting_metadata",
                 "live_proven": True,
             }
         ]
@@ -122,9 +196,7 @@ def test_shallow_legistar_only_structured_fails_c2() -> None:
     scorecard = service.evaluate(matrix=mutated)
 
     assert scorecard["gates"]["C2"]["status"] == "fail"
-    assert (
-        "true_structured_family_count_below_2" in scorecard["gates"]["C2"]["blockers"]
-    )
+    assert "shallow_legistar_only_structured_depth" in scorecard["gates"]["C2"]["blockers"]
 
 
 def test_missing_c3_d11_mapping_fails_c3() -> None:

@@ -122,3 +122,197 @@ Next blocker:
 - Cycle 45 should expand the corpus toward the 75-120 package target and shift
   generation from deterministic seed/CLI artifacts to live Windmill-orchestrated
   rows, while preserving the C1/C2/C14 quality gates.
+
+## Cycle 45: C13 Windmill Orchestration Probe (Worker F)
+
+Status: `completed_with_blocker_artifact`
+
+Started: 2026-04-17
+
+Scope:
+
+- Prove/fail-close live Windmill orchestration coverage for local-government
+  corpus rows currently marked `cli_only`.
+- Keep product logic backend-owned by dispatching with
+  `command_client=backend_endpoint`.
+
+Changes:
+
+- Added verifier script:
+  `backend/scripts/verification/verify_local_government_corpus_windmill_orchestration.py`.
+- Added focused tests:
+  `backend/tests/verification/test_verify_local_government_corpus_windmill_orchestration.py`.
+- Generated artifact:
+  `docs/poc/policy-evidence-quality-spine/artifacts/local_government_corpus_windmill_orchestration.json`.
+
+Live command attempted (non-destructive, Windmill dev):
+
+- `windmill-cli flow run f/affordabot/pipeline_daily_refresh_domain_boundary__flow -d '{... "command_client":"backend_endpoint", "idempotency_key":"bd-3wefe.13.4.3:lgm-007:20260417082402", ...}'`
+
+Observed result:
+
+- Live dispatch exercised for row `lgm-007` with
+  `windmill_run_id=bd-3wefe.13.4.3:lgm-007:20260417082402`.
+- `windmill_job_id` could not be proven from CLI output/job list during this
+  run, so row is fail-closed as:
+  `blocker_class=windmill_refs_incomplete`.
+
+Metrics captured in artifact:
+
+- Scorecard reference at `2026-04-17T08:14:09+00:00`:
+  originally showed `C13.status=pass`, `cli_only_share=0.0444` (`4/90`).
+  Cycle 45 integration review rejected that pass as a false positive because
+  the matrix refs used seeded `wm::`/`wm-job::` placeholders rather than
+  live-proven Windmill job references.
+- Probe baseline from matrix:
+  `cli_only_share=0.0444` (`4/90`).
+- Probe post-attempt:
+  `cli_only_share=0.0333` (`3/90`) with `lgm-007` marked `blocked`
+  due to missing live job ref.
+- Cycle 45 verifier verdict:
+  `c13_verdict_candidate=not_proven_blocked`.
+
+Validation:
+
+- `cd backend && poetry run pytest tests/verification/test_verify_local_government_corpus_windmill_orchestration.py` -> pass.
+- `cd backend && poetry run ruff check scripts/verification/verify_local_government_corpus_windmill_orchestration.py tests/verification/test_verify_local_government_corpus_windmill_orchestration.py` -> pass.
+
+Next blocker:
+
+- Resolve Windmill run-to-job traceability for backend-endpoint dispatch
+  (or equivalent authoritative job ref extraction) so `windmill_job_id` is
+  proven for attempted `cli_only` rows.
+
+## Cycle 45: Corpus Expansion to 90 Packages (Worker D)
+
+Status: `completed`
+
+Started: 2026-04-17
+
+Scope:
+
+- Expanded `local_government_data_moat_benchmark_v0` package rows from 18 to 90
+  using generator-backed city/county/state templates.
+- Kept C1/C2/C14 safeguards active while removing the C0 size blocker.
+- Tightened unit tests to block false passes for: San-Jose-only scope, sub-75
+  package corpus without backlog contract, Tavily/Exa corpus cap breaches, and
+  shallow Legistar-only structured depth.
+
+Material changes:
+
+- Added `_build_cycle_45_expansion_rows()` in
+  `backend/services/pipeline/local_government_corpus_benchmark.py` and wired it
+  into `build_local_government_corpus_matrix_seed()`.
+- Updated benchmark metadata to `feature_key: bd-3wefe.13.4.1` and refreshed
+  expansion backlog narrative for post-90-row hardening tasks.
+- Made report "Next Eval Blocker" messaging dynamic so it reflects actual gate
+  outcomes.
+- Regenerated:
+  `local_government_corpus_matrix.json`,
+  `local_government_corpus_scorecard.json`,
+  `local_government_corpus_report.md`.
+
+Gate movement:
+
+- `C0`: `not_proven` -> `pass` (package_count now 90, scope composition satisfied).
+- `C5`: `not_proven` -> `pass` (manual-audit sampling now stratified and complete).
+- `C13`: remains `not_proven` after orchestrator review. The cli_only share is
+  now below cap, but seeded Windmill refs are not live proof.
+- `C1`, `C2`, `C14`: remain `pass`.
+
+Current corpus verdict:
+
+- `local_government_corpus_scorecard.json`: `corpus_ready_with_gaps`.
+- Package rows: `90`.
+- C0/C1/C2/C5/C14: `pass`.
+- C13: `not_proven`, blocker `windmill_refs_seeded_not_live_proven`.
+
+Validation:
+
+- `cd backend && poetry run pytest tests/services/pipeline/test_local_government_corpus_benchmark.py` -> `9 passed`.
+- `cd backend && poetry run ruff check services/pipeline/local_government_corpus_benchmark.py tests/services/pipeline/test_local_government_corpus_benchmark.py` -> pass.
+
+Next blocker:
+
+- Resolve C13 live run/job traceability. Seeded orchestration intent metadata
+  must not satisfy decision-grade corpus gates.
+
+## Cycle 45: C5 Stratified Manual Audit + Golden Regression Contract (Worker E)
+
+Status: `completed`
+
+Started: 2026-04-17
+
+Scope:
+
+- Added an executable verifier for C5 manual-audit stratification plus golden
+  regression contract checks.
+- Added machine-readable manual audit + golden artifacts aligned to the current
+  90-row corpus matrix without editing matrix ownership files.
+- Added focused false-pass tests to block San-Jose-only audit sampling and
+  missing required fields.
+
+Material changes:
+
+- Added
+  `backend/scripts/verification/verify_local_government_corpus_manual_audit.py`.
+- Added
+  `backend/tests/verification/test_verify_local_government_corpus_manual_audit.py`.
+- Added
+  `docs/poc/policy-evidence-quality-spine/manual_audit_local_government_corpus.md`.
+- Added
+  `docs/poc/policy-evidence-quality-spine/artifacts/manual_audit_local_government_corpus.json`.
+- Added
+  `docs/poc/policy-evidence-quality-spine/golden_policy_regression_set.md`.
+- Added
+  `docs/poc/policy-evidence-quality-spine/artifacts/golden_policy_regression_set.json`.
+
+Cycle 45 C5 stratification snapshot:
+
+- audited packages: `30` (required: `30` because matrix has `90` packages)
+- jurisdiction mix: `6` non-San-Jose jurisdictions with `5` packages each
+- policy-family mix: 5 policy families with count `6` each
+- source-family mix: 2 source families with counts `12` and `18`
+- golden rows: `30` (`tuning=20`, `blind=10`)
+
+Validation:
+
+- `cd backend && poetry run pytest tests/verification/test_verify_local_government_corpus_manual_audit.py` -> pass.
+- `cd backend && poetry run ruff check scripts/verification/verify_local_government_corpus_manual_audit.py tests/verification/test_verify_local_government_corpus_manual_audit.py` -> pass.
+- `git diff --check` -> pass.
+
+## Cycle 45: Orchestrator Integration Review
+
+Status: `completed_with_false_pass_fix`
+
+Started: 2026-04-17
+
+Review finding:
+
+- Worker D's generated scorecard treated seeded Windmill IDs
+  (`wm::<row>`, `wm-job::<row>`) as if they were live orchestration proof.
+- Worker F's live artifact exercised Windmill for `lgm-007` but could not
+  prove `windmill_job_id`, so C13 must remain `not_proven`.
+
+Material changes:
+
+- Added explicit seeded-ref provenance to generated matrix rows:
+  `proof_status=seeded_not_live_proven`.
+- Updated C13 scoring so seeded refs count as orchestration intent only, not
+  live proof.
+- Added a regression test proving generated seed refs cannot satisfy C13, and
+  that only `proof_status=live_proven` refs can pass.
+- Regenerated corpus matrix, scorecard, and report.
+
+Final Cycle 45 gate state:
+
+- `corpus_state=corpus_ready_with_gaps`.
+- `C0/C1/C2/C3/C4/C5/C6/C7/C8/C9/C9a/C10/C11/C12/C14=pass`.
+- `C13=not_proven` with blocker
+  `windmill_refs_seeded_not_live_proven`.
+
+Next blocker:
+
+- Cycle 46 must either extract authoritative Windmill job IDs for live
+  backend-endpoint runs or change the Windmill flow/backend response contract
+  so job/run refs are returned and persisted into the corpus matrix.
