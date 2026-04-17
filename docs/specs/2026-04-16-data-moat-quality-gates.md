@@ -76,22 +76,33 @@ Corpus result states:
 
 ### C0 Corpus Scope Gate
 
-Pass requires the corpus to cover at least 3 jurisdictions, 5 policy families,
-3 source families, and 30 to 50 evidence packages, or to document an exact
-evidence-backed shortfall.
+Pass requires the corpus to cover at least 6 jurisdictions, 8 policy families,
+5 source families, and 75 to 120 evidence packages, or to document an exact
+evidence-backed shortfall. At least 2 jurisdictions must be outside California.
+Each counted jurisdiction must contribute at least 5 packages.
 
-Fail if the proof remains San Jose-only, Legistar-only, CLF/fee-only, or
-single-source-family.
+No single jurisdiction may contribute more than 40 percent of packages for
+`decision_grade_corpus`. At least 10 percent of packages must be valid
+`stored_not_economic` or `qualitative_only` policy evidence. At least 3 non-fee
+policy families must have depth beyond document storage.
+
+Fail if the proof remains San Jose-only, California-only, Legistar-only,
+CLF/fee-only, benchmark-sized while claiming ultra-reach, or single-source-family.
 
 ### C1 Official-Source Dominance Gate
 
-Pass requires at least 80 percent of manually audited packages to select an
-official primary source: city, county, state, regulator, clerk, agenda system,
-official open data portal, or official attachment.
+Pass requires official primary-source dominance:
+- at least 90 percent of manually audited P0/P1 packages;
+- at least 85 percent corpus-wide;
+- hard fail if audited or corpus-wide dominance is below 80 percent.
 
 Fail if external advocacy, news, vendor, nonprofit, or campaign sources win
 primary selection without an explicit fail verdict or a narrow documented
 source-of-truth promotion rule.
+
+Tavily/Exa-derived primary selection must be 0 percent in the audited sample and
+at most 5 percent corpus-wide. SearXNG snippets are discovery-only and cannot be
+primary evidence.
 
 Pass also requires one backend-owned source/identity classification surface used
 by ranking, package building, read models, corpus scorecards, and manual audit.
@@ -99,14 +110,33 @@ Every candidate must expose `source_officialness`, `source_of_truth_role`,
 `jurisdiction_match`, `policy_family_match`, `external_context_allowed`, and
 `primary_evidence_allowed`.
 
+Every external-source promotion must be recorded in a machine-checked promotion
+register with source-of-truth rule id, package id, source URL, reason, and audit
+status.
+
 ### C2 Source-Family Diversity Gate
 
-Pass requires at least three source families in the corpus, including at least
-one true structured API/raw source where available.
+Pass requires at least 5 source families in the corpus, including at least 2
+true structured API/raw source families. At least one must be non-Legistar and
+live-proven against the current corpus.
 
-Fail if the corpus is effectively private SearXNG plus PDFs only, unless the
-source catalog proves structured-source absence for the selected jurisdictions
-and policy families.
+Structured-source coverage must reach at least 40 percent of
+policy-family-by-jurisdiction cells, or each uncovered cell must carry
+catalog-level absence evidence.
+
+Every counted non-primary jurisdiction must have at least one true structured
+source live-proven, or the scorecard must record exact infrastructure/source
+catalog evidence for why that jurisdiction cannot yet count toward
+`decision_grade_corpus`.
+
+Legistar metadata-only does not satisfy structured depth unless it contributes
+normalized economic rows, policy-structure rows, effective-date rows, or
+cross-source identity/freshness/dedupe signals that materially improve the
+package.
+
+Fail if the corpus is effectively private SearXNG plus PDFs plus shallow
+Legistar metadata, unless the source catalog proves structured-source absence
+for the selected jurisdictions and policy families.
 
 ### C3 Package Reusability Gate
 
@@ -118,11 +148,41 @@ Pass requires every package to carry standalone data-value classification:
 Packages can be data-moat assets even when not economic-ready if they are
 official, source-grounded, deduped, stored, auditable, and correctly classified.
 
+C3 classes must reconcile with package-level D11 economic handoff quality:
+
+| C3 class | Required D11 quality |
+| --- | --- |
+| `economic_analysis_ready` | `analysis_ready` |
+| `economic_handoff_candidate` | `analysis_ready_with_gaps` or `analysis_ready` |
+| `secondary_research_needed` | `analysis_ready_with_gaps` |
+| `qualitative_only` | `not_analysis_ready` with qualitative reason |
+| `stored_not_economic` | `not_analysis_ready` with non-economic value reason |
+| `not_policy_evidence` | `not_analysis_ready` with false-positive reason |
+| `fail` | `not_analysis_ready` or package `fail` |
+
+Pass requires `handoff_taxonomy_reconciled=true` for every package row.
+`not_policy_evidence` is capped at 15 percent of the corpus and every row must
+record whether it is off-topic, vendor, news, advocacy, duplicate, wrong
+jurisdiction, or other.
+
+Implementation requirement: add a first-class package classification contract,
+preferably `DataMoatPackageClassification`, with exactly the seven C3 classes.
+The class must be schema-validated and emitted in package/read-model/scorecard
+outputs.
+
 ### C4 Economic Handoff Distribution Gate
 
-Pass requires at least 5 packages to be plausible economic-handoff candidates
-and at least 2 packages to reach deeper economic analysis or governed secondary
-research proof.
+Pass requires at least 10 packages to be plausible economic-handoff candidates
+and at least 6 packages to reach deeper economic analysis or governed secondary
+research proof:
+- at least 3 direct-cost deep dives;
+- at least 2 indirect-mechanism deep dives;
+- at least 1 secondary-research-required deep dive;
+- at least 1 non-San-Jose deep dive;
+- at least 1 non-CLF policy-family deep dive.
+
+Every recurring model family must have `model_card_reuse_count >= 1` or an
+explicit no-reuse reason.
 
 Fail if the corpus has data value but the economic engine receives no clear
 handoff packets, missing-parameter inventory, or recommended next action.
@@ -137,11 +197,23 @@ and dominant failure class.
 
 Fail if manual audit inspects only the best San Jose package.
 
+Sampling must be stratified:
+- at least 30 manually audited packages, or all packages if fewer than 30 exist;
+- at least 3 audited packages per counted jurisdiction;
+- at least 2 audited packages per counted policy family;
+- at least 2 audited packages per counted source family;
+- at least 2 non-San-Jose jurisdictions each contributing at least 5 audited or
+  corpus packages before any pass claim.
+
 ### C6 Golden Regression Gate
 
 Pass requires a reusable golden policy regression set with stable query inputs,
 expected jurisdiction, expected policy family, selected source URL, package id,
 verdict, and failure class.
+
+Golden rows must reference a versioned machine-readable taxonomy for
+jurisdictions, policy families, source families, handoff classes, and failure
+classes.
 
 Fail if future agents cannot rerun the scorecard and compare search, ranking,
 reader, structured enrichment, or package quality.
@@ -162,6 +234,97 @@ Pass requires corpus/package durability metrics:
 Fail if stale, drifted, source-shape-changed, or cadence-missing data can still
 produce `decision_grade_corpus`, `corpus_ready_with_gaps`, or package-level pass
 without visible caveats in the scorecard and read model.
+
+### C8 Cross-Jurisdiction Identity And Dedupe Gate
+
+Pass requires jurisdiction-aware canonical keys for policy, source, document,
+attachment, meeting item, and structured row. State/regional policies referenced
+by multiple cities/counties must dedupe to one canonical source when appropriate
+while preserving local applicability references. Superseded, amended, adopted,
+effective, and expired versions must be linked rather than overwritten.
+
+Fail if the same policy/source is stored as unrelated packages across
+jurisdictions, local and state/regional identities collapse incorrectly, or
+dedupe hides meaningful local applicability differences.
+
+### C9 Structured Normalization And Exportability Gate
+
+Pass requires normalized, queryable fields for currency, percent, count, date,
+unit, jurisdiction, geography, district, parcel/project, applicability,
+policy-family, mechanism-family, source type, evidence type, and source dates or
+explicit unknown states. The corpus must provide an export artifact or
+API/read-model shape suitable for customer consumption with provenance intact.
+
+Fail if the corpus can only be inspected through bespoke JSON blobs, units
+cannot be compared across rows, or a customer cannot query/filter/export the
+data product without re-running extraction logic.
+
+### C9a Data Product Surface Gate
+
+Pass requires at least one concrete consumer surface: backend read API endpoint
+or export artifact for corpus packages; stable schema for package, evidence,
+parameter/structured fact, source metric, classification, freshness, and
+handoff records; access-control assumptions for internal/admin vs future
+customer use; and query examples for jurisdiction, policy family, source family,
+officialness, freshness, and classification.
+
+Fail if the data moat is only inspectable through ad hoc local artifacts or
+developer-only scripts.
+
+### C10 Source Licensing, Robots, And ToS Gate
+
+Pass requires every material source family to have a licensing/access posture
+record: public-domain/open-data/license text when available, robots.txt or ToS
+posture where applicable, rate-limit and attribution notes, allowed
+storage/export posture, and whether evidence can be redistributed, stored
+internally, or linked only.
+
+Fail if the corpus claims data-product readiness while source licensing,
+robots/ToS, redistribution, or attribution posture is unknown for material
+source families.
+
+### C11 Schema Evolution And Package-Version Gate
+
+Pass requires explicit package schema version, source taxonomy version, gate
+version, migration/backfill compatibility notes, field deprecation/addition
+rules, forward-compatible unknown-field handling, and scorecard compatibility
+with prior corpus runs.
+
+Fail if future package rows cannot be compared to current rows because schema,
+taxonomy, or gate versions are implicit.
+
+### C12 Coverage-Of-Known-Policies Gate
+
+Pass requires evaluation against a seeded reference list of known policies,
+including at least one blind seed list held out from ranker/query tuning. The
+reference list must include jurisdiction, policy family, expected official
+source family, expected structured source family where known, expected economic
+handoff class, coverage percentage, and missed-policy failure classes.
+
+Fail if the corpus contains many packages but misses seeded high-value policies
+or if seed rows are tuned after seeing ranker outcomes.
+
+### C13 Windmill Batch Orchestration Gate
+
+Pass requires every corpus row to record `windmill_live`, `cli_only`, or `mixed`
+orchestration. Every live row must include Windmill flow/run/job ids linked to
+package ids, and the corpus scorecard must report orchestration share.
+`cli_only` rows are capped at 10 percent for any `decision_grade_corpus` claim.
+
+Fail if the corpus is generated primarily by ad hoc CLI runs while claiming a
+reproducible live data-moat pipeline.
+
+### C14 Policy-Family Extraction Depth Gate
+
+Pass requires policy-family-specific extraction beyond fee schedules: extraction
+templates for at least 3 non-fee policy families; at least 2 non-fee policy
+families exercised in live packages; applicability, effective date or explicit
+unknown date, jurisdiction/geography, source locator, and policy action type for
+extracted facts; and useful structured facts for `stored_not_economic` packages
+when economic handoff is not ready.
+
+Fail if corpus depth remains CLF/fee/rate-shaped while other policy families
+are only stored as raw documents.
 
 ## Package-Level Data Moat Gates
 
@@ -437,11 +600,14 @@ Fail if:
 - D11 `pass`.
 
 The next 30-cycle run must end in one of these states:
-- `decision_grade_corpus`: corpus gates C0-C7 pass and selected package-level
+- `decision_grade_corpus`: corpus gates C0-C14 pass and selected package-level
   deep dives satisfy the full D0-D11 and applicable E1-E5 standard.
 - `corpus_ready_with_gaps`: credible corpus exists, but exact missing
-  jurisdiction, policy-family, source-family, freshness/drift, or economic
-  handoff gaps are documented.
+  jurisdiction, policy-family, source-family, official-dominance,
+  structured-depth, freshness/drift, identity/dedupe, normalization/export,
+  data-product surface, licensing, schema-version, known-policy coverage,
+  Windmill orchestration, non-fee extraction depth, or economic handoff gaps are
+  documented.
 - `decision_grade_data_moat`: an individual package satisfies the full
   package-level standard.
 - `evidence_ready_with_gaps`: credible package exists, but exact missing lineage, structured-source, or economic-handoff gaps are documented.

@@ -167,3 +167,64 @@ implementation:
 
 The next implementation wave should start with the corpus matrix contract and
 central source/identity classification layer, not another San Jose live run.
+
+## Late Review Addendum: Opus And GLM
+
+After the first result artifact was written, additional Opus and GLM review
+returns arrived. Both reviews were partially stale: they reviewed older local
+evidence where the v0 benchmark spec was absent or behind the PR head. The
+stale "spec missing" finding is therefore superseded by PR #439 head
+`bcb5be32d0b4bb8d658023876f711e9b097db500` and later commits. The substantive
+findings are still accepted.
+
+Accepted Opus findings:
+
+- the corpus gates needed product-A data-moat dimensions beyond snapshot
+  benchmark quality: freshness/cadence, historical/backfill posture,
+  cross-jurisdiction identity and dedupe, structured normalization and
+  exportability, licensing/ToS posture, schema evolution/versioning, and
+  coverage-of-known-policies;
+- official-source dominance needed stricter thresholds and caps on
+  Tavily/Exa-derived primary evidence;
+- structured-source breadth could not rely on Legistar metadata-only or
+  SearXNG plus PDFs;
+- economic deep dives needed direct, indirect, secondary-research, non-San-Jose,
+  and non-CLF quotas;
+- C3 data-value classes needed explicit reconciliation to D11 handoff quality;
+- manual audit needed stratification;
+- the corpus needed a taxonomy artifact and blind seed list;
+- Windmill linkage needed a corpus-level orchestration gate.
+
+Accepted GLM findings:
+
+- current runtime behavior remains too San-Jose/CLF-shaped and must be broken by
+  non-San-Jose structured runtime integration;
+- official-source dominance must become a corpus metric, not only a per-package
+  manual finding;
+- `stored_not_economic` / `not_policy_evidence` / handoff states need a
+  first-class data-moat classification contract;
+- the standalone data product surface must be specified: consumer schema,
+  query/export/read model, freshness guarantees, licensing posture, and
+  differentiation from ordinary scraping;
+- policy-family extraction depth must extend beyond fee/rate extraction into
+  non-fee local-government policy families;
+- infrastructure milestones must be separated from corpus scoring milestones so
+  agents do not try to iterate cycles before source lanes exist.
+
+Patch impact:
+
+- `docs/specs/2026-04-17-local-government-data-moat-benchmark-v0.md` now
+  defines C0-C14, ultra-reach composition thresholds, product-surface
+  expectations, non-San-Jose structured runtime requirements, and non-fee
+  extraction depth.
+- `docs/specs/2026-04-16-data-moat-quality-gates.md` now mirrors the C0-C14
+  corpus gate contract.
+- `docs/architecture/README.md` routes future agents to the corpus benchmark and
+  the data product surface.
+- `docs/poc/policy-evidence-quality-spine/artifacts/corpus_taxonomy_v1.json`
+  seeds the versioned taxonomy required by the scorecard.
+
+Remaining implementation work is tracked in Beads under `bd-3wefe.13`; no live
+eval cycle should run before the matrix, classification, durability,
+taxonomy/product-surface, non-San-Jose structured runtime, and non-fee
+extraction work packages are implemented or explicitly blocked.

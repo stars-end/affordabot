@@ -33,9 +33,12 @@ Decision-grade data moat means the package is not merely persisted. It must incl
 The next super-reach target is corpus-level, not San-Jose-only:
 `local_government_data_moat_benchmark_v0`. San Jose remains a calibrated golden
 fixture, but the pass condition is a reusable local-government corpus across
-multiple jurisdictions, policy families, and source families. Economic analysis
-is a required handoff check for selected packages; it is not the only definition
-of data-moat value.
+multiple jurisdictions, policy families, and source families. The terminal pass
+state is `decision_grade_corpus`, not `decision_grade_data_moat` for one
+package. Economic analysis is a required handoff check for selected packages; it
+is not the only definition of data-moat value. The data moat must also be
+usable as a standalone data product surface with query/export/read-model
+contracts, freshness/drift posture, licensing posture, and schema versioning.
 
 ## Current Non-Obvious Truths
 
@@ -68,8 +71,10 @@ If an agent is searching semantically or with `rg`, use these terms:
 - `data moat quality gates D0 D1 D2 D3 D4 D5 D6 D7 D8 D9 D10 D11`
 - `decision_grade_data_moat package_mechanics_only evidence_ready_with_gaps`
 - `policy lineage completeness extraction accuracy citation gate cross-source reconciliation`
-- `local government data moat benchmark corpus gates C0 C1 C2 C3 C4 C5 C6`
-- `official-source dominance structured source diversity package reusability`
+- `local government data moat benchmark corpus gates C0 C1 C2 C3 C4 C5 C6 C7 C8 C9 C10 C11 C12 C13 C14`
+- `official-source dominance structured source diversity package reusability freshness drift dedupe exportability data product surface licensing schema version known-policy coverage non-fee extraction`
+- `decision_grade_corpus corpus_ready_with_gaps San Jose fixture not boundary`
+- `corpus_taxonomy_v1 blind seed list external source promotion register`
 
 ## Staleness Rule
 
