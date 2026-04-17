@@ -63,6 +63,7 @@ from services.pipeline.structured_source_enrichment import (
     StructuredSourceEnricher,
 )
 from services.storage import S3Storage
+from services.revision_identity import normalize_canonical_url
 from schemas.analysis import ImpactMode
 from schemas.economic_evidence import MechanismFamily
 
@@ -98,6 +99,30 @@ _ECONOMIC_SELECTION_QUERY_SIGNALS = (
     "per sq ft",
     "nexus",
 )
+_SAN_JOSE_OFFICIAL_HOST_SIGNALS = (
+    "sanjoseca.gov",
+    "sanjose.legistar.com",
+    "webapi.legistar.com",
+)
+_POLICY_IDENTITY_SIGNALS = (
+    "commercial linkage fee",
+    "commercial linkage",
+    " matter 7526",
+    "matter/7526",
+    "matter=7526",
+    "matters/7526",
+    "clf",
+    "nexus study",
+    "fee schedule",
+)
+_POLICY_LINEAGE_SIGNALS = (
+    "ordinance",
+    "resolution",
+    "fee schedule",
+    "nexus study",
+    "attachment",
+)
+_JURISDICTION_BLOCKLIST_SIGNALS = ("los altos",)
 
 
 def _utc_now() -> datetime:
@@ -523,6 +548,39 @@ class RailwayRuntimeBridge:
             return False
         return any(signal in lowered for signal in _ECONOMIC_SELECTION_QUERY_SIGNALS)
 
+    @staticmethod
+    def _normalize_identity_url(url: str) -> str:
+        normalized = normalize_canonical_url(str(url or "").strip())
+        if normalized:
+            return normalized
+        return str(url or "").strip().lower()
+
+    @classmethod
+    def _candidate_identity_hint_score(
+        cls,
+        *,
+        query_text: str,
+        candidate: dict[str, Any],
+    ) -> int:
+        del query_text
+        combined = " ".join(
+            [
+                str(candidate.get("url") or "").strip(),
+                str(candidate.get("title") or "").strip(),
+                str(candidate.get("snippet") or "").strip(),
+            ]
+        ).lower()
+        score = 0
+        if re.search(r"\bsan[\s\-]?jose\b", combined) or "sanjose" in combined:
+            score += 2
+        if any(signal in combined for signal in _POLICY_IDENTITY_SIGNALS):
+            score += 2
+        if any(signal in combined for signal in _POLICY_LINEAGE_SIGNALS):
+            score += 1
+        if any(signal in combined for signal in _JURISDICTION_BLOCKLIST_SIGNALS):
+            score -= 3
+        return score
+
     @classmethod
     def _prioritize_artifact_candidates_for_fetch(
         cls,
@@ -552,6 +610,36 @@ class RailwayRuntimeBridge:
         non_artifact_candidates = [
             item for item in ranked_candidates if not _is_concrete_artifact_url(str(item.get("url") or ""))
         ]
+        artifact_candidates = sorted(
+            artifact_candidates,
+            key=lambda item: (
+                cls._candidate_identity_hint_score(query_text=query_text, candidate=item),
+                float(item.get("score") or 0.0),
+            ),
+            reverse=True,
+        )
+        non_artifact_candidates = sorted(
+            non_artifact_candidates,
+            key=lambda item: (
+                cls._candidate_identity_hint_score(query_text=query_text, candidate=item),
+                float(item.get("score") or 0.0),
+            ),
+            reverse=True,
+        )
+        best_artifact_score = (
+            cls._candidate_identity_hint_score(query_text=query_text, candidate=artifact_candidates[0])
+            if artifact_candidates
+            else -99
+        )
+        best_non_artifact_score = (
+            cls._candidate_identity_hint_score(query_text=query_text, candidate=non_artifact_candidates[0])
+            if non_artifact_candidates
+            else -99
+        )
+        # Fail-closed preference: if artifact candidates do not match identity signals but an
+        # official non-artifact candidate does, read the identity-matching source first.
+        if best_non_artifact_score > best_artifact_score and best_artifact_score <= 0:
+            return [*non_artifact_candidates, *artifact_candidates]
         return [*artifact_candidates, *non_artifact_candidates]
 
     @classmethod
@@ -667,9 +755,223 @@ class RailwayRuntimeBridge:
         return "selected_candidate_recorded"
 
     @classmethod
+    def _build_lineage_identity_context(
+        cls,
+        *,
+        structured_candidates: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        linked_urls: set[str] = set()
+        jurisdiction_signal_hits: set[str] = set()
+        policy_signal_hits: set[str] = set()
+        for candidate in structured_candidates:
+            if not isinstance(candidate, dict):
+                continue
+            lineage_metadata = candidate.get("lineage_metadata")
+            lineage_metadata = lineage_metadata if isinstance(lineage_metadata, dict) else {}
+            matter_id = str(lineage_metadata.get("matter_id") or "").strip()
+            artifact_url = str(candidate.get("artifact_url") or "").strip()
+            candidate_text = " ".join(
+                [
+                    artifact_url,
+                    str(candidate.get("source_family") or ""),
+                    str(candidate.get("policy_match_key") or ""),
+                    matter_id,
+                    str(lineage_metadata.get("event_body_id") or ""),
+                ]
+            ).lower()
+            if re.search(r"\bsan[\s\-]?jose\b", candidate_text) or "sanjose" in candidate_text:
+                jurisdiction_signal_hits.add("lineage_san_jose_signal")
+            if (
+                matter_id == "7526"
+                or any(signal in candidate_text for signal in _POLICY_IDENTITY_SIGNALS)
+                or any(signal in candidate_text for signal in _POLICY_LINEAGE_SIGNALS)
+            ):
+                policy_signal_hits.add("lineage_policy_signal")
+            if artifact_url:
+                linked_urls.add(cls._normalize_identity_url(artifact_url))
+
+            ref_groups: list[list[Any]] = []
+            related = candidate.get("related_attachment_refs")
+            if isinstance(related, list):
+                ref_groups.append(related)
+            linked = candidate.get("linked_artifact_refs")
+            if isinstance(linked, list):
+                ref_groups.append(linked)
+            lineage_related = lineage_metadata.get("related_attachment_refs")
+            if isinstance(lineage_related, list):
+                ref_groups.append(lineage_related)
+
+            for group in ref_groups:
+                for raw_ref in group:
+                    url = ""
+                    if isinstance(raw_ref, dict):
+                        url = str(
+                            raw_ref.get("url")
+                            or raw_ref.get("attachment_url")
+                            or raw_ref.get("source_url")
+                            or ""
+                        ).strip()
+                    elif isinstance(raw_ref, str):
+                        url = raw_ref.strip()
+                    if not url:
+                        continue
+                    linked_urls.add(cls._normalize_identity_url(url))
+                    url_text = url.lower()
+                    if re.search(r"\bsan[\s\-]?jose\b", url_text) or "sanjose" in url_text:
+                        jurisdiction_signal_hits.add("lineage_ref_san_jose_signal")
+                    if any(signal in url_text for signal in _POLICY_LINEAGE_SIGNALS):
+                        policy_signal_hits.add("lineage_ref_policy_signal")
+
+        return {
+            "linked_urls": sorted(linked_urls),
+            "jurisdiction_signal_hits": sorted(jurisdiction_signal_hits),
+            "policy_signal_hits": sorted(policy_signal_hits),
+            "has_jurisdiction_context": bool(jurisdiction_signal_hits),
+            "has_policy_context": bool(policy_signal_hits),
+        }
+
+    @classmethod
+    def _evaluate_identity_quality(
+        cls,
+        *,
+        jurisdiction: str,
+        search_query: str,
+        selected_url: str,
+        selected_title: str,
+        selected_snippet: str,
+        structured_candidates: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        identity_required = cls._is_economic_selection_query(search_query)
+        if not identity_required:
+            return {
+                "identity_required": False,
+                "jurisdiction_identity_status": "not_applicable",
+                "policy_identity_status": "not_applicable",
+                "identity_quality_status": "not_applicable",
+                "identity_failure_codes": [],
+                "identity_failure_reasons": [],
+                "jurisdiction_signal_hits": [],
+                "policy_signal_hits": [],
+                "explicit_lineage_linked": False,
+                "jurisdiction_identity_ready": True,
+                "policy_identity_ready": True,
+                "identity_quality_ready": True,
+                "identity_blocker_code": "",
+                "identity_blocker_reason": "",
+            }
+
+        selected_url_value = str(selected_url or "").strip()
+        selected_text = " ".join(
+            [
+                selected_url_value,
+                str(selected_title or "").strip(),
+                str(selected_snippet or "").strip(),
+            ]
+        ).lower()
+        normalized_selected_url = cls._normalize_identity_url(selected_url_value)
+        selected_parts = urlsplit(selected_url_value)
+        selected_host = selected_parts.netloc.lower()
+        selected_path = selected_parts.path.lower()
+        selected_query = selected_parts.query.lower()
+
+        lineage_context = cls._build_lineage_identity_context(
+            structured_candidates=structured_candidates
+        )
+        linked_urls = set(lineage_context["linked_urls"])
+        explicit_lineage_linked = (
+            normalized_selected_url in linked_urls
+            and bool(lineage_context["has_jurisdiction_context"])
+            and bool(lineage_context["has_policy_context"])
+        )
+
+        jurisdiction_signal_hits: set[str] = set()
+        policy_signal_hits: set[str] = set()
+        identity_failure_codes: list[str] = []
+        identity_failure_reasons: list[str] = []
+
+        target_jurisdiction = str(jurisdiction or "").strip().lower()
+        target_is_san_jose = bool(re.search(r"\bsan[\s\-]?jose\b", target_jurisdiction)) or (
+            "sanjose" in target_jurisdiction
+        )
+
+        if target_is_san_jose:
+            if any(host in selected_host for host in _SAN_JOSE_OFFICIAL_HOST_SIGNALS):
+                jurisdiction_signal_hits.add("same_official_host")
+            if "sanjose" in selected_host or "sanjose" in selected_path or "sanjose" in selected_query:
+                jurisdiction_signal_hits.add("sanjose_slug")
+            if selected_host.endswith("legistar.com") and (
+                "sanjose" in selected_host or "/sanjose/" in selected_path or "sanjose" in selected_query
+            ):
+                jurisdiction_signal_hits.add("sanjose_legistar_host")
+            if re.search(r"\bsan[\s\-]?jose\b", selected_text) or "sanjose" in selected_text:
+                jurisdiction_signal_hits.add("sanjose_text_signal")
+            if explicit_lineage_linked:
+                jurisdiction_signal_hits.add("explicit_policy_lineage_link")
+
+        if "sanjoseca.gov" in selected_host and "commercial-linkage-fee" in selected_path:
+            policy_signal_hits.add("san_jose_clf_page")
+        if any(signal in selected_text for signal in _POLICY_IDENTITY_SIGNALS):
+            policy_signal_hits.add("policy_keyword_match")
+        if any(signal in selected_text for signal in _POLICY_LINEAGE_SIGNALS):
+            policy_signal_hits.add("policy_lineage_keyword_match")
+        if "7526" in selected_text:
+            policy_signal_hits.add("matter_7526_match")
+        if explicit_lineage_linked:
+            policy_signal_hits.add("explicit_policy_lineage_link")
+
+        if any(signal in selected_text for signal in _JURISDICTION_BLOCKLIST_SIGNALS) and not explicit_lineage_linked:
+            identity_failure_codes.append("jurisdiction_identity_mismatch")
+            identity_failure_reasons.append(
+                "selected source contains explicit wrong-jurisdiction signal for requested jurisdiction"
+            )
+        elif target_is_san_jose and not jurisdiction_signal_hits:
+            identity_failure_codes.append("jurisdiction_identity_unproven")
+            identity_failure_reasons.append(
+                "selected source is missing requested jurisdiction identity signals"
+            )
+
+        if not policy_signal_hits:
+            identity_failure_codes.append("policy_identity_mismatch")
+            identity_failure_reasons.append(
+                "selected source is missing requested policy identity signals"
+            )
+
+        jurisdiction_identity_ready = all(
+            code not in {"jurisdiction_identity_mismatch", "jurisdiction_identity_unproven"}
+            for code in identity_failure_codes
+        )
+        policy_identity_ready = "policy_identity_mismatch" not in identity_failure_codes
+        identity_quality_ready = jurisdiction_identity_ready and policy_identity_ready
+        identity_blocker_code = identity_failure_codes[0] if identity_failure_codes else ""
+        identity_blocker_reason = identity_failure_reasons[0] if identity_failure_reasons else ""
+
+        return {
+            "identity_required": True,
+            "jurisdiction_identity_status": "pass" if jurisdiction_identity_ready else "fail",
+            "policy_identity_status": "pass" if policy_identity_ready else "fail",
+            "identity_quality_status": "pass" if identity_quality_ready else "fail",
+            "identity_failure_codes": identity_failure_codes,
+            "identity_failure_reasons": identity_failure_reasons,
+            "jurisdiction_signal_hits": sorted(
+                set(jurisdiction_signal_hits).union(lineage_context["jurisdiction_signal_hits"])
+            ),
+            "policy_signal_hits": sorted(
+                set(policy_signal_hits).union(lineage_context["policy_signal_hits"])
+            ),
+            "explicit_lineage_linked": explicit_lineage_linked,
+            "jurisdiction_identity_ready": jurisdiction_identity_ready,
+            "policy_identity_ready": policy_identity_ready,
+            "identity_quality_ready": identity_quality_ready,
+            "identity_blocker_code": identity_blocker_code,
+            "identity_blocker_reason": identity_blocker_reason,
+        }
+
+    @classmethod
     def _build_source_quality_metrics(
         cls,
         *,
+        jurisdiction: str,
+        search_query: str,
         search_provider: str,
         search_provider_runtime: dict[str, Any],
         selected_url: str,
@@ -710,6 +1012,20 @@ class RailwayRuntimeBridge:
                 if str(item.get("url") or "").strip() == selected_url:
                     selected_rank = item.get("rank")
                     break
+        selected_candidate_detail: dict[str, Any] = {}
+        for item in ranked_candidates:
+            if str(item.get("url") or "").strip() == selected_url:
+                selected_candidate_detail = item
+                break
+        if not selected_candidate_detail:
+            for item in search_candidates:
+                if str(item.get("url") or "").strip() == selected_url:
+                    selected_candidate_detail = item
+                    break
+        selected_title = str(selected_candidate_detail.get("title") or "").strip()
+        selected_snippet = str(
+            selected_candidate_detail.get("snippet") or selected_candidate_detail.get("content") or ""
+        ).strip()
         selected_audit_entry = cls._selected_candidate_audit_entry(
             candidate_audit=candidate_audit,
             selected_url=selected_url,
@@ -735,10 +1051,26 @@ class RailwayRuntimeBridge:
             and isinstance(selected_audit_entry.get("fee_schedule_gate"), dict)
             else {}
         )
-        selected_quality_gate_passed = selected_artifact_family == "artifact" or (
+        identity_quality = cls._evaluate_identity_quality(
+            jurisdiction=jurisdiction,
+            search_query=search_query,
+            selected_url=selected_url,
+            selected_title=selected_title,
+            selected_snippet=selected_snippet,
+            structured_candidates=structured_candidates,
+        )
+        shape_quality_gate_passed = selected_artifact_family == "artifact" or (
             selected_artifact_family == "maintained_fee_schedule" and bool(fee_schedule_gate.get("passed"))
         )
-        if selected_artifact_family != "artifact" and substantive_artifact_urls:
+        selected_quality_gate_passed = shape_quality_gate_passed and bool(
+            identity_quality.get("identity_quality_ready")
+        )
+        if not bool(identity_quality.get("identity_quality_ready")):
+            artifact_quality_gate_status = "fail"
+            artifact_quality_gate_reason = str(
+                identity_quality.get("identity_blocker_code") or "identity_quality_failed"
+            )
+        elif selected_artifact_family != "artifact" and substantive_artifact_urls:
             artifact_quality_gate_status = "fail"
             artifact_quality_gate_reason = "artifact_candidates_present_but_non_artifact_selected"
         elif selected_artifact_family == "maintained_fee_schedule" and bool(fee_schedule_gate.get("passed")):
@@ -759,6 +1091,7 @@ class RailwayRuntimeBridge:
             "official_domain": cls._is_official_domain_url(selected_url),
             "artifact_family": selected_artifact_family,
             "artifact_quality_gate_passed": selected_quality_gate_passed,
+            "shape_quality_gate_passed": shape_quality_gate_passed,
             "fee_schedule_gate": fee_schedule_gate,
         }
         selected_outcome = cls._selection_reason_from_audit(candidate_audit, selected_url)
@@ -810,6 +1143,14 @@ class RailwayRuntimeBridge:
             if str(item.get("outcome") or "").strip() == "materialized_raw_scrape"
             and int(item.get("rank") or 0) > 1
         )
+        selection_quality_status = (
+            "pass" if selected_quality_gate_passed else "fail"
+        )
+        selection_quality_reason = (
+            "selected_candidate_passed_identity_and_artifact_quality"
+            if selected_quality_gate_passed
+            else artifact_quality_gate_reason
+        )
         return {
             "top_n_window": top_n_window,
             "top_n_official_recall_count": official_recall,
@@ -828,6 +1169,22 @@ class RailwayRuntimeBridge:
             "secondary_numeric_rescue_detected": secondary_lane_used
             and secondary_numeric_parameter_count > 0,
             "secondary_numeric_parameter_count": secondary_numeric_parameter_count,
+            "selection_quality_status": selection_quality_status,
+            "selection_quality_reason": selection_quality_reason,
+            "jurisdiction_identity_status": identity_quality["jurisdiction_identity_status"],
+            "policy_identity_status": identity_quality["policy_identity_status"],
+            "identity_quality_status": identity_quality["identity_quality_status"],
+            "identity_failure_codes": identity_quality["identity_failure_codes"],
+            "identity_failure_reasons": identity_quality["identity_failure_reasons"],
+            "jurisdiction_identity_signals": identity_quality["jurisdiction_signal_hits"],
+            "policy_identity_signals": identity_quality["policy_signal_hits"],
+            "identity_required": identity_quality["identity_required"],
+            "explicit_lineage_linked": identity_quality["explicit_lineage_linked"],
+            "jurisdiction_identity_ready": identity_quality["jurisdiction_identity_ready"],
+            "policy_identity_ready": identity_quality["policy_identity_ready"],
+            "identity_quality_ready": identity_quality["identity_quality_ready"],
+            "identity_blocker_code": identity_quality["identity_blocker_code"],
+            "identity_blocker_reason": identity_quality["identity_blocker_reason"],
             "portal_skip_count": portal_skip_count,
             "official_reader_error_count": official_reader_error_count,
             "fallback_materialization_count": fallback_materialization_count,
@@ -2444,6 +2801,8 @@ class RailwayRuntimeBridge:
         search_provider = str(search_provider_runtime["provider"])
         source_shape_drift = self._detect_source_shape_drift(search_candidates)
         source_quality_metrics = self._build_source_quality_metrics(
+            jurisdiction=request.jurisdiction,
+            search_query=request.search_query,
             search_provider=search_provider,
             search_provider_runtime=search_provider_runtime,
             selected_url=selected_url,

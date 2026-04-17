@@ -1,11 +1,25 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 from services.pipeline.policy_economic_mechanism_cases import (
     PolicyEconomicMechanismCaseService,
 )
 from services.pipeline.policy_evidence_quality_spine_economics import (
     MatrixInput,
     PolicyEvidenceQualitySpineEconomicsService,
+)
+
+ROOT = Path(__file__).resolve().parents[4]
+IDENTITY_FIXTURES = (
+    ROOT
+    / "backend"
+    / "tests"
+    / "services"
+    / "pipeline"
+    / "fixtures"
+    / "cycle_32_identity_gate_cases.json"
 )
 
 
@@ -46,6 +60,46 @@ def _matrix_with_runtime_evidence(
         "storage_proof": storage_proof or {},
     }
     return matrix
+
+
+def _identity_case(case_id: str) -> dict[str, object]:
+    payload = json.loads(IDENTITY_FIXTURES.read_text(encoding="utf-8"))
+    case = payload.get(case_id)
+    if not isinstance(case, dict):
+        raise AssertionError(f"missing identity fixture case={case_id}")
+    return case
+
+
+def _build_identity_data_moat(case_id: str) -> dict[str, object]:
+    fixture = _identity_case(case_id)
+    source_quality_metrics = fixture.get("source_quality_metrics")
+    source_reconciliation = fixture.get("source_reconciliation")
+    if not isinstance(source_quality_metrics, dict):
+        raise AssertionError(f"fixture case={case_id} missing source_quality_metrics")
+    if not isinstance(source_reconciliation, dict):
+        raise AssertionError(f"fixture case={case_id} missing source_reconciliation")
+
+    economic_handoff_quality = fixture.get("economic_handoff_quality")
+    if not isinstance(economic_handoff_quality, dict):
+        raise AssertionError(f"fixture case={case_id} missing economic_handoff_quality")
+
+    taxonomy = {
+        "scraped/search": {"status": "pass"},
+        "storage/read-back": {"status": "pass"},
+        "Windmill/orchestration": {"status": "pass"},
+        "LLM narrative": {"status": "pass"},
+    }
+    return PolicyEvidenceQualitySpineEconomicsService._build_data_moat_status(
+        evidence_package_status=str(fixture.get("evidence_package_status") or "fail"),
+        decision_grade_verdict="not_decision_grade",
+        required_evidence_gaps=[],
+        readiness_level="qualitative_only",
+        taxonomy=taxonomy,
+        canonical_binding_status="bound",
+        economic_handoff_quality=economic_handoff_quality,
+        source_quality_metrics=source_quality_metrics,
+        source_reconciliation=source_reconciliation,
+    )
 
 
 def test_taxonomy_contains_all_required_quality_buckets() -> None:
@@ -1116,6 +1170,78 @@ def test_direct_model_card_keeps_household_conclusion_fail_closed_without_pass_t
     assert endpoint["economic_output"]["user_facing_conclusion"] is None
 
 
+def test_wrong_jurisdiction_identity_blocks_economic_handoff_even_with_direct_fee_rows() -> None:
+    bundle = PolicyEconomicMechanismCaseService().build_case_bundle()
+    direct = _case(bundle, "direct_cost_case")
+    package = {
+        **direct["primary_package"],
+        "run_context": {
+            **direct["primary_package"].get("run_context", {}),
+            "source_quality_metrics": {
+                "selected_artifact_family": "artifact",
+                "top_n_artifact_recall_count": 1,
+                "policy_identity_ready": False,
+                "jurisdiction_identity_ready": False,
+                "identity_blocker_code": "jurisdiction_identity_mismatch",
+                "identity_blocker_reason": "Selected source points to Los Altos, not San Jose CLF.",
+            },
+            "source_reconciliation": {
+                "true_structured_row_count": 1,
+                "missing_true_structured_corroboration_count": 0,
+            },
+        },
+    }
+    matrix = _matrix_with_runtime_evidence(
+        package,
+        orchestration_proof={
+            "proof_status": "pass",
+            "proof_mode": "current_run",
+            "linked_to_current_vertical_package": True,
+            "windmill_run_id": "wm-run-live",
+            "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+        },
+        llm_narrative_proof={
+            "proof_status": "pass",
+            "canonical_pipeline_run_id": package["gate_projection"]["canonical_pipeline_run_id"],
+            "canonical_pipeline_step_id": package["gate_projection"]["canonical_pipeline_step_id"],
+            "source": "unit_test",
+        },
+        storage_proof={
+            "proof_status": "pass",
+            "proof_mode": "postgres_minio_live",
+            "store_backend": "postgres",
+            "artifact_probe_backend": "minio",
+            "persisted_record_id": "pkg-row-identity",
+            "minio_readback_proven": True,
+        },
+    )
+
+    endpoint = PolicyEvidenceQualitySpineEconomicsService().build_endpoint_read_model(
+        matrix_input=MatrixInput(
+            payload=matrix,
+            source_path="horizontal_matrix.json",
+            source_mode="agent_a_horizontal_matrix",
+        ),
+        package_id=package["package_id"],
+        source_family="meeting_minutes",
+    )
+
+    handoff = endpoint["economic_handoff_quality"]
+    assert handoff["status"] == "not_analysis_ready"
+    assert handoff["reason_code"] == "jurisdiction_identity_mismatch"
+    assert handoff["source_identity_blocker"] is True
+    assert handoff["quantification_paths"]["direct_project_fee_exposure"]["status"] == "not_analysis_ready"
+
+    moat = endpoint["data_moat_status"]
+    assert moat["runtime_ready"] is True
+    assert moat["structured_depth_ready"] is True
+    assert moat["source_quality_ready"] is False
+    assert moat["identity_blocker_code"] == "jurisdiction_identity_mismatch"
+    assert moat["identity_recommended_action"] == "repair_source_identity"
+    assert moat["recommended_next_action"] == "repair_source_identity"
+    assert endpoint["recommended_next_action"] == "repair_source_identity"
+
+
 def test_fail_closed_handoff_is_specific_and_machine_actionable() -> None:
     bundle = PolicyEconomicMechanismCaseService().build_case_bundle()
     control = _case(bundle, "unsupported_fail_closed_control")
@@ -1211,3 +1337,56 @@ def test_data_moat_status_runtime_ready_but_quality_depth_fail_is_explicit() -> 
     assert "true_structured_rows_missing" in blocker_codes
     assert "missing_true_structured_corroboration" in blocker_codes
     assert endpoint["recommended_next_action"] == "ingest_official_attachments"
+
+
+def test_cycle_32_wrong_jurisdiction_artifact_fails_source_quality_identity() -> None:
+    moat = _build_identity_data_moat("cycle_32_wrong_jurisdiction_artifact")
+
+    assert moat["status"] == "fail"
+    assert moat["source_selection_blocker"] is True
+    assert moat["source_quality_ready"] is False
+    assert moat["source_selection_reason"] in {
+        "policy_identity_mismatch",
+        "jurisdiction_identity_mismatch",
+    }
+
+
+def test_artifact_grade_is_not_sufficient_without_identity_ready() -> None:
+    moat = _build_identity_data_moat("cycle_32_wrong_jurisdiction_artifact")
+
+    assert moat["selected_artifact_family"] == "artifact"
+    assert moat["source_quality_ready"] is False
+
+
+def test_identity_confirmed_official_or_matter_sources_can_pass_identity_quality() -> None:
+    official_page_moat = _build_identity_data_moat("cycle_32_identity_confirmed_official_page")
+    matter_moat = _build_identity_data_moat("cycle_32_identity_confirmed_matter_7526_artifact")
+
+    for moat in (official_page_moat, matter_moat):
+        assert moat["source_selection_blocker"] is False
+        assert moat["source_quality_ready"] is True
+        assert moat["source_selection_reason"] in {
+            "selected_official_page_candidate",
+            "selected_artifact_grade_candidate",
+        }
+
+
+def test_wrong_jurisdiction_parameter_cards_do_not_count_as_source_grounded_handoff() -> None:
+    moat = _build_identity_data_moat("cycle_32_wrong_jurisdiction_artifact")
+
+    assert moat["source_selection_blocker"] is True
+    assert moat["economic_handoff_ready"] is False
+
+
+def test_data_moat_surfaces_named_identity_mismatch_blocker_code() -> None:
+    moat = _build_identity_data_moat("cycle_32_wrong_jurisdiction_artifact")
+
+    blocker_codes = {item["code"] for item in moat["blockers"]}
+    assert blocker_codes & {
+        "policy_identity_mismatch",
+        "jurisdiction_identity_mismatch",
+    }
+    assert moat["identity_recommended_action"] in {
+        "repair_source_identity",
+        "improve_policy_identity_matching",
+    }

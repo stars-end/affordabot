@@ -655,3 +655,124 @@ def test_policy_evidence_analysis_status_surfaces_selected_artifact_quality_metr
     assert moat["true_structured_row_count"] == 0
     assert moat["missing_true_structured_corroboration_count"] == 2
     assert data["recommended_next_action"] == "ingest_official_attachments"
+
+
+def test_policy_evidence_analysis_status_identity_blocker_fails_data_moat_and_handoff(client, mock_db):
+    package = _case_package("direct_cost_case")
+    source_quality_metrics = {
+        "top_n_window": 5,
+        "top_n_official_recall_count": 3,
+        "top_n_artifact_recall_count": 1,
+        "selected_artifact_family": "artifact",
+        "reader_substance_observed": True,
+        "selected_candidate": {
+            "url": "https://www.hcd.ca.gov/housing-elements/docs/los%20altos_5th_draft011415.pdf",
+            "provider": "private_searxng",
+            "rank": 1,
+            "selection_reason": "materialized_raw_scrape",
+            "artifact_grade": True,
+            "official_domain": True,
+            "artifact_family": "artifact",
+        },
+        "policy_identity_ready": False,
+        "jurisdiction_identity_ready": False,
+        "identity_blocker_code": "jurisdiction_identity_mismatch",
+        "identity_blocker_reason": "Selected source points to Los Altos, not San Jose CLF policy lineage.",
+        "provider_summary": {
+            "primary_provider": "private_searxng",
+            "provider_error_count": 0,
+            "quality_failure_count": 0,
+        },
+        "provider_results": {
+            "private_searxng": {
+                "status": "succeeded",
+                "reason_code": "materialized_raw_scrape",
+                "candidates": [
+                    {
+                        "url": "https://www.hcd.ca.gov/housing-elements/docs/los%20altos_5th_draft011415.pdf",
+                        "rank": 1,
+                        "artifact_grade": True,
+                        "official_domain": True,
+                    }
+                ],
+            }
+        },
+    }
+    mock_db._fetchrow.side_effect = [
+        {
+            "id": "run-q6",
+            "bill_id": "SJ-2026-CLF",
+            "jurisdiction": "San Jose CA",
+            "status": "completed",
+            "error": None,
+            "models": {},
+            "trigger_source": "windmill",
+            "windmill_run_id": "wm-run-q6",
+            "started_at": "2026-04-16T06:00:00Z",
+            "completed_at": "2026-04-16T06:05:00Z",
+            "result": {
+                "policy_evidence_package": package,
+                "rows": [],
+                "analysis": {"summary": "Narrative generated from selected artifact."},
+            },
+        },
+        {
+            "id": "pkg-row-q6",
+            "package_id": package["package_id"],
+            "package_payload": {
+                **package,
+                "gate_projection": {
+                    **package["gate_projection"],
+                    "canonical_pipeline_run_id": "run-q6",
+                    "canonical_pipeline_step_id": "analysis-q6",
+                    "canonical_breakdown_ref": "analysis:analysis-q6",
+                },
+                "run_context": {
+                    "backend_run_id": "run-q6",
+                    "windmill_run_id": "wm-run-q6",
+                    "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+                    "windmill_workspace": "affordabot",
+                    "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+                    "source_quality_metrics": source_quality_metrics,
+                    "source_reconciliation": {
+                        "true_structured_row_count": 1,
+                        "missing_true_structured_corroboration_count": 0,
+                    },
+                },
+            },
+            "artifact_readback_status": "proven",
+            "fail_closed": False,
+            "gate_state": "qualitative_only",
+            "created_at": "2026-04-16T06:00:00Z",
+            "updated_at": "2026-04-16T06:05:00Z",
+        },
+    ]
+
+    client.set_auth("admin")
+    response = client.get(
+        f"/api/admin/pipeline/policy-evidence/packages/{package['package_id']}/analysis-status?run_id=run-q6"
+    )
+    assert response.status_code == 200, response.text
+    data = response.json()
+
+    source_quality = data["source_quality"]
+    assert source_quality["selection_quality_status"] == "fail"
+    assert source_quality["selection_quality_reason"] == "jurisdiction_identity_mismatch"
+    assert source_quality["identity_ready"] is False
+    assert source_quality["identity_blocker_code"] == "jurisdiction_identity_mismatch"
+    assert source_quality["identity_recommended_action"] == "repair_source_identity"
+
+    moat = data["data_moat_status"]
+    assert moat["runtime_ready"] is True
+    assert moat["structured_depth_ready"] is True
+    assert moat["source_quality_ready"] is False
+    assert moat["identity_ready"] is False
+    assert moat["identity_blocker_code"] == "jurisdiction_identity_mismatch"
+    assert moat["identity_recommended_action"] == "repair_source_identity"
+    assert moat["recommended_next_action"] == "repair_source_identity"
+
+    handoff = data["economic_handoff_quality"]
+    assert handoff["status"] == "not_analysis_ready"
+    assert handoff["reason_code"] == "jurisdiction_identity_mismatch"
+    assert handoff["source_identity_blocker"] is True
+    assert data["recommended_next_action"] == "repair_source_identity"

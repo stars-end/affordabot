@@ -468,6 +468,12 @@ class PolicyEvidenceQualitySpineEconomicsService:
             analysis_status=analysis_status,
             unsupported_claim_risks=unsupported_claim_risks,
         )
+        source_quality_metrics = self._extract_source_quality_metrics(
+            selected_payload=selected_payload
+        )
+        source_reconciliation = self._extract_source_reconciliation(
+            selected_payload=selected_payload
+        )
         economic_handoff_quality = self._build_economic_handoff_quality(
             analysis_status=analysis_status,
             decision_grade_verdict=decision_grade["verdict"],
@@ -480,12 +486,8 @@ class PolicyEvidenceQualitySpineEconomicsService:
             assumption_needs=assumption_needs,
             secondary_research_needs=secondary_research_needs,
             unsupported_claim_risks=unsupported_claim_risks,
-        )
-        source_quality_metrics = self._extract_source_quality_metrics(
-            selected_payload=selected_payload
-        )
-        source_reconciliation = self._extract_source_reconciliation(
-            selected_payload=selected_payload
+            source_quality_metrics=source_quality_metrics,
+            source_reconciliation=source_reconciliation,
         )
         data_moat_status = self._build_data_moat_status(
             evidence_package_status=evidence_package_status,
@@ -507,6 +509,7 @@ class PolicyEvidenceQualitySpineEconomicsService:
             unsupported_claim_risks=unsupported_claim_risks,
             data_moat_status=data_moat_status,
         )
+        data_moat_status["recommended_next_action"] = recommended_next_action
         economic_handoff_quality.update(
             {
                 "decision_grade_verdict": decision_grade["verdict"],
@@ -1136,6 +1139,59 @@ class PolicyEvidenceQualitySpineEconomicsService:
         }
 
     @staticmethod
+    def _derive_source_identity_status(
+        *,
+        source_quality_metrics: dict[str, Any],
+        source_reconciliation: dict[str, Any],
+    ) -> dict[str, Any]:
+        policy_identity_ready_raw = source_quality_metrics.get("policy_identity_ready")
+        jurisdiction_identity_ready_raw = source_quality_metrics.get("jurisdiction_identity_ready")
+        policy_identity_ready = (
+            bool(policy_identity_ready_raw) if isinstance(policy_identity_ready_raw, bool) else True
+        )
+        jurisdiction_identity_ready = (
+            bool(jurisdiction_identity_ready_raw)
+            if isinstance(jurisdiction_identity_ready_raw, bool)
+            else True
+        )
+        identity_signals_present = isinstance(policy_identity_ready_raw, bool) or isinstance(
+            jurisdiction_identity_ready_raw, bool
+        )
+        identity_blocker_code = str(
+            source_quality_metrics.get("identity_blocker_code")
+            or source_reconciliation.get("identity_blocker_code")
+            or ""
+        ).strip()
+        identity_blocker_reason = str(
+            source_quality_metrics.get("identity_blocker_reason")
+            or source_reconciliation.get("identity_blocker_reason")
+            or ""
+        ).strip()
+        if not identity_blocker_code:
+            if not jurisdiction_identity_ready:
+                identity_blocker_code = "jurisdiction_identity_mismatch"
+            elif not policy_identity_ready:
+                identity_blocker_code = "policy_identity_mismatch"
+
+        identity_ready = policy_identity_ready and jurisdiction_identity_ready and not identity_blocker_code
+        if identity_blocker_code == "policy_identity_mismatch":
+            identity_recommended_action = "improve_policy_identity_matching"
+        elif identity_blocker_code:
+            identity_recommended_action = "repair_source_identity"
+        else:
+            identity_recommended_action = None
+
+        return {
+            "policy_identity_ready": policy_identity_ready,
+            "jurisdiction_identity_ready": jurisdiction_identity_ready,
+            "identity_signals_present": identity_signals_present,
+            "identity_ready": identity_ready,
+            "identity_blocker_code": identity_blocker_code,
+            "identity_blocker_reason": identity_blocker_reason,
+            "identity_recommended_action": identity_recommended_action,
+        }
+
+    @staticmethod
     def _build_economic_handoff_quality(
         *,
         analysis_status: dict[str, str],
@@ -1149,7 +1205,17 @@ class PolicyEvidenceQualitySpineEconomicsService:
         assumption_needs: dict[str, Any],
         secondary_research_needs: dict[str, Any],
         unsupported_claim_risks: dict[str, Any],
+        source_quality_metrics: dict[str, Any],
+        source_reconciliation: dict[str, Any],
     ) -> dict[str, Any]:
+        identity_status = PolicyEvidenceQualitySpineEconomicsService._derive_source_identity_status(
+            source_quality_metrics=source_quality_metrics,
+            source_reconciliation=source_reconciliation,
+        )
+        identity_blocker_code = str(identity_status.get("identity_blocker_code") or "")
+        identity_blocker_reason = str(identity_status.get("identity_blocker_reason") or "")
+        identity_blocked = bool(identity_blocker_code)
+
         direct_fee_ready = mechanism_type == "direct" and str(direct_fee_model_card.get("status") or "") == "pass"
         household_impact = direct_fee_model_card.get("household_impact_readiness")
         household_impact_status = (
@@ -1163,13 +1229,23 @@ class PolicyEvidenceQualitySpineEconomicsService:
 
         direct_scope_status = "not_analysis_ready"
         direct_scope_reason = "source-bound direct project-fee path not established"
-        if direct_fee_ready:
+        if identity_blocked:
+            direct_scope_reason = (
+                identity_blocker_reason
+                or "source identity mismatch blocks direct project-fee exposure analysis"
+            )
+        elif direct_fee_ready:
             direct_scope_status = "analysis_ready"
             direct_scope_reason = "source-bound direct fee rows support project-fee exposure analysis"
 
         household_scope_status = "not_analysis_ready"
         household_scope_reason = "household cost-of-living incidence path is not source-bound"
-        if (
+        if identity_blocked:
+            household_scope_reason = (
+                identity_blocker_reason
+                or "source identity mismatch blocks household cost-of-living analysis"
+            )
+        elif (
             decision_grade_verdict == "decision_grade"
             and analysis_status.get("status") == "decision_grade"
             and canonical_binding_status == "bound"
@@ -1188,7 +1264,10 @@ class PolicyEvidenceQualitySpineEconomicsService:
         status = "not_analysis_ready"
         reason_code = "insufficient_source_grounding"
         analysis_state = str(analysis_status.get("status") or "")
-        if (
+        if identity_blocked:
+            status = "not_analysis_ready"
+            reason_code = identity_blocker_code
+        elif (
             decision_grade_verdict == "decision_grade"
             and analysis_state == "decision_grade"
             and canonical_binding_status == "bound"
@@ -1210,7 +1289,11 @@ class PolicyEvidenceQualitySpineEconomicsService:
             status = "not_analysis_ready"
             reason_code = str(secondary_research_needs.get("reason_code") or "secondary_research_required")
 
-        if unsupported_claim_risks.get("risk_level") == "high" and status != "analysis_ready":
+        if (
+            not identity_blocked
+            and unsupported_claim_risks.get("risk_level") == "high"
+            and status != "analysis_ready"
+        ):
             status = "not_analysis_ready"
             reason_code = "unsupported_claim_risk_high"
 
@@ -1239,6 +1322,9 @@ class PolicyEvidenceQualitySpineEconomicsService:
             "fail_closed_blocking_gate": blocking_gate,
             "analysis_state": analysis_state,
             "readiness_level": readiness_level,
+            "source_identity_blocker": identity_blocked,
+            "source_identity_blocker_code": identity_blocker_code or None,
+            "source_identity_blocker_reason": identity_blocker_reason or None,
         }
 
     @staticmethod
@@ -1254,6 +1340,18 @@ class PolicyEvidenceQualitySpineEconomicsService:
         source_quality_metrics: dict[str, Any],
         source_reconciliation: dict[str, Any],
     ) -> dict[str, Any]:
+        identity_status = PolicyEvidenceQualitySpineEconomicsService._derive_source_identity_status(
+            source_quality_metrics=source_quality_metrics,
+            source_reconciliation=source_reconciliation,
+        )
+        policy_identity_ready = bool(identity_status.get("policy_identity_ready"))
+        jurisdiction_identity_ready = bool(identity_status.get("jurisdiction_identity_ready"))
+        identity_signals_present = bool(identity_status.get("identity_signals_present"))
+        identity_ready = bool(identity_status.get("identity_ready"))
+        identity_blocker_code = str(identity_status.get("identity_blocker_code") or "")
+        identity_blocker_reason = str(identity_status.get("identity_blocker_reason") or "")
+        identity_recommended_action = identity_status.get("identity_recommended_action")
+
         selected_family = str(
             source_quality_metrics.get("selected_artifact_family")
             or (
@@ -1268,9 +1366,16 @@ class PolicyEvidenceQualitySpineEconomicsService:
         )
         selection_reason = "selected_candidate_quality_unknown"
         source_selection_blocker = False
-        if selected_family == "artifact":
+        if identity_blocker_code:
+            selection_reason = identity_blocker_code
+            source_selection_blocker = True
+        elif selected_family == "artifact":
             selection_reason = "selected_artifact_grade_candidate"
-        elif selected_family == "official_page" and top_n_artifact_recall_count > 0:
+        elif (
+            selected_family == "official_page"
+            and top_n_artifact_recall_count > 0
+            and not (identity_signals_present and identity_ready)
+        ):
             selection_reason = "official_page_selected_while_artifact_candidates_exist"
             source_selection_blocker = True
         elif selected_family:
@@ -1293,9 +1398,12 @@ class PolicyEvidenceQualitySpineEconomicsService:
         source_quality_ready = (
             taxonomy.get("scraped/search", {}).get("status") == "pass"
             and not source_selection_blocker
+            and identity_ready
         )
         economic_handoff_ready = (
             str(economic_handoff_quality.get("status") or "") == "analysis_ready"
+            and not source_selection_blocker
+            and identity_ready
         )
         data_moat_component_ready = (
             runtime_ready
@@ -1305,7 +1413,21 @@ class PolicyEvidenceQualitySpineEconomicsService:
         )
 
         moat_blockers: list[dict[str, str]] = []
-        if source_selection_blocker:
+        if identity_blocker_code:
+            moat_blockers.append(
+                {
+                    "code": identity_blocker_code,
+                    "reason": (
+                        identity_blocker_reason
+                        or (
+                            "Selected source identity does not match requested jurisdiction."
+                            if identity_blocker_code == "jurisdiction_identity_mismatch"
+                            else "Selected source identity does not match requested policy."
+                        )
+                    ),
+                }
+            )
+        if selection_reason == "official_page_selected_while_artifact_candidates_exist":
             moat_blockers.append(
                 {
                     "code": "official_page_selected_while_artifact_candidates_exist",
@@ -1360,6 +1482,13 @@ class PolicyEvidenceQualitySpineEconomicsService:
             "source_selection_reason": selection_reason,
             "selected_artifact_family": selected_family or "unknown",
             "top_n_artifact_recall_count": top_n_artifact_recall_count,
+            "policy_identity_ready": policy_identity_ready,
+            "jurisdiction_identity_ready": jurisdiction_identity_ready,
+            "identity_signals_present": identity_signals_present,
+            "identity_ready": identity_ready,
+            "identity_blocker_code": identity_blocker_code or None,
+            "identity_blocker_reason": identity_blocker_reason or None,
+            "identity_recommended_action": identity_recommended_action,
             "true_structured_row_count": true_structured_row_count,
             "missing_true_structured_corroboration_count": missing_true_structured_corroboration_count,
             "blockers": moat_blockers,
@@ -1386,6 +1515,10 @@ class PolicyEvidenceQualitySpineEconomicsService:
             data_moat_status.get("missing_true_structured_corroboration_count") or 0
         )
         source_selection_blocker = bool(data_moat_status.get("source_selection_blocker"))
+        identity_recommended_action = str(data_moat_status.get("identity_recommended_action") or "").strip()
+
+        if identity_recommended_action:
+            return identity_recommended_action
 
         if runtime_ready and (not source_quality_ready or not structured_depth_ready):
             if (
@@ -2273,6 +2406,35 @@ class PolicyEvidenceQualitySpineEconomicsService:
     ) -> dict[str, str]:
         if not package.scraped_sources:
             return {"status": "fail", "details": "No scraped provenance found."}
+
+        runtime_evidence = PolicyEvidenceQualitySpineEconomicsService._extract_runtime_evidence(
+            matrix_payload
+        )
+        package_payload = runtime_evidence.get("vertical_package_payload")
+        source_identity_status: dict[str, Any] = {}
+        if isinstance(package_payload, dict):
+            source_identity_status = (
+                PolicyEvidenceQualitySpineEconomicsService._derive_source_identity_status(
+                    source_quality_metrics=PolicyEvidenceQualitySpineEconomicsService._extract_source_quality_metrics(
+                        selected_payload=package_payload
+                    ),
+                    source_reconciliation=PolicyEvidenceQualitySpineEconomicsService._extract_source_reconciliation(
+                        selected_payload=package_payload
+                    ),
+                )
+            )
+        identity_blocker_code = str(
+            source_identity_status.get("identity_blocker_code") or ""
+        ).strip()
+        identity_blocker_reason = str(
+            source_identity_status.get("identity_blocker_reason") or ""
+        ).strip()
+        if identity_blocker_code:
+            return {
+                "status": "fail",
+                "details": identity_blocker_reason
+                or f"Selected scraped source failed source identity gate ({identity_blocker_code}).",
+            }
 
         rows = matrix_payload.get("rows")
         if not isinstance(rows, list) or not rows:

@@ -1,0 +1,64 @@
+{
+  "cycle_32_wrong_jurisdiction_artifact": {
+    "evidence_package_status": "fail",
+    "source_quality_metrics": {
+      "selected_artifact_family": "artifact",
+      "top_n_artifact_recall_count": 1,
+      "selected_candidate": {
+        "url": "https://www.hcd.ca.gov/housing-elements/docs/los%20altos_5th_draft011415.pdf",
+        "artifact_family": "artifact"
+      },
+      "policy_identity_ready": false,
+      "jurisdiction_identity_ready": false,
+      "identity_blocker_code": "jurisdiction_identity_mismatch",
+      "identity_blocker_reason": "Selected artifact is Los Altos housing element, not San Jose CLF policy lineage."
+    },
+    "source_reconciliation": {
+      "true_structured_row_count": 0,
+      "missing_true_structured_corroboration_count": 1
+    },
+    "economic_handoff_quality": {
+      "status": "analysis_ready"
+    }
+  },
+  "cycle_32_identity_confirmed_official_page": {
+    "evidence_package_status": "pass",
+    "source_quality_metrics": {
+      "selected_artifact_family": "official_page",
+      "top_n_artifact_recall_count": 2,
+      "selected_candidate": {
+        "url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee",
+        "artifact_family": "official_page"
+      },
+      "policy_identity_ready": true,
+      "jurisdiction_identity_ready": true
+    },
+    "source_reconciliation": {
+      "true_structured_row_count": 1,
+      "missing_true_structured_corroboration_count": 0
+    },
+    "economic_handoff_quality": {
+      "status": "analysis_ready"
+    }
+  },
+  "cycle_32_identity_confirmed_matter_7526_artifact": {
+    "evidence_package_status": "pass",
+    "source_quality_metrics": {
+      "selected_artifact_family": "artifact",
+      "top_n_artifact_recall_count": 1,
+      "selected_candidate": {
+        "url": "https://sanjoseca.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+        "artifact_family": "artifact"
+      },
+      "policy_identity_ready": true,
+      "jurisdiction_identity_ready": true
+    },
+    "source_reconciliation": {
+      "true_structured_row_count": 1,
+      "missing_true_structured_corroboration_count": 0
+    },
+    "economic_handoff_quality": {
+      "status": "analysis_ready"
+    }
+  }
+}

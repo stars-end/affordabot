@@ -1194,6 +1194,118 @@ def test_runtime_bridge_prefers_artifact_candidate_over_official_fee_page_when_b
     assert source_quality["artifact_quality_gate_reason"] == "artifact_candidate_passed_quality_gate"
 
 
+def test_runtime_bridge_identity_gate_fails_wrong_jurisdiction_artifact_for_san_jose_clf() -> None:
+    db = FakeDB()
+    storage = FakeStorage()
+    package_store = InMemoryPolicyEvidencePackageStore()
+    runtime = RailwayRuntimeBridge(
+        db=db, storage=storage, package_store=package_store
+    )  # type: ignore[arg-type]
+    runtime.search_client = FakeSearchClient(
+        [
+            {
+                "url": "https://www.hcd.ca.gov/housing-elements/docs/los altos_5th_draft011415.pdf",
+                "title": "Los Altos Housing Element Draft",
+                "snippet": "Housing element artifact from Los Altos",
+            },
+        ]
+    )
+    runtime.reader_client = RoutingFakeReaderClient(
+        by_url={
+            "https://www.hcd.ca.gov/housing-elements/docs/los altos_5th_draft011415.pdf": (
+                "# Housing Element Draft\n"
+                "Los Altos 5th draft policy summary for development impact fees.\n"
+                "Office projects pay $7.00 per square foot in this schedule.\n"
+                "Retail projects pay $3.00 per square foot and hotel projects pay $5.00 per square foot.\n"
+                "The document covers land use assumptions, program background, and implementation details.\n"
+                "This text is intentionally substantive for reader gate coverage in identity regression tests.\n"
+            )
+        },
+    )
+    runtime._llm_client = FakeLLMClient()
+    runtime.embedding_service = FakeEmbeddingService()
+    runtime.zai_api_key = "x"
+
+    response = asyncio.run(
+        runtime.run_scope_pipeline(
+            _request(
+                idempotency_key="wm:run-scope:identity-fail-los-altos",
+                jurisdiction="San Jose CA",
+                source_family="meeting_minutes",
+                search_query="San Jose Commercial Linkage Fee Matter 7526 fee schedule",
+            )
+        )
+    )
+    persisted = next(iter(package_store.by_idempotency.values()))
+    source_quality = persisted.package_payload["run_context"]["source_quality_metrics"]
+
+    assert response["status"] in {"succeeded", "succeeded_with_alerts"}
+    assert source_quality["selected_candidate"]["url"].startswith("https://www.hcd.ca.gov/")
+    assert source_quality["jurisdiction_identity_status"] == "fail"
+    assert source_quality["policy_identity_status"] == "fail"
+    assert source_quality["identity_quality_status"] == "fail"
+    assert source_quality["identity_quality_ready"] is False
+    assert "jurisdiction_identity_mismatch" in source_quality["identity_failure_codes"]
+    assert "policy_identity_mismatch" in source_quality["identity_failure_codes"]
+    assert source_quality["identity_blocker_code"] == "jurisdiction_identity_mismatch"
+    assert source_quality["selection_quality_status"] == "fail"
+
+
+def test_runtime_bridge_identity_gate_passes_matching_san_jose_clf_source() -> None:
+    db = FakeDB()
+    storage = FakeStorage()
+    package_store = InMemoryPolicyEvidencePackageStore()
+    runtime = RailwayRuntimeBridge(
+        db=db, storage=storage, package_store=package_store
+    )  # type: ignore[arg-type]
+    runtime.search_client = FakeSearchClient(
+        [
+            {
+                "url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee",
+                "title": "Commercial Linkage Fee | City of San Jose",
+                "snippet": "Matter 7526 fee schedule and nexus study references",
+            },
+        ]
+    )
+    runtime.reader_client = RoutingFakeReaderClient(
+        by_url={
+            "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee": (
+                "# Commercial Linkage Fee\n"
+                "Updated January 2026 and effective March 1, 2026.\n"
+                "Office projects pay $14.31 per square foot.\n"
+                "Industrial projects pay $3.58 per square foot.\n"
+                "Matter 7526 includes ordinance, resolution, and nexus study lineage.\n"
+            )
+        },
+    )
+    runtime._llm_client = FakeLLMClient()
+    runtime.embedding_service = FakeEmbeddingService()
+    runtime.zai_api_key = "x"
+
+    response = asyncio.run(
+        runtime.run_scope_pipeline(
+            _request(
+                idempotency_key="wm:run-scope:identity-pass-sanjose-clf",
+                jurisdiction="San Jose CA",
+                source_family="meeting_minutes",
+                search_query="San Jose Commercial Linkage Fee Matter 7526 fee schedule",
+            )
+        )
+    )
+    persisted = next(iter(package_store.by_idempotency.values()))
+    source_quality = persisted.package_payload["run_context"]["source_quality_metrics"]
+
+    assert response["status"] in {"succeeded", "succeeded_with_alerts"}
+    assert source_quality["selected_candidate"]["url"].startswith("https://www.sanjoseca.gov/")
+    assert source_quality["jurisdiction_identity_status"] == "pass"
+    assert source_quality["policy_identity_status"] == "pass"
+    assert source_quality["identity_quality_status"] == "pass"
+    assert source_quality["identity_quality_ready"] is True
+    assert source_quality["identity_failure_codes"] == []
+    assert source_quality["identity_blocker_code"] == ""
+    assert source_quality["selection_quality_status"] == "pass"
+
+
 def test_runtime_bridge_blocks_weak_video_fallback_after_official_reader_error() -> None:
     db = FakeDB()
     storage = FakeStorage()
