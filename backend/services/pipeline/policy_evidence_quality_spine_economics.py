@@ -8,10 +8,12 @@ contract-compatible deterministic fixture when it is not.
 
 from __future__ import annotations
 
+from collections import Counter
 import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
+from urllib.parse import urlparse
 
 from schemas.economic_evidence import GateVerdict, MechanismFamily
 from schemas.policy_evidence_package import PolicyEvidencePackage, StorageSystem
@@ -472,7 +474,8 @@ class PolicyEvidenceQualitySpineEconomicsService:
             selected_payload=selected_payload
         )
         source_reconciliation = self._extract_source_reconciliation(
-            selected_payload=selected_payload
+            selected_payload=selected_payload,
+            matrix_payload=matrix_input.payload if isinstance(matrix_input.payload, dict) else {},
         )
         economic_handoff_quality = self._build_economic_handoff_quality(
             analysis_status=analysis_status,
@@ -1402,6 +1405,96 @@ class PolicyEvidenceQualitySpineEconomicsService:
                 source_reconciliation.get("official_attachment_row_count")
             ),
         )
+        attachment_ref_count = max(
+            0,
+            PolicyEvidenceQualitySpineEconomicsService._to_non_negative_int(
+                source_reconciliation.get("attachment_ref_count")
+            ),
+        )
+        attachment_probe_count = max(
+            0,
+            PolicyEvidenceQualitySpineEconomicsService._to_non_negative_int(
+                source_reconciliation.get("attachment_probe_count")
+            ),
+        )
+        attachment_content_ingested_count = max(
+            0,
+            PolicyEvidenceQualitySpineEconomicsService._to_non_negative_int(
+                source_reconciliation.get("attachment_content_ingested_count")
+            ),
+        )
+        attachment_economic_row_count = max(
+            0,
+            PolicyEvidenceQualitySpineEconomicsService._to_non_negative_int(
+                source_reconciliation.get("attachment_economic_row_count")
+            ),
+        )
+        official_attachment_ref_count = max(
+            0,
+            PolicyEvidenceQualitySpineEconomicsService._to_non_negative_int(
+                source_reconciliation.get("official_attachment_ref_count")
+            ),
+        )
+        official_attachment_probe_count = max(
+            0,
+            PolicyEvidenceQualitySpineEconomicsService._to_non_negative_int(
+                source_reconciliation.get("official_attachment_probe_count")
+            ),
+        )
+        official_attachment_recognized_count = max(
+            0,
+            PolicyEvidenceQualitySpineEconomicsService._to_non_negative_int(
+                source_reconciliation.get("official_attachment_recognized_count")
+            ),
+        )
+        official_attachment_text_read_count = max(
+            0,
+            PolicyEvidenceQualitySpineEconomicsService._to_non_negative_int(
+                source_reconciliation.get("official_attachment_text_read_count")
+            ),
+        )
+        official_pdf_probe_count = max(
+            0,
+            PolicyEvidenceQualitySpineEconomicsService._to_non_negative_int(
+                source_reconciliation.get("official_pdf_probe_count")
+            ),
+        )
+        official_pdf_text_extracted_count = max(
+            0,
+            PolicyEvidenceQualitySpineEconomicsService._to_non_negative_int(
+                source_reconciliation.get("official_pdf_text_extracted_count")
+            ),
+        )
+        official_attachment_failure_counts = {
+            str(key): max(
+                0,
+                PolicyEvidenceQualitySpineEconomicsService._to_non_negative_int(value),
+            )
+            for key, value in dict(
+                source_reconciliation.get("official_attachment_failure_counts") or {}
+            ).items()
+            if str(key).strip()
+        }
+        official_attachment_parse_anomalies = [
+            item
+            for item in source_reconciliation.get("official_attachment_parse_anomalies", [])
+            if isinstance(item, dict)
+        ]
+        official_attachment_parse_anomaly_count = max(
+            0,
+            PolicyEvidenceQualitySpineEconomicsService._to_non_negative_int(
+                source_reconciliation.get("official_attachment_parse_anomaly_count")
+            ),
+        )
+        if official_attachment_parse_anomaly_count == 0 and official_attachment_parse_anomalies:
+            official_attachment_parse_anomaly_count = len(official_attachment_parse_anomalies)
+        official_attachment_refs_present = (
+            official_attachment_ref_count > 0
+            or attachment_ref_count > 0
+            or official_attachment_recognized_count > 0
+        )
+        official_pdf_text_extracted = official_pdf_text_extracted_count > 0
+        official_attachment_rows_emitted = official_attachment_row_count > 0
         secondary_search_row_count = max(
             0,
             PolicyEvidenceQualitySpineEconomicsService._to_non_negative_int(
@@ -1537,6 +1630,22 @@ class PolicyEvidenceQualitySpineEconomicsService:
             "identity_blocker_code": identity_blocker_code or None,
             "identity_blocker_reason": identity_blocker_reason or None,
             "identity_recommended_action": identity_recommended_action,
+            "attachment_ref_count": attachment_ref_count,
+            "attachment_probe_count": attachment_probe_count,
+            "attachment_content_ingested_count": attachment_content_ingested_count,
+            "attachment_economic_row_count": attachment_economic_row_count,
+            "official_attachment_ref_count": official_attachment_ref_count,
+            "official_attachment_probe_count": official_attachment_probe_count,
+            "official_attachment_recognized_count": official_attachment_recognized_count,
+            "official_attachment_text_read_count": official_attachment_text_read_count,
+            "official_pdf_probe_count": official_pdf_probe_count,
+            "official_pdf_text_extracted_count": official_pdf_text_extracted_count,
+            "official_attachment_failure_counts": official_attachment_failure_counts,
+            "official_attachment_parse_anomaly_count": official_attachment_parse_anomaly_count,
+            "official_attachment_parse_anomalies": official_attachment_parse_anomalies,
+            "official_attachment_refs_present": official_attachment_refs_present,
+            "official_pdf_text_extracted": official_pdf_text_extracted,
+            "official_attachment_rows_emitted": official_attachment_rows_emitted,
             "true_structured_row_count": true_structured_row_count,
             "official_attachment_row_count": official_attachment_row_count,
             "secondary_search_row_count": secondary_search_row_count,
@@ -1591,6 +1700,13 @@ class PolicyEvidenceQualitySpineEconomicsService:
         structured_depth_ready = bool(data_moat_status.get("structured_depth_ready"))
         true_structured_row_count = int(data_moat_status.get("true_structured_row_count") or 0)
         official_attachment_row_count = int(data_moat_status.get("official_attachment_row_count") or 0)
+        attachment_content_ingested_count = int(
+            data_moat_status.get("attachment_content_ingested_count") or 0
+        )
+        official_attachment_refs_present = bool(
+            data_moat_status.get("official_attachment_refs_present")
+        )
+        official_pdf_text_extracted = bool(data_moat_status.get("official_pdf_text_extracted"))
         missing_true_structured_corroboration_count = int(
             data_moat_status.get("missing_true_structured_corroboration_count") or 0
         )
@@ -1608,6 +1724,10 @@ class PolicyEvidenceQualitySpineEconomicsService:
             and selected_artifact_family == "official_page"
             and official_attachment_row_count == 0
         ):
+            if official_attachment_refs_present and (
+                attachment_content_ingested_count == 0 or not official_pdf_text_extracted
+            ):
+                return "parse_official_attachment_pdfs"
             return "ingest_official_attachments"
 
         if runtime_ready and (not source_quality_ready or not structured_depth_ready):
@@ -1615,6 +1735,10 @@ class PolicyEvidenceQualitySpineEconomicsService:
                 (true_structured_row_count == 0 and official_attachment_row_count == 0)
                 or missing_true_structured_corroboration_count > 0
             ):
+                if official_attachment_refs_present and (
+                    attachment_content_ingested_count == 0 or not official_pdf_text_extracted
+                ):
+                    return "parse_official_attachment_pdfs"
                 return "ingest_official_attachments"
             if source_selection_blocker:
                 return "improve_data_moat_sources"
@@ -1654,13 +1778,19 @@ class PolicyEvidenceQualitySpineEconomicsService:
         return {}
 
     @staticmethod
-    def _extract_source_reconciliation(*, selected_payload: dict[str, Any]) -> dict[str, Any]:
+    def _extract_source_reconciliation(
+        *,
+        selected_payload: dict[str, Any],
+        matrix_payload: dict[str, Any],
+    ) -> dict[str, Any]:
         direct = selected_payload.get("source_reconciliation")
         run_context = selected_payload.get("run_context")
         attachment_state: dict[str, Any] = {}
+        policy_lineage: dict[str, Any] = {}
         if isinstance(run_context, dict):
-            policy_lineage = run_context.get("policy_lineage")
-            if isinstance(policy_lineage, dict):
+            policy_lineage_value = run_context.get("policy_lineage")
+            if isinstance(policy_lineage_value, dict):
+                policy_lineage = policy_lineage_value
                 maybe_attachment_state = policy_lineage.get("attachment_state")
                 if isinstance(maybe_attachment_state, dict):
                     attachment_state = maybe_attachment_state
@@ -1668,6 +1798,8 @@ class PolicyEvidenceQualitySpineEconomicsService:
             return PolicyEvidenceQualitySpineEconomicsService._augment_source_reconciliation(
                 source_reconciliation=direct,
                 attachment_state=attachment_state,
+                policy_lineage=policy_lineage,
+                matrix_payload=matrix_payload,
             )
         run_context = selected_payload.get("run_context")
         if isinstance(run_context, dict):
@@ -1676,7 +1808,16 @@ class PolicyEvidenceQualitySpineEconomicsService:
                 return PolicyEvidenceQualitySpineEconomicsService._augment_source_reconciliation(
                     source_reconciliation=nested,
                     attachment_state=attachment_state,
+                    policy_lineage=policy_lineage,
+                    matrix_payload=matrix_payload,
                 )
+        if attachment_state or policy_lineage:
+            return PolicyEvidenceQualitySpineEconomicsService._augment_source_reconciliation(
+                source_reconciliation={},
+                attachment_state=attachment_state,
+                policy_lineage=policy_lineage,
+                matrix_payload=matrix_payload,
+            )
         return {}
 
     @staticmethod
@@ -1684,6 +1825,8 @@ class PolicyEvidenceQualitySpineEconomicsService:
         *,
         source_reconciliation: dict[str, Any],
         attachment_state: dict[str, Any],
+        policy_lineage: dict[str, Any],
+        matrix_payload: dict[str, Any],
     ) -> dict[str, Any]:
         payload = dict(source_reconciliation)
         if "secondary_search_row_count" not in payload:
@@ -1700,6 +1843,134 @@ class PolicyEvidenceQualitySpineEconomicsService:
                     attachment_state.get("attachment_economic_row_count")
                 ),
             )
+
+        related_attachment_refs = policy_lineage.get("related_attachment_refs")
+        if not isinstance(related_attachment_refs, list):
+            related_attachment_refs = []
+        attachment_content_probes = policy_lineage.get("attachment_content_probes")
+        if not isinstance(attachment_content_probes, list):
+            attachment_content_probes = []
+
+        attachment_ref_count = PolicyEvidenceQualitySpineEconomicsService._to_non_negative_int(
+            payload.get("attachment_ref_count")
+            or attachment_state.get("attachment_ref_count")
+            or len(related_attachment_refs)
+        )
+        attachment_probe_count = PolicyEvidenceQualitySpineEconomicsService._to_non_negative_int(
+            payload.get("attachment_probe_count")
+            or attachment_state.get("attachment_probe_count")
+            or len(attachment_content_probes)
+        )
+        attachment_content_ingested_count = (
+            PolicyEvidenceQualitySpineEconomicsService._to_non_negative_int(
+                payload.get("attachment_content_ingested_count")
+                or payload.get("attachment_ingested_count")
+                or attachment_state.get("attachment_content_ingested_count")
+                or attachment_state.get("attachment_ingested_count")
+            )
+        )
+        if attachment_content_ingested_count == 0 and attachment_content_probes:
+            attachment_content_ingested_count = sum(
+                1
+                for probe in attachment_content_probes
+                if isinstance(probe, dict) and bool(probe.get("content_ingested"))
+            )
+
+        attachment_economic_row_count = PolicyEvidenceQualitySpineEconomicsService._to_non_negative_int(
+            payload.get("attachment_economic_row_count")
+            or attachment_state.get("attachment_economic_row_count")
+        )
+        if attachment_economic_row_count == 0 and attachment_content_probes:
+            attachment_economic_row_count = sum(
+                PolicyEvidenceQualitySpineEconomicsService._to_non_negative_int(
+                    probe.get("economic_row_count")
+                )
+                for probe in attachment_content_probes
+                if isinstance(probe, dict)
+            )
+        if "attachment_ref_count" not in payload:
+            payload["attachment_ref_count"] = attachment_ref_count
+        if "attachment_probe_count" not in payload:
+            payload["attachment_probe_count"] = attachment_probe_count
+        if "attachment_content_ingested_count" not in payload:
+            payload["attachment_content_ingested_count"] = attachment_content_ingested_count
+        if "attachment_economic_row_count" not in payload:
+            payload["attachment_economic_row_count"] = attachment_economic_row_count
+
+        official_recognized_count = 0
+        official_pdf_probe_count = 0
+        official_pdf_text_extracted_count = 0
+        official_text_read_count = 0
+        failure_counts: Counter[str] = Counter()
+        for raw_probe in attachment_content_probes:
+            if not isinstance(raw_probe, dict):
+                continue
+            is_official_probe = PolicyEvidenceQualitySpineEconomicsService._is_official_attachment_probe(
+                probe=raw_probe
+            )
+            if is_official_probe:
+                official_recognized_count += 1
+                read_status = str(raw_probe.get("read_status") or "").strip().lower()
+                if bool(raw_probe.get("content_ingested")) or read_status in {
+                    "read_text",
+                    "read_pdf_text",
+                    "pdf_text_extracted",
+                }:
+                    official_text_read_count += 1
+                if PolicyEvidenceQualitySpineEconomicsService._is_pdf_like_probe(probe=raw_probe):
+                    official_pdf_probe_count += 1
+                    if bool(raw_probe.get("content_ingested")) or read_status in {
+                        "read_text",
+                        "read_pdf_text",
+                        "pdf_text_extracted",
+                    }:
+                        official_pdf_text_extracted_count += 1
+            normalized_failure = (
+                PolicyEvidenceQualitySpineEconomicsService._normalize_attachment_failure_class(
+                    raw_probe.get("failure_class")
+                )
+                or PolicyEvidenceQualitySpineEconomicsService._normalize_attachment_failure_class(
+                    raw_probe.get("status")
+                )
+                or PolicyEvidenceQualitySpineEconomicsService._normalize_attachment_failure_class(
+                    raw_probe.get("read_status")
+                )
+            )
+            if normalized_failure:
+                failure_counts[normalized_failure] += 1
+
+        official_attachment_ref_count = PolicyEvidenceQualitySpineEconomicsService._to_non_negative_int(
+            payload.get("official_attachment_ref_count")
+        )
+        if official_attachment_ref_count == 0:
+            official_attachment_ref_count = sum(
+                1
+                for ref in related_attachment_refs
+                if isinstance(ref, dict)
+                and PolicyEvidenceQualitySpineEconomicsService._is_official_attachment_ref(
+                    ref=ref
+                )
+            )
+        if official_attachment_ref_count == 0 and official_recognized_count > 0:
+            official_attachment_ref_count = official_recognized_count
+
+        payload.setdefault("official_attachment_probe_count", official_recognized_count)
+        payload.setdefault("official_attachment_ref_count", official_attachment_ref_count)
+        payload.setdefault("official_attachment_recognized_count", official_recognized_count)
+        payload.setdefault("official_attachment_text_read_count", official_text_read_count)
+        payload.setdefault("official_pdf_probe_count", official_pdf_probe_count)
+        payload.setdefault(
+            "official_pdf_text_extracted_count", official_pdf_text_extracted_count
+        )
+        payload.setdefault("official_attachment_failure_counts", dict(failure_counts))
+
+        parse_anomalies = (
+            PolicyEvidenceQualitySpineEconomicsService._extract_attachment_parse_anomalies(
+                matrix_payload=matrix_payload
+            )
+        )
+        payload.setdefault("official_attachment_parse_anomalies", parse_anomalies)
+        payload.setdefault("official_attachment_parse_anomaly_count", len(parse_anomalies))
         return payload
 
     @staticmethod
@@ -1708,6 +1979,158 @@ class PolicyEvidenceQualitySpineEconomicsService:
             return max(0, int(value))
         except (TypeError, ValueError):
             return 0
+
+    @staticmethod
+    def _is_official_attachment_ref(*, ref: dict[str, Any]) -> bool:
+        source_url = str(ref.get("url") or ref.get("source_url") or "").strip()
+        if source_url:
+            host = urlparse(source_url).netloc.lower()
+            if "legistar.com" in host and "sanjose" in host:
+                return True
+            if host.endswith("sanjoseca.gov"):
+                return True
+        source_family = str(ref.get("source_family") or "").strip().lower()
+        return source_family in {
+            "resolution",
+            "ordinance",
+            "ordinance_text",
+            "memorandum",
+            "nexus_study",
+            "staff_report",
+            "official_attachment",
+        }
+
+    @staticmethod
+    def _is_official_attachment_probe(*, probe: dict[str, Any]) -> bool:
+        normalized_failure = PolicyEvidenceQualitySpineEconomicsService._normalize_attachment_failure_class(
+            probe.get("failure_class")
+        )
+        if normalized_failure == "non_official_attachment":
+            return False
+        source_url = str(probe.get("source_url") or probe.get("url") or "").strip()
+        if source_url:
+            host = urlparse(source_url).netloc.lower()
+            if "legistar.com" in host and "sanjose" in host:
+                return True
+            if host.endswith("sanjoseca.gov"):
+                return True
+        source_family = str(probe.get("source_family") or "").strip().lower()
+        return source_family in {
+            "resolution",
+            "ordinance",
+            "ordinance_text",
+            "memorandum",
+            "nexus_study",
+            "staff_report",
+            "official_attachment",
+        }
+
+    @staticmethod
+    def _is_pdf_like_probe(*, probe: dict[str, Any]) -> bool:
+        source_url = str(probe.get("source_url") or probe.get("url") or "").strip().lower()
+        if source_url.endswith(".pdf"):
+            return True
+        if "view.ashx" in source_url and ("m=f" in source_url or "m%3df" in source_url):
+            return True
+        status = str(probe.get("status") or "").strip().lower()
+        read_status = str(probe.get("read_status") or "").strip().lower()
+        return "pdf" in status or "pdf" in read_status
+
+    @staticmethod
+    def _normalize_attachment_failure_class(value: Any) -> str | None:
+        normalized = str(value or "").strip().lower()
+        if not normalized:
+            return None
+        if normalized in {"skipped_non_official_attachment", "non_official_attachment"}:
+            return "non_official_attachment"
+        if normalized in {"attachment_fetch_failed", "fetch_failed"}:
+            return "fetch_failed"
+        if normalized == "binary_pdf_unparsed":
+            return "binary_pdf_unparsed"
+        if normalized in {
+            "attachment_text_empty",
+            "empty_text",
+            "read_empty_text",
+            "pdf_text_empty",
+        }:
+            return "pdf_text_empty"
+        return normalized
+
+    @staticmethod
+    def _is_official_attachment_row(*, row: dict[str, Any]) -> bool:
+        if str(row.get("source_lane_classification") or "").strip() == "secondary_search_derived":
+            return False
+        if str(row.get("provenance_lane") or "").strip() == "structured_attachment_probe":
+            return True
+        source_locator = str(row.get("source_locator") or "").strip()
+        if source_locator.startswith("attachment_probe:"):
+            return True
+        source_ref = str(row.get("source_ref") or "").strip()
+        if "::attachment::" in source_ref:
+            return True
+        if str(row.get("attachment_id") or "").strip():
+            return True
+        source_family = str(row.get("source_family") or "").strip().lower()
+        return source_family in {
+            "resolution",
+            "ordinance",
+            "ordinance_text",
+            "memorandum",
+            "nexus_study",
+            "staff_report",
+            "official_attachment",
+        }
+
+    @staticmethod
+    def _extract_attachment_parse_anomalies(
+        *,
+        matrix_payload: dict[str, Any],
+    ) -> list[dict[str, Any]]:
+        rows = matrix_payload.get("rows")
+        if not isinstance(rows, list):
+            return []
+        anomalies: list[dict[str, Any]] = []
+        for index, item in enumerate(rows, start=1):
+            if not isinstance(item, dict):
+                continue
+            if not PolicyEvidenceQualitySpineEconomicsService._is_official_attachment_row(
+                row=item
+            ):
+                continue
+            ambiguity_flag = bool(item.get("ambiguity_flag"))
+            ambiguity_reason = str(item.get("ambiguity_reason") or "").strip() or None
+            currency_sanity = str(item.get("currency_sanity") or "").strip().lower() or None
+            unit_sanity = str(item.get("unit_sanity") or "").strip().lower() or None
+            if (
+                not ambiguity_flag
+                and not ambiguity_reason
+                and currency_sanity != "invalid"
+                and unit_sanity != "invalid"
+            ):
+                continue
+            source_excerpt = str(item.get("source_excerpt") or "").strip()
+            anomalies.append(
+                {
+                    "row_index": index,
+                    "field": str(item.get("field") or "").strip() or None,
+                    "raw_value": str(item.get("raw_value") or "").strip() or None,
+                    "normalized_value": item.get("normalized_value", item.get("value")),
+                    "unit": str(item.get("unit") or "").strip() or None,
+                    "ambiguity_flag": ambiguity_flag,
+                    "ambiguity_reason": ambiguity_reason,
+                    "currency_sanity": currency_sanity or "unknown",
+                    "unit_sanity": unit_sanity or "unknown",
+                    "source_family": str(item.get("source_family") or "").strip() or None,
+                    "source_url": str(item.get("source_url") or "").strip() or None,
+                    "source_ref": str(item.get("source_ref") or "").strip() or None,
+                    "attachment_id": str(item.get("attachment_id") or "").strip() or None,
+                    "attachment_title": str(item.get("attachment_title") or "").strip() or None,
+                    "source_excerpt_preview": source_excerpt[:240] if source_excerpt else None,
+                }
+            )
+            if len(anomalies) >= 25:
+                break
+        return anomalies
 
     @staticmethod
     def _build_manual_audit_scaffold(
@@ -2553,7 +2976,8 @@ class PolicyEvidenceQualitySpineEconomicsService:
                         selected_payload=package_payload
                     ),
                     source_reconciliation=PolicyEvidenceQualitySpineEconomicsService._extract_source_reconciliation(
-                        selected_payload=package_payload
+                        selected_payload=package_payload,
+                        matrix_payload=matrix_payload,
                     ),
                 )
             )

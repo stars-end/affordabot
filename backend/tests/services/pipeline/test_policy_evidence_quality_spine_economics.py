@@ -239,6 +239,7 @@ def test_endpoint_read_model_exposes_economic_handoff_contract_fields() -> None:
         "qualitative_summary_only",
         "improve_data_moat_sources",
         "ingest_official_attachments",
+        "parse_official_attachment_pdfs",
         "reject",
     }
     assert "data_moat_status" in read_model
@@ -1435,6 +1436,46 @@ def test_attachment_rows_can_satisfy_structured_depth_without_secondary_search_c
                 "secondary_snippet_row_count": 2,
                 "official_attachment_row_count": 3,
             },
+            "policy_lineage": {
+                "related_attachment_refs": [
+                    {
+                        "attachment_id": "301",
+                        "title": "Resolution No. 80069",
+                        "url": "https://sanjoseca.legistar.com/View.ashx?M=F&ID=8758120",
+                        "source_family": "resolution",
+                    }
+                ],
+                "attachment_state": {
+                    "attachment_ref_count": 1,
+                    "attachment_probe_count": 2,
+                    "attachment_ingested_count": 1,
+                    "attachment_economic_row_count": 3,
+                },
+                "attachment_content_probes": [
+                    {
+                        "attachment_id": "301",
+                        "title": "Resolution No. 80069",
+                        "source_family": "resolution",
+                        "source_url": "https://sanjoseca.legistar.com/View.ashx?M=F&ID=8758120",
+                        "status": "ingested_excerpt",
+                        "read_status": "read_text",
+                        "failure_class": None,
+                        "content_ingested": True,
+                        "economic_row_count": 3,
+                    },
+                    {
+                        "attachment_id": "302",
+                        "title": "Memo",
+                        "source_family": "memorandum",
+                        "source_url": "https://sanjoseca.legistar.com/View.ashx?M=F&ID=8758121",
+                        "status": "binary_pdf_unparsed",
+                        "read_status": "binary_unparsed",
+                        "failure_class": "binary_pdf_unparsed",
+                        "content_ingested": False,
+                        "economic_row_count": 0,
+                    },
+                ],
+            },
         },
     }
     matrix = _matrix_with_runtime_evidence(
@@ -1461,6 +1502,26 @@ def test_attachment_rows_can_satisfy_structured_depth_without_secondary_search_c
             "minio_readback_proven": True,
         },
     )
+    matrix["rows"] = [
+        {
+            "field": "commercial_linkage_fee_rate_usd_per_sqft",
+            "raw_value": "Residential Care $ 18.706.00",
+            "normalized_value": None,
+            "value": None,
+            "source_family": "resolution",
+            "source_url": "https://sanjoseca.legistar.com/View.ashx?M=F&ID=8758120",
+            "source_ref": "legistar::matter::7526::attachment::301",
+            "source_locator": "attachment_probe:301",
+            "provenance_lane": "structured_attachment_probe",
+            "attachment_id": "301",
+            "attachment_title": "Resolution No. 80069",
+            "ambiguity_flag": True,
+            "ambiguity_reason": "currency_format_anomaly",
+            "currency_sanity": "invalid",
+            "unit_sanity": "valid",
+            "source_excerpt": "Residential Care $ 18.706.00 per square foot",
+        }
+    ]
 
     endpoint = PolicyEvidenceQualitySpineEconomicsService().build_endpoint_read_model(
         matrix_input=MatrixInput(
@@ -1482,8 +1543,147 @@ def test_attachment_rows_can_satisfy_structured_depth_without_secondary_search_c
     assert moat["row_family_depth"]["secondary_search"]["satisfies_depth"] is False
     assert moat["secondary_search_row_count"] == 2
     assert moat["structured_depth_satisfied_by"] == ["official_attachment"]
+    assert moat["official_attachment_refs_present"] is True
+    assert moat["official_pdf_text_extracted"] is True
+    assert moat["official_attachment_rows_emitted"] is True
+    assert moat["attachment_ref_count"] == 1
+    assert moat["attachment_probe_count"] == 2
+    assert moat["attachment_content_ingested_count"] == 1
+    assert moat["attachment_economic_row_count"] == 3
+    assert moat["official_attachment_failure_counts"]["binary_pdf_unparsed"] == 1
+    assert moat["official_attachment_parse_anomaly_count"] == 1
+    assert moat["official_attachment_parse_anomalies"][0]["raw_value"] == "Residential Care $ 18.706.00"
     assert endpoint["economic_handoff_quality"]["status"] == "analysis_ready_with_gaps"
     assert endpoint["recommended_next_action"] != "ingest_official_attachments"
+
+
+def test_cycle_34_official_attachment_refs_without_content_or_rows_requires_pdf_parse() -> None:
+    bundle = PolicyEconomicMechanismCaseService().build_case_bundle()
+    direct = _case(bundle, "direct_cost_case")
+    package = {
+        **direct["primary_package"],
+        "run_context": {
+            **direct["primary_package"].get("run_context", {}),
+            "source_quality_metrics": {
+                "selected_artifact_family": "official_page",
+                "top_n_artifact_recall_count": 0,
+                "policy_identity_ready": True,
+                "jurisdiction_identity_ready": True,
+                "selected_candidate": {"artifact_family": "official_page"},
+            },
+            "source_reconciliation": {
+                "true_structured_row_count": 0,
+                "missing_true_structured_corroboration_count": 0,
+                "secondary_snippet_row_count": 1,
+                "official_attachment_row_count": 0,
+            },
+            "policy_lineage": {
+                "related_attachment_refs": [
+                    {
+                        "attachment_id": "301",
+                        "title": "Resolution No. 80069",
+                        "url": "https://sanjoseca.legistar.com/View.ashx?M=F&ID=8758120",
+                        "source_family": "resolution",
+                    },
+                    {
+                        "attachment_id": "302",
+                        "title": "Third-party memo",
+                        "url": "https://example.com/memo.pdf",
+                        "source_family": "memorandum",
+                    },
+                ],
+                "attachment_state": {
+                    "attachment_ref_count": 2,
+                    "attachment_probe_count": 3,
+                    "attachment_ingested_count": 0,
+                    "attachment_economic_row_count": 0,
+                },
+                "attachment_content_probes": [
+                    {
+                        "attachment_id": "301",
+                        "title": "Resolution No. 80069",
+                        "source_family": "resolution",
+                        "source_url": "https://sanjoseca.legistar.com/View.ashx?M=F&ID=8758120",
+                        "status": "binary_pdf_unparsed",
+                        "read_status": "binary_unparsed",
+                        "failure_class": "binary_pdf_unparsed",
+                        "content_ingested": False,
+                        "economic_row_count": 0,
+                    },
+                    {
+                        "attachment_id": "302",
+                        "title": "Third-party memo",
+                        "source_family": "memorandum",
+                        "source_url": "https://example.com/memo.pdf",
+                        "status": "skipped_non_official_attachment",
+                        "read_status": "not_read",
+                        "failure_class": "non_official_attachment",
+                        "content_ingested": False,
+                        "economic_row_count": 0,
+                    },
+                    {
+                        "attachment_id": "303",
+                        "title": "Nexus Addendum",
+                        "source_family": "nexus_study",
+                        "source_url": "https://sanjoseca.legistar.com/View.ashx?M=F&ID=8758999",
+                        "status": "fetch_failed",
+                        "read_status": "fetch_failed",
+                        "failure_class": "attachment_fetch_failed",
+                        "content_ingested": False,
+                        "economic_row_count": 0,
+                    },
+                ],
+            },
+        },
+    }
+    matrix = _matrix_with_runtime_evidence(
+        package,
+        orchestration_proof={
+            "proof_status": "pass",
+            "proof_mode": "current_run",
+            "linked_to_current_vertical_package": True,
+            "windmill_run_id": "wm-run-cycle-34",
+            "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+        },
+        llm_narrative_proof={
+            "proof_status": "pass",
+            "canonical_pipeline_run_id": package["gate_projection"]["canonical_pipeline_run_id"],
+            "canonical_pipeline_step_id": package["gate_projection"]["canonical_pipeline_step_id"],
+            "source": "unit_test",
+        },
+        storage_proof={
+            "proof_status": "pass",
+            "proof_mode": "postgres_minio_live",
+            "store_backend": "postgres",
+            "artifact_probe_backend": "minio",
+            "persisted_record_id": "pkg-row-cycle-34",
+            "minio_readback_proven": True,
+        },
+    )
+
+    endpoint = PolicyEvidenceQualitySpineEconomicsService().build_endpoint_read_model(
+        matrix_input=MatrixInput(
+            payload=matrix,
+            source_path="horizontal_matrix.json",
+            source_mode="agent_a_horizontal_matrix",
+        ),
+        package_id=package["package_id"],
+        source_family="meeting_minutes",
+    )
+
+    moat = endpoint["data_moat_status"]
+    assert moat["status"] == "fail"
+    assert moat["official_attachment_refs_present"] is True
+    assert moat["official_pdf_text_extracted"] is False
+    assert moat["official_attachment_rows_emitted"] is False
+    assert moat["attachment_ref_count"] == 2
+    assert moat["attachment_probe_count"] == 3
+    assert moat["attachment_content_ingested_count"] == 0
+    assert moat["attachment_economic_row_count"] == 0
+    assert moat["official_attachment_failure_counts"]["non_official_attachment"] == 1
+    assert moat["official_attachment_failure_counts"]["binary_pdf_unparsed"] == 1
+    assert moat["official_attachment_failure_counts"]["fetch_failed"] == 1
+    assert endpoint["recommended_next_action"] == "parse_official_attachment_pdfs"
 
 
 def test_tavily_only_rows_do_not_satisfy_structured_depth() -> None:

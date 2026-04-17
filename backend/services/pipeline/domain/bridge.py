@@ -1425,11 +1425,23 @@ class RailwayRuntimeBridge:
         facts: list[dict[str, Any]] = []
         alerts: list[str] = []
         seen: set[tuple[str, str, str, str, str, str, str]] = set()
+        currency_anomaly_pattern = re.compile(r"\$\s*[0-9]+(?:\.[0-9]+){2,}")
+
+        def _normalize_currency_token(raw_token: str) -> str:
+            compact = re.sub(r"\s+", "", raw_token.strip())
+            if compact.startswith("$"):
+                return compact
+            return f"${compact.lstrip('$')}"
+
+        def _parse_currency_token(raw_token: str) -> float:
+            cleaned = _normalize_currency_token(raw_token).replace("$", "").replace(",", "")
+            return float(cleaned)
+
         fee_row_pattern = re.compile(
             r"(?P<category>Downtown\s+Office|Rest\s+of\s+City\s+Office|Office|Retail|Hotel|"
-            r"Industrial/Research\s+and\s+Development|Warehouse|Residential\s+Care)"
+            r"Industrial(?:\s*/\s*|\s+)Research\s+and\s+Development|Warehouse|Residential\s+Care)"
             r"(?:\s*\((?P<threshold>[^)]*?(?:sq\.?\s*ft|sq\.?ft|square\s+foot)[^)]*)\))?"
-            r"\s*(?P<raw>No\s+fee\s*\(\$0\)|\$[0-9]+(?:\.[0-9]+){2,}|\$[0-9]+(?:\.[0-9]{1,2})?)",
+            r"\s*(?P<raw>No\s+fee\s*\(\$\s*0\)|\$\s*[0-9]+(?:\.[0-9]+){2,}|\$\s*[0-9]+(?:,[0-9]{3})*(?:\.[0-9]{1,2})?)(?![0-9]|\.[0-9])",
             re.IGNORECASE,
         )
 
@@ -1465,16 +1477,16 @@ class RailwayRuntimeBridge:
                     ambiguity = False
                     ambiguity_reason = None
                     confidence = 0.86
-                elif re.fullmatch(r"\$[0-9]+(?:\.[0-9]+){2,}", raw_token):
+                elif currency_anomaly_pattern.fullmatch(raw_token):
                     alerts.append("primary_parameter_money_format_anomaly")
                     value = None
-                    normalized_raw = raw_token
+                    normalized_raw = _normalize_currency_token(raw_token)
                     ambiguity = True
                     ambiguity_reason = "currency_format_anomaly"
                     confidence = 0.35
                 else:
-                    value = float(raw_token.replace("$", ""))
-                    normalized_raw = raw_token
+                    value = _parse_currency_token(raw_token)
+                    normalized_raw = _normalize_currency_token(raw_token)
                     ambiguity = False
                     ambiguity_reason = None
                     confidence = 0.86
@@ -1531,7 +1543,7 @@ class RailwayRuntimeBridge:
                 )
                 tail_window = text[row_match.end() : min(len(text), row_match.end() + 180)]
                 for extra_match in re.finditer(
-                    r"(?P<raw>\$[0-9]+(?:\.[0-9]+){2,}|\$[0-9]+(?:\.[0-9]{1,2})?)\s*(?P<context>when\s+paid[^.;\n]*)",
+                    r"(?P<raw>\$\s*[0-9]+(?:\.[0-9]+){2,}|\$\s*[0-9]+(?:,[0-9]{3})*(?:\.[0-9]{1,2})?)(?![0-9]|\.[0-9])\s*(?P<context>when\s+paid[^.;\n]*)",
                     tail_window,
                     flags=re.IGNORECASE,
                 ):
@@ -1547,14 +1559,16 @@ class RailwayRuntimeBridge:
                         threshold=threshold,
                         context_excerpt=extra_excerpt,
                     )
-                    if re.fullmatch(r"\$[0-9]+(?:\.[0-9]+){2,}", extra_raw):
+                    if currency_anomaly_pattern.fullmatch(extra_raw):
                         alerts.append("primary_parameter_money_format_anomaly")
                         extra_value: float | None = None
+                        extra_normalized_raw = _normalize_currency_token(extra_raw)
                         extra_ambiguity = True
                         extra_ambiguity_reason = "currency_format_anomaly"
                         extra_confidence = 0.35
                     else:
-                        extra_value = float(extra_raw.replace("$", ""))
+                        extra_value = _parse_currency_token(extra_raw)
+                        extra_normalized_raw = _normalize_currency_token(extra_raw)
                         extra_ambiguity = False
                         extra_ambiguity_reason = None
                         extra_confidence = 0.86
@@ -1576,7 +1590,7 @@ class RailwayRuntimeBridge:
                     facts.append(
                         {
                             "field": "commercial_linkage_fee_rate_usd_per_sqft",
-                            "raw_value": extra_raw,
+                            "raw_value": extra_normalized_raw,
                             "value": extra_value,
                             "normalized_value": extra_value,
                             "unit": "usd_per_square_foot",
@@ -1613,14 +1627,14 @@ class RailwayRuntimeBridge:
                     )
             if row_match_found:
                 continue
-            if re.search(r"\$[0-9]+(?:\.[0-9]+){2,}", text):
+            if currency_anomaly_pattern.search(text):
                 alerts.append("primary_parameter_money_format_anomaly")
-                malformed_match = re.search(r"\$[0-9]+(?:\.[0-9]+){2,}", text)
+                malformed_match = currency_anomaly_pattern.search(text)
                 if malformed_match is not None:
                     facts.append(
                         {
                             "field": "commercial_linkage_fee_rate_usd_per_sqft",
-                            "raw_value": malformed_match.group(0),
+                            "raw_value": _normalize_currency_token(malformed_match.group(0)),
                             "normalized_value": None,
                             "unit": "usd_per_square_foot",
                             "denominator": "per_square_foot",
@@ -1654,9 +1668,9 @@ class RailwayRuntimeBridge:
                             "final_status": final_status,
                         }
                     )
-            for match in re.finditer(r"\$([0-9]+(?:\.[0-9]{1,2})?)(?![\d.])", text):
-                raw_token = match.group(0)
-                value = float(match.group(1))
+            for match in re.finditer(r"\$\s*([0-9]+(?:,[0-9]{3})*(?:\.[0-9]{1,2})?)(?![0-9]|\.[0-9])", text):
+                raw_token = _normalize_currency_token(match.group(0))
+                value = float(match.group(1).replace(",", ""))
                 category = "unknown"
                 context_start = max(0, match.start() - 160)
                 context_end = min(len(text), match.end() + 160)
@@ -2109,6 +2123,7 @@ class RailwayRuntimeBridge:
         collected: list[dict[str, Any]] = []
         seen: set[tuple[str, ...]] = set()
         secondary_source_families = {"tavily_secondary_search", "exa_secondary_search"}
+        currency_anomaly_pattern = re.compile(r"\$\s*[0-9]+(?:\.[0-9]+){2,}")
         for candidate in structured_candidates:
             if not isinstance(candidate, dict):
                 continue
@@ -2116,6 +2131,25 @@ class RailwayRuntimeBridge:
             is_true_structured = bool(candidate.get("true_structured", True))
             if source_family in secondary_source_families:
                 is_true_structured = False
+
+            probe_excerpt_by_attachment: dict[str, str] = {}
+            probe_excerpt_by_url: dict[str, str] = {}
+            probes = candidate.get("attachment_content_probes")
+            if isinstance(probes, list):
+                for probe in probes:
+                    if not isinstance(probe, dict):
+                        continue
+                    if not bool(probe.get("content_ingested")):
+                        continue
+                    excerpt = str(probe.get("excerpt") or "").strip()
+                    if not excerpt:
+                        continue
+                    attachment_id = str(probe.get("attachment_id") or "").strip()
+                    probe_url = str(probe.get("url") or "").strip()
+                    if attachment_id and attachment_id not in probe_excerpt_by_attachment:
+                        probe_excerpt_by_attachment[attachment_id] = excerpt
+                    if probe_url and probe_url not in probe_excerpt_by_url:
+                        probe_excerpt_by_url[probe_url] = excerpt
 
             raw_facts = candidate.get("structured_policy_facts")
             facts: list[dict[str, Any]] = [fact for fact in raw_facts if isinstance(fact, dict)] if isinstance(raw_facts, list) else []
@@ -2144,22 +2178,55 @@ class RailwayRuntimeBridge:
                     continue
 
                 source_url = str(fact.get("source_url") or candidate.get("artifact_url") or "").strip()
+                attachment_id = str(fact.get("attachment_id") or "").strip()
+                attachment_title = str(fact.get("attachment_title") or "").strip()
+                source_excerpt = str(fact.get("source_excerpt") or "").strip()
+                if not source_excerpt and attachment_id:
+                    source_excerpt = probe_excerpt_by_attachment.get(attachment_id, "")
+                if not source_excerpt and source_url:
+                    source_excerpt = probe_excerpt_by_url.get(source_url, "")
+
                 source_locator = str(fact.get("source_locator") or "").strip()
+                chunk_locator = str(fact.get("chunk_locator") or "").strip()
+                table_locator = str(fact.get("table_locator") or "").strip()
+                page_locator = str(fact.get("page_locator") or "").strip()
                 locator_quality = str(fact.get("locator_quality") or "").strip()
                 if (
+                    not source_locator
+                    and not chunk_locator
+                    and not table_locator
+                    and not page_locator
+                    and source_excerpt
+                    and (attachment_id or attachment_title)
+                ):
+                    fallback_prefix = f"attachment_probe:{attachment_id or 'unknown'}"
+                    source_locator = f"{fallback_prefix}:excerpt"
+                    chunk_locator = fallback_prefix
+                    if not locator_quality:
+                        locator_quality = "attachment_probe_excerpt"
+
+                is_low_fidelity_probe_row = (
+                    locator_quality == "attachment_probe_excerpt"
+                    or source_locator == "attachment_probe:excerpt"
+                    or (
+                        source_locator.startswith("attachment_probe:")
+                        and source_locator.endswith(":excerpt")
+                    )
+                )
+                if (
                     source_url in synthesized_attachment_urls
-                    and (source_locator == "attachment_probe:excerpt" or locator_quality == "attachment_probe_excerpt")
+                    and is_low_fidelity_probe_row
                 ):
                     # Drop low-fidelity probe rows when richer parsed attachment rows exist.
                     continue
 
-                value = fact.get("normalized_value", fact.get("value"))
-                if isinstance(value, str):
-                    try:
-                        value = float(value.replace(",", "").strip())
-                    except ValueError:
-                        value = None
-                if not isinstance(value, (int, float)):
+                value = cls._to_float(fact.get("normalized_value", fact.get("value")))
+                raw_value = str(fact.get("raw_value") or "").strip() or None
+                if raw_value:
+                    raw_value = re.sub(r"\s+", "", raw_value)
+                raw_currency_anomaly = bool(raw_value and currency_anomaly_pattern.fullmatch(raw_value))
+                ambiguity_flag = bool(fact.get("ambiguity_flag")) or raw_currency_anomaly
+                if value is None and not ambiguity_flag:
                     continue
 
                 lane_classification = str(fact.get("source_lane_classification") or "").strip()
@@ -2167,24 +2234,41 @@ class RailwayRuntimeBridge:
                     lane_classification = "true_structured_source" if is_true_structured else "secondary_search_derived"
 
                 resolved_source_family = str(fact.get("source_family") or source_family or "unknown").strip().lower() or "unknown"
+                unit = str(fact.get("unit") or "").strip() or None
+                denominator = str(fact.get("denominator") or "").strip() or None
+                field_key = field.lower()
+                if unit is None and "usd_per_sqft" in field_key:
+                    unit = "usd_per_square_foot"
+                if denominator is None and "per_sqft" in field_key:
+                    denominator = "per_square_foot"
+                if denominator is None and unit == "usd_per_square_foot":
+                    denominator = "per_square_foot"
+                ambiguity_reason = str(fact.get("ambiguity_reason") or "").strip() or None
+                if value is None and ambiguity_reason is None:
+                    ambiguity_reason = (
+                        "currency_format_anomaly" if raw_currency_anomaly else "numeric_value_missing"
+                    )
+                currency_sanity = str(fact.get("currency_sanity") or "").strip().lower()
+                if not currency_sanity:
+                    currency_sanity = "invalid" if value is None else "valid"
                 row_payload = {
                     "field": field,
-                    "normalized_value": float(value),
-                    "raw_value": str(fact.get("raw_value") or "").strip() or None,
-                    "value": float(value),
+                    "normalized_value": float(value) if value is not None else None,
+                    "raw_value": raw_value,
+                    "value": float(value) if value is not None else None,
                     "source_family": resolved_source_family,
                     "source_url": source_url,
                     "source_ref": str(fact.get("source_ref") or source_url).strip() or source_url,
-                    "attachment_id": str(fact.get("attachment_id") or "").strip() or None,
-                    "attachment_title": str(fact.get("attachment_title") or "").strip() or None,
-                    "source_excerpt": str(fact.get("source_excerpt") or "").strip(),
+                    "attachment_id": attachment_id or None,
+                    "attachment_title": attachment_title or None,
+                    "source_excerpt": source_excerpt,
                     "source_locator": source_locator or None,
-                    "chunk_locator": str(fact.get("chunk_locator") or "").strip() or None,
-                    "table_locator": str(fact.get("table_locator") or "").strip() or None,
-                    "page_locator": str(fact.get("page_locator") or "").strip() or None,
+                    "chunk_locator": chunk_locator or None,
+                    "table_locator": table_locator or None,
+                    "page_locator": page_locator or None,
                     "locator_quality": locator_quality or "locator_not_available",
-                    "unit": str(fact.get("unit") or "").strip() or None,
-                    "denominator": str(fact.get("denominator") or "").strip() or None,
+                    "unit": unit,
+                    "denominator": denominator,
                     "land_use": str(fact.get("land_use") or fact.get("category") or "").strip() or "unknown",
                     "subarea": str(fact.get("subarea") or "").strip() or None,
                     "geography": str(fact.get("geography") or "").strip() or None,
@@ -2204,9 +2288,9 @@ class RailwayRuntimeBridge:
                     "confidence": float(fact.get("confidence"))
                     if isinstance(fact.get("confidence"), (int, float))
                     else 0.5,
-                    "ambiguity_flag": bool(fact.get("ambiguity_flag")),
-                    "ambiguity_reason": str(fact.get("ambiguity_reason") or "").strip() or None,
-                    "currency_sanity": str(fact.get("currency_sanity") or "").strip().lower() or "valid",
+                    "ambiguity_flag": ambiguity_flag or value is None,
+                    "ambiguity_reason": ambiguity_reason,
+                    "currency_sanity": currency_sanity,
                     "unit_sanity": str(fact.get("unit_sanity") or "").strip().lower() or "valid",
                     "policy_match_key": str(
                         fact.get("policy_match_key")
@@ -2250,7 +2334,7 @@ class RailwayRuntimeBridge:
         if isinstance(value, (int, float)):
             return float(value)
         if isinstance(value, str):
-            cleaned = value.replace(",", "").strip()
+            cleaned = value.replace("$", "").replace(",", "").replace(" ", "").strip()
             try:
                 return float(cleaned)
             except ValueError:
@@ -2331,6 +2415,32 @@ class RailwayRuntimeBridge:
         lane = str(fact.get("source_lane_classification") or "").strip().lower()
         if lane == "secondary_search_derived":
             return False
+        normalized_value = cls._to_float(fact.get("normalized_value", fact.get("value")))
+        if normalized_value is None or bool(fact.get("ambiguity_flag")):
+            return False
+        currency_sanity = str(fact.get("currency_sanity") or "").strip().lower()
+        unit_sanity = str(fact.get("unit_sanity") or "").strip().lower()
+        if currency_sanity == "invalid" or unit_sanity == "invalid":
+            return False
+        source_url = str(fact.get("source_url") or "").strip().lower()
+        if not source_url:
+            return False
+        source_excerpt = str(fact.get("source_excerpt") or "").strip()
+        if not source_excerpt:
+            return False
+        unit = str(fact.get("unit") or "").strip().lower()
+        denominator = str(fact.get("denominator") or "").strip().lower()
+        if not unit and not denominator:
+            return False
+        source_locator = str(fact.get("source_locator") or "").strip()
+        chunk_locator = str(fact.get("chunk_locator") or "").strip()
+        table_locator = str(fact.get("table_locator") or "").strip()
+        page_locator = str(fact.get("page_locator") or "").strip()
+        if not (source_locator or chunk_locator or table_locator or page_locator):
+            return False
+        locator_quality = str(fact.get("locator_quality") or "").strip().lower()
+        if locator_quality == "locator_not_available":
+            return False
         source_family = str(fact.get("source_family") or "").strip().lower()
         if source_family in {"tavily_secondary_search", "exa_secondary_search"}:
             return False
@@ -2338,10 +2448,9 @@ class RailwayRuntimeBridge:
         attachment_title = str(fact.get("attachment_title") or "").strip()
         if attachment_id or attachment_title:
             return True
-        locator = str(fact.get("source_locator") or "").strip().lower()
+        locator = source_locator.lower()
         if locator.startswith("attachment_probe:"):
             return True
-        source_url = str(fact.get("source_url") or "").strip().lower()
         if "legistar" in source_url and source_family in {
             "legistar_web_api",
             "resolution",

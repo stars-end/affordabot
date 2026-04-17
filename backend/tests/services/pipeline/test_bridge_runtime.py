@@ -613,7 +613,7 @@ def test_runtime_bridge_extracts_primary_fee_facts_from_analysis_chunks() -> Non
                     {
                         "snippet": (
                             "Office (<100,000 sq. ft.) $3.00 Retail (<100,000 sq. ft.) "
-                            "$0 Hotel $5.00 Residential Care $18.706.00"
+                            "$0 Hotel $5.00 Residential Care $ 18.706.00"
                         )
                     }
                 ]
@@ -634,6 +634,7 @@ def test_runtime_bridge_extracts_primary_fee_facts_from_analysis_chunks() -> Non
     resolved_values = {fact["value"] for fact in facts if isinstance(fact.get("value"), float)}
     assert resolved_values == {0.0, 3.0, 5.0}
     assert any(fact.get("raw_value") == "$3.00" for fact in facts)
+    assert any(fact.get("raw_value") == "$18.706.00" for fact in facts)
     assert any(fact.get("denominator") == "per_square_foot" for fact in facts)
     assert any(fact.get("category") == "office" for fact in facts)
     assert any(
@@ -1737,6 +1738,146 @@ def test_runtime_bridge_normalized_rows_do_not_collapse_distinct_locator_rows() 
     )
     assert reconciliation["true_structured_row_count"] == 2
     assert len(reconciliation["records"]) == 2
+
+
+def test_runtime_bridge_structured_attachment_facts_with_required_fields_are_authoritative() -> None:
+    structured_candidates = [
+        {
+            "source_lane": "structured",
+            "provider": "legistar_web_api",
+            "source_family": "legistar_web_api",
+            "true_structured": True,
+            "artifact_url": "https://webapi.legistar.com/v1/sanjose/Matters/7526",
+            "policy_match_key": "legistar::matter::7526",
+            "lineage_metadata": {"matter_id": "7526"},
+            "structured_policy_facts": [
+                {
+                    "field": "commercial_linkage_fee_rate_usd_per_sqft",
+                    "normalized_value": 10.0,
+                    "unit": "usd_per_square_foot",
+                    "land_use": "office",
+                    "raw_land_use_label": "Downtown Office",
+                    "threshold": ">=100,000 sq. ft.",
+                    "source_url": "https://sanjoseca.legistar.com/View.ashx?M=F&ID=8758120",
+                    "source_ref": "legistar::matter::7526::attachment::301",
+                    "attachment_id": "301",
+                    "attachment_title": "Resolution No. 80069",
+                    "source_excerpt": "Downtown Office (>=100,000 sq. ft.) $10.00",
+                    "source_locator": "attachment_probe:301:1:fee_table_row",
+                    "locator_quality": "table_row_chunk_locator",
+                    "table_locator": "commercial_linkage_fee_table",
+                    "chunk_locator": "attachment_probe:301:1",
+                },
+                {
+                    "field": "commercial_linkage_fee_rate_usd_per_sqft",
+                    "normalized_value": 5.0,
+                    "unit": "usd_per_square_foot",
+                    "land_use": "hotel",
+                    "raw_land_use_label": "Hotel",
+                    "source_url": "https://sanjoseca.legistar.com/View.ashx?M=F&ID=8758120",
+                    "source_ref": "legistar::matter::7526::attachment::301",
+                    "attachment_id": "301",
+                    "attachment_title": "Resolution No. 80069",
+                    "source_excerpt": "Hotel $5.00",
+                    "source_locator": "attachment_probe:301:2:fee_table_row",
+                    "locator_quality": "table_row_chunk_locator",
+                    "table_locator": "commercial_linkage_fee_table",
+                    "chunk_locator": "attachment_probe:301:2",
+                },
+                {
+                    "field": "commercial_linkage_fee_rate_usd_per_sqft",
+                    "raw_value": "$ 18.706.00",
+                    "unit": "usd_per_square_foot",
+                    "land_use": "residential_care",
+                    "raw_land_use_label": "Residential Care",
+                    "source_url": "https://sanjoseca.legistar.com/View.ashx?M=F&ID=8758120",
+                    "source_ref": "legistar::matter::7526::attachment::301",
+                    "attachment_id": "301",
+                    "attachment_title": "Resolution No. 80069",
+                    "source_excerpt": "Residential Care $ 18.706.00",
+                    "ambiguity_flag": True,
+                    "ambiguity_reason": "currency_format_anomaly",
+                    "source_locator": "attachment_probe:301:3:fee_table_row",
+                    "locator_quality": "table_row_chunk_locator",
+                    "table_locator": "commercial_linkage_fee_table",
+                    "chunk_locator": "attachment_probe:301:3",
+                },
+            ],
+        }
+    ]
+
+    structured_facts = RailwayRuntimeBridge._collect_secondary_numeric_facts(structured_candidates)
+    assert len(structured_facts) >= 3
+    assert all(fact["source_lane_classification"] == "true_structured_source" for fact in structured_facts)
+    office_row = next(item for item in structured_facts if item.get("normalized_value") == 10.0)
+    assert office_row["source_locator"] == "attachment_probe:301:1:fee_table_row"
+    assert office_row["locator_quality"] == "table_row_chunk_locator"
+    anomaly_row = next(
+        item
+        for item in structured_facts
+        if item.get("ambiguity_reason") == "currency_format_anomaly"
+    )
+    assert anomaly_row["normalized_value"] is None
+    assert anomaly_row["currency_sanity"] == "invalid"
+
+    reconciliation = RailwayRuntimeBridge._reconcile_parameter_sources(
+        primary_facts=[],
+        secondary_facts=structured_facts,
+    )
+    assert reconciliation["official_attachment_row_count"] == 2
+    assert reconciliation["official_attachment_authoritative_row_count"] == 2
+    assert any(
+        record["status"] == "authoritative_structured_attachment"
+        for record in reconciliation["records"]
+    )
+    assert any(
+        record["status"] == "conflict_unresolved"
+        and record["secondary_value"] is None
+        for record in reconciliation["records"]
+    )
+
+
+def test_runtime_bridge_tavily_attachment_like_rows_do_not_satisfy_official_attachment_depth() -> None:
+    structured_facts = RailwayRuntimeBridge._collect_secondary_numeric_facts(
+        [
+            {
+                "source_lane": "structured_secondary_source",
+                "provider": "tavily_search",
+                "source_family": "tavily_secondary_search",
+                "access_method": "tavily_search_api",
+                "true_structured": True,
+                "structured_policy_facts": [
+                    {
+                        "field": "commercial_linkage_fee_rate_usd_per_sqft",
+                        "normalized_value": 10.0,
+                        "unit": "usd_per_square_foot",
+                        "land_use": "office",
+                        "threshold": ">=100,000 sq. ft.",
+                        "source_url": "https://sanjoseca.legistar.com/View.ashx?M=F&ID=8758120",
+                        "attachment_id": "301",
+                        "attachment_title": "Resolution No. 80069",
+                        "source_excerpt": "Downtown Office (>=100,000 sq. ft.) $10.00",
+                        "source_locator": "attachment_probe:301:1:fee_table_row",
+                        "chunk_locator": "attachment_probe:301:1",
+                        "table_locator": "commercial_linkage_fee_table",
+                        "locator_quality": "table_row_chunk_locator",
+                    }
+                ],
+            }
+        ]
+    )
+    assert len(structured_facts) == 1
+    assert structured_facts[0]["source_lane_classification"] == "secondary_search_derived"
+
+    reconciliation = RailwayRuntimeBridge._reconcile_parameter_sources(
+        primary_facts=[],
+        secondary_facts=structured_facts,
+    )
+    assert reconciliation["true_structured_row_count"] == 0
+    assert reconciliation["secondary_snippet_row_count"] == 1
+    assert reconciliation["official_attachment_row_count"] == 0
+    assert reconciliation["official_attachment_authoritative_row_count"] == 0
+    assert reconciliation["records"][0]["status"] == "secondary_only_not_authoritative"
 
 
 def test_runtime_bridge_reconciliation_keeps_distinct_primary_rows_by_value_timing_threshold_locator() -> None:

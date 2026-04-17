@@ -1852,6 +1852,27 @@ async def get_policy_evidence_analysis_status(
             source_quality["structured_depth_ready"] = bool(
                 data_moat_status.get("structured_depth_ready")
             )
+        for field in (
+            "attachment_ref_count",
+            "attachment_probe_count",
+            "attachment_content_ingested_count",
+            "attachment_economic_row_count",
+            "official_attachment_ref_count",
+            "official_attachment_probe_count",
+            "official_attachment_recognized_count",
+            "official_attachment_text_read_count",
+            "official_pdf_probe_count",
+            "official_pdf_text_extracted_count",
+            "official_attachment_failure_counts",
+            "official_attachment_parse_anomaly_count",
+            "official_attachment_parse_anomalies",
+            "official_attachment_refs_present",
+            "official_pdf_text_extracted",
+            "official_attachment_rows_emitted",
+            "official_attachment_row_count",
+        ):
+            if field in data_moat_status:
+                source_quality[field] = data_moat_status.get(field)
         return {
             "contract_version": CONTRACT_VERSION,
             **read_model,

@@ -7,6 +7,39 @@ from services.pipeline.structured_source_catalog import san_jose_structured_sour
 from services.pipeline.structured_source_enrichment import StructuredSourceEnricher
 
 
+def _build_text_pdf_bytes(text: str) -> bytes:
+    safe_text = text.replace("\\", r"\\").replace("(", r"\(").replace(")", r"\)")
+    content_stream = f"BT\n/F1 12 Tf\n72 720 Td\n({safe_text}) Tj\nET\n"
+    objects = [
+        "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n",
+        "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n",
+        (
+            "3 0 obj\n"
+            "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] "
+            "/Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>\n"
+            "endobj\n"
+        ),
+        "4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n",
+        (
+            f"5 0 obj\n<< /Length {len(content_stream.encode('utf-8'))} >>\n"
+            f"stream\n{content_stream}endstream\nendobj\n"
+        ),
+    ]
+    parts: list[bytes] = [b"%PDF-1.4\n"]
+    offsets: list[int] = []
+    for obj in objects:
+        offsets.append(sum(len(chunk) for chunk in parts))
+        parts.append(obj.encode("utf-8"))
+
+    xref_offset = sum(len(chunk) for chunk in parts)
+    xref_lines = ["xref\n0 6\n0000000000 65535 f \n"]
+    xref_lines.extend(f"{offset:010d} 00000 n \n" for offset in offsets)
+    xref_lines.append("trailer\n<< /Root 1 0 R /Size 6 >>\n")
+    xref_lines.append(f"startxref\n{xref_offset}\n%%EOF\n")
+    parts.append("".join(xref_lines).encode("utf-8"))
+    return b"".join(parts)
+
+
 def test_san_jose_structured_source_catalog_contract_fields() -> None:
     catalog = san_jose_structured_source_catalog()
     assert len(catalog) >= 2
@@ -171,6 +204,40 @@ def test_classify_legistar_attachment_source_family() -> None:
     assert classify(attachment_name="City Council Minutes", attachment_url="") == "agenda/minutes"
     assert classify(attachment_name="Exhibit A", attachment_url="") == "exhibit"
     assert classify(attachment_name="Attachment", attachment_url="") == "unknown"
+
+
+def test_official_attachment_url_accepts_verified_san_jose_granicus_pdf() -> None:
+    assert (
+        StructuredSourceEnricher._is_official_attachment_url(
+            "https://legistar.granicus.com/sanjose/attachments/abc123.pdf",
+            verified_san_jose_legistar_context=True,
+        )
+        is True
+    )
+    assert (
+        StructuredSourceEnricher._is_official_attachment_url(
+            "https://legistar.granicus.com/sanjose/attachments/abc123.pdf",
+            verified_san_jose_legistar_context=False,
+        )
+        is False
+    )
+
+
+def test_official_attachment_url_rejects_unrelated_granicus_paths() -> None:
+    assert (
+        StructuredSourceEnricher._is_official_attachment_url(
+            "https://legistar.granicus.com/oakland/attachments/abc123.pdf",
+            verified_san_jose_legistar_context=True,
+        )
+        is False
+    )
+    assert (
+        StructuredSourceEnricher._is_official_attachment_url(
+            "https://legistar.granicus.com/sanjose/attachments/abc123.txt",
+            verified_san_jose_legistar_context=True,
+        )
+        is False
+    )
 
 
 def test_legistar_event_ids_are_diagnostic_not_economic_parameters() -> None:
@@ -360,9 +427,9 @@ def test_legistar_matter_metadata_attachment_probe_marks_ingested_and_not_ingest
     probes = candidate["attachment_content_probes"]
     assert len(probes) == 2
     by_family = {probe["source_family"]: probe for probe in probes}
-    assert by_family["resolution"]["status"] == "binary_pdf_unparsed"
-    assert by_family["resolution"]["read_status"] == "binary_unparsed"
-    assert by_family["resolution"]["failure_class"] == "binary_pdf_unparsed"
+    assert by_family["resolution"]["status"] == "pdf_parse_failed"
+    assert by_family["resolution"]["read_status"] == "read_failed"
+    assert by_family["resolution"]["failure_class"] == "attachment_pdf_parse_failed"
     assert by_family["resolution"]["content_hash"]
     assert by_family["resolution"]["content_ingested"] is False
     assert by_family["memorandum"]["status"] == "ingested_excerpt"
@@ -374,6 +441,101 @@ def test_legistar_matter_metadata_attachment_probe_marks_ingested_and_not_ingest
     assert by_family["memorandum"]["source_url"].startswith("https://www.sanjoseca.gov/")
     assert by_family["memorandum"]["source_title"] == "Housing Department Memorandum"
     assert candidate["lineage_metadata"]["attachment_content_ingested_count"] == 1
+
+
+def test_legistar_attachment_probe_extracts_text_from_readable_pdf() -> None:
+    enricher = StructuredSourceEnricher()
+    pdf_url = "https://legistar.granicus.com/sanjose/attachments/6f9f6ae3-0e5c-49e3-9e4d-dddea5ac2695.pdf"
+
+    class _Response:
+        def __init__(
+            self,
+            *,
+            headers: dict[str, str] | None = None,
+            content: bytes | None = None,
+        ) -> None:
+            self.headers = headers or {}
+            self.content = content or b""
+
+        def raise_for_status(self) -> None:
+            return None
+
+    class _Client:
+        async def get(self, endpoint: str) -> _Response:
+            assert endpoint == pdf_url
+            return _Response(
+                headers={"content-type": "application/pdf"},
+                content=_build_text_pdf_bytes(
+                    "Commercial Linkage Fee resolution sets fee at $14.31 per square foot."
+                ),
+            )
+
+    probes, facts = asyncio.run(
+        enricher._probe_legistar_attachment_contents(
+            client=_Client(),
+            attachment_refs=[
+                {
+                    "attachment_id": "201",
+                    "title": "Resolution No. 80069",
+                    "url": pdf_url,
+                    "source_family": "resolution",
+                }
+            ],
+            attachment_context_url="https://sanjoseca.legistar.com/LegislationDetail.aspx?ID=7526",
+        )
+    )
+    assert len(probes) == 1
+    probe = probes[0]
+    assert probe["status"] == "ingested_excerpt"
+    assert probe["read_status"] == "read_text"
+    assert probe["failure_class"] is None
+    assert probe["content_ingested"] is True
+    assert probe["content_hash"]
+    assert probe["economic_row_count"] >= 1
+    assert "commercial linkage fee" in probe["content_excerpt"].lower()
+    assert facts
+    assert any(fact["field"] == "commercial_linkage_fee_rate_usd_per_sqft" for fact in facts)
+
+
+def test_legistar_attachment_probe_unreadable_pdf_fails_closed() -> None:
+    enricher = StructuredSourceEnricher()
+    pdf_url = "https://legistar.granicus.com/sanjose/attachments/unreadable.pdf"
+
+    class _Response:
+        def __init__(self) -> None:
+            self.headers = {"content-type": "application/pdf"}
+            self.content = b"%PDF-1.7 broken"
+
+        def raise_for_status(self) -> None:
+            return None
+
+    class _Client:
+        async def get(self, endpoint: str) -> _Response:
+            assert endpoint == pdf_url
+            return _Response()
+
+    probes, facts = asyncio.run(
+        enricher._probe_legistar_attachment_contents(
+            client=_Client(),
+            attachment_refs=[
+                {
+                    "attachment_id": "202",
+                    "title": "Resolution No. 80070",
+                    "url": pdf_url,
+                    "source_family": "resolution",
+                }
+            ],
+            attachment_context_url="https://sanjoseca.legistar.com/LegislationDetail.aspx?ID=7526",
+        )
+    )
+    assert len(probes) == 1
+    probe = probes[0]
+    assert probe["status"] == "pdf_parse_failed"
+    assert probe["read_status"] == "read_failed"
+    assert probe["failure_class"] == "attachment_pdf_parse_failed"
+    assert probe["content_ingested"] is False
+    assert probe["economic_row_count"] == 0
+    assert facts == []
 
 
 def test_legistar_matter_metadata_normalizes_relative_view_attachment_urls_for_probe_fetch() -> None:

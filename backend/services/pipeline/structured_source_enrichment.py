@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime
 import hashlib
+from io import BytesIO
 import os
 import re
 from typing import Any
@@ -589,12 +590,40 @@ class StructuredSourceEnricher:
         return urljoin(base, normalized)
 
     @staticmethod
-    def _is_official_attachment_url(url: str) -> bool:
+    def _is_verified_san_jose_legistar_context(context_url: str) -> bool:
+        parsed = urlparse(str(context_url or "").strip())
+        host = parsed.netloc.lower()
+        path = parsed.path.lower()
+        if host.endswith("sanjose.legistar.com") or host.endswith("sanjoseca.legistar.com"):
+            return True
+        if host == "webapi.legistar.com" and path.startswith("/v1/sanjose/"):
+            return True
+        return False
+
+    @staticmethod
+    def _is_san_jose_granicus_pdf_attachment(url: str) -> bool:
+        parsed = urlparse(str(url or "").strip())
+        host = parsed.netloc.lower()
+        path = parsed.path.lower()
+        if "legistar" not in host or not host.endswith("granicus.com"):
+            return False
+        if not path.endswith(".pdf"):
+            return False
+        return path.startswith("/sanjose/attachments/") or path.startswith("/sanjoseca/attachments/")
+
+    @staticmethod
+    def _is_official_attachment_url(
+        url: str,
+        *,
+        verified_san_jose_legistar_context: bool = False,
+    ) -> bool:
         host = urlparse(str(url or "").strip()).netloc.lower()
         if not host:
             return False
         if "legistar.com" in host and "sanjose" in host:
             return True
+        if StructuredSourceEnricher._is_san_jose_granicus_pdf_attachment(url):
+            return verified_san_jose_legistar_context
         if host.endswith("sanjoseca.gov"):
             return True
         return False
@@ -625,6 +654,28 @@ class StructuredSourceEnricher:
         return printable / len(sample) < 0.72
 
     @staticmethod
+    def _extract_pdf_text(body: bytes) -> tuple[str | None, str | None]:
+        if not body:
+            return None, "empty_pdf_payload"
+        try:
+            from pypdf import PdfReader
+        except Exception as exc:  # noqa: BLE001
+            return None, f"pdf_dependency_unavailable:{exc}"
+        try:
+            reader = PdfReader(BytesIO(body))
+        except Exception as exc:  # noqa: BLE001
+            return None, str(exc)
+        page_text: list[str] = []
+        for page in reader.pages:
+            try:
+                extracted = page.extract_text() or ""
+            except Exception:  # noqa: BLE001
+                extracted = ""
+            if extracted.strip():
+                page_text.append(extracted)
+        return "\n".join(page_text).strip(), None
+
+    @staticmethod
     def _attachment_failure_class(*, status: str, content_ingested: bool) -> str | None:
         if content_ingested:
             return None
@@ -633,6 +684,7 @@ class StructuredSourceEnricher:
             "skipped_non_official_attachment": "non_official_attachment",
             "fetch_failed": "attachment_fetch_failed",
             "binary_pdf_unparsed": "binary_pdf_unparsed",
+            "pdf_parse_failed": "attachment_pdf_parse_failed",
             "binary_unparsed": "binary_unparsed",
             "empty_text": "attachment_text_empty",
         }
@@ -642,7 +694,19 @@ class StructuredSourceEnricher:
     def _extract_attachment_excerpt(text: str) -> str:
         cleaned = re.sub(r"<[^>]+>", " ", text)
         cleaned = re.sub(r"\s+", " ", cleaned).strip()
-        return cleaned[:800]
+        if not cleaned:
+            return ""
+        economic_signal = re.search(r"\$\s*[0-9]+", cleaned)
+        if economic_signal is None:
+            economic_signal = re.search(
+                r"(fee\s+per\s+sq\.?\s*ft|geographic\s+subarea\s+non-residential\s+use)",
+                cleaned,
+                re.IGNORECASE,
+            )
+        if economic_signal is None:
+            return cleaned[:800]
+        start = max(0, economic_signal.start() - 420)
+        return cleaned[start : start + 1800].strip()
 
     @staticmethod
     def _extract_attachment_economic_rows(
@@ -657,14 +721,17 @@ class StructuredSourceEnricher:
         lowered = text.lower()
         if "fee" not in lowered and "rate" not in lowered:
             return []
-        if not any(signal in lowered for signal in ("per square foot", "per sq ft", "sq.ft", "sq ft")):
+        if not re.search(r"(per\s+square\s+foot|per\s+sq\.?\s*ft|sq\.?\s*ft)", lowered):
             return []
 
-        values = re.findall(r"\$([0-9]+(?:\.[0-9]{1,2})?)", text)
+        values = re.findall(
+            r"\$\s*([0-9]+(?:,[0-9]{3})*(?:\.[0-9]{1,2})?)(?![0-9]|\.[0-9])",
+            text,
+        )
         facts: list[dict[str, Any]] = []
         seen_values: set[float] = set()
         for raw in values:
-            value = float(raw)
+            value = float(raw.replace(",", ""))
             if value in seen_values:
                 continue
             seen_values.add(value)
@@ -703,6 +770,9 @@ class StructuredSourceEnricher:
     ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         probes: list[dict[str, Any]] = []
         structured_facts: list[dict[str, Any]] = []
+        verified_san_jose_legistar_context = self._is_verified_san_jose_legistar_context(
+            attachment_context_url
+        )
         probe_candidates = [
             ref for ref in attachment_refs if isinstance(ref, dict) and self._is_high_value_attachment_ref(ref)
         ][:6]
@@ -739,7 +809,10 @@ class StructuredSourceEnricher:
                     }
                 )
                 continue
-            if not self._is_official_attachment_url(url):
+            if not self._is_official_attachment_url(
+                url,
+                verified_san_jose_legistar_context=verified_san_jose_legistar_context,
+            ):
                 status = "skipped_non_official_attachment"
                 failure_class = self._attachment_failure_class(
                     status=status,
@@ -799,11 +872,50 @@ class StructuredSourceEnricher:
 
             content_hash = hashlib.sha256(body).hexdigest() if body else None
             if self._is_pdf_attachment(url=url, content_type=content_type):
-                status = "binary_pdf_unparsed"
+                pdf_text, pdf_error = self._extract_pdf_text(body)
+                if pdf_error is not None:
+                    status = "pdf_parse_failed"
+                    failure_class = self._attachment_failure_class(
+                        status=status,
+                        content_ingested=False,
+                    )
+                    probes.append(
+                        {
+                            "attachment_id": attachment_id,
+                            "title": title,
+                            "source_title": title,
+                            "url": url,
+                            "source_url": url,
+                            "source_family": source_family,
+                            "status": status,
+                            "read_status": "read_failed",
+                            "failure_class": failure_class,
+                            "error": str(pdf_error)[:180],
+                            "content_ingested": False,
+                            "excerpt": "",
+                            "content_excerpt": "",
+                            "content_hash": content_hash,
+                            "economic_row_count": 0,
+                        }
+                    )
+                    continue
+                text = pdf_text or ""
+                excerpt = self._extract_attachment_excerpt(text)
+                content_ingested = bool(excerpt)
+                status = "ingested_excerpt" if content_ingested else "empty_text"
                 failure_class = self._attachment_failure_class(
                     status=status,
-                    content_ingested=False,
+                    content_ingested=content_ingested,
                 )
+                economics = self._extract_attachment_economic_rows(
+                    text=text,
+                    source_url=url,
+                    source_family=source_family,
+                    source_title=title,
+                    attachment_id=attachment_id,
+                    content_hash=content_hash,
+                )
+                structured_facts.extend(economics)
                 probes.append(
                     {
                         "attachment_id": attachment_id,
@@ -813,13 +925,13 @@ class StructuredSourceEnricher:
                         "source_url": url,
                         "source_family": source_family,
                         "status": status,
-                        "read_status": "binary_unparsed",
+                        "read_status": "read_text" if content_ingested else "read_empty_text",
                         "failure_class": failure_class,
-                        "content_ingested": False,
-                        "excerpt": "",
-                        "content_excerpt": "",
+                        "content_ingested": content_ingested,
+                        "excerpt": excerpt,
+                        "content_excerpt": excerpt,
                         "content_hash": content_hash,
-                        "economic_row_count": 0,
+                        "economic_row_count": len(economics),
                     }
                 )
                 continue
