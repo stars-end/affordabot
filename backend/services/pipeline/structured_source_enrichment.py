@@ -724,13 +724,37 @@ class StructuredSourceEnricher:
         if not re.search(r"(per\s+square\s+foot|per\s+sq\.?\s*ft|sq\.?\s*ft)", lowered):
             return []
 
-        values = re.findall(
-            r"\$\s*([0-9]+(?:,[0-9]{3})*(?:\.[0-9]{1,2})?)(?![0-9]|\.[0-9])",
-            text,
-        )
         facts: list[dict[str, Any]] = []
         seen_values: set[float] = set()
-        for raw in values:
+        value_pattern = re.compile(
+            r"\$\s*(?P<value>[0-9]+(?:,[0-9]{3})*(?:\.[0-9]{1,2})?)(?![0-9]|\.[0-9])"
+        )
+        for match in value_pattern.finditer(text):
+            raw = match.group("value")
+            context_start = max(0, match.start() - 220)
+            context_end = min(len(text), match.end() + 220)
+            local_context = text[context_start:context_end].lower()
+            if not re.search(
+                r"(fee\s+per\s+sq\.?\s*ft|per\s+square\s+foot|per\s+sq\.?\s*ft|sq\.?\s*ft\.)",
+                local_context,
+            ):
+                continue
+            has_rate_context = bool(
+                re.search(
+                    r"\$\s*[0-9]+(?:,[0-9]{3})*(?:\.[0-9]{1,2})?\s+per\s+"
+                    r"(?:square\s+foot|sq\.?\s*ft)",
+                    local_context,
+                )
+            )
+            has_fee_table_context = bool(
+                re.search(
+                    r"(non-residential\s+use|downtown|rest\s+of\s+city|office|retail|"
+                    r"hotel|industrial|warehouse|residential\s+care)",
+                    local_context,
+                )
+            )
+            if not has_rate_context and not has_fee_table_context:
+                continue
             value = float(raw.replace(",", ""))
             if value in seen_values:
                 continue

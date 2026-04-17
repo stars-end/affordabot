@@ -497,6 +497,27 @@ def test_legistar_attachment_probe_extracts_text_from_readable_pdf() -> None:
     assert any(fact["field"] == "commercial_linkage_fee_rate_usd_per_sqft" for fact in facts)
 
 
+def test_legistar_attachment_probe_does_not_label_annual_report_dollars_as_sqft_rates() -> None:
+    text = (
+        "The Fiscal Year 2023-2024 Affordable Housing Impact Fee and Commercial "
+        "Linkage Fee Annual Report summarizes revenues. The fee per sq. ft. schedule "
+        "is referenced in prior actions, but this paragraph reports collections. "
+        "City staff collected $4,915,231.56 in CLF revenues, including $4,893,301.56 "
+        "in linkage fees from six developments and $23,595 in application fees."
+    )
+
+    facts = StructuredSourceEnricher._extract_attachment_economic_rows(
+        text=text,
+        source_url="https://legistar.granicus.com/sanjose/attachments/report.pdf",
+        source_family="memorandum",
+        source_title="Annual Report",
+        attachment_id="33720",
+        content_hash="hash",
+    )
+
+    assert facts == []
+
+
 def test_legistar_attachment_probe_unreadable_pdf_fails_closed() -> None:
     enricher = StructuredSourceEnricher()
     pdf_url = "https://legistar.granicus.com/sanjose/attachments/unreadable.pdf"
