@@ -1842,6 +1842,16 @@ async def get_policy_evidence_analysis_status(
             },
         )
         source_quality = _source_quality_read_model(matrix_payload=matrix_payload)
+        data_moat_status = _to_json_dict(read_model.get("data_moat_status"))
+        row_family_depth = _to_json_dict(data_moat_status.get("row_family_depth"))
+        if row_family_depth:
+            source_quality["row_family_depth"] = row_family_depth
+            source_quality["structured_depth_satisfied_by"] = list(
+                data_moat_status.get("structured_depth_satisfied_by") or []
+            )
+            source_quality["structured_depth_ready"] = bool(
+                data_moat_status.get("structured_depth_ready")
+            )
         return {
             "contract_version": CONTRACT_VERSION,
             **read_model,

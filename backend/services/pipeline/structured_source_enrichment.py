@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
+import hashlib
 import os
 import re
 from typing import Any
-from urllib.parse import parse_qs, quote_plus, unquote, urlparse
+from urllib.parse import parse_qs, quote_plus, unquote, urljoin, urlparse
 
 import httpx
 
@@ -91,7 +92,34 @@ _HIGH_VALUE_ATTACHMENT_FAMILIES = {
     "staff_report",
     "fee_study",
     "nexus_study",
+    "feasibility_study",
+    "fee_schedule",
 }
+
+_IDENTITY_LINKED_ATTACHMENT_FAMILIES = {
+    "ordinance",
+    "resolution",
+    "memorandum",
+    "staff_report",
+    "fee_study",
+    "nexus_study",
+    "feasibility_study",
+    "fee_schedule",
+}
+
+_BINARY_CONTENT_TYPE_SIGNALS = (
+    "application/pdf",
+    "application/octet-stream",
+    "application/msword",
+    "application/vnd.",
+    "application/vnd-",
+    "application/zip",
+    "application/x-zip",
+    "application/x-download",
+    "image/",
+    "audio/",
+    "video/",
+)
 
 
 @dataclass(frozen=True)
@@ -459,6 +487,10 @@ class StructuredSourceEnricher:
             return "unknown"
         if "nexus" in combined:
             return "nexus_study"
+        if "feasibility" in combined and "study" in combined:
+            return "feasibility_study"
+        if "fee schedule" in combined:
+            return "fee_schedule"
         if (
             "fee study" in combined
             or ("impact fee" in combined and "study" in combined)
@@ -539,8 +571,72 @@ class StructuredSourceEnricher:
                 "staff report",
                 "nexus",
                 "fee study",
+                "feasibility study",
+                "fee schedule",
             )
         )
+
+    @staticmethod
+    def _normalize_attachment_url(*, raw_url: str, fallback_url: str) -> str:
+        normalized = str(raw_url or "").strip()
+        if not normalized:
+            return ""
+        if normalized.startswith(("http://", "https://")):
+            return normalized
+        if normalized.startswith("//"):
+            return f"https:{normalized}"
+        base = str(fallback_url or "").strip() or "https://sanjoseca.legistar.com/"
+        return urljoin(base, normalized)
+
+    @staticmethod
+    def _is_official_attachment_url(url: str) -> bool:
+        host = urlparse(str(url or "").strip()).netloc.lower()
+        if not host:
+            return False
+        if "legistar.com" in host and "sanjose" in host:
+            return True
+        if host.endswith("sanjoseca.gov"):
+            return True
+        return False
+
+    @staticmethod
+    def _is_pdf_attachment(*, url: str, content_type: str) -> bool:
+        lowered_url = str(url or "").strip().lower()
+        lowered_type = str(content_type or "").strip().lower()
+        return lowered_url.endswith(".pdf") or "application/pdf" in lowered_type
+
+    @staticmethod
+    def _is_binary_content_type(content_type: str) -> bool:
+        lowered = str(content_type or "").strip().lower()
+        if not lowered:
+            return False
+        return any(signal in lowered for signal in _BINARY_CONTENT_TYPE_SIGNALS)
+
+    @staticmethod
+    def _looks_like_binary_payload(body: bytes) -> bool:
+        if not body:
+            return False
+        sample = body[:8192]
+        if b"\x00" in sample:
+            return True
+        printable = sum(
+            1 for byte in sample if byte in {9, 10, 13} or 32 <= byte <= 126
+        )
+        return printable / len(sample) < 0.72
+
+    @staticmethod
+    def _attachment_failure_class(*, status: str, content_ingested: bool) -> str | None:
+        if content_ingested:
+            return None
+        mapping = {
+            "skipped_missing_url": "missing_attachment_url",
+            "skipped_non_official_attachment": "non_official_attachment",
+            "fetch_failed": "attachment_fetch_failed",
+            "binary_pdf_unparsed": "binary_pdf_unparsed",
+            "binary_unparsed": "binary_unparsed",
+            "empty_text": "attachment_text_empty",
+        }
+        return mapping.get(status, "attachment_ingestion_failed")
 
     @staticmethod
     def _extract_attachment_excerpt(text: str) -> str:
@@ -554,6 +650,9 @@ class StructuredSourceEnricher:
         text: str,
         source_url: str,
         source_family: str,
+        source_title: str | None,
+        attachment_id: str | None,
+        content_hash: str | None,
     ) -> list[dict[str, Any]]:
         lowered = text.lower()
         if "fee" not in lowered and "rate" not in lowered:
@@ -582,6 +681,14 @@ class StructuredSourceEnricher:
                     "provenance_lane": "structured_attachment_probe",
                     "source_family": source_family,
                     "source_hierarchy_status": "fiscal_or_reg_impact_analysis",
+                    "source_title": source_title,
+                    "attachment_id": attachment_id,
+                    "content_hash": content_hash,
+                    "source_ref": (
+                        f"legistar::attachment::{attachment_id}"
+                        if attachment_id
+                        else source_url
+                    ),
                     "confidence": 0.7,
                 }
             )
@@ -592,6 +699,7 @@ class StructuredSourceEnricher:
         *,
         client: httpx.AsyncClient,
         attachment_refs: list[dict[str, Any]],
+        attachment_context_url: str,
     ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         probes: list[dict[str, Any]] = []
         structured_facts: list[dict[str, Any]] = []
@@ -601,18 +709,57 @@ class StructuredSourceEnricher:
         for ref in probe_candidates:
             attachment_id = str(ref.get("attachment_id") or "").strip() or None
             title = str(ref.get("title") or "").strip() or None
-            url = str(ref.get("url") or "").strip()
+            url = self._normalize_attachment_url(
+                raw_url=str(ref.get("url") or "").strip(),
+                fallback_url=attachment_context_url,
+            )
             source_family = str(ref.get("source_family") or "unknown").strip() or "unknown"
             if not url.startswith(("http://", "https://")):
+                status = "skipped_missing_url"
+                failure_class = self._attachment_failure_class(
+                    status=status,
+                    content_ingested=False,
+                )
                 probes.append(
                     {
                         "attachment_id": attachment_id,
                         "title": title,
+                        "source_title": title,
                         "url": url or None,
+                        "source_url": url or None,
                         "source_family": source_family,
-                        "status": "skipped_missing_url",
+                        "status": status,
+                        "read_status": "not_read",
+                        "failure_class": failure_class,
                         "content_ingested": False,
                         "excerpt": "",
+                        "content_excerpt": "",
+                        "content_hash": None,
+                        "economic_row_count": 0,
+                    }
+                )
+                continue
+            if not self._is_official_attachment_url(url):
+                status = "skipped_non_official_attachment"
+                failure_class = self._attachment_failure_class(
+                    status=status,
+                    content_ingested=False,
+                )
+                probes.append(
+                    {
+                        "attachment_id": attachment_id,
+                        "title": title,
+                        "source_title": title,
+                        "url": url,
+                        "source_url": url,
+                        "source_family": source_family,
+                        "status": status,
+                        "read_status": "not_read",
+                        "failure_class": failure_class,
+                        "content_ingested": False,
+                        "excerpt": "",
+                        "content_excerpt": "",
+                        "content_hash": None,
                         "economic_row_count": 0,
                     }
                 )
@@ -624,56 +771,120 @@ class StructuredSourceEnricher:
                 content_type = str(response.headers.get("content-type") or "").lower()
                 body = response.content[:450000]
             except Exception as exc:  # noqa: BLE001
+                status = "fetch_failed"
+                failure_class = self._attachment_failure_class(
+                    status=status,
+                    content_ingested=False,
+                )
                 probes.append(
                     {
                         "attachment_id": attachment_id,
                         "title": title,
+                        "source_title": title,
                         "url": url,
+                        "source_url": url,
                         "source_family": source_family,
-                        "status": "fetch_failed",
+                        "status": status,
+                        "read_status": "fetch_failed",
+                        "failure_class": failure_class,
                         "error": str(exc)[:180],
                         "content_ingested": False,
                         "excerpt": "",
+                        "content_excerpt": "",
+                        "content_hash": None,
                         "economic_row_count": 0,
                     }
                 )
                 continue
 
-            if "pdf" in content_type:
+            content_hash = hashlib.sha256(body).hexdigest() if body else None
+            if self._is_pdf_attachment(url=url, content_type=content_type):
+                status = "binary_pdf_unparsed"
+                failure_class = self._attachment_failure_class(
+                    status=status,
+                    content_ingested=False,
+                )
                 probes.append(
                     {
                         "attachment_id": attachment_id,
                         "title": title,
+                        "source_title": title,
                         "url": url,
+                        "source_url": url,
                         "source_family": source_family,
-                        "status": "binary_pdf_unparsed",
+                        "status": status,
+                        "read_status": "binary_unparsed",
+                        "failure_class": failure_class,
                         "content_ingested": False,
                         "excerpt": "",
+                        "content_excerpt": "",
+                        "content_hash": content_hash,
                         "economic_row_count": 0,
                     }
                 )
                 continue
+            if self._is_binary_content_type(content_type) or self._looks_like_binary_payload(body):
+                status = "binary_unparsed"
+                failure_class = self._attachment_failure_class(
+                    status=status,
+                    content_ingested=False,
+                )
+                probes.append(
+                    {
+                        "attachment_id": attachment_id,
+                        "title": title,
+                        "source_title": title,
+                        "url": url,
+                        "source_url": url,
+                        "source_family": source_family,
+                        "status": status,
+                        "read_status": "binary_unparsed",
+                        "failure_class": failure_class,
+                        "content_ingested": False,
+                        "excerpt": "",
+                        "content_excerpt": "",
+                        "content_hash": content_hash,
+                        "economic_row_count": 0,
+                    }
+                )
+                continue
+
             try:
                 text = body.decode("utf-8")
             except UnicodeDecodeError:
                 text = body.decode("latin-1", errors="ignore")
+
             excerpt = self._extract_attachment_excerpt(text)
             content_ingested = bool(excerpt)
+            status = "ingested_excerpt" if content_ingested else "empty_text"
+            failure_class = self._attachment_failure_class(
+                status=status,
+                content_ingested=content_ingested,
+            )
             economics = self._extract_attachment_economic_rows(
                 text=text,
                 source_url=url,
                 source_family=source_family,
+                source_title=title,
+                attachment_id=attachment_id,
+                content_hash=content_hash,
             )
             structured_facts.extend(economics)
             probes.append(
                 {
                     "attachment_id": attachment_id,
                     "title": title,
+                    "source_title": title,
                     "url": url,
+                    "source_url": url,
                     "source_family": source_family,
-                    "status": "ingested_excerpt" if content_ingested else "empty_text",
+                    "status": status,
+                    "read_status": "read_text" if content_ingested else "read_empty_text",
+                    "failure_class": failure_class,
                     "content_ingested": content_ingested,
                     "excerpt": excerpt,
+                    "content_excerpt": excerpt,
+                    "content_hash": content_hash,
                     "economic_row_count": len(economics),
                 }
             )
@@ -725,6 +936,7 @@ class StructuredSourceEnricher:
             attachments_payload = []
 
         matter_url = str(matter_payload.get("MatterInSiteURL") or matter_endpoint)
+        attachment_context_url = matter_url if matter_url.startswith(("http://", "https://")) else selected_url
         matter_title = str(matter_payload.get("MatterTitle") or "").strip()
         file_refs: list[str] = []
         related_attachment_refs: list[dict[str, Any]] = []
@@ -737,7 +949,10 @@ class StructuredSourceEnricher:
                 if isinstance(attachment_id_value, (int, str))
                 else ""
             )
-            file_url = str(attachment.get("MatterAttachmentHyperlink") or "").strip()
+            file_url = self._normalize_attachment_url(
+                raw_url=str(attachment.get("MatterAttachmentHyperlink") or "").strip(),
+                fallback_url=attachment_context_url,
+            )
             if file_url.startswith("http://") or file_url.startswith("https://"):
                 file_refs.append(file_url)
             if not attachment_id and not attachment_name and not file_url:
@@ -766,6 +981,7 @@ class StructuredSourceEnricher:
         attachment_content_probes, attachment_probe_facts = await self._probe_legistar_attachment_contents(
             client=client,
             attachment_refs=related_attachment_refs,
+            attachment_context_url=attachment_context_url,
         )
         structured_policy_facts = [
             {"field": "matter_attachment_count", "value": float(len(file_refs)), "unit": "count"},

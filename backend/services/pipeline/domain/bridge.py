@@ -122,6 +122,17 @@ _POLICY_LINEAGE_SIGNALS = (
     "nexus study",
     "attachment",
 )
+
+_IDENTITY_LINKED_ATTACHMENT_FAMILIES = {
+    "ordinance",
+    "resolution",
+    "memorandum",
+    "staff_report",
+    "fee_study",
+    "nexus_study",
+    "feasibility_study",
+    "fee_schedule",
+}
 _JURISDICTION_BLOCKLIST_SIGNALS = ("los altos",)
 
 
@@ -804,6 +815,7 @@ class RailwayRuntimeBridge:
             for group in ref_groups:
                 for raw_ref in group:
                     url = ""
+                    source_family = ""
                     if isinstance(raw_ref, dict):
                         url = str(
                             raw_ref.get("url")
@@ -811,6 +823,11 @@ class RailwayRuntimeBridge:
                             or raw_ref.get("source_url")
                             or ""
                         ).strip()
+                        source_family = str(
+                            raw_ref.get("source_family")
+                            or raw_ref.get("attachment_family")
+                            or ""
+                        ).strip().lower()
                     elif isinstance(raw_ref, str):
                         url = raw_ref.strip()
                     if not url:
@@ -819,6 +836,10 @@ class RailwayRuntimeBridge:
                     url_text = url.lower()
                     if re.search(r"\bsan[\s\-]?jose\b", url_text) or "sanjose" in url_text:
                         jurisdiction_signal_hits.add("lineage_ref_san_jose_signal")
+                    if source_family in _IDENTITY_LINKED_ATTACHMENT_FAMILIES:
+                        policy_signal_hits.add("lineage_ref_attachment_family_signal")
+                        if "legistar.com" in url_text and "view.ashx" in url_text:
+                            policy_signal_hits.add("lineage_ref_view_attachment_signal")
                     if any(signal in url_text for signal in _POLICY_LINEAGE_SIGNALS):
                         policy_signal_hits.add("lineage_ref_policy_signal")
 
@@ -1959,12 +1980,17 @@ class RailwayRuntimeBridge:
                         {
                             "attachment_id": probe_id or None,
                             "title": probe_title or None,
+                            "source_title": str(probe.get("source_title") or probe_title).strip() or None,
                             "url": probe_url or None,
+                            "source_url": str(probe.get("source_url") or probe_url).strip() or None,
                             "source_family": str(probe.get("source_family") or "unknown").strip() or "unknown",
                             "status": str(probe.get("status") or "").strip() or "unknown",
+                            "read_status": str(probe.get("read_status") or "").strip() or "unknown",
+                            "failure_class": str(probe.get("failure_class") or "").strip() or None,
                             "content_ingested": bool(probe.get("content_ingested")),
                             "economic_row_count": int(probe.get("economic_row_count") or 0),
                             "excerpt": str(probe.get("excerpt") or "").strip()[:400],
+                            "content_hash": str(probe.get("content_hash") or "").strip() or None,
                         }
                     )
 
@@ -2025,19 +2051,83 @@ class RailwayRuntimeBridge:
         }
 
     @staticmethod
-    def _collect_secondary_numeric_facts(structured_candidates: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    def _attachment_hierarchy_status(source_family: str) -> str:
+        normalized = str(source_family or "").strip().lower()
+        if normalized in {"resolution", "ordinance", "ordinance_text", "municipal_code", "legislation_text"}:
+            return "bill_or_reg_text"
+        return "fiscal_or_reg_impact_analysis"
+
+    @classmethod
+    def _extract_official_attachment_probe_facts(
+        cls,
+        *,
+        candidate: dict[str, Any],
+    ) -> list[dict[str, Any]]:
+        probes = candidate.get("attachment_content_probes")
+        if not isinstance(probes, list):
+            return []
+        lineage_metadata = candidate.get("lineage_metadata")
+        matter_id = ""
+        if isinstance(lineage_metadata, dict):
+            matter_id = str(lineage_metadata.get("matter_id") or "").strip()
+        extracted: list[dict[str, Any]] = []
+        for probe_index, probe in enumerate(probes, start=1):
+            if not isinstance(probe, dict):
+                continue
+            if not bool(probe.get("content_ingested")):
+                continue
+            excerpt = str(probe.get("excerpt") or "").strip()
+            if not excerpt:
+                continue
+            source_url = str(probe.get("url") or "").strip()
+            if not source_url:
+                continue
+            attachment_id = str(probe.get("attachment_id") or "").strip()
+            attachment_title = str(probe.get("title") or "").strip()
+            attachment_family = str(probe.get("source_family") or "official_attachment").strip() or "official_attachment"
+            source_ref = source_url
+            if matter_id and attachment_id:
+                source_ref = f"legistar::matter::{matter_id}::attachment::{attachment_id}"
+            parsed_rows, _ = cls._extract_primary_fee_facts_from_text_parts(
+                text_parts=[excerpt],
+                selected_url=source_url,
+                source_locator_prefix=f"attachment_probe:{attachment_id or probe_index}",
+            )
+            for row in parsed_rows:
+                normalized_row = dict(row)
+                normalized_row["source_family"] = attachment_family
+                normalized_row["source_ref"] = source_ref
+                normalized_row["attachment_id"] = attachment_id or None
+                normalized_row["attachment_title"] = attachment_title or None
+                normalized_row["source_hierarchy_status"] = cls._attachment_hierarchy_status(attachment_family)
+                normalized_row["provenance_lane"] = "structured_attachment_probe"
+                extracted.append(normalized_row)
+        return extracted
+
+    @classmethod
+    def _collect_secondary_numeric_facts(cls, structured_candidates: list[dict[str, Any]]) -> list[dict[str, Any]]:
         collected: list[dict[str, Any]] = []
+        seen: set[tuple[str, ...]] = set()
+        secondary_source_families = {"tavily_secondary_search", "exa_secondary_search"}
         for candidate in structured_candidates:
             if not isinstance(candidate, dict):
                 continue
             source_family = str(candidate.get("source_family") or "").strip().lower()
             is_true_structured = bool(candidate.get("true_structured", True))
-            facts = candidate.get("structured_policy_facts")
-            if not isinstance(facts, list):
-                continue
+            if source_family in secondary_source_families:
+                is_true_structured = False
+
+            raw_facts = candidate.get("structured_policy_facts")
+            facts: list[dict[str, Any]] = [fact for fact in raw_facts if isinstance(fact, dict)] if isinstance(raw_facts, list) else []
+            synthesized_attachment_facts = cls._extract_official_attachment_probe_facts(candidate=candidate)
+            synthesized_attachment_urls = {
+                str(fact.get("source_url") or "").strip()
+                for fact in synthesized_attachment_facts
+                if str(fact.get("source_url") or "").strip()
+            }
+            facts.extend(synthesized_attachment_facts)
+
             for fact in facts:
-                if not isinstance(fact, dict):
-                    continue
                 field = str(fact.get("field") or "unknown_parameter")
                 if not any(
                     token in field.lower()
@@ -2052,6 +2142,17 @@ class RailwayRuntimeBridge:
                     )
                 ):
                     continue
+
+                source_url = str(fact.get("source_url") or candidate.get("artifact_url") or "").strip()
+                source_locator = str(fact.get("source_locator") or "").strip()
+                locator_quality = str(fact.get("locator_quality") or "").strip()
+                if (
+                    source_url in synthesized_attachment_urls
+                    and (source_locator == "attachment_probe:excerpt" or locator_quality == "attachment_probe_excerpt")
+                ):
+                    # Drop low-fidelity probe rows when richer parsed attachment rows exist.
+                    continue
+
                 value = fact.get("normalized_value", fact.get("value"))
                 if isinstance(value, str):
                     try:
@@ -2060,65 +2161,88 @@ class RailwayRuntimeBridge:
                         value = None
                 if not isinstance(value, (int, float)):
                     continue
-                collected.append(
-                    {
-                        "field": field,
-                        "normalized_value": float(value),
-                        "raw_value": str(fact.get("raw_value") or "").strip() or None,
-                        "value": float(value),
-                        "source_family": source_family or "unknown",
-                        "source_url": str(fact.get("source_url") or candidate.get("artifact_url") or "").strip(),
-                        "source_excerpt": str(fact.get("source_excerpt") or "").strip(),
-                        "source_locator": str(fact.get("source_locator") or "").strip() or None,
-                        "chunk_locator": str(fact.get("chunk_locator") or "").strip() or None,
-                        "table_locator": str(fact.get("table_locator") or "").strip() or None,
-                        "page_locator": str(fact.get("page_locator") or "").strip() or None,
-                        "locator_quality": str(fact.get("locator_quality") or "").strip() or "locator_not_available",
-                        "unit": str(fact.get("unit") or "").strip() or None,
-                        "denominator": str(fact.get("denominator") or "").strip() or None,
-                        "land_use": str(fact.get("land_use") or fact.get("category") or "").strip() or "unknown",
-                        "subarea": str(fact.get("subarea") or "").strip() or None,
-                        "geography": str(fact.get("geography") or "").strip() or None,
-                        "threshold": str(fact.get("threshold") or "").strip() or None,
-                        "payment_timing": str(fact.get("payment_timing") or "").strip() or None,
-                        "payment_reduction_context": str(fact.get("payment_reduction_context") or "").strip() or None,
-                        "payment_reduction_percent": float(fact.get("payment_reduction_percent"))
-                        if isinstance(fact.get("payment_reduction_percent"), (int, float))
-                        else None,
-                        "exemption_context": str(fact.get("exemption_context") or "").strip() or None,
-                        "raw_land_use_label": str(fact.get("raw_land_use_label") or "").strip() or None,
-                        "effective_date": str(fact.get("effective_date") or "").strip() or None,
-                        "adoption_date": str(fact.get("adoption_date") or "").strip() or None,
-                        "final_status": str(fact.get("final_status") or "").strip() or "unknown",
-                        "source_hierarchy_status": str(fact.get("source_hierarchy_status") or "").strip()
-                        or "fiscal_or_reg_impact_analysis",
-                        "confidence": float(fact.get("confidence"))
-                        if isinstance(fact.get("confidence"), (int, float))
-                        else 0.5,
-                        "ambiguity_flag": bool(fact.get("ambiguity_flag")),
-                        "ambiguity_reason": str(fact.get("ambiguity_reason") or "").strip() or None,
-                        "currency_sanity": str(fact.get("currency_sanity") or "").strip().lower() or "valid",
-                        "unit_sanity": str(fact.get("unit_sanity") or "").strip().lower() or "valid",
-                        "policy_match_key": str(
-                            fact.get("policy_match_key")
-                            or candidate.get("policy_match_key")
-                            or ""
-                        ).strip()
-                        or None,
-                        "policy_match_confidence": float(candidate.get("policy_match_confidence"))
-                        if isinstance(candidate.get("policy_match_confidence"), (int, float))
-                        else None,
-                        "reconciliation_status": str(
-                            fact.get("reconciliation_status")
-                            or candidate.get("reconciliation_status")
-                            or ""
-                        ).strip()
-                        or None,
-                        "source_lane_classification": (
-                            "true_structured_source" if is_true_structured else "secondary_search_derived"
-                        ),
-                    }
+
+                lane_classification = str(fact.get("source_lane_classification") or "").strip()
+                if lane_classification != "secondary_search_derived":
+                    lane_classification = "true_structured_source" if is_true_structured else "secondary_search_derived"
+
+                resolved_source_family = str(fact.get("source_family") or source_family or "unknown").strip().lower() or "unknown"
+                row_payload = {
+                    "field": field,
+                    "normalized_value": float(value),
+                    "raw_value": str(fact.get("raw_value") or "").strip() or None,
+                    "value": float(value),
+                    "source_family": resolved_source_family,
+                    "source_url": source_url,
+                    "source_ref": str(fact.get("source_ref") or source_url).strip() or source_url,
+                    "attachment_id": str(fact.get("attachment_id") or "").strip() or None,
+                    "attachment_title": str(fact.get("attachment_title") or "").strip() or None,
+                    "source_excerpt": str(fact.get("source_excerpt") or "").strip(),
+                    "source_locator": source_locator or None,
+                    "chunk_locator": str(fact.get("chunk_locator") or "").strip() or None,
+                    "table_locator": str(fact.get("table_locator") or "").strip() or None,
+                    "page_locator": str(fact.get("page_locator") or "").strip() or None,
+                    "locator_quality": locator_quality or "locator_not_available",
+                    "unit": str(fact.get("unit") or "").strip() or None,
+                    "denominator": str(fact.get("denominator") or "").strip() or None,
+                    "land_use": str(fact.get("land_use") or fact.get("category") or "").strip() or "unknown",
+                    "subarea": str(fact.get("subarea") or "").strip() or None,
+                    "geography": str(fact.get("geography") or "").strip() or None,
+                    "threshold": str(fact.get("threshold") or "").strip() or None,
+                    "payment_timing": str(fact.get("payment_timing") or "").strip() or None,
+                    "payment_reduction_context": str(fact.get("payment_reduction_context") or "").strip() or None,
+                    "payment_reduction_percent": float(fact.get("payment_reduction_percent"))
+                    if isinstance(fact.get("payment_reduction_percent"), (int, float))
+                    else None,
+                    "exemption_context": str(fact.get("exemption_context") or "").strip() or None,
+                    "raw_land_use_label": str(fact.get("raw_land_use_label") or "").strip() or None,
+                    "effective_date": str(fact.get("effective_date") or "").strip() or None,
+                    "adoption_date": str(fact.get("adoption_date") or "").strip() or None,
+                    "final_status": str(fact.get("final_status") or "").strip() or "unknown",
+                    "source_hierarchy_status": str(fact.get("source_hierarchy_status") or "").strip()
+                    or cls._attachment_hierarchy_status(resolved_source_family),
+                    "confidence": float(fact.get("confidence"))
+                    if isinstance(fact.get("confidence"), (int, float))
+                    else 0.5,
+                    "ambiguity_flag": bool(fact.get("ambiguity_flag")),
+                    "ambiguity_reason": str(fact.get("ambiguity_reason") or "").strip() or None,
+                    "currency_sanity": str(fact.get("currency_sanity") or "").strip().lower() or "valid",
+                    "unit_sanity": str(fact.get("unit_sanity") or "").strip().lower() or "valid",
+                    "policy_match_key": str(
+                        fact.get("policy_match_key")
+                        or candidate.get("policy_match_key")
+                        or ""
+                    ).strip()
+                    or None,
+                    "policy_match_confidence": float(candidate.get("policy_match_confidence"))
+                    if isinstance(candidate.get("policy_match_confidence"), (int, float))
+                    else None,
+                    "reconciliation_status": str(
+                        fact.get("reconciliation_status")
+                        or candidate.get("reconciliation_status")
+                        or ""
+                    ).strip()
+                    or None,
+                    "source_lane_classification": lane_classification,
+                }
+                row_identity = (
+                    str(row_payload["field"]),
+                    cls._value_token_for_row(row_payload),
+                    str(row_payload.get("land_use") or ""),
+                    str(row_payload.get("subarea") or ""),
+                    str(row_payload.get("threshold") or ""),
+                    str(row_payload.get("payment_timing") or ""),
+                    str(row_payload.get("payment_reduction_context") or ""),
+                    str(row_payload.get("exemption_context") or ""),
+                    str(row_payload.get("source_locator") or ""),
+                    str(row_payload.get("source_family") or ""),
+                    str(row_payload.get("source_url") or ""),
+                    str(row_payload.get("source_lane_classification") or ""),
                 )
+                if row_identity in seen:
+                    continue
+                seen.add(row_identity)
+                collected.append(row_payload)
         return collected
 
     @staticmethod
@@ -2144,7 +2268,7 @@ class RailwayRuntimeBridge:
     def _economic_row_key(
         cls,
         fact: dict[str, Any],
-    ) -> tuple[str, str, str, str, str, str, str, str, str]:
+    ) -> tuple[str, str, str, str, str, str, str, str, str, str]:
         return (
             str(fact.get("field") or "unknown_parameter").strip(),
             str(fact.get("land_use") or fact.get("category") or "unknown").strip(),
@@ -2154,6 +2278,7 @@ class RailwayRuntimeBridge:
             str(fact.get("payment_reduction_context") or "").strip(),
             str(fact.get("exemption_context") or "").strip(),
             str(fact.get("raw_land_use_label") or "").strip(),
+            str(fact.get("source_locator") or "").strip(),
             cls._value_token_for_row(fact),
         )
 
@@ -2202,6 +2327,34 @@ class RailwayRuntimeBridge:
         )
 
     @classmethod
+    def _is_authoritative_official_attachment_row(cls, fact: dict[str, Any]) -> bool:
+        lane = str(fact.get("source_lane_classification") or "").strip().lower()
+        if lane == "secondary_search_derived":
+            return False
+        source_family = str(fact.get("source_family") or "").strip().lower()
+        if source_family in {"tavily_secondary_search", "exa_secondary_search"}:
+            return False
+        attachment_id = str(fact.get("attachment_id") or "").strip()
+        attachment_title = str(fact.get("attachment_title") or "").strip()
+        if attachment_id or attachment_title:
+            return True
+        locator = str(fact.get("source_locator") or "").strip().lower()
+        if locator.startswith("attachment_probe:"):
+            return True
+        source_url = str(fact.get("source_url") or "").strip().lower()
+        if "legistar" in source_url and source_family in {
+            "legistar_web_api",
+            "resolution",
+            "ordinance",
+            "memorandum",
+            "nexus_study",
+            "staff_report",
+            "official_attachment",
+        }:
+            return True
+        return False
+
+    @classmethod
     def _build_normalized_economic_rows(
         cls,
         *,
@@ -2233,7 +2386,7 @@ class RailwayRuntimeBridge:
                 -confidence,
             )
 
-        rows_by_key: dict[tuple[str, str, str, str, str, str, str, str, str, str], dict[str, Any]] = {}
+        rows_by_key: dict[tuple[str, str, str, str, str, str, str, str, str, str, str], dict[str, Any]] = {}
 
         def _ingest_fact(fact: dict[str, Any], *, default_lane: str) -> None:
             source_url = str(fact.get("source_url") or selected_url).strip() or selected_url
@@ -2263,6 +2416,8 @@ class RailwayRuntimeBridge:
                 "field": str(fact.get("field") or "unknown_parameter").strip(),
                 "source_url": source_url,
                 "source_ref": str(fact.get("source_ref") or source_url).strip() or source_url,
+                "attachment_id": str(fact.get("attachment_id") or "").strip() or None,
+                "attachment_title": str(fact.get("attachment_title") or "").strip() or None,
                 "source_locator": str(fact.get("source_locator") or "").strip() or None,
                 "chunk_locator": str(fact.get("chunk_locator") or "").strip() or None,
                 "table_locator": str(fact.get("table_locator") or "").strip() or None,
@@ -2321,6 +2476,7 @@ class RailwayRuntimeBridge:
                 str(row_payload.get("payment_reduction_context") or ""),
                 str(row_payload.get("exemption_context") or ""),
                 str(row_payload.get("raw_land_use_label") or ""),
+                str(row_payload.get("source_locator") or ""),
                 value_token,
             )
             existing = rows_by_key.get(dedupe_key)
@@ -2386,9 +2542,12 @@ class RailwayRuntimeBridge:
                 true_structured_rows.append(fact)
         true_structured_rows = _dedupe_rows(true_structured_rows)
         secondary_snippet_rows = _dedupe_rows(secondary_snippet_rows)
+        official_attachment_row_count = sum(
+            1 for row in true_structured_rows if cls._is_authoritative_official_attachment_row(row)
+        )
 
-        true_structured_by_key: dict[tuple[str, str, str, str, str, str, str, str, str], list[dict[str, Any]]] = {}
-        secondary_snippet_by_key: dict[tuple[str, str, str, str, str, str, str, str, str], list[dict[str, Any]]] = {}
+        true_structured_by_key: dict[tuple[str, str, str, str, str, str, str, str, str, str], list[dict[str, Any]]] = {}
+        secondary_snippet_by_key: dict[tuple[str, str, str, str, str, str, str, str, str, str], list[dict[str, Any]]] = {}
         for row in true_structured_rows:
             true_structured_by_key.setdefault(cls._economic_row_key(row), []).append(row)
         for row in secondary_snippet_rows:
@@ -2495,6 +2654,7 @@ class RailwayRuntimeBridge:
                 if identity in used_true:
                     continue
                 value = cls._to_float(item.get("normalized_value", item.get("value")))
+                is_authoritative_attachment = cls._is_authoritative_official_attachment_row(item)
                 records.append(
                     {
                         "field": row_key[0],
@@ -2505,11 +2665,19 @@ class RailwayRuntimeBridge:
                         "payment_reduction_context": row_key[5] or None,
                         "exemption_context": row_key[6] or None,
                         "raw_land_use_label": row_key[7] or None,
-                        "status": "conflict_unresolved",
-                        "source_of_truth": "none",
+                        "status": (
+                            "authoritative_structured_attachment"
+                            if is_authoritative_attachment
+                            else "conflict_unresolved"
+                        ),
+                        "source_of_truth": "true_structured_source" if is_authoritative_attachment else "none",
                         "primary_value": None,
                         "secondary_value": value,
-                        "decision_reason": "true_structured_row_without_primary_official_match",
+                        "decision_reason": (
+                            "official_attachment_true_structured_row_available"
+                            if is_authoritative_attachment
+                            else "true_structured_row_without_primary_official_match"
+                        ),
                         "source_url": str(item.get("source_url") or "").strip() or None,
                         "source_locator": str(item.get("source_locator") or "").strip() or None,
                         "source_locator_quality": str(item.get("locator_quality") or "").strip()
@@ -2595,6 +2763,8 @@ class RailwayRuntimeBridge:
             "primary_official_row_count": len(primary_rows),
             "true_structured_row_count": len(true_structured_rows),
             "secondary_snippet_row_count": len(secondary_snippet_rows),
+            "official_attachment_row_count": official_attachment_row_count,
+            "official_attachment_authoritative_row_count": official_attachment_row_count,
             "missing_true_structured_corroboration_count": sum(
                 1
                 for item in sorted_records

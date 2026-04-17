@@ -353,6 +353,8 @@ def _build_parameter_cards(candidate: dict[str, Any], evidence_id: str) -> list[
         locator_quality = str(fact.get("locator_quality") or "").strip()
         source_ref = str(fact.get("source_ref") or "").strip()
         source_family = str(fact.get("source_family") or candidate.get("source_family") or "").strip()
+        attachment_id = str(fact.get("attachment_id") or "").strip()
+        attachment_title = str(fact.get("attachment_title") or "").strip()
         policy_match_key = str(fact.get("policy_match_key") or "").strip()
         confidence = fact.get("confidence")
         fail_closed_signals = [str(signal) for signal in _as_list(fact.get("fail_closed_signals")) if str(signal)]
@@ -403,6 +405,10 @@ def _build_parameter_cards(candidate: dict[str, Any], evidence_id: str) -> list[
             citation_parts.append(f"source_ref={source_ref}")
         if source_family:
             citation_parts.append(f"source_family={source_family}")
+        if attachment_id:
+            citation_parts.append(f"attachment_id={attachment_id}")
+        if attachment_title:
+            citation_parts.append(f"attachment_title={attachment_title}")
         if policy_match_key:
             citation_parts.append(f"policy_match_key={policy_match_key}")
         if fail_closed_signals:

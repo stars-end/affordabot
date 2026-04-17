@@ -1215,6 +1215,13 @@ class PolicyEvidenceQualitySpineEconomicsService:
         identity_blocker_code = str(identity_status.get("identity_blocker_code") or "")
         identity_blocker_reason = str(identity_status.get("identity_blocker_reason") or "")
         identity_blocked = bool(identity_blocker_code)
+        official_attachment_row_count = max(
+            0,
+            PolicyEvidenceQualitySpineEconomicsService._to_non_negative_int(
+                source_reconciliation.get("official_attachment_row_count")
+            ),
+        )
+        official_attachment_depth_ready = official_attachment_row_count > 0 and not identity_blocked
 
         direct_fee_ready = mechanism_type == "direct" and str(direct_fee_model_card.get("status") or "") == "pass"
         household_impact = direct_fee_model_card.get("household_impact_readiness")
@@ -1277,6 +1284,9 @@ class PolicyEvidenceQualitySpineEconomicsService:
         elif direct_scope_status == "analysis_ready":
             status = "analysis_ready_with_gaps"
             reason_code = "direct_project_fee_ready_household_incidence_gap"
+        elif official_attachment_depth_ready and analysis_state != "fail_closed":
+            status = "analysis_ready_with_gaps"
+            reason_code = "official_attachment_rows_present_non_decision_grade"
         elif analysis_state == "qualitative_only":
             status = "not_analysis_ready"
             reason_code = "qualitative_only"
@@ -1292,7 +1302,7 @@ class PolicyEvidenceQualitySpineEconomicsService:
         if (
             not identity_blocked
             and unsupported_claim_risks.get("risk_level") == "high"
-            and status != "analysis_ready"
+            and status not in {"analysis_ready", "analysis_ready_with_gaps"}
         ):
             status = "not_analysis_ready"
             reason_code = "unsupported_claim_risk_high"
@@ -1322,6 +1332,7 @@ class PolicyEvidenceQualitySpineEconomicsService:
             "fail_closed_blocking_gate": blocking_gate,
             "analysis_state": analysis_state,
             "readiness_level": readiness_level,
+            "official_attachment_row_count": official_attachment_row_count,
             "source_identity_blocker": identity_blocked,
             "source_identity_blocker_code": identity_blocker_code or None,
             "source_identity_blocker_reason": identity_blocker_reason or None,
@@ -1385,10 +1396,25 @@ class PolicyEvidenceQualitySpineEconomicsService:
         missing_true_structured_corroboration_count = int(
             source_reconciliation.get("missing_true_structured_corroboration_count") or 0
         )
-        structured_depth_ready = (
+        official_attachment_row_count = max(
+            0,
+            PolicyEvidenceQualitySpineEconomicsService._to_non_negative_int(
+                source_reconciliation.get("official_attachment_row_count")
+            ),
+        )
+        secondary_search_row_count = max(
+            0,
+            PolicyEvidenceQualitySpineEconomicsService._to_non_negative_int(
+                source_reconciliation.get("secondary_search_row_count")
+                or source_reconciliation.get("secondary_snippet_row_count")
+            ),
+        )
+        true_structured_depth_ready = (
             true_structured_row_count > 0
             and missing_true_structured_corroboration_count == 0
         )
+        official_attachment_depth_ready = official_attachment_row_count > 0 and identity_ready
+        structured_depth_ready = true_structured_depth_ready or official_attachment_depth_ready
         runtime_ready = (
             taxonomy.get("storage/read-back", {}).get("status") == "pass"
             and taxonomy.get("Windmill/orchestration", {}).get("status") == "pass"
@@ -1434,14 +1460,24 @@ class PolicyEvidenceQualitySpineEconomicsService:
                     "reason": "Selected source is official page while artifact candidates exist.",
                 }
             )
-        if true_structured_row_count == 0:
+        if identity_ready and selected_family == "official_page" and official_attachment_row_count == 0:
+            moat_blockers.append(
+                {
+                    "code": "official_attachment_rows_missing",
+                    "reason": "Selected official page has no ingested authoritative attachment economic rows.",
+                }
+            )
+        if true_structured_row_count == 0 and official_attachment_row_count == 0:
             moat_blockers.append(
                 {
                     "code": "true_structured_rows_missing",
                     "reason": "No true structured economic rows are available.",
                 }
             )
-        if missing_true_structured_corroboration_count > 0:
+        if (
+            missing_true_structured_corroboration_count > 0
+            and not official_attachment_depth_ready
+        ):
             moat_blockers.append(
                 {
                     "code": "missing_true_structured_corroboration",
@@ -1457,6 +1493,16 @@ class PolicyEvidenceQualitySpineEconomicsService:
         elif data_moat_component_ready:
             status = "evidence_ready_with_gaps"
             reason = "runtime and source depth requirements are met with non-decision-grade economic gaps"
+        elif (
+            runtime_ready
+            and not source_selection_blocker
+            and identity_ready
+            and official_attachment_depth_ready
+        ):
+            status = "evidence_ready_with_gaps"
+            reason = (
+                "authoritative official attachment rows are present, but non-decision-grade gates remain"
+            )
         elif evidence_package_status == "fail" or moat_blockers:
             status = "fail"
             if moat_blockers:
@@ -1472,6 +1518,8 @@ class PolicyEvidenceQualitySpineEconomicsService:
             "runtime_ready": runtime_ready,
             "source_quality_ready": source_quality_ready,
             "structured_depth_ready": structured_depth_ready,
+            "true_structured_depth_ready": true_structured_depth_ready,
+            "official_attachment_depth_ready": official_attachment_depth_ready,
             "economic_handoff_ready": economic_handoff_ready,
             "evidence_package_status": evidence_package_status,
             "decision_grade_verdict": decision_grade_verdict,
@@ -1490,7 +1538,38 @@ class PolicyEvidenceQualitySpineEconomicsService:
             "identity_blocker_reason": identity_blocker_reason or None,
             "identity_recommended_action": identity_recommended_action,
             "true_structured_row_count": true_structured_row_count,
+            "official_attachment_row_count": official_attachment_row_count,
+            "secondary_search_row_count": secondary_search_row_count,
             "missing_true_structured_corroboration_count": missing_true_structured_corroboration_count,
+            "structured_depth_satisfied_by": [
+                family
+                for family, ready in (
+                    ("true_structured", true_structured_depth_ready),
+                    ("official_attachment", official_attachment_depth_ready),
+                )
+                if ready
+            ],
+            "row_family_depth": {
+                "true_structured": {
+                    "row_count": true_structured_row_count,
+                    "satisfies_depth": true_structured_depth_ready,
+                    "status": "satisfied" if true_structured_depth_ready else "missing_or_unverified",
+                },
+                "official_attachment": {
+                    "row_count": official_attachment_row_count,
+                    "satisfies_depth": official_attachment_depth_ready,
+                    "status": (
+                        "satisfied"
+                        if official_attachment_depth_ready
+                        else "missing_or_identity_unlinked"
+                    ),
+                },
+                "secondary_search": {
+                    "row_count": secondary_search_row_count,
+                    "satisfies_depth": False,
+                    "status": "non_authoritative",
+                },
+            },
             "blockers": moat_blockers,
             "reason": reason,
         }
@@ -1511,18 +1590,29 @@ class PolicyEvidenceQualitySpineEconomicsService:
         source_quality_ready = bool(data_moat_status.get("source_quality_ready"))
         structured_depth_ready = bool(data_moat_status.get("structured_depth_ready"))
         true_structured_row_count = int(data_moat_status.get("true_structured_row_count") or 0)
+        official_attachment_row_count = int(data_moat_status.get("official_attachment_row_count") or 0)
         missing_true_structured_corroboration_count = int(
             data_moat_status.get("missing_true_structured_corroboration_count") or 0
         )
+        selected_artifact_family = str(data_moat_status.get("selected_artifact_family") or "").strip()
+        identity_ready = bool(data_moat_status.get("identity_ready"))
         source_selection_blocker = bool(data_moat_status.get("source_selection_blocker"))
         identity_recommended_action = str(data_moat_status.get("identity_recommended_action") or "").strip()
 
         if identity_recommended_action:
             return identity_recommended_action
 
+        if (
+            runtime_ready
+            and identity_ready
+            and selected_artifact_family == "official_page"
+            and official_attachment_row_count == 0
+        ):
+            return "ingest_official_attachments"
+
         if runtime_ready and (not source_quality_ready or not structured_depth_ready):
             if (
-                true_structured_row_count == 0
+                (true_structured_row_count == 0 and official_attachment_row_count == 0)
                 or missing_true_structured_corroboration_count > 0
             ):
                 return "ingest_official_attachments"
@@ -1566,14 +1656,58 @@ class PolicyEvidenceQualitySpineEconomicsService:
     @staticmethod
     def _extract_source_reconciliation(*, selected_payload: dict[str, Any]) -> dict[str, Any]:
         direct = selected_payload.get("source_reconciliation")
+        run_context = selected_payload.get("run_context")
+        attachment_state: dict[str, Any] = {}
+        if isinstance(run_context, dict):
+            policy_lineage = run_context.get("policy_lineage")
+            if isinstance(policy_lineage, dict):
+                maybe_attachment_state = policy_lineage.get("attachment_state")
+                if isinstance(maybe_attachment_state, dict):
+                    attachment_state = maybe_attachment_state
         if isinstance(direct, dict) and direct:
-            return direct
+            return PolicyEvidenceQualitySpineEconomicsService._augment_source_reconciliation(
+                source_reconciliation=direct,
+                attachment_state=attachment_state,
+            )
         run_context = selected_payload.get("run_context")
         if isinstance(run_context, dict):
             nested = run_context.get("source_reconciliation")
             if isinstance(nested, dict) and nested:
-                return nested
+                return PolicyEvidenceQualitySpineEconomicsService._augment_source_reconciliation(
+                    source_reconciliation=nested,
+                    attachment_state=attachment_state,
+                )
         return {}
+
+    @staticmethod
+    def _augment_source_reconciliation(
+        *,
+        source_reconciliation: dict[str, Any],
+        attachment_state: dict[str, Any],
+    ) -> dict[str, Any]:
+        payload = dict(source_reconciliation)
+        if "secondary_search_row_count" not in payload:
+            payload["secondary_search_row_count"] = max(
+                0,
+                PolicyEvidenceQualitySpineEconomicsService._to_non_negative_int(
+                    payload.get("secondary_snippet_row_count")
+                ),
+            )
+        if "official_attachment_row_count" not in payload:
+            payload["official_attachment_row_count"] = max(
+                0,
+                PolicyEvidenceQualitySpineEconomicsService._to_non_negative_int(
+                    attachment_state.get("attachment_economic_row_count")
+                ),
+            )
+        return payload
+
+    @staticmethod
+    def _to_non_negative_int(value: Any) -> int:
+        try:
+            return max(0, int(value))
+        except (TypeError, ValueError):
+            return 0
 
     @staticmethod
     def _build_manual_audit_scaffold(

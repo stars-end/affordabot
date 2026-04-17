@@ -619,6 +619,11 @@ def test_policy_evidence_analysis_status_surfaces_selected_artifact_quality_metr
                     "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
                     "windmill_workspace": "affordabot",
                     "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+                    "policy_lineage": {
+                        "attachment_state": {
+                            "attachment_economic_row_count": 0,
+                        }
+                    },
                     "source_quality_metrics": source_quality_metrics,
                     "source_reconciliation": {
                         "true_structured_row_count": 0,
@@ -654,6 +659,12 @@ def test_policy_evidence_analysis_status_surfaces_selected_artifact_quality_metr
     assert moat["source_selection_reason"] == "official_page_selected_while_artifact_candidates_exist"
     assert moat["true_structured_row_count"] == 0
     assert moat["missing_true_structured_corroboration_count"] == 2
+    assert moat["official_attachment_row_count"] == 0
+    assert moat["row_family_depth"]["true_structured"]["satisfies_depth"] is False
+    assert moat["row_family_depth"]["official_attachment"]["satisfies_depth"] is False
+    assert moat["row_family_depth"]["secondary_search"]["satisfies_depth"] is False
+    assert data["source_quality"]["row_family_depth"]["official_attachment"]["row_count"] == 0
+    assert data["source_quality"]["structured_depth_ready"] is False
     assert data["recommended_next_action"] == "ingest_official_attachments"
 
 
@@ -776,3 +787,96 @@ def test_policy_evidence_analysis_status_identity_blocker_fails_data_moat_and_ha
     assert handoff["reason_code"] == "jurisdiction_identity_mismatch"
     assert handoff["source_identity_blocker"] is True
     assert data["recommended_next_action"] == "repair_source_identity"
+
+
+def test_policy_evidence_analysis_status_official_attachment_rows_satisfy_depth_family(client, mock_db):
+    package = _case_package("direct_cost_case")
+    source_quality_metrics = {
+        "top_n_window": 5,
+        "top_n_official_recall_count": 3,
+        "top_n_artifact_recall_count": 1,
+        "selected_artifact_family": "official_page",
+        "selection_quality_status": "fail",
+        "selection_quality_reason": "no_artifact_candidate_passed_quality_gate",
+        "policy_identity_ready": True,
+        "jurisdiction_identity_ready": True,
+        "selected_candidate": {
+            "url": "https://www.sanjoseca.gov/Home/Components/News/News/1683/4765",
+            "provider": "private_searxng",
+            "rank": 1,
+            "artifact_family": "official_page",
+        },
+    }
+    mock_db._fetchrow.side_effect = [
+        {
+            "id": "run-q7",
+            "bill_id": "SJ-2026-CLF",
+            "jurisdiction": "San Jose CA",
+            "status": "completed",
+            "error": None,
+            "models": {},
+            "trigger_source": "windmill",
+            "windmill_run_id": "wm-run-q7",
+            "started_at": "2026-04-16T07:00:00Z",
+            "completed_at": "2026-04-16T07:05:00Z",
+            "result": {
+                "policy_evidence_package": package,
+                "rows": [],
+                "analysis": {"summary": "Narrative generated from selected artifact."},
+            },
+        },
+        {
+            "id": "pkg-row-q7",
+            "package_id": package["package_id"],
+            "package_payload": {
+                **package,
+                "gate_projection": {
+                    **package["gate_projection"],
+                    "canonical_pipeline_run_id": "run-q7",
+                    "canonical_pipeline_step_id": "analysis-q7",
+                    "canonical_breakdown_ref": "analysis:analysis-q7",
+                },
+                "run_context": {
+                    "backend_run_id": "run-q7",
+                    "windmill_run_id": "wm-run-q7",
+                    "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+                    "windmill_workspace": "affordabot",
+                    "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+                    "policy_lineage": {
+                        "attachment_state": {
+                            "attachment_economic_row_count": 2,
+                        }
+                    },
+                    "source_quality_metrics": source_quality_metrics,
+                    "source_reconciliation": {
+                        "true_structured_row_count": 0,
+                        "missing_true_structured_corroboration_count": 0,
+                        "secondary_snippet_row_count": 3,
+                    },
+                },
+            },
+            "artifact_readback_status": "proven",
+            "fail_closed": False,
+            "gate_state": "qualitative_only",
+            "created_at": "2026-04-16T07:00:00Z",
+            "updated_at": "2026-04-16T07:05:00Z",
+        },
+    ]
+
+    client.set_auth("admin")
+    response = client.get(
+        f"/api/admin/pipeline/policy-evidence/packages/{package['package_id']}/analysis-status?run_id=run-q7"
+    )
+    assert response.status_code == 200, response.text
+    data = response.json()
+    moat = data["data_moat_status"]
+    assert moat["structured_depth_ready"] is True
+    assert moat["true_structured_depth_ready"] is False
+    assert moat["official_attachment_depth_ready"] is True
+    assert moat["official_attachment_row_count"] == 2
+    assert moat["secondary_search_row_count"] == 3
+    assert moat["row_family_depth"]["official_attachment"]["satisfies_depth"] is True
+    assert moat["row_family_depth"]["secondary_search"]["satisfies_depth"] is False
+    assert moat["structured_depth_satisfied_by"] == ["official_attachment"]
+    assert data["source_quality"]["row_family_depth"]["official_attachment"]["row_count"] == 2
+    assert data["source_quality"]["structured_depth_ready"] is True

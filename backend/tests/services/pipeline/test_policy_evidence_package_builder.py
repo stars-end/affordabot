@@ -431,3 +431,57 @@ def test_builder_marks_ambiguous_parameter_when_citation_sanity_fails() -> None:
     assert "source_family=official_page" in cards[0]["source_excerpt"]
     assert "locator_quality=table_row_chunk_locator" in cards[0]["source_excerpt"]
     assert "fail_closed_signals=locator_precision_insufficient_for_artifact_grade" in cards[0]["source_excerpt"]
+
+
+def test_builder_parameter_cards_capture_official_attachment_metadata() -> None:
+    structured = {
+        "source_lane": "structured",
+        "provider": "legistar_web_api",
+        "source_family": "legistar_web_api",
+        "jurisdiction": "san_jose_ca",
+        "artifact_url": "https://webapi.legistar.com/v1/sanjose/Matters/7526",
+        "artifact_type": "matter_metadata",
+        "source_tier": "tier_b",
+        "retrieved_at": "2026-04-16T00:00:00+00:00",
+        "true_structured": True,
+        "policy_match_key": "legistar::matter::7526",
+        "reconciliation_status": "confirmed",
+        "structured_policy_facts": [
+            {
+                "field": "commercial_linkage_fee_rate_usd_per_sqft",
+                "raw_value": "$14.31",
+                "normalized_value": 14.31,
+                "value": 14.31,
+                "unit": "usd_per_square_foot",
+                "land_use": "office",
+                "raw_land_use_label": "Downtown Office",
+                "threshold": ">=100,000 sq. ft.",
+                "payment_timing": "paid_before_building_permit_issuance",
+                "source_url": "https://sanjoseca.legistar.com/View.ashx?M=F&ID=8758120",
+                "source_locator": "attachment_probe:301:1:fee_table_row",
+                "table_locator": "commercial_linkage_fee_table",
+                "locator_quality": "table_row_chunk_locator",
+                "source_family": "resolution",
+                "source_ref": "legistar::matter::7526::attachment::301",
+                "attachment_id": "301",
+                "attachment_title": "Resolution No. 80069",
+                "source_hierarchy_status": "bill_or_reg_text",
+            }
+        ],
+    }
+
+    payload = PolicyEvidencePackageBuilder().build(
+        package_id="pkg-official-attachment-parameter",
+        jurisdiction="san_jose_ca",
+        structured_candidates=[structured],
+        freshness_gate={"freshness_status": "fresh"},
+    )
+
+    assert payload["parameter_cards"]
+    card = payload["parameter_cards"][0]
+    assert card["state"] == "resolved"
+    assert card["value"] == 14.31
+    assert "source_family=resolution" in card["source_excerpt"]
+    assert "attachment_id=301" in card["source_excerpt"]
+    assert "attachment_title=Resolution No. 80069" in card["source_excerpt"]
+    assert "source_locator=attachment_probe:301:1:fee_table_row" in card["source_excerpt"]

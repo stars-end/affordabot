@@ -166,6 +166,8 @@ def test_classify_legistar_attachment_source_family() -> None:
     assert classify(attachment_name="Housing Department Memorandum", attachment_url="") == "memorandum"
     assert classify(attachment_name="Commercial Linkage Fee Study", attachment_url="") == "fee_study"
     assert classify(attachment_name="Nexus Study Appendix", attachment_url="") == "nexus_study"
+    assert classify(attachment_name="Commercial Linkage Fee Schedule", attachment_url="") == "fee_schedule"
+    assert classify(attachment_name="Commercial Linkage Feasibility Study", attachment_url="") == "feasibility_study"
     assert classify(attachment_name="City Council Minutes", attachment_url="") == "agenda/minutes"
     assert classify(attachment_name="Exhibit A", attachment_url="") == "exhibit"
     assert classify(attachment_name="Attachment", attachment_url="") == "unknown"
@@ -321,13 +323,22 @@ def test_legistar_matter_metadata_attachment_probe_marks_ingested_and_not_ingest
                         {
                             "MatterAttachmentId": 124,
                             "MatterAttachmentName": "Housing Department Memorandum",
-                            "MatterAttachmentHyperlink": "https://example.org/memorandum.txt",
+                            "MatterAttachmentHyperlink": (
+                                "https://www.sanjoseca.gov/DocumentCenter/View/12345/memorandum.txt"
+                            ),
+                        },
+                        {
+                            "MatterAttachmentId": 125,
+                            "MatterAttachmentName": "Public Comment Procedures",
+                            "MatterAttachmentHyperlink": (
+                                "https://www.sanjoseca.gov/DocumentCenter/View/99999/public-comment.pdf"
+                            ),
                         },
                     ]
                 )
             if endpoint == "https://sanjoseca.legistar.com/View.ashx?M=F&ID=9988776":
                 return _Response(headers={"content-type": "application/pdf"}, content=b"%PDF-1.7 fake")
-            if endpoint == "https://example.org/memorandum.txt":
+            if endpoint == "https://www.sanjoseca.gov/DocumentCenter/View/12345/memorandum.txt":
                 return _Response(
                     headers={"content-type": "text/plain; charset=utf-8"},
                     content=(
@@ -349,9 +360,93 @@ def test_legistar_matter_metadata_attachment_probe_marks_ingested_and_not_ingest
     probes = candidate["attachment_content_probes"]
     assert len(probes) == 2
     by_family = {probe["source_family"]: probe for probe in probes}
+    assert by_family["resolution"]["status"] == "binary_pdf_unparsed"
+    assert by_family["resolution"]["read_status"] == "binary_unparsed"
+    assert by_family["resolution"]["failure_class"] == "binary_pdf_unparsed"
+    assert by_family["resolution"]["content_hash"]
     assert by_family["resolution"]["content_ingested"] is False
+    assert by_family["memorandum"]["status"] == "ingested_excerpt"
+    assert by_family["memorandum"]["read_status"] == "read_text"
+    assert by_family["memorandum"]["failure_class"] is None
+    assert by_family["memorandum"]["content_hash"]
     assert by_family["memorandum"]["content_ingested"] is True
     assert by_family["memorandum"]["economic_row_count"] >= 1
+    assert by_family["memorandum"]["source_url"].startswith("https://www.sanjoseca.gov/")
+    assert by_family["memorandum"]["source_title"] == "Housing Department Memorandum"
+    assert candidate["lineage_metadata"]["attachment_content_ingested_count"] == 1
+
+
+def test_legistar_matter_metadata_normalizes_relative_view_attachment_urls_for_probe_fetch() -> None:
+    enricher = StructuredSourceEnricher()
+
+    class _Response:
+        def __init__(
+            self,
+            payload: Any | None = None,
+            *,
+            headers: dict[str, str] | None = None,
+            content: bytes | None = None,
+        ) -> None:
+            self._payload = payload
+            self.headers = headers or {}
+            if content is not None:
+                self.content = content
+            elif payload is not None:
+                self.content = str(payload).encode("utf-8")
+            else:
+                self.content = b""
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> Any:
+            return self._payload
+
+    class _Client:
+        async def get(self, endpoint: str, params: dict[str, str] | None = None) -> _Response:
+            _ = params
+            if endpoint.endswith("/Matters/14575"):
+                return _Response(
+                    {
+                        "MatterId": 14575,
+                        "MatterTitle": "Commercial Linkage Fee Update",
+                        "MatterInSiteURL": "https://sanjoseca.legistar.com/LegislationDetail.aspx?ID=14575",
+                    }
+                )
+            if endpoint.endswith("/Matters/14575/Attachments"):
+                return _Response(
+                    [
+                        {
+                            "MatterAttachmentId": 124,
+                            "MatterAttachmentName": "Housing Department Memorandum",
+                            "MatterAttachmentHyperlink": "/View.ashx?M=F&ID=9988777",
+                        }
+                    ]
+                )
+            if endpoint == "https://sanjoseca.legistar.com/View.ashx?M=F&ID=9988777":
+                return _Response(
+                    headers={"content-type": "text/plain; charset=utf-8"},
+                    content=(
+                        b"Commercial Linkage Fee memorandum for office projects is $14.31 per square foot."
+                    ),
+                )
+            raise AssertionError(f"unexpected endpoint: {endpoint}")
+
+    candidate = asyncio.run(
+        enricher._fetch_legistar_matter_metadata(
+            client=_Client(),
+            selected_url="https://sanjoseca.legistar.com/gateway.aspx?M=L&ID=14575",
+            search_query="commercial linkage fee san jose",
+            selected_candidate_context="",
+        )
+    )
+    assert candidate is not None
+    assert candidate["related_attachment_refs"][0]["url"] == "https://sanjoseca.legistar.com/View.ashx?M=F&ID=9988777"
+    probes = candidate["attachment_content_probes"]
+    assert len(probes) == 1
+    assert probes[0]["url"] == "https://sanjoseca.legistar.com/View.ashx?M=F&ID=9988777"
+    assert probes[0]["content_ingested"] is True
+    assert probes[0]["economic_row_count"] >= 1
 
 
 def test_legistar_matter_metadata_resolves_view_attachment_via_context_search_fallback() -> None:

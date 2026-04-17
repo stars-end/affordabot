@@ -1339,6 +1339,191 @@ def test_data_moat_status_runtime_ready_but_quality_depth_fail_is_explicit() -> 
     assert endpoint["recommended_next_action"] == "ingest_official_attachments"
 
 
+def test_cycle_33_identity_ready_official_page_without_attachment_rows_requires_ingest() -> None:
+    bundle = PolicyEconomicMechanismCaseService().build_case_bundle()
+    direct = _case(bundle, "direct_cost_case")
+    package = {
+        **direct["primary_package"],
+        "run_context": {
+            **direct["primary_package"].get("run_context", {}),
+            "source_quality_metrics": {
+                "top_n_artifact_recall_count": 1,
+                "selected_artifact_family": "official_page",
+                "policy_identity_ready": True,
+                "jurisdiction_identity_ready": True,
+                "selected_candidate": {
+                    "artifact_family": "official_page",
+                },
+            },
+            "source_reconciliation": {
+                "true_structured_row_count": 0,
+                "missing_true_structured_corroboration_count": 0,
+                "secondary_snippet_row_count": 1,
+                "official_attachment_row_count": 0,
+            },
+        },
+    }
+    matrix = _matrix_with_runtime_evidence(
+        package,
+        orchestration_proof={
+            "proof_status": "pass",
+            "proof_mode": "current_run",
+            "linked_to_current_vertical_package": True,
+            "windmill_run_id": "wm-run-cycle-33",
+            "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+        },
+        llm_narrative_proof={
+            "proof_status": "pass",
+            "canonical_pipeline_run_id": package["gate_projection"]["canonical_pipeline_run_id"],
+            "canonical_pipeline_step_id": package["gate_projection"]["canonical_pipeline_step_id"],
+            "source": "unit_test",
+        },
+        storage_proof={
+            "proof_status": "pass",
+            "proof_mode": "postgres_minio_live",
+            "store_backend": "postgres",
+            "artifact_probe_backend": "minio",
+            "persisted_record_id": "pkg-row-cycle-33",
+            "minio_readback_proven": True,
+        },
+    )
+
+    endpoint = PolicyEvidenceQualitySpineEconomicsService().build_endpoint_read_model(
+        matrix_input=MatrixInput(
+            payload=matrix,
+            source_path="horizontal_matrix.json",
+            source_mode="agent_a_horizontal_matrix",
+        ),
+        package_id=package["package_id"],
+        source_family="meeting_minutes",
+    )
+
+    moat = endpoint["data_moat_status"]
+    assert moat["status"] == "fail"
+    assert moat["identity_ready"] is True
+    assert moat["source_selection_blocker"] is False
+    assert moat["selected_artifact_family"] == "official_page"
+    assert moat["structured_depth_ready"] is False
+    assert moat["official_attachment_row_count"] == 0
+    blocker_codes = {item["code"] for item in moat["blockers"]}
+    assert "official_attachment_rows_missing" in blocker_codes
+    assert "true_structured_rows_missing" in blocker_codes
+    assert endpoint["recommended_next_action"] == "ingest_official_attachments"
+
+
+def test_attachment_rows_can_satisfy_structured_depth_without_secondary_search_credit() -> None:
+    bundle = PolicyEconomicMechanismCaseService().build_case_bundle()
+    direct = _case(bundle, "direct_cost_case")
+    package = {
+        **direct["primary_package"],
+        "run_context": {
+            **direct["primary_package"].get("run_context", {}),
+            "source_quality_metrics": {
+                "top_n_artifact_recall_count": 1,
+                "selected_artifact_family": "official_page",
+                "selection_quality_status": "fail",
+                "selection_quality_reason": "no_artifact_candidate_passed_quality_gate",
+                "policy_identity_ready": True,
+                "jurisdiction_identity_ready": True,
+                "selected_candidate": {
+                    "artifact_family": "official_page",
+                },
+            },
+            "source_reconciliation": {
+                "true_structured_row_count": 0,
+                "missing_true_structured_corroboration_count": 0,
+                "secondary_snippet_row_count": 2,
+                "official_attachment_row_count": 3,
+            },
+        },
+    }
+    matrix = _matrix_with_runtime_evidence(
+        package,
+        orchestration_proof={
+            "proof_status": "pass",
+            "proof_mode": "current_run",
+            "linked_to_current_vertical_package": True,
+            "windmill_run_id": "wm-run-attachments",
+            "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+        },
+        llm_narrative_proof={
+            "proof_status": "pass",
+            "canonical_pipeline_run_id": package["gate_projection"]["canonical_pipeline_run_id"],
+            "canonical_pipeline_step_id": package["gate_projection"]["canonical_pipeline_step_id"],
+            "source": "unit_test",
+        },
+        storage_proof={
+            "proof_status": "pass",
+            "proof_mode": "postgres_minio_live",
+            "store_backend": "postgres",
+            "artifact_probe_backend": "minio",
+            "persisted_record_id": "pkg-row-attachments",
+            "minio_readback_proven": True,
+        },
+    )
+
+    endpoint = PolicyEvidenceQualitySpineEconomicsService().build_endpoint_read_model(
+        matrix_input=MatrixInput(
+            payload=matrix,
+            source_path="horizontal_matrix.json",
+            source_mode="agent_a_horizontal_matrix",
+        ),
+        package_id=package["package_id"],
+        source_family="meeting_minutes",
+    )
+
+    moat = endpoint["data_moat_status"]
+    assert moat["status"] == "evidence_ready_with_gaps"
+    assert moat["structured_depth_ready"] is True
+    assert moat["true_structured_depth_ready"] is False
+    assert moat["official_attachment_depth_ready"] is True
+    assert moat["row_family_depth"]["true_structured"]["satisfies_depth"] is False
+    assert moat["row_family_depth"]["official_attachment"]["satisfies_depth"] is True
+    assert moat["row_family_depth"]["secondary_search"]["satisfies_depth"] is False
+    assert moat["secondary_search_row_count"] == 2
+    assert moat["structured_depth_satisfied_by"] == ["official_attachment"]
+    assert endpoint["economic_handoff_quality"]["status"] == "analysis_ready_with_gaps"
+    assert endpoint["recommended_next_action"] != "ingest_official_attachments"
+
+
+def test_tavily_only_rows_do_not_satisfy_structured_depth() -> None:
+    bundle = PolicyEconomicMechanismCaseService().build_case_bundle()
+    direct = _case(bundle, "direct_cost_case")
+    package = {
+        **direct["primary_package"],
+        "run_context": {
+            **direct["primary_package"].get("run_context", {}),
+            "source_quality_metrics": {
+                "selected_artifact_family": "official_page",
+                "policy_identity_ready": True,
+                "jurisdiction_identity_ready": True,
+            },
+            "source_reconciliation": {
+                "true_structured_row_count": 0,
+                "missing_true_structured_corroboration_count": 0,
+                "secondary_snippet_row_count": 4,
+                "official_attachment_row_count": 0,
+            },
+        },
+    }
+
+    endpoint = PolicyEvidenceQualitySpineEconomicsService().build_endpoint_read_model(
+        matrix_input=MatrixInput(
+            payload=_matrix_with_runtime_evidence(package),
+            source_path="horizontal_matrix.json",
+            source_mode="agent_a_horizontal_matrix",
+        ),
+        package_id=package["package_id"],
+        source_family="meeting_minutes",
+    )
+
+    moat = endpoint["data_moat_status"]
+    assert moat["structured_depth_ready"] is False
+    assert moat["row_family_depth"]["secondary_search"]["row_count"] == 4
+    assert moat["row_family_depth"]["secondary_search"]["satisfies_depth"] is False
+    assert moat["structured_depth_satisfied_by"] == []
+
+
 def test_cycle_32_wrong_jurisdiction_artifact_fails_source_quality_identity() -> None:
     moat = _build_identity_data_moat("cycle_32_wrong_jurisdiction_artifact")
 
