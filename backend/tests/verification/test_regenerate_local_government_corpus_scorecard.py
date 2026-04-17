@@ -38,7 +38,7 @@ def _write_json(path: Path, payload: dict[str, object]) -> Path:
     return path
 
 
-def _first_live_or_mixed_row_id(matrix: dict[str, object]) -> str:
+def _first_orchestration_intent_row_id(matrix: dict[str, object]) -> str:
     for row in matrix.get("rows", []):
         if not isinstance(row, dict):
             continue
@@ -47,10 +47,10 @@ def _first_live_or_mixed_row_id(matrix: dict[str, object]) -> str:
         mode = str(
             (row.get("infrastructure_status") or {}).get("orchestration_mode") or ""
         )
-        if mode in {"windmill_live", "mixed"}:
+        if mode == "orchestration_intent":
             return str(row["corpus_row_id"])
     raise AssertionError(
-        "expected at least one windmill_live/mixed row in seed matrix"
+        "expected at least one orchestration_intent row in seed matrix"
     )
 
 
@@ -58,7 +58,7 @@ def test_run_uses_overlay_and_records_artifact_inputs(tmp_path: Path) -> None:
     service = LocalGovernmentCorpusBenchmarkService()
     matrix = build_local_government_corpus_matrix_seed()
     baseline = service.evaluate(matrix=matrix)
-    row_id = _first_live_or_mixed_row_id(matrix)
+    row_id = _first_orchestration_intent_row_id(matrix)
 
     overlay_artifact = {
         "generated_at": "2026-04-17T09:02:17+00:00",
@@ -126,6 +126,10 @@ def test_run_uses_overlay_and_records_artifact_inputs(tmp_path: Path) -> None:
     assert artifact_inputs["windmill_overlay_burndown_summary"] == {
         "seeded_placeholder_rows_remaining": 2,
         "seeded_placeholder_rows_sample": ["lgm-seeded-a", "lgm-seeded-b"],
+        "seeded_not_live_proven_rows_remaining": 0,
+        "seeded_not_live_proven_rows_sample": [],
+        "orchestration_intent_rows_remaining": 0,
+        "orchestration_intent_rows_sample": [],
         "missing_live_refs_rows_remaining": 1,
         "blocked_row_count": 1,
         "live_attempt_rows_proven": 1,
@@ -143,6 +147,7 @@ def test_run_uses_overlay_and_records_artifact_inputs(tmp_path: Path) -> None:
     report = report_path.read_text(encoding="utf-8")
     assert "C13: `not_proven`" in report
     assert "## C13 Burn-down" in report
+    assert "orchestration-intent rows awaiting live proof" in report
     assert "remaining seeded ref rows" in report
 
 
@@ -157,7 +162,7 @@ def test_run_keeps_c13_strict_when_overlay_contains_seeded_refs(tmp_path: Path) 
         mode = str(
             (row.get("infrastructure_status") or {}).get("orchestration_mode") or ""
         )
-        if mode not in {"windmill_live", "mixed"}:
+        if mode != "orchestration_intent":
             continue
         row_id = str(row["corpus_row_id"])
         seeded_rows.append(

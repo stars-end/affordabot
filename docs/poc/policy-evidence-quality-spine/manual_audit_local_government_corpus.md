@@ -89,6 +89,8 @@ Evidence boundary marker (required per row):
 Interpretation:
 
 - `windmill_live` + concrete run/job refs proves orchestration evidence only.
+- Rows not listed above remain `orchestration_intent` or otherwise unproven
+  for C13 and must not be treated as live Windmill proof.
 - Substantive policy quality and decision-grade handoff quality remain governed
   by C0–C14 (not this lightweight list alone).
 

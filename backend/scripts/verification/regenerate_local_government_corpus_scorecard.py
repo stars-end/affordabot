@@ -125,6 +125,12 @@ def _overlay_burndown_summary(artifact: dict[str, Any]) -> dict[str, Any]:
         post_metrics = {}
 
     seeded_placeholder_rows = _row_id_list(post_metrics.get("seeded_placeholder_rows"))
+    seeded_not_live_proven_rows = _row_id_list(
+        post_metrics.get("seeded_not_live_proven_rows")
+    )
+    orchestration_intent_rows = _row_id_list(
+        post_metrics.get("orchestration_intent_rows")
+    )
     missing_live_refs_rows = _row_id_list(post_metrics.get("missing_live_refs_rows"))
     blocker_rows = post_metrics.get("blocker_rows")
     blocker_row_count = len(blocker_rows) if isinstance(blocker_rows, list) else 0
@@ -135,6 +141,10 @@ def _overlay_burndown_summary(artifact: dict[str, Any]) -> dict[str, Any]:
     return {
         "seeded_placeholder_rows_remaining": len(seeded_placeholder_rows),
         "seeded_placeholder_rows_sample": seeded_placeholder_rows[:10],
+        "seeded_not_live_proven_rows_remaining": len(seeded_not_live_proven_rows),
+        "seeded_not_live_proven_rows_sample": seeded_not_live_proven_rows[:10],
+        "orchestration_intent_rows_remaining": len(orchestration_intent_rows),
+        "orchestration_intent_rows_sample": orchestration_intent_rows[:10],
         "missing_live_refs_rows_remaining": len(missing_live_refs_rows),
         "blocked_row_count": blocker_row_count,
         "live_attempt_rows_proven": len(_live_attempt_rows(artifact)),

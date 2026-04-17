@@ -127,7 +127,8 @@ def _run_matrix_fixture_with_seeded_targets() -> dict[str, object]:
                 "jurisdiction": {"id": "berkeley_ca", "name": "Berkeley", "state": "CA"},
                 "policy_family": "business_licensing_compliance",
                 "infrastructure_status": {
-                    "orchestration_mode": "windmill_live",
+                    "orchestration_mode": "orchestration_intent",
+                    "planned_orchestration_mode": "windmill_live",
                     "windmill_refs": {
                         "flow_id": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
                         "run_id": "wm::lgm-008",
@@ -564,8 +565,42 @@ def test_build_report_fail_closes_seeded_placeholder_refs():
     )
 
     assert "lgm-002" in report["post_metrics"]["seeded_placeholder_rows"]
+    assert "lgm-002" in report["post_metrics"]["seeded_not_live_proven_rows"]
     assert "lgm-002" in report["post_metrics"]["missing_live_refs_rows"]
     assert report["c13_verdict_candidate"] == "not_proven_unverified_live_refs"
+
+
+def test_build_report_separates_orchestration_intent_from_live_proof():
+    matrix = _matrix_fixture()
+    matrix["rows"][1]["infrastructure_status"]["orchestration_mode"] = (
+        "orchestration_intent"
+    )
+    matrix["rows"][1]["infrastructure_status"]["planned_orchestration_mode"] = (
+        "windmill_live"
+    )
+    matrix["rows"][1]["infrastructure_status"]["windmill_refs"]["run_id"] = "wm::seeded"
+    matrix["rows"][1]["infrastructure_status"]["windmill_refs"]["job_id"] = "wm-job::seeded"
+    baseline_rows = verify_module._build_baseline_rows(matrix)
+    report = verify_module._build_report(
+        matrix=matrix,
+        scorecard=None,
+        baseline_rows=baseline_rows,
+        merged_rows=baseline_rows,
+        attempts=[],
+        flow_path="f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+        command_client="backend_endpoint",
+        command_log=[],
+        surface_blocker=None,
+    )
+
+    assert report["baseline_metrics"]["mode_counts"]["orchestration_intent"] == 1
+    assert "lgm-002" in report["post_metrics"]["seeded_placeholder_rows"]
+    assert "lgm-002" in report["post_metrics"]["seeded_not_live_proven_rows"]
+    assert "lgm-002" in report["post_metrics"]["orchestration_intent_rows"]
+    assert "lgm-002" not in report["post_metrics"]["missing_live_refs_rows"]
+    assert report["c13_verdict_candidate"] == (
+        "not_proven_orchestration_intent_unverified"
+    )
 
 
 def test_run_skips_previously_proven_row_and_preserves_existing_proof(tmp_path: Path):

@@ -800,3 +800,87 @@ Next blocker:
 - Continue seeded-ref burn-down with bounded batches, or reclassify the
   remaining generated seeded rows as orchestration intent if running all `82`
   remaining rows is not a good use of local eval cycles.
+
+## Cycle 51: Seeded Windmill Intent Reclassification
+
+Status: `completed_artifact_honesty_fix`
+
+Started: 2026-04-17
+
+Scope:
+
+- Stop allowing generated `wm::` / `wm-job::` placeholders to make corpus rows
+  look like live Windmill proof.
+- Preserve the seeded refs as C13 burn-down targets, but label the unproven
+  rows as `orchestration_intent` until a live overlay supplies authoritative
+  non-placeholder run/job ids.
+- Keep the already live-proven rows (`lgm-001`, `lgm-002`, `lgm-003`,
+  `lgm-004`, `lgm-007`, `lgm-013`, `lgm-015`, `lgm-018`) upgraded from the
+  Windmill overlay.
+
+Subagent wave:
+
+- Euclid implemented the generator/C13 intent-mode semantics and tests.
+- Maxwell implemented verifier compatibility for selecting seeded/unproven
+  orchestration-intent rows and separating report metrics.
+- James audited the docs/report boundary and called out the required artifact
+  regeneration checklist.
+
+Implementation changes:
+
+- Added explicit `orchestration_intent` mode in
+  `backend/services/pipeline/local_government_corpus_benchmark.py`.
+- Generated rows whose previous template mode was `windmill_live` or `mixed`
+  now emit:
+  - `infrastructure_status.orchestration_mode=orchestration_intent`;
+  - `infrastructure_status.planned_orchestration_mode=<original mode>`;
+  - seeded `windmill_refs` with `proof_status=seeded_not_live_proven`.
+- C13 metrics now include `orchestration_intent_rows` and no longer count
+  seeded placeholders as `windmill_live` / `mixed` proof.
+- The verifier report now exposes `orchestration_intent_rows`,
+  `live_proven_rows`, and `seeded_not_live_proven_rows` in post-metrics.
+- The scorecard regeneration summary now carries both seeded-placeholder and
+  seeded-not-live-proven counts.
+- The manual audit doc explicitly states that rows outside the live-proven
+  table must not be treated as live Windmill proof.
+
+Artifact impact:
+
+- `local_government_corpus_matrix.json` now has generated seeded rows as
+  `orchestration_intent` rather than live-looking modes.
+- `local_government_corpus_windmill_orchestration.json` now reports:
+  - baseline mode counts: `orchestration_intent=86`, `cli_only=4`,
+    `windmill_live=0`, `mixed=0`;
+  - post-overlay mode counts: `windmill_live=8`,
+    `orchestration_intent=82`, `cli_only=0`, `mixed=0`;
+  - `c13_verdict_candidate=not_proven_orchestration_intent_unverified`.
+- `local_government_corpus_scorecard.json` now reports:
+  - `live_proven_rows=8`;
+  - `orchestration_intent_rows=82`;
+  - `seeded_not_live_proven_rows=82`;
+  - `live_proof_coverage_ratio=0.0889`.
+- `local_government_corpus_report.md` now shows C13 mode counts and the
+  orchestration-intent backlog directly.
+
+Gate impact:
+
+- C13 remains `not_proven`, but the failure is now honest: the corpus has
+  `8/90` live-proven Windmill rows and `82/90` planned rows awaiting live
+  proof.
+- This cycle improves product quality by removing a false-live-proof
+  interpretation from the data moat artifacts. It does not improve scraped or
+  structured source substance directly.
+
+Validation:
+
+- `cd backend && poetry run pytest tests/services/pipeline/test_local_government_corpus_benchmark.py tests/verification/test_verify_local_government_corpus_windmill_orchestration.py tests/verification/test_regenerate_local_government_corpus_scorecard.py` -> `34 passed`.
+- `cd backend && poetry run ruff check services/pipeline/local_government_corpus_benchmark.py scripts/verification/verify_local_government_corpus_windmill_orchestration.py scripts/verification/regenerate_local_government_corpus_scorecard.py tests/services/pipeline/test_local_government_corpus_benchmark.py tests/verification/test_verify_local_government_corpus_windmill_orchestration.py tests/verification/test_regenerate_local_government_corpus_scorecard.py` -> pass.
+- `cd backend && poetry run python scripts/verification/verify_local_government_corpus_manual_audit.py` -> pass.
+- `cd backend && poetry run pytest` -> `861 passed, 70 warnings`.
+
+Next blocker:
+
+- Cycle 52 should shift back from orchestration-honesty repair to substantive
+  data moat quality: prove deeper scraped/structured source substance for a
+  small set of high-value local-government policy families, while keeping C13
+  intent/live-proof separation intact.

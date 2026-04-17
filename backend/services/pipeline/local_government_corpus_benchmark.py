@@ -22,6 +22,12 @@ SECONDARY_SEARCH_FAMILIES = {
     "secondary_search_tavily",
     "secondary_search_exa",
 }
+LIVE_ORCHESTRATION_MODES = {"windmill_live", "mixed"}
+ORCHESTRATION_INTENT_MODE = "orchestration_intent"
+ORCHESTRATION_MODES = LIVE_ORCHESTRATION_MODES | {
+    "cli_only",
+    ORCHESTRATION_INTENT_MODE,
+}
 LEGISTAR_LIKE_FAMILIES = {
     "agenda_meeting_api",
 }
@@ -128,7 +134,7 @@ def _default_package_gate_status(
         "D7": "pass",
         "D8": "pass",
         "D9": "pass"
-        if orchestration_mode in {"windmill_live", "mixed"}
+        if orchestration_mode in LIVE_ORCHESTRATION_MODES
         else "not_proven",
         "D10": "pass" if manual_audit_sampled else "not_proven",
         "D11": d11_status,
@@ -202,20 +208,31 @@ def _make_seed_row(
             }
         )
 
+    planned_orchestration_mode = orchestration_mode
+    effective_orchestration_mode = (
+        ORCHESTRATION_INTENT_MODE
+        if orchestration_mode in LIVE_ORCHESTRATION_MODES
+        else orchestration_mode
+    )
+
     windmill_refs: dict[str, Any] | None = None
-    if orchestration_mode in {"windmill_live", "mixed"}:
+    if (
+        planned_orchestration_mode in LIVE_ORCHESTRATION_MODES
+        or effective_orchestration_mode == ORCHESTRATION_INTENT_MODE
+    ):
         windmill_refs = {
             "flow_id": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
             "run_id": f"wm::{corpus_row_id}",
             "job_id": f"wm-job::{corpus_row_id}",
             "proof_status": "seeded_not_live_proven",
             "proof_source": "local_government_corpus_seed_matrix",
+            "planned_orchestration_mode": planned_orchestration_mode,
         }
 
     package_gate_status = _default_package_gate_status(
         d11_handoff_quality=d11_handoff_quality,
         has_true_structured=has_true_structured,
-        orchestration_mode=orchestration_mode,
+        orchestration_mode=effective_orchestration_mode,
         manual_audit_sampled=manual_audit_sampled,
     )
 
@@ -276,7 +293,8 @@ def _make_seed_row(
         "source_infrastructure_status": source_infrastructure_status,
         "infrastructure_status": {
             "source_lane_status": source_infrastructure_status,
-            "orchestration_mode": orchestration_mode,
+            "orchestration_mode": effective_orchestration_mode,
+            "planned_orchestration_mode": planned_orchestration_mode,
             "windmill_refs": windmill_refs,
         },
         "economic_handoff_plausibility": {
@@ -1593,6 +1611,12 @@ class LocalGovernmentCorpusBenchmarkService:
             or c13_metrics.get("seeded_not_live_proven_rows")
             or 0
         )
+        c13_orchestration_intent_rows = int(
+            c13_metrics.get("orchestration_intent_rows") or 0
+        )
+        c13_mode_counts = c13_metrics.get("mode_counts")
+        if not isinstance(c13_mode_counts, dict):
+            c13_mode_counts = {}
         c13_coverage_ratio = c13_metrics.get("live_proof_coverage_ratio")
         c13_next_targets = c13_metrics.get("next_seeded_ref_target_rows")
         if not isinstance(c13_next_targets, list):
@@ -1641,8 +1665,10 @@ class LocalGovernmentCorpusBenchmarkService:
                 "",
                 "## C13 Burn-down",
                 "",
+                f"- mode counts: `{json.dumps(c13_mode_counts, sort_keys=True)}`",
                 f"- live proof coverage ratio: `{c13_coverage_ratio}`",
                 f"- live proof progress: `{c13_live_proven_rows}/{c13_seeded_target_rows}`",
+                f"- orchestration-intent rows awaiting live proof: `{c13_orchestration_intent_rows}`",
                 f"- remaining seeded ref rows: `{c13_remaining_seeded_rows}`",
                 f"- next seeded ref target rows: `{c13_next_targets_display}`",
                 "",
@@ -2743,7 +2769,7 @@ class LocalGovernmentCorpusBenchmarkService:
                 overlaid_infra["windmill_refs"] = overlaid_refs
 
             mode = str(row_overlay.get("orchestration_mode") or "")
-            if mode in {"windmill_live", "mixed", "cli_only"}:
+            if mode in ORCHESTRATION_MODES:
                 overlaid_infra["orchestration_mode"] = mode
 
             overlaid_row = dict(row)
@@ -2809,7 +2835,7 @@ class LocalGovernmentCorpusBenchmarkService:
                     normalized_payload[key] = value
 
             mode = str(payload.get("orchestration_mode") or "")
-            if mode in {"windmill_live", "mixed", "cli_only"}:
+            if mode in ORCHESTRATION_MODES:
                 normalized_payload["orchestration_mode"] = mode
 
             if normalized_payload:
@@ -2890,18 +2916,25 @@ class LocalGovernmentCorpusBenchmarkService:
         }
         if flow_id:
             proven_overlay["flow_id"] = flow_id
-        if mode in {"windmill_live", "mixed"}:
+        if mode in LIVE_ORCHESTRATION_MODES:
             proven_overlay["orchestration_mode"] = mode
         return row_id, proven_overlay
 
     def _evaluate_c13(
         self, *, matrix: dict[str, Any], rows: list[dict[str, Any]]
     ) -> GateResult:
-        mode_counts = {"windmill_live": 0, "cli_only": 0, "mixed": 0}
+        mode_counts = {
+            "windmill_live": 0,
+            "mixed": 0,
+            "orchestration_intent": 0,
+            "cli_only": 0,
+        }
         missing_mode_rows = []
+        orchestration_intent_missing_refs_rows = []
         missing_live_refs_rows = []
         live_proven_rows = []
         seeded_not_live_proven_rows = []
+        orchestration_intent_rows = []
         blocked_backend_scope_rows = []
         unsupported_scope_rows = []
         cli_only_rows = []
@@ -2926,7 +2959,32 @@ class LocalGovernmentCorpusBenchmarkService:
                     elif scope_class == "unsupported_scope":
                         unsupported_scope_rows.append(row_id)
                 continue
-            if mode in {"windmill_live", "mixed"}:
+            if mode == ORCHESTRATION_INTENT_MODE:
+                orchestration_intent_rows.append(row_id)
+                scope_class = (
+                    self._classify_windmill_scope_block(refs=refs)
+                    if isinstance(refs, dict)
+                    else None
+                )
+                if scope_class == "blocked_backend_scope":
+                    blocked_backend_scope_rows.append(row_id)
+                    seeded_not_live_proven_rows.append(row_id)
+                    continue
+                if scope_class == "unsupported_scope":
+                    unsupported_scope_rows.append(row_id)
+                    seeded_not_live_proven_rows.append(row_id)
+                    continue
+                if not isinstance(refs, dict) or not all(
+                    refs.get(key) for key in {"flow_id", "run_id", "job_id"}
+                ):
+                    orchestration_intent_missing_refs_rows.append(row_id)
+                    continue
+                if not self._windmill_refs_are_live_proven(refs=refs):
+                    seeded_not_live_proven_rows.append(row_id)
+                    continue
+                live_proven_rows.append(row_id)
+                continue
+            if mode in LIVE_ORCHESTRATION_MODES:
                 scope_class = (
                     self._classify_windmill_scope_block(refs=refs)
                     if isinstance(refs, dict)
@@ -2968,9 +3026,17 @@ class LocalGovernmentCorpusBenchmarkService:
             "seeded_ref_target_rows": seeded_ref_target_rows,
             "live_proof_coverage_ratio": live_proof_coverage_ratio,
             "sample_live_proven_rows": live_proven_rows[:10],
+            "orchestration_intent_rows": len(orchestration_intent_rows),
+            "sample_orchestration_intent_rows": orchestration_intent_rows[:10],
             "cli_only_rows": len(cli_only_rows),
             "sample_cli_only_rows": cli_only_rows[:10],
             "missing_mode_rows": len(missing_mode_rows),
+            "orchestration_intent_missing_refs_rows": len(
+                orchestration_intent_missing_refs_rows
+            ),
+            "sample_orchestration_intent_missing_refs_rows": (
+                orchestration_intent_missing_refs_rows[:10]
+            ),
             "missing_live_refs_rows": len(missing_live_refs_rows),
             "seeded_not_live_proven_rows": len(seeded_not_live_proven_rows),
             "remaining_seeded_ref_row_count": len(remaining_seeded_ref_rows),
@@ -2986,6 +3052,8 @@ class LocalGovernmentCorpusBenchmarkService:
         blockers = []
         if missing_mode_rows:
             blockers.append("orchestration_mode_missing")
+        if orchestration_intent_missing_refs_rows:
+            blockers.append("orchestration_intent_refs_missing")
         if missing_live_refs_rows:
             blockers.append("windmill_refs_missing_for_live_rows")
         if seeded_not_live_proven_rows:
@@ -2995,7 +3063,11 @@ class LocalGovernmentCorpusBenchmarkService:
         if unsupported_scope_rows:
             blockers.append("windmill_rows_unsupported_scope")
         if blockers:
-            if missing_mode_rows or missing_live_refs_rows:
+            if (
+                missing_mode_rows
+                or missing_live_refs_rows
+                or orchestration_intent_missing_refs_rows
+            ):
                 return GateResult(
                     status="fail",
                     reason="C13 orchestration metadata is incomplete.",

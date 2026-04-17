@@ -27,8 +27,10 @@
 
 ## C13 Burn-down
 
+- mode counts: `{"cli_only": 0, "mixed": 0, "orchestration_intent": 82, "windmill_live": 8}`
 - live proof coverage ratio: `0.0889`
 - live proof progress: `8/90`
+- orchestration-intent rows awaiting live proof: `82`
 - remaining seeded ref rows: `82`
 - next seeded ref target rows: `lgm-005, lgm-006, lgm-008, lgm-009, lgm-010, lgm-011, lgm-012, lgm-014, lgm-016, lgm-017`
 

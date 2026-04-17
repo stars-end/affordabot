@@ -83,6 +83,9 @@ def test_seed_scorecard_encodes_c0_to_c14_without_false_pass() -> None:
     assert scorecard["gates"]["C2"]["status"] == "pass"
     assert scorecard["gates"]["C13"]["status"] == "not_proven"
     c13_metrics = scorecard["gates"]["C13"]["metrics"]
+    assert c13_metrics["mode_counts"]["windmill_live"] == 0
+    assert c13_metrics["mode_counts"]["mixed"] == 0
+    assert c13_metrics["mode_counts"]["orchestration_intent"] > 0
     assert (
         "windmill_refs_seeded_not_live_proven"
         in scorecard["gates"]["C13"]["blockers"]
@@ -185,7 +188,7 @@ def test_c13_artifact_overlay_blocked_live_row_does_not_reduce_seeded_count() ->
         row
         for row in rows
         if (row.get("infrastructure_status") or {}).get("orchestration_mode")
-        in {"windmill_live", "mixed"}
+        == "orchestration_intent"
     )
     blocked_row_id = blocked_target["corpus_row_id"]
 
@@ -265,16 +268,19 @@ def test_c13_artifact_overlay_proven_row_upgrades_single_row() -> None:
         row
         for row in rows
         if (row.get("infrastructure_status") or {}).get("orchestration_mode")
-        in {"windmill_live", "mixed"}
+        == "orchestration_intent"
     )
     proven_row_id = proven_target["corpus_row_id"]
+    planned_mode = (proven_target.get("infrastructure_status") or {}).get(
+        "planned_orchestration_mode"
+    )
 
     artifact = {
         "rows": [
             {
                 "corpus_row_id": proven_row_id,
                 "row_status": "proven",
-                "orchestration_mode": "windmill_live",
+                "orchestration_mode": planned_mode,
                 "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
                 "windmill_run_id": "01J9KJ5FK0XQ7CG1WM89AZ6RY4",
                 "windmill_job_id": "01J9KJ5FK0XQ7CG1WM89AZ6RY4",
@@ -321,14 +327,17 @@ def test_c13_artifact_overlay_can_satisfy_c13_with_live_proven_refs() -> None:
     artifact_rows = []
     for row in rows:
         mode = (row.get("infrastructure_status") or {}).get("orchestration_mode")
-        if mode not in {"windmill_live", "mixed"}:
+        if mode != "orchestration_intent":
             continue
+        planned_mode = (row.get("infrastructure_status") or {}).get(
+            "planned_orchestration_mode"
+        )
         row_id = str(row["corpus_row_id"])
         artifact_rows.append(
             {
                 "corpus_row_id": row_id,
                 "row_status": "proven",
-                "orchestration_mode": mode,
+                "orchestration_mode": planned_mode,
                 "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
                 "windmill_run_id": f"live-run-{row_id}",
                 "windmill_job_id": f"live-job-{row_id}",
@@ -352,7 +361,7 @@ def test_decision_grade_c13_requires_proof_for_all_live_and_mixed_rows() -> None
         row
         for row in rows
         if (row.get("infrastructure_status") or {}).get("orchestration_mode")
-        in {"windmill_live", "mixed"}
+        == "orchestration_intent"
     )
     row_overlay = {
         str(single_live_row["corpus_row_id"]): {

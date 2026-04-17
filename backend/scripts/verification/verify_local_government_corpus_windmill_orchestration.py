@@ -52,6 +52,8 @@ DEFAULT_WINDMILL_WORKSPACE = "affordabot"
 FEATURE_KEY = "bd-3wefe.13.4.6"
 CONTRACT_VERSION = "2026-04-17.windmill-domain.v2"
 TARGET_PROOF_STATUS_SEEDED_NOT_LIVE_PROVEN = "seeded_not_live_proven"
+ORCHESTRATION_INTENT_MODE = "orchestration_intent"
+LIVE_ORCHESTRATION_MODES = {"windmill_live", "mixed"}
 
 
 @dataclass(frozen=True)
@@ -674,7 +676,13 @@ def _windmill_context(*, workspace: str, flow_path: str, script_path: str) -> An
 
 
 def _build_mode_counts(rows: list[dict[str, Any]]) -> dict[str, int]:
-    counts = {"windmill_live": 0, "mixed": 0, "cli_only": 0, "blocked": 0}
+    counts = {
+        "windmill_live": 0,
+        "mixed": 0,
+        "orchestration_intent": 0,
+        "cli_only": 0,
+        "blocked": 0,
+    }
     for row in rows:
         mode = str(row.get("orchestration_mode") or "")
         if mode in counts:
@@ -696,6 +704,7 @@ def _build_baseline_rows(matrix: dict[str, Any]) -> list[dict[str, Any]]:
         refs = infra.get("windmill_refs")
         if not isinstance(refs, dict):
             refs = {}
+        proof_status = refs.get("proof_status") or infra.get("proof_status")
         baseline.append(
             {
                 "corpus_row_id": str(row.get("corpus_row_id") or "unknown"),
@@ -707,6 +716,7 @@ def _build_baseline_rows(matrix: dict[str, Any]) -> list[dict[str, Any]]:
                 "windmill_flow_path": refs.get("flow_id"),
                 "windmill_run_id": refs.get("run_id"),
                 "windmill_job_id": refs.get("job_id"),
+                "windmill_proof_status": proof_status if isinstance(proof_status, str) else None,
                 "row_status": "carried_forward_from_matrix",
                 "blocker_class": None,
                 "blocker_detail": None,
@@ -784,6 +794,8 @@ def _row_matches_target_proof_status(
         == TARGET_PROOF_STATUS_SEEDED_NOT_LIVE_PROVEN
     ):
         return True
+    if str(row.get("orchestration_mode") or "") == ORCHESTRATION_INTENT_MODE:
+        return True
     return _is_seeded_windmill_ref(row.get("windmill_run_id")) or _is_seeded_windmill_ref(
         row.get("windmill_job_id")
     )
@@ -848,6 +860,7 @@ def _carry_forward_proven_row(
         "windmill_flow_path": existing_row.get("windmill_flow_path") or baseline_row.get("windmill_flow_path"),
         "windmill_run_id": existing_row.get("windmill_run_id"),
         "windmill_job_id": existing_row.get("windmill_job_id"),
+        "windmill_proof_status": "live_proven",
         "row_status": "proven",
         "blocker_class": None,
         "blocker_detail": None,
@@ -1247,6 +1260,9 @@ def _merge_rows_with_attempts(
                 "windmill_flow_path": attempt.windmill_flow_path,
                 "windmill_run_id": attempt.windmill_run_id,
                 "windmill_job_id": attempt.windmill_job_id,
+                "windmill_proof_status": (
+                    "live_proven" if attempt.status == "proven" else attempt.status
+                ),
                 "row_status": attempt.status,
                 "blocker_class": attempt.blocker_class,
                 "blocker_detail": attempt.blocker_detail,
@@ -1290,15 +1306,39 @@ def _build_report(
     seeded_placeholder_rows = [
         row["corpus_row_id"]
         for row in merged_rows
-        if row.get("orchestration_mode") in {"windmill_live", "mixed"} and (
+        if row.get("orchestration_mode")
+        in LIVE_ORCHESTRATION_MODES | {ORCHESTRATION_INTENT_MODE}
+        and (
             _is_seeded_windmill_ref(row.get("windmill_run_id"))
             or _is_seeded_windmill_ref(row.get("windmill_job_id"))
         )
     ]
+    orchestration_intent_rows = [
+        row["corpus_row_id"]
+        for row in merged_rows
+        if row.get("orchestration_mode") == ORCHESTRATION_INTENT_MODE
+    ]
+    live_proven_rows = [
+        row["corpus_row_id"] for row in merged_rows if _row_is_proven(row)
+    ]
+    seeded_not_live_proven_rows = sorted(
+        {
+            row["corpus_row_id"]
+            for row in merged_rows
+            if not _row_is_proven(row)
+            and (
+                row.get("orchestration_mode") == ORCHESTRATION_INTENT_MODE
+                or str(row.get("windmill_proof_status") or "")
+                == TARGET_PROOF_STATUS_SEEDED_NOT_LIVE_PROVEN
+                or _is_seeded_windmill_ref(row.get("windmill_run_id"))
+                or _is_seeded_windmill_ref(row.get("windmill_job_id"))
+            )
+        }
+    )
     missing_live_refs_rows = [
         row["corpus_row_id"]
         for row in merged_rows
-        if row.get("orchestration_mode") in {"windmill_live", "mixed"}
+        if row.get("orchestration_mode") in LIVE_ORCHESTRATION_MODES
         and (
             not row.get("windmill_flow_path")
             or not row.get("windmill_run_id")
@@ -1332,7 +1372,13 @@ def _build_report(
             for attempt in materialized_attempts
             if isinstance(attempt, dict)
         )
-    if post_cli_share <= 0.1 and not missing_live_refs_rows and not blocker_rows:
+    if (
+        post_cli_share <= 0.1
+        and not missing_live_refs_rows
+        and not seeded_placeholder_rows
+        and not orchestration_intent_rows
+        and not blocker_rows
+    ):
         verdict = "pass_candidate"
         next_action = (
             "Integrate this artifact into C13 scoring input and regenerate the corpus scorecard."
@@ -1346,6 +1392,11 @@ def _build_report(
         verdict = "not_proven_unverified_live_refs"
         next_action = (
             "Replace seeded/placeholder refs with live-proven Windmill run/job ids for all windmill_live and mixed rows."
+        )
+    elif seeded_placeholder_rows or orchestration_intent_rows:
+        verdict = "not_proven_orchestration_intent_unverified"
+        next_action = (
+            "Run orchestration_intent rows through live Windmill until seeded refs are replaced by live-proven run/job ids."
         )
     else:
         verdict = "not_proven_cli_only_share_above_cap"
@@ -1384,6 +1435,9 @@ def _build_report(
             "cli_only_share": post_cli_share,
             "missing_live_refs_rows": missing_live_refs_rows,
             "seeded_placeholder_rows": seeded_placeholder_rows,
+            "orchestration_intent_rows": orchestration_intent_rows,
+            "live_proven_rows": live_proven_rows,
+            "seeded_not_live_proven_rows": seeded_not_live_proven_rows,
             "blocker_rows": blocker_rows,
         },
         "rows": merged_rows,
