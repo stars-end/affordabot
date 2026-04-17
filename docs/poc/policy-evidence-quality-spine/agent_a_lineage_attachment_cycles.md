@@ -41,3 +41,37 @@ Validation:
 
 Measured Outcome:
 - Runtime bridge regression now verifies lineage marks related attachments present and carries attachment ref metadata for Matter 7526 style inputs.
+
+## Cycle A-L3
+
+Hypothesis: Cycle 31 fails because CLF landing pages can outrank concrete artifacts and attachment handling stops at refs.
+
+Implementation:
+- Added economic-query artifact-first reader attempt ordering in bridge read-fetch so concrete artifacts are attempted before official landing pages when both are present.
+- Added documented artifact-quality gate metadata in `source_quality_metrics`:
+  - `artifact_quality_gate_status`
+  - `artifact_quality_gate_reason`
+  - `artifact_quality_gate.artifact_candidate_count`
+  - `artifact_quality_gate.artifact_candidate_substantive_count`
+  - `artifact_quality_gate.substantive_artifact_urls`
+- Added maintained-fee-schedule exception gate:
+  - explicit classification path (`maintained_fee_schedule`)
+  - requires fee-table substance + current-context signals
+  - does not grant `authoritative_policy_text` by default.
+- Added bounded Legistar attachment content probe in structured enrichment:
+  - probes high-value families (ordinance, resolution, memorandum/staff report, nexus/fee study)
+  - emits `attachment_content_probes` with per-attachment status and excerpt
+  - emits extracted attachment economic rows when parseable.
+- Expanded policy lineage to distinguish:
+  - refs present
+  - content ingested
+  - attachment economic rows available
+  via `attachment_state` and new lineage presence flags.
+
+Validation:
+- `backend/tests/services/pipeline/test_bridge_runtime.py`
+- `backend/tests/services/pipeline/test_structured_source_enrichment.py`
+
+Measured Outcome:
+- CLF-like source selection now prefers substantive concrete artifacts over landing pages.
+- Attachment lane now surfaces ingestion status (false vs true) and economic-row availability separately from attachment refs.

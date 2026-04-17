@@ -362,6 +362,8 @@ def test_policy_evidence_analysis_status_surfaces_provenance_and_not_proven_gate
         "run_direct_analysis",
         "run_secondary_research",
         "qualitative_summary_only",
+        "improve_data_moat_sources",
+        "ingest_official_attachments",
         "reject",
     }
     assert data["manual_audit_scaffold"]["status"] == "required"
@@ -594,16 +596,34 @@ def test_policy_evidence_analysis_status_surfaces_selected_artifact_quality_metr
             "windmill_run_id": "wm-run-q5",
             "started_at": "2026-04-16T05:00:00Z",
             "completed_at": "2026-04-16T05:05:00Z",
-            "result": {"policy_evidence_package": package, "rows": []},
+            "result": {
+                "policy_evidence_package": package,
+                "rows": [],
+                "analysis": {"summary": "Narrative generated from selected artifact."},
+            },
         },
         {
             "id": "pkg-row-q5",
             "package_id": package["package_id"],
             "package_payload": {
                 **package,
+                "gate_projection": {
+                    **package["gate_projection"],
+                    "canonical_pipeline_run_id": "run-q5",
+                    "canonical_pipeline_step_id": "analysis-q5",
+                    "canonical_breakdown_ref": "analysis:analysis-q5",
+                },
                 "run_context": {
                     "backend_run_id": "run-q5",
+                    "windmill_run_id": "wm-run-q5",
+                    "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+                    "windmill_workspace": "affordabot",
+                    "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
                     "source_quality_metrics": source_quality_metrics,
+                    "source_reconciliation": {
+                        "true_structured_row_count": 0,
+                        "missing_true_structured_corroboration_count": 2,
+                    },
                 },
             },
             "artifact_readback_status": "proven",
@@ -626,3 +646,12 @@ def test_policy_evidence_analysis_status_surfaces_selected_artifact_quality_metr
     assert data["source_quality"]["secondary_numeric_rescue_detected"] is True
     assert data["source_quality"]["selected_candidate_rank"] == 1
     assert data["source_quality"]["selection_quality_status"] == "fail"
+    moat = data["data_moat_status"]
+    assert moat["runtime_ready"] is True
+    assert moat["source_quality_ready"] is False
+    assert moat["structured_depth_ready"] is False
+    assert moat["source_selection_blocker"] is True
+    assert moat["source_selection_reason"] == "official_page_selected_while_artifact_candidates_exist"
+    assert moat["true_structured_row_count"] == 0
+    assert moat["missing_true_structured_corroboration_count"] == 2
+    assert data["recommended_next_action"] == "ingest_official_attachments"

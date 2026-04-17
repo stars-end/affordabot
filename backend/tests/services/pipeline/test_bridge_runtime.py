@@ -669,6 +669,34 @@ def test_runtime_bridge_extracts_primary_fee_rows_with_subarea_and_locator_quali
     assert downtown["final_status"] == "adopted"
 
 
+def test_runtime_bridge_extracts_payment_timing_reduction_and_exemption_context() -> None:
+    facts, alerts = RailwayRuntimeBridge._extract_primary_fee_facts_from_text_parts(
+        text_parts=[
+            (
+                "Office (>=100,000 sq. ft.) $14.31 when paid in full prior to the Building Permit issuance, "
+                "$17.89 when paid at Scheduling of Final Building Inspection. "
+                "Warehouse (<=50,000 sq. ft.) No fee ($0). "
+                "Industrial/Research and Development (>=100,000 sq. ft.) $3.58 - "
+                "When paid in full prior to the Building Permit issuance, a 20% reduction in the payment will apply."
+            )
+        ],
+        selected_url="https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee",
+        source_locator_prefix="reader_content",
+    )
+
+    assert alerts == []
+    assert len(facts) == 4
+    before_permit = next(item for item in facts if item.get("normalized_value") == 14.31)
+    assert before_permit["payment_timing"] == "paid_before_building_permit_issuance"
+    final_inspection = next(item for item in facts if item.get("normalized_value") == 17.89)
+    assert final_inspection["payment_timing"] == "paid_at_final_building_inspection"
+    reduced = next(item for item in facts if item.get("normalized_value") == 3.58)
+    assert reduced["payment_reduction_percent"] == 20.0
+    assert "20% reduction" in str(reduced.get("payment_reduction_context") or "")
+    no_fee = next(item for item in facts if item.get("normalized_value") == 0.0)
+    assert no_fee["exemption_context"] == "no_fee_for_threshold:<=50,000 sq. ft."
+
+
 def test_runtime_bridge_normalized_economic_rows_dedupe_and_keep_best_locator() -> None:
     primary_facts = [
         {
@@ -1099,7 +1127,7 @@ def test_runtime_bridge_read_fetch_falls_back_after_ranked_reader_error() -> Non
     assert response["steps"]["analyze"]["status"] in {"succeeded", "succeeded_with_alerts"}
 
 
-def test_runtime_bridge_records_selected_quality_when_artifact_exists_but_official_page_selected() -> None:
+def test_runtime_bridge_prefers_artifact_candidate_over_official_fee_page_when_both_are_substantive() -> None:
     db = FakeDB()
     storage = FakeStorage()
     package_store = InMemoryPolicyEvidencePackageStore()
@@ -1122,6 +1150,12 @@ def test_runtime_bridge_records_selected_quality_when_artifact_exists_but_offici
     )
     runtime.reader_client = RoutingFakeReaderClient(
         by_url={
+            "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6": (
+                "# Resolution No. 80069\n"
+                "Commercial Linkage Fee schedule table.\n"
+                "Office projects pay $14.31 per square foot when paid in full prior to building permit issuance.\n"
+                "Office projects pay $17.89 per square foot when paid at final inspection.\n"
+            ),
             "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee": (
                 "# Commercial Linkage Fee\n"
                 "Agenda item 4.2 was approved by vote after public hearing.\n"
@@ -1133,9 +1167,6 @@ def test_runtime_bridge_records_selected_quality_when_artifact_exists_but_offici
                 "adjustments, nexus study background, and implementation rules "
                 "for applicants seeking building permits in San Jose.\n"
             )
-        },
-        fail_urls={
-            "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6"
         },
     )
     runtime._llm_client = FakeLLMClient()
@@ -1156,12 +1187,11 @@ def test_runtime_bridge_records_selected_quality_when_artifact_exists_but_offici
 
     assert response["status"] in {"succeeded", "succeeded_with_alerts"}
     assert source_quality["top_n_artifact_recall_count"] >= 1
-    assert source_quality["selected_artifact_family"] == "official_page"
-    assert source_quality["selected_candidate"]["artifact_grade"] is False
+    assert source_quality["selected_artifact_family"] == "artifact"
+    assert source_quality["selected_candidate"]["artifact_grade"] is True
     assert source_quality["selected_candidate"]["official_domain"] is True
-    assert source_quality["provider_summary"]["provider_error_count"] >= 1
-    assert source_quality["official_reader_error_count"] >= 1
-    assert source_quality["fallback_materialization_count"] >= 1
+    assert source_quality["artifact_quality_gate_status"] == "pass"
+    assert source_quality["artifact_quality_gate_reason"] == "artifact_candidate_passed_quality_gate"
 
 
 def test_runtime_bridge_blocks_weak_video_fallback_after_official_reader_error() -> None:
@@ -1432,9 +1462,84 @@ def test_runtime_bridge_reconciliation_marks_secondary_only_as_missing_true_stru
     )
 
     assert reconciliation["missing_true_structured_corroboration_count"] == 1
+    assert reconciliation["true_structured_row_count"] == 0
     assert reconciliation["secondary_override_blocked"] is True
     assert reconciliation["records"][0]["status"] == "missing_structured_corroboration"
-    assert "true_structured_corroboration_missing" in reconciliation["records"][0]["decision_reason"]
+    assert "primary_official_row_missing_true_structured_corroboration" in reconciliation["records"][0]["decision_reason"]
+    assert reconciliation["records"][0]["fail_closed_signals"]
+
+
+def test_runtime_bridge_reconciliation_keeps_distinct_primary_rows_by_value_timing_threshold_locator() -> None:
+    reconciliation = RailwayRuntimeBridge._reconcile_parameter_sources(
+        primary_facts=[
+            {
+                "field": "commercial_linkage_fee_rate_usd_per_sqft",
+                "land_use": "office",
+                "raw_land_use_label": "Office",
+                "subarea": None,
+                "threshold": ">=100,000 sq. ft.",
+                "payment_timing": "paid_before_building_permit_issuance",
+                "normalized_value": 14.31,
+                "source_locator": "reader_content:1:row-1",
+                "locator_quality": "chunk_locator_only",
+                "source_url": "https://example.org/clf",
+            },
+            {
+                "field": "commercial_linkage_fee_rate_usd_per_sqft",
+                "land_use": "office",
+                "raw_land_use_label": "Office",
+                "subarea": None,
+                "threshold": ">=100,000 sq. ft.",
+                "payment_timing": "paid_at_final_building_inspection",
+                "normalized_value": 17.89,
+                "source_locator": "reader_content:1:row-2",
+                "locator_quality": "chunk_locator_only",
+                "source_url": "https://example.org/clf",
+            },
+            {
+                "field": "commercial_linkage_fee_rate_usd_per_sqft",
+                "land_use": "office",
+                "raw_land_use_label": "Office",
+                "subarea": None,
+                "threshold": "<=50,000 sq. ft.",
+                "exemption_context": "no_fee_for_threshold:<=50,000 sq. ft.",
+                "normalized_value": 0.0,
+                "source_locator": "reader_content:1:row-3",
+                "locator_quality": "chunk_locator_only",
+                "source_url": "https://example.org/clf",
+            },
+        ],
+        secondary_facts=[
+            {
+                "field": "commercial_linkage_fee_rate_usd_per_sqft",
+                "land_use": "office",
+                "raw_land_use_label": "Office",
+                "subarea": None,
+                "threshold": ">=100,000 sq. ft.",
+                "payment_timing": "paid_before_building_permit_issuance",
+                "normalized_value": 14.31,
+                "source_family": "tavily_secondary_search",
+                "source_lane_classification": "secondary_search_derived",
+                "source_url": "https://secondary.example.org",
+            }
+        ],
+    )
+
+    records = reconciliation["records"]
+    primary_records = [item for item in records if item["source_of_truth"] == "primary_scraped_document"]
+    assert len(primary_records) == 3
+    assert {item["primary_value"] for item in primary_records} == {0.0, 14.31, 17.89}
+    assert {item["payment_timing"] for item in primary_records} == {
+        None,
+        "paid_before_building_permit_issuance",
+        "paid_at_final_building_inspection",
+    }
+    assert all(item["row_identity"] for item in primary_records)
+    assert all(item["fail_closed_signals"] for item in primary_records)
+    assert reconciliation["primary_official_row_count"] == 3
+    assert reconciliation["true_structured_row_count"] == 0
+    assert reconciliation["secondary_snippet_row_count"] == 1
+    assert reconciliation["secondary_override_blocked"] is True
 
 
 def test_runtime_bridge_build_policy_lineage_surfaces_matter_7526_attachment_refs() -> None:
@@ -1471,6 +1576,70 @@ def test_runtime_bridge_build_policy_lineage_surfaces_matter_7526_attachment_ref
         "nexus_study",
     }
     assert len(lineage["related_artifacts"]) == 2
+
+
+def test_runtime_bridge_policy_lineage_distinguishes_attachment_refs_vs_ingested_content() -> None:
+    lineage = RailwayRuntimeBridge._build_policy_lineage(
+        selected_url="https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee",
+        source_family="meeting_minutes",
+        candidate_audit=[
+            {
+                "url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee",
+                "outcome": "materialized_raw_scrape",
+                "fee_schedule_gate": {
+                    "classified_as_maintained_fee_schedule": True,
+                    "passed": True,
+                    "authoritative_policy_text_ok": False,
+                },
+            }
+        ],
+        structured_candidates=[
+            {
+                "source_family": "legistar_web_api",
+                "related_attachment_refs": [
+                    {
+                        "attachment_id": "301",
+                        "title": "Resolution No. 80069",
+                        "url": "https://sanjoseca.legistar.com/View.ashx?M=F&ID=8758120",
+                        "source_family": "resolution",
+                    }
+                ],
+                "attachment_content_probes": [
+                    {
+                        "attachment_id": "301",
+                        "title": "Resolution No. 80069",
+                        "url": "https://sanjoseca.legistar.com/View.ashx?M=F&ID=8758120",
+                        "source_family": "resolution",
+                        "status": "binary_pdf_unparsed",
+                        "content_ingested": False,
+                        "economic_row_count": 0,
+                    },
+                    {
+                        "attachment_id": "302",
+                        "title": "Commercial Linkage Memorandum",
+                        "url": "https://example.org/memo.txt",
+                        "source_family": "memorandum",
+                        "status": "ingested_excerpt",
+                        "content_ingested": True,
+                        "economic_row_count": 2,
+                        "excerpt": "Office fee is $14.31 per square foot.",
+                    },
+                ],
+            }
+        ],
+    )
+
+    assert lineage["selected_artifact_family"] == "maintained_fee_schedule"
+    assert lineage["lineage_presence"]["related_attachments"] is True
+    assert lineage["lineage_presence"]["attachment_content_ingested"] is True
+    assert lineage["lineage_presence"]["attachment_economic_rows"] is True
+    assert lineage["attachment_state"]["refs_present"] is True
+    assert lineage["attachment_state"]["content_ingested"] is True
+    assert lineage["attachment_state"]["economic_rows_available"] is True
+    assert lineage["attachment_state"]["attachment_ref_count"] == 1
+    assert lineage["attachment_state"]["attachment_probe_count"] == 2
+    assert lineage["attachment_state"]["attachment_ingested_count"] == 1
+    assert lineage["attachment_state"]["attachment_economic_row_count"] == 2
 
 
 def test_runtime_bridge_reconciliation_ignores_structured_diagnostic_counts() -> None:

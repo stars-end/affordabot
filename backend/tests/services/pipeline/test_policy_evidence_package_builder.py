@@ -381,12 +381,18 @@ def test_builder_marks_ambiguous_parameter_when_citation_sanity_fails() -> None:
             "land_use": "retail",
             "subarea": "downtown",
             "threshold": "<100,000 sq. ft.",
+            "payment_timing": "paid_before_building_permit_issuance",
+            "payment_reduction_context": "20% reduction applies when paid in full prior to permit issuance",
+            "payment_reduction_percent": 20.0,
+            "exemption_context": "no_fee_for_threshold:<100,000 sq. ft.",
+            "raw_land_use_label": "Downtown Office",
             "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120",
             "source_excerpt": "Commercial Linkage Fee table excerpt",
             "source_locator": "reader_content:1:fee_table_row",
             "table_locator": "commercial_linkage_fee_table",
             "page_locator": "p.7",
             "locator_quality": "table_row_chunk_locator",
+            "source_family": "official_page",
             "source_ref": "legistar::matter::7526::attachment::8758120",
             "policy_match_key": "legistar::matter::7526",
             "source_hierarchy_status": "bill_or_reg_text",
@@ -394,6 +400,7 @@ def test_builder_marks_ambiguous_parameter_when_citation_sanity_fails() -> None:
             "unit_sanity": "valid",
             "ambiguity_flag": True,
             "ambiguity_reason": "currency_format_anomaly",
+            "fail_closed_signals": ["locator_precision_insufficient_for_artifact_grade"],
             "effective_date": "2026-01-01",
             "adoption_date": "2025-12-08",
             "final_status": "adopted",
@@ -417,4 +424,10 @@ def test_builder_marks_ambiguous_parameter_when_citation_sanity_fails() -> None:
     assert "raw=$18.706.00" in cards[0]["source_excerpt"]
     assert "subarea=downtown" in cards[0]["source_excerpt"]
     assert "threshold=<100,000 sq. ft." in cards[0]["source_excerpt"]
+    assert "payment_timing=paid_before_building_permit_issuance" in cards[0]["source_excerpt"]
+    assert "payment_reduction_percent=20.00" in cards[0]["source_excerpt"]
+    assert "exemption_context=no_fee_for_threshold:<100,000 sq. ft." in cards[0]["source_excerpt"]
+    assert "raw_land_use_label=Downtown Office" in cards[0]["source_excerpt"]
+    assert "source_family=official_page" in cards[0]["source_excerpt"]
     assert "locator_quality=table_row_chunk_locator" in cards[0]["source_excerpt"]
+    assert "fail_closed_signals=locator_precision_insufficient_for_artifact_grade" in cards[0]["source_excerpt"]

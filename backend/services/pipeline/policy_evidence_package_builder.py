@@ -338,17 +338,24 @@ def _build_parameter_cards(candidate: dict[str, Any], evidence_id: str) -> list[
         land_use = str(fact.get("land_use") or "").strip()
         subarea = str(fact.get("subarea") or "").strip()
         geography = str(fact.get("geography") or "").strip()
+        raw_land_use_label = str(fact.get("raw_land_use_label") or "").strip()
         effective_date = str(fact.get("effective_date") or "").strip()
         adoption_date = str(fact.get("adoption_date") or "").strip()
         final_status = str(fact.get("final_status") or "").strip()
         threshold = str(fact.get("threshold") or "").strip()
+        payment_timing = str(fact.get("payment_timing") or "").strip()
+        payment_reduction_context = str(fact.get("payment_reduction_context") or "").strip()
+        payment_reduction_percent = fact.get("payment_reduction_percent")
+        exemption_context = str(fact.get("exemption_context") or "").strip()
         source_locator = str(fact.get("source_locator") or "").strip()
         table_locator = str(fact.get("table_locator") or "").strip()
         page_locator = str(fact.get("page_locator") or "").strip()
         locator_quality = str(fact.get("locator_quality") or "").strip()
         source_ref = str(fact.get("source_ref") or "").strip()
+        source_family = str(fact.get("source_family") or candidate.get("source_family") or "").strip()
         policy_match_key = str(fact.get("policy_match_key") or "").strip()
         confidence = fact.get("confidence")
+        fail_closed_signals = [str(signal) for signal in _as_list(fact.get("fail_closed_signals")) if str(signal)]
         citation_parts: list[str] = []
         if raw_token:
             citation_parts.append(f"raw={raw_token}")
@@ -366,8 +373,18 @@ def _build_parameter_cards(candidate: dict[str, Any], evidence_id: str) -> list[
             citation_parts.append(f"subarea={subarea}")
         if geography:
             citation_parts.append(f"geography={geography}")
+        if raw_land_use_label:
+            citation_parts.append(f"raw_land_use_label={raw_land_use_label}")
         if threshold:
             citation_parts.append(f"threshold={threshold}")
+        if payment_timing:
+            citation_parts.append(f"payment_timing={payment_timing}")
+        if payment_reduction_context:
+            citation_parts.append(f"payment_reduction_context={payment_reduction_context}")
+        if isinstance(payment_reduction_percent, (int, float)):
+            citation_parts.append(f"payment_reduction_percent={float(payment_reduction_percent):.2f}")
+        if exemption_context:
+            citation_parts.append(f"exemption_context={exemption_context}")
         if effective_date:
             citation_parts.append(f"effective_date={effective_date}")
         if adoption_date:
@@ -384,8 +401,12 @@ def _build_parameter_cards(candidate: dict[str, Any], evidence_id: str) -> list[
             citation_parts.append(f"locator_quality={locator_quality}")
         if source_ref:
             citation_parts.append(f"source_ref={source_ref}")
+        if source_family:
+            citation_parts.append(f"source_family={source_family}")
         if policy_match_key:
             citation_parts.append(f"policy_match_key={policy_match_key}")
+        if fail_closed_signals:
+            citation_parts.append(f"fail_closed_signals={','.join(fail_closed_signals)}")
         if isinstance(confidence, (int, float)):
             citation_parts.append(f"confidence={float(confidence):.2f}")
         source_excerpt = excerpt_base

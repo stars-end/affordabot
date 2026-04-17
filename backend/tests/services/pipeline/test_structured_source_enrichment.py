@@ -163,6 +163,7 @@ def test_classify_legistar_attachment_source_family() -> None:
     assert classify(attachment_name="Resolution No. 80069", attachment_url="") == "resolution"
     assert classify(attachment_name="Ordinance 30710", attachment_url="") == "ordinance"
     assert classify(attachment_name="Staff Report - Housing Department", attachment_url="") == "staff_report"
+    assert classify(attachment_name="Housing Department Memorandum", attachment_url="") == "memorandum"
     assert classify(attachment_name="Commercial Linkage Fee Study", attachment_url="") == "fee_study"
     assert classify(attachment_name="Nexus Study Appendix", attachment_url="") == "nexus_study"
     assert classify(attachment_name="City Council Minutes", attachment_url="") == "agenda/minutes"
@@ -268,6 +269,89 @@ def test_legistar_matter_metadata_includes_provenance_and_non_id_facts() -> None
         }
     ]
     assert candidate["lineage_metadata"]["related_attachment_refs"] == candidate["related_attachment_refs"]
+
+
+def test_legistar_matter_metadata_attachment_probe_marks_ingested_and_not_ingested() -> None:
+    enricher = StructuredSourceEnricher()
+
+    class _Response:
+        def __init__(
+            self,
+            payload: Any | None = None,
+            *,
+            headers: dict[str, str] | None = None,
+            content: bytes | None = None,
+        ) -> None:
+            self._payload = payload
+            self.headers = headers or {}
+            if content is not None:
+                self.content = content
+            elif payload is not None:
+                self.content = str(payload).encode("utf-8")
+            else:
+                self.content = b""
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> Any:
+            return self._payload
+
+    class _Client:
+        async def get(self, endpoint: str, params: dict[str, str] | None = None) -> _Response:
+            _ = params
+            if endpoint.endswith("/Matters/14575"):
+                return _Response(
+                    {
+                        "MatterId": 14575,
+                        "MatterTitle": "Commercial Linkage Fee Update",
+                        "MatterInSiteURL": "https://sanjoseca.legistar.com/LegislationDetail.aspx?ID=14575",
+                    }
+                )
+            if endpoint.endswith("/Matters/14575/Attachments"):
+                return _Response(
+                    [
+                        {
+                            "MatterAttachmentId": 123,
+                            "MatterAttachmentName": "Resolution No. 80069",
+                            "MatterAttachmentHyperlink": (
+                                "https://sanjoseca.legistar.com/View.ashx?M=F&ID=9988776"
+                            ),
+                        },
+                        {
+                            "MatterAttachmentId": 124,
+                            "MatterAttachmentName": "Housing Department Memorandum",
+                            "MatterAttachmentHyperlink": "https://example.org/memorandum.txt",
+                        },
+                    ]
+                )
+            if endpoint == "https://sanjoseca.legistar.com/View.ashx?M=F&ID=9988776":
+                return _Response(headers={"content-type": "application/pdf"}, content=b"%PDF-1.7 fake")
+            if endpoint == "https://example.org/memorandum.txt":
+                return _Response(
+                    headers={"content-type": "text/plain; charset=utf-8"},
+                    content=(
+                        b"Commercial Linkage Fee memorandum. Office projects pay $14.31 per square foot. "
+                        b"Industrial projects pay $3.58 per square foot."
+                    ),
+                )
+            raise AssertionError(f"unexpected endpoint: {endpoint}")
+
+    candidate = asyncio.run(
+        enricher._fetch_legistar_matter_metadata(
+            client=_Client(),
+            selected_url="https://sanjoseca.legistar.com/gateway.aspx?M=L&ID=14575",
+            search_query="commercial linkage fee san jose",
+            selected_candidate_context="",
+        )
+    )
+    assert candidate is not None
+    probes = candidate["attachment_content_probes"]
+    assert len(probes) == 2
+    by_family = {probe["source_family"]: probe for probe in probes}
+    assert by_family["resolution"]["content_ingested"] is False
+    assert by_family["memorandum"]["content_ingested"] is True
+    assert by_family["memorandum"]["economic_row_count"] >= 1
 
 
 def test_legistar_matter_metadata_resolves_view_attachment_via_context_search_fallback() -> None:

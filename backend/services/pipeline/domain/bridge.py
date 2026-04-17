@@ -88,6 +88,16 @@ STEP_NUMBER_BY_COMMAND = {
 READ_FETCH_MAX_CANDIDATES = 5
 ANALYZE_CANDIDATE_CHUNK_LIMIT = 250
 ANALYZE_SELECTED_CHUNK_LIMIT = 20
+_ECONOMIC_SELECTION_QUERY_SIGNALS = (
+    "commercial linkage",
+    "impact fee",
+    "fee schedule",
+    "fees",
+    "rates",
+    "per square foot",
+    "per sq ft",
+    "nexus",
+)
 
 
 def _utc_now() -> datetime:
@@ -496,6 +506,157 @@ class RailwayRuntimeBridge:
         return "external_page"
 
     @staticmethod
+    def _selected_candidate_audit_entry(
+        *,
+        candidate_audit: list[dict[str, Any]],
+        selected_url: str,
+    ) -> dict[str, Any] | None:
+        for item in candidate_audit:
+            if str(item.get("url") or "").strip() == selected_url:
+                return item
+        return None
+
+    @staticmethod
+    def _is_economic_selection_query(query_text: str) -> bool:
+        lowered = str(query_text or "").strip().lower()
+        if not lowered:
+            return False
+        return any(signal in lowered for signal in _ECONOMIC_SELECTION_QUERY_SIGNALS)
+
+    @classmethod
+    def _prioritize_artifact_candidates_for_fetch(
+        cls,
+        *,
+        ranked_candidates: list[dict[str, Any]],
+        query_text: str,
+    ) -> list[dict[str, Any]]:
+        if not ranked_candidates:
+            return ranked_candidates
+        if not cls._is_economic_selection_query(query_text):
+            return ranked_candidates
+        has_artifact = any(
+            _is_concrete_artifact_url(str(item.get("url") or ""))
+            for item in ranked_candidates
+        )
+        has_official_page = any(
+            cls._is_official_domain_url(str(item.get("url") or ""))
+            and not _is_concrete_artifact_url(str(item.get("url") or ""))
+            for item in ranked_candidates
+        )
+        if not has_artifact or not has_official_page:
+            return ranked_candidates
+
+        artifact_candidates = [
+            item for item in ranked_candidates if _is_concrete_artifact_url(str(item.get("url") or ""))
+        ]
+        non_artifact_candidates = [
+            item for item in ranked_candidates if not _is_concrete_artifact_url(str(item.get("url") or ""))
+        ]
+        return [*artifact_candidates, *non_artifact_candidates]
+
+    @classmethod
+    def _evaluate_maintained_fee_schedule_gate(
+        cls,
+        *,
+        url: str,
+        title: str,
+        snippet: str,
+        markdown_body: str,
+    ) -> dict[str, Any]:
+        normalized_url = str(url or "").strip()
+        if not normalized_url:
+            return {
+                "classified_as_maintained_fee_schedule": False,
+                "passed": False,
+                "reason": "missing_url",
+                "authoritative_policy_text_ok": False,
+            }
+        if _is_concrete_artifact_url(normalized_url):
+            return {
+                "classified_as_maintained_fee_schedule": False,
+                "passed": False,
+                "reason": "concrete_artifact_url",
+                "authoritative_policy_text_ok": False,
+            }
+        if not cls._is_official_domain_url(normalized_url):
+            return {
+                "classified_as_maintained_fee_schedule": False,
+                "passed": False,
+                "reason": "non_official_domain",
+                "authoritative_policy_text_ok": False,
+            }
+
+        combined = " ".join(
+            part.strip().lower()
+            for part in (normalized_url, title, snippet, markdown_body[:3000])
+            if part and part.strip()
+        )
+        classification_signals = (
+            "commercial linkage fee",
+            "impact fee",
+            "fee schedule",
+            "fees and rates",
+            "per square foot",
+            "per sq ft",
+            "nexus study",
+        )
+        classified = any(signal in combined for signal in classification_signals)
+        if not classified:
+            return {
+                "classified_as_maintained_fee_schedule": False,
+                "passed": False,
+                "reason": "missing_fee_schedule_signals",
+                "authoritative_policy_text_ok": False,
+            }
+
+        currency_values = re.findall(r"\$[0-9]+(?:\.[0-9]{1,2})?", markdown_body)
+        has_unit_signal = any(
+            signal in combined for signal in ("per square foot", "per sq ft", "sq.ft", "sq ft")
+        )
+        has_current_context = bool(
+            re.search(r"\b(20[2-4][0-9])\b", markdown_body)
+            and re.search(r"\b(effective|updated|as of|adopted|current)\b", combined)
+        )
+        has_fee_table_substance = len(currency_values) >= 2 and has_unit_signal
+        passed = has_fee_table_substance and has_current_context
+        return {
+            "classified_as_maintained_fee_schedule": True,
+            "passed": passed,
+            "reason": "passed" if passed else "insufficient_fee_table_substance_or_freshness",
+            "currency_value_count": len(currency_values),
+            "has_unit_signal": has_unit_signal,
+            "has_current_context": has_current_context,
+            # Fail-closed default: this page class does not imply authoritative policy text.
+            "authoritative_policy_text_ok": False,
+        }
+
+    @classmethod
+    def _candidate_artifact_family_from_audit_entry(
+        cls,
+        *,
+        url: str,
+        audit_entry: dict[str, Any] | None,
+    ) -> str:
+        normalized = str(url or "").strip()
+        if not normalized:
+            return "missing"
+        if _is_concrete_artifact_url(normalized):
+            return "artifact"
+        if prefetch_skip_reason(normalized):
+            return "portal"
+        if cls._is_official_domain_url(normalized):
+            if isinstance(audit_entry, dict):
+                fee_schedule_gate = audit_entry.get("fee_schedule_gate")
+                if (
+                    isinstance(fee_schedule_gate, dict)
+                    and bool(fee_schedule_gate.get("classified_as_maintained_fee_schedule"))
+                    and bool(fee_schedule_gate.get("passed"))
+                ):
+                    return "maintained_fee_schedule"
+            return "official_page"
+        return "external_page"
+
+    @staticmethod
     def _selection_reason_from_audit(candidate_audit: list[dict[str, Any]], selected_url: str) -> str:
         for item in candidate_audit:
             if str(item.get("url") or "").strip() != selected_url:
@@ -549,7 +710,46 @@ class RailwayRuntimeBridge:
                 if str(item.get("url") or "").strip() == selected_url:
                     selected_rank = item.get("rank")
                     break
-        selected_artifact_family = cls._classify_selected_artifact_family(selected_url)
+        selected_audit_entry = cls._selected_candidate_audit_entry(
+            candidate_audit=candidate_audit,
+            selected_url=selected_url,
+        )
+        selected_artifact_family = cls._candidate_artifact_family_from_audit_entry(
+            url=selected_url,
+            audit_entry=selected_audit_entry,
+        )
+        artifact_candidates = [
+            item for item in candidate_pool if _is_concrete_artifact_url(str(item.get("url") or ""))
+        ]
+        substantive_artifact_urls = sorted(
+            {
+                str(item.get("url") or "").strip()
+                for item in candidate_audit
+                if str(item.get("outcome") or "").strip() in {"materialized_raw_scrape", "reused_existing_raw_scrape"}
+                and _is_concrete_artifact_url(str(item.get("url") or ""))
+            }
+        )
+        fee_schedule_gate = (
+            selected_audit_entry.get("fee_schedule_gate")
+            if isinstance(selected_audit_entry, dict)
+            and isinstance(selected_audit_entry.get("fee_schedule_gate"), dict)
+            else {}
+        )
+        selected_quality_gate_passed = selected_artifact_family == "artifact" or (
+            selected_artifact_family == "maintained_fee_schedule" and bool(fee_schedule_gate.get("passed"))
+        )
+        if selected_artifact_family != "artifact" and substantive_artifact_urls:
+            artifact_quality_gate_status = "fail"
+            artifact_quality_gate_reason = "artifact_candidates_present_but_non_artifact_selected"
+        elif selected_artifact_family == "maintained_fee_schedule" and bool(fee_schedule_gate.get("passed")):
+            artifact_quality_gate_status = "pass"
+            artifact_quality_gate_reason = "maintained_fee_schedule_exception_no_artifact_quality_pass"
+        elif substantive_artifact_urls:
+            artifact_quality_gate_status = "pass"
+            artifact_quality_gate_reason = "artifact_candidate_passed_quality_gate"
+        else:
+            artifact_quality_gate_status = "pass"
+            artifact_quality_gate_reason = "no_artifact_candidate_passed_quality_gate"
         selected_candidate = {
             "url": selected_url,
             "provider": search_provider,
@@ -558,6 +758,8 @@ class RailwayRuntimeBridge:
             "artifact_grade": selected_artifact_family == "artifact",
             "official_domain": cls._is_official_domain_url(selected_url),
             "artifact_family": selected_artifact_family,
+            "artifact_quality_gate_passed": selected_quality_gate_passed,
+            "fee_schedule_gate": fee_schedule_gate,
         }
         selected_outcome = cls._selection_reason_from_audit(candidate_audit, selected_url)
         reader_substance_observed = selected_outcome in {
@@ -614,6 +816,13 @@ class RailwayRuntimeBridge:
             "top_n_artifact_recall_count": artifact_recall,
             "selected_candidate": selected_candidate,
             "selected_artifact_family": selected_artifact_family,
+            "artifact_quality_gate_status": artifact_quality_gate_status,
+            "artifact_quality_gate_reason": artifact_quality_gate_reason,
+            "artifact_quality_gate": {
+                "artifact_candidate_count": len(artifact_candidates),
+                "artifact_candidate_substantive_count": len(substantive_artifact_urls),
+                "substantive_artifact_urls": substantive_artifact_urls,
+            },
             "reader_substance_observed": reader_substance_observed,
             "reader_substance_selection_outcome": selected_outcome,
             "secondary_numeric_rescue_detected": secondary_lane_used
@@ -773,9 +982,71 @@ class RailwayRuntimeBridge:
                 effective_date = matches[0].group(0)
             return effective_date, adoption_date
 
+        def _extract_payment_context(
+            *,
+            raw_token: str,
+            threshold: str | None,
+            context_excerpt: str,
+        ) -> tuple[str | None, str | None, float | None, str | None]:
+            lowered = context_excerpt.lower()
+            payment_timing: str | None = None
+            if "prior to the building permit issuance" in lowered or "prior to building permit issuance" in lowered:
+                payment_timing = "paid_before_building_permit_issuance"
+            elif "scheduling of final building inspection" in lowered or "final building inspection" in lowered:
+                payment_timing = "paid_at_final_building_inspection"
+            elif "paid in full" in lowered:
+                payment_timing = "paid_in_full_timing_unspecified"
+
+            payment_reduction_percent: float | None = None
+            payment_reduction_context: str | None = None
+            reduction_match = re.search(
+                r"(?P<pct>[0-9]{1,3}(?:\.[0-9]+)?)\s*%\s*reduction",
+                context_excerpt,
+                flags=re.IGNORECASE,
+            )
+            if reduction_match:
+                payment_reduction_percent = float(reduction_match.group("pct"))
+                sentence_start = max(
+                    context_excerpt.rfind(".", 0, reduction_match.start()),
+                    context_excerpt.rfind("\n", 0, reduction_match.start()),
+                )
+                sentence_end_candidates = [
+                    pos
+                    for pos in (
+                        context_excerpt.find(".", reduction_match.end()),
+                        context_excerpt.find("\n", reduction_match.end()),
+                    )
+                    if pos != -1
+                ]
+                sentence_start = sentence_start + 1 if sentence_start != -1 else 0
+                sentence_end = min(sentence_end_candidates) if sentence_end_candidates else len(context_excerpt)
+                payment_reduction_context = " ".join(context_excerpt[sentence_start:sentence_end].split()) or None
+
+            exemption_context: str | None = None
+            if re.match(r"no\s+fee", raw_token, flags=re.IGNORECASE):
+                if threshold:
+                    exemption_context = f"no_fee_for_threshold:{threshold}"
+                else:
+                    exemption_match = re.search(
+                        r"no\s+fee[^.;\n]*",
+                        context_excerpt,
+                        flags=re.IGNORECASE,
+                    )
+                    if exemption_match:
+                        exemption_context = " ".join(exemption_match.group(0).split()) or None
+                    else:
+                        exemption_context = "no_fee"
+
+            return (
+                payment_timing,
+                payment_reduction_context,
+                payment_reduction_percent,
+                exemption_context,
+            )
+
         facts: list[dict[str, Any]] = []
         alerts: list[str] = []
-        seen: set[tuple[str, str, str, str]] = set()
+        seen: set[tuple[str, str, str, str, str, str, str]] = set()
         fee_row_pattern = re.compile(
             r"(?P<category>Downtown\s+Office|Rest\s+of\s+City\s+Office|Office|Retail|Hotel|"
             r"Industrial/Research\s+and\s+Development|Warehouse|Residential\s+Care)"
@@ -800,6 +1071,16 @@ class RailwayRuntimeBridge:
                 context_start = max(0, row_match.start() - 120)
                 context_end = min(len(text), row_match.end() + 120)
                 context_excerpt = " ".join(text[context_start:context_end].split())
+                (
+                    payment_timing,
+                    payment_reduction_context,
+                    payment_reduction_percent,
+                    exemption_context,
+                ) = _extract_payment_context(
+                    raw_token=raw_token,
+                    threshold=threshold,
+                    context_excerpt=context_excerpt,
+                )
                 if re.match(r"no\s+fee", raw_token, flags=re.IGNORECASE):
                     value: float | None = 0.0
                     normalized_raw = "$0"
@@ -825,6 +1106,9 @@ class RailwayRuntimeBridge:
                     dedupe_value,
                     land_use,
                     threshold or "",
+                    payment_timing or "",
+                    payment_reduction_context or "",
+                    exemption_context or "",
                 )
                 if dedupe_key in seen:
                     continue
@@ -843,6 +1127,10 @@ class RailwayRuntimeBridge:
                         "subarea": subarea,
                         "geography": geography,
                         "threshold": threshold,
+                        "payment_timing": payment_timing,
+                        "payment_reduction_context": payment_reduction_context,
+                        "payment_reduction_percent": payment_reduction_percent,
+                        "exemption_context": exemption_context,
                         "source_url": selected_url,
                         "source_ref": selected_url,
                         "source_excerpt": context_excerpt[:600],
@@ -863,6 +1151,88 @@ class RailwayRuntimeBridge:
                         "final_status": final_status,
                     }
                 )
+                tail_window = text[row_match.end() : min(len(text), row_match.end() + 180)]
+                for extra_match in re.finditer(
+                    r"(?P<raw>\$[0-9]+(?:\.[0-9]+){2,}|\$[0-9]+(?:\.[0-9]{1,2})?)\s*(?P<context>when\s+paid[^.;\n]*)",
+                    tail_window,
+                    flags=re.IGNORECASE,
+                ):
+                    extra_raw = extra_match.group("raw")
+                    extra_excerpt = " ".join(f"{raw_category} {extra_match.group(0)}".split())
+                    (
+                        extra_payment_timing,
+                        extra_reduction_context,
+                        extra_reduction_percent,
+                        extra_exemption_context,
+                    ) = _extract_payment_context(
+                        raw_token=extra_raw,
+                        threshold=threshold,
+                        context_excerpt=extra_excerpt,
+                    )
+                    if re.fullmatch(r"\$[0-9]+(?:\.[0-9]+){2,}", extra_raw):
+                        alerts.append("primary_parameter_money_format_anomaly")
+                        extra_value: float | None = None
+                        extra_ambiguity = True
+                        extra_ambiguity_reason = "currency_format_anomaly"
+                        extra_confidence = 0.35
+                    else:
+                        extra_value = float(extra_raw.replace("$", ""))
+                        extra_ambiguity = False
+                        extra_ambiguity_reason = None
+                        extra_confidence = 0.86
+                    extra_value_token = (
+                        f"{extra_value:.6f}" if extra_value is not None else extra_raw
+                    )
+                    extra_key = (
+                        "commercial_linkage_fee_rate_usd_per_sqft",
+                        extra_value_token,
+                        land_use,
+                        threshold or "",
+                        extra_payment_timing or "",
+                        extra_reduction_context or "",
+                        extra_exemption_context or "",
+                    )
+                    if extra_key in seen:
+                        continue
+                    seen.add(extra_key)
+                    facts.append(
+                        {
+                            "field": "commercial_linkage_fee_rate_usd_per_sqft",
+                            "raw_value": extra_raw,
+                            "value": extra_value,
+                            "normalized_value": extra_value,
+                            "unit": "usd_per_square_foot",
+                            "denominator": "per_square_foot",
+                            "category": land_use,
+                            "land_use": land_use,
+                            "raw_land_use_label": raw_category,
+                            "subarea": subarea,
+                            "geography": geography,
+                            "threshold": threshold,
+                            "payment_timing": extra_payment_timing,
+                            "payment_reduction_context": extra_reduction_context,
+                            "payment_reduction_percent": extra_reduction_percent,
+                            "exemption_context": extra_exemption_context,
+                            "source_url": selected_url,
+                            "source_ref": selected_url,
+                            "source_excerpt": extra_excerpt[:600],
+                            "source_locator": f"{source_locator_prefix}:{chunk_index}:fee_table_row",
+                            "chunk_locator": f"{source_locator_prefix}:{chunk_index}",
+                            "table_locator": "commercial_linkage_fee_table",
+                            "page_locator": None,
+                            "locator_quality": "table_row_chunk_locator",
+                            "provenance_lane": "primary_scraped_document",
+                            "source_hierarchy_status": "bill_or_reg_text",
+                            "confidence": extra_confidence,
+                            "ambiguity_flag": extra_ambiguity,
+                            "ambiguity_reason": extra_ambiguity_reason,
+                            "currency_sanity": "invalid" if extra_ambiguity else "valid",
+                            "unit_sanity": "valid",
+                            "effective_date": effective_date_hint,
+                            "adoption_date": adoption_date_hint,
+                            "final_status": final_status,
+                        }
+                    )
             if row_match_found:
                 continue
             if re.search(r"\$[0-9]+(?:\.[0-9]+){2,}", text):
@@ -882,6 +1252,10 @@ class RailwayRuntimeBridge:
                             "subarea": None,
                             "geography": None,
                             "threshold": None,
+                            "payment_timing": None,
+                            "payment_reduction_context": None,
+                            "payment_reduction_percent": None,
+                            "exemption_context": None,
                             "source_url": selected_url,
                             "source_ref": selected_url,
                             "source_excerpt": text[:600],
@@ -943,11 +1317,24 @@ class RailwayRuntimeBridge:
                     category = "hotel"
                 elif "industrial" in context_window:
                     category = "industrial"
+                (
+                    payment_timing,
+                    payment_reduction_context,
+                    payment_reduction_percent,
+                    exemption_context,
+                ) = _extract_payment_context(
+                    raw_token=raw_token,
+                    threshold=None,
+                    context_excerpt=local_excerpt or context_excerpt,
+                )
                 dedupe_key = (
                     "commercial_linkage_fee_rate_usd_per_sqft",
                     f"{value:.6f}",
                     category,
                     "",
+                    payment_timing or "",
+                    payment_reduction_context or "",
+                    exemption_context or "",
                 )
                 if dedupe_key in seen:
                     continue
@@ -966,6 +1353,10 @@ class RailwayRuntimeBridge:
                         "subarea": None,
                         "geography": None,
                         "threshold": None,
+                        "payment_timing": payment_timing,
+                        "payment_reduction_context": payment_reduction_context,
+                        "payment_reduction_percent": payment_reduction_percent,
+                        "exemption_context": exemption_context,
                         "source_url": selected_url,
                         "source_ref": selected_url,
                         "source_excerpt": (local_excerpt or context_excerpt)[:600],
@@ -1007,7 +1398,7 @@ class RailwayRuntimeBridge:
         *fact_groups: list[dict[str, Any]],
     ) -> list[dict[str, Any]]:
         merged: list[dict[str, Any]] = []
-        seen: set[tuple[str, str, str, str, str, str]] = set()
+        seen: set[tuple[str, str, str, str, str, str, str, str, str]] = set()
         categorized_ambiguous_raws = {
             (
                 str(fact.get("field") or ""),
@@ -1038,6 +1429,9 @@ class RailwayRuntimeBridge:
                     str(fact.get("land_use") or fact.get("category") or ""),
                     str(fact.get("subarea") or ""),
                     str(fact.get("threshold") or ""),
+                    str(fact.get("payment_timing") or ""),
+                    str(fact.get("payment_reduction_context") or ""),
+                    str(fact.get("exemption_context") or ""),
                     str(fact.get("source_url") or ""),
                 )
                 if key in seen:
@@ -1075,14 +1469,30 @@ class RailwayRuntimeBridge:
         candidate_audit: list[dict[str, Any]],
         structured_candidates: list[dict[str, Any]],
     ) -> dict[str, Any]:
-        selected_family = cls._classify_selected_artifact_family(selected_url)
+        selected_audit_entry = cls._selected_candidate_audit_entry(
+            candidate_audit=candidate_audit,
+            selected_url=selected_url,
+        )
+        selected_family = cls._candidate_artifact_family_from_audit_entry(
+            url=selected_url,
+            audit_entry=selected_audit_entry,
+        )
         expected_source_families = [
             "authoritative_policy_text",
             "meeting_context",
             "staff_fiscal_context",
             "related_attachments",
+            "attachment_content_ingested",
+            "attachment_economic_rows",
         ]
-        has_authoritative_text = selected_family == "artifact"
+        fee_schedule_authoritative_policy_text = False
+        if isinstance(selected_audit_entry, dict):
+            fee_schedule_gate = selected_audit_entry.get("fee_schedule_gate")
+            if isinstance(fee_schedule_gate, dict):
+                fee_schedule_authoritative_policy_text = bool(
+                    fee_schedule_gate.get("authoritative_policy_text_ok")
+                )
+        has_authoritative_text = selected_family == "artifact" or fee_schedule_authoritative_policy_text
         has_meeting_context = "meeting" in source_family.lower() or any(
             isinstance(item, dict)
             and (
@@ -1113,6 +1523,8 @@ class RailwayRuntimeBridge:
 
         related_attachment_refs: list[dict[str, Any]] = []
         seen_attachment_refs: set[tuple[str, str, str]] = set()
+        attachment_content_probes: list[dict[str, Any]] = []
+        seen_probe_keys: set[tuple[str, str, str]] = set()
         for candidate in structured_candidates:
             if not isinstance(candidate, dict):
                 continue
@@ -1174,13 +1586,47 @@ class RailwayRuntimeBridge:
                         }
                     )
 
+            raw_probes = candidate.get("attachment_content_probes")
+            if isinstance(raw_probes, list):
+                for probe in raw_probes:
+                    if not isinstance(probe, dict):
+                        continue
+                    probe_id = str(probe.get("attachment_id") or "").strip()
+                    probe_title = str(probe.get("title") or "").strip()
+                    probe_url = str(probe.get("url") or "").strip()
+                    probe_key = (probe_id, probe_title.lower(), probe_url)
+                    if probe_key in seen_probe_keys:
+                        continue
+                    seen_probe_keys.add(probe_key)
+                    attachment_content_probes.append(
+                        {
+                            "attachment_id": probe_id or None,
+                            "title": probe_title or None,
+                            "url": probe_url or None,
+                            "source_family": str(probe.get("source_family") or "unknown").strip() or "unknown",
+                            "status": str(probe.get("status") or "").strip() or "unknown",
+                            "content_ingested": bool(probe.get("content_ingested")),
+                            "economic_row_count": int(probe.get("economic_row_count") or 0),
+                            "excerpt": str(probe.get("excerpt") or "").strip()[:400],
+                        }
+                    )
+
         has_related_artifacts = bool(related_artifacts) or bool(related_attachment_refs)
+        attachment_refs_present = bool(related_attachment_refs)
+        attachment_content_ingested = any(
+            bool(item.get("content_ingested")) for item in attachment_content_probes
+        )
+        attachment_economic_rows_available = any(
+            int(item.get("economic_row_count") or 0) > 0 for item in attachment_content_probes
+        )
 
         found_flags = {
             "authoritative_policy_text": has_authoritative_text,
             "meeting_context": has_meeting_context,
             "staff_fiscal_context": has_staff_fiscal_context,
             "related_attachments": has_related_artifacts,
+            "attachment_content_ingested": attachment_content_ingested,
+            "attachment_economic_rows": attachment_economic_rows_available,
         }
         negative_evidence = [
             {
@@ -1203,6 +1649,20 @@ class RailwayRuntimeBridge:
                     for ref in related_attachment_refs
                 }
             ),
+            "attachment_state": {
+                "refs_present": attachment_refs_present,
+                "content_ingested": attachment_content_ingested,
+                "economic_rows_available": attachment_economic_rows_available,
+                "attachment_ref_count": len(related_attachment_refs),
+                "attachment_probe_count": len(attachment_content_probes),
+                "attachment_ingested_count": sum(
+                    1 for item in attachment_content_probes if bool(item.get("content_ingested"))
+                ),
+                "attachment_economic_row_count": sum(
+                    int(item.get("economic_row_count") or 0) for item in attachment_content_probes
+                ),
+            },
+            "attachment_content_probes": attachment_content_probes[:25],
             "negative_evidence": negative_evidence,
             "lineage_completeness_score": sum(1 for found in found_flags.values() if found) / len(found_flags),
         }
@@ -1263,6 +1723,13 @@ class RailwayRuntimeBridge:
                         "subarea": str(fact.get("subarea") or "").strip() or None,
                         "geography": str(fact.get("geography") or "").strip() or None,
                         "threshold": str(fact.get("threshold") or "").strip() or None,
+                        "payment_timing": str(fact.get("payment_timing") or "").strip() or None,
+                        "payment_reduction_context": str(fact.get("payment_reduction_context") or "").strip() or None,
+                        "payment_reduction_percent": float(fact.get("payment_reduction_percent"))
+                        if isinstance(fact.get("payment_reduction_percent"), (int, float))
+                        else None,
+                        "exemption_context": str(fact.get("exemption_context") or "").strip() or None,
+                        "raw_land_use_label": str(fact.get("raw_land_use_label") or "").strip() or None,
                         "effective_date": str(fact.get("effective_date") or "").strip() or None,
                         "adoption_date": str(fact.get("adoption_date") or "").strip() or None,
                         "final_status": str(fact.get("final_status") or "").strip() or "unknown",
@@ -1310,12 +1777,71 @@ class RailwayRuntimeBridge:
         return None
 
     @staticmethod
-    def _economic_row_key(fact: dict[str, Any]) -> tuple[str, str, str, str]:
+    def _value_token_for_row(fact: dict[str, Any]) -> str:
+        normalized_value = RailwayRuntimeBridge._to_float(fact.get("normalized_value", fact.get("value")))
+        if normalized_value is not None:
+            return f"{normalized_value:.6f}"
+        return str(fact.get("raw_value") or "").strip()
+
+    @classmethod
+    def _economic_row_key(
+        cls,
+        fact: dict[str, Any],
+    ) -> tuple[str, str, str, str, str, str, str, str, str]:
         return (
             str(fact.get("field") or "unknown_parameter").strip(),
             str(fact.get("land_use") or fact.get("category") or "unknown").strip(),
             str(fact.get("subarea") or "").strip(),
             str(fact.get("threshold") or "").strip(),
+            str(fact.get("payment_timing") or "").strip(),
+            str(fact.get("payment_reduction_context") or "").strip(),
+            str(fact.get("exemption_context") or "").strip(),
+            str(fact.get("raw_land_use_label") or "").strip(),
+            cls._value_token_for_row(fact),
+        )
+
+    @staticmethod
+    def _economic_row_identity(fact: dict[str, Any]) -> tuple[str, ...]:
+        row_key = RailwayRuntimeBridge._economic_row_key(fact)
+        return (
+            *row_key,
+            str(fact.get("source_locator") or "").strip(),
+            str(fact.get("source_family") or "").strip(),
+            str(fact.get("source_url") or "").strip(),
+            str(fact.get("source_lane_classification") or "").strip(),
+        )
+
+    @staticmethod
+    def _locator_fail_closed_signals(fact: dict[str, Any]) -> list[str]:
+        locator_quality = str(fact.get("locator_quality") or "").strip() or "locator_not_available"
+        has_table_locator = bool(str(fact.get("table_locator") or "").strip())
+        has_chunk_locator = bool(str(fact.get("chunk_locator") or "").strip())
+        has_page_locator = bool(str(fact.get("page_locator") or "").strip())
+        signals: list[str] = []
+        if locator_quality in {"chunk_locator_only", "page_locator_only", "locator_not_available"}:
+            signals.append("locator_precision_insufficient_for_artifact_grade")
+        if locator_quality == "chunk_locator_only" and not has_table_locator:
+            signals.append("chunk_locator_only_requires_table_or_artifact_locator")
+        if has_page_locator and not has_table_locator:
+            signals.append("page_locator_only_requires_table_or_artifact_locator")
+        if not has_chunk_locator and not has_table_locator and not has_page_locator:
+            signals.append("missing_source_locator_requires_manual_trace")
+        return signals
+
+    @staticmethod
+    def _sort_row_key(fact: dict[str, Any]) -> tuple[str, ...]:
+        return (
+            str(fact.get("field") or "").strip(),
+            str(fact.get("land_use") or fact.get("category") or "").strip(),
+            str(fact.get("subarea") or "").strip(),
+            str(fact.get("threshold") or "").strip(),
+            str(fact.get("payment_timing") or "").strip(),
+            str(fact.get("payment_reduction_context") or "").strip(),
+            str(fact.get("exemption_context") or "").strip(),
+            RailwayRuntimeBridge._value_token_for_row(fact),
+            str(fact.get("source_locator") or "").strip(),
+            str(fact.get("source_family") or "").strip(),
+            str(fact.get("source_url") or "").strip(),
         )
 
     @classmethod
@@ -1350,7 +1876,7 @@ class RailwayRuntimeBridge:
                 -confidence,
             )
 
-        rows_by_key: dict[tuple[str, str, str, str, str, str], dict[str, Any]] = {}
+        rows_by_key: dict[tuple[str, str, str, str, str, str, str, str, str, str], dict[str, Any]] = {}
 
         def _ingest_fact(fact: dict[str, Any], *, default_lane: str) -> None:
             source_url = str(fact.get("source_url") or selected_url).strip() or selected_url
@@ -1390,6 +1916,13 @@ class RailwayRuntimeBridge:
                 "subarea": subarea,
                 "geography": str(fact.get("geography") or "").strip() or None,
                 "threshold": threshold,
+                "payment_timing": str(fact.get("payment_timing") or "").strip() or None,
+                "payment_reduction_context": str(fact.get("payment_reduction_context") or "").strip() or None,
+                "payment_reduction_percent": float(fact.get("payment_reduction_percent"))
+                if isinstance(fact.get("payment_reduction_percent"), (int, float))
+                else None,
+                "exemption_context": str(fact.get("exemption_context") or "").strip() or None,
+                "raw_land_use_label": str(fact.get("raw_land_use_label") or "").strip() or None,
                 "raw_value": raw_value,
                 "normalized_value": normalized_value,
                 "unit": str(fact.get("unit") or "").strip() or None,
@@ -1413,7 +1946,9 @@ class RailwayRuntimeBridge:
                     "arithmetic_eligible": arithmetic_eligible,
                 },
                 "source_lane_classification": source_lane,
+                "source_family": str(fact.get("source_family") or "").strip() or None,
             }
+            row_payload["fail_closed_signals"] = cls._locator_fail_closed_signals(row_payload)
             value_token = (
                 f"{normalized_value:.6f}"
                 if normalized_value is not None
@@ -1425,6 +1960,10 @@ class RailwayRuntimeBridge:
                 land_use,
                 str(subarea or ""),
                 str(threshold or ""),
+                str(row_payload.get("payment_timing") or ""),
+                str(row_payload.get("payment_reduction_context") or ""),
+                str(row_payload.get("exemption_context") or ""),
+                str(row_payload.get("raw_land_use_label") or ""),
                 value_token,
             )
             existing = rows_by_key.get(dedupe_key)
@@ -1452,6 +1991,11 @@ class RailwayRuntimeBridge:
                 str(row.get("land_use") or ""),
                 str(row.get("subarea") or ""),
                 str(row.get("threshold") or ""),
+                str(row.get("payment_timing") or ""),
+                str(row.get("payment_reduction_context") or ""),
+                str(row.get("exemption_context") or ""),
+                str(row.get("raw_land_use_label") or ""),
+                cls._value_token_for_row(row),
                 str(row.get("source_url") or ""),
             ),
         )
@@ -1463,25 +2007,43 @@ class RailwayRuntimeBridge:
         primary_facts: list[dict[str, Any]],
         secondary_facts: list[dict[str, Any]],
     ) -> dict[str, Any]:
-        primary_by_key: dict[tuple[str, str, str, str], dict[str, Any]] = {}
-        for fact in primary_facts:
-            primary_by_key[cls._economic_row_key(fact)] = fact
+        def _dedupe_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+            deduped: list[dict[str, Any]] = []
+            seen_identity: set[tuple[str, ...]] = set()
+            for row in rows:
+                identity = cls._economic_row_identity(row)
+                if identity in seen_identity:
+                    continue
+                seen_identity.add(identity)
+                deduped.append(row)
+            return deduped
 
-        true_structured_by_key: dict[tuple[str, str, str, str], list[dict[str, Any]]] = {}
-        secondary_snippet_by_key: dict[tuple[str, str, str, str], list[dict[str, Any]]] = {}
+        primary_rows = _dedupe_rows(primary_facts)
+        true_structured_rows: list[dict[str, Any]] = []
+        secondary_snippet_rows: list[dict[str, Any]] = []
         for fact in secondary_facts:
-            row_key = cls._economic_row_key(fact)
             lane = str(fact.get("source_lane_classification") or "").strip()
             if lane == "secondary_search_derived":
-                secondary_snippet_by_key.setdefault(row_key, []).append(fact)
+                secondary_snippet_rows.append(fact)
             else:
-                true_structured_by_key.setdefault(row_key, []).append(fact)
+                true_structured_rows.append(fact)
+        true_structured_rows = _dedupe_rows(true_structured_rows)
+        secondary_snippet_rows = _dedupe_rows(secondary_snippet_rows)
+
+        true_structured_by_key: dict[tuple[str, str, str, str, str, str, str, str, str], list[dict[str, Any]]] = {}
+        secondary_snippet_by_key: dict[tuple[str, str, str, str, str, str, str, str, str], list[dict[str, Any]]] = {}
+        for row in true_structured_rows:
+            true_structured_by_key.setdefault(cls._economic_row_key(row), []).append(row)
+        for row in secondary_snippet_rows:
+            secondary_snippet_by_key.setdefault(cls._economic_row_key(row), []).append(row)
 
         records: list[dict[str, Any]] = []
-        used_true: set[tuple[tuple[str, str, str, str], int]] = set()
-        used_secondary: set[tuple[tuple[str, str, str, str], int]] = set()
+        used_true: set[tuple[str, ...]] = set()
+        used_secondary: set[tuple[str, ...]] = set()
 
-        for row_key, primary in sorted(primary_by_key.items()):
+        for primary in sorted(primary_rows, key=cls._sort_row_key):
+            row_key = cls._economic_row_key(primary)
+            primary_identity = cls._economic_row_identity(primary)
             primary_value = cls._to_float(primary.get("normalized_value", primary.get("value")))
             true_matches = true_structured_by_key.get(row_key, [])
             secondary_matches = secondary_snippet_by_key.get(row_key, [])
@@ -1490,10 +2052,10 @@ class RailwayRuntimeBridge:
                 for item in true_matches
             ]
             true_values = [value for value in true_values if value is not None]
-            for idx, _ in enumerate(true_matches):
-                used_true.add((row_key, idx))
-            for idx, _ in enumerate(secondary_matches):
-                used_secondary.add((row_key, idx))
+            for item in true_matches:
+                used_true.add(cls._economic_row_identity(item))
+            for item in secondary_matches:
+                used_secondary.add(cls._economic_row_identity(item))
 
             status = "missing_structured_corroboration"
             source_of_truth = "primary_scraped_document"
@@ -1516,12 +2078,20 @@ class RailwayRuntimeBridge:
                     "true_structured_corroboration_missing"
                 )
 
+            locator_signals = cls._locator_fail_closed_signals(primary)
+            if locator_signals and status != "confirmed":
+                decision_reason = f"{decision_reason};locator_precision_insufficient"
+
             records.append(
                 {
                     "field": row_key[0],
                     "land_use": row_key[1],
                     "subarea": row_key[2] or None,
                     "threshold": row_key[3] or None,
+                    "payment_timing": row_key[4] or None,
+                    "payment_reduction_context": row_key[5] or None,
+                    "exemption_context": row_key[6] or None,
+                    "raw_land_use_label": row_key[7] or None,
                     "status": status,
                     "source_of_truth": source_of_truth,
                     "primary_value": primary_value,
@@ -1540,6 +2110,9 @@ class RailwayRuntimeBridge:
                     "decision_reason": decision_reason,
                     "source_url": str(primary.get("source_url") or "").strip() or None,
                     "source_locator": str(primary.get("source_locator") or "").strip() or None,
+                    "source_locator_quality": str(primary.get("locator_quality") or "").strip()
+                    or "locator_not_available",
+                    "source_family": str(primary.get("source_family") or "").strip() or None,
                     "true_structured_source_families": sorted(
                         {
                             str(item.get("source_family") or "").strip()
@@ -1554,14 +2127,15 @@ class RailwayRuntimeBridge:
                             if str(item.get("source_family") or "").strip()
                         }
                     ),
+                    "fail_closed_signals": locator_signals,
+                    "row_identity": "|".join(primary_identity),
                 }
             )
 
         for row_key, matches in true_structured_by_key.items():
-            if row_key in primary_by_key:
-                continue
-            for idx, item in enumerate(matches):
-                if (row_key, idx) in used_true:
+            for item in matches:
+                identity = cls._economic_row_identity(item)
+                if identity in used_true:
                     continue
                 value = cls._to_float(item.get("normalized_value", item.get("value")))
                 records.append(
@@ -1570,6 +2144,10 @@ class RailwayRuntimeBridge:
                         "land_use": row_key[1],
                         "subarea": row_key[2] or None,
                         "threshold": row_key[3] or None,
+                        "payment_timing": row_key[4] or None,
+                        "payment_reduction_context": row_key[5] or None,
+                        "exemption_context": row_key[6] or None,
+                        "raw_land_use_label": row_key[7] or None,
                         "status": "conflict_unresolved",
                         "source_of_truth": "none",
                         "primary_value": None,
@@ -1577,18 +2155,22 @@ class RailwayRuntimeBridge:
                         "decision_reason": "true_structured_row_without_primary_official_match",
                         "source_url": str(item.get("source_url") or "").strip() or None,
                         "source_locator": str(item.get("source_locator") or "").strip() or None,
+                        "source_locator_quality": str(item.get("locator_quality") or "").strip()
+                        or "locator_not_available",
+                        "source_family": str(item.get("source_family") or "").strip() or "unknown",
                         "true_structured_source_families": [
                             str(item.get("source_family") or "unknown")
                         ],
                         "secondary_source_families": [],
+                        "fail_closed_signals": cls._locator_fail_closed_signals(item),
+                        "row_identity": "|".join(identity),
                     }
                 )
 
         for row_key, matches in secondary_snippet_by_key.items():
-            if row_key in primary_by_key:
-                continue
-            for idx, item in enumerate(matches):
-                if (row_key, idx) in used_secondary:
+            for item in matches:
+                identity = cls._economic_row_identity(item)
+                if identity in used_secondary:
                     continue
                 value = cls._to_float(item.get("normalized_value", item.get("value")))
                 records.append(
@@ -1597,6 +2179,10 @@ class RailwayRuntimeBridge:
                         "land_use": row_key[1],
                         "subarea": row_key[2] or None,
                         "threshold": row_key[3] or None,
+                        "payment_timing": row_key[4] or None,
+                        "payment_reduction_context": row_key[5] or None,
+                        "exemption_context": row_key[6] or None,
+                        "raw_land_use_label": row_key[7] or None,
                         "status": "secondary_only_not_authoritative",
                         "source_of_truth": "none",
                         "primary_value": None,
@@ -1604,31 +2190,61 @@ class RailwayRuntimeBridge:
                         "decision_reason": "secondary_search_row_without_primary_official_match",
                         "source_url": str(item.get("source_url") or "").strip() or None,
                         "source_locator": str(item.get("source_locator") or "").strip() or None,
+                        "source_locator_quality": str(item.get("locator_quality") or "").strip()
+                        or "locator_not_available",
+                        "source_family": str(item.get("source_family") or "").strip() or "unknown",
                         "true_structured_source_families": [],
                         "secondary_source_families": [
                             str(item.get("source_family") or "unknown")
                         ],
+                        "fail_closed_signals": cls._locator_fail_closed_signals(item),
+                        "row_identity": "|".join(identity),
                     }
                 )
 
+        sorted_records = sorted(
+            records,
+            key=lambda item: (
+                str(item.get("field") or ""),
+                str(item.get("land_use") or ""),
+                str(item.get("subarea") or ""),
+                str(item.get("threshold") or ""),
+                str(item.get("payment_timing") or ""),
+                str(item.get("payment_reduction_context") or ""),
+                str(item.get("exemption_context") or ""),
+                str(item.get("raw_land_use_label") or ""),
+                str(
+                    item.get("primary_value")
+                    if item.get("primary_value") is not None
+                    else item.get("secondary_value")
+                ),
+                str(item.get("source_locator") or ""),
+                str(item.get("source_family") or ""),
+            ),
+        )
         unresolved = [
             item
-            for item in records
+            for item in sorted_records
             if str(item.get("status") or "") in {"conflict_unresolved", "missing_structured_corroboration"}
         ]
         return {
-            "records": records,
+            "records": sorted_records,
             "unresolved_count": len(unresolved),
             "source_of_truth_policy": "primary_artifact_precedence_then_labeled_secondary",
             "secondary_override_blocked": all(
                 str(item.get("source_of_truth") or "") != "secondary_search_derived"
-                for item in records
+                for item in sorted_records
             ),
-            "primary_official_row_count": len(primary_by_key),
-            "true_structured_row_count": sum(len(matches) for matches in true_structured_by_key.values()),
-            "secondary_snippet_row_count": sum(len(matches) for matches in secondary_snippet_by_key.values()),
+            "primary_official_row_count": len(primary_rows),
+            "true_structured_row_count": len(true_structured_rows),
+            "secondary_snippet_row_count": len(secondary_snippet_rows),
             "missing_true_structured_corroboration_count": sum(
-                1 for item in records if str(item.get("status") or "") == "missing_structured_corroboration"
+                1
+                for item in sorted_records
+                if str(item.get("status") or "") == "missing_structured_corroboration"
+            ),
+            "fail_closed_locator_signal_count": sum(
+                1 for item in sorted_records if item.get("fail_closed_signals")
             ),
         }
 
@@ -2541,6 +3157,10 @@ class RailwayRuntimeBridge:
             max_candidates=READ_FETCH_MAX_CANDIDATES,
             query_context=request.search_query,
         )
+        ranked_candidates = self._prioritize_artifact_candidates_for_fetch(
+            ranked_candidates=ranked_candidates,
+            query_text=request.search_query,
+        )
         if not ranked_candidates:
             response = CommandResponse(
                 command="read_fetch",
@@ -2677,6 +3297,16 @@ class RailwayRuntimeBridge:
                     }
                 )
                 continue
+            fee_schedule_gate = self._evaluate_maintained_fee_schedule_gate(
+                url=canonical_url,
+                title=title,
+                snippet=str(candidate.get("snippet") or ""),
+                markdown_body=markdown_body,
+            )
+            candidate_artifact_family = self._candidate_artifact_family_from_audit_entry(
+                url=canonical_url,
+                audit_entry={"fee_schedule_gate": fee_schedule_gate},
+            )
 
             canonical_key = build_v2_canonical_document_key(
                 jurisdiction_id=request.jurisdiction,
@@ -2766,6 +3396,8 @@ class RailwayRuntimeBridge:
                     "score": candidate["score"],
                     "outcome": "materialized_raw_scrape",
                     "raw_scrape_id": raw_scrape_id,
+                    "candidate_artifact_family": candidate_artifact_family,
+                    "fee_schedule_gate": fee_schedule_gate,
                 }
             )
             alerts = [

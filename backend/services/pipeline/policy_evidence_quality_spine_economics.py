@@ -481,6 +481,23 @@ class PolicyEvidenceQualitySpineEconomicsService:
             secondary_research_needs=secondary_research_needs,
             unsupported_claim_risks=unsupported_claim_risks,
         )
+        source_quality_metrics = self._extract_source_quality_metrics(
+            selected_payload=selected_payload
+        )
+        source_reconciliation = self._extract_source_reconciliation(
+            selected_payload=selected_payload
+        )
+        data_moat_status = self._build_data_moat_status(
+            evidence_package_status=evidence_package_status,
+            decision_grade_verdict=decision_grade["verdict"],
+            required_evidence_gaps=required_evidence_gaps,
+            readiness_level=readiness_level,
+            taxonomy=taxonomy,
+            canonical_binding_status=canonical_analysis_binding["status"],
+            economic_handoff_quality=economic_handoff_quality,
+            source_quality_metrics=source_quality_metrics,
+            source_reconciliation=source_reconciliation,
+        )
         recommended_next_action = self._recommend_next_action(
             analysis_status=analysis_status,
             taxonomy=taxonomy,
@@ -488,6 +505,7 @@ class PolicyEvidenceQualitySpineEconomicsService:
             canonical_binding=canonical_analysis_binding,
             economic_handoff_quality=economic_handoff_quality,
             unsupported_claim_risks=unsupported_claim_risks,
+            data_moat_status=data_moat_status,
         )
         economic_handoff_quality.update(
             {
@@ -503,12 +521,6 @@ class PolicyEvidenceQualitySpineEconomicsService:
                 "unsupported_claim_risks": unsupported_claim_risks,
                 "recommended_next_action": recommended_next_action,
             }
-        )
-        data_moat_status = self._build_data_moat_status(
-            evidence_package_status=evidence_package_status,
-            decision_grade_verdict=decision_grade["verdict"],
-            required_evidence_gaps=required_evidence_gaps,
-            readiness_level=readiness_level,
         )
         quant_model_payload = [
             {
@@ -1236,23 +1248,121 @@ class PolicyEvidenceQualitySpineEconomicsService:
         decision_grade_verdict: str,
         required_evidence_gaps: list[str],
         readiness_level: str,
+        taxonomy: dict[str, dict[str, str]],
+        canonical_binding_status: str,
+        economic_handoff_quality: dict[str, Any],
+        source_quality_metrics: dict[str, Any],
+        source_reconciliation: dict[str, Any],
     ) -> dict[str, Any]:
+        selected_family = str(
+            source_quality_metrics.get("selected_artifact_family")
+            or (
+                source_quality_metrics.get("selected_candidate", {})
+                if isinstance(source_quality_metrics.get("selected_candidate"), dict)
+                else {}
+            ).get("artifact_family")
+            or ""
+        ).strip()
+        top_n_artifact_recall_count = int(
+            source_quality_metrics.get("top_n_artifact_recall_count") or 0
+        )
+        selection_reason = "selected_candidate_quality_unknown"
+        source_selection_blocker = False
+        if selected_family == "artifact":
+            selection_reason = "selected_artifact_grade_candidate"
+        elif selected_family == "official_page" and top_n_artifact_recall_count > 0:
+            selection_reason = "official_page_selected_while_artifact_candidates_exist"
+            source_selection_blocker = True
+        elif selected_family:
+            selection_reason = f"selected_{selected_family}_candidate"
+
+        true_structured_row_count = int(source_reconciliation.get("true_structured_row_count") or 0)
+        missing_true_structured_corroboration_count = int(
+            source_reconciliation.get("missing_true_structured_corroboration_count") or 0
+        )
+        structured_depth_ready = (
+            true_structured_row_count > 0
+            and missing_true_structured_corroboration_count == 0
+        )
+        runtime_ready = (
+            taxonomy.get("storage/read-back", {}).get("status") == "pass"
+            and taxonomy.get("Windmill/orchestration", {}).get("status") == "pass"
+            and taxonomy.get("LLM narrative", {}).get("status") == "pass"
+            and canonical_binding_status == "bound"
+        )
+        source_quality_ready = (
+            taxonomy.get("scraped/search", {}).get("status") == "pass"
+            and not source_selection_blocker
+        )
+        economic_handoff_ready = (
+            str(economic_handoff_quality.get("status") or "") == "analysis_ready"
+        )
+        data_moat_component_ready = (
+            runtime_ready
+            and source_quality_ready
+            and structured_depth_ready
+            and economic_handoff_ready
+        )
+
+        moat_blockers: list[dict[str, str]] = []
+        if source_selection_blocker:
+            moat_blockers.append(
+                {
+                    "code": "official_page_selected_while_artifact_candidates_exist",
+                    "reason": "Selected source is official page while artifact candidates exist.",
+                }
+            )
+        if true_structured_row_count == 0:
+            moat_blockers.append(
+                {
+                    "code": "true_structured_rows_missing",
+                    "reason": "No true structured economic rows are available.",
+                }
+            )
+        if missing_true_structured_corroboration_count > 0:
+            moat_blockers.append(
+                {
+                    "code": "missing_true_structured_corroboration",
+                    "reason": (
+                        "Primary official rows are missing corroboration from true structured sources."
+                    ),
+                }
+            )
+
         if decision_grade_verdict == "decision_grade":
             status = "decision_grade_data_moat"
             reason = "all D0-D11 quality gates resolved for this package"
-        elif evidence_package_status == "fail":
+        elif data_moat_component_ready:
+            status = "evidence_ready_with_gaps"
+            reason = "runtime and source depth requirements are met with non-decision-grade economic gaps"
+        elif evidence_package_status == "fail" or moat_blockers:
             status = "fail"
-            reason = "package evidence quality failed one or more blocking gates"
+            if moat_blockers:
+                reason = "package failed explicit data moat blockers despite runtime readiness"
+            else:
+                reason = "package evidence quality failed one or more blocking gates"
         else:
             status = "evidence_ready_with_gaps"
             reason = "package is usable but still has named missing evidence or readiness gaps"
         return {
             "status": status,
+            "overall_ready": status == "decision_grade_data_moat",
+            "runtime_ready": runtime_ready,
+            "source_quality_ready": source_quality_ready,
+            "structured_depth_ready": structured_depth_ready,
+            "economic_handoff_ready": economic_handoff_ready,
             "evidence_package_status": evidence_package_status,
             "decision_grade_verdict": decision_grade_verdict,
             "readiness_level": readiness_level,
             "named_gaps": required_evidence_gaps,
             "named_gap_count": len(required_evidence_gaps),
+            "source_selection_blocker": source_selection_blocker,
+            "source_selection_reason": selection_reason,
+            "selected_artifact_family": selected_family or "unknown",
+            "top_n_artifact_recall_count": top_n_artifact_recall_count,
+            "true_structured_row_count": true_structured_row_count,
+            "missing_true_structured_corroboration_count": missing_true_structured_corroboration_count,
+            "blockers": moat_blockers,
             "reason": reason,
         }
 
@@ -1265,8 +1375,26 @@ class PolicyEvidenceQualitySpineEconomicsService:
         canonical_binding: dict[str, Any],
         economic_handoff_quality: dict[str, Any],
         unsupported_claim_risks: dict[str, Any],
+        data_moat_status: dict[str, Any],
     ) -> str:
         handoff_status = str(economic_handoff_quality.get("status") or "not_analysis_ready")
+        runtime_ready = bool(data_moat_status.get("runtime_ready"))
+        source_quality_ready = bool(data_moat_status.get("source_quality_ready"))
+        structured_depth_ready = bool(data_moat_status.get("structured_depth_ready"))
+        true_structured_row_count = int(data_moat_status.get("true_structured_row_count") or 0)
+        missing_true_structured_corroboration_count = int(
+            data_moat_status.get("missing_true_structured_corroboration_count") or 0
+        )
+        source_selection_blocker = bool(data_moat_status.get("source_selection_blocker"))
+
+        if runtime_ready and (not source_quality_ready or not structured_depth_ready):
+            if (
+                true_structured_row_count == 0
+                or missing_true_structured_corroboration_count > 0
+            ):
+                return "ingest_official_attachments"
+            if source_selection_blocker:
+                return "improve_data_moat_sources"
         if (
             unsupported_claim_risks.get("risk_level") == "high"
             and handoff_status != "analysis_ready"
@@ -1289,6 +1417,30 @@ class PolicyEvidenceQualitySpineEconomicsService:
         if handoff_status == "analysis_ready_with_gaps":
             return "run_secondary_research"
         return "reject"
+
+    @staticmethod
+    def _extract_source_quality_metrics(*, selected_payload: dict[str, Any]) -> dict[str, Any]:
+        direct = selected_payload.get("source_quality_metrics")
+        if isinstance(direct, dict) and direct:
+            return direct
+        run_context = selected_payload.get("run_context")
+        if isinstance(run_context, dict):
+            nested = run_context.get("source_quality_metrics")
+            if isinstance(nested, dict) and nested:
+                return nested
+        return {}
+
+    @staticmethod
+    def _extract_source_reconciliation(*, selected_payload: dict[str, Any]) -> dict[str, Any]:
+        direct = selected_payload.get("source_reconciliation")
+        if isinstance(direct, dict) and direct:
+            return direct
+        run_context = selected_payload.get("run_context")
+        if isinstance(run_context, dict):
+            nested = run_context.get("source_reconciliation")
+            if isinstance(nested, dict) and nested:
+                return nested
+        return {}
 
     @staticmethod
     def _build_manual_audit_scaffold(

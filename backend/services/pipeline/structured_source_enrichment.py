@@ -84,6 +84,15 @@ _MONTH_NUMBER_BY_NAME = {
     "december": "12",
 }
 
+_HIGH_VALUE_ATTACHMENT_FAMILIES = {
+    "ordinance",
+    "resolution",
+    "memorandum",
+    "staff_report",
+    "fee_study",
+    "nexus_study",
+}
+
 
 @dataclass(frozen=True)
 class StructuredEnrichmentResult:
@@ -462,6 +471,8 @@ class StructuredSourceEnricher:
             or "department report" in combined
         ):
             return "staff_report"
+        if "memorandum" in combined or re.search(r"\bmemo\b", combined):
+            return "memorandum"
         if "ordinance" in combined:
             return "ordinance"
         if "resolution" in combined:
@@ -511,6 +522,162 @@ class StructuredSourceEnricher:
             if url.startswith("http://") or url.startswith("https://"):
                 urls.append(url)
         return urls
+
+    @staticmethod
+    def _is_high_value_attachment_ref(attachment_ref: dict[str, Any]) -> bool:
+        source_family = str(attachment_ref.get("source_family") or "").strip().lower()
+        if source_family in _HIGH_VALUE_ATTACHMENT_FAMILIES:
+            return True
+        title = str(attachment_ref.get("title") or "").strip().lower()
+        return any(
+            token in title
+            for token in (
+                "ordinance",
+                "resolution",
+                "memorandum",
+                "memo",
+                "staff report",
+                "nexus",
+                "fee study",
+            )
+        )
+
+    @staticmethod
+    def _extract_attachment_excerpt(text: str) -> str:
+        cleaned = re.sub(r"<[^>]+>", " ", text)
+        cleaned = re.sub(r"\s+", " ", cleaned).strip()
+        return cleaned[:800]
+
+    @staticmethod
+    def _extract_attachment_economic_rows(
+        *,
+        text: str,
+        source_url: str,
+        source_family: str,
+    ) -> list[dict[str, Any]]:
+        lowered = text.lower()
+        if "fee" not in lowered and "rate" not in lowered:
+            return []
+        if not any(signal in lowered for signal in ("per square foot", "per sq ft", "sq.ft", "sq ft")):
+            return []
+
+        values = re.findall(r"\$([0-9]+(?:\.[0-9]{1,2})?)", text)
+        facts: list[dict[str, Any]] = []
+        seen_values: set[float] = set()
+        for raw in values:
+            value = float(raw)
+            if value in seen_values:
+                continue
+            seen_values.add(value)
+            facts.append(
+                {
+                    "field": "commercial_linkage_fee_rate_usd_per_sqft",
+                    "value": value,
+                    "normalized_value": value,
+                    "unit": "usd_per_square_foot",
+                    "source_url": source_url,
+                    "source_excerpt": StructuredSourceEnricher._extract_attachment_excerpt(text),
+                    "source_locator": "attachment_probe:excerpt",
+                    "locator_quality": "attachment_probe_excerpt",
+                    "provenance_lane": "structured_attachment_probe",
+                    "source_family": source_family,
+                    "source_hierarchy_status": "fiscal_or_reg_impact_analysis",
+                    "confidence": 0.7,
+                }
+            )
+        return facts
+
+    async def _probe_legistar_attachment_contents(
+        self,
+        *,
+        client: httpx.AsyncClient,
+        attachment_refs: list[dict[str, Any]],
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        probes: list[dict[str, Any]] = []
+        structured_facts: list[dict[str, Any]] = []
+        probe_candidates = [
+            ref for ref in attachment_refs if isinstance(ref, dict) and self._is_high_value_attachment_ref(ref)
+        ][:6]
+        for ref in probe_candidates:
+            attachment_id = str(ref.get("attachment_id") or "").strip() or None
+            title = str(ref.get("title") or "").strip() or None
+            url = str(ref.get("url") or "").strip()
+            source_family = str(ref.get("source_family") or "unknown").strip() or "unknown"
+            if not url.startswith(("http://", "https://")):
+                probes.append(
+                    {
+                        "attachment_id": attachment_id,
+                        "title": title,
+                        "url": url or None,
+                        "source_family": source_family,
+                        "status": "skipped_missing_url",
+                        "content_ingested": False,
+                        "excerpt": "",
+                        "economic_row_count": 0,
+                    }
+                )
+                continue
+
+            try:
+                response = await client.get(url)
+                response.raise_for_status()
+                content_type = str(response.headers.get("content-type") or "").lower()
+                body = response.content[:450000]
+            except Exception as exc:  # noqa: BLE001
+                probes.append(
+                    {
+                        "attachment_id": attachment_id,
+                        "title": title,
+                        "url": url,
+                        "source_family": source_family,
+                        "status": "fetch_failed",
+                        "error": str(exc)[:180],
+                        "content_ingested": False,
+                        "excerpt": "",
+                        "economic_row_count": 0,
+                    }
+                )
+                continue
+
+            if "pdf" in content_type:
+                probes.append(
+                    {
+                        "attachment_id": attachment_id,
+                        "title": title,
+                        "url": url,
+                        "source_family": source_family,
+                        "status": "binary_pdf_unparsed",
+                        "content_ingested": False,
+                        "excerpt": "",
+                        "economic_row_count": 0,
+                    }
+                )
+                continue
+            try:
+                text = body.decode("utf-8")
+            except UnicodeDecodeError:
+                text = body.decode("latin-1", errors="ignore")
+            excerpt = self._extract_attachment_excerpt(text)
+            content_ingested = bool(excerpt)
+            economics = self._extract_attachment_economic_rows(
+                text=text,
+                source_url=url,
+                source_family=source_family,
+            )
+            structured_facts.extend(economics)
+            probes.append(
+                {
+                    "attachment_id": attachment_id,
+                    "title": title,
+                    "url": url,
+                    "source_family": source_family,
+                    "status": "ingested_excerpt" if content_ingested else "empty_text",
+                    "content_ingested": content_ingested,
+                    "excerpt": excerpt,
+                    "economic_row_count": len(economics),
+                }
+            )
+        return probes, structured_facts
 
     async def _fetch_legistar_matter_metadata(
         self,
@@ -596,6 +763,10 @@ class StructuredSourceEnricher:
             family = str(attachment_ref.get("source_family") or "unknown")
             attachment_family_counts[family] = attachment_family_counts.get(family, 0) + 1
 
+        attachment_content_probes, attachment_probe_facts = await self._probe_legistar_attachment_contents(
+            client=client,
+            attachment_refs=related_attachment_refs,
+        )
         structured_policy_facts = [
             {"field": "matter_attachment_count", "value": float(len(file_refs)), "unit": "count"},
             {
@@ -603,6 +774,7 @@ class StructuredSourceEnricher:
                 "value": float(len(file_refs)),
                 "unit": "count",
             },
+            *attachment_probe_facts,
         ]
 
         return {
@@ -622,10 +794,10 @@ class StructuredSourceEnricher:
                 f"classified_attachment_refs={len(related_attachment_refs)}."
             ),
             "structured_policy_facts": structured_policy_facts,
-            "diagnostic_facts": [{"field": "matter_id", "value": float(matter_id), "unit": "count"}],
             "provider_run_id": str(matter_id),
             "linked_artifact_refs": file_refs,
             "related_attachment_refs": related_attachment_refs,
+            "attachment_content_probes": attachment_content_probes,
             "reader_artifact_refs": [],
             "true_structured": True,
             "policy_match_key": _policy_match_key_for_url(selected_url or matter_url),
@@ -639,7 +811,38 @@ class StructuredSourceEnricher:
                 "source_identity": "legistar_web_api",
                 "related_attachment_refs": related_attachment_refs,
                 "attachment_family_counts": attachment_family_counts,
+                "attachment_content_probe_count": len(attachment_content_probes),
+                "attachment_content_ingested_count": sum(
+                    1 for probe in attachment_content_probes if bool(probe.get("content_ingested"))
+                ),
+                "attachment_economic_row_count": sum(
+                    int(probe.get("economic_row_count") or 0) for probe in attachment_content_probes
+                ),
             },
+            "diagnostic_facts": [
+                {"field": "matter_id", "value": float(matter_id), "unit": "count"},
+                {
+                    "field": "matter_attachment_probe_count",
+                    "value": float(len(attachment_content_probes)),
+                    "unit": "count",
+                },
+                {
+                    "field": "matter_attachment_content_ingested_count",
+                    "value": float(
+                        sum(
+                            1 for probe in attachment_content_probes if bool(probe.get("content_ingested"))
+                        )
+                    ),
+                    "unit": "count",
+                },
+                {
+                    "field": "matter_attachment_economic_row_count",
+                    "value": float(
+                        sum(int(probe.get("economic_row_count") or 0) for probe in attachment_content_probes)
+                    ),
+                    "unit": "count",
+                },
+            ],
         }
 
     @staticmethod

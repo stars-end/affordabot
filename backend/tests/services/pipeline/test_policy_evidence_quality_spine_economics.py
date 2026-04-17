@@ -183,6 +183,8 @@ def test_endpoint_read_model_exposes_economic_handoff_contract_fields() -> None:
         "run_direct_analysis",
         "run_secondary_research",
         "qualitative_summary_only",
+        "improve_data_moat_sources",
+        "ingest_official_attachments",
         "reject",
     }
     assert "data_moat_status" in read_model
@@ -1137,3 +1139,75 @@ def test_fail_closed_handoff_is_specific_and_machine_actionable() -> None:
     assert endpoint["secondary_research_needs"]["status"] == "not_required"
     assert endpoint["secondary_research_needs"]["reason_code"] == "not_required"
     assert endpoint["recommended_next_action"] == "reject"
+
+
+def test_data_moat_status_runtime_ready_but_quality_depth_fail_is_explicit() -> None:
+    bundle = PolicyEconomicMechanismCaseService().build_case_bundle()
+    direct = _case(bundle, "direct_cost_case")
+    package = {
+        **direct["primary_package"],
+        "run_context": {
+            **direct["primary_package"].get("run_context", {}),
+            "source_quality_metrics": {
+                "top_n_artifact_recall_count": 2,
+                "selected_artifact_family": "official_page",
+                "selected_candidate": {
+                    "artifact_family": "official_page",
+                },
+            },
+            "source_reconciliation": {
+                "true_structured_row_count": 0,
+                "missing_true_structured_corroboration_count": 2,
+            },
+        },
+    }
+    matrix = _matrix_with_runtime_evidence(
+        package,
+        orchestration_proof={
+            "proof_status": "pass",
+            "proof_mode": "current_run",
+            "linked_to_current_vertical_package": True,
+            "windmill_run_id": "wm-run-live",
+            "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+        },
+        llm_narrative_proof={
+            "proof_status": "pass",
+            "canonical_pipeline_run_id": package["gate_projection"]["canonical_pipeline_run_id"],
+            "canonical_pipeline_step_id": package["gate_projection"]["canonical_pipeline_step_id"],
+            "source": "unit_test",
+        },
+        storage_proof={
+            "proof_status": "pass",
+            "proof_mode": "postgres_minio_live",
+            "store_backend": "postgres",
+            "artifact_probe_backend": "minio",
+            "persisted_record_id": "pkg-row-1",
+            "minio_readback_proven": True,
+        },
+    )
+
+    service = PolicyEvidenceQualitySpineEconomicsService()
+    endpoint = service.build_endpoint_read_model(
+        matrix_input=MatrixInput(
+            payload=matrix,
+            source_path="horizontal_matrix.json",
+            source_mode="agent_a_horizontal_matrix",
+        ),
+        package_id=package["package_id"],
+        source_family="meeting_minutes",
+    )
+
+    moat = endpoint["data_moat_status"]
+    assert moat["status"] == "fail"
+    assert moat["runtime_ready"] is True
+    assert moat["source_quality_ready"] is False
+    assert moat["structured_depth_ready"] is False
+    assert moat["source_selection_blocker"] is True
+    assert moat["source_selection_reason"] == "official_page_selected_while_artifact_candidates_exist"
+    assert moat["true_structured_row_count"] == 0
+    assert moat["missing_true_structured_corroboration_count"] == 2
+    blocker_codes = {item["code"] for item in moat["blockers"]}
+    assert "official_page_selected_while_artifact_candidates_exist" in blocker_codes
+    assert "true_structured_rows_missing" in blocker_codes
+    assert "missing_true_structured_corroboration" in blocker_codes
+    assert endpoint["recommended_next_action"] == "ingest_official_attachments"

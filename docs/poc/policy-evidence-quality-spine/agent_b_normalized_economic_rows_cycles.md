@@ -2,7 +2,51 @@
 
 Scope: normalized official economic rows + CLF fee-table extraction + cross-source reconciliation hardening.
 
-## Cycle B11 (current)
+## Cycle B12 (current)
+
+Date: 2026-04-16
+Lane objective: stop reconciliation collapse by promoting richer economic-row identity (value/timing/threshold/raw label/locator/family) and emit fail-closed locator signals for manual audit.
+
+### Changes
+
+- Hardened primary CLF extraction with explicit payment/exemption semantics:
+  - `payment_timing` (e.g. `paid_before_building_permit_issuance`, `paid_at_final_building_inspection`)
+  - `payment_reduction_context` + `payment_reduction_percent`
+  - `exemption_context` (including threshold-bound no-fee rows)
+- Expanded normalized/reconciliation row payloads to carry audit-critical context:
+  - `raw_land_use_label`, payment fields, `source_family`, and `fail_closed_signals`
+  - fail-closed signal emitted when locator quality is chunk/page-only or missing table/artifact locator.
+- Replaced coarse reconciliation grouping with identity-preserving semantics:
+  - row identity now includes value + timing/reduction/exemption + raw label + source locator + source family
+  - primary rows are no longer overwritten by dict-key collision
+  - secondary-search rows remain strictly non-authoritative; true structured count remains independent.
+- Extended builder parameter-card citation formatting with payment/exemption/raw-label/source-family/fail-closed metadata for manual data-moat traceability.
+
+### Validation
+
+```bash
+cd backend
+poetry run pytest \
+  tests/services/pipeline/test_bridge_runtime.py \
+  tests/services/pipeline/test_policy_evidence_package_builder.py
+poetry run ruff check \
+  services/pipeline/domain/bridge.py \
+  services/pipeline/policy_evidence_package_builder.py \
+  tests/services/pipeline/test_bridge_runtime.py \
+  tests/services/pipeline/test_policy_evidence_package_builder.py
+```
+
+### Gate impact
+
+- D4 (extraction + citation auditability): payment timing/reduction/exemption and raw row labels now survive into parameter-card citations and normalized rows.
+- D5 (cross-source reconciliation correctness): multi-row CLF primary evidence stays distinct instead of collapsing to coarse `(field, land_use, subarea, threshold)` keys.
+- D3 strict authority preserved: `secondary_search_derived` rows remain non-authoritative; they do not create true-structured corroboration.
+
+### Remaining gap after B12
+
+- Cycle still fails closed on structured depth for decision-grade claims because true structured economic rows remain zero unless attachment/API rows provide artifact-grade structured facts.
+
+## Cycle B11
 
 Date: 2026-04-16  
 Lane objective: turn CLF-style official fee facts into auditable normalized rows that can feed parameter cards and reconciliation without allowing secondary snippets to masquerade as structured proof.
