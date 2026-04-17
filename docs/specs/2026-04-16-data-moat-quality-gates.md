@@ -599,7 +599,7 @@ Fail if:
 - D10 `pass`;
 - D11 `pass`.
 
-The next 30-cycle run must end in one of these states:
+The next up-to-80-cycle run must end in one of these states:
 - `decision_grade_corpus`: corpus gates C0-C14 pass and selected package-level
   deep dives satisfy the full D0-D11 and applicable E1-E5 standard.
 - `corpus_ready_with_gaps`: credible corpus exists, but exact missing
@@ -677,16 +677,21 @@ Decision-grade requires:
 
 If missing, the result must be `qualitative_only`, `secondary_research_needed`, or `fail_closed`, not overclaimed.
 
-## Adaptive 30-Cycle Loop Contract
+## Adaptive 80-Cycle Loop Contract
 
 The next autonomous run has this contract:
-- Up to 30 cycles are allowed.
+- Up to 80 cycles are allowed.
+- The cycle budget is a ceiling, not a target. Stop earlier when gates are met,
+  when no non-destructive material improvement remains, or when a strategic
+  HITL decision is truly required.
 - Cycles are adaptive, not preallocated.
 - Every cycle must do at least one of:
   - improve a measured data-moat gate;
   - improve economic-handoff quality;
   - prove a blocker with direct evidence;
   - broaden source/jurisdiction coverage after narrow gates pass.
+- If 1-2 consecutive cycles do not make substantive product/code progress,
+  stop and request HITL guidance instead of continuing shallow iteration.
 - Cycles 8+ must not be diagnosis-only unless they prove a blocker that changes the next implementation move.
 - Every cycle artifact must include:
   - cycle number;
