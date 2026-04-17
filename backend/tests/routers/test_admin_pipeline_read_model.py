@@ -331,6 +331,7 @@ def test_policy_evidence_analysis_status_surfaces_provenance_and_not_proven_gate
     assert data["source_quality"]["selection_quality_status"] == "not_proven"
     assert "data_moat_status" in data
     assert "data_moat_value" in data
+    assert "readiness_layers" in data
     assert data["data_moat_status"]["status"] in {
         "decision_grade_data_moat",
         "evidence_ready_with_gaps",
@@ -342,6 +343,11 @@ def test_policy_evidence_analysis_status_surfaces_provenance_and_not_proven_gate
         "economic_analysis_ready",
         "stored_not_economic",
         "not_stored_policy_evidence",
+    }
+    assert data["readiness_layers"] == {
+        "stored_policy_evidence_value": data["data_moat_value"]["status"],
+        "economic_handoff_readiness": data["economic_handoff_quality"]["status"],
+        "economic_output_readiness": data["economic_output"]["status"],
     }
     assert data["economic_analysis_status"]["status"] in {
         "secondary_research_needed",
@@ -1335,3 +1341,5 @@ def test_policy_evidence_analysis_status_cycle_38_surfaces_row_quality_gap_signa
     assert data["gates"]["economic_analysis_readiness"]["row_quality_gate_status"] == "fail"
     assert data["source_quality"]["row_quality_weak_row_count"] == 2
     assert data["recommended_next_action"] != "run_direct_analysis"
+    assert data["decision_grade_verdict"] == "not_decision_grade"
+    assert data["readiness_layers"]["economic_output_readiness"] == "not_proven"

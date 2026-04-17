@@ -256,6 +256,11 @@ def test_endpoint_read_model_exposes_economic_handoff_contract_fields() -> None:
         "stored_not_economic",
         "not_stored_policy_evidence",
     }
+    assert read_model["readiness_layers"] == {
+        "stored_policy_evidence_value": read_model["data_moat_value"]["status"],
+        "economic_handoff_readiness": read_model["economic_handoff_quality"]["status"],
+        "economic_output_readiness": read_model["economic_output"]["status"],
+    }
 
 
 def test_fallback_vs_real_matrix_labeling() -> None:
@@ -1345,11 +1350,20 @@ def test_source_grounded_non_economic_package_is_stored_not_economic_not_failure
     )
 
     moat_value = endpoint["data_moat_value"]
+    moat_status = endpoint["data_moat_status"]
     assert moat_value["stored_policy_evidence"] is True
     assert moat_value["economic_analysis_ready"] is False
     assert moat_value["economic_handoff_candidate"] is False
     assert moat_value["stored_not_economic"] is True
     assert moat_value["status"] == "stored_not_economic"
+    assert moat_status["status"] == "evidence_ready_with_gaps"
+    assert moat_status["decision_grade_blocked_by"] in {
+        "row_quality_gap",
+        "economic_row_parameter_depth",
+    }
+    assert endpoint["readiness_layers"]["stored_policy_evidence_value"] == "stored_not_economic"
+    assert endpoint["readiness_layers"]["economic_handoff_readiness"] == "not_analysis_ready"
+    assert endpoint["readiness_layers"]["economic_output_readiness"] == "not_proven"
     assert endpoint["economic_analysis_status"]["status"] in {
         "fail_closed",
         "qualitative_only",
@@ -1524,6 +1538,9 @@ def test_data_moat_status_runtime_ready_but_quality_depth_fail_is_explicit() -> 
     assert "true_structured_rows_missing" in blocker_codes
     assert "missing_true_structured_corroboration" in blocker_codes
     assert endpoint["recommended_next_action"] == "ingest_official_attachments"
+    assert endpoint["decision_grade_verdict"] == "not_decision_grade"
+    assert endpoint["economic_output"]["status"] == "not_proven"
+    assert endpoint["data_moat_value"]["economic_analysis_ready"] is False
 
 
 def test_cycle_33_identity_ready_official_page_without_attachment_rows_requires_ingest() -> None:

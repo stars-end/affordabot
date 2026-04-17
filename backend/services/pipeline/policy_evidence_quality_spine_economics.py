@@ -510,6 +510,11 @@ class PolicyEvidenceQualitySpineEconomicsService:
             economic_handoff_quality=economic_handoff_quality,
             readiness_level=readiness_level,
         )
+        data_moat_status = self._reconcile_data_moat_status_for_stored_policy_evidence(
+            data_moat_status=data_moat_status,
+            data_moat_value=data_moat_value,
+            economic_handoff_quality=economic_handoff_quality,
+        )
         recommended_next_action = self._recommend_next_action(
             analysis_status=analysis_status,
             taxonomy=taxonomy,
@@ -582,6 +587,11 @@ class PolicyEvidenceQualitySpineEconomicsService:
             "evidence_package_status": evidence_package_status,
             "data_moat_status": data_moat_status,
             "data_moat_value": data_moat_value,
+            "readiness_layers": {
+                "stored_policy_evidence_value": data_moat_value.get("status"),
+                "economic_handoff_readiness": economic_handoff_quality.get("status"),
+                "economic_output_readiness": economic_output.get("status"),
+            },
             "decision_grade_verdict": decision_grade["verdict"],
             "sufficiency_readiness_level": readiness_level,
             "economic_analysis_status": {
@@ -1544,6 +1554,53 @@ class PolicyEvidenceQualitySpineEconomicsService:
                 "source_selection_reason": data_moat_status.get("source_selection_reason"),
                 "true_structured_row_count": data_moat_status.get("true_structured_row_count"),
             },
+        }
+
+    @staticmethod
+    def _reconcile_data_moat_status_for_stored_policy_evidence(
+        *,
+        data_moat_status: dict[str, Any],
+        data_moat_value: dict[str, Any],
+        economic_handoff_quality: dict[str, Any],
+    ) -> dict[str, Any]:
+        if str(data_moat_status.get("status") or "") != "fail":
+            return data_moat_status
+        if str(data_moat_value.get("status") or "") != "stored_not_economic":
+            return data_moat_status
+        if not bool(data_moat_status.get("identity_ready")):
+            return data_moat_status
+        if bool(data_moat_status.get("source_selection_blocker")):
+            return data_moat_status
+        if str(economic_handoff_quality.get("status") or "") == "analysis_ready":
+            return data_moat_status
+
+        blocker_codes = {
+            str(item.get("code") or "").strip()
+            for item in data_moat_status.get("blockers", [])
+            if isinstance(item, dict) and str(item.get("code") or "").strip()
+        }
+        if not blocker_codes:
+            return data_moat_status
+        economic_depth_only_blockers = {
+            "official_attachment_rows_missing",
+            "true_structured_rows_missing",
+            "missing_true_structured_corroboration",
+        }
+        if not blocker_codes.issubset(economic_depth_only_blockers):
+            return data_moat_status
+
+        return {
+            **data_moat_status,
+            "status": "evidence_ready_with_gaps",
+            "overall_ready": False,
+            "reason": (
+                "stored source-grounded policy evidence is present; remaining named gaps are "
+                "economic row/parameter depth for handoff readiness"
+            ),
+            "decision_grade_blocked_by": (
+                data_moat_status.get("decision_grade_blocked_by")
+                or "economic_row_parameter_depth"
+            ),
         }
 
     @staticmethod
