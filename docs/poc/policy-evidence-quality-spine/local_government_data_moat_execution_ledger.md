@@ -969,3 +969,41 @@ Next blocker:
 - Cycle 53 should prove at least one cataloged structured source target with a
   runtime probe or ingestion path, then regenerate C2/C14 to reduce the
   cataloged-not-live-proven backlog instead of only documenting it.
+
+## 2026-04-22 Takeover Handoff Checkpoint
+
+Status: `handoff_prepared`
+
+Scope:
+
+- Stop the active eval loop and prepare a portable takeover package for another
+  agent.
+- Preserve the honest Cycle 51/52 terminal state instead of treating Cycle 53
+  as landed work.
+- Make the next issue explicit: `bd-3wefe.13.4.11` remains the next
+  implementation target for structured-source runtime proof overlay.
+
+Handoff artifact:
+
+- `docs/poc/policy-evidence-quality-spine/data_moat_takeover_handoff_2026-04-22.md`
+
+Current corpus state:
+
+- `corpus_state=corpus_ready_with_gaps`
+- `package_rows=90`
+- `C2=not_proven`
+- `C13=not_proven`
+- `C14=not_proven`
+
+Important boundary:
+
+- The current PR head contains Cycle 51 and Cycle 52 only.
+- Cycle 53 was created in Beads as `bd-3wefe.13.4.11`, but its structured proof
+  overlay is not implemented in this PR head.
+- The next agent should fetch PR #439 at the handoff head, read the handoff doc,
+  and start from `bd-3wefe.13.4.11`.
+
+Reason for stopping:
+
+- The founder requested a takeover package and copy/paste prompt for another
+  agent, not another local eval cycle.

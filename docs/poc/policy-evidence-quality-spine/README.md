@@ -3,6 +3,24 @@
 This lane evaluates whether a vertical package is ready to feed canonical
 economic analysis and admin/frontend read models.
 
+## Current Corpus Handoff
+
+For the current broad local-government data moat work, start with
+`data_moat_takeover_handoff_2026-04-22.md`.
+
+Current corpus state is `corpus_ready_with_gaps`, not
+`decision_grade_corpus`. The current non-pass corpus gates are:
+
+- `C2`: structured-source breadth/depth is not runtime-proven enough.
+- `C13`: most corpus rows still have `orchestration_intent`, not live Windmill
+  run/job proof.
+- `C14`: non-fee extraction depth still contains cataloged targets that are not
+  live-proven.
+
+Do not use the older San Jose vertical artifacts as the product boundary. San
+Jose is now a calibrated fixture inside the broader city/county/state corpus
+benchmark.
+
 ## Artifacts
 
 - `artifacts/horizontal_matrix.json`
