@@ -27,7 +27,7 @@ DEFAULT_OUTPUT_JSON = ARTIFACTS_DIR / "quality_spine_eval_cycles_report.json"
 DEFAULT_OUTPUT_MD = ARTIFACTS_DIR / "quality_spine_eval_cycles_report.md"
 
 VALID_STATUSES = {"pass", "partial", "not_proven", "fail"}
-MAX_SUPPORTED_CYCLES = 25
+MAX_SUPPORTED_CYCLES = 30
 
 GATE_DEFINITIONS: dict[str, dict[str, str]] = {
     "D1": {"name": "source_catalog", "domain": "data_moat", "severity": "blocking"},

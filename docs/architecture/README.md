@@ -11,7 +11,8 @@ Read these in order before proposing or implementing pipeline changes:
 2. `docs/architecture/2026-04-15-economic-literature-inventory.md`
 3. `docs/specs/2026-04-14-evidence-package-dependency-lockdown.md`
 4. `docs/specs/2026-04-16-data-moat-quality-gates.md`
-5. `docs/reviews/2026-04-15-full-pipeline-code-audit-results.md`
+5. `docs/specs/2026-04-17-local-government-data-moat-benchmark-v0.md`
+6. `docs/reviews/2026-04-15-full-pipeline-code-audit-results.md`
 
 Then inspect the live code paths listed in each document's freshness contract.
 The docs are routing maps, not a substitute for source inspection.
@@ -23,11 +24,21 @@ The docs are routing maps, not a substitute for source inspection.
 Cycle 25 was a mechanics/narrow scraped pass, not a full data-moat pass. Honest
 verdict: `PASS_SCRAPED_ARTIFACT_AND_PACKAGE_MECHANICS_ONLY__STRUCTURED_MOAT_NOT_PROVEN__ECONOMIC_DECISION_GRADE_NOT_PROVEN`.
 
-For the next implementation wave, the dependency-lockdown spec and the [data moat quality gates](../specs/2026-04-16-data-moat-quality-gates.md) are authoritative. Treat those as the current working locks until `bd-3wefe.8` either confirms or revises them. Do not claim pass/done on any architecture validation without completing the new D0-D11 data moat gates.
+For the next implementation wave, the dependency-lockdown spec, the [data moat quality gates](../specs/2026-04-16-data-moat-quality-gates.md), and the [local government data moat benchmark](../specs/2026-04-17-local-government-data-moat-benchmark-v0.md) are authoritative. Treat those as the current working locks until `bd-3wefe.8` either confirms or revises them. Do not claim pass/done on any architecture validation without completing the new corpus gates plus the D0-D11 package gates.
 
 The next POC must prove comprehensive, accurate, robust, fit-for-purpose evidence or honestly classify the result as `package_mechanics_only`, `evidence_ready_with_gaps`, `fail`, or `blocked_hitl`. Tavily/Exa secondary search does not count as true structured-source proof.
 
 Decision-grade data moat means the package is not merely persisted. It must include policy lineage, primary artifact substance, true structured-source depth or source-catalog-proven absence, quote/row-grounded extraction accuracy, cross-source reconciliation, stable package identity, storage/replay proof, fallback/source-drift robustness, manual audit, Windmill linkage, and economic handoff fitness.
+
+The next super-reach target is corpus-level, not San-Jose-only:
+`local_government_data_moat_benchmark_v0`. San Jose remains a calibrated golden
+fixture, but the pass condition is a reusable local-government corpus across
+multiple jurisdictions, policy families, and source families. The terminal pass
+state is `decision_grade_corpus`, not `decision_grade_data_moat` for one
+package. Economic analysis is a required handoff check for selected packages; it
+is not the only definition of data-moat value. The data moat must also be
+usable as a standalone data product surface with query/export/read-model
+contracts, freshness/drift posture, licensing posture, and schema versioning.
 
 ## Current Non-Obvious Truths
 
@@ -60,6 +71,10 @@ If an agent is searching semantically or with `rg`, use these terms:
 - `data moat quality gates D0 D1 D2 D3 D4 D5 D6 D7 D8 D9 D10 D11`
 - `decision_grade_data_moat package_mechanics_only evidence_ready_with_gaps`
 - `policy lineage completeness extraction accuracy citation gate cross-source reconciliation`
+- `local government data moat benchmark corpus gates C0 C1 C2 C3 C4 C5 C6 C7 C8 C9 C10 C11 C12 C13 C14`
+- `official-source dominance structured source diversity package reusability freshness drift dedupe exportability data product surface licensing schema version known-policy coverage non-fee extraction`
+- `decision_grade_corpus corpus_ready_with_gaps San Jose fixture not boundary`
+- `corpus_taxonomy_v1 blind seed list external source promotion register`
 
 ## Staleness Rule
 

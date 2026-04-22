@@ -93,6 +93,82 @@ class HarnessContext:
     config_dir: str
 
 
+@dataclass(frozen=True)
+class PolicyScenario:
+    name: str
+    jurisdiction: str
+    source_family: str
+    search_query: str
+    analysis_question: str
+    expected_evidence_use: str
+    expected_economic_readiness: str
+
+
+POLICY_SCENARIOS: dict[str, PolicyScenario] = {
+    "clf": PolicyScenario(
+        name="clf",
+        jurisdiction="San Jose CA",
+        source_family="city_council_legislation",
+        search_query="San Jose commercial linkage fee resolution 80069 matter 7526",
+        analysis_question=(
+            "Capture CLF policy evidence from official San Jose sources and extract any published"
+            " rates, effective dates, and cited policy lineage."
+        ),
+        expected_evidence_use="economic_policy_input_candidate",
+        expected_economic_readiness="required_for_decision_grade",
+    ),
+    "parking_policy": PolicyScenario(
+        name="parking_policy",
+        jurisdiction="San Jose CA",
+        source_family="parking_policy",
+        search_query="San Jose parking minimums ordinance policy action city council",
+        analysis_question=(
+            "Capture authoritative San Jose parking policy evidence including policy action,"
+            " enforcement scope, and effective dates."
+        ),
+        expected_evidence_use="useful_local_policy_evidence",
+        expected_economic_readiness="not_required",
+    ),
+    "housing_permits": PolicyScenario(
+        name="housing_permits",
+        jurisdiction="San Jose CA",
+        source_family="housing_permits",
+        search_query="San Jose housing permit requirements fee schedule planning permits",
+        analysis_question=(
+            "Capture San Jose housing permit and compliance policy evidence with provenance and"
+            " implementation references."
+        ),
+        expected_evidence_use="useful_local_policy_evidence",
+        expected_economic_readiness="not_required",
+    ),
+    "business_compliance": PolicyScenario(
+        name="business_compliance",
+        jurisdiction="San Jose CA",
+        source_family="business_compliance_rules",
+        search_query="San Jose business compliance requirements municipal code licensing",
+        analysis_question=(
+            "Capture local business compliance policy evidence from official San Jose sources with"
+            " cited rule lineage and implementation details."
+        ),
+        expected_evidence_use="useful_local_policy_evidence",
+        expected_economic_readiness="not_required",
+    ),
+    "meeting_actions": PolicyScenario(
+        name="meeting_actions",
+        jurisdiction="San Jose CA",
+        source_family="meeting_actions",
+        search_query="San Jose city council meeting actions local policy decisions",
+        analysis_question=(
+            "Capture San Jose meeting actions that establish local policy decisions and cite the"
+            " selected official artifacts."
+        ),
+        expected_evidence_use="useful_local_policy_evidence",
+        expected_economic_readiness="not_required",
+    ),
+}
+DEFAULT_POLICY_SCENARIO = "clf"
+
+
 def _parse_dt(value: str | None) -> datetime | None:
     if not value:
         return None
@@ -105,6 +181,30 @@ def _parse_dt(value: str | None) -> datetime | None:
 
 def _now_iso() -> str:
     return datetime.now(UTC).isoformat()
+
+
+def _resolve_policy_inputs(
+    *,
+    scenario_name: str,
+    jurisdiction: str | None,
+    source_family: str | None,
+    search_query: str | None,
+    analysis_question: str | None,
+) -> tuple[PolicyScenario, dict[str, str]]:
+    if scenario_name not in POLICY_SCENARIOS:
+        raise HarnessError(
+            "config",
+            "unknown policy scenario",
+            {"scenario": scenario_name, "available": sorted(POLICY_SCENARIOS)},
+        )
+    scenario = POLICY_SCENARIOS[scenario_name]
+    resolved = {
+        "jurisdiction": (jurisdiction or "").strip() or scenario.jurisdiction,
+        "source_family": (source_family or "").strip() or scenario.source_family,
+        "search_query": (search_query or "").strip() or scenario.search_query,
+        "analysis_question": (analysis_question or "").strip() or scenario.analysis_question,
+    }
+    return scenario, resolved
 
 
 def _run(cmd: list[str], *, check: bool = True, input_text: str | None = None) -> subprocess.CompletedProcess[str]:
@@ -324,6 +424,35 @@ def _read_fetch_raw_scrape_ids(result_payload: dict[str, Any] | None) -> list[st
     if not isinstance(raw_scrape_ids, list):
         return []
     return [str(raw_id) for raw_id in raw_scrape_ids if raw_id]
+
+
+def _extract_policy_evidence_package_payload(result_payload: dict[str, Any] | None) -> dict[str, Any]:
+    scope_result = _first_scope_result(result_payload)
+    steps = scope_result.get("steps") or {}
+    if not isinstance(steps, dict):
+        return {}
+    summarize = steps.get("summarize_run") or {}
+    if not isinstance(summarize, dict):
+        return {}
+    details = summarize.get("details") or {}
+    if not isinstance(details, dict):
+        return {}
+    package = details.get("policy_evidence_package") or {}
+    if not isinstance(package, dict):
+        return {}
+    payload = package.get("package_payload") or {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _package_has_blocking_handoff_gap(package_payload: dict[str, Any]) -> bool:
+    if not package_payload:
+        return False
+    if package_payload.get("economic_handoff_ready") is False:
+        return True
+    gate_report = package_payload.get("gate_report") or {}
+    if isinstance(gate_report, dict) and gate_report.get("blocking_gate"):
+        return True
+    return False
 
 
 def _any_step_idempotent_reuse(result_payload: dict[str, Any] | None) -> bool:
@@ -977,6 +1106,9 @@ def _derive_classification(
         and gate.get("status") in {"pending", "failed"}
     ]
     if not incomplete_storage_gates and storage_gates.get("bridge_mode", {}).get("status") not in {"stub", "unknown"}:
+        package_payload = _extract_policy_evidence_package_payload(result_payload)
+        if _package_has_blocking_handoff_gap(package_payload):
+            return "evidence_ready_with_gaps", "ready"
         return "full_product_pass", "ready"
 
     summary = (
@@ -1026,6 +1158,21 @@ def _derive_manual_audit_notes(
                 analysis = {}
 
     analysis_excerpt = str(analysis.get("summary") or analysis.get("answer") or "")[:700]
+    key_points = analysis.get("key_points")
+    key_point_text = " ".join(str(item) for item in key_points if isinstance(item, str)) if isinstance(key_points, list) else ""
+    substantive_analysis_text = f"{analysis_excerpt} {key_point_text}".lower()
+    has_substantive_policy_analysis = any(
+        signal in substantive_analysis_text
+        for signal in (
+            "commercial linkage fee",
+            "per sq. ft",
+            "per square foot",
+            "resolution",
+            "ordinance",
+            "fee schedule",
+            "gross square footage",
+        )
+    )
     sufficiency_state = str(analysis.get("sufficiency_state") or "").lower()
     insufficient = sufficiency_state == "insufficient" or "does not contain" in analysis_excerpt.lower()
     quality_blocked = _is_reader_quality_block(result_payload)
@@ -1040,13 +1187,22 @@ def _derive_manual_audit_notes(
         )
         manual_verdict = "PASS_READER_QUALITY_GATE_BLOCKED_NAV_OUTPUT"
     elif insufficient:
-        reader_quality_note = (
-            "Z.ai reader executed and persisted output, but the selected San Jose source resolved to navigation/menu content rather than actual meeting minutes."
-        )
-        llm_quality_note = (
-            "Z.ai analysis correctly refused to infer housing signals from insufficient evidence; product mechanics passed, discovery/source targeting did not."
-        )
-        manual_verdict = "PASS_MECHANICS_FAIL_DISCOVERY_QUALITY"
+        if has_substantive_policy_analysis:
+            reader_quality_note = (
+                "Reader output was persisted and contained substantive policy text; the analysis remained insufficient for final economic decision-grade output."
+            )
+            llm_quality_note = (
+                "LLM analysis extracted policy facts but fail-closed because the package did not satisfy all economic handoff gates."
+            )
+            manual_verdict = "PASS_DATA_EXTRACTION_FAIL_ECONOMIC_HANDOFF"
+        else:
+            reader_quality_note = (
+                "Z.ai reader executed and persisted output, but the selected San Jose source did not contain enough substantive policy content for the requested analysis."
+            )
+            llm_quality_note = (
+                "Z.ai analysis correctly refused to infer housing signals from insufficient evidence; product mechanics passed, discovery/source targeting did not."
+            )
+            manual_verdict = "PASS_MECHANICS_FAIL_DISCOVERY_QUALITY"
     elif analysis_excerpt:
         reader_quality_note = "Reader output was persisted and provided to analysis."
         llm_quality_note = "LLM analysis produced a substantive answer from persisted evidence."
@@ -1062,6 +1218,131 @@ def _derive_manual_audit_notes(
         "llm_analysis_excerpt": analysis_excerpt,
         "llm_quality_note": llm_quality_note,
         "manual_verdict": manual_verdict,
+    }
+
+
+def _derive_policy_evidence_capture(
+    *,
+    policy_scenario: PolicyScenario,
+    jurisdiction: str,
+    source_family: str,
+    search_query: str,
+    analysis_question: str,
+    result_payload: dict[str, Any] | None,
+    db_storage_probe: dict[str, Any],
+) -> dict[str, Any]:
+    scope_result = _first_scope_result(result_payload)
+    steps = scope_result.get("steps") if isinstance(scope_result, dict) else {}
+    if not isinstance(steps, dict):
+        steps = {}
+    read_fetch = steps.get("read_fetch") if isinstance(steps.get("read_fetch"), dict) else {}
+    summarize = steps.get("summarize_run") if isinstance(steps.get("summarize_run"), dict) else {}
+
+    read_details = read_fetch.get("details") if isinstance(read_fetch.get("details"), dict) else {}
+    read_refs = read_fetch.get("refs") if isinstance(read_fetch.get("refs"), dict) else {}
+    selected_artifact = read_details.get("selected_artifact")
+    if not isinstance(selected_artifact, dict):
+        selected_artifact = read_details.get("selected_source")
+    if not isinstance(selected_artifact, dict):
+        selected_artifact = {}
+    selected_artifact_url = str(
+        selected_artifact.get("url")
+        or read_details.get("source_url")
+        or read_refs.get("source_url")
+        or ""
+    )
+    selected_artifact_title = str(
+        selected_artifact.get("title")
+        or read_details.get("source_title")
+        or selected_artifact.get("name")
+        or ""
+    )
+
+    summarize_details = summarize.get("details") if isinstance(summarize.get("details"), dict) else {}
+    package = (
+        summarize_details.get("policy_evidence_package")
+        if isinstance(summarize_details.get("policy_evidence_package"), dict)
+        else {}
+    )
+    package_payload = package.get("package_payload") if isinstance(package.get("package_payload"), dict) else {}
+    package_id = str(
+        package.get("package_id")
+        or package_payload.get("package_id")
+        or summarize_details.get("package_id")
+        or ""
+    )
+    economic_handoff_ready = package_payload.get("economic_handoff_ready")
+
+    raw_scrape_rows = (
+        db_storage_probe.get("raw_scrape_rows")
+        if isinstance(db_storage_probe.get("raw_scrape_rows"), list)
+        else []
+    )
+    artifact_rows = (
+        db_storage_probe.get("content_artifact_rows")
+        if isinstance(db_storage_probe.get("content_artifact_rows"), list)
+        else []
+    )
+    pipeline_rows = (
+        db_storage_probe.get("pipeline_command_rows")
+        if isinstance(db_storage_probe.get("pipeline_command_rows"), list)
+        else []
+    )
+    observed_useful_policy_evidence = any(
+        [
+            bool(selected_artifact_url),
+            bool(read_refs.get("reader_output_ref")),
+            bool(package_id),
+            bool(raw_scrape_rows),
+            bool(artifact_rows),
+            bool(pipeline_rows),
+        ]
+    )
+    if economic_handoff_ready is True:
+        semantics_classification = "economic_handoff_ready"
+    elif observed_useful_policy_evidence and economic_handoff_ready is False:
+        semantics_classification = "useful_local_policy_evidence_not_economic_ready"
+    elif observed_useful_policy_evidence:
+        semantics_classification = "useful_local_policy_evidence"
+    else:
+        semantics_classification = "not_proven"
+
+    return {
+        "requested_policy_scope": {
+            "scenario": policy_scenario.name,
+            "jurisdiction": jurisdiction,
+            "source_family": source_family,
+            "search_query": search_query,
+            "analysis_question": analysis_question,
+        },
+        "selected_read_artifact": {
+            "url": selected_artifact_url,
+            "title": selected_artifact_title,
+            "reader_output_ref": str(read_refs.get("reader_output_ref") or ""),
+            "raw_scrape_ids": [
+                str(raw_id) for raw_id in (read_refs.get("raw_scrape_ids") or []) if raw_id
+            ],
+        },
+        "package_identity": {
+            "package_id": package_id,
+            "storage_admin_refs": {
+                "content_artifact_ids": [
+                    str(row.get("id") or "") for row in artifact_rows[:5] if isinstance(row, dict)
+                ],
+                "pipeline_command_ids": [
+                    str(row.get("id") or "") for row in pipeline_rows[:5] if isinstance(row, dict)
+                ],
+            },
+        },
+        "semantics": {
+            "expected_evidence_use": policy_scenario.expected_evidence_use,
+            "expected_economic_readiness": policy_scenario.expected_economic_readiness,
+            "observed_useful_local_policy_evidence": observed_useful_policy_evidence,
+            "observed_economic_handoff_ready": (
+                economic_handoff_ready if isinstance(economic_handoff_ready, bool) else None
+            ),
+            "classification": semantics_classification,
+        },
     }
 
 
@@ -1158,6 +1439,31 @@ def _render_markdown(report: dict[str, Any]) -> str:
         ]
     )
 
+    policy_capture = report.get("policy_evidence_capture") or {}
+    policy_scope = policy_capture.get("requested_policy_scope") or {}
+    selected_artifact = policy_capture.get("selected_read_artifact") or {}
+    semantics = policy_capture.get("semantics") or {}
+    package_identity = policy_capture.get("package_identity") or {}
+    storage_admin_refs = package_identity.get("storage_admin_refs") or {}
+    lines.extend(
+        [
+            "",
+            "## Policy Evidence Capture",
+            f"- scenario: `{policy_scope.get('scenario', '')}`",
+            f"- source_family: `{policy_scope.get('source_family', '')}`",
+            f"- search_query: {policy_scope.get('search_query', '')}",
+            f"- selected_artifact_url: {selected_artifact.get('url', '') or '-'}",
+            f"- package_id: `{package_identity.get('package_id', '')}`",
+            f"- reader_output_ref: `{selected_artifact.get('reader_output_ref', '')}`",
+            f"- storage_admin_content_artifact_ids: `{storage_admin_refs.get('content_artifact_ids', [])}`",
+            f"- storage_admin_pipeline_command_ids: `{storage_admin_refs.get('pipeline_command_ids', [])}`",
+            f"- semantics_classification: `{semantics.get('classification', '')}`",
+            f"- observed_useful_local_policy_evidence: `{semantics.get('observed_useful_local_policy_evidence', False)}`",
+            f"- observed_economic_handoff_ready: `{semantics.get('observed_economic_handoff_ready', None)}`",
+            f"- expected_economic_readiness: `{semantics.get('expected_economic_readiness', '')}`",
+        ]
+    )
+
     manual_notes = report.get("manual_audit_notes") or {}
     lines.extend(
         [
@@ -1202,6 +1508,7 @@ def run_harness(
     database_url: str | None,
     backend_endpoint_timeout_seconds: int = DEFAULT_BACKEND_ENDPOINT_TIMEOUT_SECONDS,
     feature_key: str = FEATURE_KEY,
+    policy_scenario: str = DEFAULT_POLICY_SCENARIO,
 ) -> dict[str, Any]:
     blockers: list[dict[str, Any]] = []
     result_payload: dict[str, Any] | None = None
@@ -1648,6 +1955,17 @@ def run_harness(
             result_payload=result_payload,
             db_storage_probe=db_storage_probe,
         ),
+        "policy_evidence_capture": _derive_policy_evidence_capture(
+            policy_scenario=POLICY_SCENARIOS.get(
+                policy_scenario, POLICY_SCENARIOS[DEFAULT_POLICY_SCENARIO]
+            ),
+            jurisdiction=jurisdiction,
+            source_family=source_family,
+            search_query=search_query,
+            analysis_question=analysis_question,
+            result_payload=result_payload,
+            db_storage_probe=db_storage_probe,
+        ),
         "blockers": blockers,
     }
     leaked = _assert_no_secret_leak(report, sensitive_values + [backend_endpoint_auth_token or ""])
@@ -1667,17 +1985,20 @@ def run_harness(
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Verify Windmill San Jose live gate.")
+    parser.add_argument(
+        "--policy-scenario",
+        choices=sorted(POLICY_SCENARIOS),
+        default=DEFAULT_POLICY_SCENARIO,
+        help="Scenario defaults for policy family capture (override with explicit --source-family/query/question as needed).",
+    )
     parser.add_argument("--run-mode", choices=["read-only", "stub-run", "backend-endpoint-run"], default="stub-run")
     parser.add_argument("--workspace", default=DEFAULT_WORKSPACE)
     parser.add_argument("--flow-path", default=DEFAULT_FLOW_PATH)
     parser.add_argument("--script-path", default=DEFAULT_SCRIPT_PATH)
-    parser.add_argument("--jurisdiction", default="San Jose CA")
-    parser.add_argument("--source-family", default="meeting_minutes")
-    parser.add_argument("--search-query", default="San Jose CA city council meeting minutes housing")
-    parser.add_argument(
-        "--analysis-question",
-        default="Summarize housing-related signals from recent San Jose meeting minutes.",
-    )
+    parser.add_argument("--jurisdiction", default=None)
+    parser.add_argument("--source-family", default=None)
+    parser.add_argument("--search-query", default=None)
+    parser.add_argument("--analysis-question", default=None)
     parser.add_argument("--stale-status", default="fresh")
     parser.add_argument(
         "--stale-drill-statuses",
@@ -1709,6 +2030,13 @@ def main() -> int:
     parser.add_argument("--out-json", type=Path, default=DEFAULT_JSON_ARTIFACT)
     parser.add_argument("--out-md", type=Path, default=DEFAULT_MD_ARTIFACT)
     args = parser.parse_args()
+    scenario, resolved_policy = _resolve_policy_inputs(
+        scenario_name=args.policy_scenario,
+        jurisdiction=args.jurisdiction,
+        source_family=args.source_family,
+        search_query=args.search_query,
+        analysis_question=args.analysis_question,
+    )
     stale_drills = [item.strip() for item in args.stale_drill_statuses.split(",") if item.strip()]
     searx_endpoints = args.searx_endpoint or DEFAULT_SEARX_ENDPOINTS
 
@@ -1717,10 +2045,10 @@ def main() -> int:
         workspace=args.workspace,
         flow_path=args.flow_path,
         script_path=args.script_path,
-        jurisdiction=args.jurisdiction,
-        source_family=args.source_family,
-        search_query=args.search_query,
-        analysis_question=args.analysis_question,
+        jurisdiction=resolved_policy["jurisdiction"],
+        source_family=resolved_policy["source_family"],
+        search_query=resolved_policy["search_query"],
+        analysis_question=resolved_policy["analysis_question"],
         stale_status=args.stale_status,
         scope_parallelism=args.scope_parallelism,
         idempotency_key=args.idempotency_key,
@@ -1732,6 +2060,7 @@ def main() -> int:
         backend_endpoint_timeout_seconds=args.backend_endpoint_timeout_seconds,
         database_url=args.database_url,
         feature_key=args.feature_key,
+        policy_scenario=scenario.name,
     )
 
     args.out_json.parent.mkdir(parents=True, exist_ok=True)

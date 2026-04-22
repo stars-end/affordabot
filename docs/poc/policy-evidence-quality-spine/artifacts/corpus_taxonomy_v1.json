@@ -1,0 +1,197 @@
+{
+  "schema_version": "corpus_taxonomy_v1",
+  "gate_version": "data_moat_c0_c14_v1",
+  "description": "Versioned taxonomy seed for local_government_data_moat_benchmark_v0. This is the minimum stable vocabulary the corpus matrix, scorecard, package classifications, manual audit, and future exports must reference.",
+  "jurisdiction_types": [
+    "city",
+    "county",
+    "state",
+    "regional_regulator",
+    "special_district",
+    "federal_context"
+  ],
+  "jurisdictions": [
+    {
+      "id": "san_jose_ca",
+      "display_name": "San Jose, CA",
+      "jurisdiction_type": "city",
+      "state": "CA",
+      "benchmark_role": "calibrated_fixture"
+    },
+    {
+      "id": "santa_clara_county_ca",
+      "display_name": "Santa Clara County, CA",
+      "jurisdiction_type": "county",
+      "state": "CA",
+      "benchmark_role": "non_san_jose_county"
+    },
+    {
+      "id": "bay_area_air_district_ca",
+      "display_name": "Bay Area Air District, CA",
+      "jurisdiction_type": "regional_regulator",
+      "state": "CA",
+      "benchmark_role": "regional_regulator"
+    },
+    {
+      "id": "california_state",
+      "display_name": "California State",
+      "jurisdiction_type": "state",
+      "state": "CA",
+      "benchmark_role": "state_context"
+    },
+    {
+      "id": "seattle_wa",
+      "display_name": "Seattle, WA",
+      "jurisdiction_type": "city",
+      "state": "WA",
+      "benchmark_role": "non_ca_city"
+    },
+    {
+      "id": "denver_co",
+      "display_name": "Denver, CO",
+      "jurisdiction_type": "city",
+      "state": "CO",
+      "benchmark_role": "non_ca_city"
+    },
+    {
+      "id": "king_county_wa",
+      "display_name": "King County, WA",
+      "jurisdiction_type": "county",
+      "state": "WA",
+      "benchmark_role": "non_ca_county"
+    }
+  ],
+  "policy_families": [
+    "commercial_linkage_fee",
+    "housing_permits",
+    "zoning_land_use",
+    "parking_policy",
+    "transportation_demand_management",
+    "business_licensing_compliance",
+    "local_tax_fee",
+    "utilities_energy_building_standard",
+    "air_quality_electrification",
+    "short_term_rental",
+    "affordable_housing_mandate",
+    "code_enforcement",
+    "procurement_contract",
+    "public_safety",
+    "meeting_action",
+    "general_governance"
+  ],
+  "source_families": [
+    "private_searxng_discovered_official_html_pdf",
+    "official_pdf_html_attachment",
+    "agenda_meeting_api",
+    "openstates_api",
+    "state_legislation_api_or_raw",
+    "ckan_api",
+    "socrata_api",
+    "arcgis_rest",
+    "opendatasoft_api",
+    "static_csv_json_raw",
+    "official_clerk_or_code_portal",
+    "secondary_search_tavily",
+    "secondary_search_exa"
+  ],
+  "source_officialness": [
+    "official_primary",
+    "official_context",
+    "quasi_official",
+    "secondary_context",
+    "external_advocacy",
+    "news_media",
+    "vendor",
+    "unknown"
+  ],
+  "source_of_truth_roles": [
+    "policy_text",
+    "adoption_action",
+    "meeting_context",
+    "staff_fiscal_context",
+    "structured_metadata",
+    "implementation_guidance",
+    "secondary_economic_context",
+    "background_only",
+    "rejected"
+  ],
+  "handoff_classes": [
+    "economic_analysis_ready",
+    "economic_handoff_candidate",
+    "secondary_research_needed",
+    "qualitative_only",
+    "stored_not_economic",
+    "not_policy_evidence",
+    "fail"
+  ],
+  "classification_values": [
+    "economic_analysis_ready",
+    "economic_handoff_candidate",
+    "secondary_research_needed",
+    "qualitative_only",
+    "stored_not_economic",
+    "not_policy_evidence",
+    "fail"
+  ],
+  "d11_handoff_quality": [
+    "analysis_ready",
+    "analysis_ready_with_gaps",
+    "not_analysis_ready"
+  ],
+  "mechanism_families": [
+    "direct_fee_or_tax",
+    "direct_compliance_cost",
+    "indirect_supply_constraint",
+    "indirect_labor_market_restriction",
+    "indirect_energy_or_utility_cost",
+    "indirect_housing_cost_pass_through",
+    "secondary_research_required",
+    "qualitative_policy_context",
+    "not_economic"
+  ],
+  "unit_families": [
+    "usd",
+    "usd_per_square_foot",
+    "usd_per_unit",
+    "usd_per_parcel",
+    "percent",
+    "count",
+    "days",
+    "months",
+    "years",
+    "permit_units",
+    "households",
+    "unknown"
+  ],
+  "geography_fields": [
+    "jurisdiction",
+    "county",
+    "state",
+    "region",
+    "district",
+    "parcel",
+    "project",
+    "citywide",
+    "unknown"
+  ],
+  "failure_classes": [
+    "official_source_not_found",
+    "external_source_selected",
+    "wrong_jurisdiction",
+    "wrong_policy_family",
+    "reader_substance_failed",
+    "structured_source_unavailable",
+    "structured_source_shallow",
+    "source_shape_changed",
+    "stale_for_policy_use",
+    "normalization_missing",
+    "licensing_unknown",
+    "schema_version_missing",
+    "known_policy_missed",
+    "windmill_orchestration_missing",
+    "non_fee_extraction_missing",
+    "economic_handoff_missing",
+    "manual_audit_missing",
+    "blocked_hitl"
+  ]
+}

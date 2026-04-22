@@ -1,16 +1,16 @@
 {
   "attempt_metadata": {
     "after_score": 75.33,
-    "attempt_id": "bd-3wefe.13-retry-3",
-    "before_score": 75.33,
+    "attempt_id": "bd-3wefe.13-cycle44",
+    "before_score": null,
     "dominant_failure_class": "none",
     "quality_threshold": 75.0,
-    "retry_round": 3,
+    "retry_round": 44,
     "stop_continue_decision": "stop",
-    "targeted_tweak": "strict_data_runtime_proof_fields"
+    "targeted_tweak": "private_searxng_primary_source_identity"
   },
   "feature_key": "bd-3wefe.13",
-  "generated_at": "2026-04-15T18:37:54.895434+00:00",
+  "generated_at": "2026-04-17T08:02:02.376008+00:00",
   "live_probe": {
     "reason": "live_mode_off",
     "status": "skipped"
@@ -31,12 +31,12 @@
     "blocker": "windmill_proof_not_linked_to_current_vertical_package",
     "historical_stub_flow_proof": {
       "backend_endpoint_package_id": "pkg-local-backend-endpoint",
-      "feature_key": "bd-3wefe.12",
+      "feature_key": "bd-3wefe.13",
       "generated_at": "2026-04-15T00:00:00+00:00",
-      "live_status": "passed_stub_flow_run",
+      "live_status": "blocked_backend_endpoint_route_mismatch",
       "local_backend_endpoint_status": "passed",
       "local_status": "passed",
-      "report_version": "2026-04-15.policy-evidence-package-windmill.v2",
+      "report_version": "2026-04-15.policy-evidence-package-windmill.v3",
       "stub_run_result": {
         "gate_status": "quantified",
         "package_id": "pkg-bd-3wefe-verifier-stub",
@@ -71,8 +71,8 @@
     "artifact_readback_status": "proven",
     "artifact_write_status": "succeeded",
     "canonical_document_key": "san_jose_ca::sj-parking-minimum-amendment",
-    "content_hash": "883c7cf900f1d307ebff004698afa0527556f146c5f51d84e70f1a5a3f9837b1",
-    "created_at": "2026-04-15T18:37:54.894980+00:00",
+    "content_hash": "97bef8fb5f24afafed0a04a90f0ec30e53731da70526e57e224b0176e7fa627b",
+    "created_at": "2026-04-17T08:02:02.375802+00:00",
     "economic_handoff_ready": true,
     "fail_closed": false,
     "gate_state": "quantified",
@@ -137,7 +137,7 @@
         }
       ],
       "canonical_document_key": "san_jose_ca::sj-parking-minimum-amendment",
-      "created_at": "2026-04-15T18:37:54.894054Z",
+      "created_at": "2026-04-17T08:02:02.375482Z",
       "economic_handoff_ready": true,
       "evidence_cards": [
         {
@@ -145,7 +145,7 @@
           "content_hash": "fixture::sj-parking-minimum-amendment::scraped",
           "excerpt": "Evidence extracted from meeting_minutes artifact for economic analysis.",
           "id": "ev-1",
-          "provenance_label": "tavily_meeting_minutes",
+          "provenance_label": "private_searxng_meeting_minutes",
           "reader_run_id": null,
           "retrieved_at": "2026-04-15T00:00:00Z",
           "source_tier": "tier_a",
@@ -181,8 +181,8 @@
         "blocking_gate": null,
         "case_id": "pkg-sj-parking-minimum-amendment-gate",
         "failure_codes": [],
-        "manual_audit_notes": "Builder POC payload; full durability/orchestration gates in bd-3wefe.10/.12.",
-        "provider": "tavily",
+        "manual_audit_notes": "Builder payload with canonical identity dedupe and provenance linkage; deduped_candidates=0; official_dominance_status=pass; official_primary_percent=100.0. Full durability/orchestration gates in bd-3wefe.10/.12.",
+        "provider": "private_searxng",
         "stage_results": [
           {
             "failure_codes": [],
@@ -245,7 +245,7 @@
           "evidence_card_id": "ev-2",
           "id": "param-1-required-parking-spaces-per-unit",
           "parameter_name": "required_parking_spaces_per_unit",
-          "source_excerpt": "Structured fact required_parking_spaces_per_unit resolved from source payload.",
+          "source_excerpt": "Structured fact required_parking_spaces_per_unit resolved from source payload. [normalized=1.0 ; unit=spaces_per_unit ; source_family=legistar]",
           "source_hierarchy_status": "fiscal_or_reg_impact_analysis",
           "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13050001&GUID=PK-1",
           "state": "resolved",
@@ -258,7 +258,7 @@
           "evidence_card_id": "ev-2",
           "id": "param-2-affected-project-units",
           "parameter_name": "affected_project_units",
-          "source_excerpt": "Structured fact affected_project_units resolved from source payload.",
+          "source_excerpt": "Structured fact affected_project_units resolved from source payload. [normalized=3200.0 ; unit=units ; source_family=legistar]",
           "source_hierarchy_status": "fiscal_or_reg_impact_analysis",
           "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13050001&GUID=PK-1",
           "state": "resolved",
@@ -271,13 +271,13 @@
       "schema_version": "1.0.0",
       "scraped_sources": [
         {
-          "candidate_rank": 1,
+          "candidate_rank": 3,
           "provider_run_id": null,
           "query_family": "meeting_minutes",
           "query_text": "San Jose multifamily parking minimum amendment",
           "reader_artifact_url": "https://backend.artifacts/scrape/sj-parking-minimum-reader.txt",
           "reader_substance_passed": true,
-          "search_provider": "tavily",
+          "search_provider": "private_searxng",
           "search_snapshot_id": "snapshot::sj-parking-minimum-amendment",
           "selected_candidate_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13050001&GUID=PK-1"
         }
@@ -288,7 +288,7 @@
       ],
       "storage_refs": [
         {
-          "content_hash": null,
+          "content_hash": "fixture::sj-parking-minimum-amendment::scraped",
           "notes": null,
           "reference_id": "policy_evidence_packages:sj-parking-minimum-amendment",
           "storage_system": "postgres",
@@ -296,7 +296,7 @@
           "uri": null
         },
         {
-          "content_hash": null,
+          "content_hash": "fixture::sj-parking-minimum-amendment::scraped",
           "notes": "readback proof pending bd-3wefe.10",
           "reference_id": "https://backend.artifacts/scrape/sj-parking-minimum-reader.txt",
           "storage_system": "minio",
@@ -304,7 +304,7 @@
           "uri": "https://backend.artifacts/scrape/sj-parking-minimum-reader.txt"
         },
         {
-          "content_hash": null,
+          "content_hash": "fixture::sj-parking-minimum-amendment::scraped",
           "notes": "derived index only",
           "reference_id": "chunk:sj-parking-minimum-amendment:1",
           "storage_system": "pgvector",
@@ -316,9 +316,16 @@
         {
           "access_method": "public_api",
           "endpoint_or_file_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13050001&GUID=PK-1",
+          "event_body_id": null,
+          "event_date": null,
           "field_count": 2,
+          "matter_id": null,
+          "policy_match_confidence": null,
+          "policy_match_key": "san_jose_ca::sj-parking-minimum-amendment",
           "provider_run_id": null,
-          "source_family": "legistar"
+          "reconciliation_status": "confirmed",
+          "source_family": "legistar",
+          "true_structured": true
         }
       ]
     },
@@ -328,7 +335,7 @@
     "schema_version": "1.0.0",
     "storage_refs": [
       {
-        "content_hash": null,
+        "content_hash": "fixture::sj-parking-minimum-amendment::scraped",
         "notes": null,
         "reference_id": "policy_evidence_packages:sj-parking-minimum-amendment",
         "storage_system": "postgres",
@@ -336,7 +343,7 @@
         "uri": null
       },
       {
-        "content_hash": null,
+        "content_hash": "fixture::sj-parking-minimum-amendment::scraped",
         "notes": "readback proof pending bd-3wefe.10",
         "reference_id": "https://backend.artifacts/scrape/sj-parking-minimum-reader.txt",
         "storage_system": "minio",
@@ -344,7 +351,7 @@
         "uri": "https://backend.artifacts/scrape/sj-parking-minimum-reader.txt"
       },
       {
-        "content_hash": null,
+        "content_hash": "fixture::sj-parking-minimum-amendment::scraped",
         "notes": "derived index only",
         "reference_id": "chunk:sj-parking-minimum-amendment:1",
         "storage_system": "pgvector",
@@ -352,7 +359,7 @@
         "uri": null
       }
     ],
-    "updated_at": "2026-04-15T18:37:54.894980+00:00"
+    "updated_at": "2026-04-17T08:02:02.375802+00:00"
   },
   "storage_readback": {
     "artifact_readback_status": "proven",
@@ -429,34 +436,83 @@
       }
     ],
     "canonical_document_key": "san_jose_ca::sj-parking-minimum-amendment",
-    "created_at": "2026-04-15T18:37:54.894054Z",
+    "created_at": "2026-04-17T08:02:02.375482Z",
     "economic_handoff_ready": true,
+    "economic_relevance": "direct",
     "evidence_cards": [
       {
         "artifact_id": "san_jose_ca::sj-parking-minimum-amendment",
         "content_hash": "fixture::sj-parking-minimum-amendment::scraped",
+        "economic_relevance": "contextual",
+        "evidence_use": "meeting_record",
         "excerpt": "Evidence extracted from meeting_minutes artifact for economic analysis.",
+        "external_context_allowed": false,
         "id": "ev-1",
-        "provenance_label": "tavily_meeting_minutes",
+        "jurisdiction_match": "partial",
+        "moat_value_reason": "meeting_record:meeting_action:captures formal action lineage and decision timing even when quantitative extraction is not ready.",
+        "policy_families": [
+          "meeting_action"
+        ],
+        "policy_family": "meeting_action",
+        "policy_family_match": "unknown",
+        "primary_evidence_allowed": true,
+        "provenance_label": "private_searxng_meeting_minutes",
         "reader_run_id": null,
         "retrieved_at": "2026-04-15T00:00:00Z",
+        "source_identity_reason_codes": [
+          "host_classification:official_civic_partner",
+          "jurisdiction_match:partial",
+          "official_primary_allowed",
+          "policy_family_match:unknown",
+          "provider:private_searxng"
+        ],
+        "source_of_truth_role": "primary_official",
+        "source_officialness": "official_civic_partner",
+        "source_retrieved_at": "2026-04-15T00:00:00+00:00",
+        "source_shape_changed": false,
         "source_tier": "tier_a",
         "source_type": "staff_report",
-        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13050001&GUID=PK-1"
+        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13050001&GUID=PK-1",
+        "stale_for_policy_use": false
       },
       {
         "artifact_id": "san_jose_ca::sj-parking-minimum-amendment",
         "content_hash": "fixture::sj-parking-minimum-amendment::structured",
+        "economic_relevance": "direct",
+        "evidence_use": "economic_parameter_source",
         "excerpt": "Evidence extracted from legistar artifact for economic analysis.",
+        "external_context_allowed": false,
         "id": "ev-2",
+        "jurisdiction_match": "partial",
+        "moat_value_reason": "economic_parameter_source:parking_policy:source includes quantified policy facts with citation for direct economic modeling.",
+        "policy_families": [
+          "parking_policy"
+        ],
+        "policy_family": "parking_policy",
+        "policy_family_match": "unknown",
+        "primary_evidence_allowed": true,
         "provenance_label": "legistar_legistar",
         "reader_run_id": null,
         "retrieved_at": "2026-04-15T00:05:00Z",
+        "source_identity_reason_codes": [
+          "host_classification:official_civic_partner",
+          "jurisdiction_match:partial",
+          "official_primary_allowed",
+          "policy_family_match:unknown",
+          "provider:legistar"
+        ],
+        "source_of_truth_role": "primary_official",
+        "source_officialness": "official_civic_partner",
+        "source_retrieved_at": "2026-04-15T00:05:00+00:00",
+        "source_shape_changed": false,
         "source_tier": "tier_a",
         "source_type": "staff_report",
-        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13050001&GUID=PK-1"
+        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13050001&GUID=PK-1",
+        "stale_for_policy_use": false
       }
     ],
+    "evidence_use": "economic_parameter_source",
+    "external_source_promotion_register": [],
     "freshness_status": "fresh",
     "gate_projection": {
       "canonical_breakdown_ref": "",
@@ -473,8 +529,8 @@
       "blocking_gate": null,
       "case_id": "pkg-sj-parking-minimum-amendment-gate",
       "failure_codes": [],
-      "manual_audit_notes": "Builder POC payload; full durability/orchestration gates in bd-3wefe.10/.12.",
-      "provider": "tavily",
+      "manual_audit_notes": "Builder payload with canonical identity dedupe and provenance linkage; deduped_candidates=0; official_dominance_status=pass; official_primary_percent=100.0. Full durability/orchestration gates in bd-3wefe.10/.12.",
+      "provider": "private_searxng",
       "stage_results": [
         {
           "failure_codes": [],
@@ -506,6 +562,7 @@
     },
     "insufficiency_reasons": [],
     "jurisdiction": "san_jose_ca",
+    "moat_value_reason": "meeting_record:meeting_action:captures formal action lineage and decision timing even when quantitative extraction is not ready.",
     "model_cards": [
       {
         "arithmetic_valid": true,
@@ -537,7 +594,7 @@
         "evidence_card_id": "ev-2",
         "id": "param-1-required-parking-spaces-per-unit",
         "parameter_name": "required_parking_spaces_per_unit",
-        "source_excerpt": "Structured fact required_parking_spaces_per_unit resolved from source payload.",
+        "source_excerpt": "Structured fact required_parking_spaces_per_unit resolved from source payload. [normalized=1.0 ; unit=spaces_per_unit ; source_family=legistar]",
         "source_hierarchy_status": "fiscal_or_reg_impact_analysis",
         "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13050001&GUID=PK-1",
         "state": "resolved",
@@ -550,7 +607,7 @@
         "evidence_card_id": "ev-2",
         "id": "param-2-affected-project-units",
         "parameter_name": "affected_project_units",
-        "source_excerpt": "Structured fact affected_project_units resolved from source payload.",
+        "source_excerpt": "Structured fact affected_project_units resolved from source payload. [normalized=3200.0 ; unit=units ; source_family=legistar]",
         "source_hierarchy_status": "fiscal_or_reg_impact_analysis",
         "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13050001&GUID=PK-1",
         "state": "resolved",
@@ -559,28 +616,241 @@
         "value": 3200.0
       }
     ],
+    "policy_families": [
+      "meeting_action",
+      "parking_policy"
+    ],
+    "policy_family": "meeting_action",
     "policy_identifier": "san_jose_ca::sj-parking-minimum-amendment",
     "schema_version": "1.0.0",
     "scraped_sources": [
       {
-        "candidate_rank": 1,
+        "candidate_rank": 3,
         "provider_run_id": null,
         "query_family": "meeting_minutes",
         "query_text": "San Jose multifamily parking minimum amendment",
         "reader_artifact_url": "https://backend.artifacts/scrape/sj-parking-minimum-reader.txt",
         "reader_substance_passed": true,
-        "search_provider": "tavily",
+        "search_provider": "private_searxng",
         "search_snapshot_id": "snapshot::sj-parking-minimum-amendment",
         "selected_candidate_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13050001&GUID=PK-1"
       }
     ],
+    "source_freshness_drift": {
+      "freshness_gate_status": "fresh",
+      "records": [
+        {
+          "cadence": "unknown",
+          "classification_id": "cb56f5a9f6e0d0c8c2ee58e885955b1a28c81263354e389ba8e5835dd4eea2fa",
+          "last_successful_refresh": "2026-04-15T00:00:00+00:00",
+          "next_refresh_recommendation": "set_source_cadence_or_manual_review",
+          "provider": "private_searxng",
+          "retrieved_at": "2026-04-15T00:00:00+00:00",
+          "source_date_fields": {
+            "adoption_date": null,
+            "effective_date": null,
+            "event_date": null,
+            "meeting_date": null,
+            "published_date": null
+          },
+          "source_family": "meeting_minutes",
+          "source_shape_changed": false,
+          "source_shape_fingerprint": "c90eaf4e617859947967d9fecff20554d133f21aa80edfefaad2dce8db86209e",
+          "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13050001&GUID=PK-1",
+          "stale_for_policy_use": false,
+          "update_cadence_drift": false
+        },
+        {
+          "cadence": "weekly",
+          "classification_id": "af04f7974b85d070e795df206c0291caf640f92527698f1192a7b4e9c87aeb43",
+          "last_successful_refresh": "2026-04-15T00:05:00+00:00",
+          "next_refresh_recommendation": "2026-04-22T00:05:00+00:00",
+          "provider": "legistar",
+          "retrieved_at": "2026-04-15T00:05:00+00:00",
+          "source_date_fields": {
+            "adoption_date": null,
+            "effective_date": null,
+            "event_date": null,
+            "meeting_date": null,
+            "published_date": null
+          },
+          "source_family": "legistar",
+          "source_shape_changed": false,
+          "source_shape_fingerprint": "48454e91b74c5d97dac872735115b9bbc6eac2dec7175a700a860ce8e2735639",
+          "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13050001&GUID=PK-1",
+          "stale_for_policy_use": false,
+          "update_cadence_drift": false
+        }
+      ],
+      "source_shape_changed_count": 0,
+      "stale_source_count": 0,
+      "update_cadence_drift_count": 0
+    },
+    "source_identity_classifications": [
+      {
+        "artifact_type": "staff_report",
+        "artifact_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13050001&GUID=PK-1",
+        "candidate_rank": 1,
+        "classification_id": "cb56f5a9f6e0d0c8c2ee58e885955b1a28c81263354e389ba8e5835dd4eea2fa",
+        "derived_via_secondary_search": false,
+        "external_context_allowed": false,
+        "jurisdiction_match": "partial",
+        "policy_family_match": "unknown",
+        "primary_evidence_allowed": true,
+        "promotion_audit_status": "pending",
+        "promotion_reason": null,
+        "promotion_rule_id": null,
+        "provider": "private_searxng",
+        "reason_codes": [
+          "host_classification:official_civic_partner",
+          "jurisdiction_match:partial",
+          "official_primary_allowed",
+          "policy_family_match:unknown",
+          "provider:private_searxng"
+        ],
+        "ruleset_version": "2026-04-17.local-government-source-identity.v1",
+        "source_family": "meeting_minutes",
+        "source_host": "sanjose.legistar.com",
+        "source_lane": "scrape_search",
+        "source_of_truth_role": "primary_official",
+        "source_officialness": "official_civic_partner",
+        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13050001&GUID=PK-1"
+      },
+      {
+        "artifact_type": "staff_report",
+        "artifact_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13050001&GUID=PK-1",
+        "candidate_rank": 2,
+        "classification_id": "af04f7974b85d070e795df206c0291caf640f92527698f1192a7b4e9c87aeb43",
+        "derived_via_secondary_search": false,
+        "external_context_allowed": false,
+        "jurisdiction_match": "partial",
+        "policy_family_match": "unknown",
+        "primary_evidence_allowed": true,
+        "promotion_audit_status": "pending",
+        "promotion_reason": null,
+        "promotion_rule_id": null,
+        "provider": "legistar",
+        "reason_codes": [
+          "host_classification:official_civic_partner",
+          "jurisdiction_match:partial",
+          "official_primary_allowed",
+          "policy_family_match:unknown",
+          "provider:legistar"
+        ],
+        "ruleset_version": "2026-04-17.local-government-source-identity.v1",
+        "source_family": "legistar",
+        "source_host": "sanjose.legistar.com",
+        "source_lane": "structured",
+        "source_of_truth_role": "primary_official",
+        "source_officialness": "official_civic_partner",
+        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13050001&GUID=PK-1"
+      }
+    ],
+    "source_identity_rules": {
+      "approved_external_promotion_audit_statuses": [
+        "approved",
+        "audited_pass",
+        "manual_approved",
+        "reviewed"
+      ],
+      "official_dominance_targets": {
+        "audited_p0_p1_target_percent": 90.0,
+        "corpus_target_percent": 85.0,
+        "hard_fail_below_percent": 80.0
+      },
+      "ruleset_version": "2026-04-17.local-government-source-identity.v1",
+      "secondary_provider_primary_caps": {
+        "audited_tavily_exa_max_percent": 0.0,
+        "corpus_tavily_exa_max_percent": 5.0
+      },
+      "source_of_truth_roles": [
+        "primary_official",
+        "primary_external_promoted",
+        "secondary_context",
+        "discovery_only"
+      ],
+      "source_officialness_values": [
+        "official_government",
+        "official_civic_partner",
+        "official_regional_body",
+        "external_advocacy",
+        "external_news",
+        "external_vendor",
+        "ambiguous_portal",
+        "external_other",
+        "unknown"
+      ]
+    },
     "source_lanes": [
       "scraped",
       "structured"
     ],
+    "source_official_dominance": {
+      "audited_official_primary_count": 2,
+      "audited_official_primary_percent": 100.0,
+      "audited_p0_p1_target_percent": 90.0,
+      "audited_primary_count": 2,
+      "audited_tavily_exa_max_percent": 0.0,
+      "audited_tavily_exa_primary_percent": 0.0,
+      "corpus_official_primary_count": 2,
+      "corpus_official_primary_percent": 100.0,
+      "corpus_primary_count": 2,
+      "corpus_target_percent": 85.0,
+      "corpus_tavily_exa_max_percent": 5.0,
+      "corpus_tavily_exa_primary_percent": 0.0,
+      "failure_codes": [],
+      "hard_fail_below_percent": 80.0,
+      "status": "pass"
+    },
+    "source_quality_metrics": {
+      "external_source_promotion_count": 0,
+      "identity_blocker_code": null,
+      "identity_blocker_reason": null,
+      "jurisdiction_identity_ready": true,
+      "official_source_dominance": {
+        "audited_official_primary_count": 2,
+        "audited_official_primary_percent": 100.0,
+        "audited_p0_p1_target_percent": 90.0,
+        "audited_primary_count": 2,
+        "audited_tavily_exa_max_percent": 0.0,
+        "audited_tavily_exa_primary_percent": 0.0,
+        "corpus_official_primary_count": 2,
+        "corpus_official_primary_percent": 100.0,
+        "corpus_primary_count": 2,
+        "corpus_target_percent": 85.0,
+        "corpus_tavily_exa_max_percent": 5.0,
+        "corpus_tavily_exa_primary_percent": 0.0,
+        "failure_codes": [],
+        "hard_fail_below_percent": 80.0,
+        "status": "pass"
+      },
+      "policy_identity_ready": true,
+      "ruleset_version": "2026-04-17.local-government-source-identity.v1",
+      "selected_artifact_family": "meeting_minutes",
+      "selected_candidate": {
+        "artifact_family": "meeting_minutes",
+        "official_domain": true,
+        "provider": "private_searxng",
+        "url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13050001&GUID=PK-1"
+      },
+      "top_n_artifact_recall_count": 2
+    },
+    "source_reconciliation": {
+      "external_primary_source_count": 0,
+      "external_source_promotion_count": 0,
+      "identity_blocker_code": null,
+      "identity_blocker_reason": null,
+      "official_attachment_row_count": 0,
+      "primary_official_row_count": 2,
+      "secondary_snippet_row_count": 0,
+      "source_shape_changed_count": 0,
+      "stale_source_count": 0,
+      "true_structured_row_count": 2,
+      "update_cadence_drift_count": 0
+    },
     "storage_refs": [
       {
-        "content_hash": null,
+        "content_hash": "fixture::sj-parking-minimum-amendment::scraped",
         "notes": null,
         "reference_id": "policy_evidence_packages:sj-parking-minimum-amendment",
         "storage_system": "postgres",
@@ -588,7 +858,7 @@
         "uri": null
       },
       {
-        "content_hash": null,
+        "content_hash": "fixture::sj-parking-minimum-amendment::scraped",
         "notes": "readback proof pending bd-3wefe.10",
         "reference_id": "https://backend.artifacts/scrape/sj-parking-minimum-reader.txt",
         "storage_system": "minio",
@@ -596,7 +866,7 @@
         "uri": "https://backend.artifacts/scrape/sj-parking-minimum-reader.txt"
       },
       {
-        "content_hash": null,
+        "content_hash": "fixture::sj-parking-minimum-amendment::scraped",
         "notes": "derived index only",
         "reference_id": "chunk:sj-parking-minimum-amendment:1",
         "storage_system": "pgvector",
@@ -608,9 +878,16 @@
       {
         "access_method": "public_api",
         "endpoint_or_file_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13050001&GUID=PK-1",
+        "event_body_id": null,
+        "event_date": null,
         "field_count": 2,
+        "matter_id": null,
+        "policy_match_confidence": null,
+        "policy_match_key": "san_jose_ca::sj-parking-minimum-amendment",
         "provider_run_id": null,
-        "source_family": "legistar"
+        "reconciliation_status": "confirmed",
+        "source_family": "legistar",
+        "true_structured": true
       }
     ]
   },
@@ -623,8 +900,8 @@
     "selected_artifact_artifact_grade": true,
     "selected_artifact_is_portal": false,
     "selected_artifact_official_domain": true,
-    "selected_artifact_provider": "tavily",
-    "selected_artifact_rank": 1,
+    "selected_artifact_provider": "private_searxng",
+    "selected_artifact_rank": 3,
     "selected_artifact_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13050001&GUID=PK-1"
   }
 }

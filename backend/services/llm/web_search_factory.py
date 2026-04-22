@@ -40,6 +40,7 @@ class ZaiStructuredWebSearchClient:
         self.api_key = api_key
         self.endpoint = endpoint
         self.model = model
+        self.provider_label = "zai_search"
         self.structured_timeout_s = max(0.1, structured_timeout_s)
         self.fallback_timeout_s = max(0.1, fallback_timeout_s)
         self.client = httpx.AsyncClient(timeout=60.0)
@@ -240,6 +241,7 @@ class OssSearxngWebSearchClient:
         user_agent: str = DEFAULT_USER_AGENT,
     ) -> None:
         self.endpoint = endpoint.strip()
+        self.provider_label = "private_searxng"
         self.timeout_s = max(0.1, timeout_s)
         self.user_agent = user_agent
         self.client = httpx.AsyncClient(timeout=self.timeout_s)
@@ -313,6 +315,7 @@ class TavilyWebSearchClient:
     ) -> None:
         self.api_key = api_key.strip()
         self.endpoint = endpoint.strip() or DEFAULT_TAVILY_SEARCH_URL
+        self.provider_label = "tavily"
         self.timeout_s = max(0.1, timeout_s)
         self.client = httpx.AsyncClient(timeout=self.timeout_s)
 
@@ -396,6 +399,7 @@ class ExaWebSearchClient:
     ) -> None:
         self.api_key = api_key.strip()
         self.endpoint = endpoint.strip() or DEFAULT_EXA_SEARCH_URL
+        self.provider_label = "exa"
         self.timeout_s = max(0.1, timeout_s)
         self.user_agent = user_agent.strip() or DEFAULT_EXA_USER_AGENT
         self.client = httpx.AsyncClient(timeout=self.timeout_s)

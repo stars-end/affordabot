@@ -1,0 +1,1857 @@
+{
+  "backend_endpoint_readiness": {
+    "local_mock_probe": {
+      "note": "local mock backend endpoint probe passed",
+      "status": "passed"
+    },
+    "missing_inputs": [],
+    "note": "backend endpoint config is present and local mock probe passed",
+    "status": "ready_for_opt_in"
+  },
+  "blockers": [
+    {
+      "blocking": false,
+      "category": "storage/runtime",
+      "details": {
+        "reason": "[Errno 8] nodename nor servname provided, or not known",
+        "status": "probe_failed"
+      },
+      "message": "DB/storage probe unavailable"
+    },
+    {
+      "blocking": false,
+      "category": "storage/runtime",
+      "details": {
+        "pending_gates": [
+          "postgres_rows_written",
+          "pgvector_index_probe",
+          "minio_object_refs",
+          "reader_output_ref",
+          "analysis_provenance_chain",
+          "idempotent_rerun",
+          "stale_drill_stale_but_usable",
+          "stale_drill_stale_blocked"
+        ]
+      },
+      "message": "storage/runtime evidence gates are pending"
+    }
+  ],
+  "canonical_variables": {
+    "BACKEND_ENDPOINT_AUTH_TOKEN": "optional local readiness input only",
+    "BACKEND_ENDPOINT_URL": "optional local readiness input only",
+    "BACKEND_PUBLIC_URL_VAR": "f/affordabot/BACKEND_PUBLIC_URL",
+    "CRON_SECRET_VAR": "f/affordabot/CRON_SECRET",
+    "TMP_WMILL_CONFIG": "auto-created temporary profile directory",
+    "WINDMILL_API_TOKEN": "op://dev/Agent-Secrets-Production/WINDMILL_API_TOKEN",
+    "WINDMILL_BASE_URL": "derived as WINDMILL_DEV_LOGIN_URL without /user/login",
+    "WINDMILL_DEV_LOGIN_URL": "op://dev/Agent-Secrets-Production/WINDMILL_DEV_LOGIN_URL",
+    "WINDMILL_WORKSPACE": "affordabot"
+  },
+  "classification": "backend_bridge_surface_ready",
+  "db_storage_probe": {
+    "reason": "[Errno 8] nodename nor servname provided, or not known",
+    "status": "probe_failed"
+  },
+  "deployment_surface": {
+    "flow_deployed": true,
+    "flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+    "flow_unscheduled": true,
+    "script_deployed": true,
+    "script_path": "f/affordabot/pipeline_daily_refresh_domain_boundary"
+  },
+  "feature_key": "bd-3wefe.13",
+  "full_run_readiness": "partial",
+  "generated_at": "2026-04-17T06:25:52.171499+00:00",
+  "harness_version": "2026-04-13.worker-b.v2",
+  "idempotent_rerun": {
+    "attempted": false
+  },
+  "manual_audit_notes": {
+    "llm_analysis_excerpt": "The provided evidence is a support letter dated June 13, 2022, from various advocacy organizations to the San Jose City Council. It urges the adoption of Item 10.3, a Comprehensive Parking Policy and TDM Ordinance, scheduled for a vote on June 14, 2022. The letter argues that eliminating parking minimums and shifting to market-based parking supply will reduce greenhouse gas emissions, lower housing costs, and support climate neutrality goals.",
+    "llm_quality_note": "LLM analysis produced a substantive answer from persisted evidence.",
+    "manual_verdict": "PASS_MANUAL_AUDIT",
+    "reader_output_excerpt": "",
+    "reader_quality_note": "Reader output was persisted and provided to analysis."
+  },
+  "manual_run": {
+    "attempted": true,
+    "command_client": "backend_endpoint",
+    "contract_metadata_present": true,
+    "expected_step_sequence": [
+      "search_materialize",
+      "freshness_gate",
+      "read_fetch",
+      "index",
+      "analyze",
+      "summarize_run"
+    ],
+    "final_status": "succeeded",
+    "idempotency_key": "bd-3wefe.13-live-cycle-43-20260417062432",
+    "job_get": {
+      "canceled": false,
+      "completed_at": "2026-04-17T06:25:43.945021Z",
+      "created_at": "2026-04-17T06:24:43.758973Z",
+      "deleted": false,
+      "duration_ms": 60107,
+      "flow_status": {
+        "failure_module": {
+          "id": "failure_handler",
+          "type": "WaitingForPriorSteps"
+        },
+        "modules": [
+          {
+            "branch_chosen": null,
+            "id": "build_scope_matrix",
+            "skipped": false,
+            "type": "Success"
+          },
+          {
+            "branch_chosen": null,
+            "id": "per_scope_pipeline",
+            "skipped": false,
+            "type": "Success"
+          },
+          {
+            "branch_chosen": {
+              "type": "default"
+            },
+            "id": "branch_outcome_review",
+            "skipped": false,
+            "type": "Success"
+          }
+        ],
+        "step": 3
+      },
+      "id": "019d9a1c-faf5-1ccb-fa24-ada10c6074cc",
+      "job_kind": "flow",
+      "script_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow"
+    },
+    "job_logs_excerpt": "\u001b[33mNo wmill.yaml found. Use 'wmill init' to bootstrap it.\u001b[39m\n\u001b[36m\u001b[1m\n====== build_scope_matrix ======\u001b[22m\u001b[39m\njob=019d9a1c-fb4b-daf5-2304-01ff5d2df863 tag=python3 worker=wk-default-661cef133dc0-WZTwK hostname=661cef133dc0 isolation=none\n\nenv deps from local cache: certifi==2026.2.25, charset-normalizer==3.4.7, idna==3.11, requests==2.33.1, urllib3==2.6.3\n\n\n--- PYTHON (3.12) CODE EXECUTION ---\n\n\u001b[36m\u001b[1m\n====== per_scope_pipeline (iteration 0) ======\u001b[22m\u001b[39m\nFlow job completed with success\n\n\u001b[36m\u001b[1m\n====== branch_outcome_review ======\u001b[22m\u001b[39m\nFlow job completed with success\n\n",
+    "scope_totals": {
+      "scope_blocked": 0,
+      "scope_failed": 0,
+      "scope_succeeded": 1,
+      "scope_total": 1
+    },
+    "step_sequence": [
+      "search_materialize",
+      "freshness_gate",
+      "read_fetch",
+      "index",
+      "analyze",
+      "summarize_run"
+    ],
+    "step_sequence_matches_expected": true,
+    "windmill_job_id": "019d9a1c-faf5-1ccb-fa24-ada10c6074cc"
+  },
+  "policy_evidence_capture": {
+    "package_identity": {
+      "package_id": "pkg-72c61e051ff27ad3861cb9a6",
+      "storage_admin_refs": {
+        "content_artifact_ids": [],
+        "pipeline_command_ids": []
+      }
+    },
+    "requested_policy_scope": {
+      "analysis_question": "Capture authoritative San Jose parking policy evidence including policy action, enforcement scope, and effective dates.",
+      "jurisdiction": "San Jose CA",
+      "scenario": "parking_policy",
+      "search_query": "San Jose parking minimums ordinance policy action city council",
+      "source_family": "parking_policy"
+    },
+    "selected_read_artifact": {
+      "raw_scrape_ids": [
+        "b6a5b3d8-bd78-5279-b1b3-89b1bbaa22ef"
+      ],
+      "reader_output_ref": "",
+      "title": "",
+      "url": ""
+    },
+    "semantics": {
+      "classification": "useful_local_policy_evidence_not_economic_ready",
+      "expected_economic_readiness": "not_required",
+      "expected_evidence_use": "useful_local_policy_evidence",
+      "observed_economic_handoff_ready": false,
+      "observed_useful_local_policy_evidence": true
+    }
+  },
+  "result_payload": {
+    "alerts": [
+      "policy_evidence_fail_closed"
+    ],
+    "scope_blocked": 0,
+    "scope_failed": 0,
+    "scope_results": [
+      {
+        "alert": "policy_evidence_fail_closed",
+        "backend_response": {
+          "decision_reason": "run_summary_materialized",
+          "missing_runtime_adapters": [],
+          "refs": {
+            "analyze_reason": "analysis_completed",
+            "analyze_retry_class": "none",
+            "backend_run_id": "044f2532-29b5-475f-918a-b1c71283f1bf",
+            "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=parking_policy|doctype=meeting_minutes|url=https://actionnetwork.org/user_files/user_files/000/077/644/original/SJ_Parking_Policy_Council_Letter.pdf",
+            "document_id": "ffa1c7ac-a735-59da-83a3-7f2b29704a24",
+            "fail_closed_reasons": [
+              "analysis_sufficiency:Insufficient. The evidence is a letter advocating for the policy prior to a vote (June 14, 2022) rather than the enacted legislation itself. Consequently, it lacks the final authoritative policy text, specific enforcement scope details, and the actual effective dates of the ordinance.",
+              "blocking_gate_present",
+              "no_quant_support_path"
+            ],
+            "freshness_gate_reason": "fresh",
+            "freshness_gate_retry_class": "none",
+            "idempotent_replay": false,
+            "index_reason": "chunks_indexed",
+            "index_retry_class": "none",
+            "package_artifact_uri": "minio://affordabot-artifacts/policy-evidence/packages/pkg-72c61e051ff27ad3861cb9a6.json",
+            "package_id": "pkg-72c61e051ff27ad3861cb9a6",
+            "raw_scrape_id": "b6a5b3d8-bd78-5279-b1b3-89b1bbaa22ef",
+            "read_fetch_reason": "raw_scrapes_materialized",
+            "read_fetch_retry_class": "none",
+            "reader_artifact_uri": "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/parking_policy/reader_output/7d76f13601d9f3e206083876b1d5e9af1c1d8edac846d921198fda8938e5af83.md",
+            "run_id": "044f2532-29b5-475f-918a-b1c71283f1bf",
+            "search_materialize_reason": "fresh_snapshot_materialized",
+            "search_materialize_retry_class": "none",
+            "selected_url": "https://actionnetwork.org/user_files/user_files/000/077/644/original/SJ_Parking_Policy_Council_Letter.pdf",
+            "storage_proof_mode": "direct_live_probe",
+            "storage_status": "stored",
+            "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+            "windmill_run_id": "bd-3wefe.13-live-cycle-43-20260417062432"
+          },
+          "status": "succeeded",
+          "storage_mode": "railway_runtime"
+        },
+        "scope_index": 0,
+        "scope_item": {
+          "jurisdiction": "San Jose CA",
+          "scope_key": "san jose ca::parking_policy",
+          "source_family": "parking_policy"
+        },
+        "status": "succeeded",
+        "steps": {
+          "analyze": {
+            "alerts": [],
+            "command": "analyze",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "counts": {
+              "analyses": 1,
+              "evidence_chunks": 15
+            },
+            "created_at": "2026-04-17T06:25:40.723152+00:00",
+            "decision_reason": "analysis_completed",
+            "details": {
+              "analysis": {
+                "key_points": [
+                  "The City Council was scheduled to vote on adopting a Comprehensive Parking Policy and TDM Ordinance on June 14, 2022.",
+                  "Advocacy groups urge the elimination of parking minimums to base car storage on market demand instead of mandates.",
+                  "The policy aims to support San Jose's goal of becoming carbon neutral by 2030.",
+                  "Cited evidence suggests parking requirements increase housing costs by 17% for renter households.",
+                  "The document is a letter of advocacy and does not contain the text of the adopted ordinance or enforcement details."
+                ],
+                "sufficiency_state": "Insufficient. The evidence is a letter advocating for the policy prior to a vote (June 14, 2022) rather than the enacted legislation itself. Consequently, it lacks the final authoritative policy text, specific enforcement scope details, and the actual effective dates of the ordinance.",
+                "summary": "The provided evidence is a support letter dated June 13, 2022, from various advocacy organizations to the San Jose City Council. It urges the adoption of Item 10.3, a Comprehensive Parking Policy and TDM Ordinance, scheduled for a vote on June 14, 2022. The letter argues that eliminating parking minimums and shifting to market-based parking supply will reduce greenhouse gas emissions, lower housing costs, and support climate neutrality goals."
+              },
+              "evidence_selection": {
+                "candidate_chunk_count": 15,
+                "selected_chunk_count": 15,
+                "selected_chunks": [
+                  {
+                    "chunk_id": "8de33e04-00b3-52d9-8493-39773ed32627",
+                    "chunk_index": 0,
+                    "matched_action_signals": [
+                      "ordinance",
+                      "item "
+                    ],
+                    "matched_question_terms": [
+                      "san",
+                      "jose",
+                      "parking",
+                      "policy",
+                      "including"
+                    ],
+                    "rank": 1,
+                    "score": 28,
+                    "snippet": "San Jose City Hall200 E Santa Clara StSan Jose, CA 95113June 13, 2022RE: 6/14 City Council Item 10.3 Adopting a Comprehensive Parking Policy and TDMOrdinanceDear San Jose City Council,Thank you for yo"
+                  },
+                  {
+                    "chunk_id": "a28eadb5-625d-5902-a2e6-37368b3feda7",
+                    "chunk_index": 11,
+                    "matched_action_signals": [
+                      "housing",
+                      "affordability"
+                    ],
+                    "matched_question_terms": [
+                      "san",
+                      "jose",
+                      "parking",
+                      "action"
+                    ],
+                    "rank": 2,
+                    "score": 20,
+                    "snippet": "https://doi.org/10.1080/10511482.2016.12056471https://www.spur.org/news/2020-04-27/sheltering-place-reveals-how-much-parking-dominates-our-cities-and-lives2Your council has been a climate leader and w"
+                  },
+                  {
+                    "chunk_id": "9aeb0658-fba8-5d69-b094-619e50c0b30c",
+                    "chunk_index": 12,
+                    "matched_action_signals": [
+                      "housing",
+                      "ordinance"
+                    ],
+                    "matched_question_terms": [
+                      "san",
+                      "jose",
+                      "parking"
+                    ],
+                    "rank": 3,
+                    "score": 17,
+                    "snippet": "San Jose has an opportunity to re-envision how to plan for and accommodate new developmentin a growing city and to base car storage on market demand, not outdated parking mandates. Weurge you to think"
+                  },
+                  {
+                    "chunk_id": "fe11c581-c036-5622-bd23-4f19884152cf",
+                    "chunk_index": 7,
+                    "matched_action_signals": [
+                      "housing",
+                      "affordability",
+                      "rent"
+                    ],
+                    "matched_question_terms": [
+                      "parking"
+                    ],
+                    "rank": 4,
+                    "score": 15,
+                    "snippet": "\u25cfAffordability: The average cost for one parking space on a surface lot is $30,000 andfor an underground parking lot is $75,000 per parking space1. A 2016 study found thatparking requirements increase"
+                  },
+                  {
+                    "chunk_id": "d16613e4-ac5e-5bf1-84d2-49c77dc67cbd",
+                    "chunk_index": 5,
+                    "matched_action_signals": [
+                      "ordinance",
+                      "adopted"
+                    ],
+                    "matched_question_terms": [
+                      "san",
+                      "jose"
+                    ],
+                    "rank": 5,
+                    "score": 14,
+                    "snippet": "San Jose has adopted an ambitious plan to be carbon neutral by 2030. It is hard to reach thatwhen so much of the city is dedicated to the storage of vehicles: with over 1.9 million spaceshere already,"
+                  },
+                  {
+                    "chunk_id": "e6dcc4e0-2c1d-559f-be0d-43312fb9e38a",
+                    "chunk_index": 10,
+                    "matched_action_signals": [
+                      "housing",
+                      "rent"
+                    ],
+                    "matched_question_terms": [
+                      "parking",
+                      "policy"
+                    ],
+                    "rank": 6,
+                    "score": 14,
+                    "snippet": "2 Gabbe, C. J., & Pierce, G. (2016). Hidden Costs and Deadweight Losses: Bundled Parking and ResidentialRents in the Metropolitan United States. Housing Policy Debate, 27(2), 217\u2013229."
+                  },
+                  {
+                    "chunk_id": "09361b74-fc37-558a-b63f-deed160e2f75",
+                    "chunk_index": 6,
+                    "matched_action_signals": [],
+                    "matched_question_terms": [
+                      "san",
+                      "jose",
+                      "parking",
+                      "action"
+                    ],
+                    "rank": 7,
+                    "score": 12,
+                    "snippet": "\u25cfEnvironment: More parking means more cars on the road, which degrades theenvironment by increasing traffic and local air and water pollution. Parking lots are largepaved areas that increase polluted "
+                  },
+                  {
+                    "chunk_id": "679d8f79-06ad-5c08-9cb6-2b3e0f950e84",
+                    "chunk_index": 1,
+                    "matched_action_signals": [
+                      "housing",
+                      "ordinance"
+                    ],
+                    "matched_question_terms": [
+                      "action"
+                    ],
+                    "rank": 8,
+                    "score": 11,
+                    "snippet": "That is why Greenbelt Alliance, TransForm, Catalyze SV, Silicon Valley Bicycle Coalition,Urban Environmentalists, SPUR, Housing Action Coalition, SV@Home, TransForm,Veggielution, the Natural Resources"
+                  },
+                  {
+                    "chunk_id": "503aa04c-7dd7-5cdc-82f7-1e8d1b472e7b",
+                    "chunk_index": 14,
+                    "matched_action_signals": [
+                      "housing"
+                    ],
+                    "matched_question_terms": [
+                      "policy",
+                      "action"
+                    ],
+                    "rank": 9,
+                    "score": 10,
+                    "snippet": "Sincerely,Ali SapirmanSouth Bay OrganizerHousing Action CoalitionMatthew ReedDirector of PolicySV@HomeKendra MaHousing Policy AnalystTransFormAlex ShoorExecutive DirectorCatalyze SVAaron EckhouseRegio"
+                  },
+                  {
+                    "chunk_id": "1c84decc-60d8-5e66-ae6b-ed3aeb113dec",
+                    "chunk_index": 13,
+                    "matched_action_signals": [
+                      "housing",
+                      "affordability"
+                    ],
+                    "matched_question_terms": [],
+                    "rank": 10,
+                    "score": 8,
+                    "snippet": "Tackling the combined crises of housing affordability, inequality, and climate change in all theircomplexity requires structural and cultural change. An important piece of the puzzle is tomodernize le"
+                  },
+                  {
+                    "chunk_id": "19a8af8b-6a3c-5091-9859-1f2a2e8e26fa",
+                    "chunk_index": 9,
+                    "matched_action_signals": [
+                      "housing"
+                    ],
+                    "matched_question_terms": [
+                      "parking"
+                    ],
+                    "rank": 11,
+                    "score": 7,
+                    "snippet": "Replacing requirements for excess parking with a program that subsidizes passes willhelp stabilize VTA. It will also lower the joint costs for transportation and housing forthe people who need it most"
+                  },
+                  {
+                    "chunk_id": "4524d44b-f875-5d43-9e23-8f16a7e1bca1",
+                    "chunk_index": 4,
+                    "matched_action_signals": [
+                      "compliance"
+                    ],
+                    "matched_question_terms": [],
+                    "rank": 12,
+                    "score": 4,
+                    "snippet": "-Develops a program for ongoing monitoring and compliance for the citywide TDMprogram."
+                  },
+                  {
+                    "chunk_id": "1e021927-d648-5343-a6de-cd04859d2e0f",
+                    "chunk_index": 2,
+                    "matched_action_signals": [],
+                    "matched_question_terms": [
+                      "parking"
+                    ],
+                    "rank": 13,
+                    "score": 3,
+                    "snippet": "1-Removes mandatory minimum parking limits;"
+                  },
+                  {
+                    "chunk_id": "2d1e654a-4ccd-5652-8beb-bede5f739067",
+                    "chunk_index": 3,
+                    "matched_action_signals": [],
+                    "matched_question_terms": [],
+                    "rank": 14,
+                    "score": 0,
+                    "snippet": "-Updates the City\u2019s Transportation Demand Management (TDM) requirements toapply to all projects meeting a certain size threshold;"
+                  },
+                  {
+                    "chunk_id": "d0ded111-9a19-56ff-a486-9963580e66fe",
+                    "chunk_index": 8,
+                    "matched_action_signals": [],
+                    "matched_question_terms": [],
+                    "rank": 15,
+                    "score": 0,
+                    "snippet": "\u25cfEquity: The Transportation Demand Management (TDM) policies are a critical way toincrease access to transportation and reduce the need for reliance on cars, allowing peoplemore affordable transportat"
+                  }
+                ]
+              }
+            },
+            "envelope": {
+              "analysis_question": "Capture authoritative San Jose parking policy evidence including policy action, enforcement scope, and effective dates.",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-3wefe.13-live-cycle-43-20260417062432",
+              "jurisdiction": "San Jose CA",
+              "orchestrator": "windmill",
+              "scope_idempotency_key": "bd-3wefe.13-live-cycle-43-20260417062432::2c3802ea3a8739e3",
+              "search_query": "San Jose parking minimums ordinance policy action city council",
+              "source_family": "parking_policy",
+              "stale_status": "fresh",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-43-20260417062432",
+              "windmill_workspace": "affordabot"
+            },
+            "refs": {
+              "analysis_id": "0747ad84-239c-5849-9227-46c30fbe26bf",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-43-20260417062432"
+            },
+            "retry_class": "none",
+            "status": "succeeded"
+          },
+          "freshness_gate": {
+            "alerts": [],
+            "command": "freshness_gate",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "counts": {
+              "search_results": 10
+            },
+            "created_at": "2026-04-17T06:24:45.995062+00:00",
+            "decision_reason": "fresh",
+            "details": {
+              "fail_closed_ceiling_hours": 168,
+              "fresh_hours": 24,
+              "freshness_status": "fresh",
+              "snapshot_age_hours": 0,
+              "stale_usable_ceiling_hours": 72
+            },
+            "envelope": {
+              "analysis_question": "Capture authoritative San Jose parking policy evidence including policy action, enforcement scope, and effective dates.",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-3wefe.13-live-cycle-43-20260417062432",
+              "jurisdiction": "San Jose CA",
+              "orchestrator": "windmill",
+              "scope_idempotency_key": "bd-3wefe.13-live-cycle-43-20260417062432::2c3802ea3a8739e3",
+              "search_query": "San Jose parking minimums ordinance policy action city council",
+              "source_family": "parking_policy",
+              "stale_status": "fresh",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-43-20260417062432",
+              "windmill_workspace": "affordabot"
+            },
+            "refs": {
+              "search_snapshot_id": "6d36cc79-9797-450c-a1a4-b9191feacb2a",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-43-20260417062432"
+            },
+            "retry_class": "none",
+            "status": "succeeded"
+          },
+          "index": {
+            "alerts": [],
+            "command": "index",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "counts": {
+              "chunks": 15
+            },
+            "created_at": "2026-04-17T06:25:13.530334+00:00",
+            "decision_reason": "chunks_indexed",
+            "details": {
+              "embedding_count": 15,
+              "embedding_provider": "openrouter:qwen/qwen3-embedding-8b"
+            },
+            "envelope": {
+              "analysis_question": "Capture authoritative San Jose parking policy evidence including policy action, enforcement scope, and effective dates.",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-3wefe.13-live-cycle-43-20260417062432",
+              "jurisdiction": "San Jose CA",
+              "orchestrator": "windmill",
+              "scope_idempotency_key": "bd-3wefe.13-live-cycle-43-20260417062432::2c3802ea3a8739e3",
+              "search_query": "San Jose parking minimums ordinance policy action city council",
+              "source_family": "parking_policy",
+              "stale_status": "fresh",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-43-20260417062432",
+              "windmill_workspace": "affordabot"
+            },
+            "refs": {
+              "document_id": "ffa1c7ac-a735-59da-83a3-7f2b29704a24",
+              "raw_scrape_ids": [
+                "b6a5b3d8-bd78-5279-b1b3-89b1bbaa22ef"
+              ],
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-43-20260417062432"
+            },
+            "retry_class": "none",
+            "status": "succeeded"
+          },
+          "read_fetch": {
+            "alerts": [],
+            "command": "read_fetch",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "counts": {
+              "artifacts": 1,
+              "raw_scrapes": 1
+            },
+            "created_at": "2026-04-17T06:25:10.348632+00:00",
+            "decision_reason": "raw_scrapes_materialized",
+            "details": {
+              "candidate_audit": [
+                {
+                  "candidate_artifact_family": "external_page",
+                  "fee_schedule_gate": {
+                    "authoritative_policy_text_ok": false,
+                    "classified_as_maintained_fee_schedule": false,
+                    "passed": false,
+                    "reason": "non_official_domain"
+                  },
+                  "outcome": "materialized_raw_scrape",
+                  "rank": 1,
+                  "raw_scrape_id": "b6a5b3d8-bd78-5279-b1b3-89b1bbaa22ef",
+                  "score": 13,
+                  "url": "https://actionnetwork.org/user_files/user_files/000/077/644/original/SJ_Parking_Policy_Council_Letter.pdf"
+                }
+              ],
+              "ranked_candidates": [
+                {
+                  "input_index": 9,
+                  "rank": 1,
+                  "reasons": [
+                    "url_signal:.pdf",
+                    "url_high_value:.pdf",
+                    "text_signal:council",
+                    "text_signal:ordinance"
+                  ],
+                  "score": 13,
+                  "snippet": "RE: 6/14 City Council Item 10.3 Adopting a Comprehensive Parking Policy and TDM Ordinance Dear San Jose City Council, Thank you for your bold leadership on enacting change that will help San Jose reach ambitious climate goals, including becominging carbon neutral by 2030.",
+                  "title": "PDF June 14 SJ Parking Policy Council letter - actionnetwork.org",
+                  "url": "https://actionnetwork.org/user_files/user_files/000/077/644/original/SJ_Parking_Policy_Council_Letter.pdf"
+                },
+                {
+                  "input_index": 3,
+                  "rank": 2,
+                  "reasons": [
+                    "url_signal:.pdf",
+                    "url_high_value:.pdf",
+                    "text_signal:council",
+                    "text_signal:ordinance",
+                    "penalty:home"
+                  ],
+                  "score": 11,
+                  "snippet": "Jun 13, 2022 \u00b7 ordinance that: 1. Page 2. - Removes mandatory minimum parking limits;. - Updates the City's Transportation Demand Management (TDM) requirements ...",
+                  "title": "[PDF] June 14 SJ Parking Policy Council letter - SV@Home",
+                  "url": "https://siliconvalleyathome.org/wp-content/uploads/2022/06/June-14-SJ-Parking-Policy-Council-letter-Updated.pdf"
+                },
+                {
+                  "input_index": 8,
+                  "rank": 3,
+                  "reasons": [
+                    "url_signal:legistar.com",
+                    "text_signal:ordinance"
+                  ],
+                  "score": 6,
+                  "snippet": "Nov 30, 2022 \u00b7 Title: PP22-015 - Amendment to Title 20 (Zoning Ordinance or Zoning Code) of the San Jos\u00e9 Municipal Code for the Parking and Transportation ...",
+                  "title": "City of San Jos\u00e9 - File #: 22-1876 - Calendar",
+                  "url": "https://sanjose.legistar.com/LegislationDetail.aspx?ID=5950698&GUID=477281B1-FB98-4899-BF37-4F080890914D"
+                },
+                {
+                  "input_index": 0,
+                  "rank": 4,
+                  "reasons": [
+                    "text_signal:ordinance",
+                    "text_action:approved"
+                  ],
+                  "score": 3,
+                  "snippet": "Dec 7, 2022 ... The policy that has been approved includes eliminating parking requirements in most areas of the city, as well as new transportation demand\u00a0...",
+                  "title": "San Jos\u00e9 Approves Parking And Mobility Ordinance",
+                  "url": "https://www.greenbelt.org/blog/san-jose-approves-parking-policy/"
+                },
+                {
+                  "input_index": 1,
+                  "rank": 5,
+                  "reasons": [
+                    "text_signal:council",
+                    "text_signal:ordinance",
+                    "text_action:voted",
+                    "penalty:departments"
+                  ],
+                  "score": 2,
+                  "snippet": "The San Jos\u00e9 City Council voted unanimously on December 6, 2022 to update its parking ordinance to no longer have minimum parking requirements for development proposals and to favor other modes of transportation. The new ordinance is in effect as of April 10, 2023. In a first significant shift in parking rules since 1965, the City Council agreed with the Planning staff's reasoning that zoning ...",
+                  "title": "Parking and Transportation Demand Management (TDM ... - City of San Jose",
+                  "url": "https://www.sanjoseca.gov/your-government/departments-offices/planning-building-code-enforcement/planning-division/ordinances-proposed-updates/parking-policy-evaluation"
+                }
+              ],
+              "reader_provider_errors": [],
+              "reader_quality_failures": []
+            },
+            "envelope": {
+              "analysis_question": "Capture authoritative San Jose parking policy evidence including policy action, enforcement scope, and effective dates.",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-3wefe.13-live-cycle-43-20260417062432",
+              "jurisdiction": "San Jose CA",
+              "orchestrator": "windmill",
+              "scope_idempotency_key": "bd-3wefe.13-live-cycle-43-20260417062432::2c3802ea3a8739e3",
+              "search_query": "San Jose parking minimums ordinance policy action city council",
+              "source_family": "parking_policy",
+              "stale_status": "fresh",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-43-20260417062432",
+              "windmill_workspace": "affordabot"
+            },
+            "refs": {
+              "artifact_refs": [
+                "artifacts/2026-04-13.windmill-domain.v1/San Jose CA/parking_policy/reader_output/7d76f13601d9f3e206083876b1d5e9af1c1d8edac846d921198fda8938e5af83.md"
+              ],
+              "document_id": "ffa1c7ac-a735-59da-83a3-7f2b29704a24",
+              "raw_scrape_ids": [
+                "b6a5b3d8-bd78-5279-b1b3-89b1bbaa22ef"
+              ],
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-43-20260417062432"
+            },
+            "retry_class": "none",
+            "status": "succeeded"
+          },
+          "search_materialize": {
+            "alerts": [],
+            "command": "search_materialize",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "counts": {
+              "search_results": 10
+            },
+            "created_at": "2026-04-17T06:24:45.958437+00:00",
+            "decision_reason": "fresh_snapshot_materialized",
+            "details": {
+              "query": "San Jose parking minimums ordinance policy action city council"
+            },
+            "envelope": {
+              "analysis_question": "Capture authoritative San Jose parking policy evidence including policy action, enforcement scope, and effective dates.",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-3wefe.13-live-cycle-43-20260417062432",
+              "jurisdiction": "San Jose CA",
+              "orchestrator": "windmill",
+              "scope_idempotency_key": "bd-3wefe.13-live-cycle-43-20260417062432::2c3802ea3a8739e3",
+              "search_query": "San Jose parking minimums ordinance policy action city council",
+              "source_family": "parking_policy",
+              "stale_status": "fresh",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-43-20260417062432",
+              "windmill_workspace": "affordabot"
+            },
+            "refs": {
+              "search_snapshot_id": "6d36cc79-9797-450c-a1a4-b9191feacb2a",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-43-20260417062432"
+            },
+            "retry_class": "none",
+            "status": "succeeded"
+          },
+          "summarize_run": {
+            "alerts": [
+              "policy_evidence_fail_closed"
+            ],
+            "command": "summarize_run",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "counts": {
+              "analyses": 1,
+              "artifacts": 1,
+              "chunks": 15,
+              "evidence_chunks": 15,
+              "raw_scrapes": 1,
+              "search_results": 20
+            },
+            "created_at": "2026-04-17T06:25:40.738501+00:00",
+            "decision_reason": "run_summary_materialized",
+            "details": {
+              "policy_evidence_package": {
+                "alerts": [
+                  "policy_evidence_fail_closed"
+                ],
+                "package_payload": {
+                  "assumption_cards": [],
+                  "assumption_usage": [],
+                  "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=parking_policy|doctype=meeting_minutes|url=https://actionnetwork.org/user_files/user_files/000/077/644/original/SJ_Parking_Policy_Council_Letter.pdf",
+                  "created_at": "1970-01-01T00:00:00+00:00",
+                  "economic_handoff_ready": false,
+                  "economic_relevance": "contextual",
+                  "evidence_cards": [
+                    {
+                      "artifact_id": "v2|jurisdiction=san-jose-ca|family=parking_policy|doctype=meeting_minutes|url=https://actionnetwork.org/user_files/user_files/000/077/644/original/SJ_Parking_Policy_Council_Letter.pdf",
+                      "content_hash": "7d76f13601d9f3e206083876b1d5e9af1c1d8edac846d921198fda8938e5af83",
+                      "economic_relevance": "unknown",
+                      "evidence_use": "background_context",
+                      "excerpt": "San Jose City Hall200 E Santa Clara StSan Jose, CA 95113June 13, 2022RE: 6/14 City Council Item 10.3 Adopting a Comprehensive Parking Policy and TDMOrdinanceDear San Jose City Council,Thank you for your bold leadership on enacting change that will help San Jose reach ambitiousclimate goals, including becominging carbon neutral by 2030. Transportation accounts for nearly50% of greenhouse gas emissions in San Jose so to reach this goal we must do more to promotetransportation choices, walkability and affordable homes near transit.\n\nThat is why Greenbelt Alliance, TransForm, Catalyze SV, Silicon",
+                      "id": "ev-1",
+                      "moat_value_reason": "background_context:parking_policy:retains policy context as durable evidence with economic_relevance=unknown.",
+                      "policy_families": [
+                        "parking_policy"
+                      ],
+                      "policy_family": "parking_policy",
+                      "provenance_label": "private_searxng_parking_policy",
+                      "reader_run_id": null,
+                      "retrieved_at": "2026-04-17T06:25:10.337897Z",
+                      "source_tier": "tier_a",
+                      "source_type": "ordinance_text",
+                      "source_url": "https://actionnetwork.org/user_files/user_files/000/077/644/original/SJ_Parking_Policy_Council_Letter.pdf"
+                    },
+                    {
+                      "artifact_id": "v2|jurisdiction=san-jose-ca|family=legistar-web-api|doctype=matter_metadata|url=https://webapi.legistar.com/v1/sanjose/Matters/15793",
+                      "content_hash": "missing_hash::https://webapi.legistar.com/v1/sanjose/Matters/15793",
+                      "economic_relevance": "contextual",
+                      "evidence_use": "meeting_record",
+                      "excerpt": "Structured Legistar matter metadata fetched from San Jose Web API; MatterTitle='Terms of a Side Letter Agreement Between the City of San Jos\u00e9 and the Peace Officer Park Ranger Association (POPRA) and Amendments to the City Pay Plan.', attachments=1, classified_attachment_refs=1.",
+                      "id": "ev-2",
+                      "moat_value_reason": "meeting_record:meeting_action:captures formal action lineage and decision timing even when quantitative extraction is not ready.",
+                      "policy_families": [
+                        "meeting_action"
+                      ],
+                      "policy_family": "meeting_action",
+                      "provenance_label": "legistar_web_api_legistar_web_api",
+                      "reader_run_id": null,
+                      "retrieved_at": "2026-04-17T06:25:42.744852Z",
+                      "source_tier": "tier_b",
+                      "source_type": "other",
+                      "source_url": "https://webapi.legistar.com/v1/sanjose/Matters/15793"
+                    }
+                  ],
+                  "evidence_use": "meeting_record",
+                  "freshness_status": "fresh",
+                  "gate_projection": {
+                    "canonical_breakdown_ref": "analysis:0747ad84-239c-5849-9227-46c30fbe26bf",
+                    "canonical_pipeline_run_id": "044f2532-29b5-475f-918a-b1c71283f1bf",
+                    "canonical_pipeline_step_id": "0747ad84-239c-5849-9227-46c30fbe26bf",
+                    "runtime_failure_codes": [
+                      "parameter_missing"
+                    ],
+                    "runtime_insufficiency_reason": "blocking gate present or missing quantitative support",
+                    "runtime_sufficiency_state": "qualitative_only"
+                  },
+                  "gate_report": {
+                    "artifact_counts": {
+                      "evidence_cards": 2
+                    },
+                    "blocking_gate": "parameterization",
+                    "case_id": "pkg-72c61e051ff27ad3861cb9a6-gate",
+                    "failure_codes": [
+                      "parameter_missing"
+                    ],
+                    "manual_audit_notes": "Builder payload with canonical identity dedupe and provenance linkage; deduped_candidates=0. Full durability/orchestration gates in bd-3wefe.10/.12.",
+                    "provider": "private_searxng",
+                    "stage_results": [
+                      {
+                        "failure_codes": [],
+                        "note": null,
+                        "passed": true,
+                        "stage": "search_recall"
+                      },
+                      {
+                        "failure_codes": [],
+                        "note": null,
+                        "passed": true,
+                        "stage": "reader_substance"
+                      },
+                      {
+                        "failure_codes": [
+                          "parameter_missing"
+                        ],
+                        "note": null,
+                        "passed": false,
+                        "stage": "parameterization"
+                      },
+                      {
+                        "failure_codes": [
+                          "parameter_unverifiable"
+                        ],
+                        "note": null,
+                        "passed": false,
+                        "stage": "quantification"
+                      }
+                    ],
+                    "unsupported_claim_count": 1,
+                    "verdict": "fail_closed"
+                  },
+                  "insufficiency_reasons": [
+                    "blocking_gate_present",
+                    "no_quant_support_path"
+                  ],
+                  "jurisdiction": "San Jose CA",
+                  "moat_value_reason": "background_context:parking_policy:retains policy context as durable evidence with economic_relevance=unknown.",
+                  "model_cards": [],
+                  "normalized_official_economic_rows": [],
+                  "package_id": "pkg-72c61e051ff27ad3861cb9a6",
+                  "parameter_cards": [],
+                  "policy_families": [
+                    "meeting_action",
+                    "parking_policy"
+                  ],
+                  "policy_family": "meeting_action",
+                  "policy_identifier": "v2|jurisdiction=san-jose-ca|family=parking_policy|doctype=meeting_minutes|url=https://actionnetwork.org/user_files/user_files/000/077/644/original/SJ_Parking_Policy_Council_Letter.pdf",
+                  "policy_lineage": {
+                    "attachment_content_probes": [
+                      {
+                        "attachment_id": "38797",
+                        "content_hash": "b05f4cd905034475a9c7d6c8c0be031e721367a5d610b8dbcecc98027934de25",
+                        "content_ingested": false,
+                        "economic_row_count": 0,
+                        "excerpt": "",
+                        "failure_class": "attachment_pdf_parse_failed",
+                        "read_status": "read_failed",
+                        "source_family": "memorandum",
+                        "source_title": "Memorandum",
+                        "source_url": "https://legistar.granicus.com/sanjose/attachments/06ab8e7a-88c2-4110-8273-5b6e59e9f9f4.pdf",
+                        "status": "pdf_parse_failed",
+                        "title": "Memorandum",
+                        "url": "https://legistar.granicus.com/sanjose/attachments/06ab8e7a-88c2-4110-8273-5b6e59e9f9f4.pdf"
+                      }
+                    ],
+                    "attachment_state": {
+                      "attachment_economic_row_count": 0,
+                      "attachment_ingested_count": 0,
+                      "attachment_probe_count": 1,
+                      "attachment_ref_count": 1,
+                      "content_ingested": false,
+                      "economic_rows_available": false,
+                      "refs_present": true
+                    },
+                    "expected_source_families": [
+                      "authoritative_policy_text",
+                      "meeting_context",
+                      "staff_fiscal_context",
+                      "related_attachments",
+                      "attachment_content_ingested",
+                      "attachment_economic_rows"
+                    ],
+                    "lineage_completeness_score": 0.16666666666666666,
+                    "lineage_presence": {
+                      "attachment_content_ingested": false,
+                      "attachment_economic_rows": false,
+                      "authoritative_policy_text": false,
+                      "meeting_context": false,
+                      "related_attachments": true,
+                      "staff_fiscal_context": false
+                    },
+                    "negative_evidence": [
+                      {
+                        "reason": "lineage_search_missing_in_current_package",
+                        "source_family": "authoritative_policy_text",
+                        "status": "not_found"
+                      },
+                      {
+                        "reason": "lineage_search_missing_in_current_package",
+                        "source_family": "meeting_context",
+                        "status": "not_found"
+                      },
+                      {
+                        "reason": "lineage_search_missing_in_current_package",
+                        "source_family": "staff_fiscal_context",
+                        "status": "not_found"
+                      },
+                      {
+                        "reason": "lineage_search_missing_in_current_package",
+                        "source_family": "attachment_content_ingested",
+                        "status": "not_found"
+                      },
+                      {
+                        "reason": "lineage_search_missing_in_current_package",
+                        "source_family": "attachment_economic_rows",
+                        "status": "not_found"
+                      }
+                    ],
+                    "related_artifacts": [
+                      "https://legistar.granicus.com/sanjose/attachments/06ab8e7a-88c2-4110-8273-5b6e59e9f9f4.pdf"
+                    ],
+                    "related_attachment_refs": [
+                      {
+                        "attachment_id": "38797",
+                        "source_family": "memorandum",
+                        "title": "Memorandum",
+                        "url": "https://legistar.granicus.com/sanjose/attachments/06ab8e7a-88c2-4110-8273-5b6e59e9f9f4.pdf"
+                      }
+                    ],
+                    "related_attachment_source_families": [
+                      "memorandum"
+                    ],
+                    "selected_artifact_family": "external_page"
+                  },
+                  "run_context": {
+                    "backend_run_id": "044f2532-29b5-475f-918a-b1c71283f1bf",
+                    "canonical_analysis_id": "0747ad84-239c-5849-9227-46c30fbe26bf",
+                    "canonical_breakdown_ref": "analysis:0747ad84-239c-5849-9227-46c30fbe26bf",
+                    "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=parking_policy|doctype=meeting_minutes|url=https://actionnetwork.org/user_files/user_files/000/077/644/original/SJ_Parking_Policy_Council_Letter.pdf",
+                    "canonical_pipeline_run_id": "044f2532-29b5-475f-918a-b1c71283f1bf",
+                    "canonical_pipeline_step_id": "0747ad84-239c-5849-9227-46c30fbe26bf",
+                    "document_id": "ffa1c7ac-a735-59da-83a3-7f2b29704a24",
+                    "fail_closed_reasons": [
+                      "analysis_sufficiency:Insufficient. The evidence is a letter advocating for the policy prior to a vote (June 14, 2022) rather than the enacted legislation itself. Consequently, it lacks the final authoritative policy text, specific enforcement scope details, and the actual effective dates of the ordinance."
+                    ],
+                    "impact_mode_hint": "qualitative_only",
+                    "mechanism_family_hint": null,
+                    "normalized_official_economic_rows": [],
+                    "package_identity": {
+                      "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=parking_policy|doctype=meeting_minutes|url=https://actionnetwork.org/user_files/user_files/000/077/644/original/SJ_Parking_Policy_Council_Letter.pdf",
+                      "idempotency_scope": "bd-3wefe.13-live-cycle-43-20260417062432::2c3802ea3a8739e3",
+                      "package_id": "pkg-72c61e051ff27ad3861cb9a6",
+                      "selected_url": "https://actionnetwork.org/user_files/user_files/000/077/644/original/SJ_Parking_Policy_Council_Letter.pdf"
+                    },
+                    "policy_lineage": {
+                      "attachment_content_probes": [
+                        {
+                          "attachment_id": "38797",
+                          "content_hash": "b05f4cd905034475a9c7d6c8c0be031e721367a5d610b8dbcecc98027934de25",
+                          "content_ingested": false,
+                          "economic_row_count": 0,
+                          "excerpt": "",
+                          "failure_class": "attachment_pdf_parse_failed",
+                          "read_status": "read_failed",
+                          "source_family": "memorandum",
+                          "source_title": "Memorandum",
+                          "source_url": "https://legistar.granicus.com/sanjose/attachments/06ab8e7a-88c2-4110-8273-5b6e59e9f9f4.pdf",
+                          "status": "pdf_parse_failed",
+                          "title": "Memorandum",
+                          "url": "https://legistar.granicus.com/sanjose/attachments/06ab8e7a-88c2-4110-8273-5b6e59e9f9f4.pdf"
+                        }
+                      ],
+                      "attachment_state": {
+                        "attachment_economic_row_count": 0,
+                        "attachment_ingested_count": 0,
+                        "attachment_probe_count": 1,
+                        "attachment_ref_count": 1,
+                        "content_ingested": false,
+                        "economic_rows_available": false,
+                        "refs_present": true
+                      },
+                      "expected_source_families": [
+                        "authoritative_policy_text",
+                        "meeting_context",
+                        "staff_fiscal_context",
+                        "related_attachments",
+                        "attachment_content_ingested",
+                        "attachment_economic_rows"
+                      ],
+                      "lineage_completeness_score": 0.16666666666666666,
+                      "lineage_presence": {
+                        "attachment_content_ingested": false,
+                        "attachment_economic_rows": false,
+                        "authoritative_policy_text": false,
+                        "meeting_context": false,
+                        "related_attachments": true,
+                        "staff_fiscal_context": false
+                      },
+                      "negative_evidence": [
+                        {
+                          "reason": "lineage_search_missing_in_current_package",
+                          "source_family": "authoritative_policy_text",
+                          "status": "not_found"
+                        },
+                        {
+                          "reason": "lineage_search_missing_in_current_package",
+                          "source_family": "meeting_context",
+                          "status": "not_found"
+                        },
+                        {
+                          "reason": "lineage_search_missing_in_current_package",
+                          "source_family": "staff_fiscal_context",
+                          "status": "not_found"
+                        },
+                        {
+                          "reason": "lineage_search_missing_in_current_package",
+                          "source_family": "attachment_content_ingested",
+                          "status": "not_found"
+                        },
+                        {
+                          "reason": "lineage_search_missing_in_current_package",
+                          "source_family": "attachment_economic_rows",
+                          "status": "not_found"
+                        }
+                      ],
+                      "related_artifacts": [
+                        "https://legistar.granicus.com/sanjose/attachments/06ab8e7a-88c2-4110-8273-5b6e59e9f9f4.pdf"
+                      ],
+                      "related_attachment_refs": [
+                        {
+                          "attachment_id": "38797",
+                          "source_family": "memorandum",
+                          "title": "Memorandum",
+                          "url": "https://legistar.granicus.com/sanjose/attachments/06ab8e7a-88c2-4110-8273-5b6e59e9f9f4.pdf"
+                        }
+                      ],
+                      "related_attachment_source_families": [
+                        "memorandum"
+                      ],
+                      "selected_artifact_family": "external_page"
+                    },
+                    "primary_parameter_extraction": {
+                      "alerts": [],
+                      "facts": [],
+                      "normalized_row_count": 0,
+                      "parameter_count": 0,
+                      "source": "analyze.evidence_selection.selected_chunks"
+                    },
+                    "proof_modes": {
+                      "analysis_binding": "canonical_projection_bound",
+                      "orchestration": "windmill_runtime_ids",
+                      "storage": "pending_storage_probe"
+                    },
+                    "raw_scrape_id": "b6a5b3d8-bd78-5279-b1b3-89b1bbaa22ef",
+                    "reader_artifact_uri": "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/parking_policy/reader_output/7d76f13601d9f3e206083876b1d5e9af1c1d8edac846d921198fda8938e5af83.md",
+                    "scope_idempotency_key": "bd-3wefe.13-live-cycle-43-20260417062432::2c3802ea3a8739e3",
+                    "search_provider_runtime": {
+                      "client_class": "OssSearxngWebSearchClient",
+                      "configured_provider": "searxng",
+                      "endpoint_configured": true,
+                      "endpoint_host": "searxng-private.railway.internal:8080",
+                      "provider": "private_searxng",
+                      "provider_source": "client_label"
+                    },
+                    "secondary_research_needed": false,
+                    "secondary_research_reason": null,
+                    "selected_url": "https://actionnetwork.org/user_files/user_files/000/077/644/original/SJ_Parking_Policy_Council_Letter.pdf",
+                    "source_quality_metrics": {
+                      "artifact_quality_gate": {
+                        "artifact_candidate_count": 0,
+                        "artifact_candidate_substantive_count": 0,
+                        "substantive_artifact_urls": []
+                      },
+                      "artifact_quality_gate_reason": "no_artifact_candidate_passed_quality_gate",
+                      "artifact_quality_gate_status": "pass",
+                      "explicit_lineage_linked": false,
+                      "fallback_materialization_count": 0,
+                      "identity_blocker_code": "",
+                      "identity_blocker_reason": "",
+                      "identity_failure_codes": [],
+                      "identity_failure_reasons": [],
+                      "identity_quality_ready": true,
+                      "identity_quality_status": "not_applicable",
+                      "identity_required": false,
+                      "jurisdiction_identity_ready": true,
+                      "jurisdiction_identity_signals": [],
+                      "jurisdiction_identity_status": "not_applicable",
+                      "official_reader_error_count": 0,
+                      "policy_identity_ready": true,
+                      "policy_identity_signals": [],
+                      "policy_identity_status": "not_applicable",
+                      "portal_skip_count": 0,
+                      "provider_results": {
+                        "private_searxng": {
+                          "candidates": [
+                            {
+                              "artifact_grade": false,
+                              "official_domain": false,
+                              "rank": 1,
+                              "url": "https://actionnetwork.org/user_files/user_files/000/077/644/original/SJ_Parking_Policy_Council_Letter.pdf"
+                            },
+                            {
+                              "artifact_grade": false,
+                              "official_domain": false,
+                              "rank": 2,
+                              "url": "https://siliconvalleyathome.org/wp-content/uploads/2022/06/June-14-SJ-Parking-Policy-Council-letter-Updated.pdf"
+                            },
+                            {
+                              "artifact_grade": false,
+                              "official_domain": true,
+                              "rank": 3,
+                              "url": "https://sanjose.legistar.com/LegislationDetail.aspx?ID=5950698&GUID=477281B1-FB98-4899-BF37-4F080890914D"
+                            },
+                            {
+                              "artifact_grade": false,
+                              "official_domain": false,
+                              "rank": 4,
+                              "url": "https://www.greenbelt.org/blog/san-jose-approves-parking-policy/"
+                            },
+                            {
+                              "artifact_grade": false,
+                              "official_domain": true,
+                              "rank": 5,
+                              "url": "https://www.sanjoseca.gov/your-government/departments-offices/planning-building-code-enforcement/planning-division/ordinances-proposed-updates/parking-policy-evaluation"
+                            }
+                          ],
+                          "reason_code": "materialized_raw_scrape",
+                          "status": "succeeded"
+                        }
+                      },
+                      "provider_summary": {
+                        "primary_provider": "private_searxng",
+                        "provider_error_count": 0,
+                        "provider_error_urls": [],
+                        "quality_failure_count": 0,
+                        "runtime": {
+                          "client_class": "OssSearxngWebSearchClient",
+                          "configured_provider": "searxng",
+                          "endpoint_configured": true,
+                          "endpoint_host": "searxng-private.railway.internal:8080",
+                          "provider": "private_searxng",
+                          "provider_source": "client_label"
+                        }
+                      },
+                      "reader_substance_observed": true,
+                      "reader_substance_selection_outcome": "materialized_raw_scrape",
+                      "secondary_numeric_parameter_count": 2,
+                      "secondary_numeric_rescue_detected": false,
+                      "selected_artifact_family": "external_page",
+                      "selected_candidate": {
+                        "artifact_family": "external_page",
+                        "artifact_grade": false,
+                        "artifact_quality_gate_passed": false,
+                        "fee_schedule_gate": {
+                          "authoritative_policy_text_ok": false,
+                          "classified_as_maintained_fee_schedule": false,
+                          "passed": false,
+                          "reason": "non_official_domain"
+                        },
+                        "official_domain": false,
+                        "provider": "private_searxng",
+                        "rank": 1,
+                        "selection_reason": "materialized_raw_scrape",
+                        "shape_quality_gate_passed": false,
+                        "url": "https://actionnetwork.org/user_files/user_files/000/077/644/original/SJ_Parking_Policy_Council_Letter.pdf"
+                      },
+                      "selection_quality_reason": "no_artifact_candidate_passed_quality_gate",
+                      "selection_quality_status": "fail",
+                      "source_shape_drift": {
+                        "candidate_count": 10,
+                        "drift_detected": false,
+                        "missing_snippet_count": 0,
+                        "missing_url_count": 0
+                      },
+                      "top_n_artifact_recall_count": 0,
+                      "top_n_official_recall_count": 2,
+                      "top_n_window": 5
+                    },
+                    "source_reconciliation": {
+                      "fail_closed_locator_signal_count": 0,
+                      "missing_true_structured_corroboration_count": 0,
+                      "official_attachment_authoritative_row_count": 0,
+                      "official_attachment_row_count": 0,
+                      "primary_official_row_count": 0,
+                      "records": [],
+                      "secondary_override_blocked": true,
+                      "secondary_snippet_row_count": 0,
+                      "source_of_truth_policy": "primary_artifact_precedence_then_labeled_secondary",
+                      "true_structured_row_count": 0,
+                      "unresolved_count": 0
+                    },
+                    "source_shape_drift": {
+                      "candidate_count": 10,
+                      "drift_detected": false,
+                      "missing_snippet_count": 0,
+                      "missing_url_count": 0
+                    },
+                    "structured_enrichment_alerts": [
+                      "structured_enrichment_ckan_unavailable"
+                    ],
+                    "structured_enrichment_status": "integrated",
+                    "structured_source_catalog": [
+                      {
+                        "access_method": "public_api_json",
+                        "cadence_freshness": "meeting-driven; near-real-time event updates",
+                        "display_name": "San Jose Legistar Web API",
+                        "economic_usefulness_score": 0.78,
+                        "endpoint_or_file_url": "https://webapi.legistar.com/v1/sanjose/Events",
+                        "free_status": "free_public",
+                        "jurisdiction_coverage": "san_jose_ca",
+                        "lane_classification": "true_structured",
+                        "live_proven": true,
+                        "policy_domain_relevance": "meeting agendas, minutes, ordinance/resolution metadata",
+                        "runtime_status": "integrated",
+                        "signup_or_key": "none_required",
+                        "signup_url": "https://webapi.legistar.com/",
+                        "source_family": "legistar_web_api",
+                        "storage_target": "policy_evidence_packages.package_payload.run_context.structured_sources"
+                      },
+                      {
+                        "access_method": "ckan_api_json",
+                        "cadence_freshness": "dataset-dependent metadata freshness",
+                        "display_name": "San Jose Open Data (CKAN)",
+                        "economic_usefulness_score": 0.63,
+                        "endpoint_or_file_url": "https://data.sanjoseca.gov/api/3/action/package_search",
+                        "free_status": "free_public",
+                        "jurisdiction_coverage": "san_jose_ca",
+                        "lane_classification": "true_structured",
+                        "live_proven": false,
+                        "policy_domain_relevance": "permits, housing/open data metadata, contextual economic indicators",
+                        "runtime_status": "cataloged_unavailable",
+                        "signup_or_key": "none_required",
+                        "signup_url": "https://data.sanjoseca.gov/",
+                        "source_family": "san_jose_open_data_ckan",
+                        "storage_target": "policy_evidence_packages.package_payload.run_context.structured_sources"
+                      },
+                      {
+                        "access_method": "raw_official_file",
+                        "cadence_freshness": "daily feed updates",
+                        "display_name": "California LegInfo PUBINFO Feed",
+                        "economic_usefulness_score": 0.71,
+                        "endpoint_or_file_url": "https://downloads.leginfo.legislature.ca.gov/pubinfo_daily_Mon.zip",
+                        "free_status": "free_public",
+                        "jurisdiction_coverage": "california_state",
+                        "lane_classification": "true_structured",
+                        "live_proven": false,
+                        "policy_domain_relevance": "bill identity, amendment cadence, text provenance",
+                        "runtime_status": "cataloged",
+                        "signup_or_key": "none_required",
+                        "signup_url": "https://downloads.leginfo.legislature.ca.gov/",
+                        "source_family": "california_leginfo_pubinfo",
+                        "storage_target": "policy_evidence_packages.package_payload.run_context.structured_sources"
+                      },
+                      {
+                        "access_method": "public_api_json",
+                        "cadence_freshness": "session/event driven",
+                        "display_name": "OpenStates API",
+                        "economic_usefulness_score": 0.56,
+                        "endpoint_or_file_url": "https://v3.openstates.org/bills",
+                        "free_status": "free_tier_key_required",
+                        "jurisdiction_coverage": "multi_state",
+                        "lane_classification": "true_structured",
+                        "live_proven": false,
+                        "policy_domain_relevance": "bill status, sponsors, action timelines",
+                        "runtime_status": "cataloged_unavailable",
+                        "signup_or_key": "api_key_required",
+                        "signup_url": "https://openstates.org/api/",
+                        "source_family": "openstates_api",
+                        "storage_target": "policy_evidence_packages.package_payload.run_context.structured_sources"
+                      },
+                      {
+                        "access_method": "public_api_json",
+                        "cadence_freshness": "dataset-dependent",
+                        "display_name": "Socrata Open Data Portals",
+                        "economic_usefulness_score": 0.62,
+                        "endpoint_or_file_url": "https://dev.socrata.com/",
+                        "free_status": "free_tier_key_optional_limits",
+                        "jurisdiction_coverage": "city_county_varies",
+                        "lane_classification": "true_structured",
+                        "live_proven": false,
+                        "policy_domain_relevance": "fees, permits, budget context, fiscal indicators",
+                        "runtime_status": "cataloged",
+                        "signup_or_key": "key_optional",
+                        "signup_url": "https://dev.socrata.com/",
+                        "source_family": "socrata_open_data",
+                        "storage_target": "policy_evidence_packages.package_payload.run_context.structured_sources"
+                      },
+                      {
+                        "access_method": "public_api_json",
+                        "cadence_freshness": "dataset-dependent",
+                        "display_name": "ArcGIS Public REST Services",
+                        "economic_usefulness_score": 0.49,
+                        "endpoint_or_file_url": "https://www.arcgis.com/sharing/rest/search",
+                        "free_status": "free_public",
+                        "jurisdiction_coverage": "regional_multi_county",
+                        "lane_classification": "true_structured",
+                        "live_proven": false,
+                        "policy_domain_relevance": "parcel/zoning/land-use context",
+                        "runtime_status": "cataloged",
+                        "signup_or_key": "none_required",
+                        "signup_url": "https://www.arcgis.com/",
+                        "source_family": "arcgis_rest_public",
+                        "storage_target": "policy_evidence_packages.package_payload.run_context.structured_sources"
+                      },
+                      {
+                        "access_method": "search_snippet_api",
+                        "cadence_freshness": "query-time",
+                        "display_name": "Tavily Secondary Search Snippets",
+                        "economic_usefulness_score": 0.2,
+                        "endpoint_or_file_url": "https://api.tavily.com/search",
+                        "free_status": "free_tier_key_required",
+                        "jurisdiction_coverage": "multi_jurisdiction",
+                        "lane_classification": "secondary_search_derived",
+                        "live_proven": false,
+                        "policy_domain_relevance": "secondary fallback only; not authoritative structured source",
+                        "runtime_status": "cataloged",
+                        "signup_or_key": "api_key_required",
+                        "signup_url": "https://app.tavily.com/",
+                        "source_family": "tavily_secondary_search",
+                        "storage_target": "policy_evidence_packages.package_payload.run_context.structured_sources"
+                      }
+                    ],
+                    "structured_sources": [
+                      {
+                        "access_method": "public_api_json",
+                        "artifact_type": "matter_metadata",
+                        "artifact_url": "https://webapi.legistar.com/v1/sanjose/Matters/15793",
+                        "attachment_content_probes": [
+                          {
+                            "attachment_id": "38797",
+                            "content_excerpt": "",
+                            "content_hash": "b05f4cd905034475a9c7d6c8c0be031e721367a5d610b8dbcecc98027934de25",
+                            "content_ingested": false,
+                            "economic_row_count": 0,
+                            "error": "unreadable_pdf",
+                            "excerpt": "",
+                            "failure_class": "attachment_pdf_parse_failed",
+                            "read_status": "read_failed",
+                            "source_family": "memorandum",
+                            "source_title": "Memorandum",
+                            "source_url": "https://legistar.granicus.com/sanjose/attachments/06ab8e7a-88c2-4110-8273-5b6e59e9f9f4.pdf",
+                            "status": "pdf_parse_failed",
+                            "title": "Memorandum",
+                            "url": "https://legistar.granicus.com/sanjose/attachments/06ab8e7a-88c2-4110-8273-5b6e59e9f9f4.pdf"
+                          }
+                        ],
+                        "diagnostic_facts": [
+                          {
+                            "field": "matter_id",
+                            "unit": "count",
+                            "value": 15793
+                          },
+                          {
+                            "field": "matter_attachment_probe_count",
+                            "unit": "count",
+                            "value": 1
+                          },
+                          {
+                            "field": "matter_attachment_content_ingested_count",
+                            "unit": "count",
+                            "value": 0
+                          },
+                          {
+                            "field": "matter_attachment_economic_row_count",
+                            "unit": "count",
+                            "value": 0
+                          }
+                        ],
+                        "excerpt": "Structured Legistar matter metadata fetched from San Jose Web API; MatterTitle='Terms of a Side Letter Agreement Between the City of San Jos\u00e9 and the Peace Officer Park Ranger Association (POPRA) and Amendments to the City Pay Plan.', attachments=1, classified_attachment_refs=1.",
+                        "jurisdiction": "san_jose_ca",
+                        "lineage_metadata": {
+                          "attachment_content_ingested_count": 0,
+                          "attachment_content_probe_count": 1,
+                          "attachment_economic_row_count": 0,
+                          "attachment_family_counts": {
+                            "memorandum": 1
+                          },
+                          "event_body_id": null,
+                          "event_date": null,
+                          "jurisdiction": "san_jose_ca",
+                          "matter_id": "15793",
+                          "related_attachment_refs": [
+                            {
+                              "attachment_id": "38797",
+                              "source_family": "memorandum",
+                              "title": "Memorandum",
+                              "url": "https://legistar.granicus.com/sanjose/attachments/06ab8e7a-88c2-4110-8273-5b6e59e9f9f4.pdf"
+                            }
+                          ],
+                          "source_identity": "legistar_web_api"
+                        },
+                        "linked_artifact_refs": [
+                          "https://legistar.granicus.com/sanjose/attachments/06ab8e7a-88c2-4110-8273-5b6e59e9f9f4.pdf"
+                        ],
+                        "policy_match_confidence": 0.95,
+                        "policy_match_key": "https://actionnetwork.org/user_files/user_files/000/077/644/original/sj_parking_policy_council_letter.pdf",
+                        "provider": "legistar_web_api",
+                        "provider_run_id": "15793",
+                        "query_text": "San Jose parking minimums ordinance policy action city council",
+                        "reader_artifact_refs": [],
+                        "reconciliation_status": "pending_primary_reconciliation",
+                        "related_attachment_refs": [
+                          {
+                            "attachment_id": "38797",
+                            "source_family": "memorandum",
+                            "title": "Memorandum",
+                            "url": "https://legistar.granicus.com/sanjose/attachments/06ab8e7a-88c2-4110-8273-5b6e59e9f9f4.pdf"
+                          }
+                        ],
+                        "retrieved_at": "2026-04-17T06:25:42.744852+00:00",
+                        "source_family": "legistar_web_api",
+                        "source_lane": "structured",
+                        "source_tier": "tier_b",
+                        "structured_policy_facts": [
+                          {
+                            "field": "matter_attachment_count",
+                            "unit": "count",
+                            "value": 1
+                          },
+                          {
+                            "field": "matter_attachment_url_count",
+                            "unit": "count",
+                            "value": 1
+                          }
+                        ],
+                        "true_structured": true
+                      }
+                    ],
+                    "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+                    "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+                    "windmill_run_id": "bd-3wefe.13-live-cycle-43-20260417062432",
+                    "windmill_workspace": "affordabot"
+                  },
+                  "schema_version": "1.0.0",
+                  "scraped_sources": [
+                    {
+                      "candidate_rank": 1,
+                      "provider_run_id": "bd-3wefe.13-live-cycle-43-20260417062432",
+                      "query_family": "parking_policy",
+                      "query_text": "San Jose parking minimums ordinance policy action city council",
+                      "reader_artifact_url": null,
+                      "reader_substance_passed": true,
+                      "search_provider": "private_searxng",
+                      "search_snapshot_id": "6d36cc79-9797-450c-a1a4-b9191feacb2a",
+                      "selected_candidate_url": "https://actionnetwork.org/user_files/user_files/000/077/644/original/SJ_Parking_Policy_Council_Letter.pdf"
+                    }
+                  ],
+                  "source_lanes": [
+                    "scraped",
+                    "structured"
+                  ],
+                  "source_quality_metrics": {
+                    "artifact_quality_gate": {
+                      "artifact_candidate_count": 0,
+                      "artifact_candidate_substantive_count": 0,
+                      "substantive_artifact_urls": []
+                    },
+                    "artifact_quality_gate_reason": "no_artifact_candidate_passed_quality_gate",
+                    "artifact_quality_gate_status": "pass",
+                    "explicit_lineage_linked": false,
+                    "fallback_materialization_count": 0,
+                    "identity_blocker_code": "",
+                    "identity_blocker_reason": "",
+                    "identity_failure_codes": [],
+                    "identity_failure_reasons": [],
+                    "identity_quality_ready": true,
+                    "identity_quality_status": "not_applicable",
+                    "identity_required": false,
+                    "jurisdiction_identity_ready": true,
+                    "jurisdiction_identity_signals": [],
+                    "jurisdiction_identity_status": "not_applicable",
+                    "official_reader_error_count": 0,
+                    "policy_identity_ready": true,
+                    "policy_identity_signals": [],
+                    "policy_identity_status": "not_applicable",
+                    "portal_skip_count": 0,
+                    "provider_results": {
+                      "private_searxng": {
+                        "candidates": [
+                          {
+                            "artifact_grade": false,
+                            "official_domain": false,
+                            "rank": 1,
+                            "url": "https://actionnetwork.org/user_files/user_files/000/077/644/original/SJ_Parking_Policy_Council_Letter.pdf"
+                          },
+                          {
+                            "artifact_grade": false,
+                            "official_domain": false,
+                            "rank": 2,
+                            "url": "https://siliconvalleyathome.org/wp-content/uploads/2022/06/June-14-SJ-Parking-Policy-Council-letter-Updated.pdf"
+                          },
+                          {
+                            "artifact_grade": false,
+                            "official_domain": true,
+                            "rank": 3,
+                            "url": "https://sanjose.legistar.com/LegislationDetail.aspx?ID=5950698&GUID=477281B1-FB98-4899-BF37-4F080890914D"
+                          },
+                          {
+                            "artifact_grade": false,
+                            "official_domain": false,
+                            "rank": 4,
+                            "url": "https://www.greenbelt.org/blog/san-jose-approves-parking-policy/"
+                          },
+                          {
+                            "artifact_grade": false,
+                            "official_domain": true,
+                            "rank": 5,
+                            "url": "https://www.sanjoseca.gov/your-government/departments-offices/planning-building-code-enforcement/planning-division/ordinances-proposed-updates/parking-policy-evaluation"
+                          }
+                        ],
+                        "reason_code": "materialized_raw_scrape",
+                        "status": "succeeded"
+                      }
+                    },
+                    "provider_summary": {
+                      "primary_provider": "private_searxng",
+                      "provider_error_count": 0,
+                      "provider_error_urls": [],
+                      "quality_failure_count": 0,
+                      "runtime": {
+                        "client_class": "OssSearxngWebSearchClient",
+                        "configured_provider": "searxng",
+                        "endpoint_configured": true,
+                        "endpoint_host": "searxng-private.railway.internal:8080",
+                        "provider": "private_searxng",
+                        "provider_source": "client_label"
+                      }
+                    },
+                    "reader_substance_observed": true,
+                    "reader_substance_selection_outcome": "materialized_raw_scrape",
+                    "secondary_numeric_parameter_count": 2,
+                    "secondary_numeric_rescue_detected": false,
+                    "selected_artifact_family": "external_page",
+                    "selected_candidate": {
+                      "artifact_family": "external_page",
+                      "artifact_grade": false,
+                      "artifact_quality_gate_passed": false,
+                      "fee_schedule_gate": {
+                        "authoritative_policy_text_ok": false,
+                        "classified_as_maintained_fee_schedule": false,
+                        "passed": false,
+                        "reason": "non_official_domain"
+                      },
+                      "official_domain": false,
+                      "provider": "private_searxng",
+                      "rank": 1,
+                      "selection_reason": "materialized_raw_scrape",
+                      "shape_quality_gate_passed": false,
+                      "url": "https://actionnetwork.org/user_files/user_files/000/077/644/original/SJ_Parking_Policy_Council_Letter.pdf"
+                    },
+                    "selection_quality_reason": "no_artifact_candidate_passed_quality_gate",
+                    "selection_quality_status": "fail",
+                    "source_shape_drift": {
+                      "candidate_count": 10,
+                      "drift_detected": false,
+                      "missing_snippet_count": 0,
+                      "missing_url_count": 0
+                    },
+                    "top_n_artifact_recall_count": 0,
+                    "top_n_official_recall_count": 2,
+                    "top_n_window": 5
+                  },
+                  "source_reconciliation": {
+                    "fail_closed_locator_signal_count": 0,
+                    "missing_true_structured_corroboration_count": 0,
+                    "official_attachment_authoritative_row_count": 0,
+                    "official_attachment_row_count": 0,
+                    "primary_official_row_count": 0,
+                    "records": [],
+                    "secondary_override_blocked": true,
+                    "secondary_snippet_row_count": 0,
+                    "source_of_truth_policy": "primary_artifact_precedence_then_labeled_secondary",
+                    "true_structured_row_count": 0,
+                    "unresolved_count": 0
+                  },
+                  "storage_refs": [
+                    {
+                      "content_hash": "7d76f13601d9f3e206083876b1d5e9af1c1d8edac846d921198fda8938e5af83",
+                      "notes": null,
+                      "reference_id": "policy_evidence_packages:pkg-72c61e051ff27ad3861cb9a6",
+                      "storage_system": "postgres",
+                      "truth_role": "source_of_truth",
+                      "uri": null
+                    },
+                    {
+                      "content_hash": "7d76f13601d9f3e206083876b1d5e9af1c1d8edac846d921198fda8938e5af83",
+                      "notes": "readback proof pending bd-3wefe.10",
+                      "reference_id": "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/parking_policy/reader_output/7d76f13601d9f3e206083876b1d5e9af1c1d8edac846d921198fda8938e5af83.md",
+                      "storage_system": "minio",
+                      "truth_role": "artifact_of_record",
+                      "uri": "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/parking_policy/reader_output/7d76f13601d9f3e206083876b1d5e9af1c1d8edac846d921198fda8938e5af83.md"
+                    },
+                    {
+                      "content_hash": "7d76f13601d9f3e206083876b1d5e9af1c1d8edac846d921198fda8938e5af83",
+                      "notes": "derived index only",
+                      "reference_id": "document:ffa1c7ac-a735-59da-83a3-7f2b29704a24",
+                      "storage_system": "pgvector",
+                      "truth_role": "derived_index",
+                      "uri": null
+                    },
+                    {
+                      "notes": "package artifact envelope",
+                      "reference_id": "minio://affordabot-artifacts/policy-evidence/packages/pkg-72c61e051ff27ad3861cb9a6.json",
+                      "storage_system": "minio",
+                      "truth_role": "artifact_of_record",
+                      "uri": "minio://affordabot-artifacts/policy-evidence/packages/pkg-72c61e051ff27ad3861cb9a6.json"
+                    }
+                  ],
+                  "structured_enrichment_status": "integrated",
+                  "structured_sources": [
+                    {
+                      "access_method": "public_api_json",
+                      "endpoint_or_file_url": "https://webapi.legistar.com/v1/sanjose/Matters/15793",
+                      "event_body_id": null,
+                      "event_date": null,
+                      "field_count": 2,
+                      "matter_id": "15793",
+                      "policy_match_confidence": 0.95,
+                      "policy_match_key": "https://actionnetwork.org/user_files/user_files/000/077/644/original/sj_parking_policy_council_letter.pdf",
+                      "provider_run_id": "15793",
+                      "reconciliation_status": "pending_primary_reconciliation",
+                      "source_family": "legistar_web_api",
+                      "true_structured": true
+                    }
+                  ]
+                },
+                "refs": {
+                  "backend_run_id": "044f2532-29b5-475f-918a-b1c71283f1bf",
+                  "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=parking_policy|doctype=meeting_minutes|url=https://actionnetwork.org/user_files/user_files/000/077/644/original/SJ_Parking_Policy_Council_Letter.pdf",
+                  "document_id": "ffa1c7ac-a735-59da-83a3-7f2b29704a24",
+                  "fail_closed_reasons": [
+                    "analysis_sufficiency:Insufficient. The evidence is a letter advocating for the policy prior to a vote (June 14, 2022) rather than the enacted legislation itself. Consequently, it lacks the final authoritative policy text, specific enforcement scope details, and the actual effective dates of the ordinance.",
+                    "blocking_gate_present",
+                    "no_quant_support_path"
+                  ],
+                  "idempotent_replay": false,
+                  "package_artifact_uri": "minio://affordabot-artifacts/policy-evidence/packages/pkg-72c61e051ff27ad3861cb9a6.json",
+                  "package_id": "pkg-72c61e051ff27ad3861cb9a6",
+                  "raw_scrape_id": "b6a5b3d8-bd78-5279-b1b3-89b1bbaa22ef",
+                  "reader_artifact_uri": "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/parking_policy/reader_output/7d76f13601d9f3e206083876b1d5e9af1c1d8edac846d921198fda8938e5af83.md",
+                  "selected_url": "https://actionnetwork.org/user_files/user_files/000/077/644/original/SJ_Parking_Policy_Council_Letter.pdf",
+                  "storage_proof_mode": "direct_live_probe",
+                  "storage_status": "stored"
+                },
+                "storage_result": {
+                  "artifact_readback_status": "proven",
+                  "artifact_write_status": "succeeded",
+                  "fail_closed": true,
+                  "failure_class": null,
+                  "idempotent_reuse": false,
+                  "pgvector_truth_role": "derived_index",
+                  "stored": true
+                }
+              },
+              "step_statuses": {
+                "analyze": "succeeded",
+                "freshness_gate": "succeeded",
+                "index": "succeeded",
+                "read_fetch": "succeeded",
+                "search_materialize": "succeeded"
+              }
+            },
+            "envelope": {
+              "analysis_question": "Capture authoritative San Jose parking policy evidence including policy action, enforcement scope, and effective dates.",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-3wefe.13-live-cycle-43-20260417062432",
+              "jurisdiction": "San Jose CA",
+              "orchestrator": "windmill",
+              "scope_idempotency_key": "bd-3wefe.13-live-cycle-43-20260417062432::2c3802ea3a8739e3",
+              "search_query": "San Jose parking minimums ordinance policy action city council",
+              "source_family": "parking_policy",
+              "stale_status": "fresh",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-43-20260417062432",
+              "windmill_workspace": "affordabot"
+            },
+            "refs": {
+              "analyze_reason": "analysis_completed",
+              "analyze_retry_class": "none",
+              "backend_run_id": "044f2532-29b5-475f-918a-b1c71283f1bf",
+              "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=parking_policy|doctype=meeting_minutes|url=https://actionnetwork.org/user_files/user_files/000/077/644/original/SJ_Parking_Policy_Council_Letter.pdf",
+              "document_id": "ffa1c7ac-a735-59da-83a3-7f2b29704a24",
+              "fail_closed_reasons": [
+                "analysis_sufficiency:Insufficient. The evidence is a letter advocating for the policy prior to a vote (June 14, 2022) rather than the enacted legislation itself. Consequently, it lacks the final authoritative policy text, specific enforcement scope details, and the actual effective dates of the ordinance.",
+                "blocking_gate_present",
+                "no_quant_support_path"
+              ],
+              "freshness_gate_reason": "fresh",
+              "freshness_gate_retry_class": "none",
+              "idempotent_replay": false,
+              "index_reason": "chunks_indexed",
+              "index_retry_class": "none",
+              "package_artifact_uri": "minio://affordabot-artifacts/policy-evidence/packages/pkg-72c61e051ff27ad3861cb9a6.json",
+              "package_id": "pkg-72c61e051ff27ad3861cb9a6",
+              "raw_scrape_id": "b6a5b3d8-bd78-5279-b1b3-89b1bbaa22ef",
+              "read_fetch_reason": "raw_scrapes_materialized",
+              "read_fetch_retry_class": "none",
+              "reader_artifact_uri": "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/parking_policy/reader_output/7d76f13601d9f3e206083876b1d5e9af1c1d8edac846d921198fda8938e5af83.md",
+              "run_id": "044f2532-29b5-475f-918a-b1c71283f1bf",
+              "search_materialize_reason": "fresh_snapshot_materialized",
+              "search_materialize_retry_class": "none",
+              "selected_url": "https://actionnetwork.org/user_files/user_files/000/077/644/original/SJ_Parking_Policy_Council_Letter.pdf",
+              "storage_proof_mode": "direct_live_probe",
+              "storage_status": "stored",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-43-20260417062432"
+            },
+            "retry_class": "none",
+            "status": "succeeded"
+          }
+        }
+      }
+    ],
+    "scope_succeeded": 1,
+    "scope_total": 1,
+    "status": "succeeded"
+  },
+  "run_mode": "backend-endpoint-run",
+  "search_provider_bakeoff": [
+    {
+      "endpoint": "https://searx.tiekoetter.com/search",
+      "failure_classification": "http_error",
+      "http_status": 429,
+      "latency_ms": 711,
+      "provider": "searxng",
+      "query": "San Jose parking minimums ordinance policy action city council",
+      "result_count": 0,
+      "status": "failed",
+      "top_results": []
+    },
+    {
+      "failure_classification": null,
+      "http_status": 200,
+      "latency_ms": 1131,
+      "provider": "exa",
+      "query": "San Jose parking minimums ordinance policy action city council",
+      "result_count": 5,
+      "status": "succeeded",
+      "top_results": [
+        {
+          "snippet": "",
+          "title": "San Jose becomes largest city in U.S. to abolish minimum parking",
+          "url": "https://www.siliconvalley.com/2022/12/07/bye-bye-parking-requirements-san-jose-becomes-largest-city-to-abolish-minimum-parking/"
+        },
+        {
+          "snippet": "",
+          "title": "San Jose Eliminates Parking Minimums | Planetizen News",
+          "url": "https://www.planetizen.com/news/2022/12/120204-san-jose-eliminates-parking-minimums"
+        },
+        {
+          "snippet": "",
+          "title": "",
+          "url": "https://www.sanjoseca.gov/home/showdocument?id=91909&amp;t=638035887679077134"
+        }
+      ]
+    },
+    {
+      "failure_classification": null,
+      "http_status": 200,
+      "latency_ms": 516,
+      "provider": "tavily",
+      "query": "San Jose parking minimums ordinance policy action city council",
+      "result_count": 5,
+      "status": "succeeded",
+      "top_results": [
+        {
+          "snippet": "The sweeping city council decision removes set parking requirements from developments downtown, near transit, small businesses and more. June 1,",
+          "title": "San Jose Eliminates Parking Minimums | Planetizen News",
+          "url": "https://www.planetizen.com/news/2022/12/120204-san-jose-eliminates-parking-minimums"
+        },
+        {
+          "snippet": "The policy that has been approved includes eliminating parking requirements in most areas of the city, as well as new transportation demand",
+          "title": "San Jos\u00e9 Approves Parking And Mobility Ordinance",
+          "url": "https://www.greenbelt.org/blog/san-jose-approves-parking-policy/"
+        },
+        {
+          "snippet": "San Jose plan to end parking minimums imposed on housing (and other) developers draws support and concerns. City officials say parking",
+          "title": "San Jose plan to end parking minimums imposed on housing (and ...",
+          "url": "https://www.facebook.com/groups/1669068856670078/posts/3019954921581458/"
+        }
+      ]
+    }
+  ],
+  "stale_drills": [],
+  "storage_evidence_gates": {
+    "analysis_provenance_chain": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "bridge_mode": {
+      "note": "",
+      "status": "railway_runtime"
+    },
+    "failure_handler_drill": {
+      "note": "failure injection is a separate pre-schedule gate; this San Jose product path run verified the native failure handler surface was configured",
+      "status": "not_run"
+    },
+    "idempotent_rerun": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "minio_object_refs": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "pgvector_index_probe": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "postgres_rows_written": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "quality_gate_blocked_before_index_analyze": {
+      "note": "current run completed past read_fetch; reader quality block was not expected in this success path",
+      "status": "not_applicable"
+    },
+    "reader_output_ref": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "stale_drill_stale_blocked": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "stale_drill_stale_but_usable": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    }
+  },
+  "surface_checks": {
+    "jobs_checked_count": 20,
+    "schedule_count": 4,
+    "workspace_profile_listed": true
+  }
+}

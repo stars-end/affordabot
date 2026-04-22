@@ -121,20 +121,20 @@ def _economic_status_fixture() -> dict:
     }
 
 
-def test_eval_cycle_report_supports_v2_gate_contract_and_twenty_five_cycles() -> None:
+def test_eval_cycle_report_supports_v2_gate_contract_and_thirty_cycles() -> None:
     report = build_eval_cycles_report(
         scorecard=_scorecard_fixture(),
         retry_ledger=None,
         live_storage_probe=_storage_probe_fixture(),
         live_cycle=_cycle_fixture(),
         economic_status=_economic_status_fixture(),
-        max_cycles=25,
+        max_cycles=30,
         deploy_sha="6d3e711af5da02b1ae96f0d11bcb22090daee111",
     )
 
     assert report["gate_contract_version"] == "v2"
-    assert report["max_cycles"] == 25
-    assert len(report["cycle_ledger"]) == 25
+    assert report["max_cycles"] == 30
+    assert len(report["cycle_ledger"]) == 30
     assert set(report["gates"].keys()) == {
         "D1",
         "D2",
@@ -191,7 +191,7 @@ def test_completion_guard_allows_cycle_with_fix_attempt() -> None:
                 "cycle_number": 1,
                 "targeted_tweak": "attempted_fix",
                 "inputs": {"jurisdiction": "San Jose CA"},
-                "commands_executed": ["poetry run python scripts/verification/verify_policy_evidence_quality_spine_eval_cycles.py --max-cycles 25"],
+                "commands_executed": ["poetry run python scripts/verification/verify_policy_evidence_quality_spine_eval_cycles.py --max-cycles 30"],
                 "code_config_tweaks": ["add_d1_to_d6_gate_contract"],
                 "artifacts": ["docs/poc/policy-evidence-quality-spine/cycle_attempted_fix.md"],
             }

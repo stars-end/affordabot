@@ -1,0 +1,1942 @@
+{
+  "backend_endpoint_readiness": {
+    "local_mock_probe": {
+      "note": "local mock backend endpoint probe passed",
+      "status": "passed"
+    },
+    "missing_inputs": [],
+    "note": "backend endpoint config is present and local mock probe passed",
+    "status": "ready_for_opt_in"
+  },
+  "blockers": [
+    {
+      "blocking": false,
+      "category": "storage/runtime",
+      "details": {
+        "reason": "[Errno 8] nodename nor servname provided, or not known",
+        "status": "probe_failed"
+      },
+      "message": "DB/storage probe unavailable"
+    },
+    {
+      "blocking": false,
+      "category": "storage/runtime",
+      "details": {
+        "pending_gates": [
+          "postgres_rows_written",
+          "pgvector_index_probe",
+          "minio_object_refs",
+          "reader_output_ref",
+          "analysis_provenance_chain",
+          "idempotent_rerun",
+          "stale_drill_stale_but_usable",
+          "stale_drill_stale_blocked"
+        ]
+      },
+      "message": "storage/runtime evidence gates are pending"
+    }
+  ],
+  "canonical_variables": {
+    "BACKEND_ENDPOINT_AUTH_TOKEN": "optional local readiness input only",
+    "BACKEND_ENDPOINT_URL": "optional local readiness input only",
+    "BACKEND_PUBLIC_URL_VAR": "f/affordabot/BACKEND_PUBLIC_URL",
+    "CRON_SECRET_VAR": "f/affordabot/CRON_SECRET",
+    "TMP_WMILL_CONFIG": "auto-created temporary profile directory",
+    "WINDMILL_API_TOKEN": "op://dev/Agent-Secrets-Production/WINDMILL_API_TOKEN",
+    "WINDMILL_BASE_URL": "derived as WINDMILL_DEV_LOGIN_URL without /user/login",
+    "WINDMILL_DEV_LOGIN_URL": "op://dev/Agent-Secrets-Production/WINDMILL_DEV_LOGIN_URL",
+    "WINDMILL_WORKSPACE": "affordabot"
+  },
+  "classification": "backend_bridge_surface_ready",
+  "db_storage_probe": {
+    "reason": "[Errno 8] nodename nor servname provided, or not known",
+    "status": "probe_failed"
+  },
+  "deployment_surface": {
+    "flow_deployed": true,
+    "flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+    "flow_unscheduled": true,
+    "script_deployed": true,
+    "script_path": "f/affordabot/pipeline_daily_refresh_domain_boundary"
+  },
+  "feature_key": "bd-3wefe.13",
+  "full_run_readiness": "partial",
+  "generated_at": "2026-04-17T04:56:05.157603+00:00",
+  "harness_version": "2026-04-13.worker-b.v2",
+  "idempotent_rerun": {
+    "attempted": false
+  },
+  "manual_audit_notes": {
+    "llm_analysis_excerpt": "San Jose is implementing significant financial incentives to stimulate multifamily housing development and downtown commercial-to-residential conversions by extending program application deadlines, waiving inclusionary fees for projects with specific affordability components, and reducing construction taxes for eligible developments.",
+    "llm_quality_note": "LLM analysis produced a substantive answer from persisted evidence.",
+    "manual_verdict": "PASS_MANUAL_AUDIT",
+    "reader_output_excerpt": "",
+    "reader_quality_note": "Reader output was persisted and provided to analysis."
+  },
+  "manual_run": {
+    "attempted": true,
+    "command_client": "backend_endpoint",
+    "contract_metadata_present": true,
+    "expected_step_sequence": [
+      "search_materialize",
+      "freshness_gate",
+      "read_fetch",
+      "index",
+      "analyze",
+      "summarize_run"
+    ],
+    "final_status": "succeeded",
+    "idempotency_key": "bd-3wefe.13-live-cycle-36-20260417045457",
+    "job_get": {
+      "canceled": false,
+      "completed_at": "2026-04-17T04:55:57.552128Z",
+      "created_at": "2026-04-17T04:55:08.517821Z",
+      "deleted": false,
+      "duration_ms": 48930,
+      "flow_status": {
+        "failure_module": {
+          "id": "failure_handler",
+          "type": "WaitingForPriorSteps"
+        },
+        "modules": [
+          {
+            "branch_chosen": null,
+            "id": "build_scope_matrix",
+            "skipped": false,
+            "type": "Success"
+          },
+          {
+            "branch_chosen": null,
+            "id": "per_scope_pipeline",
+            "skipped": false,
+            "type": "Success"
+          },
+          {
+            "branch_chosen": {
+              "type": "default"
+            },
+            "id": "branch_outcome_review",
+            "skipped": false,
+            "type": "Success"
+          }
+        ],
+        "step": 3
+      },
+      "id": "019d99ca-f5ee-0ff7-cc6b-3560d0a651ee",
+      "job_kind": "flow",
+      "script_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow"
+    },
+    "job_logs_excerpt": "\u001b[33mNo wmill.yaml found. Use 'wmill init' to bootstrap it.\u001b[39m\n\u001b[36m\u001b[1m\n====== build_scope_matrix ======\u001b[22m\u001b[39m\njob=019d99ca-f658-3dc9-8e2c-bcf2b3f531bf tag=python3 worker=wk-default-661cef133dc0-WZTwK hostname=661cef133dc0 isolation=none\n\nenv deps from local cache: certifi==2026.2.25, charset-normalizer==3.4.7, idna==3.11, requests==2.33.1, urllib3==2.6.3\n\n\n--- PYTHON (3.12) CODE EXECUTION ---\n\n\u001b[36m\u001b[1m\n====== per_scope_pipeline (iteration 0) ======\u001b[22m\u001b[39m\nFlow job completed with success\n\n\u001b[36m\u001b[1m\n====== branch_outcome_review ======\u001b[22m\u001b[39m\nFlow job completed with success\n\n",
+    "scope_totals": {
+      "scope_blocked": 0,
+      "scope_failed": 0,
+      "scope_succeeded": 1,
+      "scope_total": 1
+    },
+    "step_sequence": [
+      "search_materialize",
+      "freshness_gate",
+      "read_fetch",
+      "index",
+      "analyze",
+      "summarize_run"
+    ],
+    "step_sequence_matches_expected": true,
+    "windmill_job_id": "019d99ca-f5ee-0ff7-cc6b-3560d0a651ee"
+  },
+  "result_payload": {
+    "alerts": [
+      "policy_evidence_fail_closed"
+    ],
+    "scope_blocked": 0,
+    "scope_failed": 0,
+    "scope_results": [
+      {
+        "alert": "policy_evidence_fail_closed",
+        "backend_response": {
+          "decision_reason": "run_summary_materialized",
+          "missing_runtime_adapters": [],
+          "refs": {
+            "analyze_reason": "analysis_completed",
+            "analyze_retry_class": "none",
+            "backend_run_id": "c9e7a12a-6098-4237-b102-11b1ba54c7e3",
+            "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=meeting_minutes|doctype=meeting_minutes|url=https://www.legigram.com/places/san-jose",
+            "document_id": "49de74c2-63ae-5603-945d-9399a4674bff",
+            "fail_closed_reasons": [
+              "analysis_sufficiency:Sufficient",
+              "blocking_gate_present",
+              "no_quant_support_path"
+            ],
+            "freshness_gate_reason": "fresh",
+            "freshness_gate_retry_class": "none",
+            "idempotent_replay": false,
+            "index_reason": "chunks_indexed",
+            "index_retry_class": "none",
+            "package_artifact_uri": "minio://affordabot-artifacts/policy-evidence/packages/pkg-560d7455fa43b21376e8479e.json",
+            "package_id": "pkg-560d7455fa43b21376e8479e",
+            "raw_scrape_id": "379defe0-7f64-5ece-b1f6-25da7446550d",
+            "read_fetch_reason": "raw_scrapes_materialized",
+            "read_fetch_retry_class": "none",
+            "reader_artifact_uri": "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/meeting_minutes/reader_output/8af5e88134a1016a75a1532eeb5d188f2129ba6302d878e6a9a29faf816b8075.md",
+            "run_id": "c9e7a12a-6098-4237-b102-11b1ba54c7e3",
+            "search_materialize_reason": "fresh_snapshot_materialized",
+            "search_materialize_retry_class": "none",
+            "selected_url": "https://www.legigram.com/places/san-jose",
+            "storage_proof_mode": "direct_live_probe",
+            "storage_status": "stored",
+            "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+            "windmill_run_id": "bd-3wefe.13-live-cycle-36-20260417045457"
+          },
+          "status": "succeeded",
+          "storage_mode": "railway_runtime"
+        },
+        "scope_index": 0,
+        "scope_item": {
+          "jurisdiction": "San Jose CA",
+          "scope_key": "san jose ca::meeting_minutes",
+          "source_family": "meeting_minutes"
+        },
+        "status": "succeeded",
+        "steps": {
+          "analyze": {
+            "alerts": [],
+            "command": "analyze",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "counts": {
+              "analyses": 1,
+              "evidence_chunks": 20
+            },
+            "created_at": "2026-04-17T04:55:53.864336+00:00",
+            "decision_reason": "analysis_completed",
+            "details": {
+              "analysis": {
+                "key_points": [
+                  "The application deadline for the Multifamily Housing Incentive Program has been extended to February 28, 2027, and seven new projects were added to the eligible list.",
+                  "Rental Inclusionary In-Lieu Fees are reduced to $0 for eligible projects that provide at least 5% of units on-site at up to 110% Area Median Income (AMI).",
+                  "Construction taxes for eligible Multifamily Housing Incentive projects are reduced by 50% for the first 3,600 units and 25% for additional units, provided building permits are obtained by February 28, 2027.",
+                  "The Downtown Residential High-Rise Incentive Program was renamed to the Downtown Residential Incentive Program and expanded to include commercial-to-residential conversions for mid- and high-rise buildings.",
+                  "Amendments to the Mobilehome Rent Ordinance and Inclusionary Housing regulations are proposed for substantive updates and cleanup."
+                ],
+                "sufficiency_state": "Sufficient",
+                "summary": "San Jose is implementing significant financial incentives to stimulate multifamily housing development and downtown commercial-to-residential conversions by extending program application deadlines, waiving inclusionary fees for projects with specific affordability components, and reducing construction taxes for eligible developments."
+              },
+              "evidence_selection": {
+                "candidate_chunk_count": 250,
+                "selected_chunk_count": 20,
+                "selected_chunks": [
+                  {
+                    "chunk_id": "620ddea9-b87d-5a5c-8ccd-da154d216998",
+                    "chunk_index": 93,
+                    "matched_action_signals": [
+                      "housing",
+                      "resolution",
+                      "incentive",
+                      "rent",
+                      "multifamily"
+                    ],
+                    "matched_question_terms": [
+                      "housing"
+                    ],
+                    "rank": 1,
+                    "score": 23,
+                    "snippet": "(c) Adopt a resolution amending the 2025-2026 Schedule of Fees and Charges to revise the Rental Inclusionary In-Lieu Fee Schedule, reducing the fees to $0 for projects eligible for the temporary Multi"
+                  },
+                  {
+                    "chunk_id": "910b9ad0-a5f9-5a82-b9e4-c54af77b7a83",
+                    "chunk_index": 92,
+                    "matched_action_signals": [
+                      "housing",
+                      "ordinance",
+                      "incentive",
+                      "multifamily"
+                    ],
+                    "matched_question_terms": [
+                      "housing",
+                      "san"
+                    ],
+                    "rank": 2,
+                    "score": 22,
+                    "snippet": "(b) Approve an ordinance amending Section 4.46.039.13 of Chapter 4.46 and amending Section 4.47.098 to Chapter 4.47 of Title 4 of the San Jos\u00e9 Municipal Code to provide: (i) A 50% reduction of the Com"
+                  },
+                  {
+                    "chunk_id": "923d7204-adff-5da4-9e4f-39f71a8f0448",
+                    "chunk_index": 59,
+                    "matched_action_signals": [
+                      "housing",
+                      "resolution",
+                      "incentive",
+                      "rent"
+                    ],
+                    "matched_question_terms": [
+                      "housing"
+                    ],
+                    "rank": 3,
+                    "score": 19,
+                    "snippet": "(a) Adopt a resolution renaming the Downtown Residential High-Rise Incentive Program to the Downtown Residential Incentive Program, expanding the Program to include appropriate commercial-to-residenti"
+                  },
+                  {
+                    "chunk_id": "edf8e113-9d2c-507e-ace1-40a275705e5b",
+                    "chunk_index": 87,
+                    "matched_action_signals": [
+                      "housing",
+                      "resolution",
+                      "incentive",
+                      "multifamily"
+                    ],
+                    "matched_question_terms": [
+                      "housing"
+                    ],
+                    "rank": 4,
+                    "score": 19,
+                    "snippet": "(a) Adopt a resolution amending the Multifamily Housing Incentive Program to:"
+                  },
+                  {
+                    "chunk_id": "7367e722-f23e-5eb5-8b41-c3a367e22ba5",
+                    "chunk_index": 88,
+                    "matched_action_signals": [
+                      "housing",
+                      "incentive",
+                      "rent",
+                      "multifamily"
+                    ],
+                    "matched_question_terms": [
+                      "housing"
+                    ],
+                    "rank": 5,
+                    "score": 19,
+                    "snippet": "(1) Extend the deadline to apply for Multifamily Housing Incentive Program benefits to February 28, 2027, maintaining current eligibility criteria and incentive levels;"
+                  },
+                  {
+                    "chunk_id": "bb7cc945-6af8-5257-a742-107cd4ec6820",
+                    "chunk_index": 72,
+                    "matched_action_signals": [
+                      "ordinance",
+                      "rent",
+                      "mobilehome"
+                    ],
+                    "matched_question_terms": [
+                      "san"
+                    ],
+                    "rank": 6,
+                    "score": 15,
+                    "snippet": "Proposed Amendment to Chapter 17.22 (Mobilehome Rent Ordinance) of the San Jos\u00e9 Municipal Code. - NOT TO BE HEARD BEFORE 6:00 P.M."
+                  },
+                  {
+                    "chunk_id": "81b826b3-2a49-5720-a693-08bf8bbd9f09",
+                    "chunk_index": 73,
+                    "matched_action_signals": [
+                      "ordinance",
+                      "rent",
+                      "mobilehome"
+                    ],
+                    "matched_question_terms": [
+                      "san"
+                    ],
+                    "rank": 7,
+                    "score": 15,
+                    "snippet": "Approve an ordinance amending Chapter 17.22 (Mobilehome Rent Ordinance) of Title 17 of the San Jos\u00e9 Municipal Code, to include the following substantive updates and cleanups:"
+                  },
+                  {
+                    "chunk_id": "879b3c66-b22e-5968-ab33-49c1fe45b47c",
+                    "chunk_index": 86,
+                    "matched_action_signals": [
+                      "housing",
+                      "incentive",
+                      "multifamily"
+                    ],
+                    "matched_question_terms": [
+                      "housing"
+                    ],
+                    "rank": 8,
+                    "score": 15,
+                    "snippet": "Multifamily Housing Incentive Program Phase I Extension."
+                  },
+                  {
+                    "chunk_id": "81ebea64-79b2-54aa-a964-be3574178fa4",
+                    "chunk_index": 89,
+                    "matched_action_signals": [
+                      "housing",
+                      "incentive",
+                      "multifamily"
+                    ],
+                    "matched_question_terms": [
+                      "housing"
+                    ],
+                    "rank": 9,
+                    "score": 15,
+                    "snippet": "(2) Add seven proposed housing projects to the list of eligible projects in the Multifamily Housing Incentive Program;"
+                  },
+                  {
+                    "chunk_id": "49026d3a-c742-5af3-af3b-c72b646bec91",
+                    "chunk_index": 46,
+                    "matched_action_signals": [
+                      "housing",
+                      "ordinance"
+                    ],
+                    "matched_question_terms": [
+                      "housing",
+                      "san"
+                    ],
+                    "rank": 10,
+                    "score": 14,
+                    "snippet": "Amendments to Chapter 5.08 of Title 5 of the San Jos\u00e9 Municipal Code and Regulations for the Inclusionary Housing Ordinance."
+                  },
+                  {
+                    "chunk_id": "91c7bb0d-79bb-5fd1-a946-2dac8c41d53c",
+                    "chunk_index": 47,
+                    "matched_action_signals": [
+                      "housing",
+                      "ordinance"
+                    ],
+                    "matched_question_terms": [
+                      "housing",
+                      "san"
+                    ],
+                    "rank": 11,
+                    "score": 14,
+                    "snippet": "Approve an ordinance amending Chapter 5.08 (Inclusionary Housing) of Title 5 of the San Jos\u00e9 Municipal Code to:"
+                  },
+                  {
+                    "chunk_id": "f0db0626-f219-58cc-bdef-7080c4006099",
+                    "chunk_index": 66,
+                    "matched_action_signals": [
+                      "resolution",
+                      "incentive",
+                      "rent"
+                    ],
+                    "matched_question_terms": [],
+                    "rank": 12,
+                    "score": 12,
+                    "snippet": "(d) Adopt a resolution amending the Fiscal Year 2025-2026 Schedule of Fees and Charges to revise the Rental Inclusionary In-Lieu Fee for eligible projects under the Downtown Residential Incentive Prog"
+                  },
+                  {
+                    "chunk_id": "5b4f6412-2c04-54ed-b20a-45568b12aa26",
+                    "chunk_index": 211,
+                    "matched_action_signals": [
+                      "resolution"
+                    ],
+                    "matched_question_terms": [
+                      "san"
+                    ],
+                    "rank": 13,
+                    "score": 12,
+                    "snippet": "CEQA: Determination of Consistency with the San Jos\u00e9 Mineta International Airport Master Plan Amendment Environmental Impact Report, File No. ER22-021 (Resolution No. 79497). (Public Works/Airport)"
+                  },
+                  {
+                    "chunk_id": "82db1ee2-5f11-50a9-805c-381dd1d7f41c",
+                    "chunk_index": 40,
+                    "matched_action_signals": [
+                      "housing",
+                      "resolution"
+                    ],
+                    "matched_question_terms": [
+                      "housing"
+                    ],
+                    "rank": 14,
+                    "score": 11,
+                    "snippet": "Adopt a resolution to negotiate and execute an amendment to the Master Services Agreement with Guidehouse Inc., to increase total compensation by $1,616,900, from $350,000 to $1,966,900, using Low and"
+                  },
+                  {
+                    "chunk_id": "72cc9cb7-385f-5731-9d6d-943f07b92425",
+                    "chunk_index": 60,
+                    "matched_action_signals": [
+                      "ordinance",
+                      "incentive"
+                    ],
+                    "matched_question_terms": [
+                      "san"
+                    ],
+                    "rank": 15,
+                    "score": 11,
+                    "snippet": "(b) Approve an ordinance amending Section 4.46.036 of Chapter 4.46 and amending Section 4.47 of Chapter 4.47 of Title 4 of the San Jos\u00e9 Municipal Code to provide for conversion projects eligible under"
+                  },
+                  {
+                    "chunk_id": "cb8ba29d-4980-5690-941b-164a0289f7b0",
+                    "chunk_index": 125,
+                    "matched_action_signals": [
+                      "housing",
+                      "resolution"
+                    ],
+                    "matched_question_terms": [
+                      "housing"
+                    ],
+                    "rank": 16,
+                    "score": 11,
+                    "snippet": "CEQA: Mitigated Negative Declaration for the Emergency Interim Housing Programs project (Resolution No. RES2023-380), File No. ER22-198. (Housing)"
+                  },
+                  {
+                    "chunk_id": "8650ed53-018a-5851-bc39-3aba3063f4f0",
+                    "chunk_index": 53,
+                    "matched_action_signals": [
+                      "item "
+                    ],
+                    "matched_question_terms": [],
+                    "rank": 17,
+                    "score": 9,
+                    "snippet": "[Deferred from 11/18/2025 - Item 8.4 (25-1217)]"
+                  },
+                  {
+                    "chunk_id": "803d1023-e4fe-5249-8757-4d25733ce155",
+                    "chunk_index": 138,
+                    "matched_action_signals": [
+                      "item "
+                    ],
+                    "matched_question_terms": [],
+                    "rank": 18,
+                    "score": 9,
+                    "snippet": "[Deferred from 12/16/2025 - Item 2.23 (25-1322)]"
+                  },
+                  {
+                    "chunk_id": "45e7fb4a-8cb3-5e43-bb82-56f0786ecbfd",
+                    "chunk_index": 228,
+                    "matched_action_signals": [
+                      "item "
+                    ],
+                    "matched_question_terms": [],
+                    "rank": 19,
+                    "score": 9,
+                    "snippet": "[Deferred from 12/16/2025 - Item 4.1 (25-1337)]"
+                  },
+                  {
+                    "chunk_id": "6087706d-36b8-5889-91ba-0946331e5ef3",
+                    "chunk_index": 0,
+                    "matched_action_signals": [],
+                    "matched_question_terms": [
+                      "san",
+                      "jose",
+                      "meeting"
+                    ],
+                    "rank": 20,
+                    "score": 9,
+                    "snippet": "## Explore San Jose City Council Meeting Agendas & Matters"
+                  }
+                ]
+              }
+            },
+            "envelope": {
+              "analysis_question": "Summarize housing-related signals from recent San Jose meeting minutes.",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-3wefe.13-live-cycle-36-20260417045457",
+              "jurisdiction": "San Jose CA",
+              "orchestrator": "windmill",
+              "scope_idempotency_key": "bd-3wefe.13-live-cycle-36-20260417045457::1c07b61a28453506",
+              "search_query": "San Jose CA city council meeting minutes housing",
+              "source_family": "meeting_minutes",
+              "stale_status": "fresh",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-36-20260417045457",
+              "windmill_workspace": "affordabot"
+            },
+            "refs": {
+              "analysis_id": "fceefa75-dd08-5fff-a641-8adff73de891",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-36-20260417045457"
+            },
+            "retry_class": "none",
+            "status": "succeeded"
+          },
+          "freshness_gate": {
+            "alerts": [],
+            "command": "freshness_gate",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "counts": {
+              "search_results": 10
+            },
+            "created_at": "2026-04-17T04:55:10.708323+00:00",
+            "decision_reason": "fresh",
+            "details": {
+              "fail_closed_ceiling_hours": 168,
+              "fresh_hours": 24,
+              "freshness_status": "fresh",
+              "snapshot_age_hours": 0,
+              "stale_usable_ceiling_hours": 72
+            },
+            "envelope": {
+              "analysis_question": "Summarize housing-related signals from recent San Jose meeting minutes.",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-3wefe.13-live-cycle-36-20260417045457",
+              "jurisdiction": "San Jose CA",
+              "orchestrator": "windmill",
+              "scope_idempotency_key": "bd-3wefe.13-live-cycle-36-20260417045457::1c07b61a28453506",
+              "search_query": "San Jose CA city council meeting minutes housing",
+              "source_family": "meeting_minutes",
+              "stale_status": "fresh",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-36-20260417045457",
+              "windmill_workspace": "affordabot"
+            },
+            "refs": {
+              "search_snapshot_id": "5ca85fe2-1358-4236-8b8d-b81fcef9bcfe",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-36-20260417045457"
+            },
+            "retry_class": "none",
+            "status": "succeeded"
+          },
+          "index": {
+            "alerts": [],
+            "command": "index",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "counts": {
+              "chunks": 800
+            },
+            "created_at": "2026-04-17T04:55:29.430171+00:00",
+            "decision_reason": "chunks_indexed",
+            "details": {
+              "embedding_count": 800,
+              "embedding_provider": "openrouter:qwen/qwen3-embedding-8b"
+            },
+            "envelope": {
+              "analysis_question": "Summarize housing-related signals from recent San Jose meeting minutes.",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-3wefe.13-live-cycle-36-20260417045457",
+              "jurisdiction": "San Jose CA",
+              "orchestrator": "windmill",
+              "scope_idempotency_key": "bd-3wefe.13-live-cycle-36-20260417045457::1c07b61a28453506",
+              "search_query": "San Jose CA city council meeting minutes housing",
+              "source_family": "meeting_minutes",
+              "stale_status": "fresh",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-36-20260417045457",
+              "windmill_workspace": "affordabot"
+            },
+            "refs": {
+              "document_id": "49de74c2-63ae-5603-945d-9399a4674bff",
+              "raw_scrape_ids": [
+                "379defe0-7f64-5ece-b1f6-25da7446550d"
+              ],
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-36-20260417045457"
+            },
+            "retry_class": "none",
+            "status": "succeeded"
+          },
+          "read_fetch": {
+            "alerts": [],
+            "command": "read_fetch",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "counts": {
+              "artifacts": 1,
+              "raw_scrapes": 1
+            },
+            "created_at": "2026-04-17T04:55:13.687936+00:00",
+            "decision_reason": "raw_scrapes_materialized",
+            "details": {
+              "candidate_audit": [
+                {
+                  "candidate_artifact_family": "external_page",
+                  "fee_schedule_gate": {
+                    "authoritative_policy_text_ok": false,
+                    "classified_as_maintained_fee_schedule": false,
+                    "passed": false,
+                    "reason": "non_official_domain"
+                  },
+                  "outcome": "materialized_raw_scrape",
+                  "rank": 1,
+                  "raw_scrape_id": "379defe0-7f64-5ece-b1f6-25da7446550d",
+                  "score": 4,
+                  "url": "https://www.legigram.com/places/san-jose"
+                }
+              ],
+              "ranked_candidates": [
+                {
+                  "input_index": 3,
+                  "rank": 1,
+                  "reasons": [
+                    "text_signal:agenda",
+                    "text_signal:meeting",
+                    "text_signal:council",
+                    "text_signal:housing"
+                  ],
+                  "score": 4,
+                  "snippet": "Consent Agenda. Permanent Local Housing Allocation Program Funding Round 4 and Round 5 from the California Department of Housing and Community Development.",
+                  "title": "San Jose City Council Meeting Agendas - Legigram",
+                  "url": "https://www.legigram.com/places/san-jose"
+                },
+                {
+                  "input_index": 4,
+                  "rank": 2,
+                  "reasons": [
+                    "text_signal:agenda",
+                    "text_signal:minutes",
+                    "text_signal:meeting",
+                    "text_signal:council"
+                  ],
+                  "score": 4,
+                  "snippet": "Your Government \u00bb Appointees \u00bb City Clerk \u00bb City Council Agendas & Minutes City Council Meeting Agendas and Minutes *** Send any correspondence related to Council items that you wish Council to see prior to the meeting to city.clerk@sanjoseca.gov or Office of the City Clerk, City of San Jos\u00e9, 200 E Santa Clara Street, San Jos\u00e9, CA 95113.",
+                  "title": "City Council Meeting Agendas and Minutes | City of San Jos\u00e9",
+                  "url": "https://www.sanjoseca.gov/your-government/appointees/city-clerk/council-agendas-minutes/council-agendas"
+                },
+                {
+                  "input_index": 5,
+                  "rank": 3,
+                  "reasons": [
+                    "url_signal:legistar.com",
+                    "text_signal:council",
+                    "text_penalty:council chambers"
+                  ],
+                  "score": 3,
+                  "snippet": "City Council, 4/20/2026, Export to iCalendar, 1:30 PM, Council Chambers Study Session - From Ideation to Occupancy: A Guide to Building in San Jos\u00e9, Permitting, ...",
+                  "title": "Calendar: City of San Jos\u00e9",
+                  "url": "https://sanjose.legistar.com/"
+                },
+                {
+                  "input_index": 8,
+                  "rank": 4,
+                  "reasons": [
+                    "text_signal:agenda",
+                    "text_signal:meeting",
+                    "text_signal:council"
+                  ],
+                  "score": 3,
+                  "snippet": "Please scroll to the end for information about the City Council Agenda and for the Rules of Conduct of the meeting. American Disability Act: To request an alternative format agenda under the Americans with Disabilities Act for City-sponsored meetings, events or printer materials, please call (408) 535-1260 as soon as possible, but at least ...",
+                  "title": "City Council Meeting",
+                  "url": "https://sanjoseca.primegov.com/Portal/Meeting?meetingTemplateId=16477"
+                },
+                {
+                  "input_index": 9,
+                  "rank": 5,
+                  "reasons": [
+                    "text_signal:agenda",
+                    "text_signal:meeting",
+                    "text_signal:council"
+                  ],
+                  "score": 3,
+                  "snippet": "eComments are directly sent to Council and Committee staff. Send an email to city.clerk@sanjoseca.gov by 8:00 a.m. the day of the meeting. Please identify the Agenda Item Number in the subject line of your email. Emails will be attached to the Council Item under \"Letters from the Public,\" but will not be read aloud during the meeting.",
+                  "title": "Participate & Watch Public Meetings | City of San Jos\u00e9",
+                  "url": "https://www.sanjoseca.gov/your-government/appointees/city-clerk/council-agendas-minutes/participate-watch-public-meetings"
+                }
+              ],
+              "reader_provider_errors": [],
+              "reader_quality_failures": []
+            },
+            "envelope": {
+              "analysis_question": "Summarize housing-related signals from recent San Jose meeting minutes.",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-3wefe.13-live-cycle-36-20260417045457",
+              "jurisdiction": "San Jose CA",
+              "orchestrator": "windmill",
+              "scope_idempotency_key": "bd-3wefe.13-live-cycle-36-20260417045457::1c07b61a28453506",
+              "search_query": "San Jose CA city council meeting minutes housing",
+              "source_family": "meeting_minutes",
+              "stale_status": "fresh",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-36-20260417045457",
+              "windmill_workspace": "affordabot"
+            },
+            "refs": {
+              "artifact_refs": [
+                "artifacts/2026-04-13.windmill-domain.v1/San Jose CA/meeting_minutes/reader_output/8af5e88134a1016a75a1532eeb5d188f2129ba6302d878e6a9a29faf816b8075.md"
+              ],
+              "document_id": "49de74c2-63ae-5603-945d-9399a4674bff",
+              "raw_scrape_ids": [
+                "379defe0-7f64-5ece-b1f6-25da7446550d"
+              ],
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-36-20260417045457"
+            },
+            "retry_class": "none",
+            "status": "succeeded"
+          },
+          "search_materialize": {
+            "alerts": [],
+            "command": "search_materialize",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "counts": {
+              "search_results": 10
+            },
+            "created_at": "2026-04-17T04:55:10.673814+00:00",
+            "decision_reason": "fresh_snapshot_materialized",
+            "details": {
+              "query": "San Jose CA city council meeting minutes housing"
+            },
+            "envelope": {
+              "analysis_question": "Summarize housing-related signals from recent San Jose meeting minutes.",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-3wefe.13-live-cycle-36-20260417045457",
+              "jurisdiction": "San Jose CA",
+              "orchestrator": "windmill",
+              "scope_idempotency_key": "bd-3wefe.13-live-cycle-36-20260417045457::1c07b61a28453506",
+              "search_query": "San Jose CA city council meeting minutes housing",
+              "source_family": "meeting_minutes",
+              "stale_status": "fresh",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-36-20260417045457",
+              "windmill_workspace": "affordabot"
+            },
+            "refs": {
+              "search_snapshot_id": "5ca85fe2-1358-4236-8b8d-b81fcef9bcfe",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-36-20260417045457"
+            },
+            "retry_class": "none",
+            "status": "succeeded"
+          },
+          "summarize_run": {
+            "alerts": [
+              "policy_evidence_fail_closed"
+            ],
+            "command": "summarize_run",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "counts": {
+              "analyses": 1,
+              "artifacts": 1,
+              "chunks": 800,
+              "evidence_chunks": 20,
+              "raw_scrapes": 1,
+              "search_results": 20
+            },
+            "created_at": "2026-04-17T04:55:53.879069+00:00",
+            "decision_reason": "run_summary_materialized",
+            "details": {
+              "policy_evidence_package": {
+                "alerts": [
+                  "policy_evidence_fail_closed"
+                ],
+                "package_payload": {
+                  "assumption_cards": [],
+                  "assumption_usage": [],
+                  "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=meeting_minutes|doctype=meeting_minutes|url=https://www.legigram.com/places/san-jose",
+                  "created_at": "1970-01-01T00:00:00+00:00",
+                  "economic_handoff_ready": false,
+                  "evidence_cards": [
+                    {
+                      "artifact_id": "v2|jurisdiction=san-jose-ca|family=meeting_minutes|doctype=meeting_minutes|url=https://www.legigram.com/places/san-jose",
+                      "content_hash": "8af5e88134a1016a75a1532eeb5d188f2129ba6302d878e6a9a29faf816b8075",
+                      "excerpt": "## Explore San Jose City Council Meeting Agendas & Matters\n\nClosed Session At 9:30 A.m.\n\nUpdated 1/24/2026 1:59:25 AM UTC\n\n1. #### \n\n   Approval of Council Minutes\n\n   Approval of City Council Minutes.\n\n   (a) Regular City Council Meeting Minutes of December 16, 2025.\n   CEQA: Not a Project, File No. PP17-009, Staff Reports, Assessments, Annual Reports, and Informational Memos that involve no approvals of any City action.\n\n   Updated 1.13.2026 7:32:04 PM UTC\n\n   ##### Attachments\n2. #### \n\n   Approval of Council Committee Minutes\n\n   Approval of Council Committee Minutes.\n\n   (a) Special Joint",
+                      "id": "ev-1",
+                      "provenance_label": "private_searxng_meeting_minutes",
+                      "reader_run_id": null,
+                      "retrieved_at": "2026-04-17T04:55:13.667398Z",
+                      "source_tier": "tier_a",
+                      "source_type": "ordinance_text",
+                      "source_url": "https://www.legigram.com/places/san-jose"
+                    },
+                    {
+                      "artifact_id": "v2|jurisdiction=san-jose-ca|family=legistar-web-api|doctype=matter_metadata|url=https://webapi.legistar.com/v1/sanjose/Matters/15773",
+                      "content_hash": "missing_hash::https://webapi.legistar.com/v1/sanjose/Matters/15773",
+                      "excerpt": "Structured Legistar matter metadata fetched from San Jose Web API; MatterTitle='Providing Access and Transforming Health Capacity and Infrastructure Transition, Expansion, and Development Intergovernmental Transfer Grant Funding for California Advancing and Innovating Medi-Cal Readiness and Implementation.', attachments=2, classified_attachment_refs=2.",
+                      "id": "ev-2",
+                      "provenance_label": "legistar_web_api_legistar_web_api",
+                      "reader_run_id": null,
+                      "retrieved_at": "2026-04-17T04:55:56.201420Z",
+                      "source_tier": "tier_b",
+                      "source_type": "other",
+                      "source_url": "https://webapi.legistar.com/v1/sanjose/Matters/15773"
+                    }
+                  ],
+                  "freshness_status": "fresh",
+                  "gate_projection": {
+                    "canonical_breakdown_ref": "analysis:fceefa75-dd08-5fff-a641-8adff73de891",
+                    "canonical_pipeline_run_id": "c9e7a12a-6098-4237-b102-11b1ba54c7e3",
+                    "canonical_pipeline_step_id": "fceefa75-dd08-5fff-a641-8adff73de891",
+                    "runtime_failure_codes": [
+                      "parameter_missing"
+                    ],
+                    "runtime_insufficiency_reason": "blocking gate present or missing quantitative support",
+                    "runtime_sufficiency_state": "qualitative_only"
+                  },
+                  "gate_report": {
+                    "artifact_counts": {
+                      "evidence_cards": 2
+                    },
+                    "blocking_gate": "parameterization",
+                    "case_id": "pkg-560d7455fa43b21376e8479e-gate",
+                    "failure_codes": [
+                      "parameter_missing"
+                    ],
+                    "manual_audit_notes": "Builder payload with canonical identity dedupe and provenance linkage; deduped_candidates=0. Full durability/orchestration gates in bd-3wefe.10/.12.",
+                    "provider": "private_searxng",
+                    "stage_results": [
+                      {
+                        "failure_codes": [],
+                        "note": null,
+                        "passed": true,
+                        "stage": "search_recall"
+                      },
+                      {
+                        "failure_codes": [],
+                        "note": null,
+                        "passed": true,
+                        "stage": "reader_substance"
+                      },
+                      {
+                        "failure_codes": [
+                          "parameter_missing"
+                        ],
+                        "note": null,
+                        "passed": false,
+                        "stage": "parameterization"
+                      },
+                      {
+                        "failure_codes": [
+                          "parameter_unverifiable"
+                        ],
+                        "note": null,
+                        "passed": false,
+                        "stage": "quantification"
+                      }
+                    ],
+                    "unsupported_claim_count": 1,
+                    "verdict": "fail_closed"
+                  },
+                  "insufficiency_reasons": [
+                    "blocking_gate_present",
+                    "no_quant_support_path"
+                  ],
+                  "jurisdiction": "San Jose CA",
+                  "model_cards": [],
+                  "normalized_official_economic_rows": [],
+                  "package_id": "pkg-560d7455fa43b21376e8479e",
+                  "parameter_cards": [],
+                  "policy_identifier": "v2|jurisdiction=san-jose-ca|family=meeting_minutes|doctype=meeting_minutes|url=https://www.legigram.com/places/san-jose",
+                  "policy_lineage": {
+                    "attachment_content_probes": [
+                      {
+                        "attachment_id": "38691",
+                        "content_hash": "a3b4e3ed4c2a68ddfc1ef2142f587065bb55d535142ff4d1d8695834f2b1611d",
+                        "content_ingested": true,
+                        "economic_row_count": 0,
+                        "excerpt": "on, and Development Intergovernmental Transfer Grant Funding for California Advancing and Innovating Medi-Cal Readiness and Implementation RECOMMENDATION (a ) Adopt a resolution authorizing the Housing Director, or his designee, to: (1 ) Accept the Providing Access and Transforming Health Capacity and Infrastructure Transition, Expansion, and Development Intergovernmental Transfer (PATH CITED) gra",
+                        "failure_class": null,
+                        "read_status": "read_text",
+                        "source_family": "memorandum",
+                        "source_title": "Memorandum",
+                        "source_url": "https://legistar.granicus.com/sanjose/attachments/3b843e4a-52d5-4204-9b9b-6928de6f6d39.pdf",
+                        "status": "ingested_excerpt",
+                        "title": "Memorandum",
+                        "url": "https://legistar.granicus.com/sanjose/attachments/3b843e4a-52d5-4204-9b9b-6928de6f6d39.pdf"
+                      },
+                      {
+                        "attachment_id": "38722",
+                        "content_hash": "acd1b57bcf682b7d56e0b4306e7a89bbc0e6608e44113b349344e21bf0888e85",
+                        "content_ingested": true,
+                        "economic_row_count": 0,
+                        "excerpt": "the Office of the City Clerk at (408)535-1260 or CityClerk@sanjoseca.gov for final document. R ESOLUTION NO. ________ ADOPT A RESOLUTION OF THE COUNCIL OF THE CITY OF SAN JOSE AUTHORIZING THE HOUSING DIRECTOR, OR THEIR DESIGNEE, TO: (1) ACCEPT THE PROVIDING ACCESS AND TRANSFORMING HEALTH CAPACITY AND INFRASTRUCTURE TRANSITION, EXPANSION, AND DEVELOPMENT INTERGOVERNMENTAL TRANSFER (PATH CITED) GRAN",
+                        "failure_class": null,
+                        "read_status": "read_text",
+                        "source_family": "resolution",
+                        "source_title": "Resolution",
+                        "source_url": "https://legistar.granicus.com/sanjose/attachments/2fda232e-96b6-4c31-888e-c5b2cc0e8c91.pdf",
+                        "status": "ingested_excerpt",
+                        "title": "Resolution",
+                        "url": "https://legistar.granicus.com/sanjose/attachments/2fda232e-96b6-4c31-888e-c5b2cc0e8c91.pdf"
+                      }
+                    ],
+                    "attachment_state": {
+                      "attachment_economic_row_count": 0,
+                      "attachment_ingested_count": 2,
+                      "attachment_probe_count": 2,
+                      "attachment_ref_count": 2,
+                      "content_ingested": true,
+                      "economic_rows_available": false,
+                      "refs_present": true
+                    },
+                    "expected_source_families": [
+                      "authoritative_policy_text",
+                      "meeting_context",
+                      "staff_fiscal_context",
+                      "related_attachments",
+                      "attachment_content_ingested",
+                      "attachment_economic_rows"
+                    ],
+                    "lineage_completeness_score": 0.5,
+                    "lineage_presence": {
+                      "attachment_content_ingested": true,
+                      "attachment_economic_rows": false,
+                      "authoritative_policy_text": false,
+                      "meeting_context": true,
+                      "related_attachments": true,
+                      "staff_fiscal_context": false
+                    },
+                    "negative_evidence": [
+                      {
+                        "reason": "lineage_search_missing_in_current_package",
+                        "source_family": "authoritative_policy_text",
+                        "status": "not_found"
+                      },
+                      {
+                        "reason": "lineage_search_missing_in_current_package",
+                        "source_family": "staff_fiscal_context",
+                        "status": "not_found"
+                      },
+                      {
+                        "reason": "lineage_search_missing_in_current_package",
+                        "source_family": "attachment_economic_rows",
+                        "status": "not_found"
+                      }
+                    ],
+                    "related_artifacts": [
+                      "https://legistar.granicus.com/sanjose/attachments/3b843e4a-52d5-4204-9b9b-6928de6f6d39.pdf",
+                      "https://legistar.granicus.com/sanjose/attachments/2fda232e-96b6-4c31-888e-c5b2cc0e8c91.pdf"
+                    ],
+                    "related_attachment_refs": [
+                      {
+                        "attachment_id": "38691",
+                        "source_family": "memorandum",
+                        "title": "Memorandum",
+                        "url": "https://legistar.granicus.com/sanjose/attachments/3b843e4a-52d5-4204-9b9b-6928de6f6d39.pdf"
+                      },
+                      {
+                        "attachment_id": "38722",
+                        "source_family": "resolution",
+                        "title": "Resolution",
+                        "url": "https://legistar.granicus.com/sanjose/attachments/2fda232e-96b6-4c31-888e-c5b2cc0e8c91.pdf"
+                      }
+                    ],
+                    "related_attachment_source_families": [
+                      "memorandum",
+                      "resolution"
+                    ],
+                    "selected_artifact_family": "external_page"
+                  },
+                  "run_context": {
+                    "backend_run_id": "c9e7a12a-6098-4237-b102-11b1ba54c7e3",
+                    "canonical_analysis_id": "fceefa75-dd08-5fff-a641-8adff73de891",
+                    "canonical_breakdown_ref": "analysis:fceefa75-dd08-5fff-a641-8adff73de891",
+                    "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=meeting_minutes|doctype=meeting_minutes|url=https://www.legigram.com/places/san-jose",
+                    "canonical_pipeline_run_id": "c9e7a12a-6098-4237-b102-11b1ba54c7e3",
+                    "canonical_pipeline_step_id": "fceefa75-dd08-5fff-a641-8adff73de891",
+                    "document_id": "49de74c2-63ae-5603-945d-9399a4674bff",
+                    "fail_closed_reasons": [
+                      "analysis_sufficiency:Sufficient"
+                    ],
+                    "impact_mode_hint": "qualitative_only",
+                    "mechanism_family_hint": null,
+                    "normalized_official_economic_rows": [],
+                    "package_identity": {
+                      "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=meeting_minutes|doctype=meeting_minutes|url=https://www.legigram.com/places/san-jose",
+                      "idempotency_scope": "bd-3wefe.13-live-cycle-36-20260417045457::1c07b61a28453506",
+                      "package_id": "pkg-560d7455fa43b21376e8479e",
+                      "selected_url": "https://www.legigram.com/places/san-jose"
+                    },
+                    "policy_lineage": {
+                      "attachment_content_probes": [
+                        {
+                          "attachment_id": "38691",
+                          "content_hash": "a3b4e3ed4c2a68ddfc1ef2142f587065bb55d535142ff4d1d8695834f2b1611d",
+                          "content_ingested": true,
+                          "economic_row_count": 0,
+                          "excerpt": "on, and Development Intergovernmental Transfer Grant Funding for California Advancing and Innovating Medi-Cal Readiness and Implementation RECOMMENDATION (a ) Adopt a resolution authorizing the Housing Director, or his designee, to: (1 ) Accept the Providing Access and Transforming Health Capacity and Infrastructure Transition, Expansion, and Development Intergovernmental Transfer (PATH CITED) gra",
+                          "failure_class": null,
+                          "read_status": "read_text",
+                          "source_family": "memorandum",
+                          "source_title": "Memorandum",
+                          "source_url": "https://legistar.granicus.com/sanjose/attachments/3b843e4a-52d5-4204-9b9b-6928de6f6d39.pdf",
+                          "status": "ingested_excerpt",
+                          "title": "Memorandum",
+                          "url": "https://legistar.granicus.com/sanjose/attachments/3b843e4a-52d5-4204-9b9b-6928de6f6d39.pdf"
+                        },
+                        {
+                          "attachment_id": "38722",
+                          "content_hash": "acd1b57bcf682b7d56e0b4306e7a89bbc0e6608e44113b349344e21bf0888e85",
+                          "content_ingested": true,
+                          "economic_row_count": 0,
+                          "excerpt": "the Office of the City Clerk at (408)535-1260 or CityClerk@sanjoseca.gov for final document. R ESOLUTION NO. ________ ADOPT A RESOLUTION OF THE COUNCIL OF THE CITY OF SAN JOSE AUTHORIZING THE HOUSING DIRECTOR, OR THEIR DESIGNEE, TO: (1) ACCEPT THE PROVIDING ACCESS AND TRANSFORMING HEALTH CAPACITY AND INFRASTRUCTURE TRANSITION, EXPANSION, AND DEVELOPMENT INTERGOVERNMENTAL TRANSFER (PATH CITED) GRAN",
+                          "failure_class": null,
+                          "read_status": "read_text",
+                          "source_family": "resolution",
+                          "source_title": "Resolution",
+                          "source_url": "https://legistar.granicus.com/sanjose/attachments/2fda232e-96b6-4c31-888e-c5b2cc0e8c91.pdf",
+                          "status": "ingested_excerpt",
+                          "title": "Resolution",
+                          "url": "https://legistar.granicus.com/sanjose/attachments/2fda232e-96b6-4c31-888e-c5b2cc0e8c91.pdf"
+                        }
+                      ],
+                      "attachment_state": {
+                        "attachment_economic_row_count": 0,
+                        "attachment_ingested_count": 2,
+                        "attachment_probe_count": 2,
+                        "attachment_ref_count": 2,
+                        "content_ingested": true,
+                        "economic_rows_available": false,
+                        "refs_present": true
+                      },
+                      "expected_source_families": [
+                        "authoritative_policy_text",
+                        "meeting_context",
+                        "staff_fiscal_context",
+                        "related_attachments",
+                        "attachment_content_ingested",
+                        "attachment_economic_rows"
+                      ],
+                      "lineage_completeness_score": 0.5,
+                      "lineage_presence": {
+                        "attachment_content_ingested": true,
+                        "attachment_economic_rows": false,
+                        "authoritative_policy_text": false,
+                        "meeting_context": true,
+                        "related_attachments": true,
+                        "staff_fiscal_context": false
+                      },
+                      "negative_evidence": [
+                        {
+                          "reason": "lineage_search_missing_in_current_package",
+                          "source_family": "authoritative_policy_text",
+                          "status": "not_found"
+                        },
+                        {
+                          "reason": "lineage_search_missing_in_current_package",
+                          "source_family": "staff_fiscal_context",
+                          "status": "not_found"
+                        },
+                        {
+                          "reason": "lineage_search_missing_in_current_package",
+                          "source_family": "attachment_economic_rows",
+                          "status": "not_found"
+                        }
+                      ],
+                      "related_artifacts": [
+                        "https://legistar.granicus.com/sanjose/attachments/3b843e4a-52d5-4204-9b9b-6928de6f6d39.pdf",
+                        "https://legistar.granicus.com/sanjose/attachments/2fda232e-96b6-4c31-888e-c5b2cc0e8c91.pdf"
+                      ],
+                      "related_attachment_refs": [
+                        {
+                          "attachment_id": "38691",
+                          "source_family": "memorandum",
+                          "title": "Memorandum",
+                          "url": "https://legistar.granicus.com/sanjose/attachments/3b843e4a-52d5-4204-9b9b-6928de6f6d39.pdf"
+                        },
+                        {
+                          "attachment_id": "38722",
+                          "source_family": "resolution",
+                          "title": "Resolution",
+                          "url": "https://legistar.granicus.com/sanjose/attachments/2fda232e-96b6-4c31-888e-c5b2cc0e8c91.pdf"
+                        }
+                      ],
+                      "related_attachment_source_families": [
+                        "memorandum",
+                        "resolution"
+                      ],
+                      "selected_artifact_family": "external_page"
+                    },
+                    "primary_parameter_extraction": {
+                      "alerts": [],
+                      "facts": [],
+                      "normalized_row_count": 0,
+                      "parameter_count": 0,
+                      "source": "analyze.evidence_selection.selected_chunks"
+                    },
+                    "proof_modes": {
+                      "analysis_binding": "canonical_projection_bound",
+                      "orchestration": "windmill_runtime_ids",
+                      "storage": "pending_storage_probe"
+                    },
+                    "raw_scrape_id": "379defe0-7f64-5ece-b1f6-25da7446550d",
+                    "reader_artifact_uri": "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/meeting_minutes/reader_output/8af5e88134a1016a75a1532eeb5d188f2129ba6302d878e6a9a29faf816b8075.md",
+                    "scope_idempotency_key": "bd-3wefe.13-live-cycle-36-20260417045457::1c07b61a28453506",
+                    "search_provider_runtime": {
+                      "client_class": "OssSearxngWebSearchClient",
+                      "configured_provider": "searxng",
+                      "endpoint_configured": true,
+                      "endpoint_host": "searxng-private.railway.internal:8080",
+                      "provider": "private_searxng",
+                      "provider_source": "client_label"
+                    },
+                    "secondary_research_needed": false,
+                    "secondary_research_reason": null,
+                    "selected_url": "https://www.legigram.com/places/san-jose",
+                    "source_quality_metrics": {
+                      "artifact_quality_gate": {
+                        "artifact_candidate_count": 0,
+                        "artifact_candidate_substantive_count": 0,
+                        "substantive_artifact_urls": []
+                      },
+                      "artifact_quality_gate_reason": "no_artifact_candidate_passed_quality_gate",
+                      "artifact_quality_gate_status": "pass",
+                      "explicit_lineage_linked": false,
+                      "fallback_materialization_count": 0,
+                      "identity_blocker_code": "",
+                      "identity_blocker_reason": "",
+                      "identity_failure_codes": [],
+                      "identity_failure_reasons": [],
+                      "identity_quality_ready": true,
+                      "identity_quality_status": "not_applicable",
+                      "identity_required": false,
+                      "jurisdiction_identity_ready": true,
+                      "jurisdiction_identity_signals": [],
+                      "jurisdiction_identity_status": "not_applicable",
+                      "official_reader_error_count": 0,
+                      "policy_identity_ready": true,
+                      "policy_identity_signals": [],
+                      "policy_identity_status": "not_applicable",
+                      "portal_skip_count": 0,
+                      "provider_results": {
+                        "private_searxng": {
+                          "candidates": [
+                            {
+                              "artifact_grade": false,
+                              "official_domain": false,
+                              "rank": 1,
+                              "url": "https://www.legigram.com/places/san-jose"
+                            },
+                            {
+                              "artifact_grade": false,
+                              "official_domain": true,
+                              "rank": 2,
+                              "url": "https://www.sanjoseca.gov/your-government/appointees/city-clerk/council-agendas-minutes/council-agendas"
+                            },
+                            {
+                              "artifact_grade": false,
+                              "official_domain": true,
+                              "rank": 3,
+                              "url": "https://sanjose.legistar.com/"
+                            },
+                            {
+                              "artifact_grade": false,
+                              "official_domain": false,
+                              "rank": 4,
+                              "url": "https://sanjoseca.primegov.com/Portal/Meeting?meetingTemplateId=16477"
+                            },
+                            {
+                              "artifact_grade": false,
+                              "official_domain": true,
+                              "rank": 5,
+                              "url": "https://www.sanjoseca.gov/your-government/appointees/city-clerk/council-agendas-minutes/participate-watch-public-meetings"
+                            }
+                          ],
+                          "reason_code": "materialized_raw_scrape",
+                          "status": "succeeded"
+                        }
+                      },
+                      "provider_summary": {
+                        "primary_provider": "private_searxng",
+                        "provider_error_count": 0,
+                        "provider_error_urls": [],
+                        "quality_failure_count": 0,
+                        "runtime": {
+                          "client_class": "OssSearxngWebSearchClient",
+                          "configured_provider": "searxng",
+                          "endpoint_configured": true,
+                          "endpoint_host": "searxng-private.railway.internal:8080",
+                          "provider": "private_searxng",
+                          "provider_source": "client_label"
+                        }
+                      },
+                      "reader_substance_observed": true,
+                      "reader_substance_selection_outcome": "materialized_raw_scrape",
+                      "secondary_numeric_parameter_count": 2,
+                      "secondary_numeric_rescue_detected": false,
+                      "selected_artifact_family": "external_page",
+                      "selected_candidate": {
+                        "artifact_family": "external_page",
+                        "artifact_grade": false,
+                        "artifact_quality_gate_passed": false,
+                        "fee_schedule_gate": {
+                          "authoritative_policy_text_ok": false,
+                          "classified_as_maintained_fee_schedule": false,
+                          "passed": false,
+                          "reason": "non_official_domain"
+                        },
+                        "official_domain": false,
+                        "provider": "private_searxng",
+                        "rank": 1,
+                        "selection_reason": "materialized_raw_scrape",
+                        "shape_quality_gate_passed": false,
+                        "url": "https://www.legigram.com/places/san-jose"
+                      },
+                      "selection_quality_reason": "no_artifact_candidate_passed_quality_gate",
+                      "selection_quality_status": "fail",
+                      "source_shape_drift": {
+                        "candidate_count": 10,
+                        "drift_detected": false,
+                        "missing_snippet_count": 0,
+                        "missing_url_count": 0
+                      },
+                      "top_n_artifact_recall_count": 0,
+                      "top_n_official_recall_count": 3,
+                      "top_n_window": 5
+                    },
+                    "source_reconciliation": {
+                      "fail_closed_locator_signal_count": 0,
+                      "missing_true_structured_corroboration_count": 0,
+                      "official_attachment_authoritative_row_count": 0,
+                      "official_attachment_row_count": 0,
+                      "primary_official_row_count": 0,
+                      "records": [],
+                      "secondary_override_blocked": true,
+                      "secondary_snippet_row_count": 0,
+                      "source_of_truth_policy": "primary_artifact_precedence_then_labeled_secondary",
+                      "true_structured_row_count": 0,
+                      "unresolved_count": 0
+                    },
+                    "source_shape_drift": {
+                      "candidate_count": 10,
+                      "drift_detected": false,
+                      "missing_snippet_count": 0,
+                      "missing_url_count": 0
+                    },
+                    "structured_enrichment_alerts": [
+                      "structured_enrichment_ckan_unavailable"
+                    ],
+                    "structured_enrichment_status": "integrated",
+                    "structured_source_catalog": [
+                      {
+                        "access_method": "public_api_json",
+                        "cadence_freshness": "meeting-driven; near-real-time event updates",
+                        "display_name": "San Jose Legistar Web API",
+                        "economic_usefulness_score": 0.78,
+                        "endpoint_or_file_url": "https://webapi.legistar.com/v1/sanjose/Events",
+                        "free_status": "free_public",
+                        "jurisdiction_coverage": "san_jose_ca",
+                        "lane_classification": "true_structured",
+                        "live_proven": true,
+                        "policy_domain_relevance": "meeting agendas, minutes, ordinance/resolution metadata",
+                        "runtime_status": "integrated",
+                        "signup_or_key": "none_required",
+                        "signup_url": "https://webapi.legistar.com/",
+                        "source_family": "legistar_web_api",
+                        "storage_target": "policy_evidence_packages.package_payload.run_context.structured_sources"
+                      },
+                      {
+                        "access_method": "ckan_api_json",
+                        "cadence_freshness": "dataset-dependent metadata freshness",
+                        "display_name": "San Jose Open Data (CKAN)",
+                        "economic_usefulness_score": 0.63,
+                        "endpoint_or_file_url": "https://data.sanjoseca.gov/api/3/action/package_search",
+                        "free_status": "free_public",
+                        "jurisdiction_coverage": "san_jose_ca",
+                        "lane_classification": "true_structured",
+                        "live_proven": false,
+                        "policy_domain_relevance": "permits, housing/open data metadata, contextual economic indicators",
+                        "runtime_status": "cataloged_unavailable",
+                        "signup_or_key": "none_required",
+                        "signup_url": "https://data.sanjoseca.gov/",
+                        "source_family": "san_jose_open_data_ckan",
+                        "storage_target": "policy_evidence_packages.package_payload.run_context.structured_sources"
+                      },
+                      {
+                        "access_method": "raw_official_file",
+                        "cadence_freshness": "daily feed updates",
+                        "display_name": "California LegInfo PUBINFO Feed",
+                        "economic_usefulness_score": 0.71,
+                        "endpoint_or_file_url": "https://downloads.leginfo.legislature.ca.gov/pubinfo_daily_Mon.zip",
+                        "free_status": "free_public",
+                        "jurisdiction_coverage": "california_state",
+                        "lane_classification": "true_structured",
+                        "live_proven": false,
+                        "policy_domain_relevance": "bill identity, amendment cadence, text provenance",
+                        "runtime_status": "cataloged",
+                        "signup_or_key": "none_required",
+                        "signup_url": "https://downloads.leginfo.legislature.ca.gov/",
+                        "source_family": "california_leginfo_pubinfo",
+                        "storage_target": "policy_evidence_packages.package_payload.run_context.structured_sources"
+                      },
+                      {
+                        "access_method": "public_api_json",
+                        "cadence_freshness": "session/event driven",
+                        "display_name": "OpenStates API",
+                        "economic_usefulness_score": 0.56,
+                        "endpoint_or_file_url": "https://v3.openstates.org/bills",
+                        "free_status": "free_tier_key_required",
+                        "jurisdiction_coverage": "multi_state",
+                        "lane_classification": "true_structured",
+                        "live_proven": false,
+                        "policy_domain_relevance": "bill status, sponsors, action timelines",
+                        "runtime_status": "cataloged_unavailable",
+                        "signup_or_key": "api_key_required",
+                        "signup_url": "https://openstates.org/api/",
+                        "source_family": "openstates_api",
+                        "storage_target": "policy_evidence_packages.package_payload.run_context.structured_sources"
+                      },
+                      {
+                        "access_method": "public_api_json",
+                        "cadence_freshness": "dataset-dependent",
+                        "display_name": "Socrata Open Data Portals",
+                        "economic_usefulness_score": 0.62,
+                        "endpoint_or_file_url": "https://dev.socrata.com/",
+                        "free_status": "free_tier_key_optional_limits",
+                        "jurisdiction_coverage": "city_county_varies",
+                        "lane_classification": "true_structured",
+                        "live_proven": false,
+                        "policy_domain_relevance": "fees, permits, budget context, fiscal indicators",
+                        "runtime_status": "cataloged",
+                        "signup_or_key": "key_optional",
+                        "signup_url": "https://dev.socrata.com/",
+                        "source_family": "socrata_open_data",
+                        "storage_target": "policy_evidence_packages.package_payload.run_context.structured_sources"
+                      },
+                      {
+                        "access_method": "public_api_json",
+                        "cadence_freshness": "dataset-dependent",
+                        "display_name": "ArcGIS Public REST Services",
+                        "economic_usefulness_score": 0.49,
+                        "endpoint_or_file_url": "https://www.arcgis.com/sharing/rest/search",
+                        "free_status": "free_public",
+                        "jurisdiction_coverage": "regional_multi_county",
+                        "lane_classification": "true_structured",
+                        "live_proven": false,
+                        "policy_domain_relevance": "parcel/zoning/land-use context",
+                        "runtime_status": "cataloged",
+                        "signup_or_key": "none_required",
+                        "signup_url": "https://www.arcgis.com/",
+                        "source_family": "arcgis_rest_public",
+                        "storage_target": "policy_evidence_packages.package_payload.run_context.structured_sources"
+                      },
+                      {
+                        "access_method": "search_snippet_api",
+                        "cadence_freshness": "query-time",
+                        "display_name": "Tavily Secondary Search Snippets",
+                        "economic_usefulness_score": 0.2,
+                        "endpoint_or_file_url": "https://api.tavily.com/search",
+                        "free_status": "free_tier_key_required",
+                        "jurisdiction_coverage": "multi_jurisdiction",
+                        "lane_classification": "secondary_search_derived",
+                        "live_proven": false,
+                        "policy_domain_relevance": "secondary fallback only; not authoritative structured source",
+                        "runtime_status": "cataloged",
+                        "signup_or_key": "api_key_required",
+                        "signup_url": "https://app.tavily.com/",
+                        "source_family": "tavily_secondary_search",
+                        "storage_target": "policy_evidence_packages.package_payload.run_context.structured_sources"
+                      }
+                    ],
+                    "structured_sources": [
+                      {
+                        "access_method": "public_api_json",
+                        "artifact_type": "matter_metadata",
+                        "artifact_url": "https://webapi.legistar.com/v1/sanjose/Matters/15773",
+                        "attachment_content_probes": [
+                          {
+                            "attachment_id": "38691",
+                            "content_excerpt": "on, and Development Intergovernmental Transfer Grant Funding for California Advancing and Innovating Medi-Cal Readiness and Implementation RECOMMENDATION (a ) Adopt a resolution authorizing the Housing Director, or his designee, to: (1 ) Accept the Providing Access and Transforming Health Capacity and Infrastructure Transition, Expansion, and Development Intergovernmental Transfer (PATH CITED) grant in the amount of $1,323,036 in federal funding to support California Advancing and Innovating Medi-Cal readiness and implementation within the City\u2019s homelessness response system; and (2 ) Commit the required City match of $1,323,037, consistent with grant requirements, to support these California Advancing and Innovating Medi-Cal readiness and implementation activities, including workflow development, billing readiness, and coordination across Emergency Interim Housing operations. (b ) Adopt the following 2025-2026 Appropriation Ordinance and Funding Sources Resolution amendments in the Multi-Source Housing Fund: (1 ) Increase the estimate for Revenue from Federal Government by $600,000; (2) Establish the PATH CITED Grant appropriation to the Housing Department in the amount of $1,200,000; and (3) Decrease the Ending Fund Balance by $600,000. COUNCIL AGENDA: 4/21/26 FILE: 26-4 36 ITEM: 8.2 HONORABLE MAYOR AND CITY COUNCIL March 30, 2026 Subject: Providing Access and Transforming Health Capacity and Infrastructure Transition, Expansion, and Development Intergovernmental Transfer Grant Funding for California Advancing and Innovating Medi-Cal Readiness and Implementation Page 2 SUMMARY AND OUTCOME California Advancing and Innovating Medi-Cal (CalAIM) implementation represents a strategic opportunity to strengthen care coordination for individuals experiencing homelessness whil",
+                            "content_hash": "a3b4e3ed4c2a68ddfc1ef2142f587065bb55d535142ff4d1d8695834f2b1611d",
+                            "content_ingested": true,
+                            "economic_row_count": 0,
+                            "excerpt": "on, and Development Intergovernmental Transfer Grant Funding for California Advancing and Innovating Medi-Cal Readiness and Implementation RECOMMENDATION (a ) Adopt a resolution authorizing the Housing Director, or his designee, to: (1 ) Accept the Providing Access and Transforming Health Capacity and Infrastructure Transition, Expansion, and Development Intergovernmental Transfer (PATH CITED) grant in the amount of $1,323,036 in federal funding to support California Advancing and Innovating Medi-Cal readiness and implementation within the City\u2019s homelessness response system; and (2 ) Commit the required City match of $1,323,037, consistent with grant requirements, to support these California Advancing and Innovating Medi-Cal readiness and implementation activities, including workflow development, billing readiness, and coordination across Emergency Interim Housing operations. (b ) Adopt the following 2025-2026 Appropriation Ordinance and Funding Sources Resolution amendments in the Multi-Source Housing Fund: (1 ) Increase the estimate for Revenue from Federal Government by $600,000; (2) Establish the PATH CITED Grant appropriation to the Housing Department in the amount of $1,200,000; and (3) Decrease the Ending Fund Balance by $600,000. COUNCIL AGENDA: 4/21/26 FILE: 26-4 36 ITEM: 8.2 HONORABLE MAYOR AND CITY COUNCIL March 30, 2026 Subject: Providing Access and Transforming Health Capacity and Infrastructure Transition, Expansion, and Development Intergovernmental Transfer Grant Funding for California Advancing and Innovating Medi-Cal Readiness and Implementation Page 2 SUMMARY AND OUTCOME California Advancing and Innovating Medi-Cal (CalAIM) implementation represents a strategic opportunity to strengthen care coordination for individuals experiencing homelessness whil",
+                            "failure_class": null,
+                            "read_status": "read_text",
+                            "source_family": "memorandum",
+                            "source_title": "Memorandum",
+                            "source_url": "https://legistar.granicus.com/sanjose/attachments/3b843e4a-52d5-4204-9b9b-6928de6f6d39.pdf",
+                            "status": "ingested_excerpt",
+                            "title": "Memorandum",
+                            "url": "https://legistar.granicus.com/sanjose/attachments/3b843e4a-52d5-4204-9b9b-6928de6f6d39.pdf"
+                          },
+                          {
+                            "attachment_id": "38722",
+                            "content_excerpt": "the Office of the City Clerk at (408)535-1260 or CityClerk@sanjoseca.gov for final document. R ESOLUTION NO. ________ ADOPT A RESOLUTION OF THE COUNCIL OF THE CITY OF SAN JOSE AUTHORIZING THE HOUSING DIRECTOR, OR THEIR DESIGNEE, TO: (1) ACCEPT THE PROVIDING ACCESS AND TRANSFORMING HEALTH CAPACITY AND INFRASTRUCTURE TRANSITION, EXPANSION, AND DEVELOPMENT INTERGOVERNMENTAL TRANSFER (PATH CITED) GRANT IN THE AMOUNT OF $1,323,036 IN FEDERAL FUNDING TO SUPPORT CALIFORNIA ADVANCING AND INNOVATING MEDI -CAL READINESS AND IMPLEMENTATION WITHIN THE CITY\u2019S HOMELESSNESS RESPONSE SYSTEM; AND (2) COMMIT THE REQUIRED CITY MATCH OF $1,323,037, CONSISTENT WITH GRANT REQUIREMENTS, TO SUPPORT THESE CALIFORNIA ADVANCING AND INNOVATING MEDI -CAL READINESS AND IMPLEMENTATION ACTIVITIES, INCLUDING WORKFLOW DEVELOPMENT, BILLING READINESS, AND COORDINATION ACROSS EMERGENCY INTERIM HOUSING OPERATIONS W HEREAS, the City of San Jos\u00e9 (\u201cCity\u201d) City Council desires to adopt this resolution for the reasons set forth in the memorandum, dated March 30, 202 6, from the Director of Housing or their designee for the April 21, 2026, City Council meeting; and WHEREAS, the City is committed to addressing homelessness through coordinated, data-informed strategies that improve service delivery, health outcomes, and long- term housing stability for individuals experiencing homelessness; and WHEREAS, California Advancing and Innovating Medi -Cal (\u201cCalAIM\u201d) is a statewide transformation initiative designed to improve care coordination for individuals with complex needs, including people experiencing homelessness, by expanding access to Community Supports services that address health- related social needs that managed SAW:TTT:MMV 4-09-2026 2 T-51933/2298568 Council Agenda: 04-21-2026 Item No.: 8.2(a) DRAFT--Conta",
+                            "content_hash": "acd1b57bcf682b7d56e0b4306e7a89bbc0e6608e44113b349344e21bf0888e85",
+                            "content_ingested": true,
+                            "economic_row_count": 0,
+                            "excerpt": "the Office of the City Clerk at (408)535-1260 or CityClerk@sanjoseca.gov for final document. R ESOLUTION NO. ________ ADOPT A RESOLUTION OF THE COUNCIL OF THE CITY OF SAN JOSE AUTHORIZING THE HOUSING DIRECTOR, OR THEIR DESIGNEE, TO: (1) ACCEPT THE PROVIDING ACCESS AND TRANSFORMING HEALTH CAPACITY AND INFRASTRUCTURE TRANSITION, EXPANSION, AND DEVELOPMENT INTERGOVERNMENTAL TRANSFER (PATH CITED) GRANT IN THE AMOUNT OF $1,323,036 IN FEDERAL FUNDING TO SUPPORT CALIFORNIA ADVANCING AND INNOVATING MEDI -CAL READINESS AND IMPLEMENTATION WITHIN THE CITY\u2019S HOMELESSNESS RESPONSE SYSTEM; AND (2) COMMIT THE REQUIRED CITY MATCH OF $1,323,037, CONSISTENT WITH GRANT REQUIREMENTS, TO SUPPORT THESE CALIFORNIA ADVANCING AND INNOVATING MEDI -CAL READINESS AND IMPLEMENTATION ACTIVITIES, INCLUDING WORKFLOW DEVELOPMENT, BILLING READINESS, AND COORDINATION ACROSS EMERGENCY INTERIM HOUSING OPERATIONS W HEREAS, the City of San Jos\u00e9 (\u201cCity\u201d) City Council desires to adopt this resolution for the reasons set forth in the memorandum, dated March 30, 202 6, from the Director of Housing or their designee for the April 21, 2026, City Council meeting; and WHEREAS, the City is committed to addressing homelessness through coordinated, data-informed strategies that improve service delivery, health outcomes, and long- term housing stability for individuals experiencing homelessness; and WHEREAS, California Advancing and Innovating Medi -Cal (\u201cCalAIM\u201d) is a statewide transformation initiative designed to improve care coordination for individuals with complex needs, including people experiencing homelessness, by expanding access to Community Supports services that address health- related social needs that managed SAW:TTT:MMV 4-09-2026 2 T-51933/2298568 Council Agenda: 04-21-2026 Item No.: 8.2(a) DRAFT--Conta",
+                            "failure_class": null,
+                            "read_status": "read_text",
+                            "source_family": "resolution",
+                            "source_title": "Resolution",
+                            "source_url": "https://legistar.granicus.com/sanjose/attachments/2fda232e-96b6-4c31-888e-c5b2cc0e8c91.pdf",
+                            "status": "ingested_excerpt",
+                            "title": "Resolution",
+                            "url": "https://legistar.granicus.com/sanjose/attachments/2fda232e-96b6-4c31-888e-c5b2cc0e8c91.pdf"
+                          }
+                        ],
+                        "diagnostic_facts": [
+                          {
+                            "field": "matter_id",
+                            "unit": "count",
+                            "value": 15773
+                          },
+                          {
+                            "field": "matter_attachment_probe_count",
+                            "unit": "count",
+                            "value": 2
+                          },
+                          {
+                            "field": "matter_attachment_content_ingested_count",
+                            "unit": "count",
+                            "value": 2
+                          },
+                          {
+                            "field": "matter_attachment_economic_row_count",
+                            "unit": "count",
+                            "value": 0
+                          }
+                        ],
+                        "excerpt": "Structured Legistar matter metadata fetched from San Jose Web API; MatterTitle='Providing Access and Transforming Health Capacity and Infrastructure Transition, Expansion, and Development Intergovernmental Transfer Grant Funding for California Advancing and Innovating Medi-Cal Readiness and Implementation.', attachments=2, classified_attachment_refs=2.",
+                        "jurisdiction": "san_jose_ca",
+                        "lineage_metadata": {
+                          "attachment_content_ingested_count": 2,
+                          "attachment_content_probe_count": 2,
+                          "attachment_economic_row_count": 0,
+                          "attachment_family_counts": {
+                            "memorandum": 1,
+                            "resolution": 1
+                          },
+                          "event_body_id": null,
+                          "event_date": null,
+                          "jurisdiction": "san_jose_ca",
+                          "matter_id": "15773",
+                          "related_attachment_refs": [
+                            {
+                              "attachment_id": "38691",
+                              "source_family": "memorandum",
+                              "title": "Memorandum",
+                              "url": "https://legistar.granicus.com/sanjose/attachments/3b843e4a-52d5-4204-9b9b-6928de6f6d39.pdf"
+                            },
+                            {
+                              "attachment_id": "38722",
+                              "source_family": "resolution",
+                              "title": "Resolution",
+                              "url": "https://legistar.granicus.com/sanjose/attachments/2fda232e-96b6-4c31-888e-c5b2cc0e8c91.pdf"
+                            }
+                          ],
+                          "source_identity": "legistar_web_api"
+                        },
+                        "linked_artifact_refs": [
+                          "https://legistar.granicus.com/sanjose/attachments/3b843e4a-52d5-4204-9b9b-6928de6f6d39.pdf",
+                          "https://legistar.granicus.com/sanjose/attachments/2fda232e-96b6-4c31-888e-c5b2cc0e8c91.pdf"
+                        ],
+                        "policy_match_confidence": 0.95,
+                        "policy_match_key": "https://www.legigram.com/places/san-jose",
+                        "provider": "legistar_web_api",
+                        "provider_run_id": "15773",
+                        "query_text": "San Jose CA city council meeting minutes housing",
+                        "reader_artifact_refs": [],
+                        "reconciliation_status": "pending_primary_reconciliation",
+                        "related_attachment_refs": [
+                          {
+                            "attachment_id": "38691",
+                            "source_family": "memorandum",
+                            "title": "Memorandum",
+                            "url": "https://legistar.granicus.com/sanjose/attachments/3b843e4a-52d5-4204-9b9b-6928de6f6d39.pdf"
+                          },
+                          {
+                            "attachment_id": "38722",
+                            "source_family": "resolution",
+                            "title": "Resolution",
+                            "url": "https://legistar.granicus.com/sanjose/attachments/2fda232e-96b6-4c31-888e-c5b2cc0e8c91.pdf"
+                          }
+                        ],
+                        "retrieved_at": "2026-04-17T04:55:56.201420+00:00",
+                        "source_family": "legistar_web_api",
+                        "source_lane": "structured",
+                        "source_tier": "tier_b",
+                        "structured_policy_facts": [
+                          {
+                            "field": "matter_attachment_count",
+                            "unit": "count",
+                            "value": 2
+                          },
+                          {
+                            "field": "matter_attachment_url_count",
+                            "unit": "count",
+                            "value": 2
+                          }
+                        ],
+                        "true_structured": true
+                      }
+                    ],
+                    "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+                    "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+                    "windmill_run_id": "bd-3wefe.13-live-cycle-36-20260417045457",
+                    "windmill_workspace": "affordabot"
+                  },
+                  "schema_version": "1.0.0",
+                  "scraped_sources": [
+                    {
+                      "candidate_rank": 1,
+                      "provider_run_id": "bd-3wefe.13-live-cycle-36-20260417045457",
+                      "query_family": "meeting_minutes",
+                      "query_text": "San Jose CA city council meeting minutes housing",
+                      "reader_artifact_url": null,
+                      "reader_substance_passed": true,
+                      "search_provider": "private_searxng",
+                      "search_snapshot_id": "5ca85fe2-1358-4236-8b8d-b81fcef9bcfe",
+                      "selected_candidate_url": "https://www.legigram.com/places/san-jose"
+                    }
+                  ],
+                  "source_lanes": [
+                    "scraped",
+                    "structured"
+                  ],
+                  "source_quality_metrics": {
+                    "artifact_quality_gate": {
+                      "artifact_candidate_count": 0,
+                      "artifact_candidate_substantive_count": 0,
+                      "substantive_artifact_urls": []
+                    },
+                    "artifact_quality_gate_reason": "no_artifact_candidate_passed_quality_gate",
+                    "artifact_quality_gate_status": "pass",
+                    "explicit_lineage_linked": false,
+                    "fallback_materialization_count": 0,
+                    "identity_blocker_code": "",
+                    "identity_blocker_reason": "",
+                    "identity_failure_codes": [],
+                    "identity_failure_reasons": [],
+                    "identity_quality_ready": true,
+                    "identity_quality_status": "not_applicable",
+                    "identity_required": false,
+                    "jurisdiction_identity_ready": true,
+                    "jurisdiction_identity_signals": [],
+                    "jurisdiction_identity_status": "not_applicable",
+                    "official_reader_error_count": 0,
+                    "policy_identity_ready": true,
+                    "policy_identity_signals": [],
+                    "policy_identity_status": "not_applicable",
+                    "portal_skip_count": 0,
+                    "provider_results": {
+                      "private_searxng": {
+                        "candidates": [
+                          {
+                            "artifact_grade": false,
+                            "official_domain": false,
+                            "rank": 1,
+                            "url": "https://www.legigram.com/places/san-jose"
+                          },
+                          {
+                            "artifact_grade": false,
+                            "official_domain": true,
+                            "rank": 2,
+                            "url": "https://www.sanjoseca.gov/your-government/appointees/city-clerk/council-agendas-minutes/council-agendas"
+                          },
+                          {
+                            "artifact_grade": false,
+                            "official_domain": true,
+                            "rank": 3,
+                            "url": "https://sanjose.legistar.com/"
+                          },
+                          {
+                            "artifact_grade": false,
+                            "official_domain": false,
+                            "rank": 4,
+                            "url": "https://sanjoseca.primegov.com/Portal/Meeting?meetingTemplateId=16477"
+                          },
+                          {
+                            "artifact_grade": false,
+                            "official_domain": true,
+                            "rank": 5,
+                            "url": "https://www.sanjoseca.gov/your-government/appointees/city-clerk/council-agendas-minutes/participate-watch-public-meetings"
+                          }
+                        ],
+                        "reason_code": "materialized_raw_scrape",
+                        "status": "succeeded"
+                      }
+                    },
+                    "provider_summary": {
+                      "primary_provider": "private_searxng",
+                      "provider_error_count": 0,
+                      "provider_error_urls": [],
+                      "quality_failure_count": 0,
+                      "runtime": {
+                        "client_class": "OssSearxngWebSearchClient",
+                        "configured_provider": "searxng",
+                        "endpoint_configured": true,
+                        "endpoint_host": "searxng-private.railway.internal:8080",
+                        "provider": "private_searxng",
+                        "provider_source": "client_label"
+                      }
+                    },
+                    "reader_substance_observed": true,
+                    "reader_substance_selection_outcome": "materialized_raw_scrape",
+                    "secondary_numeric_parameter_count": 2,
+                    "secondary_numeric_rescue_detected": false,
+                    "selected_artifact_family": "external_page",
+                    "selected_candidate": {
+                      "artifact_family": "external_page",
+                      "artifact_grade": false,
+                      "artifact_quality_gate_passed": false,
+                      "fee_schedule_gate": {
+                        "authoritative_policy_text_ok": false,
+                        "classified_as_maintained_fee_schedule": false,
+                        "passed": false,
+                        "reason": "non_official_domain"
+                      },
+                      "official_domain": false,
+                      "provider": "private_searxng",
+                      "rank": 1,
+                      "selection_reason": "materialized_raw_scrape",
+                      "shape_quality_gate_passed": false,
+                      "url": "https://www.legigram.com/places/san-jose"
+                    },
+                    "selection_quality_reason": "no_artifact_candidate_passed_quality_gate",
+                    "selection_quality_status": "fail",
+                    "source_shape_drift": {
+                      "candidate_count": 10,
+                      "drift_detected": false,
+                      "missing_snippet_count": 0,
+                      "missing_url_count": 0
+                    },
+                    "top_n_artifact_recall_count": 0,
+                    "top_n_official_recall_count": 3,
+                    "top_n_window": 5
+                  },
+                  "source_reconciliation": {
+                    "fail_closed_locator_signal_count": 0,
+                    "missing_true_structured_corroboration_count": 0,
+                    "official_attachment_authoritative_row_count": 0,
+                    "official_attachment_row_count": 0,
+                    "primary_official_row_count": 0,
+                    "records": [],
+                    "secondary_override_blocked": true,
+                    "secondary_snippet_row_count": 0,
+                    "source_of_truth_policy": "primary_artifact_precedence_then_labeled_secondary",
+                    "true_structured_row_count": 0,
+                    "unresolved_count": 0
+                  },
+                  "storage_refs": [
+                    {
+                      "content_hash": "8af5e88134a1016a75a1532eeb5d188f2129ba6302d878e6a9a29faf816b8075",
+                      "notes": null,
+                      "reference_id": "policy_evidence_packages:pkg-560d7455fa43b21376e8479e",
+                      "storage_system": "postgres",
+                      "truth_role": "source_of_truth",
+                      "uri": null
+                    },
+                    {
+                      "content_hash": "8af5e88134a1016a75a1532eeb5d188f2129ba6302d878e6a9a29faf816b8075",
+                      "notes": "readback proof pending bd-3wefe.10",
+                      "reference_id": "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/meeting_minutes/reader_output/8af5e88134a1016a75a1532eeb5d188f2129ba6302d878e6a9a29faf816b8075.md",
+                      "storage_system": "minio",
+                      "truth_role": "artifact_of_record",
+                      "uri": "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/meeting_minutes/reader_output/8af5e88134a1016a75a1532eeb5d188f2129ba6302d878e6a9a29faf816b8075.md"
+                    },
+                    {
+                      "content_hash": "8af5e88134a1016a75a1532eeb5d188f2129ba6302d878e6a9a29faf816b8075",
+                      "notes": "derived index only",
+                      "reference_id": "document:49de74c2-63ae-5603-945d-9399a4674bff",
+                      "storage_system": "pgvector",
+                      "truth_role": "derived_index",
+                      "uri": null
+                    },
+                    {
+                      "notes": "package artifact envelope",
+                      "reference_id": "minio://affordabot-artifacts/policy-evidence/packages/pkg-560d7455fa43b21376e8479e.json",
+                      "storage_system": "minio",
+                      "truth_role": "artifact_of_record",
+                      "uri": "minio://affordabot-artifacts/policy-evidence/packages/pkg-560d7455fa43b21376e8479e.json"
+                    }
+                  ],
+                  "structured_enrichment_status": "integrated",
+                  "structured_sources": [
+                    {
+                      "access_method": "public_api_json",
+                      "endpoint_or_file_url": "https://webapi.legistar.com/v1/sanjose/Matters/15773",
+                      "event_body_id": null,
+                      "event_date": null,
+                      "field_count": 2,
+                      "matter_id": "15773",
+                      "policy_match_confidence": 0.95,
+                      "policy_match_key": "https://www.legigram.com/places/san-jose",
+                      "provider_run_id": "15773",
+                      "reconciliation_status": "pending_primary_reconciliation",
+                      "source_family": "legistar_web_api",
+                      "true_structured": true
+                    }
+                  ]
+                },
+                "refs": {
+                  "backend_run_id": "c9e7a12a-6098-4237-b102-11b1ba54c7e3",
+                  "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=meeting_minutes|doctype=meeting_minutes|url=https://www.legigram.com/places/san-jose",
+                  "document_id": "49de74c2-63ae-5603-945d-9399a4674bff",
+                  "fail_closed_reasons": [
+                    "analysis_sufficiency:Sufficient",
+                    "blocking_gate_present",
+                    "no_quant_support_path"
+                  ],
+                  "idempotent_replay": false,
+                  "package_artifact_uri": "minio://affordabot-artifacts/policy-evidence/packages/pkg-560d7455fa43b21376e8479e.json",
+                  "package_id": "pkg-560d7455fa43b21376e8479e",
+                  "raw_scrape_id": "379defe0-7f64-5ece-b1f6-25da7446550d",
+                  "reader_artifact_uri": "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/meeting_minutes/reader_output/8af5e88134a1016a75a1532eeb5d188f2129ba6302d878e6a9a29faf816b8075.md",
+                  "selected_url": "https://www.legigram.com/places/san-jose",
+                  "storage_proof_mode": "direct_live_probe",
+                  "storage_status": "stored"
+                },
+                "storage_result": {
+                  "artifact_readback_status": "proven",
+                  "artifact_write_status": "succeeded",
+                  "fail_closed": true,
+                  "failure_class": null,
+                  "idempotent_reuse": false,
+                  "pgvector_truth_role": "derived_index",
+                  "stored": true
+                }
+              },
+              "step_statuses": {
+                "analyze": "succeeded",
+                "freshness_gate": "succeeded",
+                "index": "succeeded",
+                "read_fetch": "succeeded",
+                "search_materialize": "succeeded"
+              }
+            },
+            "envelope": {
+              "analysis_question": "Summarize housing-related signals from recent San Jose meeting minutes.",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-3wefe.13-live-cycle-36-20260417045457",
+              "jurisdiction": "San Jose CA",
+              "orchestrator": "windmill",
+              "scope_idempotency_key": "bd-3wefe.13-live-cycle-36-20260417045457::1c07b61a28453506",
+              "search_query": "San Jose CA city council meeting minutes housing",
+              "source_family": "meeting_minutes",
+              "stale_status": "fresh",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-36-20260417045457",
+              "windmill_workspace": "affordabot"
+            },
+            "refs": {
+              "analyze_reason": "analysis_completed",
+              "analyze_retry_class": "none",
+              "backend_run_id": "c9e7a12a-6098-4237-b102-11b1ba54c7e3",
+              "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=meeting_minutes|doctype=meeting_minutes|url=https://www.legigram.com/places/san-jose",
+              "document_id": "49de74c2-63ae-5603-945d-9399a4674bff",
+              "fail_closed_reasons": [
+                "analysis_sufficiency:Sufficient",
+                "blocking_gate_present",
+                "no_quant_support_path"
+              ],
+              "freshness_gate_reason": "fresh",
+              "freshness_gate_retry_class": "none",
+              "idempotent_replay": false,
+              "index_reason": "chunks_indexed",
+              "index_retry_class": "none",
+              "package_artifact_uri": "minio://affordabot-artifacts/policy-evidence/packages/pkg-560d7455fa43b21376e8479e.json",
+              "package_id": "pkg-560d7455fa43b21376e8479e",
+              "raw_scrape_id": "379defe0-7f64-5ece-b1f6-25da7446550d",
+              "read_fetch_reason": "raw_scrapes_materialized",
+              "read_fetch_retry_class": "none",
+              "reader_artifact_uri": "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/meeting_minutes/reader_output/8af5e88134a1016a75a1532eeb5d188f2129ba6302d878e6a9a29faf816b8075.md",
+              "run_id": "c9e7a12a-6098-4237-b102-11b1ba54c7e3",
+              "search_materialize_reason": "fresh_snapshot_materialized",
+              "search_materialize_retry_class": "none",
+              "selected_url": "https://www.legigram.com/places/san-jose",
+              "storage_proof_mode": "direct_live_probe",
+              "storage_status": "stored",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-36-20260417045457"
+            },
+            "retry_class": "none",
+            "status": "succeeded"
+          }
+        }
+      }
+    ],
+    "scope_succeeded": 1,
+    "scope_total": 1,
+    "status": "succeeded"
+  },
+  "run_mode": "backend-endpoint-run",
+  "search_provider_bakeoff": [
+    {
+      "endpoint": "https://searx.tiekoetter.com/search",
+      "failure_classification": "http_error",
+      "http_status": 429,
+      "latency_ms": 839,
+      "provider": "searxng",
+      "query": "San Jose CA city council meeting minutes housing",
+      "result_count": 0,
+      "status": "failed",
+      "top_results": []
+    },
+    {
+      "failure_classification": null,
+      "http_status": 200,
+      "latency_ms": 345,
+      "provider": "exa",
+      "query": "San Jose CA city council meeting minutes housing",
+      "result_count": 5,
+      "status": "succeeded",
+      "top_results": [
+        {
+          "snippet": "",
+          "title": "City Council Meeting Agendas and Minutes | City of San Jos\u00e9",
+          "url": "https://www.sanjoseca.gov/your-government/agendas-minutes"
+        },
+        {
+          "snippet": "",
+          "title": "2025-2026 Housing Department Council Memos | City of San Jos\u00e9",
+          "url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/resource-library/council-memos"
+        },
+        {
+          "snippet": "",
+          "title": "",
+          "url": "https://sanjose.legistar.com/View.ashx?GUID=D81AD022-66BE-482A-8F02-B37B3655AFF6&ID=15146232&M=F"
+        }
+      ]
+    },
+    {
+      "failure_classification": null,
+      "http_status": 200,
+      "latency_ms": 505,
+      "provider": "tavily",
+      "query": "San Jose CA city council meeting minutes housing",
+      "result_count": 5,
+      "status": "succeeded",
+      "top_results": [
+        {
+          "snippet": "Consent Agenda. Permanent Local Housing Allocation Program Funding Round 4 and Round 5 from the California Department of Housing and Community Development.",
+          "title": "San Jose City Council Meeting Agendas - Legigram",
+          "url": "https://www.legigram.com/places/san-jose"
+        },
+        {
+          "snippet": "Skip to page body  Home  Residents  Businesses  Jobs  Your Government  News & Stories. # City of San Jos\u00e9. facebook   twitter   instagram   linkedin   youtube   Next Door Home. Your Government \u00bb Appointees \u00bb City Clerk \u00bb City Council Agendas & Minutes. # City Council Meeting Agendas and Minutes. *\\*\\*\\* Send any correspondence related to Council items that you wish Council to see prior to the meeting to city.clerk@sanjoseca.gov or Office of the City Clerk, City of San Jos\u00e9, 200 E Santa Clara Street, San Jos\u00e9, CA 95113. Items must be received by 8:00 a.m. on the day of the meeting to ensure it can be distributed prior to the meeting. Items received after the meeting begins will be posted online after the meeting. Hard copies may be brought directly to the meeting.*. * Council Agendas 2019 to Present\u00a0- Select from the Date Dropdown Menu. * Archived Council Minutes 1950-2011 (Microfilm). * To obtain Council Agendas, Minutes and Memos 1995 \u2013 2011 please email city.clerk@sanjoseca.gov.",
+          "title": "City Council Meeting Agendas and Minutes | City of San Jos\u00e9",
+          "url": "https://www.sanjoseca.gov/your-government/appointees/city-clerk/council-agendas-minutes/council-agendas"
+        },
+        {
+          "snippet": "| 12/16/2025 | CC | Actions Related to Grant Agreements for Multiple Emergency Interim Housing Program Sites |. | 10/27/2025 | CC | Actions Related to the Agreement with the County of Santa Clara Office of Supportive Housing for a Homebuyer Down Payment Assistance Program. | 9/16/2025 | CC | Actions Related to the Agreement with the County of Santa Clara\u2019s Office of Supportive Housing for the Homelessness Prevention System Program |. | 8/26/2025 | CC | Actions Related to Grant Agreements for Two Emergency Interim Housing Program Sites |. | 8/19/2025 | CC | Actions Related to Grant Agreements for Two Emergency Interim Housing Program Sites |. | 4/22/2025 | CC | Action Related to the Homelessness Prevention Program System Funding Agreement with the County of Santa Clara\u2019s Office of Supportive Housing |.",
+          "title": "2025-2026 Housing Department Council Memos | City of San Jos\u00e9",
+          "url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/resource-library/council-memos"
+        }
+      ]
+    }
+  ],
+  "stale_drills": [],
+  "storage_evidence_gates": {
+    "analysis_provenance_chain": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "bridge_mode": {
+      "note": "",
+      "status": "railway_runtime"
+    },
+    "failure_handler_drill": {
+      "note": "failure injection is a separate pre-schedule gate; this San Jose product path run verified the native failure handler surface was configured",
+      "status": "not_run"
+    },
+    "idempotent_rerun": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "minio_object_refs": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "pgvector_index_probe": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "postgres_rows_written": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "quality_gate_blocked_before_index_analyze": {
+      "note": "current run completed past read_fetch; reader quality block was not expected in this success path",
+      "status": "not_applicable"
+    },
+    "reader_output_ref": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "stale_drill_stale_blocked": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "stale_drill_stale_but_usable": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    }
+  },
+  "surface_checks": {
+    "jobs_checked_count": 20,
+    "schedule_count": 4,
+    "workspace_profile_listed": true
+  }
+}

@@ -3,6 +3,24 @@
 This lane evaluates whether a vertical package is ready to feed canonical
 economic analysis and admin/frontend read models.
 
+## Current Corpus Handoff
+
+For the current broad local-government data moat work, start with
+`data_moat_takeover_handoff_2026-04-22.md`.
+
+Current corpus state is `corpus_ready_with_gaps`, not
+`decision_grade_corpus`. The current non-pass corpus gates are:
+
+- `C2`: structured-source breadth/depth is not runtime-proven enough.
+- `C13`: most corpus rows still have `orchestration_intent`, not live Windmill
+  run/job proof.
+- `C14`: non-fee extraction depth still contains cataloged targets that are not
+  live-proven.
+
+Do not use the older San Jose vertical artifacts as the product boundary. San
+Jose is now a calibrated fixture inside the broader city/county/state corpus
+benchmark.
+
 ## Artifacts
 
 - `artifacts/horizontal_matrix.json`
@@ -14,66 +32,9 @@ economic analysis and admin/frontend read models.
 - `artifacts/quality_spine_eval_cycles_report.md`
 - `artifacts/quality_spine_gap_audit.md`
 - `artifacts/quality_spine_live_storage_probe.json`
-- `artifacts/live_cycle_01_windmill_domain_run.json`
-- `artifacts/live_cycle_01_windmill_domain_run.md`
-- `artifacts/live_cycle_08_economic_bridge.md`
-- `artifacts/live_cycle_25_windmill_domain_run.json`
-- `artifacts/live_cycle_25_windmill_domain_run.md`
-- `artifacts/live_cycle_25_admin_analysis_status.json`
-- `cycle_08_gate_controller_upgrade.md`
-- `cycle_09_metadata_and_manual_audit_hooks.md`
-
-## Future Agent Start Here
-
-**STOP:** Do not launch another POC cycle before reading the [2026-04-16 data moat quality gates](../../specs/2026-04-16-data-moat-quality-gates.md). The original product gates (v2, described below) were passed mechanically but failed the data-moat substance bar (see `Current verdict` below for details). All future cycles must adhere to the hardened D0-D11 and E1-E5 gates in the new contract.
-
-The next cycle may not stop at "Windmill ran", "MinIO persisted", "admin read model displayed", "SearXNG found one PDF", "Tavily rescued parameters", or "economic analysis failed closed." Those are mechanics. The required target is a comprehensive, accurate, robust, fit-for-purpose data package that can honestly tell the economic engine whether to quantify, request secondary research, produce qualitative analysis, or fail closed.
-
-### Cycle 25 Honest Verdict
-
-Cycle 25 did not pass the original product gates.
-
-Verdict: `PASS_SCRAPED_ARTIFACT_AND_PACKAGE_MECHANICS_ONLY__STRUCTURED_MOAT_NOT_PROVEN__ECONOMIC_DECISION_GRADE_NOT_PROVEN`
-
-What passed:
-- SearXNG/scraped path found and read a useful official Legistar artifact.
-- Package mechanics, persistence, and admin read model were useful.
-- Economic analysis correctly failed closed on household cost-of-living claims.
-
-What did not pass:
-- Legistar Web API was mechanically live but economically shallow (no attachments).
-- CKAN/San Jose Open Data was not live-proven.
-- Tavily rescued fee parameters, but Tavily is secondary search-derived evidence, not true structured-source proof.
-- The structured data moat was not proven.
-- Economic analysis failing closed does not prove the upstream data moat is real.
-
-Next POC must prove `decision_grade_data_moat`, or honestly classify the result as `evidence_ready_with_gaps`, `package_mechanics_only`, `fail`, or `blocked_hitl` with concrete evidence. In particular, it must prove policy lineage completeness, extraction accuracy/citation, cross-source reconciliation, robustness/fallback behavior, and economic handoff fitness.
-
-## Gate Contract v2 (Superseded by 2026-04-16 Gates)
-
-The evaluator now uses explicit gate domains:
-
-- Data moat: `D1..D6`
-- Economic analysis: `E1..E6`
-- Manual audit: `M1..M3`
-
-Status enum: `pass|partial|not_proven|fail`.
-
-Cycle policy:
-
-- adaptive cycle budget up to `30`
-- completion guard blocks diagnosis-only cycles unless there is:
-  - implementation/fix attempt evidence, or
-  - concrete external blocker proof, or
-  - all blocking gates passed.
-
-Key CLI helpers:
-
-- `--cycle-metadata`
-- `--manual-data-audit-md`
-- `--manual-economic-audit-md`
-- `--manual-gate-decision-md`
-- `--current-package-status`
+- `artifacts/source_identity_rules.json`
+- `artifacts/source_freshness_drift_scorecard.json`
+- `artifacts/external_source_promotion_register.json`
 
 ## Current verdict
 
@@ -82,12 +43,16 @@ Key CLI helpers:
 - failed_categories: `0`
 - not_proven_categories: `storage/read-back, Windmill/orchestration, LLM narrative`
 - storage_readback_status: `not_proven`
-- storage_readback_note: `Automated deterministic scorecard remains not_proven; manual Railway SSH evidence now proves MinIO artifact readback and pgvector chunks, but exact PolicyEvidencePackage row/current-package linkage is still missing.`
+- storage_readback_note: `Deterministic in-memory readback is proven, but non-memory Postgres/MinIO storage proof is not provided.`
 - windmill_orchestration_status: `not_proven`
 - windmill_orchestration_note: `Historical Windmill stub proof exists but is not valid for current vertical package.`
 - llm_narrative_status: `not_proven`
 - llm_narrative_note: `LLM narrative not proven (canonical_llm_run_id_missing; source=quality_spine_deterministic_lane).`
 - economic_quality_failing_dimensions: `none`
+- official_source_dominance_status: `pass`
+- stale_source_count: `0`
+- source_shape_changed_count: `0`
+- external_source_promotions: `0`
 
 The current deterministic quality-spine pass has no failed data/economic
 quality categories. Retry-3 adds strict category semantics: selected-artifact
@@ -96,40 +61,15 @@ remains `not_proven` until real Postgres/MinIO proof is available for the
 current vertical package. Windmill/LLM also remain `not_proven` when evidence
 is historical or lacks canonical run ids.
 
-Retry-4 initially found a live MinIO `AccessDenied` blocker. After Railway
-Bucket/Console/backend restarts, a manual Railway SSH probe proved the current
-fallback artifact can be read from MinIO (`124319` bytes), the raw scrape row
-exists, and `3382` pgvector chunks have embeddings for the document id referenced
-by the live run. Storage remains `not_proven` because the exact
-`PolicyEvidencePackage` row/current-package linkage is still missing, the
-`documents` row for that document id was not present, and the live analysis id is
-not persisted in `analysis_history`.
+Retry-4 attempted a live Railway-dev backend-network storage proof for the
+current vertical package. The probe reached the backend dev runtime and decoded
+the package, but MinIO returned `AccessDenied` for the configured bucket before
+Postgres/MinIO readback could be proven. This keeps storage `not_proven` and
+turns the next step into a runtime configuration gate, not another local fixture
+change.
 
-The eval-cycle harness now records per-cycle ledger rows with:
-- cycle number
-- targeted tweak
-- deploy sha
-- windmill job id
-- backend run id
-- package id
-- selected url
-- reader artifact uri
-- MinIO readback status
-- pgvector chunk stats
-- package row linkage
-- economic status endpoint (if captured)
-- verdict and next tweak
-
-Gate taxonomy is now explicit and severity-aware. The v2 taxonomy below is
-superseded by the D0-D11 data-moat gate contract for new POC cycles:
-- `D1..D6` data moat (legacy v2)
-- `E1..E6` economic analysis
-- `M1..M3` manual audits
-- status: `pass|partial|not_proven|fail`
-- severity: `blocking|nonblocking`
-
-Cycle 1 (`live_cycle_01_windmill_domain_run.json`) is explicitly marked
-`partial`, not product-proof.
+The eval-cycle harness supports up to 10 deterministic cycles and keeps
+local deterministic proof separate from live-product proof categories.
 
 ## Matrix source
 
@@ -142,8 +82,6 @@ Cycle 1 (`live_cycle_01_windmill_domain_run.json`) is explicitly marked
 ```bash
 cd backend
 poetry run pytest tests/services/pipeline/test_policy_evidence_quality_spine_economics.py tests/services/pipeline/test_policy_evidence_quality_spine_eval_cycles.py
-poetry run pytest tests/verification/test_policy_evidence_quality_spine_live_storage.py
-poetry run python scripts/verification/verify_policy_evidence_quality_spine_economics.py --max-cycles 30
-poetry run python scripts/verification/verify_policy_evidence_quality_spine_live_storage.py --windmill ../docs/poc/policy-evidence-quality-spine/artifacts/live_cycle_01_windmill_domain_run.json --runtime ../docs/poc/policy-evidence-quality-spine/artifacts/data_runtime_evidence.json --live-mode off
-poetry run python scripts/verification/verify_policy_evidence_quality_spine_eval_cycles.py --max-cycles 30 --live-cycle-artifact '../docs/poc/policy-evidence-quality-spine/artifacts/live_cycle_*_windmill_domain_run.json' --economic-status ../docs/poc/policy-evidence-quality-spine/artifacts/live_cycle_07_admin_analysis_status.json
+poetry run python scripts/verification/verify_policy_evidence_quality_spine_economics.py --max-cycles 10
+poetry run python scripts/verification/verify_policy_evidence_quality_spine_eval_cycles.py --max-cycles 10
 ```

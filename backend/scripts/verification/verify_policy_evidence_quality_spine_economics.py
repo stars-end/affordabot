@@ -38,20 +38,15 @@ DEFAULT_RUNTIME_PATH = (
     / "data_runtime_evidence.json"
 )
 DEFAULT_OUT_DIR = (
-    REPO_ROOT
-    / "docs"
-    / "poc"
-    / "policy-evidence-quality-spine"
-    / "artifacts"
+    REPO_ROOT / "docs" / "poc" / "policy-evidence-quality-spine" / "artifacts"
 )
 DEFAULT_README_PATH = (
-    REPO_ROOT
-    / "docs"
-    / "poc"
-    / "policy-evidence-quality-spine"
-    / "README.md"
+    REPO_ROOT / "docs" / "poc" / "policy-evidence-quality-spine" / "README.md"
 )
 LIVE_STORAGE_PROBE_FILENAME = "quality_spine_live_storage_probe.json"
+SOURCE_IDENTITY_RULES_FILENAME = "source_identity_rules.json"
+SOURCE_FRESHNESS_DRIFT_SCORECARD_FILENAME = "source_freshness_drift_scorecard.json"
+EXTERNAL_SOURCE_PROMOTION_REGISTER_FILENAME = "external_source_promotion_register.json"
 
 
 def _load_json(path: Path) -> dict[str, Any] | None:
@@ -73,7 +68,9 @@ def _load_matrix(path: Path, runtime_path: Path) -> tuple[dict[str, Any] | None,
         return None, "missing"
 
     runtime = _load_json(runtime_path)
-    if isinstance(runtime, dict) and isinstance(runtime.get("vertical_package_payload"), dict):
+    if isinstance(runtime, dict) and isinstance(
+        runtime.get("vertical_package_payload"), dict
+    ):
         payload = {
             **payload,
             "agent_a_runtime_evidence": {
@@ -106,6 +103,9 @@ def _write_readme(path: Path, *, scorecard: dict[str, Any]) -> None:
         "- `artifacts/quality_spine_eval_cycles_report.md`",
         "- `artifacts/quality_spine_gap_audit.md`",
         f"- `artifacts/{LIVE_STORAGE_PROBE_FILENAME}`",
+        f"- `artifacts/{SOURCE_IDENTITY_RULES_FILENAME}`",
+        f"- `artifacts/{SOURCE_FRESHNESS_DRIFT_SCORECARD_FILENAME}`",
+        f"- `artifacts/{EXTERNAL_SOURCE_PROMOTION_REGISTER_FILENAME}`",
         "",
         "## Current verdict",
         "",
@@ -121,6 +121,14 @@ def _write_readme(path: Path, *, scorecard: dict[str, Any]) -> None:
         f"- llm_narrative_note: `{scorecard['taxonomy']['LLM narrative']['details']}`",
         f"- economic_quality_failing_dimensions: "
         f"`{', '.join(scorecard['economic_quality_rubric']['failing_dimensions']) or 'none'}`",
+        f"- official_source_dominance_status: "
+        f"`{(scorecard.get('official_source_dominance') or {}).get('status', 'unknown')}`",
+        f"- stale_source_count: "
+        f"`{(scorecard.get('source_freshness_drift') or {}).get('stale_source_count', 0)}`",
+        f"- source_shape_changed_count: "
+        f"`{(scorecard.get('source_freshness_drift') or {}).get('source_shape_changed_count', 0)}`",
+        f"- external_source_promotions: "
+        f"`{len(scorecard.get('external_source_promotion_register') or [])}`",
         "",
         "The current deterministic quality-spine pass has no failed data/economic",
         "quality categories. Retry-3 adds strict category semantics: selected-artifact",
@@ -183,7 +191,11 @@ def _merge_live_storage_probe(
         "status": "completed" if is_passed else "blocked",
         "result_verdict": "partial",
         "failed_categories": [],
-        "not_proven_categories": ["storage/read-back", "Windmill/orchestration", "LLM narrative"],
+        "not_proven_categories": [
+            "storage/read-back",
+            "Windmill/orchestration",
+            "LLM narrative",
+        ],
         "tweaks_applied": ["railway_dev_current_run_storage_probe"],
         "result_note": (
             "Railway-dev storage probe passed; scorecard still requires regenerated runtime proof linkage."
@@ -234,13 +246,24 @@ def run(
     report_path = out_dir / "quality_spine_report.md"
     retry_path = out_dir / "retry_ledger.json"
     live_storage_probe_path = out_dir / LIVE_STORAGE_PROBE_FILENAME
+    source_identity_rules_path = out_dir / SOURCE_IDENTITY_RULES_FILENAME
+    source_freshness_drift_path = out_dir / SOURCE_FRESHNESS_DRIFT_SCORECARD_FILENAME
+    external_source_promotion_register_path = (
+        out_dir / EXTERNAL_SOURCE_PROMOTION_REGISTER_FILENAME
+    )
     retry_ledger = _merge_live_storage_probe(
         evaluation["retry_ledger"],
         live_storage_probe_path=live_storage_probe_path,
     )
+    scorecard = evaluation["scorecard"]
+    source_identity_rules = scorecard.get("source_identity_rules") or {}
+    source_freshness_drift = scorecard.get("source_freshness_drift") or {}
+    external_source_promotion_register = (
+        scorecard.get("external_source_promotion_register") or []
+    )
 
     scorecard_path.write_text(
-        json.dumps(evaluation["scorecard"], indent=2, ensure_ascii=False) + "\n",
+        json.dumps(scorecard, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
     )
     report_path.write_text(
@@ -251,7 +274,28 @@ def run(
         json.dumps(retry_ledger, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
     )
-    _write_readme(readme_path, scorecard=evaluation["scorecard"])
+    source_identity_rules_path.write_text(
+        json.dumps(source_identity_rules, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    source_freshness_drift_path.write_text(
+        json.dumps(source_freshness_drift, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    external_source_promotion_register_path.write_text(
+        json.dumps(
+            {
+                "generated_at": scorecard.get("generated_at"),
+                "feature_key": scorecard.get("feature_key"),
+                "register": external_source_promotion_register,
+            },
+            indent=2,
+            ensure_ascii=False,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    _write_readme(readme_path, scorecard=scorecard)
     return evaluation
 
 
@@ -285,7 +329,7 @@ def _parse_args() -> argparse.Namespace:
         "--max-cycles",
         type=int,
         default=10,
-        help="Maximum deterministic eval cycles to encode in retry ledger (1..10).",
+        help="Maximum deterministic eval cycles to encode in retry ledger (1..80).",
     )
     return parser.parse_args()
 

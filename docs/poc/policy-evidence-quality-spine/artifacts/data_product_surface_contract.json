@@ -1,0 +1,60 @@
+{
+  "schema_version": "data_product_surface_contract_v1",
+  "taxonomy_version": "corpus_taxonomy_v1",
+  "gate_version": "data_moat_c0_c14_v1",
+  "purpose": "Defines what the local-government data moat can expose as a standalone product surface before economic analysis succeeds.",
+  "consumer_surfaces": [
+    {
+      "surface": "admin_read_model",
+      "audience": "internal_operator",
+      "format": "json",
+      "required_capabilities": [
+        "filter_by_jurisdiction",
+        "filter_by_policy_family",
+        "show_gate_status",
+        "show_storage_refs",
+        "show_manual_audit_status",
+        "show_economic_handoff_status"
+      ]
+    },
+    {
+      "surface": "bulk_export",
+      "audience": "data_customer_or_internal_researcher",
+      "format": "jsonl_or_parquet",
+      "required_capabilities": [
+        "versioned_schema",
+        "source_citations",
+        "source_hashes_when_available",
+        "license_posture_per_row",
+        "freshness_status_per_row",
+        "data_moat_classification_per_row"
+      ]
+    },
+    {
+      "surface": "corpus_scorecard",
+      "audience": "product_quality",
+      "format": "json_and_markdown",
+      "required_capabilities": [
+        "C0_C14_status",
+        "official_source_dominance_ratio",
+        "structured_source_depth_ratio",
+        "known_policy_capture_rate",
+        "economic_handoff_distribution",
+        "manual_audit_stratification"
+      ]
+    }
+  ],
+  "product_guarantees": [
+    "Every exported package is official-source classified and has explicit licensing posture.",
+    "Every exported package has a data-moat classification even when not economically actionable.",
+    "Economic analysis is a downstream consumer, not the only data product use case.",
+    "Secondary search evidence is labeled context or secondary research and cannot masquerade as structured primary data.",
+    "A customer can query what Affordabot knows about a jurisdiction or policy family without invoking an LLM."
+  ],
+  "non_goals_for_v0": [
+    "paid production redistribution guarantee",
+    "complete national coverage",
+    "frontend sales workflow",
+    "unreviewed resale of third-party API payloads"
+  ]
+}

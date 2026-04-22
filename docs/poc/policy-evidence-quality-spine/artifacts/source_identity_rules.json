@@ -1,0 +1,35 @@
+{
+  "approved_external_promotion_audit_statuses": [
+    "approved",
+    "audited_pass",
+    "manual_approved",
+    "reviewed"
+  ],
+  "official_dominance_targets": {
+    "audited_p0_p1_target_percent": 90.0,
+    "corpus_target_percent": 85.0,
+    "hard_fail_below_percent": 80.0
+  },
+  "ruleset_version": "2026-04-17.local-government-source-identity.v1",
+  "secondary_provider_primary_caps": {
+    "audited_tavily_exa_max_percent": 0.0,
+    "corpus_tavily_exa_max_percent": 5.0
+  },
+  "source_of_truth_roles": [
+    "primary_official",
+    "primary_external_promoted",
+    "secondary_context",
+    "discovery_only"
+  ],
+  "source_officialness_values": [
+    "official_government",
+    "official_civic_partner",
+    "official_regional_body",
+    "external_advocacy",
+    "external_news",
+    "external_vendor",
+    "ambiguous_portal",
+    "external_other",
+    "unknown"
+  ]
+}
