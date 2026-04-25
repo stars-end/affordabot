@@ -114,7 +114,7 @@ def is_official_source(domain: str, official_domain_hints: Iterable[str]) -> boo
     normalized_hints = {hint.lower().lstrip("www.") for hint in official_domain_hints if hint}
     if not domain:
         return False
-    if domain.endswith(".gov") or domain.endswith(".us"):
+    if domain.endswith(".gov"):
         return True
     if domain in normalized_hints:
         return True

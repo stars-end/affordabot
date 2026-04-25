@@ -25,6 +25,36 @@ def test_classify_result_respects_official_domain_hints_for_non_gov_domains() ->
     assert classified["is_artifact_candidate"] is True
 
 
+def test_classify_result_does_not_treat_arbitrary_us_domain_as_official() -> None:
+    classified = classify_result(
+        {
+            "url": "https://sanjose-ca.elaws.us/code/ordinances",
+            "title": "San Jose code of ordinances",
+            "snippet": "Municipal code chapter listing",
+        },
+        intent="ordinance",
+        official_domain_hints=[],
+    )
+
+    assert classified["is_official"] is False
+    assert classified["is_useful"] is False
+
+
+def test_classify_result_allows_subdomain_of_hinted_official_domain() -> None:
+    classified = classify_result(
+        {
+            "url": "https://archive.sccgov.org/sites/bos/Documents/agenda.pdf",
+            "title": "Agenda packet archive",
+            "snippet": "Board meeting documents",
+        },
+        intent="agenda",
+        official_domain_hints=["sccgov.org"],
+    )
+
+    assert classified["is_official"] is True
+    assert classified["is_useful"] is True
+
+
 def test_resolve_searxng_dependency_fail_closed() -> None:
     assert resolve_searxng_dependency("") == "SEARXNG_BASE_URL"
     assert resolve_searxng_dependency(None) == "SEARXNG_BASE_URL"
