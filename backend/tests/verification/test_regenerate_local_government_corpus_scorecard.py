@@ -98,15 +98,48 @@ def test_run_uses_overlay_and_records_artifact_inputs(tmp_path: Path) -> None:
             }
         ],
     }
+    structured_proof_artifact = {
+        "generated_at": "2026-04-25T08:03:00+00:00",
+        "rows": [
+            {
+                "corpus_row_id": "lgm-065",
+                "package_id": "pkg::lgm-065",
+                "known_policy_reference_id": "kp-aus-affordable-housing-mandate-c45",
+                "jurisdiction_id": "austin_tx",
+                "source_family": "socrata_api",
+                "extraction_depth": "affordability_units",
+                "proof_status": "live_proven",
+                "proof_source": "structured_source_runtime_probe",
+                "endpoint_url": "https://data.austintexas.gov/resource/2h5e-ntwt.json?$limit=5",
+                "access_method": "http_get_json",
+                "retrieved_at": "2026-04-25T08:02:59+00:00",
+                "http_status": 200,
+                "response_hash": "abc123",
+                "schema_hash": "def456",
+                "sample_row_count": 5,
+                "normalized_fields_proven": ["_10_to_19_units", "_20_units"],
+            }
+        ],
+        "summary": {
+            "attempted_row_count": 1,
+            "live_proven_count": 1,
+            "blocked_count": 0,
+            "attempted_row_ids": ["lgm-065"],
+            "live_proven_row_ids": ["lgm-065"],
+            "blocked_row_ids": [],
+        },
+    }
 
     matrix_path = _write_json(tmp_path / "matrix.json", matrix)
     orchestration_path = _write_json(tmp_path / "orchestration.json", overlay_artifact)
+    structured_path = _write_json(tmp_path / "structured.json", structured_proof_artifact)
     scorecard_path = tmp_path / "scorecard.json"
     report_path = tmp_path / "report.md"
 
     result = regenerate_module.run(
         matrix_path=matrix_path,
         windmill_orchestration_path=orchestration_path,
+        structured_source_proof_path=structured_path,
         scorecard_output_path=scorecard_path,
         report_output_path=report_path,
     )
@@ -123,6 +156,17 @@ def test_run_uses_overlay_and_records_artifact_inputs(tmp_path: Path) -> None:
     )
     assert artifact_inputs["windmill_live_attempt_rows"] == [row_id]
     assert artifact_inputs["windmill_blocked_attempt_rows"] == ["lgm-blocked"]
+    assert artifact_inputs["structured_source_proof_artifact"].endswith("structured.json")
+    assert artifact_inputs["structured_source_live_attempt_rows"] == ["lgm-065"]
+    assert artifact_inputs["structured_source_blocked_attempt_rows"] == []
+    assert artifact_inputs["structured_source_overlay_burndown_summary"] == {
+        "attempted_row_count": 1,
+        "live_proven_count": 1,
+        "blocked_count": 0,
+        "attempted_row_ids": ["lgm-065"],
+        "live_proven_row_ids": ["lgm-065"],
+        "blocked_row_ids": [],
+    }
     assert artifact_inputs["windmill_overlay_burndown_summary"] == {
         "seeded_placeholder_rows_remaining": 2,
         "seeded_placeholder_rows_sample": ["lgm-seeded-a", "lgm-seeded-b"],
@@ -141,6 +185,10 @@ def test_run_uses_overlay_and_records_artifact_inputs(tmp_path: Path) -> None:
     assert (
         scorecard["gates"]["C13"]["metrics"]["live_proof_coverage_ratio"]
         > baseline["gates"]["C13"]["metrics"]["live_proof_coverage_ratio"]
+    )
+    assert (
+        scorecard["gates"]["C2"]["metrics"]["live_structured_coverage_ratio"]
+        > baseline["gates"]["C2"]["metrics"]["live_structured_coverage_ratio"]
     )
     assert row_id not in scorecard["gates"]["C13"]["metrics"]["next_seeded_ref_target_rows"]
     assert scorecard["corpus_state"] == "corpus_ready_with_gaps"
@@ -184,12 +232,17 @@ def test_run_keeps_c13_strict_when_overlay_contains_seeded_refs(tmp_path: Path) 
         tmp_path / "orchestration.json",
         {"rows": seeded_rows},
     )
+    structured_path = _write_json(
+        tmp_path / "structured.json",
+        {"rows": [], "summary": {"attempted_row_count": 0}},
+    )
     scorecard_path = tmp_path / "scorecard.json"
     report_path = tmp_path / "report.md"
 
     result = regenerate_module.run(
         matrix_path=matrix_path,
         windmill_orchestration_path=orchestration_path,
+        structured_source_proof_path=structured_path,
         scorecard_output_path=scorecard_path,
         report_output_path=report_path,
     )

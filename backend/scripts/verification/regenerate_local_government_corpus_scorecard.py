@@ -29,6 +29,14 @@ DEFAULT_WINDMILL_ORCHESTRATION_PATH = (
     / "artifacts"
     / "local_government_corpus_windmill_orchestration.json"
 )
+DEFAULT_STRUCTURED_SOURCE_PROOF_PATH = (
+    ROOT
+    / "docs"
+    / "poc"
+    / "policy-evidence-quality-spine"
+    / "artifacts"
+    / "local_government_corpus_structured_source_proof.json"
+)
 DEFAULT_SCORECARD_PATH = (
     ROOT
     / "docs"
@@ -119,6 +127,54 @@ def _row_id_list(value: Any) -> list[str]:
     return rows
 
 
+def _live_structured_attempt_rows(artifact: dict[str, Any]) -> list[str]:
+    rows: set[str] = set()
+    for key in ("attempts", "rows"):
+        payloads = artifact.get(key)
+        if not isinstance(payloads, list):
+            continue
+        for payload in payloads:
+            if not isinstance(payload, dict):
+                continue
+            row_id = str(payload.get("corpus_row_id") or "")
+            if not row_id:
+                continue
+            proof_status = str(
+                payload.get("proof_status")
+                or payload.get("status")
+                or payload.get("row_status")
+                or ""
+            ).strip()
+            if proof_status.lower() not in {"live_proven", "proven"}:
+                continue
+            rows.add(row_id)
+    return sorted(rows)
+
+
+def _blocked_structured_attempt_rows(artifact: dict[str, Any]) -> list[str]:
+    rows: set[str] = set()
+    for key in ("attempts", "rows"):
+        payloads = artifact.get(key)
+        if not isinstance(payloads, list):
+            continue
+        for payload in payloads:
+            if not isinstance(payload, dict):
+                continue
+            row_id = str(payload.get("corpus_row_id") or "")
+            if not row_id:
+                continue
+            proof_status = str(
+                payload.get("proof_status")
+                or payload.get("status")
+                or payload.get("row_status")
+                or ""
+            ).strip()
+            blocker = str(payload.get("blocker_class") or payload.get("blocker") or "")
+            if proof_status.lower() == "blocked" or blocker:
+                rows.add(row_id)
+    return sorted(rows)
+
+
 def _overlay_burndown_summary(artifact: dict[str, Any]) -> dict[str, Any]:
     post_metrics = artifact.get("post_metrics")
     if not isinstance(post_metrics, dict):
@@ -152,10 +208,26 @@ def _overlay_burndown_summary(artifact: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _structured_overlay_burndown_summary(artifact: dict[str, Any]) -> dict[str, Any]:
+    summary = artifact.get("summary")
+    if not isinstance(summary, dict):
+        summary = {}
+    return {
+        "attempted_row_count": int(summary.get("attempted_row_count") or 0),
+        "live_proven_count": int(summary.get("live_proven_count") or 0),
+        "blocked_count": int(summary.get("blocked_count") or 0),
+        "attempted_row_ids": _row_id_list(summary.get("attempted_row_ids")),
+        "live_proven_row_ids": _row_id_list(summary.get("live_proven_row_ids")),
+        "blocked_row_ids": _row_id_list(summary.get("blocked_row_ids")),
+    }
+
+
 def _build_artifact_inputs(
     *,
     windmill_orchestration_path: Path,
     windmill_orchestration_artifact: dict[str, Any],
+    structured_source_proof_path: Path,
+    structured_source_proof_artifact: dict[str, Any],
 ) -> dict[str, Any]:
     return {
         "windmill_orchestration_artifact": _repo_relative(windmill_orchestration_path),
@@ -175,6 +247,21 @@ def _build_artifact_inputs(
         "windmill_overlay_burndown_summary": _overlay_burndown_summary(
             windmill_orchestration_artifact
         ),
+        "structured_source_proof_artifact": _repo_relative(structured_source_proof_path),
+        "structured_source_proof_digest": _hash_payload(structured_source_proof_artifact),
+        "structured_source_proof_generated_at": structured_source_proof_artifact.get(
+            "generated_at"
+        ),
+        "structured_source_live_attempt_rows": _live_structured_attempt_rows(
+            structured_source_proof_artifact
+        ),
+        "structured_source_blocked_attempt_rows": _blocked_structured_attempt_rows(
+            structured_source_proof_artifact
+        ),
+        "structured_source_overlay_burndown_summary": _structured_overlay_burndown_summary(
+            structured_source_proof_artifact
+        ),
+        "structured_overlay_applied": True,
         "overlay_applied": True,
     }
 
@@ -183,19 +270,24 @@ def run(
     *,
     matrix_path: Path,
     windmill_orchestration_path: Path,
+    structured_source_proof_path: Path,
     scorecard_output_path: Path,
     report_output_path: Path,
 ) -> dict[str, Any]:
     matrix = _load_json(matrix_path)
     windmill_orchestration_artifact = _load_json(windmill_orchestration_path)
+    structured_source_proof_artifact = _load_json(structured_source_proof_path)
     service = LocalGovernmentCorpusBenchmarkService()
     scorecard = service.evaluate(
         matrix=matrix,
         windmill_orchestration_artifact=windmill_orchestration_artifact,
+        structured_source_proof_artifact=structured_source_proof_artifact,
     )
     scorecard["artifact_inputs"] = _build_artifact_inputs(
         windmill_orchestration_path=windmill_orchestration_path,
         windmill_orchestration_artifact=windmill_orchestration_artifact,
+        structured_source_proof_path=structured_source_proof_path,
+        structured_source_proof_artifact=structured_source_proof_artifact,
     )
 
     report_markdown = service.render_markdown_report(matrix=matrix, scorecard=scorecard)
@@ -220,6 +312,11 @@ def _parse_args() -> argparse.Namespace:
         type=Path,
         default=DEFAULT_WINDMILL_ORCHESTRATION_PATH,
     )
+    parser.add_argument(
+        "--structured-source-proof-path",
+        type=Path,
+        default=DEFAULT_STRUCTURED_SOURCE_PROOF_PATH,
+    )
     parser.add_argument("--scorecard-out", type=Path, default=DEFAULT_SCORECARD_PATH)
     parser.add_argument("--report-out", type=Path, default=DEFAULT_REPORT_PATH)
     return parser.parse_args()
@@ -230,13 +327,18 @@ def main() -> int:
     result = run(
         matrix_path=args.matrix_path,
         windmill_orchestration_path=args.windmill_orchestration_path,
+        structured_source_proof_path=args.structured_source_proof_path,
         scorecard_output_path=args.scorecard_out,
         report_output_path=args.report_out,
     )
     c13 = ((result["scorecard"].get("gates") or {}).get("C13") or {})
+    c2 = ((result["scorecard"].get("gates") or {}).get("C2") or {})
     metrics = c13.get("metrics") or {}
+    c2_metrics = c2.get("metrics") or {}
     print(
         "local_government_corpus_scorecard regenerated: "
+        f"c2_status={c2.get('status')} "
+        f"live_structured_coverage_ratio={c2_metrics.get('live_structured_coverage_ratio')} "
         f"c13_status={c13.get('status')} "
         f"seeded_not_live_proven_rows={metrics.get('seeded_not_live_proven_rows')} "
         f"corpus_state={result['scorecard'].get('corpus_state')}"

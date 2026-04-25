@@ -1600,40 +1600,51 @@ class LocalGovernmentCorpusBenchmarkService:
         matrix: dict[str, Any],
         windmill_orchestration_artifact: dict[str, Any] | None = None,
         windmill_row_proof_overlay: dict[str, dict[str, Any]] | None = None,
+        structured_source_proof_artifact: dict[str, Any] | None = None,
+        structured_source_row_proof_overlay: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         rows = [
             row
             for row in matrix.get("rows", [])
             if isinstance(row, dict) and row.get("row_type") == "corpus_package"
         ]
-        c13_rows = self._build_c13_rows_with_proof_overlay(
+        structured_rows = self._build_rows_with_structured_source_proof_overlay(
             matrix=matrix,
             rows=rows,
+            structured_source_proof_artifact=structured_source_proof_artifact,
+            structured_source_row_proof_overlay=structured_source_row_proof_overlay,
+        )
+        c13_rows = self._build_c13_rows_with_proof_overlay(
+            matrix=matrix,
+            rows=structured_rows,
             windmill_orchestration_artifact=windmill_orchestration_artifact,
             windmill_row_proof_overlay=windmill_row_proof_overlay,
         )
 
         gate_results: dict[str, GateResult] = {
-            "C0": self._evaluate_c0(matrix=matrix, rows=rows),
-            "C1": self._evaluate_c1(rows=rows),
-            "C2": self._evaluate_c2(rows=rows),
-            "C3": self._evaluate_c3(rows=rows),
-            "C4": self._evaluate_c4(rows=rows),
-            "C5": self._evaluate_c5(rows=rows),
-            "C6": self._evaluate_c6(matrix=matrix, rows=rows),
-            "C7": self._evaluate_c7(rows=rows),
-            "C8": self._evaluate_c8(rows=rows),
-            "C9": self._evaluate_c9(rows=rows),
+            "C0": self._evaluate_c0(matrix=matrix, rows=structured_rows),
+            "C1": self._evaluate_c1(rows=structured_rows),
+            "C2": self._evaluate_c2(rows=structured_rows),
+            "C3": self._evaluate_c3(rows=structured_rows),
+            "C4": self._evaluate_c4(rows=structured_rows),
+            "C5": self._evaluate_c5(rows=structured_rows),
+            "C6": self._evaluate_c6(matrix=matrix, rows=structured_rows),
+            "C7": self._evaluate_c7(rows=structured_rows),
+            "C8": self._evaluate_c8(rows=structured_rows),
+            "C9": self._evaluate_c9(rows=structured_rows),
             "C9a": self._evaluate_c9a(matrix=matrix),
-            "C10": self._evaluate_c10(rows=rows),
-            "C11": self._evaluate_c11(matrix=matrix, rows=rows),
-            "C12": self._evaluate_c12(matrix=matrix, rows=rows),
+            "C10": self._evaluate_c10(rows=structured_rows),
+            "C11": self._evaluate_c11(matrix=matrix, rows=structured_rows),
+            "C12": self._evaluate_c12(matrix=matrix, rows=structured_rows),
             "C13": self._evaluate_c13(matrix=matrix, rows=c13_rows),
-            "C14": self._evaluate_c14(matrix=matrix, rows=rows),
+            "C14": self._evaluate_c14(matrix=matrix, rows=structured_rows),
         }
 
-        core_metrics = self._build_core_metrics(rows=rows, gate_results=gate_results)
-        package_gate_projection = self._build_package_gate_projection(rows=rows)
+        core_metrics = self._build_core_metrics(
+            rows=structured_rows,
+            gate_results=gate_results,
+        )
+        package_gate_projection = self._build_package_gate_projection(rows=structured_rows)
         gate_json = {gate_id: gate.to_json() for gate_id, gate in gate_results.items()}
         corpus_state = self._derive_corpus_state(gates=gate_json)
         next_blocker = self._derive_next_blocker(gates=gate_json)
@@ -1650,8 +1661,10 @@ class LocalGovernmentCorpusBenchmarkService:
             "matrix_digest": _hash_payload(matrix),
             "matrix_summary": {
                 "row_count_total": len(matrix.get("rows", [])),
-                "package_row_count": len(rows),
-                "milestone_row_count": len(matrix.get("rows", [])) - len(rows),
+                "package_row_count": len(structured_rows),
+                "milestone_row_count": (
+                    len(matrix.get("rows", [])) - len(structured_rows)
+                ),
                 "seed_mode": matrix.get("seed_mode"),
                 "corpus_readiness_target": matrix.get("corpus_readiness_target"),
             },
@@ -2921,6 +2934,306 @@ class LocalGovernmentCorpusBenchmarkService:
             overlaid_rows.append(overlaid_row)
 
         return overlaid_rows
+
+    def _build_rows_with_structured_source_proof_overlay(
+        self,
+        *,
+        matrix: dict[str, Any],
+        rows: list[dict[str, Any]],
+        structured_source_proof_artifact: dict[str, Any] | None,
+        structured_source_row_proof_overlay: dict[str, Any] | None,
+    ) -> list[dict[str, Any]]:
+        overlay_by_row_id = self._collect_structured_source_row_overlay(
+            matrix=matrix,
+            structured_source_proof_artifact=structured_source_proof_artifact,
+            structured_source_row_proof_overlay=structured_source_row_proof_overlay,
+        )
+        if not overlay_by_row_id:
+            return rows
+
+        overlaid_rows: list[dict[str, Any]] = []
+        for row in rows:
+            row_id = str(row.get("corpus_row_id") or "")
+            row_overlays = overlay_by_row_id.get(row_id)
+            if not row_overlays:
+                overlaid_rows.append(row)
+                continue
+
+            jurisdiction_id = str((row.get("jurisdiction") or {}).get("id") or "")
+            package_id = str(row.get("package_id") or "")
+            known_policy_reference_id = str(row.get("known_policy_reference_id") or "")
+
+            observations = row.get("structured_source_observations")
+            if not isinstance(observations, list):
+                overlaid_rows.append(row)
+                continue
+
+            overlaid_observations: list[dict[str, Any]] = []
+            upgraded_depths: set[str] = set()
+            matched_proofs: list[dict[str, Any]] = []
+            changed = False
+
+            for observation in observations:
+                if not isinstance(observation, dict):
+                    overlaid_observations.append(observation)
+                    continue
+                overlaid_observation = dict(observation)
+                for proof in row_overlays:
+                    if str(proof.get("proof_status") or "") not in LIVE_STRUCTURED_PROOF_STATUSES:
+                        continue
+                    if str(proof.get("jurisdiction_id") or "") != jurisdiction_id:
+                        continue
+                    proof_package_id = str(proof.get("package_id") or "")
+                    if proof_package_id and proof_package_id != package_id:
+                        continue
+                    proof_known_policy_reference_id = str(
+                        proof.get("known_policy_reference_id") or ""
+                    )
+                    if (
+                        proof_known_policy_reference_id
+                        and proof_known_policy_reference_id != known_policy_reference_id
+                    ):
+                        continue
+                    if not bool(overlaid_observation.get("true_structured")):
+                        continue
+                    if (
+                        str(overlaid_observation.get("source_family") or "")
+                        != str(proof.get("source_family") or "")
+                    ):
+                        continue
+                    if str(overlaid_observation.get("depth") or "") != str(
+                        proof.get("extraction_depth") or ""
+                    ):
+                        continue
+
+                    overlaid_observation["live_proven"] = True
+                    overlaid_observation["proof_status"] = "live_proven"
+                    overlaid_observation["proof_source"] = str(
+                        proof.get("proof_source")
+                        or "structured_source_runtime_proof_artifact"
+                    )
+                    runtime_proof = {
+                        key: value
+                        for key, value in proof.items()
+                        if key
+                        in {
+                            "endpoint_url",
+                            "access_method",
+                            "retrieved_at",
+                            "http_status",
+                            "response_hash",
+                            "schema_hash",
+                            "sample_row_count",
+                            "normalized_fields_proven",
+                            "proof_source",
+                        }
+                        and value is not None
+                        and value != ""
+                        and value != []
+                    }
+                    if runtime_proof:
+                        overlaid_observation["runtime_proof"] = runtime_proof
+                        matched_proofs.append(runtime_proof)
+                    upgraded_depths.add(str(overlaid_observation.get("depth") or ""))
+                    changed = True
+                    break
+                overlaid_observations.append(overlaid_observation)
+
+            if not changed:
+                overlaid_rows.append(row)
+                continue
+
+            overlaid_row = dict(row)
+            overlaid_row["structured_source_observations"] = overlaid_observations
+            overlaid_row["source_infrastructure_status"] = "live_integrated"
+
+            infrastructure_status = row.get("infrastructure_status")
+            overlaid_infrastructure_status = (
+                dict(infrastructure_status)
+                if isinstance(infrastructure_status, dict)
+                else {}
+            )
+            overlaid_infrastructure_status["source_lane_status"] = "live_integrated"
+            if matched_proofs:
+                overlaid_infrastructure_status["structured_source_runtime_proofs"] = (
+                    matched_proofs
+                )
+            overlaid_row["infrastructure_status"] = overlaid_infrastructure_status
+
+            extraction_depth = row.get("extraction_depth")
+            if isinstance(extraction_depth, dict) and upgraded_depths:
+                overlaid_extraction_depth = dict(extraction_depth)
+                overlaid_extraction_depth["live_exercised"] = True
+                overlaid_extraction_depth["proof_status"] = "live_proven"
+                overlaid_extraction_depth["proof_source"] = str(
+                    matched_proofs[0].get("proof_source")
+                    if matched_proofs
+                    else "structured_source_runtime_proof_artifact"
+                )
+                overlaid_row["extraction_depth"] = overlaid_extraction_depth
+
+            if matched_proofs:
+                overlaid_row["structured_source_runtime_proofs"] = matched_proofs
+            overlaid_rows.append(overlaid_row)
+
+        return overlaid_rows
+
+    def _collect_structured_source_row_overlay(
+        self,
+        *,
+        matrix: dict[str, Any],
+        structured_source_proof_artifact: dict[str, Any] | None,
+        structured_source_row_proof_overlay: dict[str, Any] | None,
+    ) -> dict[str, list[dict[str, Any]]]:
+        overlay: dict[str, list[dict[str, Any]]] = {}
+
+        artifact_payload = structured_source_proof_artifact
+        if not isinstance(artifact_payload, dict):
+            matrix_artifact = matrix.get("structured_source_proof_artifact")
+            artifact_payload = (
+                matrix_artifact if isinstance(matrix_artifact, dict) else None
+            )
+        if artifact_payload:
+            artifact_overlay = self._extract_structured_source_row_overlay_from_artifact(
+                artifact=artifact_payload
+            )
+            for row_id, payloads in artifact_overlay.items():
+                overlay.setdefault(row_id, []).extend(payloads)
+
+        matrix_overlay = matrix.get("structured_source_row_proof_overlay")
+        if isinstance(matrix_overlay, dict):
+            normalized_matrix_overlay = self._normalize_structured_source_row_overlay(
+                matrix_overlay
+            )
+            for row_id, payloads in normalized_matrix_overlay.items():
+                overlay.setdefault(row_id, []).extend(payloads)
+
+        if isinstance(structured_source_row_proof_overlay, dict):
+            normalized_input_overlay = self._normalize_structured_source_row_overlay(
+                structured_source_row_proof_overlay
+            )
+            for row_id, payloads in normalized_input_overlay.items():
+                overlay.setdefault(row_id, []).extend(payloads)
+
+        return overlay
+
+    def _normalize_structured_source_row_overlay(
+        self, overlay: dict[str, Any]
+    ) -> dict[str, list[dict[str, Any]]]:
+        normalized: dict[str, list[dict[str, Any]]] = {}
+        for raw_row_id, payload in overlay.items():
+            row_id = str(raw_row_id or "")
+            if not row_id:
+                continue
+
+            payloads: list[Any]
+            if isinstance(payload, list):
+                payloads = payload
+            elif isinstance(payload, dict):
+                payloads = [payload]
+            else:
+                continue
+
+            for item in payloads:
+                if not isinstance(item, dict):
+                    continue
+                normalized_payload = dict(item)
+                normalized_payload.setdefault("corpus_row_id", row_id)
+                parsed = self._structured_source_overlay_entry_from_artifact_payload(
+                    payload=normalized_payload
+                )
+                if parsed is None:
+                    continue
+                parsed_row_id, parsed_payload = parsed
+                normalized.setdefault(parsed_row_id, []).append(parsed_payload)
+
+        return normalized
+
+    def _extract_structured_source_row_overlay_from_artifact(
+        self, *, artifact: dict[str, Any]
+    ) -> dict[str, list[dict[str, Any]]]:
+        extracted: dict[str, list[dict[str, Any]]] = {}
+        for key in ("rows", "attempts"):
+            payloads = artifact.get(key)
+            if not isinstance(payloads, list):
+                continue
+            for payload in payloads:
+                parsed = self._structured_source_overlay_entry_from_artifact_payload(
+                    payload=payload
+                )
+                if parsed is None:
+                    continue
+                row_id, row_payload = parsed
+                extracted.setdefault(row_id, []).append(row_payload)
+        return extracted
+
+    def _structured_source_overlay_entry_from_artifact_payload(
+        self, *, payload: Any
+    ) -> tuple[str, dict[str, Any]] | None:
+        if not isinstance(payload, dict):
+            return None
+
+        row_id = str(payload.get("corpus_row_id") or "")
+        jurisdiction_id = str(payload.get("jurisdiction_id") or "")
+        source_family = str(payload.get("source_family") or "")
+        extraction_depth = str(
+            payload.get("extraction_depth") or payload.get("depth") or ""
+        )
+        if not row_id or not jurisdiction_id or not source_family or not extraction_depth:
+            return None
+
+        proof_status = str(
+            payload.get("proof_status")
+            or payload.get("status")
+            or payload.get("row_status")
+            or ""
+        ).strip()
+        if not proof_status:
+            return None
+        normalized_status = (
+            "live_proven"
+            if proof_status.lower() in LIVE_STRUCTURED_PROOF_STATUSES
+            else proof_status.lower()
+        )
+
+        parsed: dict[str, Any] = {
+            "corpus_row_id": row_id,
+            "jurisdiction_id": jurisdiction_id,
+            "source_family": source_family,
+            "extraction_depth": extraction_depth,
+            "proof_status": normalized_status,
+            "proof_source": str(
+                payload.get("proof_source") or "structured_source_runtime_proof_artifact"
+            ),
+        }
+
+        for key in (
+            "package_id",
+            "known_policy_reference_id",
+            "endpoint_url",
+            "access_method",
+            "retrieved_at",
+            "response_hash",
+            "schema_hash",
+            "blocker_class",
+            "blocker_detail",
+        ):
+            value = payload.get(key)
+            if isinstance(value, str) and value:
+                parsed[key] = value
+        for key in ("http_status", "sample_row_count"):
+            value = payload.get(key)
+            if isinstance(value, int):
+                parsed[key] = value
+        normalized_fields = payload.get("normalized_fields_proven")
+        if isinstance(normalized_fields, list):
+            parsed["normalized_fields_proven"] = [
+                str(item)
+                for item in normalized_fields
+                if isinstance(item, str) and item
+            ]
+
+        return row_id, parsed
 
     def _collect_windmill_row_overlay(
         self,

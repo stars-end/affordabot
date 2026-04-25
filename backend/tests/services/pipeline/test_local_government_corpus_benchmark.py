@@ -194,6 +194,88 @@ def test_live_proven_structured_sources_can_satisfy_c2_and_c14() -> None:
     assert scorecard["gates"]["C14"]["status"] == "pass"
 
 
+def test_structured_artifact_overlay_upgrades_only_matching_cataloged_row() -> None:
+    service = LocalGovernmentCorpusBenchmarkService()
+    matrix = build_local_government_corpus_matrix_seed()
+    rows = [row for row in matrix["rows"] if row.get("row_type") == "corpus_package"]
+
+    overlaid_rows = service._build_rows_with_structured_source_proof_overlay(
+        matrix=matrix,
+        rows=rows,
+        structured_source_proof_artifact={
+            "rows": [
+                {
+                    "corpus_row_id": "lgm-065",
+                    "package_id": "pkg::lgm-065",
+                    "known_policy_reference_id": "kp-aus-affordable-housing-mandate-c45",
+                    "jurisdiction_id": "austin_tx",
+                    "source_family": "socrata_api",
+                    "extraction_depth": "affordability_units",
+                    "proof_status": "live_proven",
+                    "proof_source": "structured_source_runtime_probe",
+                    "endpoint_url": "https://data.austintexas.gov/resource/2h5e-ntwt.json?$limit=5",
+                    "access_method": "http_get_json",
+                    "retrieved_at": "2026-04-25T08:02:59+00:00",
+                    "http_status": 200,
+                    "response_hash": "abc123",
+                    "schema_hash": "def456",
+                    "sample_row_count": 5,
+                    "normalized_fields_proven": ["_10_to_19_units", "_20_units"],
+                }
+            ]
+        },
+        structured_source_row_proof_overlay=None,
+    )
+
+    upgraded_row = next(row for row in overlaid_rows if row["corpus_row_id"] == "lgm-065")
+    upgraded_observation = upgraded_row["structured_source_observations"][0]
+    assert upgraded_observation["live_proven"] is True
+    assert upgraded_observation["proof_status"] == "live_proven"
+    assert upgraded_observation["proof_source"] == "structured_source_runtime_probe"
+    assert upgraded_row["source_infrastructure_status"] == "live_integrated"
+    assert upgraded_row["extraction_depth"]["live_exercised"] is True
+    assert upgraded_row["extraction_depth"]["proof_status"] == "live_proven"
+
+    untouched_row = next(row for row in overlaid_rows if row["corpus_row_id"] == "lgm-064")
+    untouched_observation = untouched_row["structured_source_observations"][0]
+    assert untouched_observation["live_proven"] is False
+    assert untouched_observation["proof_status"] == "cataloged_intent"
+
+
+def test_structured_artifact_overlay_rejects_false_proof_mismatch() -> None:
+    service = LocalGovernmentCorpusBenchmarkService()
+    matrix = build_local_government_corpus_matrix_seed()
+    rows = [row for row in matrix["rows"] if row.get("row_type") == "corpus_package"]
+
+    overlaid_rows = service._build_rows_with_structured_source_proof_overlay(
+        matrix=matrix,
+        rows=rows,
+        structured_source_proof_artifact={
+            "rows": [
+                {
+                    "corpus_row_id": "lgm-065",
+                    "package_id": "pkg::lgm-065",
+                    "known_policy_reference_id": "kp-aus-affordable-housing-mandate-c45",
+                    "jurisdiction_id": "denver_co",
+                    "source_family": "arcgis_rest",
+                    "extraction_depth": "parcel_zone_rows",
+                    "proof_status": "live_proven",
+                    "proof_source": "structured_source_runtime_probe",
+                }
+            ]
+        },
+        structured_source_row_proof_overlay=None,
+    )
+
+    row = next(row for row in overlaid_rows if row["corpus_row_id"] == "lgm-065")
+    observation = row["structured_source_observations"][0]
+    assert observation["live_proven"] is False
+    assert observation["proof_status"] == "cataloged_intent"
+    assert row["source_infrastructure_status"] == "cataloged_intent"
+    assert row["extraction_depth"]["live_exercised"] is False
+    assert row["extraction_depth"]["proof_status"] == "cataloged_intent"
+
+
 def test_live_proven_windmill_refs_satisfy_c13() -> None:
     service = LocalGovernmentCorpusBenchmarkService()
     matrix = build_local_government_corpus_matrix_seed()

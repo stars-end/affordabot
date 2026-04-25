@@ -8,7 +8,7 @@
     "matrix_package_count": 90,
     "required_sample_count": 30,
     "audited_package_count": 30,
-    "selection_note": "Cycle 45 stratified 30-row sample retained; Cycle 49 adds lightweight live-proven Windmill row entries."
+    "selection_note": "Cycle 45 stratified 30-row sample retained; Cycle 49 adds lightweight live-proven Windmill row entries; Cycle 53 adds one structured-source runtime proof row."
   },
   "live_proven_audits": [
     {
@@ -98,6 +98,24 @@
       "manual_audit_status": "lightweight_live_proven_triage",
       "evidence_boundary": "orchestration_proof_only_not_substantive_quality",
       "manual_audit_note": "Live Windmill refs proven; substantive package quality still governed by C0-C14."
+    }
+  ],
+  "structured_source_live_proven_audits": [
+    {
+      "corpus_row_id": "lgm-065",
+      "package_id": "pkg::lgm-065",
+      "jurisdiction_id": "austin_tx",
+      "policy_family": "affordable_housing_mandate",
+      "source_family": "socrata_api",
+      "extraction_depth": "affordability_units",
+      "proof_status": "live_proven",
+      "proof_source": "structured_source_runtime_probe",
+      "endpoint_url": "https://data.austintexas.gov/resource/2h5e-ntwt.json?$limit=5",
+      "retrieved_at": "2026-04-25T15:02:31+00:00",
+      "http_status": 200,
+      "sample_row_count": 5,
+      "evidence_boundary": "structured_source_runtime_probe_only_not_full_corpus_quality",
+      "manual_audit_note": "Runtime probe upgrades this row from cataloged_intent to live_proven for C2/C14 overlay matching."
     }
   ],
   "audits": [
