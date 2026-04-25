@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "note": "Synthetic fixture for harness verification only. Not a live benchmark result.",
+  "lanes": {
+    "baseline": {
+      "results_by_query_id": {
+        "san-jose-agenda": [{"url": "https://sanjoseca.gov/agendas/city-council-agenda.pdf", "title": "City Council Agenda", "snippet": "Agenda packet"}],
+        "san-jose-minutes": [{"url": "https://sanjoseca.gov/minutes/city-council-minutes.pdf", "title": "City Council Minutes", "snippet": "Approved minutes"}],
+        "san-jose-ordinance": [{"url": "https://library.municode.com/ca/san_jose/codes/code_of_ordinances", "title": "San Jose Municipal Code", "snippet": "Code of ordinances"}],
+        "oakland-agenda": [{"url": "https://oakland.legistar.com/MeetingDetail.aspx?ID=100", "title": "Oakland Meeting Detail", "snippet": "Agenda detail"}],
+        "oakland-minutes": [{"url": "https://oaklandca.gov/documents/city-council-minutes.pdf", "title": "Oakland Minutes", "snippet": "Meeting minutes"}],
+        "oakland-ordinance": [{"url": "https://library.municode.com/ca/oakland/codes/code_of_ordinances", "title": "Oakland Municipal Code", "snippet": "Ordinance code"}],
+        "santa-clara-county-agenda": [{"url": "https://sccgov.org/sites/bos/Documents/agenda.pdf", "title": "Board Agenda", "snippet": "Board of Supervisors agenda"}],
+        "santa-clara-county-minutes": [{"url": "https://sccgov.org/sites/bos/Documents/minutes.pdf", "title": "Board Minutes", "snippet": "Board of Supervisors minutes"}],
+        "santa-clara-county-ordinance": [{"url": "https://library.municode.com/ca/santa_clara_county/codes/code_of_ordinances", "title": "County Ordinance Code", "snippet": "County code"}],
+        "long-beach-agenda": [{"url": "https://longbeach.legistar.com/Calendar.aspx", "title": "Long Beach Calendar", "snippet": "Agenda calendar"}],
+        "long-beach-minutes": [{"url": "https://longbeach.gov/city-clerk/records/minutes.pdf", "title": "Long Beach Minutes", "snippet": "City council minutes"}],
+        "long-beach-ordinance": [{"url": "https://library.municode.com/ca/long_beach/codes/municipal_code", "title": "Long Beach Municipal Code", "snippet": "Municipal ordinances"}]
+      }
+    },
+    "searxng": {
+      "results_by_query_id": {
+        "san-jose-agenda": [{"url": "https://sanjoseca.gov/agendas/city-council-agenda.pdf", "title": "SJ Agenda", "snippet": "Official agenda"}],
+        "san-jose-minutes": [{"url": "https://sanjoseca.gov/minutes/city-council-minutes.pdf", "title": "SJ Minutes", "snippet": "Official minutes"}],
+        "san-jose-ordinance": [{"url": "https://library.municode.com/ca/san_jose/codes/code_of_ordinances", "title": "SJ Code", "snippet": "Ordinance code"}],
+        "oakland-agenda": [{"url": "https://oaklandca.gov/documents/agenda-packet.pdf", "title": "Oakland Agenda Packet", "snippet": "City council agenda packet"}],
+        "oakland-minutes": [{"url": "https://oaklandca.gov/documents/minutes.pdf", "title": "Oakland Minutes", "snippet": "City council minutes"}],
+        "oakland-ordinance": [{"url": "https://library.municode.com/ca/oakland/codes/code_of_ordinances", "title": "Oakland Code", "snippet": "Code"}],
+        "santa-clara-county-agenda": [{"url": "https://sccgov.org/sites/bos/Documents/agenda.pdf", "title": "SCC BOS Agenda", "snippet": "Agenda PDF"}],
+        "santa-clara-county-minutes": [{"url": "https://sccgov.org/sites/bos/Documents/minutes.pdf", "title": "SCC BOS Minutes", "snippet": "Minutes PDF"}],
+        "santa-clara-county-ordinance": [{"url": "https://library.municode.com/ca/santa_clara_county/codes/code_of_ordinances", "title": "SCC Ordinances", "snippet": "County ordinance code"}],
+        "long-beach-agenda": [{"url": "https://longbeach.gov/city-clerk/meetings/agenda.pdf", "title": "Long Beach Agenda", "snippet": "Agenda PDF"}],
+        "long-beach-minutes": [{"url": "https://longbeach.gov/city-clerk/records/minutes.pdf", "title": "Long Beach Minutes", "snippet": "Minutes PDF"}],
+        "long-beach-ordinance": [{"url": "https://library.municode.com/ca/long_beach/codes/municipal_code", "title": "Long Beach Code", "snippet": "Municipal code"}]
+      }
+    }
+  }
+}

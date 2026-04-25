@@ -1,0 +1,102 @@
+{
+  "schema_version": "1.0",
+  "description": "Round 1 deterministic local-government discovery benchmark matrix (4 jurisdictions x 3 intents).",
+  "matrix": [
+    {
+      "id": "san-jose-agenda",
+      "jurisdiction": "San Jose, CA",
+      "jurisdiction_type": "city",
+      "intent": "agenda",
+      "query": "San Jose CA city council agenda pdf",
+      "official_domain_hints": ["sanjoseca.gov", "sanjose.legistar.com"]
+    },
+    {
+      "id": "san-jose-minutes",
+      "jurisdiction": "San Jose, CA",
+      "jurisdiction_type": "city",
+      "intent": "minutes",
+      "query": "San Jose CA city council minutes pdf",
+      "official_domain_hints": ["sanjoseca.gov", "sanjose.legistar.com"]
+    },
+    {
+      "id": "san-jose-ordinance",
+      "jurisdiction": "San Jose, CA",
+      "jurisdiction_type": "city",
+      "intent": "ordinance",
+      "query": "San Jose CA municipal code ordinance",
+      "official_domain_hints": ["sanjoseca.gov", "library.municode.com"]
+    },
+    {
+      "id": "oakland-agenda",
+      "jurisdiction": "Oakland, CA",
+      "jurisdiction_type": "city",
+      "intent": "agenda",
+      "query": "Oakland CA city council agenda packet",
+      "official_domain_hints": ["oaklandca.gov", "oakland.legistar.com"]
+    },
+    {
+      "id": "oakland-minutes",
+      "jurisdiction": "Oakland, CA",
+      "jurisdiction_type": "city",
+      "intent": "minutes",
+      "query": "Oakland CA city council meeting minutes",
+      "official_domain_hints": ["oaklandca.gov", "oakland.legistar.com"]
+    },
+    {
+      "id": "oakland-ordinance",
+      "jurisdiction": "Oakland, CA",
+      "jurisdiction_type": "city",
+      "intent": "ordinance",
+      "query": "Oakland CA municipal code ordinances",
+      "official_domain_hints": ["oaklandca.gov", "library.municode.com"]
+    },
+    {
+      "id": "santa-clara-county-agenda",
+      "jurisdiction": "Santa Clara County, CA",
+      "jurisdiction_type": "county",
+      "intent": "agenda",
+      "query": "Santa Clara County board of supervisors agenda pdf",
+      "official_domain_hints": ["sccgov.org", "sccgov.iqm2.com"]
+    },
+    {
+      "id": "santa-clara-county-minutes",
+      "jurisdiction": "Santa Clara County, CA",
+      "jurisdiction_type": "county",
+      "intent": "minutes",
+      "query": "Santa Clara County board of supervisors minutes",
+      "official_domain_hints": ["sccgov.org", "sccgov.iqm2.com"]
+    },
+    {
+      "id": "santa-clara-county-ordinance",
+      "jurisdiction": "Santa Clara County, CA",
+      "jurisdiction_type": "county",
+      "intent": "ordinance",
+      "query": "Santa Clara County code of ordinances",
+      "official_domain_hints": ["sccgov.org", "library.municode.com"]
+    },
+    {
+      "id": "long-beach-agenda",
+      "jurisdiction": "Long Beach, CA",
+      "jurisdiction_type": "city",
+      "intent": "agenda",
+      "query": "Long Beach CA city council agenda",
+      "official_domain_hints": ["longbeach.gov", "longbeach.legistar.com"]
+    },
+    {
+      "id": "long-beach-minutes",
+      "jurisdiction": "Long Beach, CA",
+      "jurisdiction_type": "city",
+      "intent": "minutes",
+      "query": "Long Beach CA city council minutes",
+      "official_domain_hints": ["longbeach.gov", "longbeach.legistar.com"]
+    },
+    {
+      "id": "long-beach-ordinance",
+      "jurisdiction": "Long Beach, CA",
+      "jurisdiction_type": "city",
+      "intent": "ordinance",
+      "query": "Long Beach CA municipal code ordinance",
+      "official_domain_hints": ["longbeach.gov", "library.municode.com"]
+    }
+  ]
+}
