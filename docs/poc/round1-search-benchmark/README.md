@@ -29,7 +29,9 @@ Live benchmark:
 
 ```bash
 cd backend
-poetry run python scripts/verification/run_round1_search_benchmark.py --mode live
+poetry run python scripts/verification/run_round1_search_benchmark.py \
+  --mode live \
+  --searxng-base-url https://searxng-railway-production-79aa.up.railway.app
 ```
 
 Live mode dependency:
@@ -38,6 +40,18 @@ Live mode dependency:
 If `SEARXNG_BASE_URL` is missing, the harness fails closed with:
 - benchmark state `benchmark_harness_ready_live_run_blocked`
 - blocker `SEARXNG_BASE_URL`
+
+Latest live review artifact:
+- `artifacts/round1_search_benchmark_20260426T140300Z.json`
+- `artifacts/round1_search_benchmark_20260426T140300Z.md`
+
+Latest live metrics summary:
+- baseline: `non_empty_result_rate=0.583`, `official_source_top5_rate=0.583`, `useful_url_yield=1.750`, `median_latency_ms=842`
+- searxng: `non_empty_result_rate=1.000`, `official_source_top5_rate=1.000`, `useful_url_yield=4.083`, `median_latency_ms=602`
+
+Runtime note: the live baseline used the cached Z.ai API key but still hit one
+timeout and repeated HTTP 429 responses, then fell back through the existing
+baseline fallback path. That degradation is part of the Round 1 signal.
 
 Fixture-backed run:
 
