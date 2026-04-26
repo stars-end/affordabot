@@ -1,0 +1,46 @@
+version: '3.7'
+
+services:
+  searxng-node1:
+    image: searxng/searxng:latest
+    container_name: searxng-node1
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./settings_node1.yml:/etc/searxng/settings.yml:ro
+    environment:
+      - SEARXNG_BASE_URL=http://localhost:8081/
+    restart: unless-stopped
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1m"
+        max-file: "1"
+
+  searxng-node2:
+    image: searxng/searxng:latest
+    container_name: searxng-node2
+    ports:
+      - "8082:8080"
+    volumes:
+      - ./settings_node2.yml:/etc/searxng/settings.yml:ro
+    environment:
+      - SEARXNG_BASE_URL=http://localhost:8082/
+    restart: unless-stopped
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1m"
+        max-file: "1"

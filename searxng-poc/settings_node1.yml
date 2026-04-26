@@ -1,0 +1,56 @@
+use_default_settings: true
+
+general:
+  debug: false
+  instance_name: "searxng-node1"
+
+server:
+  port: 8080
+  bind_address: "0.0.0.0"
+  secret_key: "6b359cb87100b28315c930029726b26b24bb33ed7605437ffa0c2e992a8d6198"
+  base_url: "http://localhost:8081/"
+  image_proxy: true
+
+search:
+  safe_search: 0
+  autocomplete: ""
+  default_lang: "en"
+  formats:
+    - html
+    - json
+
+engines:
+  - name: duckduckgo
+    engine: duckduckgo
+    shortcut: ddg
+    disabled: false
+    weight: 1
+
+  - name: bing
+    engine: bing
+    shortcut: b
+    disabled: false
+    weight: 1
+
+  - name: brave
+    engine: brave
+    shortcut: br
+    disabled: false
+    weight: 1
+
+  - name: qwant
+    engine: qwant
+    shortcut: qw
+    disabled: false
+    weight: 1
+
+  - name: yahoo
+    engine: yahoo
+    shortcut: yh
+    disabled: false
+    weight: 1
+
+  - name: google
+    engine: google
+    shortcut: go
+    disabled: true # disable google to avoid captchas
