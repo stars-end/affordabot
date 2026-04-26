@@ -1,0 +1,1588 @@
+{
+  "schema_version": "1.0",
+  "feature_key": "bd-vho5t.1",
+  "run": {
+    "generated_at": "2026-04-26T14:02:27.630381+00:00",
+    "mode": "live",
+    "benchmark_state": "round1_reviewable",
+    "matrix_query_count": 12,
+    "live_run_blocker": null,
+    "matrix_file": "/private/tmp/agents/bd-vho5t.1/affordabot/docs/poc/round1-search-benchmark/matrix.local_government_round1.json",
+    "result_count": 10
+  },
+  "lanes": {
+    "baseline": {
+      "metrics": {
+        "lane": "baseline",
+        "query_count": 12,
+        "empty_result_rate": 0.4166666666666667,
+        "non_empty_result_rate": 0.5833333333333334,
+        "official_source_top5_rate": 0.5833333333333334,
+        "useful_url_yield": 1.75,
+        "unique_useful_url_yield": 1.3333333333333333,
+        "artifact_vs_portal_rate": 0.5,
+        "duplicate_url_rate": 0.0,
+        "median_latency_ms": 842,
+        "hard_failure_rate": 0.0,
+        "failure_modes": {},
+        "representative_samples": [
+          {
+            "query_id": "san-jose-agenda",
+            "query": "San Jose CA city council agenda pdf",
+            "top_results": [
+              {
+                "url": "https://www.sanjoseca.gov/your-government/agendas-minutes",
+                "title": "City Council Meeting Agendas and Minutes | City of San Jos\u00e9",
+                "domain": "sanjoseca.gov",
+                "is_official": true,
+                "is_useful": true
+              },
+              {
+                "url": "https://www.sanjoseca.gov/your-government/appointees/city-clerk/council-agendas-minutes/council-agendas",
+                "title": "City Council Meeting Agendas and Minutes | City of San Jos\u00e9",
+                "domain": "sanjoseca.gov",
+                "is_official": true,
+                "is_useful": true
+              },
+              {
+                "url": "https://www.sanjoseca.gov/your-government/appointees/city-clerk/council-agendas-minutes/participate-watch-public-meetings",
+                "title": "Participate & Watch Public Meetings | City of San Jos\u00e9",
+                "domain": "sanjoseca.gov",
+                "is_official": true,
+                "is_useful": true
+              }
+            ],
+            "hard_failure": false,
+            "failure_mode": null
+          },
+          {
+            "query_id": "san-jose-minutes",
+            "query": "San Jose CA city council minutes pdf",
+            "top_results": [
+              {
+                "url": "https://www.sanjoseca.gov/your-government/agendas-minutes",
+                "title": "City Council Meeting Agendas and Minutes | City of San Jos\u00e9",
+                "domain": "sanjoseca.gov",
+                "is_official": true,
+                "is_useful": true
+              },
+              {
+                "url": "https://legistar.granicus.com/sanjose/attachments/098e14c4-6a54-40b6-a9f1-2259441883ce.pdf",
+                "title": "PDF City Council Meeting MINUTES - legistar.granicus.com",
+                "domain": "legistar.granicus.com",
+                "is_official": false,
+                "is_useful": false
+              },
+              {
+                "url": "https://sanjose.legistar.com/MeetingDetail.aspx?LEGID=7215&GID=317",
+                "title": "City of San Jos\u00e9 - Meeting of City Council on 5/6/2025 at 1:30 PM",
+                "domain": "sanjose.legistar.com",
+                "is_official": true,
+                "is_useful": false
+              }
+            ],
+            "hard_failure": false,
+            "failure_mode": null
+          },
+          {
+            "query_id": "san-jose-ordinance",
+            "query": "San Jose CA municipal code ordinance",
+            "top_results": [
+              {
+                "url": "https://library.municode.com/ca/san_jose/codes/code_of_ordinances",
+                "title": "Municode Library",
+                "domain": "library.municode.com",
+                "is_official": true,
+                "is_useful": true
+              },
+              {
+                "url": "https://www.sanjoseca.gov/your-government/departments-offices/planning-building-code-enforcement/planning-division/ordinances-proposed-updates",
+                "title": "Ordinances & Proposed Updates | City of San Jos\u00e9",
+                "domain": "sanjoseca.gov",
+                "is_official": true,
+                "is_useful": true
+              },
+              {
+                "url": "https://sj-admin.s3-us-west-2.amazonaws.com/0000_0000_CityOfSanJose_CodeOfOrdinance.pdf",
+                "title": "PDF San Jose, CA Code of Ordinances",
+                "domain": "sj-admin.s3-us-west-2.amazonaws.com",
+                "is_official": false,
+                "is_useful": false
+              }
+            ],
+            "hard_failure": false,
+            "failure_mode": null
+          },
+          {
+            "query_id": "oakland-agenda",
+            "query": "Oakland CA city council agenda packet",
+            "top_results": [
+              {
+                "url": "https://www.oaklandca.gov/Government/Meetings-Agendas",
+                "title": "Meetings & Agendas | City of Oakland, CA",
+                "domain": "oaklandca.gov",
+                "is_official": true,
+                "is_useful": true
+              },
+              {
+                "url": "http://councilmatic.aws.openoakland.org/",
+                "title": "Oakland City Council Agenda -- All Meetings Committee",
+                "domain": "councilmatic.aws.openoakland.org",
+                "is_official": false,
+                "is_useful": false
+              },
+              {
+                "url": "https://oaklandcouncil.net/2025/all-meetings.html",
+                "title": "Oakland City Council Agenda -- All Meetings Committee (2025)",
+                "domain": "oaklandcouncil.net",
+                "is_official": false,
+                "is_useful": false
+              }
+            ],
+            "hard_failure": false,
+            "failure_mode": null
+          }
+        ]
+      },
+      "query_results": [
+        {
+          "lane": "baseline",
+          "query_id": "san-jose-agenda",
+          "jurisdiction": "San Jose, CA",
+          "intent": "agenda",
+          "query": "San Jose CA city council agenda pdf",
+          "result_count": 10,
+          "non_empty": true,
+          "official_source_top5": true,
+          "useful_url_count": 4,
+          "unique_useful_url_count": 4,
+          "useful_urls": [
+            "https://www.sanjoseca.gov/your-government/agendas-minutes",
+            "https://www.sanjoseca.gov/your-government/appointees/city-clerk/council-agendas-minutes/council-agendas",
+            "https://www.sanjoseca.gov/your-government/appointees/city-clerk/council-agendas-minutes/participate-watch-public-meetings",
+            "https://www.sanjoseca.gov/your-government/appointees/city-clerk/council-agendas-minutes/guide-to-council-meetings"
+          ],
+          "artifact_useful_count": 2,
+          "portal_useful_count": 2,
+          "duplicate_url_count": 0,
+          "duplicate_url_rate": 0.0,
+          "latency_ms": 15797,
+          "hard_failure": false,
+          "failure_mode": null,
+          "error": null,
+          "top_results": [
+            {
+              "url": "https://www.sanjoseca.gov/your-government/agendas-minutes",
+              "title": "City Council Meeting Agendas and Minutes | City of San Jos\u00e9",
+              "domain": "sanjoseca.gov",
+              "is_official": true,
+              "is_useful": true
+            },
+            {
+              "url": "https://www.sanjoseca.gov/your-government/appointees/city-clerk/council-agendas-minutes/council-agendas",
+              "title": "City Council Meeting Agendas and Minutes | City of San Jos\u00e9",
+              "domain": "sanjoseca.gov",
+              "is_official": true,
+              "is_useful": true
+            },
+            {
+              "url": "https://www.sanjoseca.gov/your-government/appointees/city-clerk/council-agendas-minutes/participate-watch-public-meetings",
+              "title": "Participate & Watch Public Meetings | City of San Jos\u00e9",
+              "domain": "sanjoseca.gov",
+              "is_official": true,
+              "is_useful": true
+            },
+            {
+              "url": "https://www.sanjoseca.gov/your-government/departments-offices/office-of-the-city-manager/official-city-records/public-meetings",
+              "title": "Public Meetings - City of San Jos\u00e9",
+              "domain": "sanjoseca.gov",
+              "is_official": true,
+              "is_useful": false
+            },
+            {
+              "url": "https://sanjose.legistar.com/Calendar.aspx",
+              "title": "City of San Jos\u00e9 - Calendar - Granicus",
+              "domain": "sanjose.legistar.com",
+              "is_official": true,
+              "is_useful": false
+            }
+          ]
+        },
+        {
+          "lane": "baseline",
+          "query_id": "san-jose-minutes",
+          "jurisdiction": "San Jose, CA",
+          "intent": "minutes",
+          "query": "San Jose CA city council minutes pdf",
+          "result_count": 10,
+          "non_empty": true,
+          "official_source_top5": true,
+          "useful_url_count": 4,
+          "unique_useful_url_count": 4,
+          "useful_urls": [
+            "https://www.sanjoseca.gov/your-government/agendas-minutes",
+            "https://www.sanjoseca.gov/your-government/appointees/city-clerk/council-agendas-minutes/council-agendas",
+            "https://www.sanjoseca.gov/your-government/appointees/city-clerk/council-agendas-minutes/guide-to-council-meetings",
+            "https://www.sanjoseca.gov/your-government/appointees/city-clerk/council-agendas-minutes/participate-watch-public-meetings"
+          ],
+          "artifact_useful_count": 2,
+          "portal_useful_count": 2,
+          "duplicate_url_count": 0,
+          "duplicate_url_rate": 0.0,
+          "latency_ms": 1182,
+          "hard_failure": false,
+          "failure_mode": null,
+          "error": null,
+          "top_results": [
+            {
+              "url": "https://www.sanjoseca.gov/your-government/agendas-minutes",
+              "title": "City Council Meeting Agendas and Minutes | City of San Jos\u00e9",
+              "domain": "sanjoseca.gov",
+              "is_official": true,
+              "is_useful": true
+            },
+            {
+              "url": "https://legistar.granicus.com/sanjose/attachments/098e14c4-6a54-40b6-a9f1-2259441883ce.pdf",
+              "title": "PDF City Council Meeting MINUTES - legistar.granicus.com",
+              "domain": "legistar.granicus.com",
+              "is_official": false,
+              "is_useful": false
+            },
+            {
+              "url": "https://sanjose.legistar.com/MeetingDetail.aspx?LEGID=7215&GID=317",
+              "title": "City of San Jos\u00e9 - Meeting of City Council on 5/6/2025 at 1:30 PM",
+              "domain": "sanjose.legistar.com",
+              "is_official": true,
+              "is_useful": false
+            },
+            {
+              "url": "https://www.sanjoseca.gov/your-government/appointees/city-clerk/council-agendas-minutes/council-agendas",
+              "title": "City Council Meeting Agendas and Minutes | City of San Jos\u00e9",
+              "domain": "sanjoseca.gov",
+              "is_official": true,
+              "is_useful": true
+            },
+            {
+              "url": "https://www.sanjoseca.gov/your-government/appointees/city-clerk/council-agendas-minutes/guide-to-council-meetings",
+              "title": "Guide to Council Meetings - City of San Jos\u00e9",
+              "domain": "sanjoseca.gov",
+              "is_official": true,
+              "is_useful": true
+            }
+          ]
+        },
+        {
+          "lane": "baseline",
+          "query_id": "san-jose-ordinance",
+          "jurisdiction": "San Jose, CA",
+          "intent": "ordinance",
+          "query": "San Jose CA municipal code ordinance",
+          "result_count": 10,
+          "non_empty": true,
+          "official_source_top5": true,
+          "useful_url_count": 2,
+          "unique_useful_url_count": 2,
+          "useful_urls": [
+            "https://library.municode.com/ca/san_jose/codes/code_of_ordinances",
+            "https://www.sanjoseca.gov/your-government/departments-offices/planning-building-code-enforcement/planning-division/ordinances-proposed-updates"
+          ],
+          "artifact_useful_count": 2,
+          "portal_useful_count": 0,
+          "duplicate_url_count": 0,
+          "duplicate_url_rate": 0.0,
+          "latency_ms": 1121,
+          "hard_failure": false,
+          "failure_mode": null,
+          "error": null,
+          "top_results": [
+            {
+              "url": "https://library.municode.com/ca/san_jose/codes/code_of_ordinances",
+              "title": "Municode Library",
+              "domain": "library.municode.com",
+              "is_official": true,
+              "is_useful": true
+            },
+            {
+              "url": "https://www.sanjoseca.gov/your-government/departments-offices/planning-building-code-enforcement/planning-division/ordinances-proposed-updates",
+              "title": "Ordinances & Proposed Updates | City of San Jos\u00e9",
+              "domain": "sanjoseca.gov",
+              "is_official": true,
+              "is_useful": true
+            },
+            {
+              "url": "https://sj-admin.s3-us-west-2.amazonaws.com/0000_0000_CityOfSanJose_CodeOfOrdinance.pdf",
+              "title": "PDF San Jose, CA Code of Ordinances",
+              "domain": "sj-admin.s3-us-west-2.amazonaws.com",
+              "is_official": false,
+              "is_useful": false
+            },
+            {
+              "url": "https://sanjose.legistar.com/gateway.aspx?m=l&id=/matter.aspx?key=14797",
+              "title": "City of San Jos\u00e9 - File #: 25-740",
+              "domain": "sanjose.legistar.com",
+              "is_official": false,
+              "is_useful": false
+            },
+            {
+              "url": "http://www.sanjose-ca.elaws.us/code/coor",
+              "title": "Code of Ordinances, San Jose",
+              "domain": "sanjose-ca.elaws.us",
+              "is_official": false,
+              "is_useful": false
+            }
+          ]
+        },
+        {
+          "lane": "baseline",
+          "query_id": "oakland-agenda",
+          "jurisdiction": "Oakland, CA",
+          "intent": "agenda",
+          "query": "Oakland CA city council agenda packet",
+          "result_count": 10,
+          "non_empty": true,
+          "official_source_top5": true,
+          "useful_url_count": 3,
+          "unique_useful_url_count": 3,
+          "useful_urls": [
+            "https://www.oaklandca.gov/Government/Meetings-Agendas",
+            "https://www.oaklandca.gov/Government/Meetings-Agendas/Public-Meetings",
+            "https://staging.oaklandca.gov/services/view-city-council-meeting-schedule-agendas-minutes-and-video"
+          ],
+          "artifact_useful_count": 0,
+          "portal_useful_count": 2,
+          "duplicate_url_count": 0,
+          "duplicate_url_rate": 0.0,
+          "latency_ms": 915,
+          "hard_failure": false,
+          "failure_mode": null,
+          "error": null,
+          "top_results": [
+            {
+              "url": "https://www.oaklandca.gov/Government/Meetings-Agendas",
+              "title": "Meetings & Agendas | City of Oakland, CA",
+              "domain": "oaklandca.gov",
+              "is_official": true,
+              "is_useful": true
+            },
+            {
+              "url": "http://councilmatic.aws.openoakland.org/",
+              "title": "Oakland City Council Agenda -- All Meetings Committee",
+              "domain": "councilmatic.aws.openoakland.org",
+              "is_official": false,
+              "is_useful": false
+            },
+            {
+              "url": "https://oaklandcouncil.net/2025/all-meetings.html",
+              "title": "Oakland City Council Agenda -- All Meetings Committee (2025)",
+              "domain": "oaklandcouncil.net",
+              "is_official": false,
+              "is_useful": false
+            },
+            {
+              "url": "https://oakland.legistar.com/calendar.aspx",
+              "title": "City of Oakland - Calendar",
+              "domain": "oakland.legistar.com",
+              "is_official": true,
+              "is_useful": false
+            },
+            {
+              "url": "https://oaklandca.prelive.opencities.com/Government/Meetings-Agendas/Subscribe-to-City-Council-Meeting-Notices",
+              "title": "Subscribe to City Council Meeting Notices | City of Oakland, CA",
+              "domain": "oaklandca.prelive.opencities.com",
+              "is_official": false,
+              "is_useful": false
+            }
+          ]
+        },
+        {
+          "lane": "baseline",
+          "query_id": "oakland-minutes",
+          "jurisdiction": "Oakland, CA",
+          "intent": "minutes",
+          "query": "Oakland CA city council meeting minutes",
+          "result_count": 10,
+          "non_empty": true,
+          "official_source_top5": true,
+          "useful_url_count": 1,
+          "unique_useful_url_count": 1,
+          "useful_urls": [
+            "https://staging.oaklandca.gov/services/view-city-council-meeting-schedule-agendas-minutes-and-video"
+          ],
+          "artifact_useful_count": 0,
+          "portal_useful_count": 0,
+          "duplicate_url_count": 0,
+          "duplicate_url_rate": 0.0,
+          "latency_ms": 877,
+          "hard_failure": false,
+          "failure_mode": null,
+          "error": null,
+          "top_results": [
+            {
+              "url": "https://www.oaklandca.gov/Government/Meetings-Agendas",
+              "title": "Meetings & Agendas | City of Oakland, CA",
+              "domain": "oaklandca.gov",
+              "is_official": true,
+              "is_useful": false
+            },
+            {
+              "url": "https://oaklandcouncil.net/2025/all-meetings.html",
+              "title": "Oakland City Council Agenda -- All Meetings Committee (2025)",
+              "domain": "oaklandcouncil.net",
+              "is_official": false,
+              "is_useful": false
+            },
+            {
+              "url": "https://www.oaklandca.gov/Government/Meetings-Agendas/Public-Meetings",
+              "title": "Public Meetings | City of Oakland, CA",
+              "domain": "oaklandca.gov",
+              "is_official": true,
+              "is_useful": false
+            },
+            {
+              "url": "https://staging.oaklandca.gov/services/view-city-council-meeting-schedule-agendas-minutes-and-video",
+              "title": "City of Oakland | View City Council Meeting Schedule, Agendas,\u2026",
+              "domain": "staging.oaklandca.gov",
+              "is_official": true,
+              "is_useful": true
+            },
+            {
+              "url": "https://oakland.legistar.com/calendar.aspx",
+              "title": "City of Oakland - Calendar",
+              "domain": "oakland.legistar.com",
+              "is_official": true,
+              "is_useful": false
+            }
+          ]
+        },
+        {
+          "lane": "baseline",
+          "query_id": "oakland-ordinance",
+          "jurisdiction": "Oakland, CA",
+          "intent": "ordinance",
+          "query": "Oakland CA municipal code ordinances",
+          "result_count": 10,
+          "non_empty": true,
+          "official_source_top5": true,
+          "useful_url_count": 3,
+          "unique_useful_url_count": 3,
+          "useful_urls": [
+            "https://www.oaklandca.gov/Government/Finance-Budget/Municipal-Code",
+            "https://www.oaklandca.gov/Government/Codes-Ordinances",
+            "https://library.municode.com/ca/oakland/codes/code_of_ordinances"
+          ],
+          "artifact_useful_count": 2,
+          "portal_useful_count": 0,
+          "duplicate_url_count": 0,
+          "duplicate_url_rate": 0.0,
+          "latency_ms": 969,
+          "hard_failure": false,
+          "failure_mode": null,
+          "error": null,
+          "top_results": [
+            {
+              "url": "https://www.oaklandca.gov/Government/Finance-Budget/Municipal-Code",
+              "title": "Municipal Code | City of Oakland, CA",
+              "domain": "oaklandca.gov",
+              "is_official": true,
+              "is_useful": true
+            },
+            {
+              "url": "https://www.oaklandca.gov/Government/Codes-Ordinances",
+              "title": "Codes & Ordinances | City of Oakland, CA",
+              "domain": "oaklandca.gov",
+              "is_official": true,
+              "is_useful": true
+            },
+            {
+              "url": "https://library.municode.com/ca/oakland/codes/code_of_ordinances",
+              "title": "Municode Library",
+              "domain": "library.municode.com",
+              "is_official": true,
+              "is_useful": true
+            },
+            {
+              "url": "http://oakland-ca.elaws.us/code/coor_oaklandmuco",
+              "title": "OAKLAND - MUNICIPAL CODE, Code of Ordinances, Oakland - eLaws",
+              "domain": "oakland-ca.elaws.us",
+              "is_official": false,
+              "is_useful": false
+            },
+            {
+              "url": "https://www.oaklandcityattorney.org/how-do-i/oaklands-municipal-codes/",
+              "title": "Oakland Municipal Code, Sunshine Ordinance & City Charter",
+              "domain": "oaklandcityattorney.org",
+              "is_official": false,
+              "is_useful": false
+            }
+          ]
+        },
+        {
+          "lane": "baseline",
+          "query_id": "santa-clara-county-agenda",
+          "jurisdiction": "Santa Clara County, CA",
+          "intent": "agenda",
+          "query": "Santa Clara County board of supervisors agenda pdf",
+          "result_count": 10,
+          "non_empty": true,
+          "official_source_top5": true,
+          "useful_url_count": 4,
+          "unique_useful_url_count": 4,
+          "useful_urls": [
+            "https://cob.santaclaracounty.gov/services/access-agendas-minutes-videos-public-meetings-1997-present",
+            "https://www.santaclaracounty.gov/access-agendas-minutes-videos-public-meetings-1997-present",
+            "https://d3.santaclaracounty.gov/view-meetings-and-agendas",
+            "https://files.santaclaracounty.gov/exjcpb1666/2025-11/november-20-2025-housing-land-use-environment-and-transportation-committee-agenda-packet_0.pdf?VersionId=9jYEdHCNesUwKXsbv3otBUaYa5Md7N_K"
+          ],
+          "artifact_useful_count": 1,
+          "portal_useful_count": 3,
+          "duplicate_url_count": 0,
+          "duplicate_url_rate": 0.0,
+          "latency_ms": 807,
+          "hard_failure": false,
+          "failure_mode": null,
+          "error": null,
+          "top_results": [
+            {
+              "url": "https://sccgov.iqm2.com/Citizens/default.aspx",
+              "title": "Meeting Portal - The County of Santa Clara, California - Granicus",
+              "domain": "sccgov.iqm2.com",
+              "is_official": true,
+              "is_useful": false
+            },
+            {
+              "url": "https://bos.santaclaracounty.gov/board-supervisors/meetings-board-supervisors-and-board-policy-committees",
+              "title": "Meetings of the Board of Supervisors and Board Policy Committees",
+              "domain": "bos.santaclaracounty.gov",
+              "is_official": true,
+              "is_useful": false
+            },
+            {
+              "url": "https://cob.santaclaracounty.gov/services/access-agendas-minutes-videos-public-meetings-1997-present",
+              "title": "Access agendas, minutes, videos of public meetings (1997 to present)",
+              "domain": "cob.santaclaracounty.gov",
+              "is_official": true,
+              "is_useful": true
+            },
+            {
+              "url": "https://sccgov.iqm2.com/citizens/default.aspx?DepartmentID=1179",
+              "title": "Meeting Portal - The County of Santa Clara, California",
+              "domain": "sccgov.iqm2.com",
+              "is_official": true,
+              "is_useful": false
+            },
+            {
+              "url": "https://www.santaclaracounty.gov/access-agendas-minutes-videos-public-meetings-1997-present",
+              "title": "Access agendas, minutes, videos of public meetings (1997 to present)",
+              "domain": "santaclaracounty.gov",
+              "is_official": true,
+              "is_useful": true
+            }
+          ]
+        },
+        {
+          "lane": "baseline",
+          "query_id": "santa-clara-county-minutes",
+          "jurisdiction": "Santa Clara County, CA",
+          "intent": "minutes",
+          "query": "Santa Clara County board of supervisors minutes",
+          "result_count": 0,
+          "non_empty": false,
+          "official_source_top5": false,
+          "useful_url_count": 0,
+          "unique_useful_url_count": 0,
+          "useful_urls": [],
+          "artifact_useful_count": 0,
+          "portal_useful_count": 0,
+          "duplicate_url_count": 0,
+          "duplicate_url_rate": 0.0,
+          "latency_ms": 359,
+          "hard_failure": false,
+          "failure_mode": null,
+          "error": null,
+          "top_results": []
+        },
+        {
+          "lane": "baseline",
+          "query_id": "santa-clara-county-ordinance",
+          "jurisdiction": "Santa Clara County, CA",
+          "intent": "ordinance",
+          "query": "Santa Clara County code of ordinances",
+          "result_count": 0,
+          "non_empty": false,
+          "official_source_top5": false,
+          "useful_url_count": 0,
+          "unique_useful_url_count": 0,
+          "useful_urls": [],
+          "artifact_useful_count": 0,
+          "portal_useful_count": 0,
+          "duplicate_url_count": 0,
+          "duplicate_url_rate": 0.0,
+          "latency_ms": 336,
+          "hard_failure": false,
+          "failure_mode": null,
+          "error": null,
+          "top_results": []
+        },
+        {
+          "lane": "baseline",
+          "query_id": "long-beach-agenda",
+          "jurisdiction": "Long Beach, CA",
+          "intent": "agenda",
+          "query": "Long Beach CA city council agenda",
+          "result_count": 0,
+          "non_empty": false,
+          "official_source_top5": false,
+          "useful_url_count": 0,
+          "unique_useful_url_count": 0,
+          "useful_urls": [],
+          "artifact_useful_count": 0,
+          "portal_useful_count": 0,
+          "duplicate_url_count": 0,
+          "duplicate_url_rate": 0.0,
+          "latency_ms": 339,
+          "hard_failure": false,
+          "failure_mode": null,
+          "error": null,
+          "top_results": []
+        },
+        {
+          "lane": "baseline",
+          "query_id": "long-beach-minutes",
+          "jurisdiction": "Long Beach, CA",
+          "intent": "minutes",
+          "query": "Long Beach CA city council minutes",
+          "result_count": 0,
+          "non_empty": false,
+          "official_source_top5": false,
+          "useful_url_count": 0,
+          "unique_useful_url_count": 0,
+          "useful_urls": [],
+          "artifact_useful_count": 0,
+          "portal_useful_count": 0,
+          "duplicate_url_count": 0,
+          "duplicate_url_rate": 0.0,
+          "latency_ms": 332,
+          "hard_failure": false,
+          "failure_mode": null,
+          "error": null,
+          "top_results": []
+        },
+        {
+          "lane": "baseline",
+          "query_id": "long-beach-ordinance",
+          "jurisdiction": "Long Beach, CA",
+          "intent": "ordinance",
+          "query": "Long Beach CA municipal code ordinance",
+          "result_count": 0,
+          "non_empty": false,
+          "official_source_top5": false,
+          "useful_url_count": 0,
+          "unique_useful_url_count": 0,
+          "useful_urls": [],
+          "artifact_useful_count": 0,
+          "portal_useful_count": 0,
+          "duplicate_url_count": 0,
+          "duplicate_url_rate": 0.0,
+          "latency_ms": 333,
+          "hard_failure": false,
+          "failure_mode": null,
+          "error": null,
+          "top_results": []
+        }
+      ]
+    },
+    "searxng": {
+      "metrics": {
+        "lane": "searxng",
+        "query_count": 12,
+        "empty_result_rate": 0.0,
+        "non_empty_result_rate": 1.0,
+        "official_source_top5_rate": 1.0,
+        "useful_url_yield": 4.083333333333333,
+        "unique_useful_url_yield": 3.5,
+        "artifact_vs_portal_rate": 0.6875,
+        "duplicate_url_rate": 0.0,
+        "median_latency_ms": 602,
+        "hard_failure_rate": 0.0,
+        "failure_modes": {},
+        "representative_samples": [
+          {
+            "query_id": "san-jose-agenda",
+            "query": "San Jose CA city council agenda pdf",
+            "top_results": [
+              {
+                "url": "https://www.sanjoseca.gov/your-government/agendas-minutes",
+                "title": "City Council Meeting Agendas and Minutes | City of San Jos\u00e9",
+                "domain": "sanjoseca.gov",
+                "is_official": true,
+                "is_useful": true
+              },
+              {
+                "url": "https://www.sanjoseca.gov/your-government/appointees/city-clerk/council-agendas-minutes/council-agendas",
+                "title": "City Council Meeting Agendas and Minutes | City of San Jos\u00e9",
+                "domain": "sanjoseca.gov",
+                "is_official": true,
+                "is_useful": true
+              },
+              {
+                "url": "https://www.sanjoseca.gov/your-government/appointees/city-clerk/council-agendas-minutes/guide-to-council-meetings",
+                "title": "Guide to Council Meetings | City of San Jos\u00e9",
+                "domain": "sanjoseca.gov",
+                "is_official": true,
+                "is_useful": true
+              }
+            ],
+            "hard_failure": false,
+            "failure_mode": null
+          },
+          {
+            "query_id": "san-jose-minutes",
+            "query": "San Jose CA city council minutes pdf",
+            "top_results": [
+              {
+                "url": "https://www.sanjoseca.gov/your-government/appointees/city-clerk/council-agendas-minutes/council-agendas",
+                "title": "City Council Meeting Agendas and Minutes | City of San Jos\u00e9",
+                "domain": "sanjoseca.gov",
+                "is_official": true,
+                "is_useful": true
+              },
+              {
+                "url": "https://www.sanjoseca.gov/your-government/agendas-minutes",
+                "title": "City Council Meeting Agendas and Minutes | City of San Jos\u00e9",
+                "domain": "sanjoseca.gov",
+                "is_official": true,
+                "is_useful": true
+              },
+              {
+                "url": "https://sanjose.legistar.com/",
+                "title": "City of San Jos\u00e9 - Calendar",
+                "domain": "sanjose.legistar.com",
+                "is_official": true,
+                "is_useful": false
+              }
+            ],
+            "hard_failure": false,
+            "failure_mode": null
+          },
+          {
+            "query_id": "san-jose-ordinance",
+            "query": "San Jose CA municipal code ordinance",
+            "top_results": [
+              {
+                "url": "https://library.municode.com/ca/san_jose/codes/code_of_ordinances",
+                "title": "Code of Ordinances | San Jose, CA - Municode Library",
+                "domain": "library.municode.com",
+                "is_official": true,
+                "is_useful": true
+              },
+              {
+                "url": "https://www.sanjoseca.gov/your-government/departments-offices/planning-building-code-enforcement/planning-division/ordinances-proposed-updates",
+                "title": "Ordinances & Proposed Updates | City of San Jos\u00e9",
+                "domain": "sanjoseca.gov",
+                "is_official": true,
+                "is_useful": true
+              },
+              {
+                "url": "https://library.municode.com/ca/san_jose/ordinances/code_of_ordinances",
+                "title": "Code of Ordinances | San Jose, CA - Municode Library",
+                "domain": "library.municode.com",
+                "is_official": true,
+                "is_useful": true
+              }
+            ],
+            "hard_failure": false,
+            "failure_mode": null
+          },
+          {
+            "query_id": "oakland-agenda",
+            "query": "Oakland CA city council agenda packet",
+            "top_results": [
+              {
+                "url": "https://www.oaklandca.gov/Government/Meetings-Agendas",
+                "title": "Meetings & Agendas | City of Oakland, CA",
+                "domain": "oaklandca.gov",
+                "is_official": true,
+                "is_useful": true
+              },
+              {
+                "url": "https://oakland.legistar.com/",
+                "title": "Oakland City Council Meeting",
+                "domain": "oakland.legistar.com",
+                "is_official": true,
+                "is_useful": true
+              },
+              {
+                "url": "https://www.oaklandca.gov/Government/Meetings-Agendas/City-Council-Meeting-Information",
+                "title": "City Council Meeting Information | City of Oakland, CA",
+                "domain": "oaklandca.gov",
+                "is_official": true,
+                "is_useful": true
+              }
+            ],
+            "hard_failure": false,
+            "failure_mode": null
+          }
+        ]
+      },
+      "query_results": [
+        {
+          "lane": "searxng",
+          "query_id": "san-jose-agenda",
+          "jurisdiction": "San Jose, CA",
+          "intent": "agenda",
+          "query": "San Jose CA city council agenda pdf",
+          "result_count": 10,
+          "non_empty": true,
+          "official_source_top5": true,
+          "useful_url_count": 5,
+          "unique_useful_url_count": 5,
+          "useful_urls": [
+            "https://www.sanjoseca.gov/your-government/agendas-minutes",
+            "https://www.sanjoseca.gov/your-government/appointees/city-clerk/council-agendas-minutes/council-agendas",
+            "https://www.sanjoseca.gov/your-government/appointees/city-clerk/council-agendas-minutes/guide-to-council-meetings",
+            "https://sanjose.legistar.com/View.ashx?M=A&ID=1315737&GUID=E07966A2-0208-4B54-B6FC-F077841B3859",
+            "https://www.sanjoseca.gov/your-government/appointees/city-clerk/council-agendas-minutes/participate-watch-public-meetings"
+          ],
+          "artifact_useful_count": 3,
+          "portal_useful_count": 2,
+          "duplicate_url_count": 0,
+          "duplicate_url_rate": 0.0,
+          "latency_ms": 861,
+          "hard_failure": false,
+          "failure_mode": null,
+          "error": null,
+          "top_results": [
+            {
+              "url": "https://www.sanjoseca.gov/your-government/agendas-minutes",
+              "title": "City Council Meeting Agendas and Minutes | City of San Jos\u00e9",
+              "domain": "sanjoseca.gov",
+              "is_official": true,
+              "is_useful": true
+            },
+            {
+              "url": "https://www.sanjoseca.gov/your-government/appointees/city-clerk/council-agendas-minutes/council-agendas",
+              "title": "City Council Meeting Agendas and Minutes | City of San Jos\u00e9",
+              "domain": "sanjoseca.gov",
+              "is_official": true,
+              "is_useful": true
+            },
+            {
+              "url": "https://www.sanjoseca.gov/your-government/appointees/city-clerk/council-agendas-minutes/guide-to-council-meetings",
+              "title": "Guide to Council Meetings | City of San Jos\u00e9",
+              "domain": "sanjoseca.gov",
+              "is_official": true,
+              "is_useful": true
+            },
+            {
+              "url": "https://www.sanjoseca.gov/your-government/departments-offices/office-of-the-city-manager/official-city-records/public-meetings",
+              "title": "Public Meetings | City of San Jos\u00e9",
+              "domain": "sanjoseca.gov",
+              "is_official": true,
+              "is_useful": false
+            },
+            {
+              "url": "https://sanjose.legistar.com/DepartmentDetail.aspx?ID=21676&GUID=ACCCCFF5-F14A-4E1A-8540-9065F45A8A90",
+              "title": "City of San Jos\u00e9 - City Council - Calendar",
+              "domain": "sanjose.legistar.com",
+              "is_official": true,
+              "is_useful": false
+            }
+          ]
+        },
+        {
+          "lane": "searxng",
+          "query_id": "san-jose-minutes",
+          "jurisdiction": "San Jose, CA",
+          "intent": "minutes",
+          "query": "San Jose CA city council minutes pdf",
+          "result_count": 10,
+          "non_empty": true,
+          "official_source_top5": true,
+          "useful_url_count": 5,
+          "unique_useful_url_count": 5,
+          "useful_urls": [
+            "https://www.sanjoseca.gov/your-government/appointees/city-clerk/council-agendas-minutes/council-agendas",
+            "https://www.sanjoseca.gov/your-government/agendas-minutes",
+            "https://www.sanjoseca.gov/your-government/appointees/city-clerk/council-agendas-minutes/guide-to-council-meetings",
+            "https://www.sanjoseca.gov/your-government/appointees/city-clerk/council-agendas-minutes",
+            "https://santaclara.courts.ca.gov/system/files/sjcc_minutes_0.pdf"
+          ],
+          "artifact_useful_count": 4,
+          "portal_useful_count": 1,
+          "duplicate_url_count": 0,
+          "duplicate_url_rate": 0.0,
+          "latency_ms": 1527,
+          "hard_failure": false,
+          "failure_mode": null,
+          "error": null,
+          "top_results": [
+            {
+              "url": "https://www.sanjoseca.gov/your-government/appointees/city-clerk/council-agendas-minutes/council-agendas",
+              "title": "City Council Meeting Agendas and Minutes | City of San Jos\u00e9",
+              "domain": "sanjoseca.gov",
+              "is_official": true,
+              "is_useful": true
+            },
+            {
+              "url": "https://www.sanjoseca.gov/your-government/agendas-minutes",
+              "title": "City Council Meeting Agendas and Minutes | City of San Jos\u00e9",
+              "domain": "sanjoseca.gov",
+              "is_official": true,
+              "is_useful": true
+            },
+            {
+              "url": "https://sanjose.legistar.com/",
+              "title": "City of San Jos\u00e9 - Calendar",
+              "domain": "sanjose.legistar.com",
+              "is_official": true,
+              "is_useful": false
+            },
+            {
+              "url": "https://www.sanjoseca.gov/your-government/appointees/city-clerk/council-agendas-minutes/guide-to-council-meetings",
+              "title": "Guide to Council Meetings | City of San Jos\u00e9",
+              "domain": "sanjoseca.gov",
+              "is_official": true,
+              "is_useful": true
+            },
+            {
+              "url": "https://sanjose.legistar.com/DepartmentDetail.aspx?ID=21676&GUID=ACCCCFF5-F14A-4E1A-8540-9065F45A8A90",
+              "title": "City of San Jos\u00e9 - City Council - Calendar",
+              "domain": "sanjose.legistar.com",
+              "is_official": true,
+              "is_useful": false
+            }
+          ]
+        },
+        {
+          "lane": "searxng",
+          "query_id": "san-jose-ordinance",
+          "jurisdiction": "San Jose, CA",
+          "intent": "ordinance",
+          "query": "San Jose CA municipal code ordinance",
+          "result_count": 10,
+          "non_empty": true,
+          "official_source_top5": true,
+          "useful_url_count": 4,
+          "unique_useful_url_count": 4,
+          "useful_urls": [
+            "https://library.municode.com/ca/san_jose/codes/code_of_ordinances",
+            "https://www.sanjoseca.gov/your-government/departments-offices/planning-building-code-enforcement/planning-division/ordinances-proposed-updates",
+            "https://library.municode.com/ca/san_jose/ordinances/code_of_ordinances",
+            "https://www.sanjoseca.gov/business/check-zoning"
+          ],
+          "artifact_useful_count": 4,
+          "portal_useful_count": 0,
+          "duplicate_url_count": 0,
+          "duplicate_url_rate": 0.0,
+          "latency_ms": 746,
+          "hard_failure": false,
+          "failure_mode": null,
+          "error": null,
+          "top_results": [
+            {
+              "url": "https://library.municode.com/ca/san_jose/codes/code_of_ordinances",
+              "title": "Code of Ordinances | San Jose, CA - Municode Library",
+              "domain": "library.municode.com",
+              "is_official": true,
+              "is_useful": true
+            },
+            {
+              "url": "https://www.sanjoseca.gov/your-government/departments-offices/planning-building-code-enforcement/planning-division/ordinances-proposed-updates",
+              "title": "Ordinances & Proposed Updates | City of San Jos\u00e9",
+              "domain": "sanjoseca.gov",
+              "is_official": true,
+              "is_useful": true
+            },
+            {
+              "url": "https://library.municode.com/ca/san_jose/ordinances/code_of_ordinances",
+              "title": "Code of Ordinances | San Jose, CA - Municode Library",
+              "domain": "library.municode.com",
+              "is_official": true,
+              "is_useful": true
+            },
+            {
+              "url": "https://www.sanjoseca.gov/business/check-zoning",
+              "title": "Zoning Code - Municipal Code Title 20 | City of San Jos\u00e9",
+              "domain": "sanjoseca.gov",
+              "is_official": true,
+              "is_useful": true
+            },
+            {
+              "url": "https://up.codes/codes/san-jose",
+              "title": "San Jos\u00e9 Building Codes - UpCodes",
+              "domain": "up.codes",
+              "is_official": false,
+              "is_useful": false
+            }
+          ]
+        },
+        {
+          "lane": "searxng",
+          "query_id": "oakland-agenda",
+          "jurisdiction": "Oakland, CA",
+          "intent": "agenda",
+          "query": "Oakland CA city council agenda packet",
+          "result_count": 10,
+          "non_empty": true,
+          "official_source_top5": true,
+          "useful_url_count": 5,
+          "unique_useful_url_count": 5,
+          "useful_urls": [
+            "https://www.oaklandca.gov/Government/Meetings-Agendas",
+            "https://oakland.legistar.com/",
+            "https://www.oaklandca.gov/Government/Meetings-Agendas/City-Council-Meeting-Information",
+            "https://www.oaklandca.gov/Government/Meetings-Agendas/Public-Meetings",
+            "https://oakland.legistar.com/calendar.aspx"
+          ],
+          "artifact_useful_count": 3,
+          "portal_useful_count": 2,
+          "duplicate_url_count": 0,
+          "duplicate_url_rate": 0.0,
+          "latency_ms": 1391,
+          "hard_failure": false,
+          "failure_mode": null,
+          "error": null,
+          "top_results": [
+            {
+              "url": "https://www.oaklandca.gov/Government/Meetings-Agendas",
+              "title": "Meetings & Agendas | City of Oakland, CA",
+              "domain": "oaklandca.gov",
+              "is_official": true,
+              "is_useful": true
+            },
+            {
+              "url": "https://oakland.legistar.com/",
+              "title": "Oakland City Council Meeting",
+              "domain": "oakland.legistar.com",
+              "is_official": true,
+              "is_useful": true
+            },
+            {
+              "url": "https://www.oaklandca.gov/Government/Meetings-Agendas/City-Council-Meeting-Information",
+              "title": "City Council Meeting Information | City of Oakland, CA",
+              "domain": "oaklandca.gov",
+              "is_official": true,
+              "is_useful": true
+            },
+            {
+              "url": "https://oaklandcitymeetings.com/",
+              "title": "Oakland City Meetings",
+              "domain": "oaklandcitymeetings.com",
+              "is_official": false,
+              "is_useful": false
+            },
+            {
+              "url": "https://www.oaklandca.gov/Government/Meetings-Agendas/Public-Meetings",
+              "title": "Public Meetings | City of Oakland, CA",
+              "domain": "oaklandca.gov",
+              "is_official": true,
+              "is_useful": true
+            }
+          ]
+        },
+        {
+          "lane": "searxng",
+          "query_id": "oakland-minutes",
+          "jurisdiction": "Oakland, CA",
+          "intent": "minutes",
+          "query": "Oakland CA city council meeting minutes",
+          "result_count": 10,
+          "non_empty": true,
+          "official_source_top5": true,
+          "useful_url_count": 2,
+          "unique_useful_url_count": 2,
+          "useful_urls": [
+            "https://www.oaklandca.gov/Government/Meetings-Agendas/City-Council-Meeting-Information",
+            "https://www.oaklandca.gov/Government/Meetings-Agendas/Public-Meetings"
+          ],
+          "artifact_useful_count": 1,
+          "portal_useful_count": 1,
+          "duplicate_url_count": 0,
+          "duplicate_url_rate": 0.0,
+          "latency_ms": 570,
+          "hard_failure": false,
+          "failure_mode": null,
+          "error": null,
+          "top_results": [
+            {
+              "url": "https://www.oaklandca.gov/Government/Meetings-Agendas",
+              "title": "Meetings & Agendas | City of Oakland, CA",
+              "domain": "oaklandca.gov",
+              "is_official": true,
+              "is_useful": false
+            },
+            {
+              "url": "https://www.oaklandca.gov/Government/Meetings-Agendas/City-Council-Meeting-Information",
+              "title": "City Council Meeting Information | City of Oakland, CA",
+              "domain": "oaklandca.gov",
+              "is_official": true,
+              "is_useful": true
+            },
+            {
+              "url": "https://oakland.legistar.com/",
+              "title": "Oakland City Council Meeting",
+              "domain": "oakland.legistar.com",
+              "is_official": true,
+              "is_useful": false
+            },
+            {
+              "url": "https://oakland.granicus.com/ViewPublisher.php?view_id=2",
+              "title": "City Council View - Oakland - Granicus",
+              "domain": "oakland.granicus.com",
+              "is_official": false,
+              "is_useful": false
+            },
+            {
+              "url": "https://www.oaklandca.gov/Government/Meetings-Agendas/Public-Meetings",
+              "title": "Public Meetings | City of Oakland, CA",
+              "domain": "oaklandca.gov",
+              "is_official": true,
+              "is_useful": true
+            }
+          ]
+        },
+        {
+          "lane": "searxng",
+          "query_id": "oakland-ordinance",
+          "jurisdiction": "Oakland, CA",
+          "intent": "ordinance",
+          "query": "Oakland CA municipal code ordinances",
+          "result_count": 10,
+          "non_empty": true,
+          "official_source_top5": true,
+          "useful_url_count": 6,
+          "unique_useful_url_count": 6,
+          "useful_urls": [
+            "https://library.municode.com/ca/oakland/codes/code_of_ordinances",
+            "https://www.oaklandca.gov/Government/Finance-Budget/Municipal-Code",
+            "https://library.municode.com/ca/oakland/ordinances/code_of_ordinances",
+            "https://www.oaklandca.gov/Government/Codes-Ordinances",
+            "https://library.municode.com/ca/oakland/codes/planning_code",
+            "https://library.municode.com/ca/oakland/codes/code_of_ordinances/283553?nodeId=16308"
+          ],
+          "artifact_useful_count": 5,
+          "portal_useful_count": 0,
+          "duplicate_url_count": 0,
+          "duplicate_url_rate": 0.0,
+          "latency_ms": 506,
+          "hard_failure": false,
+          "failure_mode": null,
+          "error": null,
+          "top_results": [
+            {
+              "url": "https://library.municode.com/ca/oakland/codes/code_of_ordinances",
+              "title": "Oakland, California - Code of Ordinances - Municode Library",
+              "domain": "library.municode.com",
+              "is_official": true,
+              "is_useful": true
+            },
+            {
+              "url": "https://www.oaklandca.gov/Government/Finance-Budget/Municipal-Code",
+              "title": "Municipal Code | City of Oakland, CA",
+              "domain": "oaklandca.gov",
+              "is_official": true,
+              "is_useful": true
+            },
+            {
+              "url": "https://library.municode.com/ca/oakland/ordinances/code_of_ordinances",
+              "title": "Code of Ordinances | Oakland, CA - Municode Library",
+              "domain": "library.municode.com",
+              "is_official": true,
+              "is_useful": true
+            },
+            {
+              "url": "https://www.oaklandca.gov/Government/Codes-Ordinances",
+              "title": "Codes & Ordinances | City of Oakland, CA",
+              "domain": "oaklandca.gov",
+              "is_official": true,
+              "is_useful": true
+            },
+            {
+              "url": "https://www.oaklandcityattorney.org/how-do-i/oaklands-municipal-codes/",
+              "title": "Oakland Municipal Code, Sunshine Ordinance & City Charter",
+              "domain": "oaklandcityattorney.org",
+              "is_official": false,
+              "is_useful": false
+            }
+          ]
+        },
+        {
+          "lane": "searxng",
+          "query_id": "santa-clara-county-agenda",
+          "jurisdiction": "Santa Clara County, CA",
+          "intent": "agenda",
+          "query": "Santa Clara County board of supervisors agenda pdf",
+          "result_count": 10,
+          "non_empty": true,
+          "official_source_top5": true,
+          "useful_url_count": 5,
+          "unique_useful_url_count": 5,
+          "useful_urls": [
+            "https://bos.santaclaracounty.gov/board-supervisors/meetings-board-supervisors-and-board-policy-committees",
+            "https://d3.santaclaracounty.gov/view-meetings-and-agendas",
+            "https://bos.santaclaracounty.gov/board-supervisors",
+            "https://eservices.sccgov.org/offagenda/home",
+            "https://files.sccgov.org/bc-cob/November%2020,%202025%20Children,%20Seniors,%20and%20Families%20Committee%20Agenda%20Packet.pdf"
+          ],
+          "artifact_useful_count": 1,
+          "portal_useful_count": 4,
+          "duplicate_url_count": 0,
+          "duplicate_url_rate": 0.0,
+          "latency_ms": 507,
+          "hard_failure": false,
+          "failure_mode": null,
+          "error": null,
+          "top_results": [
+            {
+              "url": "https://bos.santaclaracounty.gov/board-supervisors/meetings-board-supervisors-and-board-policy-committees",
+              "title": "Meetings of the Board of Supervisors and Board Policy Committees",
+              "domain": "bos.santaclaracounty.gov",
+              "is_official": true,
+              "is_useful": true
+            },
+            {
+              "url": "https://d3.santaclaracounty.gov/view-meetings-and-agendas",
+              "title": "View meetings and agendas | Supervisor Otto Lee I District 3",
+              "domain": "d3.santaclaracounty.gov",
+              "is_official": true,
+              "is_useful": true
+            },
+            {
+              "url": "https://www.csd2-3.org/meetings___minutes",
+              "title": "Meetings & Minutes (This link takes you to the County website) - CSD2-3",
+              "domain": "csd2-3.org",
+              "is_official": false,
+              "is_useful": false
+            },
+            {
+              "url": "https://sccbosarchive.org/",
+              "title": "Home \u00b7 Archives \u00b7 Santa Clara County Board of Supervisors",
+              "domain": "sccbosarchive.org",
+              "is_official": false,
+              "is_useful": false
+            },
+            {
+              "url": "https://www.sccoe.org/countyboard/Pages/Minutes-Agendas.aspx",
+              "title": "Board Meeting Agendas, Minutes, and Recordings",
+              "domain": "sccoe.org",
+              "is_official": false,
+              "is_useful": false
+            }
+          ]
+        },
+        {
+          "lane": "searxng",
+          "query_id": "santa-clara-county-minutes",
+          "jurisdiction": "Santa Clara County, CA",
+          "intent": "minutes",
+          "query": "Santa Clara County board of supervisors minutes",
+          "result_count": 10,
+          "non_empty": true,
+          "official_source_top5": true,
+          "useful_url_count": 1,
+          "unique_useful_url_count": 1,
+          "useful_urls": [
+            "https://bos.santaclaracounty.gov/board-supervisors/meetings-board-supervisors-and-board-policy-committees"
+          ],
+          "artifact_useful_count": 0,
+          "portal_useful_count": 1,
+          "duplicate_url_count": 0,
+          "duplicate_url_rate": 0.0,
+          "latency_ms": 946,
+          "hard_failure": false,
+          "failure_mode": null,
+          "error": null,
+          "top_results": [
+            {
+              "url": "https://bos.santaclaracounty.gov/board-supervisors/meetings-board-supervisors-and-board-policy-committees",
+              "title": "Meetings of the Board of Supervisors and Board Policy Committees",
+              "domain": "bos.santaclaracounty.gov",
+              "is_official": true,
+              "is_useful": true
+            },
+            {
+              "url": "https://www.csd2-3.org/meetings___minutes",
+              "title": "Meetings & Minutes (This link takes you to the County website) - CSD2-3",
+              "domain": "csd2-3.org",
+              "is_official": false,
+              "is_useful": false
+            },
+            {
+              "url": "https://d3.santaclaracounty.gov/view-meetings-and-agendas",
+              "title": "View meetings and agendas | Supervisor Otto Lee I District 3",
+              "domain": "d3.santaclaracounty.gov",
+              "is_official": true,
+              "is_useful": false
+            },
+            {
+              "url": "https://www.sccoe.org/countyboard/Pages/Minutes-Agendas.aspx",
+              "title": "Board Meeting Agendas, Minutes, and Recordings",
+              "domain": "sccoe.org",
+              "is_official": false,
+              "is_useful": false
+            },
+            {
+              "url": "https://sccbosarchive.org/",
+              "title": "Home \u00b7 Archives \u00b7 Santa Clara County Board of Supervisors",
+              "domain": "sccbosarchive.org",
+              "is_official": false,
+              "is_useful": false
+            }
+          ]
+        },
+        {
+          "lane": "searxng",
+          "query_id": "santa-clara-county-ordinance",
+          "jurisdiction": "Santa Clara County, CA",
+          "intent": "ordinance",
+          "query": "Santa Clara County code of ordinances",
+          "result_count": 10,
+          "non_empty": true,
+          "official_source_top5": true,
+          "useful_url_count": 6,
+          "unique_useful_url_count": 6,
+          "useful_urls": [
+            "https://library.municode.com/ca/santa_clara_county/codes/code_of_ordinances",
+            "https://plandev.santaclaracounty.gov/codes-and-policies/county-ordinance-code",
+            "https://library.municode.com/ca/santa_clara_county/ordinances/code_of_ordinances",
+            "https://plandev.santaclaracounty.gov/codes-and-policies",
+            "https://www.santaclaraca.gov/i-want-to/request-public-records/ordinances",
+            "https://plandev.santaclaracounty.gov/codes-and-policies/zoning-ordinance"
+          ],
+          "artifact_useful_count": 6,
+          "portal_useful_count": 0,
+          "duplicate_url_count": 0,
+          "duplicate_url_rate": 0.0,
+          "latency_ms": 447,
+          "hard_failure": false,
+          "failure_mode": null,
+          "error": null,
+          "top_results": [
+            {
+              "url": "https://library.municode.com/ca/santa_clara_county/codes/code_of_ordinances",
+              "title": "Code of Ordinances | Santa Clara County, CA - Municode Library",
+              "domain": "library.municode.com",
+              "is_official": true,
+              "is_useful": true
+            },
+            {
+              "url": "https://plandev.santaclaracounty.gov/codes-and-policies/county-ordinance-code",
+              "title": "County Ordinance Code | Department of Planning and Development",
+              "domain": "plandev.santaclaracounty.gov",
+              "is_official": true,
+              "is_useful": true
+            },
+            {
+              "url": "https://library.municode.com/ca/santa_clara_county/ordinances/code_of_ordinances",
+              "title": "Code of Ordinances | Santa Clara County, CA - Municode Library",
+              "domain": "library.municode.com",
+              "is_official": true,
+              "is_useful": true
+            },
+            {
+              "url": "https://www.planning.org/knowledgebase/resource/7002210",
+              "title": "Santa Clara County, CA, Code of Ordinances",
+              "domain": "planning.org",
+              "is_official": false,
+              "is_useful": false
+            },
+            {
+              "url": "https://plandev.santaclaracounty.gov/codes-and-policies",
+              "title": "Codes and policies | Department of Planning and Development",
+              "domain": "plandev.santaclaracounty.gov",
+              "is_official": true,
+              "is_useful": true
+            }
+          ]
+        },
+        {
+          "lane": "searxng",
+          "query_id": "long-beach-agenda",
+          "jurisdiction": "Long Beach, CA",
+          "intent": "agenda",
+          "query": "Long Beach CA city council agenda",
+          "result_count": 10,
+          "non_empty": true,
+          "official_source_top5": true,
+          "useful_url_count": 2,
+          "unique_useful_url_count": 2,
+          "useful_urls": [
+            "https://www.longbeach.gov/cityclerk/meetings/",
+            "https://www.longbeach.gov/redistricting/agendas-meetings/"
+          ],
+          "artifact_useful_count": 0,
+          "portal_useful_count": 2,
+          "duplicate_url_count": 0,
+          "duplicate_url_rate": 0.0,
+          "latency_ms": 553,
+          "hard_failure": false,
+          "failure_mode": null,
+          "error": null,
+          "top_results": [
+            {
+              "url": "https://www.longbeach.gov/cityclerk/meetings/",
+              "title": "Meetings - City of Long Beach",
+              "domain": "longbeach.gov",
+              "is_official": true,
+              "is_useful": true
+            },
+            {
+              "url": "https://www.longbeach.gov/events/?trumbaEmbed=view%3Dobject%26objectid%3D1500472%26key%3D87a015ae7d3398be1c24ea481a5c4741",
+              "title": "Council Meeting - Events - City of Long Beach",
+              "domain": "longbeach.gov",
+              "is_official": true,
+              "is_useful": false
+            },
+            {
+              "url": "https://longbeach.legistar.com/",
+              "title": "City of Long Beach - Calendar",
+              "domain": "longbeach.legistar.com",
+              "is_official": true,
+              "is_useful": false
+            },
+            {
+              "url": "https://www.longbeach.gov/redistricting/agendas-meetings/",
+              "title": "Agendas & Meetings - City of Long Beach",
+              "domain": "longbeach.gov",
+              "is_official": true,
+              "is_useful": true
+            },
+            {
+              "url": "https://longbeach.granicus.com/ViewPublisher.php?view_id=12",
+              "title": "Long Beach Archives",
+              "domain": "longbeach.granicus.com",
+              "is_official": false,
+              "is_useful": false
+            }
+          ]
+        },
+        {
+          "lane": "searxng",
+          "query_id": "long-beach-minutes",
+          "jurisdiction": "Long Beach, CA",
+          "intent": "minutes",
+          "query": "Long Beach CA city council minutes",
+          "result_count": 10,
+          "non_empty": true,
+          "official_source_top5": true,
+          "useful_url_count": 2,
+          "unique_useful_url_count": 2,
+          "useful_urls": [
+            "https://www.longbeach.gov/cityclerk/meetings/",
+            "https://www.longbeach.gov/cityclerk/meetings/onemeeting/"
+          ],
+          "artifact_useful_count": 0,
+          "portal_useful_count": 2,
+          "duplicate_url_count": 0,
+          "duplicate_url_rate": 0.0,
+          "latency_ms": 501,
+          "hard_failure": false,
+          "failure_mode": null,
+          "error": null,
+          "top_results": [
+            {
+              "url": "https://www.longbeach.gov/cityclerk/meetings/",
+              "title": "Meetings - City of Long Beach",
+              "domain": "longbeach.gov",
+              "is_official": true,
+              "is_useful": true
+            },
+            {
+              "url": "https://longbeach.legistar.com/",
+              "title": "City of Long Beach - Calendar",
+              "domain": "longbeach.legistar.com",
+              "is_official": true,
+              "is_useful": false
+            },
+            {
+              "url": "https://www.longbeach.gov/redistricting/agendas-meetings/",
+              "title": "Agendas & Meetings - City of Long Beach",
+              "domain": "longbeach.gov",
+              "is_official": true,
+              "is_useful": false
+            },
+            {
+              "url": "https://longbeach.granicus.com/ViewPublisher.php?view_id=12",
+              "title": "Long Beach Archives",
+              "domain": "longbeach.granicus.com",
+              "is_official": false,
+              "is_useful": false
+            },
+            {
+              "url": "https://www.lbutilities.org/about-us/Board-Agenda-Minutes",
+              "title": "Board, Agenda & Minutes - Long Beach Utilities",
+              "domain": "lbutilities.org",
+              "is_official": false,
+              "is_useful": false
+            }
+          ]
+        },
+        {
+          "lane": "searxng",
+          "query_id": "long-beach-ordinance",
+          "jurisdiction": "Long Beach, CA",
+          "intent": "ordinance",
+          "query": "Long Beach CA municipal code ordinance",
+          "result_count": 10,
+          "non_empty": true,
+          "official_source_top5": true,
+          "useful_url_count": 6,
+          "unique_useful_url_count": 6,
+          "useful_urls": [
+            "https://library.municode.com/ca/long_beach/codes/municipal_code",
+            "https://library.municode.com/ca/long_beach/ordinances/municipal_code",
+            "https://www.longbeach.gov/search/?searchtext=%22municipal%20code%22&page=1",
+            "https://www.longbeach.gov/lbcd/building/plan-review-service/code/",
+            "https://www.longbeach.gov/globalassets/city-clerk/media-library/documents/public-notices/ordinances/ord-18-0018",
+            "https://library.municode.com/ca/long_beach"
+          ],
+          "artifact_useful_count": 6,
+          "portal_useful_count": 0,
+          "duplicate_url_count": 0,
+          "duplicate_url_rate": 0.0,
+          "latency_ms": 635,
+          "hard_failure": false,
+          "failure_mode": null,
+          "error": null,
+          "top_results": [
+            {
+              "url": "https://library.municode.com/ca/long_beach/codes/municipal_code",
+              "title": "Municipal Code | Long Beach, CA - Municode Library",
+              "domain": "library.municode.com",
+              "is_official": true,
+              "is_useful": true
+            },
+            {
+              "url": "https://library.municode.com/ca/long_beach/ordinances/municipal_code",
+              "title": "Ordinances | Municipal Code | Long Beach, CA - Municode Library",
+              "domain": "library.municode.com",
+              "is_official": true,
+              "is_useful": true
+            },
+            {
+              "url": "https://www.longbeach.gov/search/?searchtext=%22municipal%20code%22&page=1",
+              "title": "Search Page - City of Long Beach",
+              "domain": "longbeach.gov",
+              "is_official": true,
+              "is_useful": true
+            },
+            {
+              "url": "https://www.longbeach.gov/lbcd/building/plan-review-service/code/",
+              "title": "Adopted California Building Standards Code - City of Long Beach",
+              "domain": "longbeach.gov",
+              "is_official": true,
+              "is_useful": true
+            },
+            {
+              "url": "https://www.steadily.com/blog/residential-zoning-laws-regulations-long-beach",
+              "title": "Residential zoning laws Long Beach, CA \u2013 2026 - Steadily",
+              "domain": "steadily.com",
+              "is_official": false,
+              "is_useful": false
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
