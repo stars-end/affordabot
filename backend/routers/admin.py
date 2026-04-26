@@ -2,9 +2,11 @@ from fastapi import APIRouter, Depends, Request, HTTPException
 from typing import Any, List, Optional
 from pydantic import BaseModel
 import json
+import os
 from services.glass_box import GlassBoxService, AgentStep, PipelineStep
 from auth.clerk import require_admin_user
 from db.postgres_client import PostgresDB
+from services.pipeline.domain.constants import CONTRACT_VERSION
 from scripts.substrate.substrate_inspection_report import (
     build_substrate_inspection_report,
     fetch_raw_scrapes_for_run,
@@ -15,6 +17,30 @@ router = APIRouter(
     tags=["admin"],
     dependencies=[Depends(require_admin_user)],
 )
+
+DEFAULT_SOURCE_FAMILY = "meeting_minutes"
+FRESHNESS_POLICY_BY_SOURCE_FAMILY: dict[str, dict[str, int]] = {
+    "meeting_minutes": {
+        "fresh_hours": 24,
+        "stale_usable_ceiling_hours": 72,
+        "fail_closed_ceiling_hours": 168,
+    },
+    "agendas": {
+        "fresh_hours": 24,
+        "stale_usable_ceiling_hours": 72,
+        "fail_closed_ceiling_hours": 168,
+    },
+    "legislation": {
+        "fresh_hours": 24,
+        "stale_usable_ceiling_hours": 48,
+        "fail_closed_ceiling_hours": 120,
+    },
+    "general_web_reference": {
+        "fresh_hours": 48,
+        "stale_usable_ceiling_hours": 168,
+        "fail_closed_ceiling_hours": 336,
+    },
+}
 
 
 # Dependency to get the database client
@@ -171,6 +197,129 @@ def _serialize_substrate_row(
         payload["ingestion_truth"] = truth
 
     return payload
+
+
+def _coerce_int(value: Any, default: int = 0) -> int:
+    if isinstance(value, int):
+        return value
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except Exception:
+        return default
+
+
+def _normalize_source_family(source_family: Optional[str]) -> str:
+    text = _to_text(source_family).lower()
+    return text if text else DEFAULT_SOURCE_FAMILY
+
+
+def _freshness_policy(source_family: str) -> dict[str, int]:
+    return FRESHNESS_POLICY_BY_SOURCE_FAMILY.get(
+        source_family, FRESHNESS_POLICY_BY_SOURCE_FAMILY[DEFAULT_SOURCE_FAMILY]
+    )
+
+
+def _extract_counts(result: dict[str, Any]) -> dict[str, int]:
+    search_results = _coerce_int(
+        result.get("search_results_count")
+        or result.get("search_results")
+        or result.get("discovered_sources")
+        or result.get("source_count")
+    )
+    raw_scrapes = _coerce_int(
+        result.get("raw_scrapes_count")
+        or result.get("raw_scrapes")
+        or result.get("captured_count")
+        or result.get("sources_processed")
+    )
+    chunks = _coerce_int(
+        result.get("chunks")
+        or result.get("chunk_count")
+        or result.get("rag_chunks_retrieved")
+        or result.get("validated_evidence_count")
+    )
+    artifacts = _coerce_int(result.get("artifact_count") or result.get("artifacts"))
+    if artifacts == 0 and _to_bool(result.get("source_text_present")):
+        artifacts = 1
+
+    analysis_obj = result.get("analysis")
+    analyses = 1 if isinstance(analysis_obj, dict) and analysis_obj else 0
+
+    return {
+        "search_results": search_results,
+        "raw_scrapes": raw_scrapes,
+        "artifacts": artifacts,
+        "chunks": chunks,
+        "analyses": analyses,
+    }
+
+
+def _extract_latest_analysis(result: dict[str, Any], counts: dict[str, int]) -> dict[str, Any]:
+    analysis = result.get("analysis")
+    ready = isinstance(analysis, dict) and bool(analysis)
+    evidence_count = _coerce_int(result.get("validated_evidence_count") or counts.get("chunks"))
+    if ready:
+        status = "ready"
+    elif evidence_count > 0:
+        status = "not_ready"
+    else:
+        status = "blocked"
+
+    sufficiency_state = result.get("sufficiency_state")
+    if not sufficiency_state:
+        if _to_bool(result.get("quantification_eligible")):
+            sufficiency_state = "quantitative_ready"
+        elif evidence_count > 0:
+            sufficiency_state = "qualitative_only"
+        else:
+            sufficiency_state = "insufficient_evidence"
+
+    return {
+        "status": status,
+        "sufficiency_state": sufficiency_state,
+        "evidence_count": evidence_count,
+    }
+
+
+def _extract_pipeline_alerts(result: dict[str, Any]) -> list[str]:
+    alerts_raw = result.get("alerts")
+    if isinstance(alerts_raw, list):
+        return [_to_text(item) for item in alerts_raw if _to_text(item)]
+    alerts: list[str] = []
+    insufficiency_reason = _to_text(result.get("insufficiency_reason"))
+    if insufficiency_reason:
+        alerts.append(f"insufficiency:{insufficiency_reason}")
+    if _coerce_int(result.get("rag_chunks_retrieved")) == 0 and _to_bool(
+        result.get("retriever_invoked")
+    ):
+        alerts.append("retriever_returned_no_chunks")
+    return alerts
+
+
+def _derive_pipeline_status(run_status: str, freshness_status: str) -> str:
+    if freshness_status and freshness_status != "unknown":
+        return freshness_status
+    if run_status in {"completed"}:
+        return "fresh"
+    if run_status in {"failed", "prefix_halted", "interrupted", "fixture_invalid"}:
+        return "stale_blocked"
+    return "unknown"
+
+
+def _build_windmill_run_url(windmill_run_id: Optional[str]) -> Optional[str]:
+    run_id = _to_text(windmill_run_id)
+    if not run_id:
+        return None
+    base = _to_text(os.getenv("WINDMILL_BASE_URL"))
+    if not base:
+        return f"/windmill/runs/{run_id}"
+    return f"{base.rstrip('/')}/runs/{run_id}"
+
+
+def _json_payload(value: Any) -> dict[str, Any]:
+    return _to_json_dict(value)
 
 
 # ============================================================================
@@ -1011,6 +1160,305 @@ async def get_bill_truth(
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Bill truth diagnostic failed: {str(e)}"
+        )
+
+
+# ============================================================================
+# PIPELINE READ MODEL ENDPOINTS (bd-9qjof.5)
+# ============================================================================
+
+
+@router.get("/pipeline/jurisdictions/{jurisdiction_id}/status")
+async def get_pipeline_jurisdiction_status(
+    jurisdiction_id: str,
+    source_family: str = DEFAULT_SOURCE_FAMILY,
+    db: PostgresDB = Depends(get_db),
+):
+    """Backend-authored pipeline status for admin/frontend consumption."""
+    try:
+        jurisdiction = await find_jurisdiction(db, jurisdiction_id)
+        jur_name = _to_text(jurisdiction["name"])
+        jur_id = _to_text(jurisdiction["id"])
+        normalized_source_family = _normalize_source_family(source_family)
+        policy = _freshness_policy(normalized_source_family)
+
+        run_query = """
+            SELECT
+                id,
+                jurisdiction,
+                status,
+                started_at,
+                completed_at,
+                error,
+                result,
+                windmill_run_id
+            FROM pipeline_runs
+            WHERE LOWER(COALESCE(jurisdiction, '')) IN (LOWER($1), LOWER($2))
+              AND (source_family = $3 OR source_family IS NULL)
+            ORDER BY
+                CASE WHEN source_family = $3 THEN 0 ELSE 1 END,
+                started_at DESC
+            LIMIT 1
+        """
+        latest_run = await db._fetchrow(run_query, jur_name, jur_id, normalized_source_family)
+
+        latest_success_query = """
+            SELECT id, completed_at
+            FROM pipeline_runs
+            WHERE LOWER(COALESCE(jurisdiction, '')) IN (LOWER($1), LOWER($2))
+              AND (source_family = $3 OR source_family IS NULL)
+              AND status = 'completed'
+              AND completed_at IS NOT NULL
+            ORDER BY started_at DESC
+            LIMIT 1
+        """
+        latest_success = await db._fetchrow(
+            latest_success_query, jur_name, jur_id, normalized_source_family
+        )
+
+        result = _json_payload(latest_run.get("result")) if latest_run else {}
+        run_status = _to_text(latest_run.get("status")) if latest_run else ""
+        counts = _extract_counts(result)
+        latest_analysis = _extract_latest_analysis(result, counts)
+
+        freshness_result = _json_payload(result.get("freshness"))
+        freshness_status = _to_text(freshness_result.get("status")) or "unknown"
+        freshness_alerts = freshness_result.get("alerts")
+        if not isinstance(freshness_alerts, list):
+            freshness_alerts = _extract_pipeline_alerts(result)
+        pipeline_status = _derive_pipeline_status(run_status, freshness_status)
+        latest_pipeline_run_id = _to_text(latest_run.get("id")) if latest_run else None
+
+        response = {
+            "contract_version": CONTRACT_VERSION,
+            "jurisdiction_id": jur_id,
+            "jurisdiction_name": jur_name,
+            "source_family": normalized_source_family,
+            "latest_pipeline_run_id": latest_pipeline_run_id,
+            "pipeline_status": pipeline_status,
+            "last_success_at": str(latest_success["completed_at"])
+            if latest_success and latest_success.get("completed_at")
+            else None,
+            "freshness": {
+                "status": freshness_status,
+                "fresh_hours": policy["fresh_hours"],
+                "stale_usable_ceiling_hours": policy["stale_usable_ceiling_hours"],
+                "fail_closed_ceiling_hours": policy["fail_closed_ceiling_hours"],
+                "alerts": [_to_text(alert) for alert in freshness_alerts if _to_text(alert)],
+            },
+            "counts": counts,
+            "latest_analysis": latest_analysis,
+            "alerts": _extract_pipeline_alerts(result),
+            "operator_links": {
+                "pipeline_run_id": latest_pipeline_run_id,
+                "windmill_run_url": _build_windmill_run_url(
+                    latest_run.get("windmill_run_id") if latest_run else None
+                ),
+            },
+        }
+        return response
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to fetch pipeline jurisdiction status: {str(e)}"
+        )
+
+
+@router.get("/pipeline/runs/{run_id}")
+async def get_pipeline_run_read_model(
+    run_id: str,
+    service: GlassBoxService = Depends(get_glass_box_service),
+):
+    """Compatibility alias over GlassBox run semantics for pipeline UI."""
+    try:
+        run = await service.get_pipeline_run(run_id)
+        if not run:
+            raise HTTPException(status_code=404, detail="Pipeline run not found")
+
+        result = _json_payload(run.get("result"))
+        counts = _extract_counts(result)
+        pipeline_run_id = _to_text(run.get("id"))
+        source_family = _to_text(run.get("source_family")) or DEFAULT_SOURCE_FAMILY
+        windmill_run_id = _to_text(run.get("windmill_run_id"))
+
+        return {
+            "contract_version": CONTRACT_VERSION,
+            "run_id": pipeline_run_id,
+            "pipeline_run_id": pipeline_run_id,
+            "status": _to_text(run.get("status")),
+            "jurisdiction": _to_text(run.get("jurisdiction")),
+            "source_family": source_family,
+            "bill_id": _to_text(run.get("bill_id")) or None,
+            "started_at": _to_text(run.get("started_at")) or None,
+            "completed_at": _to_text(run.get("completed_at")) or None,
+            "error": _to_text(run.get("error")) or None,
+            "trigger_source": _to_text(run.get("trigger_source")) or None,
+            "counts": counts,
+            "latest_analysis": _extract_latest_analysis(result, counts),
+            "alerts": _extract_pipeline_alerts(result),
+            "operator_links": {
+                "windmill_workspace": _to_text(run.get("windmill_workspace"))
+                or "affordabot",
+                "windmill_run_url": _build_windmill_run_url(windmill_run_id),
+            },
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to fetch pipeline run details: {str(e)}"
+        )
+
+
+def _normalize_pipeline_step(step: PipelineStep) -> dict[str, Any]:
+    output_result = _json_payload(step.output_result)
+    step_alerts = output_result.get("alerts")
+    if not isinstance(step_alerts, list):
+        step_alerts = []
+    refs = output_result.get("refs")
+    if not isinstance(refs, dict):
+        refs = {}
+    decision_reason = _to_text(output_result.get("decision_reason"))
+    retry_class = _to_text(output_result.get("retry_class")) or "none"
+    command = _to_text(output_result.get("command")) or _to_text(step.step_name)
+
+    return {
+        "contract_version": CONTRACT_VERSION,
+        "step_id": _to_text(step.id),
+        "run_id": _to_text(step.run_id),
+        "pipeline_run_id": _to_text(step.run_id),
+        "command": command,
+        "status": _to_text(step.status),
+        "decision_reason": decision_reason or None,
+        "retry_class": retry_class,
+        "alerts": [_to_text(item) for item in step_alerts if _to_text(item)],
+        "counts": output_result.get("counts")
+        if isinstance(output_result.get("counts"), dict)
+        else {},
+        "refs": refs,
+        "duration_ms": _coerce_int(step.duration_ms),
+        "error": _to_text(output_result.get("error")) or None,
+        "timestamp": str(step.created_at) if step.created_at else None,
+    }
+
+
+@router.get("/pipeline/runs/{run_id}/steps")
+async def get_pipeline_run_steps_read_model(
+    run_id: str,
+    service: GlassBoxService = Depends(get_glass_box_service),
+):
+    """Compatibility alias over GlassBox step semantics for pipeline UI."""
+    try:
+        run = await service.get_pipeline_run(run_id)
+        if not run:
+            raise HTTPException(status_code=404, detail="Pipeline run not found")
+
+        steps = await service.get_pipeline_steps(run_id)
+        normalized = [_normalize_pipeline_step(step) for step in steps]
+        return {
+            "contract_version": CONTRACT_VERSION,
+            "run_id": run_id,
+            "pipeline_run_id": run_id,
+            "steps": normalized,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to fetch pipeline run steps: {str(e)}"
+        )
+
+
+@router.get("/pipeline/runs/{run_id}/evidence")
+async def get_pipeline_run_evidence(
+    run_id: str,
+    service: GlassBoxService = Depends(get_glass_box_service),
+):
+    """Return evidence refs for a run without exposing storage internals."""
+    try:
+        run = await service.get_pipeline_run(run_id)
+        if not run:
+            raise HTTPException(status_code=404, detail="Pipeline run not found")
+
+        result = _json_payload(run.get("result"))
+        analysis = result.get("analysis")
+        evidence_items: list[dict[str, Any]] = []
+        if isinstance(analysis, dict):
+            citations = analysis.get("citations")
+            if isinstance(citations, list):
+                for idx, citation in enumerate(citations):
+                    citation_dict = citation if isinstance(citation, dict) else {"value": citation}
+                    evidence_items.append(
+                        {
+                            "id": f"citation-{idx + 1}",
+                            "type": _to_text(citation_dict.get("type")) or "citation",
+                            "label": _to_text(citation_dict.get("label"))
+                            or _to_text(citation_dict.get("source"))
+                            or f"Citation {idx + 1}",
+                            "confidence": citation_dict.get("confidence"),
+                            "source_ref": _to_text(citation_dict.get("source_ref"))
+                            or _to_text(citation_dict.get("source"))
+                            or None,
+                        }
+                    )
+
+        if not evidence_items:
+            evidence_count = _coerce_int(result.get("validated_evidence_count"))
+            for idx in range(evidence_count):
+                evidence_items.append(
+                    {
+                        "id": f"evidence-{idx + 1}",
+                        "type": "validated_chunk",
+                        "label": f"Evidence {idx + 1}",
+                        "confidence": None,
+                        "source_ref": None,
+                    }
+                )
+
+        return {
+            "contract_version": CONTRACT_VERSION,
+            "run_id": run_id,
+            "evidence_count": len(evidence_items),
+            "items": evidence_items,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to fetch pipeline run evidence: {str(e)}"
+        )
+
+
+@router.post("/pipeline/jurisdictions/{jurisdiction_id}/refresh")
+async def refresh_pipeline_jurisdiction(
+    jurisdiction_id: str,
+    source_family: str = DEFAULT_SOURCE_FAMILY,
+    db: PostgresDB = Depends(get_db),
+):
+    """
+    Backend-mediated manual refresh request.
+
+    In Wave 2 this is an accepted contract endpoint; live Windmill trigger wiring
+    is implemented in the integration wave.
+    """
+    try:
+        jurisdiction = await find_jurisdiction(db, jurisdiction_id)
+        normalized_source_family = _normalize_source_family(source_family)
+        return {
+            "contract_version": CONTRACT_VERSION,
+            "status": "accepted",
+            "decision_reason": "manual_refresh_queued",
+            "jurisdiction_id": _to_text(jurisdiction["id"]),
+            "jurisdiction_name": _to_text(jurisdiction["name"]),
+            "source_family": normalized_source_family,
+            "message": "Manual refresh accepted. Windmill dispatch wiring is pending integration.",
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to queue manual refresh: {str(e)}"
         )
 
 

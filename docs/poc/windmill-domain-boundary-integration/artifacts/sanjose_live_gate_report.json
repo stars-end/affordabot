@@ -1,0 +1,1819 @@
+{
+  "backend_endpoint_readiness": {
+    "local_mock_probe": {
+      "note": "local mock backend endpoint probe passed",
+      "status": "passed"
+    },
+    "missing_inputs": [],
+    "note": "backend endpoint config is present and local mock probe passed",
+    "status": "ready_for_opt_in"
+  },
+  "blockers": [],
+  "canonical_variables": {
+    "BACKEND_ENDPOINT_AUTH_TOKEN": "optional local readiness input only",
+    "BACKEND_ENDPOINT_URL": "optional local readiness input only",
+    "BACKEND_PUBLIC_URL_VAR": "f/affordabot/BACKEND_PUBLIC_URL",
+    "CRON_SECRET_VAR": "f/affordabot/CRON_SECRET",
+    "TMP_WMILL_CONFIG": "auto-created temporary profile directory",
+    "WINDMILL_API_TOKEN": "op://dev/Agent-Secrets-Production/WINDMILL_API_TOKEN",
+    "WINDMILL_BASE_URL": "derived as WINDMILL_DEV_LOGIN_URL without /user/login",
+    "WINDMILL_DEV_LOGIN_URL": "op://dev/Agent-Secrets-Production/WINDMILL_DEV_LOGIN_URL",
+    "WINDMILL_WORKSPACE": "affordabot"
+  },
+  "classification": "full_product_pass",
+  "db_storage_probe": {
+    "content_artifact_rows": [
+      {
+        "artifact_kind": "reader_output",
+        "content_hash": "b92d37510cd93d99ca0e5e65bd5e264464b71073ec1e7722f1cdf341e67a3d89",
+        "id": "27b48dda-a23d-4c5a-827c-392ab8901cce",
+        "storage_uri": "artifacts/2026-04-13.windmill-domain.v1/San Jose CA/meeting_minutes/reader_output/b92d37510cd93d99ca0e5e65bd5e264464b71073ec1e7722f1cdf341e67a3d89.md"
+      },
+      {
+        "artifact_kind": "reader_output",
+        "content_hash": "a00b0e24aa244f8da659216c1cc5bf55d5ead056e1c28963eb6cb233f47de70c",
+        "id": "a02635ca-4d27-42af-9959-867b1362eddb",
+        "storage_uri": "artifacts/2026-04-13.windmill-domain.v1/San Jose CA/meeting_minutes/reader_output/a00b0e24aa244f8da659216c1cc5bf55d5ead056e1c28963eb6cb233f47de70c.md"
+      },
+      {
+        "artifact_kind": "reader_output",
+        "content_hash": "455339488e8ec3cb7d8ae97cd637cbc37de737fbba16e459fdf4b1f5b3d0224f",
+        "id": "fc9468cf-0f0f-4ac3-83b8-99352ae56d44",
+        "storage_uri": "artifacts/2026-04-13.windmill-domain.v1/San Jose CA/meeting_minutes/reader_output/455339488e8ec3cb7d8ae97cd637cbc37de737fbba16e459fdf4b1f5b3d0224f.md"
+      },
+      {
+        "artifact_kind": "reader_output",
+        "content_hash": "d0588b0c0e9c9b2d00d4c795f00003d43999b1a6ea1ca89c2b056a3bd911895b",
+        "id": "98132044-ff85-4126-8b7f-956e7113140a",
+        "storage_uri": "artifacts/2026-04-13.windmill-domain.v1/San Jose CA/meeting_minutes/reader_output/d0588b0c0e9c9b2d00d4c795f00003d43999b1a6ea1ca89c2b056a3bd911895b.md"
+      },
+      {
+        "artifact_kind": "reader_output",
+        "content_hash": "16361e3a253309a93f50d79af1878bec40d52e306966ea8b021c914894623eb1",
+        "id": "aad21be3-43ba-4347-a02e-04c0fc569090",
+        "storage_uri": "artifacts/2026-04-13.windmill-domain.v1/San Jose CA/meeting_minutes/reader_output/16361e3a253309a93f50d79af1878bec40d52e306966ea8b021c914894623eb1.md"
+      },
+      {
+        "artifact_kind": "reader_output",
+        "content_hash": "62bf5da65e99ef25d7ba5a7876c182c8d40fb84e8377857177b4f88970f0fc26",
+        "id": "d4f8e4e8-2196-4e96-bded-195973ef30c6",
+        "storage_uri": "artifacts/2026-04-13.windmill-domain.v1/San Jose CA/meeting_minutes/reader_output/62bf5da65e99ef25d7ba5a7876c182c8d40fb84e8377857177b4f88970f0fc26.md"
+      },
+      {
+        "artifact_kind": "reader_output",
+        "content_hash": "beb5625c2920eb405475cd29fcecd1b9eab9f6087c25183754e0267a37c60800",
+        "id": "9eb9d570-c7fb-43c3-b1b6-36d9c3b99bff",
+        "storage_uri": "artifacts/2026-04-13.windmill-domain.v1/San Jose CA/meeting_minutes/reader_output/beb5625c2920eb405475cd29fcecd1b9eab9f6087c25183754e0267a37c60800.md"
+      }
+    ],
+    "document_chunks_count": 3533,
+    "document_chunks_with_embedding_count": 3533,
+    "minio_object_checks": [
+      {
+        "status": "not_probeable_without_storage_client",
+        "uri": "artifacts/2026-04-13.windmill-domain.v1/San Jose CA/meeting_minutes/reader_output/b92d37510cd93d99ca0e5e65bd5e264464b71073ec1e7722f1cdf341e67a3d89.md"
+      },
+      {
+        "status": "not_probeable_without_storage_client",
+        "uri": "artifacts/2026-04-13.windmill-domain.v1/San Jose CA/meeting_minutes/reader_output/a00b0e24aa244f8da659216c1cc5bf55d5ead056e1c28963eb6cb233f47de70c.md"
+      },
+      {
+        "status": "not_probeable_without_storage_client",
+        "uri": "artifacts/2026-04-13.windmill-domain.v1/San Jose CA/meeting_minutes/reader_output/455339488e8ec3cb7d8ae97cd637cbc37de737fbba16e459fdf4b1f5b3d0224f.md"
+      }
+    ],
+    "pipeline_command_rows": [
+      {
+        "alerts": [],
+        "command": "summarize_run",
+        "id": "96c6bdda-3729-44c8-aed1-58842fef8af7",
+        "refs": {},
+        "status": "succeeded"
+      },
+      {
+        "alerts": [],
+        "command": "analyze",
+        "id": "f6a2a487-4237-4800-92c2-c0ee2d669bcb",
+        "refs": {},
+        "status": "succeeded"
+      },
+      {
+        "alerts": [],
+        "command": "index",
+        "id": "57f9686c-5135-4730-8500-aa4521f604cb",
+        "refs": {},
+        "status": "succeeded"
+      },
+      {
+        "alerts": [],
+        "command": "read_fetch",
+        "id": "82c1dd3b-28a0-48c2-8ba4-2edef0bfcc2b",
+        "refs": {},
+        "status": "succeeded"
+      },
+      {
+        "alerts": [],
+        "command": "freshness_gate",
+        "id": "fca0182f-67fb-444e-8c0e-7df4ecd03042",
+        "refs": {},
+        "status": "succeeded"
+      },
+      {
+        "alerts": [],
+        "command": "search_materialize",
+        "id": "9b0eecf9-f9a3-4da9-a615-fe26f1c0fb2d",
+        "refs": {},
+        "status": "succeeded"
+      }
+    ],
+    "raw_scrape_rows": [
+      {
+        "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=meeting_minutes|doctype=meeting_minutes|url=https://sanjose.legistar.com/View.ashx?GUID=DD691AF1-FB8F-433E-A6F0-0EAC70EA8FAF&ID=15069952&M=F",
+        "content_excerpt": "City Council Meeting Minutes\n# Tuesday, December 16, 2025\n1:30 PM\nCouncil Chambers Closed Session at 9:30 a.m.\nMATT MAHAN, MAYOR ROSEMARY KAMEI, DISTRICT 1 PAMELA CAMPOS, DISTRICT 2 ANTHONY TORDILLOS, DISTRICT 3 DAVID COHEN, DISTRICT 4 PETER ORTIZ, DISTRICT 5 MICHAEL MULCAHY, DISTRICT 6 BIEN DOAN, DISTRICT 7 DOMINGO CANDELAS, DISTRICT 8\nPAM FOLEY, VICE MAYOR, DISTRICT 9 GEORGE CASEY, DISTRICT 10 San Jos\u00e9 City Council December 16, 2025\n> Page 2\n# \u2022 Call to Order and Roll Call\n9:30 a.m.- Closed Session- See Page 34-39 for the Closed Session Minutes.\nPresent Councilmembers: Mahan, Foley, Kamei, Campos, Tordillos,\nCohen, Ortiz, Doan, Candelas, Mulcahy, Casey.\nAbsent Councilmembers: All present.\n",
+        "id": "5d26f9ce-8986-528f-a4d9-8207c39462ee",
+        "url": "https://sanjose.legistar.com/View.ashx?GUID=DD691AF1-FB8F-433E-A6F0-0EAC70EA8FAF&ID=15069952&M=F"
+      },
+      {
+        "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=meeting_minutes|doctype=meeting_minutes|url=https://sanjose.granicus.com/AgendaViewer.php?clip_id=14442&view_id=60",
+        "content_excerpt": "CITY COUNCIL MEETING\nAmended Agenda\nTuesday, June 11, 2024\n1:30 PM\nLOCATION:\nCouncil Chambers - 200 E. Santa Clara Street\nAttachments and related materials can be viewed HERE\nInterpretation is available in Spanish and Vietnamese. In your webinar controls, select \u201cInterpretation.\u201d Click the language you\nwould like to hear. (Zoom only)\nSe dispone de interpretaci\u00f3n en espa\u00f1ol y vietnamita. En los controles de su seminario web, seleccione \"Interpretation\"\n(Interpretaci\u00f3n). (Zoom solo)\nTh\u00f4ng d\u1ecbch c\u00f3 s\u1eb5n b\u1eb1ng ti\u1ebfng T\u00e2y Ban Nha v\u00e0 ti\u1ebfng Vi\u1ec7t. Tro ng c\u00e1c \u0111i\u1ec1u khi\u1ec3n h\u1ed9i th\u1ea3o tr\u00ean web c\u1ee7a b\u1ea1n, h\u00e3y ch\u1ecdn\n\u201cInterpretation\u201d (Phi\u00ean d\u1ecbch). (Zoom ch\u1ec9 m\u1ed9t)\nFor live translations in over 50 languages, please go ",
+        "id": "2e3adf12-c1db-5cdb-bc66-5d60c6363256",
+        "url": "https://sanjose.granicus.com/AgendaViewer.php?clip_id=14442&view_id=60"
+      },
+      {
+        "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=meeting_minutes|doctype=meeting_minutes|url=https://sanjose.granicus.com/AgendaViewer.php?clip_id=14442&view_id=60",
+        "content_excerpt": "CITY COUNCIL MEETING\n\nAmended Agenda\n\nTuesday, June 11, 2024\n\n1:30 PM\n\nLOCATION:\n\nCouncil Chambers - 200 E. Santa Clara Street\n\nAttachments and related materials can be viewed HERE\n\nInterpretation is available in Spanish and Vietnamese. In your webinar controls, select \u201cInterpretation.\u201d Click the language you\n\nwould like to hear. (Zoom only)\n\nSe dispone de interpretaci\u00f3n en espa\u00f1ol y vietnamita. En los controles de su seminario web, seleccione \"Interpretation\"\n\n(Interpretaci\u00f3n). (Zoom solo)\n\nTh\u00f4ng d\u1ecbch c\u00f3 s\u1eb5n b\u1eb1ng ti\u1ebfng T\u00e2y Ban Nha v\u00e0 ti\u1ebfng Vi\u1ec7t. Trong c\u00e1c \u0111i\u1ec1u khi\u1ec3n h\u1ed9i th\u1ea3o tr\u00ean web c\u1ee7a b\u1ea1n, h\u00e3y ch\u1ecdn\n\n\u201cInterpretation\u201d (Phi\u00ean d\u1ecbch). (Zoom ch\u1ec9 m\u1ed9t)\n\nFor live translations in over 50 languages",
+        "id": "fa62027e-63ff-5665-ab38-c52aff0cc182",
+        "url": "https://sanjose.granicus.com/AgendaViewer.php?clip_id=14442&view_id=60"
+      },
+      {
+        "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=meeting_minutes|doctype=meeting_minutes|url=https://sanjose.legistar.com/gateway.aspx?ID=30dfe51f-d23d-4480-a407-44e17ef4c0c3.pdf&M=F",
+        "content_excerpt": "City Council Meeting Minutes\n# Tuesday, February 10, 2026\n1:30 PM\nCouncil Chambers Closed Session at 9:30 a.m.\nMATT MAHAN, MAYOR ROSEMARY KAMEI, DISTRICT 1 PAMELA CAMPOS, DISTRICT 2 ANTHONY TORDILLOS, DISTRICT 3 DAVID COHEN, DISTRICT 4 PETER ORTIZ, DISTRICT 5 MICHAEL MULCAHY, DISTRICT 6 BIEN DOAN, DISTRICT 7 DOMINGO CANDELAS, DISTRICT 8\nPAM FOLEY, VICE MAYOR, DISTRICT 9 GEORGE CASEY, DISTRICT 10 San Jos\u00e9 City Council February 10, 2026\n> Page 2\n# \u2022 Call to Order and Roll Call\n9:31 a.m.- Closed Session- See Page 15-18 for the Closed Session Minutes.\nPresent Councilmembers: Mahan, Foley, Kamei, Tordillos, Cohen, Campos,\nOrtiz, Doan, Candelas, Mulcahy, Casey.\nAbsent Councilmembers: All present.\n",
+        "id": "2fa08e2a-ed24-5570-b5ac-1066ae77f7bc",
+        "url": "https://sanjose.legistar.com/gateway.aspx?ID=30dfe51f-d23d-4480-a407-44e17ef4c0c3.pdf&M=F"
+      },
+      {
+        "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=meeting_minutes|doctype=meeting_minutes|url=https://www.sanjoseca.gov/your-government/appointees/city-clerk/council-agendas-minutes/council-agendas",
+        "content_excerpt": "Council Agendas | City of San Jos\u00e9\n\n![Image 1: Skip to page body](https://www.sanjoseca.gov/DefaultContent/Default/_gfx/spacer.gif)\n![Image 2: Home](https://www.sanjoseca.gov/DefaultContent/Default/_gfx/spacer.gif)\n![Image 3: Residents](https://www.sanjoseca.gov/DefaultContent/Default/_gfx/spacer.gif)\n![Image 4: Businesses](https://www.sanjoseca.gov/DefaultContent/Default/_gfx/spacer.gif)\n![Image 5: Jobs](https://www.sanjoseca.gov/DefaultContent/Default/_gfx/spacer.gif)\n![Image 6: Your Government](https://www.sanjoseca.gov/DefaultContent/Default/_gfx/spacer.gif)\n![Image 7: News & Stories](https://www.sanjoseca.gov/DefaultContent/Default/_gfx/spacer.gif)\n\n# City of San Jos\u00e9\n\nHome\nMenu\n\nAccess",
+        "id": "05612b33-afe6-52ac-be79-b555727dfd1e",
+        "url": "https://www.sanjoseca.gov/your-government/appointees/city-clerk/council-agendas-minutes/council-agendas"
+      },
+      {
+        "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=meeting_minutes|doctype=meeting_minutes|url=https://sanjose.legistar.com/MeetingDetail.aspx?GUID=3C17B03F-B014-43D5-B8DF-44024CDE065B&ID=1315729&Options=info%7C&Search=",
+        "content_excerpt": "| File# | Ver. | Agenda# | Agenda Note | Type | Title | Action | Result | Action Details | Video |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n| | | | | | Please scroll to the end for information about the City Council Agenda and for the Rules of Conduct of the meeting. | | | Not available | Not available |\n| | | | | | Public Comment in Person Only | | | Not available | Not available |\n| | | | | | For live translations in over 50 languages, please go to https://attend.wordly.ai/join/FAYU-7105 | | | Not available | Not available |\n| | | | | | American Disability Act | | | Not available | Not available |\n| | | | | | To request an alternative format agenda under the Americans ",
+        "id": "36847cd8-1c4f-50a2-b091-2fcf48e63bcf",
+        "url": "https://sanjose.legistar.com/MeetingDetail.aspx?ID=1315729&GUID=3C17B03F-B014-43D5-B8DF-44024CDE065B&Options=info%7C&Search="
+      },
+      {
+        "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=meeting_minutes|doctype=meeting_minutes|url=https://www.sanjoseca.gov/your-government/appointees/city-clerk/council-agendas-minutes",
+        "content_excerpt": "![Image 1: Skip to page body](https://www.sanjoseca.gov/DefaultContent/Default/_gfx/spacer.gif)\n![Image 2: Home](https://www.sanjoseca.gov/DefaultContent/Default/_gfx/spacer.gif)\n![Image 3: Residents](https://www.sanjoseca.gov/DefaultContent/Default/_gfx/spacer.gif)\n![Image 4: Businesses](https://www.sanjoseca.gov/DefaultContent/Default/_gfx/spacer.gif)\n![Image 5: Jobs](https://www.sanjoseca.gov/DefaultContent/Default/_gfx/spacer.gif)\n![Image 6: Your Government](https://www.sanjoseca.gov/DefaultContent/Default/_gfx/spacer.gif)\n![Image 7: News & Stories](https://www.sanjoseca.gov/DefaultContent/Default/_gfx/spacer.gif)\n\nHome\nMenu\n\nAccessibility\n\n![Image 8: facebook](https://www.sanjoseca.gov/",
+        "id": "2140d4b0-b2cb-5939-b442-bd941efaa7f2",
+        "url": "https://www.sanjoseca.gov/your-government/appointees/city-clerk/council-agendas-minutes"
+      }
+    ],
+    "search_snapshot_rows": [
+      {
+        "id": "5ed2fcf9-5ced-4890-9fd7-9345be375eab",
+        "result_count": 10
+      }
+    ],
+    "status": "queried"
+  },
+  "deployment_surface": {
+    "flow_deployed": true,
+    "flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+    "flow_unscheduled": true,
+    "script_deployed": true,
+    "script_path": "f/affordabot/pipeline_daily_refresh_domain_boundary"
+  },
+  "feature_key": "bd-9qjof.8",
+  "full_run_readiness": "ready",
+  "generated_at": "2026-04-14T01:31:41.234673+00:00",
+  "harness_version": "2026-04-13.worker-b.v2",
+  "idempotent_rerun": {
+    "attempted": true,
+    "result_payload": {
+      "alerts": [],
+      "scope_blocked": 0,
+      "scope_failed": 0,
+      "scope_results": [
+        {
+          "alert": "",
+          "backend_response": {
+            "decision_reason": "run_summary_materialized",
+            "missing_runtime_adapters": [],
+            "refs": {
+              "analyze_reason": "analysis_completed",
+              "analyze_retry_class": "none",
+              "freshness_gate_reason": "fresh",
+              "freshness_gate_retry_class": "none",
+              "index_reason": "chunks_indexed",
+              "index_retry_class": "none",
+              "read_fetch_reason": "raw_scrapes_materialized",
+              "read_fetch_retry_class": "none",
+              "run_id": "e0ab58c9-d8dc-4c50-bdae-713b0855f770",
+              "search_materialize_reason": "fresh_snapshot_materialized",
+              "search_materialize_retry_class": "none",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-9qjof.8-live-gate-20260414-012813"
+            },
+            "status": "succeeded",
+            "storage_mode": "railway_runtime"
+          },
+          "scope_index": 0,
+          "scope_item": {
+            "jurisdiction": "San Jose CA",
+            "scope_key": "san jose ca::meeting_minutes",
+            "source_family": "meeting_minutes"
+          },
+          "status": "succeeded",
+          "steps": {
+            "analyze": {
+              "alerts": [],
+              "command": "analyze",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "counts": {
+                "analyses": 1,
+                "evidence_chunks": 20
+              },
+              "created_at": "2026-04-14T01:31:34.822489+00:00",
+              "decision_reason": "analysis_completed",
+              "details": {
+                "analysis": {
+                  "key_points": [
+                    "Adopted Ordinance No. 31303 (Item 8.4) to amend Chapter 5.08, updating affordability levels, refining compliance options (including surplus credits), aligning affordability terms with state practice, and clarifying treatment of 100% affordable developments.",
+                    "Adopted amendments to Chapter 17.22 (Item 8.6) related to the One-Year Exception to the Mobilehome Rent Ordinance.",
+                    "Adopted Ordinance No. 31305 to provide a 50% reduction of construction taxes for the first 3,600 units and a 25% reduction for additional units in projects eligible for the Temporary Multifamily Housing Incentive Program that obtain a building permit by February 28, 2027."
+                  ],
+                  "sufficiency_state": "Sufficient",
+                  "summary": "The San Jose City Council adopted several housing-related ordinances, including updates to the Inclusionary Housing Ordinance (Item 8.4) to adjust affordability levels and compliance, amendments to the Mobilehome Rent Ordinance (Item 8.6) regarding a one-year exception, and the passage of Ordinance No. 31305 to reduce construction taxes for multifamily housing incentive projects."
+                },
+                "evidence_selection": {
+                  "candidate_chunk_count": 250,
+                  "selected_chunk_count": 20,
+                  "selected_chunks": [
+                    {
+                      "chunk_id": "f7eb62fc-5b42-5c81-91b7-ecb791e43c36",
+                      "chunk_index": 46,
+                      "matched_action_signals": [
+                        "ordinance",
+                        "affordability",
+                        "item ",
+                        "compliance"
+                      ],
+                      "matched_question_terms": [
+                        "san",
+                        "item"
+                      ],
+                      "rank": 1,
+                      "score": 32,
+                      "snippet": "(c) Ordinance No. 31303 - An Ordinance of the City of San Jos\u00e9 Amending Chapter 5.08 of the San Jos\u00e9 Municipal Code to (1) Update Affordability Levels; (2) Refine Compliance Options (Including Surplus"
+                    },
+                    {
+                      "chunk_id": "7886369a-036a-58f4-b840-a7709f1fdb29",
+                      "chunk_index": 48,
+                      "matched_action_signals": [
+                        "ordinance",
+                        "rent",
+                        "item ",
+                        "mobilehome"
+                      ],
+                      "matched_question_terms": [
+                        "san",
+                        "item"
+                      ],
+                      "rank": 2,
+                      "score": 27,
+                      "snippet": "17.22.370 and Subsection B. of 17.22.490 Of Chapter 17.22 of Title 17 of the San Jos\u00e9 Municipal Code Related to the One-Year Exception to the Mobilehome Rent Ordinance. [Passed for Publication on 1/27"
+                    },
+                    {
+                      "chunk_id": "41692f4e-60e2-56d6-9196-0e8b970bf118",
+                      "chunk_index": 116,
+                      "matched_action_signals": [
+                        "ordinance",
+                        "approved",
+                        "adopted",
+                        "resolution"
+                      ],
+                      "matched_question_terms": [],
+                      "rank": 3,
+                      "score": 21,
+                      "snippet": "Campos, and carried unanimously, (a) the 2025-2026 Mid-Year Budget Review Report was approved; and (b) Appropriation Ordinance No. 31308 and (b) Funding Sources Resolution No. RES2026-32 were adopted,"
+                    },
+                    {
+                      "chunk_id": "f9a30cbb-ceb0-57cc-8cb6-84e47b2ad55e",
+                      "chunk_index": 42,
+                      "matched_action_signals": [
+                        "housing",
+                        "incentive",
+                        "multifamily"
+                      ],
+                      "matched_question_terms": [
+                        "housing",
+                        "san"
+                      ],
+                      "rank": 4,
+                      "score": 18,
+                      "snippet": "4.47.098 to Chapter 4.47 of Title 4 of the San Jos\u00e9 Municipal Code to Provide: (1) a 50% Reduction of the Commercial, Residential, and Mobile Home Park Construction Tax and a 50% Reduction of the Buil"
+                    },
+                    {
+                      "chunk_id": "d28ae94c-7d76-56f6-9753-9d6c6e0fcd1b",
+                      "chunk_index": 231,
+                      "matched_action_signals": [
+                        "approved",
+                        "resolution",
+                        "tenant"
+                      ],
+                      "matched_question_terms": [
+                        "minutes",
+                        "item"
+                      ],
+                      "rank": 5,
+                      "score": 18,
+                      "snippet": "(a) Conduct an Administrative Hearing to consider the appeal of the Planning Commission\u2019s denial of a Conditional Use Permit to allow late-night use (until 2:00 a.m. Friday through Sunday) for an exis"
+                    },
+                    {
+                      "chunk_id": "f766a810-6772-5ae8-8335-319623ed4487",
+                      "chunk_index": 44,
+                      "matched_action_signals": [
+                        "housing",
+                        "incentive",
+                        "multifamily"
+                      ],
+                      "matched_question_terms": [
+                        "housing"
+                      ],
+                      "rank": 6,
+                      "score": 15,
+                      "snippet": "the Building and Structure Construction Tax for Any Additional Units Beyond the First 3,600 for Eligible Multifamily Housing Incentive Program Projects."
+                    },
+                    {
+                      "chunk_id": "fc96108e-58a2-594a-9d6a-83ce6e7b093d",
+                      "chunk_index": 50,
+                      "matched_action_signals": [
+                        "ordinance",
+                        "adopted"
+                      ],
+                      "matched_question_terms": [],
+                      "rank": 7,
+                      "score": 13,
+                      "snippet": "31303 ; and (d) Ordinance No. 31305 were adopted. (11-0-0)"
+                    },
+                    {
+                      "chunk_id": "d40e6efe-3078-567e-9033-9340c28e39ba",
+                      "chunk_index": 167,
+                      "matched_action_signals": [
+                        "approved",
+                        "adopted",
+                        "resolution"
+                      ],
+                      "matched_question_terms": [],
+                      "rank": 8,
+                      "score": 12,
+                      "snippet": "Pam Foley, the substitute motion carried unanimously, the staff recommendation was approved and Resolution No. RES2026-33 was adopted, regarding the Potential Ballot Measure Increasing Transient Occup"
+                    },
+                    {
+                      "chunk_id": "7579edae-c4ae-51a7-b8aa-996ae2185099",
+                      "chunk_index": 217,
+                      "matched_action_signals": [
+                        "adopted",
+                        "resolution",
+                        "public hearing"
+                      ],
+                      "matched_question_terms": [],
+                      "rank": 9,
+                      "score": 12,
+                      "snippet": "Action: Upon motion by Councilmember Rosemary Kamei, seconded by Vice Mayor Pam Foley, and carried unanimously, the public hearing on the 2026 Weed Abatement Commencement Report and the removal of wee"
+                    },
+                    {
+                      "chunk_id": "76591cc3-13ad-5239-948e-7ff79686d1cb",
+                      "chunk_index": 249,
+                      "matched_action_signals": [
+                        "adopted",
+                        "resolution",
+                        "tenant"
+                      ],
+                      "matched_question_terms": [],
+                      "rank": 10,
+                      "score": 12,
+                      "snippet": "Resolution No. RES2026-36 was adopted, denying the permit appeal and denying a Conditional Use Permit to allow late-night use (until 2:00 a.m. Friday through Sunday) for an existing public eating esta"
+                    },
+                    {
+                      "chunk_id": "4298db53-2162-515e-b787-074f3583ee84",
+                      "chunk_index": 38,
+                      "matched_action_signals": [
+                        "ordinance"
+                      ],
+                      "matched_question_terms": [
+                        "san"
+                      ],
+                      "rank": 11,
+                      "score": 12,
+                      "snippet": "(a) Ordinance No. 31301 - An Ordinance of the City of San Jos\u00e9 Amending Section"
+                    },
+                    {
+                      "chunk_id": "517571f8-5762-56c3-abfc-1b0eab1ea768",
+                      "chunk_index": 40,
+                      "matched_action_signals": [
+                        "item "
+                      ],
+                      "matched_question_terms": [
+                        "item"
+                      ],
+                      "rank": 12,
+                      "score": 12,
+                      "snippet": "Months of Obtaining a Building Permit; Increasing the Eligibility for Tax Reductions to 7,000 Units in Phase 1 and 3,000 Units in Phase 2 and Removing Deadlines to Obtaining Building Permits. [Passed "
+                    },
+                    {
+                      "chunk_id": "bdce7ecc-3272-51fe-a0e9-80af4a02a0e2",
+                      "chunk_index": 41,
+                      "matched_action_signals": [
+                        "ordinance"
+                      ],
+                      "matched_question_terms": [
+                        "san"
+                      ],
+                      "rank": 13,
+                      "score": 12,
+                      "snippet": "(b) Ordinance No. 31302 - An Ordinance of the City of San Jos\u00e9 Amending Section 4.46.039.13 of Chapter 4.46 and Amending Section"
+                    },
+                    {
+                      "chunk_id": "19316432-1047-5385-be03-5021f9bb9f36",
+                      "chunk_index": 45,
+                      "matched_action_signals": [
+                        "item "
+                      ],
+                      "matched_question_terms": [
+                        "item"
+                      ],
+                      "rank": 14,
+                      "score": 12,
+                      "snippet": "[Passed for Publication on 1/27/2026 - Item 8.3(b) (26-076)]"
+                    },
+                    {
+                      "chunk_id": "7b3e128a-3f4e-597c-8ae4-e5d154adbc69",
+                      "chunk_index": 47,
+                      "matched_action_signals": [
+                        "ordinance"
+                      ],
+                      "matched_question_terms": [
+                        "san"
+                      ],
+                      "rank": 15,
+                      "score": 12,
+                      "snippet": "(d) Ordinance No. 31305 - An Ordinance of the City of San Jos\u00e9 Repealing Section"
+                    },
+                    {
+                      "chunk_id": "b7a6c41e-6461-5a05-a8e8-f0598a13a3c0",
+                      "chunk_index": 39,
+                      "matched_action_signals": [
+                        "incentive",
+                        "mobilehome"
+                      ],
+                      "matched_question_terms": [
+                        "san"
+                      ],
+                      "rank": 16,
+                      "score": 11,
+                      "snippet": "4.46.036 of Chapter 4.46 and Section 4.47.089 of Chapter 4.47 of Title 4 of the San Jos\u00e9 Municipal Code to Provide for Conversion Projects Eligible Under the Downtown Residential Incentive Program tha"
+                    },
+                    {
+                      "chunk_id": "87938f9c-a94f-5c69-ba70-9edb729bfd20",
+                      "chunk_index": 129,
+                      "matched_action_signals": [
+                        "housing"
+                      ],
+                      "matched_question_terms": [
+                        "housing",
+                        "san"
+                      ],
+                      "rank": 17,
+                      "score": 10,
+                      "snippet": "b.) The total number of housing and shelter units produced by the City of San Jos\u00e9, including permanent supportive housing, interim housing, emergency shelter, and other."
+                    },
+                    {
+                      "chunk_id": "271d2257-fc33-5284-a838-db923a9050bc",
+                      "chunk_index": 131,
+                      "matched_action_signals": [
+                        "housing"
+                      ],
+                      "matched_question_terms": [
+                        "housing",
+                        "san"
+                      ],
+                      "rank": 18,
+                      "score": 10,
+                      "snippet": "d.) The total amount of City of San Jos\u00e9 funding expended on housing and shelter program production efforts."
+                    },
+                    {
+                      "chunk_id": "ae1376f8-06d6-5e6e-bb11-5b6dc4ecbdd1",
+                      "chunk_index": 49,
+                      "matched_action_signals": [
+                        "ordinance"
+                      ],
+                      "matched_question_terms": [],
+                      "rank": 19,
+                      "score": 9,
+                      "snippet": "Action: (a) Ordinance No. 31301 ; (b) Ordinance No. 31302 ; (c) Ordinance No."
+                    },
+                    {
+                      "chunk_id": "403da3f4-9d0e-5ee7-ac58-8277db01736a",
+                      "chunk_index": 103,
+                      "matched_action_signals": [
+                        "ordinance",
+                        "resolution"
+                      ],
+                      "matched_question_terms": [],
+                      "rank": 20,
+                      "score": 8,
+                      "snippet": "(b) Adopt related Appropriation Ordinance and Funding Sources Resolution amendments in various funds as detailed in Section III (Recommended Budget Adjustments and Clean-Up Actions) of the 2025-2026 M"
+                    }
+                  ]
+                },
+                "idempotent_reuse": true
+              },
+              "envelope": {
+                "analysis_question": "Summarize concrete housing decisions from these San Jose meeting minutes; cite agenda item context.",
+                "contract_version": "2026-04-13.windmill-domain.v1",
+                "idempotency_key": "bd-9qjof.8-live-gate-20260414-012813",
+                "jurisdiction": "San Jose CA",
+                "orchestrator": "windmill",
+                "scope_idempotency_key": "bd-9qjof.8-live-gate-20260414-012813::1c07b61a28453506",
+                "search_query": "San Jose CA city council meeting minutes housing",
+                "source_family": "meeting_minutes",
+                "stale_status": "fresh",
+                "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+                "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+                "windmill_run_id": "bd-9qjof.8-live-gate-20260414-012813",
+                "windmill_workspace": "affordabot"
+              },
+              "refs": {
+                "analysis_id": "a7b0ce1b-52b0-5b6a-b070-dc6cdf9adb9e",
+                "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+                "windmill_run_id": "bd-9qjof.8-live-gate-20260414-012813"
+              },
+              "retry_class": "none",
+              "status": "succeeded"
+            },
+            "freshness_gate": {
+              "alerts": [],
+              "command": "freshness_gate",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "counts": {
+                "search_results": 10
+              },
+              "created_at": "2026-04-14T01:31:34.787798+00:00",
+              "decision_reason": "fresh",
+              "details": {
+                "fail_closed_ceiling_hours": 168,
+                "fresh_hours": 24,
+                "freshness_status": "fresh",
+                "idempotent_reuse": true,
+                "snapshot_age_hours": 0,
+                "stale_usable_ceiling_hours": 72
+              },
+              "envelope": {
+                "analysis_question": "Summarize concrete housing decisions from these San Jose meeting minutes; cite agenda item context.",
+                "contract_version": "2026-04-13.windmill-domain.v1",
+                "idempotency_key": "bd-9qjof.8-live-gate-20260414-012813",
+                "jurisdiction": "San Jose CA",
+                "orchestrator": "windmill",
+                "scope_idempotency_key": "bd-9qjof.8-live-gate-20260414-012813::1c07b61a28453506",
+                "search_query": "San Jose CA city council meeting minutes housing",
+                "source_family": "meeting_minutes",
+                "stale_status": "fresh",
+                "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+                "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+                "windmill_run_id": "bd-9qjof.8-live-gate-20260414-012813",
+                "windmill_workspace": "affordabot"
+              },
+              "refs": {
+                "search_snapshot_id": "5ed2fcf9-5ced-4890-9fd7-9345be375eab",
+                "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+                "windmill_run_id": "bd-9qjof.8-live-gate-20260414-012813"
+              },
+              "retry_class": "none",
+              "status": "succeeded"
+            },
+            "index": {
+              "alerts": [],
+              "command": "index",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "counts": {
+                "chunks": 403
+              },
+              "created_at": "2026-04-14T01:31:34.816448+00:00",
+              "decision_reason": "chunks_indexed",
+              "details": {
+                "embedding_count": 403,
+                "embedding_provider": "openrouter:qwen/qwen3-embedding-8b",
+                "idempotent_reuse": true
+              },
+              "envelope": {
+                "analysis_question": "Summarize concrete housing decisions from these San Jose meeting minutes; cite agenda item context.",
+                "contract_version": "2026-04-13.windmill-domain.v1",
+                "idempotency_key": "bd-9qjof.8-live-gate-20260414-012813",
+                "jurisdiction": "San Jose CA",
+                "orchestrator": "windmill",
+                "scope_idempotency_key": "bd-9qjof.8-live-gate-20260414-012813::1c07b61a28453506",
+                "search_query": "San Jose CA city council meeting minutes housing",
+                "source_family": "meeting_minutes",
+                "stale_status": "fresh",
+                "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+                "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+                "windmill_run_id": "bd-9qjof.8-live-gate-20260414-012813",
+                "windmill_workspace": "affordabot"
+              },
+              "refs": {
+                "document_id": "bd1b92c5-0c9e-517e-bb3c-6a325d59c219",
+                "raw_scrape_ids": [
+                  "2fa08e2a-ed24-5570-b5ac-1066ae77f7bc"
+                ],
+                "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+                "windmill_run_id": "bd-9qjof.8-live-gate-20260414-012813"
+              },
+              "retry_class": "none",
+              "status": "succeeded"
+            },
+            "read_fetch": {
+              "alerts": [],
+              "command": "read_fetch",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "counts": {
+                "artifacts": 1,
+                "raw_scrapes": 1
+              },
+              "created_at": "2026-04-14T01:31:34.793833+00:00",
+              "decision_reason": "raw_scrapes_materialized",
+              "details": {
+                "candidate_audit": [
+                  {
+                    "outcome": "materialized_raw_scrape",
+                    "rank": 1,
+                    "raw_scrape_id": "2fa08e2a-ed24-5570-b5ac-1066ae77f7bc",
+                    "score": 29,
+                    "url": "https://sanjose.legistar.com/gateway.aspx?ID=30dfe51f-d23d-4480-a407-44e17ef4c0c3.pdf&M=F"
+                  }
+                ],
+                "idempotent_reuse": true,
+                "ranked_candidates": [
+                  {
+                    "input_index": 4,
+                    "rank": 1,
+                    "reasons": [
+                      "url_signal:legistar.com",
+                      "url_signal:gateway.aspx",
+                      "url_signal:.pdf",
+                      "url_high_value:legistar.com/gateway.aspx",
+                      "url_high_value:.pdf",
+                      "text_signal:minutes",
+                      "text_signal:meeting",
+                      "text_signal:council",
+                      "text_signal:housing",
+                      "text_action:incentive",
+                      "text_action:multifamily",
+                      "text_penalty:council chambers"
+                    ],
+                    "score": 29,
+                    "snippet": "Meeting \nMinutes\nTuesday, February 10, 2026\n1:30 PM\nCouncil Chambers \nClosed Session at 9:30 a.m.   ...    3,600 Units in Projects Eligible for the Temporary Multifamily Housing Incentive that   ...    Department, responded to questions from Council.  San Jos\u00e9 City Council February 10, 2026\nPage 8\nbut not limited to: a.) The total number of housing and shelter units produced by Santa Clara",
+                    "title": "",
+                    "url": "https://sanjose.legistar.com/gateway.aspx?ID=30dfe51f-d23d-4480-a407-44e17ef4c0c3.pdf&M=F"
+                  },
+                  {
+                    "input_index": 7,
+                    "rank": 2,
+                    "reasons": [
+                      "url_signal:legistar.com",
+                      "url_signal:view.ashx",
+                      "url_high_value:view.ashx",
+                      "text_signal:minutes",
+                      "text_signal:council",
+                      "text_signal:resolution",
+                      "text_signal:housing",
+                      "text_action:resolution"
+                    ],
+                    "score": 19,
+                    "snippet": "Page 12 2.18 25-1316 Actions Related to Grant Agreementsfor Multiple Emergency \nInterim Housing Program Sites. (a) Adopt a resolution authorizing the Housing Director, or his designee,  amount not to exceed $2,016,404 from January   ...    30, 2026.\n(b) Adopt a resolution authorizing the City Manager, or her designee, to   ...    SANJOS\u00c9 CITY COUNCIL CLOSED SESSION MINUTES\nDecember 16, 2025   ...",
+                    "title": "",
+                    "url": "https://sanjose.legistar.com/View.ashx?GUID=DD691AF1-FB8F-433E-A6F0-0EAC70EA8FAF&ID=15069952&M=F"
+                  },
+                  {
+                    "input_index": 3,
+                    "rank": 3,
+                    "reasons": [
+                      "url_signal:legistar.com",
+                      "url_signal:meetingdetail",
+                      "url_high_value:legistar.com/meetingdetail.aspx",
+                      "text_signal:agenda",
+                      "text_signal:minutes",
+                      "text_signal:meeting",
+                      "text_signal:council",
+                      "text_signal:housing"
+                    ],
+                    "score": 18,
+                    "snippet": "status: | Draft |\n| --- | --- | --- | --- |   ...    | Published agenda: | Agenda Accessible Agenda | Published minutes: | Not available | | --- | --- | --- | --- |\n| Agenda packet: | Not available |   ...    | 2.1 | Approval of City Council Minutes. | Not available | Not available |   ...    | 26-402 | 1 | 8.1 | Community & Economic Development | Agreement with the Santa Clara County Housing",
+                    "title": "City of San Jos\u00e9 - Meeting of City Council on 4/14/2026 at 1:30 PM",
+                    "url": "https://sanjose.legistar.com/MeetingDetail.aspx?G=920296E4-80BE-4CA2-A78F-32C5EFCF78AF&GID=317&LEGID=7617"
+                  },
+                  {
+                    "input_index": 5,
+                    "rank": 4,
+                    "reasons": [
+                      "url_signal:legistar.com",
+                      "url_signal:view.ashx",
+                      "url_high_value:view.ashx",
+                      "text_signal:agenda",
+                      "text_signal:minutes",
+                      "text_signal:meeting",
+                      "text_signal:housing"
+                    ],
+                    "score": 17,
+                    "snippet": "REGULAR MEETING AGENDA\n April 9, 2026 Virtual Zoom Link \nStart time: 5:45 PM Web ID: 940 5398 8541   ...    \u5c0d\u65bc\u8aaa\u83ef\u8a9e\u7684\u5c45\u6c11: \u8acb\u96fb 408-975-2694 \u5411 Hong Hua \u8a62\u554f\u8a73\u7d30\u4e8b\u5b9c\u3002  Housing & Community Development Commission DRAFT Minutes \u2013 Regular Meeting of 3/12/2026\n3\n \nHOUSING & COMMUNITY DEVELOPMENT COMMISSION\nMEETING ACTION MINUTES",
+                    "title": "",
+                    "url": "https://sanjose.legistar.com/View.ashx?GUID=BA5A7F92-71C9-4F99-A036-F17499F191E3&ID=1404741&M=A"
+                  },
+                  {
+                    "input_index": 8,
+                    "rank": 5,
+                    "reasons": [
+                      "url_signal:legistar.com",
+                      "url_signal:view.ashx",
+                      "url_high_value:view.ashx",
+                      "text_signal:agenda",
+                      "text_signal:minutes",
+                      "text_signal:meeting",
+                      "text_signal:hearing",
+                      "penalty:departments"
+                    ],
+                    "score": 15,
+                    "snippet": "Agendas and all staff reports for this meeting may be accessed at: https://www.sanjoseca.gov/your\u0002government/departments-offices/planning-building-code-enforcement/planning-division/comm issions\u0002hearings-and-developers-roundtable/planning-commission/planning-commission-agendas-minutes.   ...    a. Report on the Cost of Residental Development in San Jose:\nStaff Recommendation: The purpose of the",
+                    "title": "",
+                    "url": "https://sanjose.legistar.com/View.ashx?G=920296E4-80BE-4CA2-A78F-32C5EFCF78AF&GUID=F909936B-7A16-4611-8CED-E4C01EA189F0&ID=1375180&M=A"
+                  }
+                ],
+                "reader_provider_errors": [],
+                "reader_quality_failures": []
+              },
+              "envelope": {
+                "analysis_question": "Summarize concrete housing decisions from these San Jose meeting minutes; cite agenda item context.",
+                "contract_version": "2026-04-13.windmill-domain.v1",
+                "idempotency_key": "bd-9qjof.8-live-gate-20260414-012813",
+                "jurisdiction": "San Jose CA",
+                "orchestrator": "windmill",
+                "scope_idempotency_key": "bd-9qjof.8-live-gate-20260414-012813::1c07b61a28453506",
+                "search_query": "San Jose CA city council meeting minutes housing",
+                "source_family": "meeting_minutes",
+                "stale_status": "fresh",
+                "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+                "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+                "windmill_run_id": "bd-9qjof.8-live-gate-20260414-012813",
+                "windmill_workspace": "affordabot"
+              },
+              "refs": {
+                "artifact_refs": [
+                  "artifacts/2026-04-13.windmill-domain.v1/San Jose CA/meeting_minutes/reader_output/d0588b0c0e9c9b2d00d4c795f00003d43999b1a6ea1ca89c2b056a3bd911895b.md"
+                ],
+                "document_id": "bd1b92c5-0c9e-517e-bb3c-6a325d59c219",
+                "raw_scrape_ids": [
+                  "2fa08e2a-ed24-5570-b5ac-1066ae77f7bc"
+                ],
+                "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+                "windmill_run_id": "bd-9qjof.8-live-gate-20260414-012813"
+              },
+              "retry_class": "none",
+              "status": "succeeded"
+            },
+            "search_materialize": {
+              "alerts": [],
+              "command": "search_materialize",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "counts": {
+                "search_results": 10
+              },
+              "created_at": "2026-04-14T01:31:34.782909+00:00",
+              "decision_reason": "fresh_snapshot_materialized",
+              "details": {
+                "idempotent_reuse": true,
+                "query": "San Jose CA city council meeting minutes housing"
+              },
+              "envelope": {
+                "analysis_question": "Summarize concrete housing decisions from these San Jose meeting minutes; cite agenda item context.",
+                "contract_version": "2026-04-13.windmill-domain.v1",
+                "idempotency_key": "bd-9qjof.8-live-gate-20260414-012813",
+                "jurisdiction": "San Jose CA",
+                "orchestrator": "windmill",
+                "scope_idempotency_key": "bd-9qjof.8-live-gate-20260414-012813::1c07b61a28453506",
+                "search_query": "San Jose CA city council meeting minutes housing",
+                "source_family": "meeting_minutes",
+                "stale_status": "fresh",
+                "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+                "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+                "windmill_run_id": "bd-9qjof.8-live-gate-20260414-012813",
+                "windmill_workspace": "affordabot"
+              },
+              "refs": {
+                "search_snapshot_id": "5ed2fcf9-5ced-4890-9fd7-9345be375eab",
+                "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+                "windmill_run_id": "bd-9qjof.8-live-gate-20260414-012813"
+              },
+              "retry_class": "none",
+              "status": "succeeded"
+            },
+            "summarize_run": {
+              "alerts": [],
+              "command": "summarize_run",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "counts": {
+                "analyses": 1,
+                "artifacts": 1,
+                "chunks": 403,
+                "evidence_chunks": 20,
+                "raw_scrapes": 1,
+                "search_results": 20
+              },
+              "created_at": "2026-04-14T01:31:34.822513+00:00",
+              "decision_reason": "run_summary_materialized",
+              "details": {
+                "step_statuses": {
+                  "analyze": "succeeded",
+                  "freshness_gate": "succeeded",
+                  "index": "succeeded",
+                  "read_fetch": "succeeded",
+                  "search_materialize": "succeeded"
+                }
+              },
+              "envelope": {
+                "analysis_question": "Summarize concrete housing decisions from these San Jose meeting minutes; cite agenda item context.",
+                "contract_version": "2026-04-13.windmill-domain.v1",
+                "idempotency_key": "bd-9qjof.8-live-gate-20260414-012813",
+                "jurisdiction": "San Jose CA",
+                "orchestrator": "windmill",
+                "scope_idempotency_key": "bd-9qjof.8-live-gate-20260414-012813::1c07b61a28453506",
+                "search_query": "San Jose CA city council meeting minutes housing",
+                "source_family": "meeting_minutes",
+                "stale_status": "fresh",
+                "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+                "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+                "windmill_run_id": "bd-9qjof.8-live-gate-20260414-012813",
+                "windmill_workspace": "affordabot"
+              },
+              "refs": {
+                "analyze_reason": "analysis_completed",
+                "analyze_retry_class": "none",
+                "freshness_gate_reason": "fresh",
+                "freshness_gate_retry_class": "none",
+                "index_reason": "chunks_indexed",
+                "index_retry_class": "none",
+                "read_fetch_reason": "raw_scrapes_materialized",
+                "read_fetch_retry_class": "none",
+                "run_id": "e0ab58c9-d8dc-4c50-bdae-713b0855f770",
+                "search_materialize_reason": "fresh_snapshot_materialized",
+                "search_materialize_retry_class": "none",
+                "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+                "windmill_run_id": "bd-9qjof.8-live-gate-20260414-012813"
+              },
+              "retry_class": "none",
+              "status": "succeeded"
+            }
+          }
+        }
+      ],
+      "scope_succeeded": 1,
+      "scope_total": 1,
+      "status": "succeeded"
+    },
+    "scope_totals": {
+      "scope_blocked": 0,
+      "scope_failed": 0,
+      "scope_succeeded": 1,
+      "scope_total": 1
+    },
+    "status": "succeeded",
+    "step_sequence": [
+      "search_materialize",
+      "freshness_gate",
+      "read_fetch",
+      "index",
+      "analyze",
+      "summarize_run"
+    ]
+  },
+  "manual_audit_notes": {
+    "llm_analysis_excerpt": "The San Jose City Council adopted several housing-related ordinances, including updates to the Inclusionary Housing Ordinance (Item 8.4) to adjust affordability levels and compliance, amendments to the Mobilehome Rent Ordinance (Item 8.6) regarding a one-year exception, and the passage of Ordinance No. 31305 to reduce construction taxes for multifamily housing incentive projects.",
+    "llm_quality_note": "LLM analysis produced a substantive answer from persisted evidence.",
+    "manual_verdict": "PASS_MANUAL_AUDIT",
+    "reader_output_excerpt": "https://sanjose.legistar.com/gateway.aspx?ID=30dfe51f-d23d-4480-a407-44e17ef4c0c3.pdf&M=F: City Council Meeting Minutes # Tuesday, February 10, 2026 1:30 PM Council Chambers Closed Session at 9:30 a.m. MATT MAHAN, MAYOR ROSEMARY KAMEI, DISTRICT 1 PAMELA CAMPOS, DISTRICT 2 ANTHONY TORDILLOS, DISTRICT 3 DAVID COHEN, DISTRICT 4 PETER ORTIZ, DISTRICT 5 MICHAEL MULCAHY, DISTRICT 6 BIEN DOAN, DISTRICT 7 DOMINGO CANDELAS, DISTRICT 8 PAM FOLEY, VICE MAYOR, DISTRICT 9 GEORGE CASEY, DISTRICT 10 San Jos\u00e9 City Council February 10, 2026 > Page 2 # \u2022 Call to Order and Roll Call 9:31 a.m.- Closed Se",
+    "reader_quality_note": "Reader output was persisted and provided to analysis."
+  },
+  "manual_run": {
+    "attempted": true,
+    "command_client": "backend_endpoint",
+    "contract_metadata_present": true,
+    "expected_step_sequence": [
+      "search_materialize",
+      "freshness_gate",
+      "read_fetch",
+      "index",
+      "analyze",
+      "summarize_run"
+    ],
+    "final_status": "succeeded",
+    "idempotency_key": "bd-9qjof.8-live-gate-20260414-012813",
+    "job_get": {
+      "canceled": false,
+      "completed_at": "2026-04-14T01:30:01.884351Z",
+      "created_at": "2026-04-14T01:28:14.512128Z",
+      "deleted": false,
+      "duration_ms": 107340,
+      "flow_status": {
+        "failure_module": {
+          "id": "failure_handler",
+          "type": "WaitingForPriorSteps"
+        },
+        "modules": [
+          {
+            "branch_chosen": null,
+            "id": "build_scope_matrix",
+            "skipped": false,
+            "type": "Success"
+          },
+          {
+            "branch_chosen": null,
+            "id": "per_scope_pipeline",
+            "skipped": false,
+            "type": "Success"
+          },
+          {
+            "branch_chosen": {
+              "type": "default"
+            },
+            "id": "branch_outcome_review",
+            "skipped": false,
+            "type": "Success"
+          }
+        ],
+        "step": 3
+      },
+      "id": "019d899a-75c2-9a90-2307-f6d45d8185dc",
+      "job_kind": "flow",
+      "script_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow"
+    },
+    "job_logs_excerpt": "\u001b[33mNo wmill.yaml found. Use 'wmill init' to bootstrap it.\u001b[39m\n\u001b[36m\u001b[1m\n====== build_scope_matrix ======\u001b[22m\u001b[39m\njob=019d899a-75e8-f4c0-3b27-c79bf4ef0419 tag=python3 worker=wk-default-661cef133dc0-WZTwK hostname=661cef133dc0 isolation=none\n\nenv deps from local cache: certifi==2026.2.25, charset-normalizer==3.4.7, idna==3.11, requests==2.33.1, urllib3==2.6.3\n\n\n--- PYTHON (3.12) CODE EXECUTION ---\n\n\u001b[36m\u001b[1m\n====== per_scope_pipeline (iteration 0) ======\u001b[22m\u001b[39m\nFlow job completed with success\n\n\u001b[36m\u001b[1m\n====== branch_outcome_review ======\u001b[22m\u001b[39m\nFlow job completed with success\n\n",
+    "scope_totals": {
+      "scope_blocked": 0,
+      "scope_failed": 0,
+      "scope_succeeded": 1,
+      "scope_total": 1
+    },
+    "step_sequence": [
+      "search_materialize",
+      "freshness_gate",
+      "read_fetch",
+      "index",
+      "analyze",
+      "summarize_run"
+    ],
+    "step_sequence_matches_expected": true,
+    "windmill_job_id": "019d899a-75c2-9a90-2307-f6d45d8185dc"
+  },
+  "result_payload": {
+    "alerts": [],
+    "scope_blocked": 0,
+    "scope_failed": 0,
+    "scope_results": [
+      {
+        "alert": "",
+        "backend_response": {
+          "decision_reason": "run_summary_materialized",
+          "missing_runtime_adapters": [],
+          "refs": {
+            "analyze_reason": "analysis_completed",
+            "analyze_retry_class": "none",
+            "freshness_gate_reason": "fresh",
+            "freshness_gate_retry_class": "none",
+            "index_reason": "chunks_indexed",
+            "index_retry_class": "none",
+            "read_fetch_reason": "raw_scrapes_materialized",
+            "read_fetch_retry_class": "none",
+            "run_id": "e0ab58c9-d8dc-4c50-bdae-713b0855f770",
+            "search_materialize_reason": "fresh_snapshot_materialized",
+            "search_materialize_retry_class": "none",
+            "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+            "windmill_run_id": "bd-9qjof.8-live-gate-20260414-012813"
+          },
+          "status": "succeeded",
+          "storage_mode": "railway_runtime"
+        },
+        "scope_index": 0,
+        "scope_item": {
+          "jurisdiction": "San Jose CA",
+          "scope_key": "san jose ca::meeting_minutes",
+          "source_family": "meeting_minutes"
+        },
+        "status": "succeeded",
+        "steps": {
+          "analyze": {
+            "alerts": [],
+            "command": "analyze",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "counts": {
+              "analyses": 1,
+              "evidence_chunks": 20
+            },
+            "created_at": "2026-04-14T01:30:01.241561+00:00",
+            "decision_reason": "analysis_completed",
+            "details": {
+              "analysis": {
+                "key_points": [
+                  "Adopted Ordinance No. 31303 (Item 8.4) to amend Chapter 5.08, updating affordability levels, refining compliance options (including surplus credits), aligning affordability terms with state practice, and clarifying treatment of 100% affordable developments.",
+                  "Adopted amendments to Chapter 17.22 (Item 8.6) related to the One-Year Exception to the Mobilehome Rent Ordinance.",
+                  "Adopted Ordinance No. 31305 to provide a 50% reduction of construction taxes for the first 3,600 units and a 25% reduction for additional units in projects eligible for the Temporary Multifamily Housing Incentive Program that obtain a building permit by February 28, 2027."
+                ],
+                "sufficiency_state": "Sufficient",
+                "summary": "The San Jose City Council adopted several housing-related ordinances, including updates to the Inclusionary Housing Ordinance (Item 8.4) to adjust affordability levels and compliance, amendments to the Mobilehome Rent Ordinance (Item 8.6) regarding a one-year exception, and the passage of Ordinance No. 31305 to reduce construction taxes for multifamily housing incentive projects."
+              },
+              "evidence_selection": {
+                "candidate_chunk_count": 250,
+                "selected_chunk_count": 20,
+                "selected_chunks": [
+                  {
+                    "chunk_id": "f7eb62fc-5b42-5c81-91b7-ecb791e43c36",
+                    "chunk_index": 46,
+                    "matched_action_signals": [
+                      "ordinance",
+                      "affordability",
+                      "item ",
+                      "compliance"
+                    ],
+                    "matched_question_terms": [
+                      "san",
+                      "item"
+                    ],
+                    "rank": 1,
+                    "score": 32,
+                    "snippet": "(c) Ordinance No. 31303 - An Ordinance of the City of San Jos\u00e9 Amending Chapter 5.08 of the San Jos\u00e9 Municipal Code to (1) Update Affordability Levels; (2) Refine Compliance Options (Including Surplus"
+                  },
+                  {
+                    "chunk_id": "7886369a-036a-58f4-b840-a7709f1fdb29",
+                    "chunk_index": 48,
+                    "matched_action_signals": [
+                      "ordinance",
+                      "rent",
+                      "item ",
+                      "mobilehome"
+                    ],
+                    "matched_question_terms": [
+                      "san",
+                      "item"
+                    ],
+                    "rank": 2,
+                    "score": 27,
+                    "snippet": "17.22.370 and Subsection B. of 17.22.490 Of Chapter 17.22 of Title 17 of the San Jos\u00e9 Municipal Code Related to the One-Year Exception to the Mobilehome Rent Ordinance. [Passed for Publication on 1/27"
+                  },
+                  {
+                    "chunk_id": "41692f4e-60e2-56d6-9196-0e8b970bf118",
+                    "chunk_index": 116,
+                    "matched_action_signals": [
+                      "ordinance",
+                      "approved",
+                      "adopted",
+                      "resolution"
+                    ],
+                    "matched_question_terms": [],
+                    "rank": 3,
+                    "score": 21,
+                    "snippet": "Campos, and carried unanimously, (a) the 2025-2026 Mid-Year Budget Review Report was approved; and (b) Appropriation Ordinance No. 31308 and (b) Funding Sources Resolution No. RES2026-32 were adopted,"
+                  },
+                  {
+                    "chunk_id": "f9a30cbb-ceb0-57cc-8cb6-84e47b2ad55e",
+                    "chunk_index": 42,
+                    "matched_action_signals": [
+                      "housing",
+                      "incentive",
+                      "multifamily"
+                    ],
+                    "matched_question_terms": [
+                      "housing",
+                      "san"
+                    ],
+                    "rank": 4,
+                    "score": 18,
+                    "snippet": "4.47.098 to Chapter 4.47 of Title 4 of the San Jos\u00e9 Municipal Code to Provide: (1) a 50% Reduction of the Commercial, Residential, and Mobile Home Park Construction Tax and a 50% Reduction of the Buil"
+                  },
+                  {
+                    "chunk_id": "d28ae94c-7d76-56f6-9753-9d6c6e0fcd1b",
+                    "chunk_index": 231,
+                    "matched_action_signals": [
+                      "approved",
+                      "resolution",
+                      "tenant"
+                    ],
+                    "matched_question_terms": [
+                      "minutes",
+                      "item"
+                    ],
+                    "rank": 5,
+                    "score": 18,
+                    "snippet": "(a) Conduct an Administrative Hearing to consider the appeal of the Planning Commission\u2019s denial of a Conditional Use Permit to allow late-night use (until 2:00 a.m. Friday through Sunday) for an exis"
+                  },
+                  {
+                    "chunk_id": "f766a810-6772-5ae8-8335-319623ed4487",
+                    "chunk_index": 44,
+                    "matched_action_signals": [
+                      "housing",
+                      "incentive",
+                      "multifamily"
+                    ],
+                    "matched_question_terms": [
+                      "housing"
+                    ],
+                    "rank": 6,
+                    "score": 15,
+                    "snippet": "the Building and Structure Construction Tax for Any Additional Units Beyond the First 3,600 for Eligible Multifamily Housing Incentive Program Projects."
+                  },
+                  {
+                    "chunk_id": "fc96108e-58a2-594a-9d6a-83ce6e7b093d",
+                    "chunk_index": 50,
+                    "matched_action_signals": [
+                      "ordinance",
+                      "adopted"
+                    ],
+                    "matched_question_terms": [],
+                    "rank": 7,
+                    "score": 13,
+                    "snippet": "31303 ; and (d) Ordinance No. 31305 were adopted. (11-0-0)"
+                  },
+                  {
+                    "chunk_id": "d40e6efe-3078-567e-9033-9340c28e39ba",
+                    "chunk_index": 167,
+                    "matched_action_signals": [
+                      "approved",
+                      "adopted",
+                      "resolution"
+                    ],
+                    "matched_question_terms": [],
+                    "rank": 8,
+                    "score": 12,
+                    "snippet": "Pam Foley, the substitute motion carried unanimously, the staff recommendation was approved and Resolution No. RES2026-33 was adopted, regarding the Potential Ballot Measure Increasing Transient Occup"
+                  },
+                  {
+                    "chunk_id": "7579edae-c4ae-51a7-b8aa-996ae2185099",
+                    "chunk_index": 217,
+                    "matched_action_signals": [
+                      "adopted",
+                      "resolution",
+                      "public hearing"
+                    ],
+                    "matched_question_terms": [],
+                    "rank": 9,
+                    "score": 12,
+                    "snippet": "Action: Upon motion by Councilmember Rosemary Kamei, seconded by Vice Mayor Pam Foley, and carried unanimously, the public hearing on the 2026 Weed Abatement Commencement Report and the removal of wee"
+                  },
+                  {
+                    "chunk_id": "76591cc3-13ad-5239-948e-7ff79686d1cb",
+                    "chunk_index": 249,
+                    "matched_action_signals": [
+                      "adopted",
+                      "resolution",
+                      "tenant"
+                    ],
+                    "matched_question_terms": [],
+                    "rank": 10,
+                    "score": 12,
+                    "snippet": "Resolution No. RES2026-36 was adopted, denying the permit appeal and denying a Conditional Use Permit to allow late-night use (until 2:00 a.m. Friday through Sunday) for an existing public eating esta"
+                  },
+                  {
+                    "chunk_id": "4298db53-2162-515e-b787-074f3583ee84",
+                    "chunk_index": 38,
+                    "matched_action_signals": [
+                      "ordinance"
+                    ],
+                    "matched_question_terms": [
+                      "san"
+                    ],
+                    "rank": 11,
+                    "score": 12,
+                    "snippet": "(a) Ordinance No. 31301 - An Ordinance of the City of San Jos\u00e9 Amending Section"
+                  },
+                  {
+                    "chunk_id": "517571f8-5762-56c3-abfc-1b0eab1ea768",
+                    "chunk_index": 40,
+                    "matched_action_signals": [
+                      "item "
+                    ],
+                    "matched_question_terms": [
+                      "item"
+                    ],
+                    "rank": 12,
+                    "score": 12,
+                    "snippet": "Months of Obtaining a Building Permit; Increasing the Eligibility for Tax Reductions to 7,000 Units in Phase 1 and 3,000 Units in Phase 2 and Removing Deadlines to Obtaining Building Permits. [Passed "
+                  },
+                  {
+                    "chunk_id": "bdce7ecc-3272-51fe-a0e9-80af4a02a0e2",
+                    "chunk_index": 41,
+                    "matched_action_signals": [
+                      "ordinance"
+                    ],
+                    "matched_question_terms": [
+                      "san"
+                    ],
+                    "rank": 13,
+                    "score": 12,
+                    "snippet": "(b) Ordinance No. 31302 - An Ordinance of the City of San Jos\u00e9 Amending Section 4.46.039.13 of Chapter 4.46 and Amending Section"
+                  },
+                  {
+                    "chunk_id": "19316432-1047-5385-be03-5021f9bb9f36",
+                    "chunk_index": 45,
+                    "matched_action_signals": [
+                      "item "
+                    ],
+                    "matched_question_terms": [
+                      "item"
+                    ],
+                    "rank": 14,
+                    "score": 12,
+                    "snippet": "[Passed for Publication on 1/27/2026 - Item 8.3(b) (26-076)]"
+                  },
+                  {
+                    "chunk_id": "7b3e128a-3f4e-597c-8ae4-e5d154adbc69",
+                    "chunk_index": 47,
+                    "matched_action_signals": [
+                      "ordinance"
+                    ],
+                    "matched_question_terms": [
+                      "san"
+                    ],
+                    "rank": 15,
+                    "score": 12,
+                    "snippet": "(d) Ordinance No. 31305 - An Ordinance of the City of San Jos\u00e9 Repealing Section"
+                  },
+                  {
+                    "chunk_id": "b7a6c41e-6461-5a05-a8e8-f0598a13a3c0",
+                    "chunk_index": 39,
+                    "matched_action_signals": [
+                      "incentive",
+                      "mobilehome"
+                    ],
+                    "matched_question_terms": [
+                      "san"
+                    ],
+                    "rank": 16,
+                    "score": 11,
+                    "snippet": "4.46.036 of Chapter 4.46 and Section 4.47.089 of Chapter 4.47 of Title 4 of the San Jos\u00e9 Municipal Code to Provide for Conversion Projects Eligible Under the Downtown Residential Incentive Program tha"
+                  },
+                  {
+                    "chunk_id": "87938f9c-a94f-5c69-ba70-9edb729bfd20",
+                    "chunk_index": 129,
+                    "matched_action_signals": [
+                      "housing"
+                    ],
+                    "matched_question_terms": [
+                      "housing",
+                      "san"
+                    ],
+                    "rank": 17,
+                    "score": 10,
+                    "snippet": "b.) The total number of housing and shelter units produced by the City of San Jos\u00e9, including permanent supportive housing, interim housing, emergency shelter, and other."
+                  },
+                  {
+                    "chunk_id": "271d2257-fc33-5284-a838-db923a9050bc",
+                    "chunk_index": 131,
+                    "matched_action_signals": [
+                      "housing"
+                    ],
+                    "matched_question_terms": [
+                      "housing",
+                      "san"
+                    ],
+                    "rank": 18,
+                    "score": 10,
+                    "snippet": "d.) The total amount of City of San Jos\u00e9 funding expended on housing and shelter program production efforts."
+                  },
+                  {
+                    "chunk_id": "ae1376f8-06d6-5e6e-bb11-5b6dc4ecbdd1",
+                    "chunk_index": 49,
+                    "matched_action_signals": [
+                      "ordinance"
+                    ],
+                    "matched_question_terms": [],
+                    "rank": 19,
+                    "score": 9,
+                    "snippet": "Action: (a) Ordinance No. 31301 ; (b) Ordinance No. 31302 ; (c) Ordinance No."
+                  },
+                  {
+                    "chunk_id": "403da3f4-9d0e-5ee7-ac58-8277db01736a",
+                    "chunk_index": 103,
+                    "matched_action_signals": [
+                      "ordinance",
+                      "resolution"
+                    ],
+                    "matched_question_terms": [],
+                    "rank": 20,
+                    "score": 8,
+                    "snippet": "(b) Adopt related Appropriation Ordinance and Funding Sources Resolution amendments in various funds as detailed in Section III (Recommended Budget Adjustments and Clean-Up Actions) of the 2025-2026 M"
+                  }
+                ]
+              }
+            },
+            "envelope": {
+              "analysis_question": "Summarize concrete housing decisions from these San Jose meeting minutes; cite agenda item context.",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-9qjof.8-live-gate-20260414-012813",
+              "jurisdiction": "San Jose CA",
+              "orchestrator": "windmill",
+              "scope_idempotency_key": "bd-9qjof.8-live-gate-20260414-012813::1c07b61a28453506",
+              "search_query": "San Jose CA city council meeting minutes housing",
+              "source_family": "meeting_minutes",
+              "stale_status": "fresh",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-9qjof.8-live-gate-20260414-012813",
+              "windmill_workspace": "affordabot"
+            },
+            "refs": {
+              "analysis_id": "a7b0ce1b-52b0-5b6a-b070-dc6cdf9adb9e",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-9qjof.8-live-gate-20260414-012813"
+            },
+            "retry_class": "none",
+            "status": "succeeded"
+          },
+          "freshness_gate": {
+            "alerts": [],
+            "command": "freshness_gate",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "counts": {
+              "search_results": 10
+            },
+            "created_at": "2026-04-14T01:28:15.522004+00:00",
+            "decision_reason": "fresh",
+            "details": {
+              "fail_closed_ceiling_hours": 168,
+              "fresh_hours": 24,
+              "freshness_status": "fresh",
+              "snapshot_age_hours": 0,
+              "stale_usable_ceiling_hours": 72
+            },
+            "envelope": {
+              "analysis_question": "Summarize concrete housing decisions from these San Jose meeting minutes; cite agenda item context.",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-9qjof.8-live-gate-20260414-012813",
+              "jurisdiction": "San Jose CA",
+              "orchestrator": "windmill",
+              "scope_idempotency_key": "bd-9qjof.8-live-gate-20260414-012813::1c07b61a28453506",
+              "search_query": "San Jose CA city council meeting minutes housing",
+              "source_family": "meeting_minutes",
+              "stale_status": "fresh",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-9qjof.8-live-gate-20260414-012813",
+              "windmill_workspace": "affordabot"
+            },
+            "refs": {
+              "search_snapshot_id": "5ed2fcf9-5ced-4890-9fd7-9345be375eab",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-9qjof.8-live-gate-20260414-012813"
+            },
+            "retry_class": "none",
+            "status": "succeeded"
+          },
+          "index": {
+            "alerts": [],
+            "command": "index",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "counts": {
+              "chunks": 403
+            },
+            "created_at": "2026-04-14T01:28:23.477966+00:00",
+            "decision_reason": "chunks_indexed",
+            "details": {
+              "embedding_count": 403,
+              "embedding_provider": "openrouter:qwen/qwen3-embedding-8b"
+            },
+            "envelope": {
+              "analysis_question": "Summarize concrete housing decisions from these San Jose meeting minutes; cite agenda item context.",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-9qjof.8-live-gate-20260414-012813",
+              "jurisdiction": "San Jose CA",
+              "orchestrator": "windmill",
+              "scope_idempotency_key": "bd-9qjof.8-live-gate-20260414-012813::1c07b61a28453506",
+              "search_query": "San Jose CA city council meeting minutes housing",
+              "source_family": "meeting_minutes",
+              "stale_status": "fresh",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-9qjof.8-live-gate-20260414-012813",
+              "windmill_workspace": "affordabot"
+            },
+            "refs": {
+              "document_id": "bd1b92c5-0c9e-517e-bb3c-6a325d59c219",
+              "raw_scrape_ids": [
+                "2fa08e2a-ed24-5570-b5ac-1066ae77f7bc"
+              ],
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-9qjof.8-live-gate-20260414-012813"
+            },
+            "retry_class": "none",
+            "status": "succeeded"
+          },
+          "read_fetch": {
+            "alerts": [],
+            "command": "read_fetch",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "counts": {
+              "artifacts": 1,
+              "raw_scrapes": 1
+            },
+            "created_at": "2026-04-14T01:28:16.447954+00:00",
+            "decision_reason": "raw_scrapes_materialized",
+            "details": {
+              "candidate_audit": [
+                {
+                  "outcome": "materialized_raw_scrape",
+                  "rank": 1,
+                  "raw_scrape_id": "2fa08e2a-ed24-5570-b5ac-1066ae77f7bc",
+                  "score": 29,
+                  "url": "https://sanjose.legistar.com/gateway.aspx?ID=30dfe51f-d23d-4480-a407-44e17ef4c0c3.pdf&M=F"
+                }
+              ],
+              "ranked_candidates": [
+                {
+                  "input_index": 4,
+                  "rank": 1,
+                  "reasons": [
+                    "url_signal:legistar.com",
+                    "url_signal:gateway.aspx",
+                    "url_signal:.pdf",
+                    "url_high_value:legistar.com/gateway.aspx",
+                    "url_high_value:.pdf",
+                    "text_signal:minutes",
+                    "text_signal:meeting",
+                    "text_signal:council",
+                    "text_signal:housing",
+                    "text_action:incentive",
+                    "text_action:multifamily",
+                    "text_penalty:council chambers"
+                  ],
+                  "score": 29,
+                  "snippet": "Meeting \nMinutes\nTuesday, February 10, 2026\n1:30 PM\nCouncil Chambers \nClosed Session at 9:30 a.m.   ...    3,600 Units in Projects Eligible for the Temporary Multifamily Housing Incentive that   ...    Department, responded to questions from Council.  San Jos\u00e9 City Council February 10, 2026\nPage 8\nbut not limited to: a.) The total number of housing and shelter units produced by Santa Clara",
+                  "title": "",
+                  "url": "https://sanjose.legistar.com/gateway.aspx?ID=30dfe51f-d23d-4480-a407-44e17ef4c0c3.pdf&M=F"
+                },
+                {
+                  "input_index": 7,
+                  "rank": 2,
+                  "reasons": [
+                    "url_signal:legistar.com",
+                    "url_signal:view.ashx",
+                    "url_high_value:view.ashx",
+                    "text_signal:minutes",
+                    "text_signal:council",
+                    "text_signal:resolution",
+                    "text_signal:housing",
+                    "text_action:resolution"
+                  ],
+                  "score": 19,
+                  "snippet": "Page 12 2.18 25-1316 Actions Related to Grant Agreementsfor Multiple Emergency \nInterim Housing Program Sites. (a) Adopt a resolution authorizing the Housing Director, or his designee,  amount not to exceed $2,016,404 from January   ...    30, 2026.\n(b) Adopt a resolution authorizing the City Manager, or her designee, to   ...    SANJOS\u00c9 CITY COUNCIL CLOSED SESSION MINUTES\nDecember 16, 2025   ...",
+                  "title": "",
+                  "url": "https://sanjose.legistar.com/View.ashx?GUID=DD691AF1-FB8F-433E-A6F0-0EAC70EA8FAF&ID=15069952&M=F"
+                },
+                {
+                  "input_index": 3,
+                  "rank": 3,
+                  "reasons": [
+                    "url_signal:legistar.com",
+                    "url_signal:meetingdetail",
+                    "url_high_value:legistar.com/meetingdetail.aspx",
+                    "text_signal:agenda",
+                    "text_signal:minutes",
+                    "text_signal:meeting",
+                    "text_signal:council",
+                    "text_signal:housing"
+                  ],
+                  "score": 18,
+                  "snippet": "status: | Draft |\n| --- | --- | --- | --- |   ...    | Published agenda: | Agenda Accessible Agenda | Published minutes: | Not available | | --- | --- | --- | --- |\n| Agenda packet: | Not available |   ...    | 2.1 | Approval of City Council Minutes. | Not available | Not available |   ...    | 26-402 | 1 | 8.1 | Community & Economic Development | Agreement with the Santa Clara County Housing",
+                  "title": "City of San Jos\u00e9 - Meeting of City Council on 4/14/2026 at 1:30 PM",
+                  "url": "https://sanjose.legistar.com/MeetingDetail.aspx?G=920296E4-80BE-4CA2-A78F-32C5EFCF78AF&GID=317&LEGID=7617"
+                },
+                {
+                  "input_index": 5,
+                  "rank": 4,
+                  "reasons": [
+                    "url_signal:legistar.com",
+                    "url_signal:view.ashx",
+                    "url_high_value:view.ashx",
+                    "text_signal:agenda",
+                    "text_signal:minutes",
+                    "text_signal:meeting",
+                    "text_signal:housing"
+                  ],
+                  "score": 17,
+                  "snippet": "REGULAR MEETING AGENDA\n April 9, 2026 Virtual Zoom Link \nStart time: 5:45 PM Web ID: 940 5398 8541   ...    \u5c0d\u65bc\u8aaa\u83ef\u8a9e\u7684\u5c45\u6c11: \u8acb\u96fb 408-975-2694 \u5411 Hong Hua \u8a62\u554f\u8a73\u7d30\u4e8b\u5b9c\u3002  Housing & Community Development Commission DRAFT Minutes \u2013 Regular Meeting of 3/12/2026\n3\n \nHOUSING & COMMUNITY DEVELOPMENT COMMISSION\nMEETING ACTION MINUTES",
+                  "title": "",
+                  "url": "https://sanjose.legistar.com/View.ashx?GUID=BA5A7F92-71C9-4F99-A036-F17499F191E3&ID=1404741&M=A"
+                },
+                {
+                  "input_index": 8,
+                  "rank": 5,
+                  "reasons": [
+                    "url_signal:legistar.com",
+                    "url_signal:view.ashx",
+                    "url_high_value:view.ashx",
+                    "text_signal:agenda",
+                    "text_signal:minutes",
+                    "text_signal:meeting",
+                    "text_signal:hearing",
+                    "penalty:departments"
+                  ],
+                  "score": 15,
+                  "snippet": "Agendas and all staff reports for this meeting may be accessed at: https://www.sanjoseca.gov/your\u0002government/departments-offices/planning-building-code-enforcement/planning-division/comm issions\u0002hearings-and-developers-roundtable/planning-commission/planning-commission-agendas-minutes.   ...    a. Report on the Cost of Residental Development in San Jose:\nStaff Recommendation: The purpose of the",
+                  "title": "",
+                  "url": "https://sanjose.legistar.com/View.ashx?G=920296E4-80BE-4CA2-A78F-32C5EFCF78AF&GUID=F909936B-7A16-4611-8CED-E4C01EA189F0&ID=1375180&M=A"
+                }
+              ],
+              "reader_provider_errors": [],
+              "reader_quality_failures": []
+            },
+            "envelope": {
+              "analysis_question": "Summarize concrete housing decisions from these San Jose meeting minutes; cite agenda item context.",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-9qjof.8-live-gate-20260414-012813",
+              "jurisdiction": "San Jose CA",
+              "orchestrator": "windmill",
+              "scope_idempotency_key": "bd-9qjof.8-live-gate-20260414-012813::1c07b61a28453506",
+              "search_query": "San Jose CA city council meeting minutes housing",
+              "source_family": "meeting_minutes",
+              "stale_status": "fresh",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-9qjof.8-live-gate-20260414-012813",
+              "windmill_workspace": "affordabot"
+            },
+            "refs": {
+              "artifact_refs": [
+                "artifacts/2026-04-13.windmill-domain.v1/San Jose CA/meeting_minutes/reader_output/d0588b0c0e9c9b2d00d4c795f00003d43999b1a6ea1ca89c2b056a3bd911895b.md"
+              ],
+              "document_id": "bd1b92c5-0c9e-517e-bb3c-6a325d59c219",
+              "raw_scrape_ids": [
+                "2fa08e2a-ed24-5570-b5ac-1066ae77f7bc"
+              ],
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-9qjof.8-live-gate-20260414-012813"
+            },
+            "retry_class": "none",
+            "status": "succeeded"
+          },
+          "search_materialize": {
+            "alerts": [],
+            "command": "search_materialize",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "counts": {
+              "search_results": 10
+            },
+            "created_at": "2026-04-14T01:28:15.494657+00:00",
+            "decision_reason": "fresh_snapshot_materialized",
+            "details": {
+              "query": "San Jose CA city council meeting minutes housing"
+            },
+            "envelope": {
+              "analysis_question": "Summarize concrete housing decisions from these San Jose meeting minutes; cite agenda item context.",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-9qjof.8-live-gate-20260414-012813",
+              "jurisdiction": "San Jose CA",
+              "orchestrator": "windmill",
+              "scope_idempotency_key": "bd-9qjof.8-live-gate-20260414-012813::1c07b61a28453506",
+              "search_query": "San Jose CA city council meeting minutes housing",
+              "source_family": "meeting_minutes",
+              "stale_status": "fresh",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-9qjof.8-live-gate-20260414-012813",
+              "windmill_workspace": "affordabot"
+            },
+            "refs": {
+              "search_snapshot_id": "5ed2fcf9-5ced-4890-9fd7-9345be375eab",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-9qjof.8-live-gate-20260414-012813"
+            },
+            "retry_class": "none",
+            "status": "succeeded"
+          },
+          "summarize_run": {
+            "alerts": [],
+            "command": "summarize_run",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "counts": {
+              "analyses": 1,
+              "artifacts": 1,
+              "chunks": 403,
+              "evidence_chunks": 20,
+              "raw_scrapes": 1,
+              "search_results": 20
+            },
+            "created_at": "2026-04-14T01:30:01.256281+00:00",
+            "decision_reason": "run_summary_materialized",
+            "details": {
+              "step_statuses": {
+                "analyze": "succeeded",
+                "freshness_gate": "succeeded",
+                "index": "succeeded",
+                "read_fetch": "succeeded",
+                "search_materialize": "succeeded"
+              }
+            },
+            "envelope": {
+              "analysis_question": "Summarize concrete housing decisions from these San Jose meeting minutes; cite agenda item context.",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-9qjof.8-live-gate-20260414-012813",
+              "jurisdiction": "San Jose CA",
+              "orchestrator": "windmill",
+              "scope_idempotency_key": "bd-9qjof.8-live-gate-20260414-012813::1c07b61a28453506",
+              "search_query": "San Jose CA city council meeting minutes housing",
+              "source_family": "meeting_minutes",
+              "stale_status": "fresh",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-9qjof.8-live-gate-20260414-012813",
+              "windmill_workspace": "affordabot"
+            },
+            "refs": {
+              "analyze_reason": "analysis_completed",
+              "analyze_retry_class": "none",
+              "freshness_gate_reason": "fresh",
+              "freshness_gate_retry_class": "none",
+              "index_reason": "chunks_indexed",
+              "index_retry_class": "none",
+              "read_fetch_reason": "raw_scrapes_materialized",
+              "read_fetch_retry_class": "none",
+              "run_id": "e0ab58c9-d8dc-4c50-bdae-713b0855f770",
+              "search_materialize_reason": "fresh_snapshot_materialized",
+              "search_materialize_retry_class": "none",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-9qjof.8-live-gate-20260414-012813"
+            },
+            "retry_class": "none",
+            "status": "succeeded"
+          }
+        }
+      }
+    ],
+    "scope_succeeded": 1,
+    "scope_total": 1,
+    "status": "succeeded"
+  },
+  "run_mode": "backend-endpoint-run",
+  "search_provider_bakeoff": [
+    {
+      "endpoint": "https://searx.tiekoetter.com/search",
+      "failure_classification": "http_error",
+      "http_status": 429,
+      "latency_ms": 662,
+      "provider": "searxng",
+      "query": "San Jose CA city council meeting minutes housing",
+      "result_count": 0,
+      "status": "failed",
+      "top_results": []
+    },
+    {
+      "failure_classification": null,
+      "http_status": 200,
+      "latency_ms": 1073,
+      "provider": "exa",
+      "query": "San Jose CA city council meeting minutes housing",
+      "result_count": 5,
+      "status": "succeeded",
+      "top_results": [
+        {
+          "snippet": "",
+          "title": "2025-2026 Housing Department Council Memos | City of San Jos\u00e9",
+          "url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/resource-library/council-memos"
+        },
+        {
+          "snippet": "",
+          "title": "[PDF] CITY COUNCIL MEETING Amended Agenda - San Jose - Granicus",
+          "url": "https://sanjose.granicus.com/AgendaViewer.php?clip_id=14442&view_id=60"
+        },
+        {
+          "snippet": "",
+          "title": "",
+          "url": "https://sanjose.legistar.com/View.ashx?GUID=CF0F61B5-1467-4299-B504-21A4ADD6FCFF&ID=1345653&M=A"
+        }
+      ]
+    },
+    {
+      "failure_classification": null,
+      "http_status": 200,
+      "latency_ms": 511,
+      "provider": "tavily",
+      "query": "San Jose CA city council meeting minutes housing",
+      "result_count": 5,
+      "status": "succeeded",
+      "top_results": [
+        {
+          "snippet": "Consent Agenda. Permanent Local Housing Allocation Program Funding Round 4 and Round 5 from the California Department of Housing and Community Development.",
+          "title": "San Jose City Council Meeting Agendas - Legigram",
+          "url": "https://www.legigram.com/places/san-jose"
+        },
+        {
+          "snippet": "The purpose of the Study Session is to provide the City Council with an updated report on the Cost of Residential Development, including the",
+          "title": "City of San Jos\u00e9 - Meeting of City Council on 12/8/2025 at 9:30 AM",
+          "url": "https://sanjose.legistar.com/MeetingDetail.aspx?ID=1315729&GUID=3C17B03F-B014-43D5-B8DF-44024CDE065B&Options=info%7C&Search="
+        },
+        {
+          "snippet": "4/20/2026, Export to iCalendar, 1:30 PM, Council Chambers Study Session - From Ideation to Occupancy: A Guide to Building in San Jos\u00e9, Permitting, Timelines,",
+          "title": "City of San Jos\u00e9 - City Council - Calendar",
+          "url": "https://sanjose.legistar.com/DepartmentDetail.aspx?ID=21676&GUID=ACCCCFF5-F14A-4E1A-8540-9065F45A8A90"
+        }
+      ]
+    }
+  ],
+  "stale_drills": [
+    {
+      "freshness_gate_reason": "stale_but_usable",
+      "freshness_gate_status": "succeeded_with_alerts",
+      "idempotency_key": "bd-9qjof.8-live-gate-20260414-012813:stale_but_usable",
+      "quality_blocked": false,
+      "read_fetch_reason": "raw_scrapes_materialized",
+      "read_fetch_status": "succeeded",
+      "requested_stale_status": "stale_but_usable",
+      "scope_failed": 0,
+      "scope_succeeded": 1,
+      "status": "succeeded",
+      "step_sequence": [
+        "search_materialize",
+        "freshness_gate",
+        "read_fetch",
+        "index",
+        "analyze",
+        "summarize_run"
+      ]
+    },
+    {
+      "freshness_gate_reason": "stale_blocked",
+      "freshness_gate_status": "blocked",
+      "idempotency_key": "bd-9qjof.8-live-gate-20260414-012813:stale_blocked",
+      "quality_blocked": false,
+      "read_fetch_reason": null,
+      "read_fetch_status": null,
+      "requested_stale_status": "stale_blocked",
+      "scope_failed": 0,
+      "scope_succeeded": 0,
+      "status": "failed",
+      "step_sequence": [
+        "search_materialize",
+        "freshness_gate",
+        "summarize_run"
+      ]
+    }
+  ],
+  "storage_evidence_gates": {
+    "analysis_provenance_chain": {
+      "note": "successful analyze command row found",
+      "status": "passed"
+    },
+    "bridge_mode": {
+      "note": "",
+      "status": "railway_runtime"
+    },
+    "failure_handler_drill": {
+      "note": "failure injection is a separate pre-schedule gate; this San Jose product path run verified the native failure handler surface was configured",
+      "status": "not_run"
+    },
+    "idempotent_rerun": {
+      "note": "rerun_status=succeeded rerun_quality_blocked=False idempotent_reuse=True",
+      "status": "passed"
+    },
+    "minio_object_refs": {
+      "note": "storage_uri refs present in content_artifacts",
+      "status": "passed"
+    },
+    "pgvector_index_probe": {
+      "note": "document_chunks rows found with embeddings (3533)",
+      "status": "passed"
+    },
+    "postgres_rows_written": {
+      "note": "Postgres product rows found",
+      "status": "passed"
+    },
+    "quality_gate_blocked_before_index_analyze": {
+      "note": "current run completed past read_fetch; reader quality block was not expected in this success path",
+      "status": "not_applicable"
+    },
+    "reader_output_ref": {
+      "note": "content_artifacts rows found",
+      "status": "passed"
+    },
+    "stale_drill_stale_blocked": {
+      "note": "{'idempotency_key': 'bd-9qjof.8-live-gate-20260414-012813:stale_blocked', 'requested_stale_status': 'stale_blocked', 'status': 'failed', 'scope_succeeded': 0, 'scope_failed': 0, 'step_sequence': ['search_materialize', 'freshness_gate', 'summarize_run'], 'freshness_gate_status': 'blocked', 'freshness_gate_reason': 'stale_blocked', 'read_fetch_status': None, 'read_fetch_reason': None, 'quality_blocked': False}",
+      "status": "passed"
+    },
+    "stale_drill_stale_but_usable": {
+      "note": "{'idempotency_key': 'bd-9qjof.8-live-gate-20260414-012813:stale_but_usable', 'requested_stale_status': 'stale_but_usable', 'status': 'succeeded', 'scope_succeeded': 1, 'scope_failed': 0, 'step_sequence': ['search_materialize', 'freshness_gate', 'read_fetch', 'index', 'analyze', 'summarize_run'], 'freshness_gate_status': 'succeeded_with_alerts', 'freshness_gate_reason': 'stale_but_usable', 'read_fetch_status': 'succeeded', 'read_fetch_reason': 'raw_scrapes_materialized', 'quality_blocked': False}",
+      "status": "passed"
+    }
+  },
+  "surface_checks": {
+    "jobs_checked_count": 20,
+    "schedule_count": 4,
+    "workspace_profile_listed": true
+  }
+}

@@ -1,0 +1,94 @@
+summary: Affordabot pipeline daily refresh (direct storage bakeoff)
+description: >
+  Path A Windmill-heavy direct-storage flow for San Jose meeting-minutes
+  evidence collection. This flow intentionally avoids backend domain endpoints.
+value:
+  modules:
+    - id: search_materialize
+      value:
+        type: script
+        path: f/affordabot/pipeline_daily_refresh_direct_storage
+        input_transforms:
+          run_date:
+            type: javascript
+            expr: flow_input.run_date
+          scenario:
+            type: static
+            value: normal
+          emit_suite:
+            type: static
+            value: false
+        retry:
+          attempts: 2
+          backoff:
+            initial_interval: 30
+            max_interval: 180
+            multiplier: 2
+    - id: rerun_idempotency
+      value:
+        type: script
+        path: f/affordabot/pipeline_daily_refresh_direct_storage
+        input_transforms:
+          run_date:
+            type: javascript
+            expr: flow_input.run_date
+          scenario:
+            type: static
+            value: normal
+          emit_suite:
+            type: static
+            value: false
+    - id: searx_failure_drill
+      value:
+        type: script
+        path: f/affordabot/pipeline_daily_refresh_direct_storage
+        input_transforms:
+          run_date:
+            type: javascript
+            expr: flow_input.run_date
+          scenario:
+            type: static
+            value: searx_failure
+          emit_suite:
+            type: static
+            value: false
+    - id: reader_failure_drill
+      value:
+        type: script
+        path: f/affordabot/pipeline_daily_refresh_direct_storage
+        input_transforms:
+          run_date:
+            type: javascript
+            expr: flow_input.run_date
+          scenario:
+            type: static
+            value: reader_failure
+          emit_suite:
+            type: static
+            value: false
+    - id: storage_failure_drill
+      value:
+        type: script
+        path: f/affordabot/pipeline_daily_refresh_direct_storage
+        input_transforms:
+          run_date:
+            type: javascript
+            expr: flow_input.run_date
+          scenario:
+            type: static
+            value: storage_failure
+          emit_suite:
+            type: static
+            value: false
+concurrency:
+  limit: 1
+  key: affordabot-bakeoff-direct-storage
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  properties:
+    run_date:
+      type: string
+      description: Idempotency date for the San Jose slice.
+  required: []
+ws_error_handler_muted: false

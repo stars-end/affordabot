@@ -18,6 +18,12 @@ DEFAULT_ZAI_CHAT_COMPLETIONS_URL = "https://api.z.ai/api/coding/paas/v4/chat/com
 DEFAULT_ZAI_SEARCH_MODEL = "glm-4.7"
 DDG_HTML_SEARCH_URL = "https://html.duckduckgo.com/html/"
 DEFAULT_USER_AGENT = "Mozilla/5.0"
+SEARXNG_PROVIDER_NAMES = {"oss_searxng", "searxng", "searx"}
+TAVILY_PROVIDER_NAMES = {"tavily"}
+EXA_PROVIDER_NAMES = {"exa"}
+DEFAULT_TAVILY_SEARCH_URL = "https://api.tavily.com/search"
+DEFAULT_EXA_SEARCH_URL = "https://api.exa.ai/search"
+DEFAULT_EXA_USER_AGENT = "affordabot-backend/1.0"
 
 
 class ZaiStructuredWebSearchClient:
@@ -223,8 +229,314 @@ class ZaiStructuredWebSearchClient:
         await self.client.aclose()
 
 
-def create_web_search_client(api_key: str | None) -> ZaiStructuredWebSearchClient:
-    """Create a web-search client using the validated Z.ai structured-search path."""
+class OssSearxngWebSearchClient:
+    """Search client using a SearXNG JSON endpoint."""
+
+    def __init__(
+        self,
+        endpoint: str,
+        *,
+        timeout_s: float = 20.0,
+        user_agent: str = DEFAULT_USER_AGENT,
+    ) -> None:
+        self.endpoint = endpoint.strip()
+        self.timeout_s = max(0.1, timeout_s)
+        self.user_agent = user_agent
+        self.client = httpx.AsyncClient(timeout=self.timeout_s)
+
+    async def search(
+        self,
+        query: str,
+        count: int = 5,
+        domains: list[str] | None = None,
+        recency: str | None = None,
+        **kwargs: Any,
+    ) -> list[dict[str, Any]]:
+        _ = recency
+        if not self.endpoint:
+            logger.warning("SearXNG search requested without SEARXNG endpoint")
+            return []
+        search_query = query
+        if domains:
+            search_query = f"{query} " + " ".join(f"site:{domain}" for domain in domains)
+        try:
+            response = await self.client.get(
+                self.endpoint,
+                params={"q": search_query, "format": "json", **kwargs},
+                headers={"User-Agent": self.user_agent},
+            )
+            response.raise_for_status()
+            return self._normalize_results(response.json(), count=count)
+        except Exception as e:
+            logger.warning("SearXNG search failed for %r: %s", query, e)
+            return []
+
+    @staticmethod
+    def _normalize_results(payload: dict[str, Any], count: int) -> list[dict[str, Any]]:
+        results: list[dict[str, Any]] = []
+        seen_urls: set[str] = set()
+        for item in payload.get("results") or []:
+            if not isinstance(item, dict):
+                continue
+            url = item.get("url") or item.get("link")
+            if not url or url in seen_urls:
+                continue
+            seen_urls.add(str(url))
+            snippet = item.get("content") or item.get("snippet") or ""
+            results.append(
+                {
+                    "title": item.get("title", ""),
+                    "url": str(url),
+                    "link": str(url),
+                    "snippet": snippet,
+                    "content": snippet,
+                    "engines": item.get("engines", []),
+                }
+            )
+            if len(results) >= count:
+                break
+        return results
+
+    async def close(self) -> None:
+        await self.client.aclose()
+
+
+class TavilyWebSearchClient:
+    """Search client using Tavily's search API."""
+
+    def __init__(
+        self,
+        api_key: str,
+        *,
+        endpoint: str = DEFAULT_TAVILY_SEARCH_URL,
+        timeout_s: float = 20.0,
+    ) -> None:
+        self.api_key = api_key.strip()
+        self.endpoint = endpoint.strip() or DEFAULT_TAVILY_SEARCH_URL
+        self.timeout_s = max(0.1, timeout_s)
+        self.client = httpx.AsyncClient(timeout=self.timeout_s)
+
+    async def search(
+        self,
+        query: str,
+        count: int = 5,
+        domains: list[str] | None = None,
+        recency: str | None = None,
+        **kwargs: Any,
+    ) -> list[dict[str, Any]]:
+        _ = recency
+        if not self.api_key:
+            logger.warning("Tavily search requested without TAVILY_API_KEY")
+            return []
+
+        payload: dict[str, Any] = {
+            "query": query,
+            "search_depth": os.getenv("TAVILY_SEARCH_DEPTH", "basic"),
+            "include_raw_content": os.getenv("TAVILY_INCLUDE_RAW_CONTENT", "false").lower()
+            in {"1", "true", "yes"},
+            "max_results": max(1, count),
+        }
+        if domains:
+            payload["include_domains"] = domains
+        payload.update(kwargs)
+
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
+        try:
+            response = await self.client.post(self.endpoint, json=payload, headers=headers)
+            response.raise_for_status()
+            return self._normalize_results(response.json(), count=count)
+        except Exception as e:
+            logger.warning("Tavily search failed for %r: %s", query, e)
+            return []
+
+    @staticmethod
+    def _normalize_results(payload: dict[str, Any], count: int) -> list[dict[str, Any]]:
+        results: list[dict[str, Any]] = []
+        seen_urls: set[str] = set()
+        for item in payload.get("results") or []:
+            if not isinstance(item, dict):
+                continue
+            url = item.get("url") or item.get("link")
+            if not url or url in seen_urls:
+                continue
+            seen_urls.add(str(url))
+            snippet = item.get("content") or item.get("snippet") or ""
+            content = item.get("raw_content") or snippet
+            results.append(
+                {
+                    "title": item.get("title", ""),
+                    "url": str(url),
+                    "link": str(url),
+                    "snippet": str(snippet),
+                    "content": str(content),
+                    "score": item.get("score"),
+                }
+            )
+            if len(results) >= count:
+                break
+        return results
+
+    async def close(self) -> None:
+        await self.client.aclose()
+
+
+class ExaWebSearchClient:
+    """Search client using Exa's search API."""
+
+    def __init__(
+        self,
+        api_key: str,
+        *,
+        endpoint: str = DEFAULT_EXA_SEARCH_URL,
+        timeout_s: float = 20.0,
+        user_agent: str = DEFAULT_EXA_USER_AGENT,
+    ) -> None:
+        self.api_key = api_key.strip()
+        self.endpoint = endpoint.strip() or DEFAULT_EXA_SEARCH_URL
+        self.timeout_s = max(0.1, timeout_s)
+        self.user_agent = user_agent.strip() or DEFAULT_EXA_USER_AGENT
+        self.client = httpx.AsyncClient(timeout=self.timeout_s)
+
+    async def search(
+        self,
+        query: str,
+        count: int = 5,
+        domains: list[str] | None = None,
+        recency: str | None = None,
+        **kwargs: Any,
+    ) -> list[dict[str, Any]]:
+        _ = domains
+        _ = recency
+        if not self.api_key:
+            logger.warning("Exa search requested without EXA_API_KEY")
+            return []
+
+        payload: dict[str, Any] = {
+            "query": query,
+            "numResults": max(1, count),
+            "type": "auto",
+            "contents": {"highlights": {"maxCharacters": 400}},
+        }
+        payload.update(kwargs)
+        headers = {
+            "x-api-key": self.api_key,
+            "Content-Type": "application/json",
+            "User-Agent": self.user_agent,
+        }
+        try:
+            response = await self.client.post(self.endpoint, json=payload, headers=headers)
+            response.raise_for_status()
+            return self._normalize_results(response.json(), count=count)
+        except Exception as e:
+            logger.warning("Exa search failed for %r: %s", query, e)
+            return []
+
+    @staticmethod
+    def _normalize_results(payload: dict[str, Any], count: int) -> list[dict[str, Any]]:
+        results: list[dict[str, Any]] = []
+        seen_urls: set[str] = set()
+        for item in payload.get("results") or []:
+            if not isinstance(item, dict):
+                continue
+            url = item.get("url") or item.get("link")
+            if not url:
+                continue
+            normalized_url = str(url)
+            if normalized_url in seen_urls:
+                continue
+            seen_urls.add(normalized_url)
+            highlights = item.get("highlights") or []
+            snippet = ""
+            if isinstance(highlights, list) and highlights:
+                snippet = str(highlights[0])
+            result_position = len(results) + 1
+            results.append(
+                {
+                    "title": item.get("title", ""),
+                    "url": normalized_url,
+                    "link": normalized_url,
+                    "snippet": snippet,
+                    "content": snippet,
+                    "provider": "exa",
+                    "position": result_position,
+                }
+            )
+            if len(results) >= count:
+                break
+        return results
+
+    async def close(self) -> None:
+        await self.client.aclose()
+
+
+def _configured_searxng_endpoint() -> str:
+    return (
+        os.getenv("SEARXNG_SEARCH_ENDPOINT")
+        or os.getenv("WEB_SEARCH_SEARXNG_ENDPOINT")
+        or os.getenv("SEARXNG_ENDPOINT")
+        or ""
+    ).strip()
+
+
+def create_web_search_client(
+    api_key: str | None,
+) -> (
+    ZaiStructuredWebSearchClient
+    | OssSearxngWebSearchClient
+    | TavilyWebSearchClient
+    | ExaWebSearchClient
+):
+    """Create the configured web-search client.
+
+    Z.ai structured search is retained for backward compatibility, but the
+    Windmill persisted-pipeline POC can opt into OSS SearXNG by setting
+    WEB_SEARCH_PROVIDER=oss_searxng and SEARXNG_SEARCH_ENDPOINT. If a SearXNG
+    endpoint is configured but WEB_SEARCH_PROVIDER is absent, prefer SearXNG so
+    deployed POC environments do not silently fall back to the broken Z.ai
+    search path.
+    """
+    searxng_endpoint = _configured_searxng_endpoint()
+    provider = os.getenv("WEB_SEARCH_PROVIDER", "").strip().lower()
+    if provider in SEARXNG_PROVIDER_NAMES or (not provider and searxng_endpoint):
+        timeout_s = float(os.getenv("WEB_SEARCH_SEARXNG_TIMEOUT_S", "20"))
+        logger.info("Using OSS SearXNG search endpoint: %s", searxng_endpoint)
+        return OssSearxngWebSearchClient(
+            endpoint=searxng_endpoint,
+            timeout_s=timeout_s,
+        )
+    if provider in TAVILY_PROVIDER_NAMES:
+        tavily_api_key = (os.getenv("TAVILY_API_KEY", "") or api_key or "").strip()
+        if not tavily_api_key:
+            raise ValueError("missing TAVILY_API_KEY for WEB_SEARCH_PROVIDER=tavily")
+        tavily_endpoint = os.getenv("TAVILY_SEARCH_ENDPOINT", DEFAULT_TAVILY_SEARCH_URL).strip()
+        timeout_s = float(os.getenv("WEB_SEARCH_TAVILY_TIMEOUT_S", "20"))
+        logger.info("Using Tavily search endpoint: %s", tavily_endpoint)
+        return TavilyWebSearchClient(
+            api_key=tavily_api_key,
+            endpoint=tavily_endpoint,
+            timeout_s=timeout_s,
+        )
+    if provider in EXA_PROVIDER_NAMES:
+        exa_api_key = (os.getenv("EXA_API_KEY", "") or api_key or "").strip()
+        if not exa_api_key:
+            raise ValueError("missing EXA_API_KEY for WEB_SEARCH_PROVIDER=exa")
+        exa_endpoint = os.getenv("EXA_SEARCH_ENDPOINT", DEFAULT_EXA_SEARCH_URL).strip()
+        timeout_s = float(os.getenv("WEB_SEARCH_EXA_TIMEOUT_S", "20"))
+        user_agent = os.getenv("WEB_SEARCH_EXA_USER_AGENT", DEFAULT_EXA_USER_AGENT).strip()
+        logger.info("Using Exa search endpoint: %s", exa_endpoint)
+        return ExaWebSearchClient(
+            api_key=exa_api_key,
+            endpoint=exa_endpoint,
+            timeout_s=timeout_s,
+            user_agent=user_agent,
+        )
+
+    if provider and provider not in {"zai", "zai_structured", "zai_web_search"}:
+        raise ValueError(f"unsupported WEB_SEARCH_PROVIDER: {provider}")
+
     endpoint = (
         os.getenv("ZAI_SEARCH_ENDPOINT", DEFAULT_ZAI_CHAT_COMPLETIONS_URL)
         .strip()

@@ -1,15 +1,38 @@
+## Repo-Memory Brownfield Maps
+
+Before changing pipeline, storage, analysis, Windmill orchestration, or admin
+frontend surfaces, read the maintained repo-memory maps:
+
+- `docs/architecture/README.md`
+- `docs/architecture/BROWNFIELD_MAP.md`
+- `docs/architecture/DATA_AND_STORAGE.md`
+- `docs/architecture/WORKFLOWS_AND_PATTERNS.md`
+- `docs/architecture/ECONOMIC_ANALYSIS_PIPELINE.md`
+
+These maps are the repo-owned source of truth for brownfield orientation. Beads
+memory is a pointer/decision log, not proof. Legacy context-area workflows may
+exist in `.github/workflows`; do not treat regenerated context-area output as
+canonical unless a task explicitly targets that legacy system.
+
 ## Beads Integration
 
 ### Beads State Sync
 
 **Before starting work**:
 ```bash
-cd ~/bd
+export BEADS_DIR="${BEADS_DIR:-$HOME/.beads-runtime/.beads}"
 export BEADS_DOLT_SERVER_HOST="${BEADS_DOLT_SERVER_HOST:-100.107.173.83}"
-export BEADS_DOLT_SERVER_PORT=3307
-beads-dolt dolt test --json
+export BEADS_DOLT_SERVER_PORT="${BEADS_DOLT_SERVER_PORT:-3307}"
+bd dolt test --json
 beads-dolt status --json | jq -c '.summary'
 ```
+
+Notes:
+- `~/.beads-runtime/.beads` is the active runtime path.
+- `~/beads` is the Beads CLI source/build checkout, not runtime state.
+- `~/bd` is legacy rollback state and not active runtime truth.
+- Do not run mutating Beads operations from app repos unless a documented override says otherwise.
+- For control-plane Beads operations, prefer a non-app cwd with `BEADS_DIR` set.
 
 **Failure mode**:
 - `beads-dolt dolt test --json` reports `connection_ok: false`

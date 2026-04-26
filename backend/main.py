@@ -3,6 +3,7 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from services.notifications.email import EmailNotificationService
 from db.postgres_client import PostgresDB
+from services.storage import S3Storage
 from typing import Dict, Any, List, Literal, Optional
 import os
 import logging
@@ -14,6 +15,8 @@ from services.scraper.registry import SCRAPERS
 from middleware.auth import TestAuthBypassMiddleware
 from services.llm.web_search_factory import create_web_search_client
 from scripts.substrate.manual_expansion_runner import run_manual_substrate_expansion
+from services.pipeline.domain.bridge import PipelineDomainBridge, RunScopeRequest
+from services.pipeline.domain.constants import CONTRACT_VERSION as PIPELINE_CONTRACT_VERSION
 from pathlib import Path
 from datetime import datetime, timezone
 from pydantic import BaseModel, Field
@@ -390,6 +393,34 @@ class ManualSubstrateExpansionManifest(BaseModel):
     notes: Optional[str] = None
 
 
+class PipelineDomainRunScopeRequest(BaseModel):
+    contract_version: str = Field(default=PIPELINE_CONTRACT_VERSION, min_length=1)
+    idempotency_key: str = Field(min_length=1)
+    jurisdiction: str = Field(min_length=1)
+    source_family: str = Field(min_length=1)
+    stale_status: str = Field(default="fresh", min_length=1)
+    windmill_workspace: str = Field(default="affordabot", min_length=1)
+    windmill_flow_path: str = Field(
+        default="f/affordabot/pipeline_daily_refresh_domain_boundary__flow", min_length=1
+    )
+    windmill_run_id: str = Field(min_length=1)
+    windmill_job_id: str = Field(min_length=1)
+    search_query: str = Field(min_length=1)
+    analysis_question: str = Field(min_length=1)
+
+
+def _get_pipeline_domain_bridge() -> PipelineDomainBridge:
+    bridge = getattr(app.state, "pipeline_domain_bridge", None)
+    if bridge is None:
+        storage = getattr(app.state, "pipeline_artifact_storage", None)
+        if storage is None:
+            storage = S3Storage()
+            app.state.pipeline_artifact_storage = storage
+        bridge = PipelineDomainBridge(db=db, storage=storage)
+        app.state.pipeline_domain_bridge = bridge
+    return bridge
+
+
 @app.post("/cron/discovery")
 async def cron_discovery(request: Request):
     """
@@ -485,6 +516,36 @@ async def cron_manual_substrate_expansion(
         response["status"],
     )
     return response
+
+
+@app.post("/cron/pipeline/domain/run-scope")
+async def cron_pipeline_domain_run_scope(
+    request: Request,
+    payload: PipelineDomainRunScopeRequest,
+):
+    """Authenticated coarse command bridge for Windmill run_scope_pipeline."""
+    if not _verify_cron_auth(request):
+        raise HTTPException(status_code=401, detail="Invalid cron credentials")
+
+    bridge = _get_pipeline_domain_bridge()
+    try:
+        return await bridge.run_scope_pipeline(
+            RunScopeRequest(
+                contract_version=payload.contract_version,
+                idempotency_key=payload.idempotency_key,
+                jurisdiction=payload.jurisdiction,
+                source_family=payload.source_family,
+                stale_status=payload.stale_status,
+                windmill_workspace=payload.windmill_workspace,
+                windmill_flow_path=payload.windmill_flow_path,
+                windmill_run_id=payload.windmill_run_id,
+                windmill_job_id=payload.windmill_job_id,
+                search_query=payload.search_query,
+                analysis_question=payload.analysis_question,
+            )
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 async def _run_script_job(script_path: str, job_name: str):

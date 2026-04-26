@@ -6,8 +6,8 @@
 
 # Universal Baseline — Agent Skills
 <!-- AUTO-GENERATED -->
-<!-- Source SHA: e249c9ff973ad8958c2b3980b64c5f9ee134b4a8 -->
-<!-- Last updated: 2026-03-20 10:39:02 UTC -->
+<!-- Source SHA: 0c91f6d615f07f67a6432407d6a46ea6633a1759 -->
+<!-- Last updated: 2026-04-12 05:22:02 UTC -->
 <!-- Regenerate: make publish-baseline -->
 
 ## Nakomi Agent Protocol
@@ -163,20 +163,27 @@ cd /tmp/agents/bd-xxxx/repo-name
 # Work here
 \`\`\`
 
-## 1.5) Canonical Beads Contract (V8.4)
-- **Canonical Beads repo is always \`~/bd\`** (remote must be \`stars-end/bd\`).
-- **Run \`dx-runner\` / \`dx-batch\` control-plane commands from \`~/bd\`**.
+## 1.5) Canonical Beads Contract (V8.6)
+- **Active Beads runtime path is always \`~/.beads-runtime/.beads\`**.
+- **\`~/beads\` is the Beads CLI source/build checkout, not runtime state**.
+- **\`~/bd\` is legacy/rollback Git-backed state, not active runtime truth**.
+- **Run \`dx-runner\` / \`dx-batch\` control-plane commands from any non-app directory with \`BEADS_DIR=~/.beads-runtime/.beads\`**.
+- **Set \`BEADS_DIR=~/.beads-runtime/.beads\` in normal agent shells**.
 - **Never run mutating Beads commands from app repos** (\`~/prime-radiant-ai\`, \`~/agent-skills\`, etc.) unless explicitly using a documented override.
 - **Backend must be Dolt server mode** for multi-VM/multi-agent reliability.
+- **\`epyc12\` is the central Dolt server host**.
+- **Client hosts must not rely on local \`~/bd/.beads/dolt\` data directories**.
 - **Legacy macOS \`io.agentskills.ru\` LaunchAgent is disabled by policy** (use cron/systemd schedules only).
 - **Before dispatch**: verify \`bd dolt test --json\` succeeds and Beads service is active on the host.
+- **\`beads.role\` self-heal**: if mutating \`bd\` commands warn \`beads.role not configured\` while \`bd dolt test --json\` passes, run \`bd config set beads.role maintainer\`; if that fails outside a Git repo, run \`git config --global beads.role maintainer\` before escalating. This is local config drift, not a hub outage.
+- **Do not infer runtime health from \`~/bd\` git cleanliness or Git sync**; use live Beads checks.
 - **Host service contract**:
   - Linux canonical VMs: \`systemctl --user is-active beads-dolt.service\`
   - macOS canonical host: \`launchctl print gui/\$(id -u)/com.starsend.beads-dolt\`
 - **Source-of-truth runbook**: \`~/agent-skills/docs/PRIME_RADIANT_BEADS_DOLT_RUNBOOK.md\`
 
 ## 2) V8 DX Automation Rules
-1. **No auto-merge**: never enable auto-merge on PRs — humans merge
+1. **No auto-merge**: never enable GitHub auto-merge on PRs. Direct agent-executed merges are allowed only after explicit current-session HITL approval and passing merge gates.
 2. **No PR factory**: one PR per meaningful unit of work
 3. **No canonical writes**: always use worktrees
 4. **Feature-Key mandatory**: every commit needs \`Feature-Key: bd-<beads-id>\`
@@ -188,7 +195,8 @@ cd /tmp/agents/bd-xxxx/repo-name
 ## 4) Delegation Rule (V8.4 - Batch by Outcome)
 - **Primary rule**: batch by outcome, not by file. One agent per coherent change set.
 - **Default parallelism**: 2 agents, scale to 3-4 only when independent and stable.
-- **Dispatch threshold**: implement directly for scoped work estimated under 60 minutes; dispatch only for >=60 minute, clearly parallelizable outcomes.
+- **Default orchestration rule**: for chained Beads work, multi-step outcomes, or tasks expected to need implement/review baton flow, use \`dx-loop\` as the default execution surface.
+- **Direct/manual fallback**: implement directly only for isolated single-task work or when \`dx-loop\` itself is the active blocker.
 - **Do not delegate**: security-sensitive changes, architectural decisions, or high-blast-radius refactors.
 - **Orchestrator owns outcomes**: review diffs, run validation, commit/push with required trailers.
 - **See Section 6** for detailed parallel orchestration patterns.
@@ -202,23 +210,39 @@ cd /tmp/agents/bd-xxxx/repo-name
 - **Railway CLI token**: \`op://dev/Agent-Secrets-Production/RAILWAY_API_TOKEN\` for CI/automation.
 - **Quick reference**: use the \`op-secrets-quickref\` skill.
 
+### 5.0) Agent Secret-Auth Invariant (Always-On)
+
+- For routine agent secret access, raw \`op read\`, \`op item get\`, \`op item list\`, and \`op whoami\` are forbidden.
+- Human GUI-backed OP is bootstrap/recovery only; it is not an acceptable fallback for autonomous agent tasks.
+- Agents must use cache/service-account helpers, preferably \`DX_AUTH_CACHE_ONLY=1 dx_auth_read_secret_cached ...\`.
+- On cache/service-account miss, fail closed with a blocker. Do not fall back to GUI OP.
+- Do not run OP retry loops unless the task is explicitly auth repair.
+
 ### 5.1) Agent Onboarding SOP (Required First Steps)
 
 New agents MUST complete these steps before any other work:
 
-**Step 1: Load 1Password Service Account**
+**Step 1: Verify Agent-Safe 1Password Auth**
 \`\`\`bash
-# Recommended helper
-~/agent-skills/scripts/dx-load-railway-auth.sh -- op whoami
+# Classifies local auth without printing secrets.
+~/agent-skills/scripts/dx-bootstrap-auth.sh --json
+
+# Accept for agents/cron:
+#   mode=agent_ready_cache
+#   mode=agent_ready_service_account
+#
+# macOS-only human bootstrap:
+#   mode=human_interactive_only means 1Password GUI-backed op works for a
+#   person, but agents/cron still need synced cache or a service-account
+#   artifact.
+#   If op whoami says "no account found" after unlocking 1Password, run
+#   op signin once for that unlock/session.
 
 # Fallback search order if manual recovery is needed:
 #   1. ~/.config/systemd/user/op-<canonical-host-key>-token
 #   2. ~/.config/systemd/user/op-<canonical-host-key>-token.cred
 #   3. ~/.config/systemd/user/op_token
 #   4. ~/.config/systemd/user/op_token.cred
-
-# Verify
-op whoami  # Must show: User Type: SERVICE_ACCOUNT
 \`\`\`
 
 **Step 2: Authenticate Railway CLI**
@@ -228,15 +252,17 @@ op whoami  # Must show: User Type: SERVICE_ACCOUNT
 
 **Step 3: Verify Full Stack**
 \`\`\`bash
-op item list --vault dev  # Should list items
-railway status            # Should show project context
+~/agent-skills/scripts/dx-load-railway-auth.sh -- railway whoami
+railway status  # Should show project context when run in a linked repo/context
 \`\`\`
 
 **Common Issues:**
-- \`op whoami\` shows "account is not signed in" → Load OP_SERVICE_ACCOUNT_TOKEN
+- \`dx-op-auth-status.sh\` returns \`human_interactive_only\` → macOS GUI is linked, but agent-safe cache/service-account auth is still missing
+- \`dx-op-auth-status.sh\` returns \`blocked\` → sync OP cache from \`epyc12\` or create a service-account credential
+- \`op whoami\` says \`no account found\` on macOS → unlock 1Password, run \`op signin\`, and verify CLI integration; this is human bootstrap only
 - \`railway whoami\` shows "Unauthorized" → Load OP + Railway auth in the same invocation (not separate tool calls)
 - repeated auth failures across shell/tool calls → Use \`~/agent-skills/scripts/dx-load-railway-auth.sh -- <command>\`
-- Token file not found → Run \`~/agent-skills/scripts/create-op-credential.sh\`
+- cache missing on a consumer host → sync OP cache artifacts from \`epyc12\` before retrying
 
 ### 5.2) Railway Link Non-Interactive Usage (CRITICAL)
 
@@ -282,6 +308,60 @@ If a named skill contains an explicit `BLOCKED` contract:
 - `No such file or directory` for a requested binary means the binary/runtime is missing unless the skill explicitly says otherwise
 - when Railway execution is required, agents must use explicit non-interactive context (`-p/-e/-s`) or a verified repo-native wrapper
 - ambient Railway link state from another repo/project is not sufficient evidence of correct target context
+
+### 5.4) MCP Tool-First Routing Contract (V8.6)
+
+- **Canonical active assistant stack**:
+  - \`llm-tldr\`: semantic discovery + exact static analysis / trace / impact
+  - \`serena\`: explicit symbol-aware edits
+- **Canonical non-default memory surface**:
+  - \`cass-memory\`: pilot-only CLI tool; not part of the default assistant loop
+
+### 5.5) Beads Memory Convention (V8.6)
+
+Use existing Beads primitives as the default durable memory layer before adding
+any new memory service or wrapper.
+
+- **Short facts**: use \`bd remember\`, \`bd memories\`, \`bd recall\`, and \`bd forget\`.
+- **Structured memory**: create normal Beads issues with \`--type decision\` or an appropriate custom type, plus the \`memory\` label.
+- **Memory body**: put the durable fact, decision, gotcha, runbook, or handoff in \`description\` / \`notes\`; use \`bd comments add\` for provenance and follow-up history.
+- **Required metadata for structured memory**: \`mem.kind\`, \`mem.repo\`, \`mem.maturity\`, \`mem.confidence\`, \`mem.source_issue\`, and source grounding such as \`mem.source_commit\`, \`mem.paths\`, or \`mem.stale_if_paths\` when known.
+- **Retrieval**: search short facts with \`bd memories <keyword>\`; search structured records with \`bd search <keyword> --label memory --status all\` and metadata filters such as \`bd search memory --label memory --metadata-field mem.repo=agent-skills --status all\`.
+- **Source of truth**: memory is a lead, not proof. Verify source-grounded claims with \`llm-tldr\` or direct source inspection before acting.
+- **Wrapper threshold**: add a dedicated \`bd-mem\` helper only if agents repeatedly fail to follow this convention.
+- **Detailed convention**: \`~/agent-skills/docs/BEADS_MEMORY_CONVENTION.md\`.
+
+Agents should think in terms of **capability**, not transport:
+- analysis/discovery/trace -> \`llm-tldr\`
+- explicit symbol operation -> \`serena\`
+- ordinary edit -> patch/diff-first CLI workflow
+
+For qualifying tasks, agents MUST route the first discovery action through the matching tool before broad shell search or repeated file traversal:
+- semantic repo discovery, feature location, "where does X live?", or "what code is related to X?" -> \`llm-tldr\` (semantic tool, requires \`tldr warm\` first)
+- exact call-path, slice, impact, CFG/DFG, dead-code, architectural layers, or structural trace -> \`llm-tldr\`
+- "understand this function and its dependencies" -> \`llm-tldr\` (context tool, 95% token savings)
+- "what tests need to run" -> \`llm-tldr\` (change_impact tool)
+- rename/refactor, insert-before/after-symbol, replace known symbol body/signature, or symbol lookup directly tied to an edit -> \`serena\`
+
+Transport handling rule:
+- prefer the local contained MCP surface when the tool is available in the current runtime
+- \`llm-tldr\` is filesystem-local: the MCP server process must run on a host that can read the requested project path
+- if \`llm-tldr\` MCP is unavailable in the current runtime, use the canonical local fallback instead of inventing a new analysis path
+- agents should not manually choose among MCP vs daemon vs raw CLI surfaces beyond this fallback rule
+
+Codex desktop hydration check:
+1. run \`codex mcp list\` and confirm the tool is configured
+2. restart Codex desktop once after MCP config or baseline changes
+3. retry one real in-thread MCP call
+4. only then escalate to fallback scripts, daemon debugging, or \`Tool routing exception\`
+
+Fallback to shell/file reads or ordinary patch editing is allowed only when:
+- the MCP tool is unavailable in the current runtime and no canonical fallback exists
+- the MCP tool cannot answer the question after one reasonable attempt
+- the MCP server process cannot read the host-local project path and the local contained fallback is unavailable or insufficient
+- the task is trivially faster with direct file access
+
+If the agent does not use the matching MCP tool on a qualifying task, it MUST state \`Tool routing exception: <reason>\` in the final response or handoff.
 
 ## 6) Parallel Agent Orchestration (V8.4)
 
@@ -483,7 +563,7 @@ VISUAL_BASE_URL=http://localhost:5173 pnpm --filter frontend test:visual:update
 
 | Skill | Description | Example | Tags |
 |-------|-------------|---------|------|
-| **beads-workflow** | Beads issue tracking and workflow management with automatic git branch creation. MUST BE USED for Beads operations. Handles full epic→branch→work lifecycle, dependencies, and ready task queries. Uses centralized Beads at ~/bd with Dolt server mode for canonical multi-VM reliability. Use when creating epics/features (auto-creates branch), tracking work, finding ready issues, or managing dependencies, or when user mentions "create issue", "track work", "bd create", "find ready tasks", issue management, dependencies, work tracking, or Beads workflow operations. | `bd create --title "Impl: OAuth" --type feature --dep "bd-res` | workflow, beads, issue-tracking, git |
+| **beads-workflow** | Beads issue tracking and workflow management with automatic git branch creation. MUST BE USED for Beads operations. Handles full epic→branch→work lifecycle, dependencies, and ready task queries. Uses Dolt server mode with runtime at ~/.beads-runtime/.beads for canonical multi-VM reliability. Use when creating epics/features (auto-creates branch), tracking work, finding ready issues, or managing dependencies, or when user mentions "create issue", "track work", "bd create", "find ready tasks", issue management, dependencies, work tracking, or Beads workflow operations. | `bd create --title "Impl: OAuth" --type feature --dep "bd-res` | workflow, beads, issue-tracking, git |
 | **create-pull-request** | Create GitHub pull request with atomic Beads issue closure. MUST BE USED for opening PRs. Asks if work is complete - if YES, closes Beads issue BEFORE creating PR. If NO, creates draft PR with issue still open. Automatically links Beads tracking and includes Feature-Key. Use when user wants to open a PR, submit work for review, merge into master, or prepare for deployment, or when user mentions "ready for review", "create PR", "open PR", "merge conflicts", "CI checks needed", "branch ahead of master", PR creation, opening pull requests, deployment preparation, or submitting for team review. | `bd create --title <FEATURE_KEY> --type feature --priority 2 ` | workflow, github, pr, beads, review |
 | **database-quickref** | Fail-fast quick reference for Railway Postgres operations. Use when user asks to check database, run queries, verify data, inspect tables, or mentions psql, postgres, database, "check the db", "validate data". | — | database, postgres, railway, psql |
 | **feature-lifecycle** | A suite of skills to manage the full development lifecycle from start to finish. - `start-feature`: Initializes a new feature branch, docs, and story. - `sync-feature`: Saves work with CI checks. - `finish-feature`: Verifies and creates a pull request. | — | workflow, git, feature, beads, dx |
@@ -491,7 +571,7 @@ VISUAL_BASE_URL=http://localhost:5173 pnpm --filter frontend test:visual:update
 | **fix-pr-feedback** | Address PR feedback with iterative refinement. MUST BE USED when fixing PR issues. Supports auto-detection (CI failures, code review) and manual triage (user reports bugs). Creates Beads issues for all problems, fixes systematically. Use when user says "fix the PR", "i noticed bugs", "ci failures", or "codex review found issues", or when user mentions CI failures, review comments, failing tests, PR iterations, bug fixes, feedback loops, or systematic issue resolution. | `bd show <FEATURE_KEY>` | workflow, pr, beads, debugging, iteration |
 | **issue-first** | Enforce Issue-First pattern by creating Beads tracking issue BEFORE implementation. MUST BE USED for all implementation work. Classifies work type (epic/feature/task/bug/chore), determines priority (0-4), finds parent in hierarchy, creates issue, then passes control to implementation. Use when starting implementation work, or when user mentions "no tracking issue", "missing Feature-Key", work classification, creating features, building new systems, beginning development, or implementing new functionality. | — | workflow, beads, issue-tracking, implementation |
 | **merge-pr** | Prepare PR for merge and guide human to merge via GitHub web UI. MUST BE USED when user wants to merge a PR. Verifies CI passing, verifies Beads issue already closed (from PR creation), and provides merge instructions. Issue closure happens at PR creation time (create-pull-request skill), NOT at merge time. Use when user says "merge the PR", "merge it", "merge this", "ready to merge", "merge to master", or when user mentions CI passing, approved reviews, ready-to-merge state, ready to ship, merge, deployment, PR completion, or shipping code. | `bd close bd-xyz --reason 'Closing before merge in PR #200'` | workflow, pr, github, merge, deployment |
-| **op-secrets-quickref** | Quick reference for 1Password service account auth and secret management. Use for: API keys, tokens, service accounts, op:// references, or auth failures in non-interactive contexts (cron, systemd, CI). Triggers: ZAI_API_KEY, OP_SERVICE_ACCOUNT_TOKEN, 1Password, "where do secrets live", auth failure, 401, permission denied. | — | secrets, auth, token, 1password, op-cli, dx, env, railway |
+| **op-secrets-quickref** | Quick reference for 1Password auth and secret management across macOS GUI, cache-only agent mode, and service-account automation. Use for: API keys, tokens, service accounts, op:// references, 1Password GUI/CLI confusion, or auth failures in non-interactive contexts (cron, systemd, CI). Triggers: ZAI_API_KEY, OP_SERVICE_ACCOUNT_TOKEN, 1Password, "where do secrets live", auth failure, 401, permission denied. | — | secrets, auth, token, 1password, op-cli, dx, env, railway |
 | **session-end** | End Claude Code session with Beads health verification and summary. MUST BE USED when user says they're done, ending session, or logging off. Verifies canonical Beads connectivity, shows session stats, and suggests next ready work. Handles cleanup and context saving. Use when user says "goodbye", "bye", "done for now", "logging off", or when user mentions end-of-session, session termination, cleanup, context saving, Beads checks, Dolt status, or export operations. | — | workflow, beads, session, cleanup |
 | **sync-feature-branch** | Commit current work to feature branch with Beads metadata tracking and git integration. MUST BE USED for all commit operations. Handles Feature-Key trailers, Beads status updates, and optional quick linting before commit. Use when user wants to save progress, commit changes, prepare work for review, sync local changes, or finalize current work, or when user mentions "uncommitted changes", "git status shows changes", "Feature-Key missing", commit operations, saving work, git workflows, or syncing changes. | `bd create --title <FEATURE_KEY> --type feature --priority 2 ` | workflow, git, beads, commit |
 | **tech-lead-handoff** | Create comprehensive handoff for tech lead review with Beads sync, PR artifacts, and self-contained review package. MUST BE USED when returning completed work to a tech lead/orchestrator for review (investigation OR implementation return). Use when user says "handoff", "tech lead review", "review this", "create handoff", or after completing significant work. | `bd show <beads-id>` | workflow, handoff, review, beads, documentation |
@@ -506,42 +586,45 @@ VISUAL_BASE_URL=http://localhost:5173 pnpm --filter frontend test:visual:update
 | **agent-browser** | Browser automation CLI for AI agents. Use when a CLI agent needs the standard manual browser interface for exploratory verification, navigation, form interaction, screenshots, auth-cookie setup, or app walkthroughs. This is the primary manual browser tool for CLI agents; keep Playwright focused on CI/E2E and assertion-heavy automation. | — | browser, automation, verification, cli, manual, qa |
 | **agent-skills-creator** | Create, update, or deprecate canonical skills in `~/agent-skills` using the current agent-skills method. MUST BE USED when the user wants a new skill, a skill refactor, a deprecation shim, skill metadata updates, or AGENTS baseline regeneration for skill changes. Use for canonical `agent-skills` work, not legacy `.claude/skills` or one-off local skill experiments. | `dx-worktree create <beads-id> agent-skills` | meta, skills, workflow, baseline, agent-skills |
 | **bv-integration** | Beads Viewer (BV) integration for visual task management and smart task selection. Use for Kanban views, dependency graphs, and the robot-plan API for auto-selecting next tasks. Keywords: beads, viewer, kanban, dependency graph, robot-plan, task selection, bottleneck | `bd show "$NEXT_TASK"` | workflow, beads, visualization, task-selection |
-| **cass-memory** | CLI-native procedural/episodic memory workflow with opt-in sanitized cross-agent digest sharing. | — |  |
+| **cass-memory** | Pilot-only CLI episodic memory workflow for explicit cross-agent memory experiments. | — |  |
 | **cc-glm** | Use cc-glm as the reliability/quality backstop provider via dx-runner for batched delegation with plan-first execution. Batch by outcome (not file). Primary dispatch is OpenCode; dx-runner --provider cc-glm is governed fallback for critical waves and OpenCode failures. Trigger when user mentions cc-glm, fallback lane, critical wave reliability, or batch execution. | `dx-runner start --provider cc-glm --beads bd-xxx --prompt-fi` | workflow, delegation, automation, claude-code, glm, parallel, fallback, reliability, opencode |
-| **cli-mastery** | **Tags:** #tools #cli #railway #github #env | — |  |
-| **context-plus** | MCP-native structural context analysis for codebase mapping and dependency-aware targeting. | — |  |
+| **cli-mastery** | CLI environment and command-line usage guidance for Railway, GitHub, and general repo workflows. | — |  |
+| **context-plus** | REMOVED from canonical fleet contract (bd-rb0c.8). context-plus was fully removed in favor of llm-tldr for semantic discovery and serena for symbol-aware edits. This skill is retained as a tombstone only. | — |  |
 | **coordinator-dx** | Coordinator playbook for multi-repo, multi-VM parallel execution with dx-runner as canonical governance surface, OpenCode as primary execution lane, and cc-glm as reliability backstop. dx-dispatch is break-glass only. | — |  |
-| **dirty-repo-bootstrap** | Safe recovery procedure for dirty/WIP repositories. This skill provides a standardized workflow for: - Snapshotting uncommitted work to a WIP branch | — |  |
+| **design-md** | Analyze Stitch projects and synthesize a semantic design system into DESIGN.md files | — |  |
+| **dirty-repo-bootstrap** | Safe recovery procedure for dirty or WIP repositories. Standardizes snapshotting uncommitted work to a WIP branch before destructive operations. | — |  |
 | **dx-batch** | Deterministic orchestration over dx-runner for autonomous implement->review waves. Orchestrates 2-3 parallel tasks across 15-20 Beads items with strict lease locking, persistent ledger, and machine-readable contracts. Use for batch execution of implementation tasks with automatic review cycles. | `dx-batch start --items bd-aaa,bd-bbb,bd-ccc [--max-parallel ` | workflow, orchestration, batch, dx-runner, governance, parallel |
 | **dx-loop-review-contract** | Deterministic review contract for dx-loop reviewer runs. Enforces findings-first review style, concrete verdicts, and machine-actionable end states for baton automation. | — | workflow, review, dx-loop, baton |
-| **dx-loop** | `dx-loop` is a PR-aware orchestration surface that reuses Ralph's proven patterns (baton, topological dependencies, checkpoint/resume) while replacing the contr | `dx-ensure-bins.sh` |  |
+| **dx-loop** | `dx-loop` is the default execution surface for chained Beads work, multi-step outcomes, and implement/review baton flows. It is a PR-aware orchestration surface that reuses Ralph's proven patterns (baton, topological dependencies, checkpoint/resume) while replacing the control plane with governed `dx-runner` dispatch and enforcing PR artifact contracts. | `dx-ensure-bins.sh` |  |
 | **dx-runner** | Canonical unified runner for multi-provider dispatch with shared governance. Routes to cc-glm, opencode, or gemini providers with unified preflight, gates, and failure taxonomy. Use when dispatching agent tasks, running headless jobs, or managing parallel agent sessions. | `dx-runner start --beads bd-xxx --provider cc-glm --worktree ` | workflow, dispatch, governance, multi-provider, automation |
 | **fleet-sync** | Fleet Sync orchestrator for MCP tool convergence, health checks, and IDE config management across canonical VMs. | — |  |
 | **grill-me** | Relentless product interrogation before planning or implementation. Use when the user wants exhaustive discovery, blind-spot identification, assumption stress-testing, edge-case analysis, or hard pushback on vague problem framing. | — | product, strategy, interrogation, discovery |
-| **gskill** | Auto-learn repository-specific skills for coding agents using SWE-smith  GEPA. Generates synthetic tasks and evolves skills through reflective optimization. Use when you want to improve agent performance on a specific repository. | — | skill-learning, gepa, swe-smith, optimization, auto-ml |
+| **gskill** | Auto-learn repository-specific skills for coding agents using SWE-smith + GEPA. Generates synthetic tasks and evolves skills through reflective optimization. Use when you want to improve agent performance on a specific repository. | — | skill-learning, gepa, swe-smith, optimization, auto-ml |
 | **impeccable** | Design skills for AI coding tools. Create distinctive, production-grade frontend interfaces that avoid generic "AI slop" aesthetics. Includes 7 reference guides and 17 design commands. Use when building web components, pages, artifacts, posters, or applications. Keywords: frontend, design, UI, UX, typography, color, motion, interaction, responsive, audit, polish | — | design, frontend, ui, ux, typography, color, motion, accessibility |
 | **implementation-planner** | Create self-contained implementation specs with canonical Beads epic/subtask/dependency structure. MUST BE USED when the user asks for an implementation plan, tech spec, rollout plan, migration plan, or explicitly asks for "a comprehensive implementation plan with Beads epic, dependencies, and subtasks". Use for new systems, multi-phase refactors, cross-repo work, infra changes, or any work that needs a reviewable plan before execution. | `bd create --title "<epic title>" --type epic --priority 1` | planning, beads, specification, workflow, architecture |
 | **lint-check** | Run quick linting checks on changed files. MUST BE USED when user wants to check code quality. Fast validation (<5s) following V3 trust-environments philosophy. Use when user says "lint my code", "check formatting", or "run linters", or when user mentions uncommitted changes, pre-commit state, formatting issues, code quality, style checks, validation, prettier, eslint, pylint, or ruff. | — | workflow, quality, linting, validation |
-| **llm-tldr** | MCP-native static analysis context slicing for precise, low-token task context extraction. | — |  |
+| **llm-tldr** | Canonical analysis tool for semantic discovery and exact static analysis with low-token context extraction. Prefer the MCP surface when available; otherwise use the canonical local fallback. | — |  |
 | **loop-orchestration** | Orchestrate Codex-first implementation loops built around `dx-runner` dispatch, bounded sleep intervals, status checks, review passes, and deterministic re-dispatch. Use when a live session should repeatedly dispatch work, wait, inspect `dx-runner` state, review outcomes, and continue until merge-ready or blocked. Invoke when users mention "poll every 5m", "check this runner repeatedly", "sleep loop", "babysit this PR", "re-dispatch round N", "keep checking until merge-ready", or "build a loop orchestrator". `/loop` is only a prototype model for the desired behavior, not the required runtime surface. | — |  |
 | **opencode-dispatch** | OpenCode-first dispatch workflow for parallel delegation. Use `opencode run` for headless jobs and `opencode serve` for shared server workflows; pair with governance harness for baseline/integrity/report gates. Trigger when user asks for parallel dispatch, throughput lane execution, or OpenCode benchmarking. | `dx-runner start --provider opencode --beads bd-xxx --prompt-` | workflow, dispatch, opencode, parallel, governance, benchmark, glm5 |
 | **plan-refine** | Iteratively refine implementation plans using the "Convexity" pattern. Simulates a multi-round architectural critique to converge on a secure, robust specification. Use when you have a draft plan that needs deep architectural review or "APR" style optimization. | — | architecture, planning, review, refinement, apr |
-| **prompt-writing** | Draft self-contained prompts for delegated agents with cross-VM-safe context. MUST BE USED when assigning work to another agent (implementation, QA, rollout, or audit). Enforces: worktree-first, no canonical writes, Beads traceability (epic/subtask/dependencies), and required PR artifacts (PR_URL  PR_HEAD_SHA). Trigger phrases include: "assign to another agent", "write a one-shot prompt", "dispatch this", "prepare autonomous prompt", "QA agent prompt", "parallelize work to cloud", and "assign to jules". | — | workflow, prompts, orchestration, dx, safety |
-| **serena** | MCP-native AI assistant memory for persistent context across sessions. | — |  |
+| **prompt-writing** | Draft self-contained prompts for delegated agents with cross-VM-safe context. MUST BE USED when assigning work to another agent (implementation, QA, rollout, or audit). Enforces: worktree-first, no canonical writes, Beads traceability (epic/subtask/dependencies), MCP routing expectations, and required PR artifacts (PR_URL + PR_HEAD_SHA). Trigger phrases include: "assign to another agent", "write a one-shot prompt", "dispatch this", "prepare autonomous prompt", "QA agent prompt", "parallelize work to cloud", and "assign to jules". | — | workflow, prompts, orchestration, dx, safety |
+| **reactcomponents** | Converts Stitch designs into modular Vite and React components using system-level networking and AST-based validation. | — |  |
+| **serena** | MCP-native symbol-aware editing for precise rename/refactor/insertion workflows; assistant memory is secondary. | — |  |
 | **skill-creator** | Deprecated compatibility shim for legacy skill creation requests. Use when the user still says "skill-creator" or asks to create a skill, then route canonical `~/agent-skills` work to `agent-skills-creator`. Route implementation-plan/spec requests with Beads epic+dependencies+subtasks to `implementation-planner`. | — | meta, skill-creation, compatibility, deprecation |
 | **slack-coordination** | Optional coordinator stack: Slack-based coordination loops (inbox polling, post-merge followups, lightweight locking). Uses direct Slack Web API calls and/or the slack-coordinator systemd service. Does not require MCP. | — | slack, coordination, workflow, optional |
-| **spark-prompt-writer** | Write tightly scoped, execution-ready prompts optimized for `gpt-5.3-codex-spark` implementation batches and short verification passes. Use when the user wants a Spark-specific overnight batch prompt, a large grouped-fix prompt, or a follow-on integrated verification prompt after fix waves. Preserve the `prompt-writing` DX contract: worktree-first, no canonical writes, Beads traceability, cross-VM-safe context, and required `PR_URL`  `PR_HEAD_SHA`. | — | workflow, prompts, orchestration, spark, dx |
+| **spark-prompt-writer** | Write tightly scoped, execution-ready prompts optimized for `gpt-5.3-codex-spark` implementation batches and short verification passes. Use when the user wants a Spark-specific overnight batch prompt, a large grouped-fix prompt, or a follow-on integrated verification prompt after fix waves. Preserve the `prompt-writing` DX contract: worktree-first, no canonical writes, Beads traceability, cross-VM-safe context, and required `PR_URL` + `PR_HEAD_SHA`. | — | workflow, prompts, orchestration, spark, dx |
+| **stitch-loop** | Teaches agents to iteratively build websites using Stitch with an autonomous baton-passing loop pattern | — |  |
 | **wooyun-legacy** | WooYun漏洞分析专家系统。提供基于88,636个真实漏洞案例提炼的元思考方法论、测试流程和绕过技巧。适用于漏洞挖掘、渗透测试、安全审计及代码审计。支持SQL注入、XSS、命令执行、逻辑漏洞、文件上传、未授权访问等多种漏洞类型。 | — |  |
-| **worktree-workflow** | Workspace-first git worktree management (DX V8.6). Create, open, resume, and recover workspaces while keeping canonical repos clean. All mutating work happens in /tmp/agents/<beads-id>/<repo>. Commands: create <beads-id> <repo>              - Create workspace (prints path) open <beads-id> <repo> [-- <cmd>]     - Show status or exec command resume <beads-id> <repo> [-- <cmd>]   - Resume workspace evacuate-canonical <repo>             - Recover dirty canonical repo cleanup <beads-id>                    - Remove workspace prune <repo>                          - Prune worktree metadata explain                               - Show workspace-first policy Use when starting work on a Beads ID, when an agent needs a clean workspace, or when recovering from dirty canonical repos. | `dx-worktree create <beads-id> <repo>` | dx, git, worktree, workspace, workflow, v86 |
+| **worktree-workflow** | Workspace-first git worktree management (DX V8.6). Create, open, resume, and recover workspaces while keeping canonical repos clean. All mutating work happens in /tmp/agents/<beads-id>/<repo>. Commands: create <beads-id> <repo> - Create workspace (prints path) open <beads-id> <repo> [-- <cmd>] - Show status or exec command resume <beads-id> <repo> [-- <cmd>] - Resume workspace evacuate-canonical <repo> - Recover dirty canonical repo cleanup <beads-id> - Remove workspace prune <repo> - Prune worktree metadata explain - Show workspace-first policy Use when starting work on a Beads ID, when an agent needs a clean workspace, or when recovering from dirty canonical repos. | `dx-worktree create <beads-id> <repo>` | dx, git, worktree, workspace, workflow, v86 |
 
 
 ## Health & Monitoring
 
 | Skill | Description | Example | Tags |
 |-------|-------------|---------|------|
-| **bd-doctor** | Diagnose and repair Beads reliability issues in canonical Dolt server mode (`~/bd`) across hosts. | — | health, beads, dolt, reliability, fleet |
-| **beads-dolt-fleet** | Fleet-level Beads Dolt operations for canonical hosts (verify, converge, and recover shared `~/bd` state). | — | health, beads, dolt, fleet, vm |
-| **dx-cron** | Monitor and manage dx-* system cron jobs and their logs.  MUST BE USED when user asks "is the cron running", "show me cron logs", or "status of dx jobs". | — | health, auth, audit, cron, monitoring |
+| **bd-doctor** | Diagnose and repair Beads reliability issues in canonical Dolt server mode (`~/.beads-runtime/.beads` runtime, epyc12 hub) across hosts. | `bd config set beads.role maintainer` | health, beads, dolt, reliability, fleet |
+| **beads-dolt-fleet** | Fleet-level Beads Dolt operations for canonical hosts (verify, converge, and recover shared `~/.beads-runtime/.beads` runtime state). | — | health, beads, dolt, fleet, vm |
+| **dx-cron** | Monitor and manage dx-* system cron jobs and their logs. MUST BE USED when user asks "is the cron running", "show me cron logs", or "status of dx jobs". | — | health, auth, audit, cron, monitoring |
 | **lockfile-doctor** | Check and fix lockfile drift across Poetry (Python) and pnpm (Node.js) projects. | — |  |
 | **mcp-doctor** | Warn-only health check for canonical MCP configuration and related DX tooling. Strict mode is opt-in via MCP_DOCTOR_STRICT=1. | — | dx, mcp, health, verification |
 | **railway-doctor** | Pre-flight checks for Railway deployments to catch failures BEFORE deploying. Use when about to deploy, running verify-* commands, or debugging Railway issues. | — | railway, deployment, validation, pre-flight |
@@ -561,7 +644,7 @@ VISUAL_BASE_URL=http://localhost:5173 pnpm --filter frontend test:visual:update
 | **fleet-deploy** | Deploy changes across canonical VMs (macmini, homedesktop-wsl, epyc6, epyc12). MUST BE USED when deploying scripts, crontabs, or config changes to multiple VMs. Uses configs/fleet_hosts.yaml as authoritative source for SSH targets, with dx-runner governance. | `dx-runner start --provider opencode --beads bd-xyz --prompt-` | fleet, deploy, vm, canonical, dx-runner, ssh, infrastructure |
 | **fleet-sync** | Canonical Fleet Sync skill for cross-VM tool convergence, client visibility testing, and runtime-truth documentation. Use when the work involves Fleet Sync architecture, canonical VM rollout, MCP tool restoration, or end-to-end validation across codex, claude, gemini, and opencode. | — | fleet, mcp, vm, ide, rollout, validation |
 | **github-runner-setup** | GitHub Actions self-hosted runner setup and maintenance. Use when setting up dedicated runner users, migrating runners from personal accounts, troubleshooting runner issues, or implementing runner isolation. Covers systemd services, environment isolation, and skills plane integration. | — | github-actions, devops, runner, systemd, infrastructure |
-| **vm-bootstrap** | Linux VM bootstrap verification skill. MUST BE USED when setting up new VMs or verifying environment. Supports modes: check (warn-only), install (operator-confirmed), strict (CI-ready). Enforces Linux-only  mise as canonical; honors preference brew→npm (with apt fallback). Verifies required tools: mise, node, pnpm, python, poetry, gh, railway, op, bd, dcg, ru, tmux, rg. Handles optional tools as warnings: tailscale, playwright, agent-browser, docker, bv. Never prints/seeds secrets; never stores tokens in repo/YAML; Railway vars only for app runtime env. Safe on dirty repos (refuses and points to dirty-repo-bootstrap skill, or snapshots WIP branch). Keywords: vm, bootstrap, setup, mise, toolchain, linux, environment, provision, verify, new vm | — | dx, tooling, setup, linux |
+| **vm-bootstrap** | Linux VM bootstrap verification skill. MUST BE USED when setting up new VMs or verifying environment. Supports modes: check (warn-only), install (operator-confirmed), strict (CI-ready). Enforces Linux-only + mise as canonical; honors preference brew→npm (with apt fallback). Verifies required tools: mise, node, pnpm, python, poetry, gh, railway, op, bd, dcg, ru, tmux, rg. Handles optional tools as warnings: tailscale, playwright, agent-browser, docker, bv. Never prints/seeds secrets; never stores tokens in repo/YAML; Railway vars only for app runtime env. Safe on dirty repos (refuses and points to dirty-repo-bootstrap skill, or snapshots WIP branch). Keywords: vm, bootstrap, setup, mise, toolchain, linux, environment, provision, verify, new vm | — | dx, tooling, setup, linux |
 | **multi-agent-dispatch** | Cross-VM task dispatch with dx-runner as canonical governance runner and OpenCode as primary execution lane. dx-dispatch is a BREAK-GLASS compatibility shim for remote fanout when dx-runner is unavailable. EPYC6 is currently disabled - see enablement gate. | `dx-dispatch is a BREAK-GLASS compatibility shim for remote f` | workflow, dispatch, dx-runner, governance, cross-vm |
 
 
@@ -593,18 +676,41 @@ VISUAL_BASE_URL=http://localhost:5173 pnpm --filter frontend test:visual:update
 
 ## Repo-Specific Addendum
 
+## Repo-Memory Brownfield Maps
+
+Before changing pipeline, storage, analysis, Windmill orchestration, or admin
+frontend surfaces, read the maintained repo-memory maps:
+
+- `docs/architecture/README.md`
+- `docs/architecture/BROWNFIELD_MAP.md`
+- `docs/architecture/DATA_AND_STORAGE.md`
+- `docs/architecture/WORKFLOWS_AND_PATTERNS.md`
+- `docs/architecture/ECONOMIC_ANALYSIS_PIPELINE.md`
+
+These maps are the repo-owned source of truth for brownfield orientation. Beads
+memory is a pointer/decision log, not proof. Legacy context-area workflows may
+exist in `.github/workflows`; do not treat regenerated context-area output as
+canonical unless a task explicitly targets that legacy system.
+
 ## Beads Integration
 
 ### Beads State Sync
 
 **Before starting work**:
 ```bash
-cd ~/bd
+export BEADS_DIR="${BEADS_DIR:-$HOME/.beads-runtime/.beads}"
 export BEADS_DOLT_SERVER_HOST="${BEADS_DOLT_SERVER_HOST:-100.107.173.83}"
-export BEADS_DOLT_SERVER_PORT=3307
-beads-dolt dolt test --json
+export BEADS_DOLT_SERVER_PORT="${BEADS_DOLT_SERVER_PORT:-3307}"
+bd dolt test --json
 beads-dolt status --json | jq -c '.summary'
 ```
+
+Notes:
+- `~/.beads-runtime/.beads` is the active runtime path.
+- `~/beads` is the Beads CLI source/build checkout, not runtime state.
+- `~/bd` is legacy rollback state and not active runtime truth.
+- Do not run mutating Beads operations from app repos unless a documented override says otherwise.
+- For control-plane Beads operations, prefer a non-app cwd with `BEADS_DIR` set.
 
 **Failure mode**:
 - `beads-dolt dolt test --json` reports `connection_ok: false`

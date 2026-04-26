@@ -12,6 +12,15 @@ This replaces the legacy Prefect orchestration (removed in `bd-s8id.4`) and Rail
 
 ## Scheduler: Windmill
 
+Shared dev instance:
+- `https://server-dev-8d5b.up.railway.app`
+
+Workspace mapping:
+- affordabot repo assets `f/affordabot/*` -> workspace `affordabot`
+- prime-radiant-ai EODHD assets `f/eodhd/*` -> workspace `eodhd`
+
+The instance is shared, but workspaces are separated by repo/domain.
+
 ### Job Inventory
 
 | Windmill Job | Schedule | Script Entry | Auth |
@@ -97,6 +106,25 @@ wmill sync push --workspace affordabot
 curl -X POST -H "Authorization: Bearer $CRON_SECRET" \
   https://backend-dev-3d99.up.railway.app/cron/discovery
 ```
+
+CLI fallback when `wmill` is unavailable:
+
+```bash
+npx windmill-cli --version
+```
+
+Safe live checks (no secret output):
+
+```bash
+source ~/agent-skills/scripts/lib/dx-auth.sh
+export WINDMILL_API_TOKEN="$(dx_auth_read_secret_cached "op://dev/Agent-Secrets-Production/WINDMILL_API_TOKEN")"
+export WINDMILL_BASE_URL="$(dx_auth_read_secret_cached "op://dev/Agent-Secrets-Production/WINDMILL_DEV_LOGIN_URL")"
+npx windmill-cli version -r "$WINDMILL_BASE_URL"
+npx windmill-cli workspace list-remote -r "$WINDMILL_BASE_URL"
+```
+
+Safety warning:
+- Do not run broad `sync push` without confirming workspace target and schedule mutation intent.
 
 ## Rollback
 

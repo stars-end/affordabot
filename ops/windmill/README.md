@@ -5,6 +5,16 @@
 Windmill is the scheduler of record for affordabot's scheduled jobs.
 Backend remains the execution plane; Windmill handles schedule, trigger, and observability.
 
+## Shared Dev Instance vs Workspace
+
+Windmill dev is a shared Railway-hosted instance:
+- `https://server-dev-8d5b.up.railway.app`
+
+This repo targets a specific workspace on that shared instance:
+- affordabot assets `f/affordabot/*` -> workspace `affordabot`
+
+Do not assume all repos share one workspace.
+
 ## Migration from Railway Cron
 
 As of `bd-s8id.3`, scheduling moved from root `railway.toml` Railway Cron to Windmill.
@@ -32,11 +42,40 @@ Committed Windmill assets:
 - `ops/windmill/f/affordabot/*__flow/flow.yaml`
 - `ops/windmill/f/affordabot/*.schedule.yaml`
 
+Path B orchestration skeleton (unscheduled by default):
+- `ops/windmill/f/affordabot/pipeline_daily_refresh_domain_boundary.py`
+- `ops/windmill/f/affordabot/pipeline_daily_refresh_domain_boundary.script.yaml`
+- `ops/windmill/f/affordabot/pipeline_daily_refresh_domain_boundary__flow/flow.yaml`
+
+Boundary note:
+- this flow shape calls coarse domain-command stubs only (`search_materialize`, `freshness_gate`,
+  `read_fetch`, `index`, `analyze`, `summarize_run`).
+- direct product writes (Postgres, pgvector, object storage) stay outside Windmill assets.
+
 Required workspace variables:
 
 - `f/affordabot/BACKEND_PUBLIC_URL`
 - `f/affordabot/CRON_SECRET`
 - `f/affordabot/SLACK_WEBHOOK_URL`
+
+Auth source for CLI and automation:
+- `op://dev/Agent-Secrets-Production/WINDMILL_API_TOKEN`
+- `op://dev/Agent-Secrets-Production/WINDMILL_DEV_LOGIN_URL`
+
+Canonical shell variables for agent runs:
+
+- `WINDMILL_API_TOKEN`: resolved from the cached 1Password helper.
+- `WINDMILL_DEV_LOGIN_URL`: resolved from the cached 1Password helper. This is
+  the browser login URL and currently ends with `/user/login`.
+- `WINDMILL_BASE_URL`: derived by stripping `/user/login` from
+  `WINDMILL_DEV_LOGIN_URL`. Windmill CLI API calls need this instance root.
+- `WINDMILL_WORKSPACE`: `affordabot`.
+- `TMP_WMILL_CONFIG`: a temporary `wmill` config directory created per run.
+
+Do not depend on ambient `~/.config/windmill` state in agent workflows. Create a
+throwaway profile with `--config-dir` for each CLI smoke test, dry-run, or sync
+operation. Do not use raw `op read`, `op item get`, `op item list`, or GUI-backed
+1Password auth from agents.
 
 Slack webhook note:
 - `trigger_cron_job` now normalizes accidentally quoted webhook values (for example `"https://hooks.slack..."`) before posting.
@@ -125,6 +164,169 @@ curl -X POST \
   -H "Authorization: Bearer $CRON_SECRET" \
   https://backend-dev-3d99.up.railway.app/cron/discovery
 ```
+
+If `wmill` is not installed locally:
+
+```bash
+npx windmill-cli --version
+```
+
+Safe auth pattern with cached 1Password helper (token never printed):
+
+```bash
+source ~/agent-skills/scripts/lib/dx-auth.sh
+export WINDMILL_API_TOKEN="$(DX_AUTH_CACHE_ONLY=1 dx_auth_read_secret_cached "op://dev/Agent-Secrets-Production/WINDMILL_API_TOKEN")"
+WINDMILL_DEV_LOGIN_URL="$(DX_AUTH_CACHE_ONLY=1 dx_auth_read_secret_cached "op://dev/Agent-Secrets-Production/WINDMILL_DEV_LOGIN_URL")"
+WINDMILL_BASE_URL="${WINDMILL_DEV_LOGIN_URL%/user/login}"
+WINDMILL_WORKSPACE="affordabot"
+TMP_WMILL_CONFIG="$(mktemp -d)"
+trap 'rm -rf "$TMP_WMILL_CONFIG"' EXIT
+
+npx --yes windmill-cli workspace add "$WINDMILL_WORKSPACE" "$WINDMILL_WORKSPACE" "$WINDMILL_BASE_URL" \
+  --token "$WINDMILL_API_TOKEN" \
+  --config-dir "$TMP_WMILL_CONFIG"
+```
+
+Safe live checks for CLI version `1.682.0`:
+
+```bash
+npx --yes windmill-cli workspace list \
+  --config-dir "$TMP_WMILL_CONFIG"
+
+npx --yes windmill-cli job list \
+  --workspace "$WINDMILL_WORKSPACE" \
+  --config-dir "$TMP_WMILL_CONFIG" \
+  --limit 5 \
+  --json
+
+npx --yes windmill-cli flow list \
+  --workspace "$WINDMILL_WORKSPACE" \
+  --config-dir "$TMP_WMILL_CONFIG"
+
+npx --yes windmill-cli flow get f/affordabot/manual_substrate_expansion \
+  --workspace "$WINDMILL_WORKSPACE" \
+  --config-dir "$TMP_WMILL_CONFIG" \
+  --json
+
+npx --yes windmill-cli script list \
+  --workspace "$WINDMILL_WORKSPACE" \
+  --config-dir "$TMP_WMILL_CONFIG"
+
+npx --yes windmill-cli script get f/affordabot/trigger_cron_job \
+  --workspace "$WINDMILL_WORKSPACE" \
+  --config-dir "$TMP_WMILL_CONFIG" \
+  --json
+```
+
+CLI notes:
+- `WINDMILL_DEV_LOGIN_URL` is intentionally a login URL in the current secret
+  cache; normalize it before API use.
+- Do not use `-r "$WINDMILL_BASE_URL"` with `windmill-cli` `1.682.0`; this
+  build rejects `-r`. Use the temporary-profile pattern above.
+- `wmill.yaml` currently emits a deprecation warning because it uses
+  `gitBranches`; this does not block read-only checks, but should be cleaned up
+  before relying on broad sync automation.
+
+Domain-boundary POC live gate:
+
+```bash
+npx --yes windmill-cli flow get f/affordabot/pipeline_daily_refresh_domain_boundary__flow \
+  --workspace "$WINDMILL_WORKSPACE" \
+  --config-dir "$TMP_WMILL_CONFIG" \
+  --json
+```
+
+Canonical manual validation harness (Worker B):
+
+```bash
+cd backend
+poetry run python scripts/verification/verify_windmill_sanjose_live_gate.py \
+  --run-mode stub-run \
+  --stale-drill-statuses stale_but_usable,stale_blocked \
+  --idempotent-rerun
+```
+
+Harness artifacts:
+- `docs/poc/windmill-domain-boundary-integration/artifacts/sanjose_live_gate_report.json`
+- `docs/poc/windmill-domain-boundary-integration/artifacts/sanjose_live_gate_report.md`
+- `docs/poc/windmill-domain-boundary-integration/artifacts/search_provider_bakeoff_report.json`
+
+Harness classifications:
+- `stub_orchestration_pass`: Windmill orchestration succeeded, but run is still stub-backed.
+- `backend_bridge_surface_ready`: backend endpoint configuration + local mock probe passed, but storage/runtime evidence is still pending.
+- `full_product_pass`: orchestration plus storage/runtime evidence gates succeeded.
+- `read_only_surface_pass`: deployment/auth surface checks passed in `--run-mode read-only`.
+- `blocked`: required backend endpoint/runtime inputs were unavailable or security checks failed.
+
+Backend endpoint mode (`command_client=backend_endpoint`) is opt-in and fail-closed.
+The flow default remains `command_client=stub`. Do not switch live runs to
+`backend_endpoint` until backend URL/auth and storage adapters are ready.
+When enabled, the flow calls the backend-owned coarse command endpoint at
+`/cron/pipeline/domain/run-scope`; it resolves `BACKEND_PUBLIC_URL` and
+`CRON_SECRET` from Windmill vars using the same pattern as the existing cron
+flows, rather than accepting a pasted auth token in manual run input.
+
+For live product discovery, configure backend search explicitly:
+
+```bash
+WEB_SEARCH_PROVIDER=oss_searxng
+SEARXNG_SEARCH_ENDPOINT=https://<private-or-paid-searxng-host>/search
+```
+
+If `SEARXNG_SEARCH_ENDPOINT` is present and `WEB_SEARCH_PROVIDER` is unset, the
+backend chooses SearXNG for this POC. Z.ai direct search remains available only
+as an explicit fallback (`WEB_SEARCH_PROVIDER=zai`) and should not be used as the
+primary discovery path.
+
+Harness blocker categories:
+- `infra/auth`
+- `windmill_cli`
+- `deployment`
+- `product_bridge`
+- `storage/runtime`
+
+Deploy only the unscheduled domain-boundary POC assets:
+
+```bash
+npx --yes windmill-cli script push f/affordabot/pipeline_daily_refresh_domain_boundary.py \
+  --workspace "$WINDMILL_WORKSPACE" \
+  --config-dir "$TMP_WMILL_CONFIG" \
+  --message "bd-9qjof.6 deploy domain-boundary POC script"
+
+# For flow push, pass the local flow directory, not the nested flow.yaml file.
+npx --yes windmill-cli flow push \
+  f/affordabot/pipeline_daily_refresh_domain_boundary__flow \
+  f/affordabot/pipeline_daily_refresh_domain_boundary__flow \
+  --workspace "$WINDMILL_WORKSPACE" \
+  --config-dir "$TMP_WMILL_CONFIG" \
+  --message "bd-9qjof.6 deploy domain-boundary POC flow"
+```
+
+Manual San Jose skeleton run:
+
+```bash
+npx --yes windmill-cli flow run f/affordabot/pipeline_daily_refresh_domain_boundary__flow \
+  --workspace "$WINDMILL_WORKSPACE" \
+  --config-dir "$TMP_WMILL_CONFIG" \
+  -d '{
+    "idempotency_key": "bd-9qjof.6-cli-smoke-YYYY-MM-DD",
+    "jurisdictions": ["San Jose CA"],
+    "source_families": ["meeting_minutes"],
+    "search_query": "San Jose CA city council meeting minutes housing",
+    "analysis_question": "Summarize housing-related signals from recent San Jose meeting minutes.",
+    "mode": "manual",
+    "scope_parallelism": 1,
+    "stale_status": "fresh"
+  }'
+```
+
+Sync safety:
+- Always confirm target workspace is `affordabot` before `sync push`.
+- Do not run broad sync operations if schedule mutation intent is not explicit.
+- A missing domain-boundary POC flow means live dry-run is blocked on deployment,
+  not on CLI auth.
+- The domain-boundary POC flow is unscheduled and should remain unscheduled until
+  the backend domain commands replace the current skeleton stubs.
 
 ## Manual Operator Run (CLI-Safe)
 

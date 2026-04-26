@@ -1,0 +1,96 @@
+summary: Affordabot Path B domain-boundary orchestration skeleton step
+description: >
+  Step-level script for Path B Windmill orchestration.
+  It models scope fanout, freshness branching, and coarse domain command calls.
+lock: ""
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  properties:
+    step:
+      type: string
+      description: Pipeline step name.
+      enum:
+        - build_scope_matrix
+        - run_scope_pipeline
+        - aggregate_run_summary
+        - failure_handler
+    contract_version:
+      type: string
+      default: 2026-04-13.windmill-domain.v1
+    architecture_path:
+      type: string
+      default: affordabot_domain_boundary
+    windmill_workspace:
+      type: string
+      default: affordabot
+    windmill_flow_path:
+      type: string
+      default: f/affordabot/pipeline_daily_refresh_domain_boundary__flow
+    windmill_run_id:
+      type: string
+      default: windmill-run-id
+    windmill_job_id:
+      type: string
+      default: windmill-job-id
+    idempotency_key:
+      type: string
+      default: run:2026-04-13
+    mode:
+      type: string
+      default: scheduled
+      enum:
+        - scheduled
+        - manual
+        - replay
+    jurisdictions:
+      type: array
+      items:
+        type: string
+      default:
+        - San Jose CA
+    source_families:
+      type: array
+      items:
+        type: string
+      default:
+        - meeting_minutes
+    scope_item:
+      type: object
+      default: null
+      properties:
+        jurisdiction:
+          type: string
+        source_family:
+          type: string
+        scope_key:
+          type: string
+    scope_index:
+      type: integer
+      default: 0
+    stale_status:
+      type: string
+      default: fresh
+      enum:
+        - fresh
+        - stale_but_usable
+        - stale_blocked
+        - empty_but_usable
+        - empty_blocked
+    search_query:
+      type: string
+      default: San Jose CA city council meeting minutes housing
+    analysis_question:
+      type: string
+      default: Summarize housing-related signals from recent San Jose meeting minutes.
+    previous_step_output:
+      type: object
+      default: null
+    scope_results:
+      type: array
+      default: []
+      items:
+        type: object
+  required:
+    - step
