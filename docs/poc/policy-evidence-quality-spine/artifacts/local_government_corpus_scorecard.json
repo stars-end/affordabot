@@ -1,6 +1,26 @@
 {
   "artifact_inputs": {
     "overlay_applied": true,
+    "structured_overlay_applied": true,
+    "structured_source_blocked_attempt_rows": [],
+    "structured_source_live_attempt_rows": [
+      "lgm-065"
+    ],
+    "structured_source_overlay_burndown_summary": {
+      "attempted_row_count": 1,
+      "attempted_row_ids": [
+        "lgm-065"
+      ],
+      "blocked_count": 0,
+      "blocked_row_ids": [],
+      "live_proven_count": 1,
+      "live_proven_row_ids": [
+        "lgm-065"
+      ]
+    },
+    "structured_source_proof_artifact": "docs/poc/policy-evidence-quality-spine/artifacts/local_government_corpus_structured_source_proof.json",
+    "structured_source_proof_digest": "a5a4c9cc656c23dbcc4438bcbed99d34fdaaf361f692a2355d90a17822f4282d",
+    "structured_source_proof_generated_at": "2026-04-25T15:02:31+00:00",
     "windmill_blocked_attempt_rows": [],
     "windmill_live_attempt_rows": [
       "lgm-001",
@@ -379,7 +399,7 @@
         "cataloged_true_structured_family_count": 5,
         "coverage_ratio": 1.0,
         "live_non_legistar_true_structured_present": true,
-        "live_structured_coverage_ratio": 0.1778,
+        "live_structured_coverage_ratio": 0.1889,
         "live_true_structured_family_count": 5,
         "non_legistar_true_structured_present": true,
         "non_primary_cataloged_only_count": 6,
@@ -479,7 +499,7 @@
       "status": "pass"
     }
   },
-  "generated_at": "2026-04-17T11:02:14+00:00",
+  "generated_at": "2026-04-25T15:05:52+00:00",
   "matrix_digest": "bca1c6a3317ad8e942e6c1b2155a64d455dce018db6b3fd34084548b240df9d1",
   "matrix_summary": {
     "corpus_readiness_target": "corpus_ready_with_gaps",

@@ -1007,3 +1007,73 @@ Reason for stopping:
 
 - The founder requested a takeover package and copy/paste prompt for another
   agent, not another local eval cycle.
+
+## Cycle 53: Structured-Source Runtime Proof Overlay
+
+Status: `completed_with_non_destructive_improvement`
+
+Started: 2026-04-25
+
+Scope:
+
+- Add a fail-closed structured-source runtime proof artifact/schema.
+- Consume structured proof artifact inputs in scorecard regeneration.
+- Upgrade `cataloged_intent` structured rows only when proof matches row id,
+  jurisdiction, source family, and extraction depth.
+- Prove at least one non-San-Jose, non-Legistar cataloged target with a live
+  public structured source probe.
+
+Implementation changes:
+
+- Added structured proof overlay logic in
+  `backend/services/pipeline/local_government_corpus_benchmark.py`.
+- Added live probe script
+  `backend/scripts/verification/verify_local_government_corpus_structured_source_proof.py`.
+- Updated scorecard regeneration script to accept and record structured proof
+  artifact inputs:
+  `backend/scripts/verification/regenerate_local_government_corpus_scorecard.py`.
+- Added regression coverage for:
+  - positive structured overlay upgrade;
+  - false-proof mismatch rejection;
+  - scorecard regeneration consuming structured artifact inputs.
+
+Runtime proof artifact:
+
+- Generated
+  `docs/poc/policy-evidence-quality-spine/artifacts/local_government_corpus_structured_source_proof.json`.
+- Live-proven row:
+  - `corpus_row_id=lgm-065`
+  - `jurisdiction_id=austin_tx`
+  - `source_family=socrata_api`
+  - `extraction_depth=affordability_units`
+  - endpoint:
+    `https://data.austintexas.gov/resource/2h5e-ntwt.json?$limit=5`
+  - `http_status=200`
+  - `sample_row_count=5`
+
+Artifact/report impact:
+
+- Regenerated:
+  - `local_government_corpus_matrix.json`
+  - `local_government_corpus_scorecard.json`
+  - `local_government_corpus_report.md`
+  - `manual_audit_local_government_corpus.md`
+  - `manual_audit_local_government_corpus.json`
+- Scorecard now records structured artifact inputs and live proof row IDs under
+  `artifact_inputs`.
+- C2 live structured coverage moved from `0.1778` -> `0.1889`.
+- Corpus state remains `corpus_ready_with_gaps`.
+
+Validation:
+
+- `cd backend && poetry run pytest tests/services/pipeline/test_local_government_corpus_benchmark.py tests/verification/test_regenerate_local_government_corpus_scorecard.py tests/verification/test_verify_local_government_corpus_manual_audit.py -q` -> `30 passed`.
+- `cd backend && poetry run python scripts/verification/verify_local_government_corpus_manual_audit.py` -> `pass`.
+- `cd backend && poetry run pytest -q` -> blocked in collection due missing local deps/modules (`fastapi`, `requests`, `llm_common`, `playwright`, `scrapy`, `minio`, `jwt`), not due Cycle 53 logic failures.
+
+Remaining blocker:
+
+- C2 remains `not_proven` (cataloged structured backlog still large despite one
+  live-proven upgrade).
+- C13 remains `not_proven`.
+- C14 remains `not_proven` (cataloged non-fee extraction families still
+  present).

@@ -1,6 +1,6 @@
-# Manual Audit: Local Government Corpus (Cycle 49)
+# Manual Audit: Local Government Corpus (Cycle 53)
 
-Feature-Key: `bd-3wefe.13.4.7`
+Feature-Key: `bd-3wefe.13.4.11`
 Benchmark: `local_government_data_moat_benchmark_v0`
 
 ## Scope
@@ -97,7 +97,21 @@ Interpretation:
 - Substantive policy quality and decision-grade handoff quality remain governed
   by C0–C14 (not this lightweight list alone).
 
+## Structured-Source Runtime Proof Rows (Cycle 53 Overlay)
+
+Cycle 53 adds a structured-source runtime proof artifact and fail-closed
+overlay matching (row identity + jurisdiction + source family + extraction
+depth). This is scoped to C2/C14 structured proof only.
+
+| corpus_row_id | jurisdiction_id | policy_family | source_family | extraction_depth | proof_status | endpoint |
+| --- | --- | --- | --- | --- | --- | --- |
+| `lgm-065` | `austin_tx` | `affordable_housing_mandate` | `socrata_api` | `affordability_units` | `live_proven` | `https://data.austintexas.gov/resource/2h5e-ntwt.json?$limit=5` |
+
+Structured evidence boundary marker:
+
+- `evidence_boundary=structured_source_runtime_probe_only_not_full_corpus_quality`
+
 ## Result
 
-Cycle 49 manual-audit verification status: `pass` for C5 stratified sample plus
+Cycle 53 manual-audit verification status: `pass` for C5 stratified sample plus
 live-proven row representation checks.

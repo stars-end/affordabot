@@ -27,7 +27,7 @@
 
 ## Structured Proof Boundary
 
-- C2 live structured coverage ratio: `0.1778`
+- C2 live structured coverage ratio: `0.1889`
 - C2 live true structured families: `5`
 - C2 cataloged true structured families: `5`
 - C14 live non-fee families: `11`
