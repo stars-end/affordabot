@@ -2,6 +2,13 @@
 
 Executable repo-local stories for the affordabot admin surface.
 
+Batch 2 `uismoke` integration contract:
+
+- Stories remain repo-local in this directory.
+- Shared execution engine remains in `llm-common`.
+- Deterministic substrate gate is the primary product gate.
+- Exploratory/nightly substrate runs are advisory by default.
+
 The current founder-critical executable pack is the substrate viewer MVP:
 
 - `substrate_run_list`
@@ -37,15 +44,46 @@ Legacy broader admin-console stories remain in this directory, but they are no l
 # Run all admin UISmoke stories
 make verify-stories
 
-# Run the deterministic substrate gate
+# Canonical deterministic substrate gate (primary gate)
 make verify-gate
+make verify-substrate-gate
 
-# Run the broader nightly pack
+# Canonical substrate nightly/advisory lane
+make verify-substrate-nightly
+TARGET_DIR=substrate-nightly make verify-substrate-triage
+
+# Legacy broader nightly pack
 make verify-nightly
 
 # Run stories for PR verification
 make verify-pr PR=185
 ```
+
+## Canonical Substrate Pack
+
+The substrate viewer pack lives in this same repo-local directory:
+
+- `substrate_run_list.yml`
+- `substrate_failure_buckets.yml`
+- `substrate_raw_row_detail.yml`
+
+The canonical deterministic entrypoint is `make verify-substrate-gate` (aliased by `make verify-gate`), which runs only those three stories.
+
+## Expected Deterministic Artifacts
+
+Deterministic substrate gate runs write artifacts under:
+
+- `artifacts/verification/substrate-gate/<run-id>/`
+
+Expected run/report metadata from shared `uismoke` includes lane/backend/provider fields so product triage stays explicit about deterministic vs exploratory execution surfaces.
+
+## Repo-Local Validation and Drift Surface
+
+Affordabot keeps product-level ownership for:
+
+- story YAMLs in this directory
+- Make target wiring (`verify-substrate-gate`, `verify-substrate-nightly`, `verify-substrate-triage`)
+- verification helper scripts in `scripts/verification/`
 
 ## Story Format
 

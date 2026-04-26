@@ -6,6 +6,7 @@
         verify-agents verify-auth verify-storage verify-env \
         verify-local verify-visual-pr verify-visual verify-admin-pipeline \
         verify-stories verify-nightly verify-gate verify-triage \
+        verify-substrate-gate verify-substrate-nightly verify-substrate-triage \
         verify-stories-failures verify-stories-overnight \
         verify-dev verify-all verify-full-pipeline \
         verify-pr verify-pr-lite
@@ -257,6 +258,8 @@ verify-visual-pr:
 verify-visual: verify-admin-pipeline
 
 RAILWAY_DEV_FRONTEND_URL ?= https://frontend-dev-5093.up.railway.app
+UISMOKE_SUBSTRATE_STORIES := substrate_run_list substrate_failure_buckets substrate_raw_row_detail
+UISMOKE_FAIL_ON_CLASSIFICATIONS := skip not_run suite_timeout auth_failed timeout flaky_recovered flaky_inconclusive single_timeout reproducible_timeout single_navigation_failed reproducible_navigation_failed single_clerk_failed reproducible_clerk_failed
 verify-admin-pipeline: check-verify-env
 	@echo "  Running UISmokeAgent Admin Pipeline Verification..."
 	@mkdir -p artifacts/verification/admin_pipeline
@@ -303,13 +306,16 @@ verify-nightly:
 		--tracing
 
 verify-gate:
+	@$(MAKE) verify-substrate-gate
+
+verify-substrate-gate:
 	@echo "  Running UISmoke Quality Gate..."
-	@mkdir -p artifacts/verification/gate
+	@mkdir -p artifacts/verification/substrate-gate
 	@TARGET_URL="$(or $(FRONTEND_URL),$(RAILWAY_DEV_FRONTEND_URL))"; \
 	cd backend && $(DX_RAILWAY_RUN) -- poetry run uismoke run \
 		--stories ../docs/TESTING/STORIES \
 		--base-url "$${TARGET_URL}" \
-		--output ../artifacts/verification/gate \
+		--output ../artifacts/verification/substrate-gate \
 		--auth-mode cookie_bypass \
 		--cookie-name $${COOKIE_NAME:-x-test-user} --cookie-value $${COOKIE_VALUE:-admin} --cookie-signed \
 		--cookie-secret-env TEST_AUTH_BYPASS_SECRET \
@@ -317,8 +323,33 @@ verify-gate:
 		--email-env TEST_USER_EMAIL --password-env TEST_USER_PASSWORD \
 		--suite-timeout 5400 --story-timeout 900 --nav-timeout-ms 120000 --action-timeout-ms 60000 \
 		--mode gate --repro 1 --deterministic-only \
-		--only-stories substrate_run_list substrate_failure_buckets substrate_raw_row_detail \
-		--fail-on-classifications skip not_run suite_timeout auth_failed timeout flaky_recovered flaky_inconclusive single_timeout reproducible_timeout single_navigation_failed reproducible_navigation_failed single_clerk_failed reproducible_clerk_failed
+		--only-stories $(UISMOKE_SUBSTRATE_STORIES) \
+		--fail-on-classifications $(UISMOKE_FAIL_ON_CLASSIFICATIONS) \
+		$${ARGS:-}
+
+verify-substrate-nightly:
+	@echo "  Running UISmoke Substrate Nightly (Advisory Exploratory Lane)..."
+	@mkdir -p artifacts/verification/substrate-nightly
+	@TARGET_URL="$(or $(FRONTEND_URL),$(RAILWAY_DEV_FRONTEND_URL))"; \
+	cd backend && $(DX_RAILWAY_RUN) -- poetry run uismoke run \
+		--stories ../docs/TESTING/STORIES \
+		--base-url "$${TARGET_URL}" \
+		--output ../artifacts/verification/substrate-nightly \
+		--auth-mode cookie_bypass \
+		--cookie-name $${COOKIE_NAME:-x-test-user} --cookie-value $${COOKIE_VALUE:-admin} --cookie-signed \
+		--cookie-secret-env TEST_AUTH_BYPASS_SECRET \
+		--cookie-domain auto \
+		--email-env TEST_USER_EMAIL --password-env TEST_USER_PASSWORD \
+		--suite-timeout 5400 --story-timeout 900 --nav-timeout-ms 120000 --action-timeout-ms 60000 \
+		--mode qa --repro 3 \
+		--only-stories $(UISMOKE_SUBSTRATE_STORIES) \
+		--tracing \
+		$${ARGS:-}
+
+verify-substrate-triage:
+	@echo "  Triaging substrate run failures..."
+	@cd backend && poetry run uismoke triage \
+		--run-dir ../artifacts/verification/$${TARGET_DIR:-substrate-nightly}/$$(ls -t ../artifacts/verification/$${TARGET_DIR:-substrate-nightly} | head -1) $${ARGS:-}
 
 verify-triage:
 	@echo "  Triaging failures and generating Beads plan..."

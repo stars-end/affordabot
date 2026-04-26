@@ -6,11 +6,11 @@ set -e
 
 echo "🔄 Starting UISmoke Fix Loop..."
 
-RUN_TYPE=${1:-uismoke}
+RUN_TYPE=${1:-substrate-nightly}
 echo "🔍 Analyzing last run in artifacts/verification/${RUN_TYPE}..."
 
 # 1. Perform dry-run triage to show summary
-TARGET_DIR=${RUN_TYPE} make verify-triage ARGS="--dry-run"
+TARGET_DIR=${RUN_TYPE} make verify-substrate-triage ARGS="--dry-run"
 
 # 2. Extract failing story IDs for easy reference
 LAST_RUN=$(ls -t artifacts/verification/${RUN_TYPE} 2>/dev/null | head -1)
@@ -25,9 +25,9 @@ FAILURES=$(jq -r '.story_results[] | select(.status != "pass") | .story_id' arti
 if [ -n "$FAILURES" ]; then
     echo -e "\n🔥 Stories needing attention: $FAILURES"
     echo -e "\n💡 To rerun locally (auth-bypass):"
-    echo "make verify-stories ARGS=\"--only-stories $FAILURES\""
+    echo "make verify-substrate-gate ARGS=\"--only-stories $FAILURES\""
     echo -e "\n💡 To rerun locally (real-auth):"
-    echo "make verify-nightly ARGS=\"--only-stories $FAILURES\""
+    echo "make verify-substrate-nightly ARGS=\"--only-stories $FAILURES\""
 else
     echo "✨ No failures found in last run."
 fi
