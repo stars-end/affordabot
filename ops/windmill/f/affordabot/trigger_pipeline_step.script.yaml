@@ -1,0 +1,67 @@
+summary: Affordabot persisted pipeline step trigger
+description: Trigger an affordabot persisted pipeline backend step endpoint from Windmill.
+lock: ""
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  properties:
+    step:
+      type: string
+      description: Pipeline step name (start_run, search_materialize, read_extract, analyze, finalize_report, zai_search_canary).
+      default: null
+      originalType: string
+    backend_url:
+      type: string
+      description: Public backend URL used for persisted pipeline endpoint calls.
+      default: null
+      originalType: string
+    cron_secret:
+      type: string
+      description: Shared cron secret sent to backend auth headers.
+      default: null
+      originalType: string
+    env:
+      type: string
+      description: Environment label for logs.
+      default: dev
+      originalType: string
+    timeout_seconds:
+      type: integer
+      description: HTTP timeout for the step call.
+      default: 180
+      originalType: number
+    slack_webhook_url:
+      type: string
+      description: Optional Slack webhook for alerts.
+      default: null
+      originalType: string
+    run_id:
+      type: string
+      description: Existing run ID from start_run response.
+      default: null
+      originalType: string
+    windmill_flow_run_id:
+      type: string
+      description: Windmill flow run ID for cross-system traceability.
+      default: null
+      originalType: string
+    windmill_job_id:
+      type: string
+      description: Windmill job ID for per-step traceability.
+      default: null
+      originalType: string
+    jurisdiction:
+      type: string
+      description: Jurisdiction scope for the run.
+      default: San Jose, CA
+      originalType: string
+    payload:
+      type: object
+      description: Optional JSON payload merged into backend request body.
+      default: null
+      originalType: object
+  required:
+    - step
+    - backend_url
+    - cron_secret

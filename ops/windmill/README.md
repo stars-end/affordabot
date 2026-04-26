@@ -39,6 +39,7 @@ Committed Windmill assets:
 
 - `ops/windmill/wmill.yaml`
 - `ops/windmill/f/affordabot/trigger_cron_job.py`
+- `ops/windmill/f/affordabot/trigger_pipeline_step.py`
 - `ops/windmill/f/affordabot/*__flow/flow.yaml`
 - `ops/windmill/f/affordabot/*.schedule.yaml`
 
@@ -127,6 +128,93 @@ All cron trigger endpoints remain live and auth-gated:
 | `/cron/universal-harvester` | POST | `universal_harvester` |
 | `/cron/manual-substrate-expansion` | POST | `manual_substrate_expansion` (manual flow only) |
 
+### Persisted Pipeline POC (Windmill-Maximal Orchestration)
+
+The `pipeline_sanjose_searxng_zai_poc` flow is the architecture-locking POC for
+`bd-jxclm.14`. It models the intended ownership boundary:
+
+- Windmill owns schedule/manual triggering, retry, timeout, branching, and flow-level observability.
+- Backend owns product/domain policy and all writes to product tables/artifacts.
+
+Flow assets:
+
+- `ops/windmill/f/affordabot/pipeline_sanjose_searxng_zai_poc__flow/flow.yaml`
+- `ops/windmill/f/affordabot/pipeline_sanjose_searxng_zai_poc.schedule.yaml`
+- `ops/windmill/f/affordabot/trigger_pipeline_step.py`
+- `ops/windmill/f/affordabot/trigger_pipeline_step.script.yaml`
+
+POC flow shape:
+
+1. `start_run`
+2. `search_materialize` (native retry + timeout)
+3. `decision_branch` over backend `decision`
+4. `read_extract` (Z.ai direct reader canonical path)
+5. `analyze` (Z.ai LLM canonical path)
+6. `finalize_report`
+
+Expected backend decision branches:
+
+- `fresh_snapshot`
+- `stale_backed`
+- `zero_results`
+- `provider_failed_no_fallback`
+
+Trigger shapes:
+
+- Manual trigger:
+  - Windmill UI run surface for `f/affordabot/pipeline_sanjose_searxng_zai_poc`
+- Schedule trigger:
+  - `pipeline_sanjose_searxng_zai_poc.schedule.yaml` (committed disabled until HITL signoff)
+- Webhook/on-demand trigger:
+  - recommended pattern is a Windmill HTTP route or webhook bound to the same flow with the same input contract (`jurisdiction`, optional run identifiers)
+  - keep auth at Windmill route layer and backend `CRON_SECRET` boundary
+
+Backend contract notes:
+
+`trigger_pipeline_step` targets backend step endpoints only. It does not write to Postgres/MinIO directly.
+
+Assumed response shape for branching:
+
+```json
+{
+  "contract_version": "persisted-pipeline.v1",
+  "run_id": "string",
+  "windmill_flow_run_id": "string|null",
+  "windmill_job_id": "string|null",
+  "step": "search_materialize|read_extract|analyze|finalize_report",
+  "status": "succeeded|failed|blocked",
+  "decision": "fresh_snapshot|stale_backed|zero_results|provider_failed_no_fallback|reader_succeeded|analysis_succeeded",
+  "decision_reason": "string",
+  "evidence": {},
+  "alerts": []
+}
+```
+
+OpenFlow reference and syntax note:
+
+- Windmill docs describe `branch one` using an ordered `branches` list with per-branch `expr` + `modules`, plus a `default` branch.
+- Reference: `https://www.windmill.dev/docs/flows/flow_branches` (OpenFlow/TS branch-one examples).
+
+This repo validates that shape via parsed YAML tests. We did not run live `wmill sync`
+in this PR, so parser compatibility remains a runtime verification item. If parser
+wrapping differs, keep branch semantics and only adapt syntax wrappers during rollout.
+
+### Z.ai Direct Web Search Deprecation Boundary
+
+Product pipeline flows must not depend on Z.ai direct Web Search.
+
+A separate canary-only flow is committed for weekly health checks:
+
+- `ops/windmill/f/affordabot/zai_web_search_weekly_canary__flow/flow.yaml`
+- `ops/windmill/f/affordabot/zai_web_search_weekly_canary.schedule.yaml`
+
+Policy:
+
+- Product path search provider: OSS/SearXNG
+- Product path reader: Z.ai direct Web Reader
+- Product path analysis: Z.ai LLM
+- Z.ai direct Web Search: deprecated, canary only, disabled by default
+
 ### Manual Substrate Expansion Contract
 
 The `manual_substrate_expansion` flow accepts a manifest and forwards it to
@@ -154,6 +242,7 @@ zero-count capture/ingestion/promotion summaries, `failures`, and an
 # Contract tests for the shared-instance wrappers and alert path
 cd backend
 poetry run pytest tests/ops/test_windmill_contract.py -q
+poetry run pytest tests/ops/test_windmill_persisted_pipeline_contract.py -q
 
 # Sync the affordabot workspace assets into the shared Windmill instance
 cd ops/windmill
