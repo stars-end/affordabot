@@ -1,6 +1,7 @@
 from unittest.mock import AsyncMock
 import sys
 import types
+from datetime import datetime, timezone
 
 import pytest
 
@@ -135,3 +136,116 @@ async def test_mark_raw_scrape_seen_updates_seen_count_and_last_seen_at() -> Non
     assert "last_seen_at = $1" in sql
     assert "seen_count = COALESCE(seen_count, 0) + 1" in sql
     assert db._execute.await_args.args[2] == "scrape-1"
+
+
+@pytest.mark.asyncio
+async def test_create_source_serializes_metadata_dict() -> None:
+    db = PostgresDB("postgresql://example.test/db")
+    db._fetchrow = AsyncMock(
+        return_value={
+            "id": "src-1",
+            "jurisdiction_id": "jur-1",
+            "url": "https://example.gov/agenda",
+            "type": "web",
+            "name": "Agenda",
+            "metadata": '{"k":"v"}',
+        }
+    )
+
+    await db.create_source(
+        {
+            "jurisdiction_id": "jur-1",
+            "name": "Agenda",
+            "type": "web",
+            "url": "https://example.gov/agenda",
+            "scrape_url": "https://example.gov/agenda",
+            "metadata": {"k": "v"},
+        }
+    )
+
+    args = db._fetchrow.await_args.args
+    assert args[6] == '{"k": "v"}'
+
+
+@pytest.mark.asyncio
+async def test_get_discovery_query_cache_returns_list() -> None:
+    db = PostgresDB("postgresql://example.test/db")
+    db._fetchrow = AsyncMock(return_value={"queries": '["q1", "q2"]'})
+
+    queries = await db.get_discovery_query_cache(
+        jurisdiction_name="San Jose",
+        jurisdiction_type="city",
+        prompt_version="db-v1",
+    )
+
+    assert queries == ["q1", "q2"]
+
+
+@pytest.mark.asyncio
+async def test_upsert_discovery_query_cache_writes_json_payload() -> None:
+    db = PostgresDB("postgresql://example.test/db")
+    db._execute = AsyncMock(return_value="INSERT 0 1")
+
+    ok = await db.upsert_discovery_query_cache(
+        jurisdiction_name="San Jose",
+        jurisdiction_type="city",
+        prompt_version="db-v1",
+        queries=["q1", "q2"],
+        ttl_hours=24,
+    )
+
+    assert ok is True
+    args = db._execute.await_args.args
+    assert args[4] == '["q1", "q2"]'
+
+
+@pytest.mark.asyncio
+async def test_get_discovery_classifier_cache_returns_dict() -> None:
+    db = PostgresDB("postgresql://example.test/db")
+    db._fetchrow = AsyncMock(return_value={"decision": '{"is_scrapable": true}'})
+
+    payload = await db.get_discovery_classifier_cache(
+        normalized_url="https://example.gov/agenda",
+        classifier_version="discovery-classifier-v1",
+    )
+
+    assert payload == {"is_scrapable": True}
+
+
+@pytest.mark.asyncio
+async def test_upsert_discovery_classifier_cache_writes_json_payload() -> None:
+    db = PostgresDB("postgresql://example.test/db")
+    db._execute = AsyncMock(return_value="INSERT 0 1")
+
+    ok = await db.upsert_discovery_classifier_cache(
+        normalized_url="https://example.gov/agenda",
+        classifier_version="discovery-classifier-v1",
+        decision={"is_scrapable": True, "confidence": 0.92},
+    )
+
+    assert ok is True
+    args = db._execute.await_args.args
+    assert args[2] == "discovery-classifier-v1"
+    assert args[3] == '{"is_scrapable": true, "confidence": 0.92}'
+
+
+@pytest.mark.asyncio
+async def test_upsert_discovery_deferred_item_merges_retry_forward() -> None:
+    db = PostgresDB("postgresql://example.test/db")
+    db._execute = AsyncMock(return_value="INSERT 0 1")
+
+    ok = await db.upsert_discovery_deferred_item(
+        jurisdiction_id="jur-1",
+        jurisdiction_name="San Jose",
+        stage="classification",
+        reason_code="provider_unavailable",
+        payload={"url": "https://example.gov/agenda"},
+        retry_count=2,
+        next_attempt_at=datetime(2026, 4, 8, 12, 0, tzinfo=timezone.utc),
+        last_error="timeout",
+    )
+
+    assert ok is True
+    sql = db._execute.await_args.args[0]
+    assert "retry_count = GREATEST" in sql
+    assert "next_attempt_at = GREATEST" in sql

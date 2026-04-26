@@ -7,6 +7,7 @@ government sources. Discovery prompts are stored in the database for admin editi
 import os
 import json
 import logging
+import inspect
 from typing import List, Dict, Any, Optional
 
 from llm_common.core import LLMConfig
@@ -14,6 +15,8 @@ from llm_common.providers import ZaiClient
 from llm_common.core.models import LLMMessage, MessageRole
 
 logger = logging.getLogger(__name__)
+DEFAULT_QUERY_CACHE_TTL_HOURS = 72
+DEFAULT_QUERY_PROMPT_VERSION = "default-v1"
 
 
 # Default discovery prompt (seeded to DB on first run)
@@ -67,39 +70,71 @@ class AutoDiscoveryService:
             else:
                 self.llm_client = None
                 logger.warning("No LLM client configured - falling back to static templates")
+        self.last_discovery_stats: Dict[str, Any] = {}
     
-    async def get_discovery_prompt(self) -> str:
-        """Fetch discovery prompt from DB, or use default if not found."""
+    async def get_discovery_prompt_payload(self) -> tuple[str, str]:
+        """Fetch discovery prompt and version marker from DB, or defaults."""
         if self.db:
             try:
                 prompt_record = await self.db.get_system_prompt("discovery_query_generator")
                 if prompt_record:
-                    return prompt_record.get("system_prompt", DEFAULT_DISCOVERY_PROMPT)
+                    version = prompt_record.get("version")
+                    prompt_version = f"db-v{version}" if version is not None else "db-v0"
+                    return (
+                        prompt_record.get("system_prompt", DEFAULT_DISCOVERY_PROMPT),
+                        prompt_version,
+                    )
             except Exception as e:
                 logger.warning(f"Failed to fetch discovery prompt from DB: {e}")
         
-        return DEFAULT_DISCOVERY_PROMPT
+        return DEFAULT_DISCOVERY_PROMPT, DEFAULT_QUERY_PROMPT_VERSION
     
     async def generate_queries(
         self, 
         jurisdiction_name: str, 
-        jurisdiction_type: str = "city"
+        jurisdiction_type: str = "city",
+        *,
+        allow_provider_query_generation: bool = True,
+        query_cache_ttl_hours: int = DEFAULT_QUERY_CACHE_TTL_HOURS,
     ) -> List[str]:
         """
         Generate search queries using GLM-4.7.
         
         Returns a list of search query strings optimized for the jurisdiction.
         """
-        if not self.llm_client:
-            # Fallback to static templates
-            return self._static_queries(jurisdiction_name, jurisdiction_type)
+        prompt_template, prompt_version = await self.get_discovery_prompt_payload()
+        normalized_type = jurisdiction_type if jurisdiction_type in {"city", "county"} else "city"
+        cache_hit = False
+        used_provider = False
+
+        cache_reader = getattr(self.db, "get_discovery_query_cache", None) if self.db else None
+        if cache_reader and inspect.iscoroutinefunction(cache_reader):
+            cached = await cache_reader(
+                jurisdiction_name=jurisdiction_name,
+                jurisdiction_type=normalized_type,
+                prompt_version=prompt_version,
+            )
+            if cached:
+                self.last_discovery_stats = {
+                    "query_cache_hit": True,
+                    "query_prompt_version": prompt_version,
+                    "query_provider_used": False,
+                }
+                return cached
+
+        if not self.llm_client or not allow_provider_query_generation:
+            queries = self._static_queries(jurisdiction_name, normalized_type)
+            self.last_discovery_stats = {
+                "query_cache_hit": cache_hit,
+                "query_prompt_version": prompt_version,
+                "query_provider_used": used_provider,
+            }
+            return queries
         
         try:
-            # Fetch prompt from DB
-            prompt_template = await self.get_discovery_prompt()
             prompt = prompt_template.format(
                 jurisdiction=jurisdiction_name,
-                jurisdiction_type=jurisdiction_type
+                jurisdiction_type=normalized_type
             )
             
             logger.info(f"🧠 Generating discovery queries for {jurisdiction_name} using GLM-4.7...")
@@ -122,14 +157,43 @@ class AutoDiscoveryService:
             
             if isinstance(queries, list) and all(isinstance(q, str) for q in queries):
                 logger.info(f"✅ Generated {len(queries)} queries for {jurisdiction_name}")
+                used_provider = True
+                cache_writer = (
+                    getattr(self.db, "upsert_discovery_query_cache", None) if self.db else None
+                )
+                if cache_writer and inspect.iscoroutinefunction(cache_writer):
+                    await cache_writer(
+                        jurisdiction_name=jurisdiction_name,
+                        jurisdiction_type=normalized_type,
+                        prompt_version=prompt_version,
+                        queries=queries,
+                        ttl_hours=query_cache_ttl_hours,
+                    )
+                self.last_discovery_stats = {
+                    "query_cache_hit": cache_hit,
+                    "query_prompt_version": prompt_version,
+                    "query_provider_used": used_provider,
+                }
                 return queries
             else:
                 logger.warning("LLM returned invalid query format, using fallback")
-                return self._static_queries(jurisdiction_name, jurisdiction_type)
+                queries = self._static_queries(jurisdiction_name, normalized_type)
+                self.last_discovery_stats = {
+                    "query_cache_hit": cache_hit,
+                    "query_prompt_version": prompt_version,
+                    "query_provider_used": used_provider,
+                }
+                return queries
                 
         except Exception as e:
             logger.error(f"LLM query generation failed: {e}")
-            return self._static_queries(jurisdiction_name, jurisdiction_type)
+            queries = self._static_queries(jurisdiction_name, normalized_type)
+            self.last_discovery_stats = {
+                "query_cache_hit": cache_hit,
+                "query_prompt_version": prompt_version,
+                "query_provider_used": used_provider,
+            }
+            return queries
     
     def _static_queries(self, jurisdiction_name: str, jurisdiction_type: str) -> List[str]:
         """Fallback static query templates."""
@@ -153,6 +217,9 @@ class AutoDiscoveryService:
         jurisdiction_name: str,
         jurisdiction_type: str = "city",
         max_queries: Optional[int] = None,
+        *,
+        allow_provider_query_generation: bool = True,
+        query_cache_ttl_hours: int = DEFAULT_QUERY_CACHE_TTL_HOURS,
     ) -> List[Dict[str, Any]]:
         """
         Discover potential sources for a given jurisdiction.
@@ -163,8 +230,13 @@ class AutoDiscoveryService:
         :param jurisdiction_type: The type of jurisdiction ("city" or "county").
         :return: A list of potential sources, each a dictionary with search result info.
         """
-        # Generate queries using LLM
-        queries = await self.generate_queries(jurisdiction_name, jurisdiction_type)
+        # Generate queries using LLM/static fallback with cache and budget controls.
+        queries = await self.generate_queries(
+            jurisdiction_name,
+            jurisdiction_type,
+            allow_provider_query_generation=allow_provider_query_generation,
+            query_cache_ttl_hours=query_cache_ttl_hours,
+        )
         if max_queries is not None and max_queries > 0:
             queries = queries[:max_queries]
         

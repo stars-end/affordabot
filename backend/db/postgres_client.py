@@ -366,11 +366,311 @@ class PostgresDB:
 
     async def create_source(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Create a new source."""
-        columns = ", ".join(data.keys())
-        placeholders = ", ".join([f"${i + 1}" for i in range(len(data))])
+        insert_data = dict(data)
+        metadata = insert_data.get("metadata")
+        if isinstance(metadata, (dict, list)):
+            insert_data["metadata"] = json.dumps(metadata)
+
+        columns = ", ".join(insert_data.keys())
+        placeholders = ", ".join([f"${i + 1}" for i in range(len(insert_data))])
         query = f"INSERT INTO sources ({columns}) VALUES ({placeholders}) RETURNING *"
-        row = await self._fetchrow(query, *data.values())
+        row = await self._fetchrow(query, *insert_data.values())
         return dict(row)
+
+    async def get_discovery_query_cache(
+        self,
+        jurisdiction_name: str,
+        jurisdiction_type: str,
+        prompt_version: str,
+    ) -> Optional[List[str]]:
+        """Return cached discovery queries when available and not expired."""
+        try:
+            row = await self._fetchrow(
+                """
+                SELECT queries
+                FROM discovery_query_cache
+                WHERE jurisdiction_name = $1
+                  AND jurisdiction_type = $2
+                  AND prompt_version = $3
+                  AND expires_at > NOW()
+                LIMIT 1
+                """,
+                jurisdiction_name,
+                jurisdiction_type,
+                prompt_version,
+            )
+        except Exception as e:
+            logger.warning("Discovery query cache read skipped: %s", e)
+            return None
+
+        if not row:
+            return None
+
+        queries = row["queries"]
+        if isinstance(queries, str):
+            try:
+                queries = json.loads(queries)
+            except json.JSONDecodeError:
+                return None
+        if isinstance(queries, list) and all(isinstance(item, str) for item in queries):
+            return queries
+        return None
+
+    async def upsert_discovery_query_cache(
+        self,
+        jurisdiction_name: str,
+        jurisdiction_type: str,
+        prompt_version: str,
+        queries: List[str],
+        ttl_hours: int = 72,
+    ) -> bool:
+        """Persist discovery query cache with TTL."""
+        if not queries:
+            return False
+        try:
+            await self._execute(
+                """
+                INSERT INTO discovery_query_cache (
+                    jurisdiction_name,
+                    jurisdiction_type,
+                    prompt_version,
+                    queries,
+                    expires_at
+                )
+                VALUES ($1, $2, $3, $4::jsonb, NOW() + ($5::text || ' hours')::interval)
+                ON CONFLICT (jurisdiction_name, jurisdiction_type, prompt_version)
+                DO UPDATE SET
+                    queries = EXCLUDED.queries,
+                    expires_at = EXCLUDED.expires_at,
+                    updated_at = NOW()
+                """,
+                jurisdiction_name,
+                jurisdiction_type,
+                prompt_version,
+                json.dumps(queries),
+                str(max(ttl_hours, 1)),
+            )
+            return True
+        except Exception as e:
+            logger.warning("Discovery query cache write skipped: %s", e)
+            return False
+
+    async def get_discovery_classifier_cache(
+        self,
+        normalized_url: str,
+        classifier_version: str,
+    ) -> Optional[Dict[str, Any]]:
+        """Return cached classifier decision for an exact normalized URL."""
+        try:
+            row = await self._fetchrow(
+                """
+                SELECT normalized_url, classifier_version, decision
+                FROM discovery_classifier_cache
+                WHERE normalized_url = $1
+                  AND classifier_version = $2
+                LIMIT 1
+                """,
+                normalized_url,
+                classifier_version,
+            )
+        except Exception as e:
+            logger.warning("Discovery classifier cache read skipped: %s", e)
+            return None
+
+        if not row:
+            return None
+
+        payload = row["decision"]
+        if isinstance(payload, str):
+            try:
+                payload = json.loads(payload)
+            except json.JSONDecodeError:
+                return None
+        return payload if isinstance(payload, dict) else None
+
+    async def upsert_discovery_classifier_cache(
+        self,
+        normalized_url: str,
+        classifier_version: str,
+        decision: Dict[str, Any],
+    ) -> bool:
+        """Persist a classifier decision for exact URL cache lookups."""
+        try:
+            await self._execute(
+                """
+                INSERT INTO discovery_classifier_cache (
+                    normalized_url,
+                    classifier_version,
+                    decision
+                )
+                VALUES ($1, $2, $3::jsonb)
+                ON CONFLICT (normalized_url, classifier_version)
+                DO UPDATE SET
+                    decision = EXCLUDED.decision,
+                    updated_at = NOW()
+                """,
+                normalized_url,
+                classifier_version,
+                json.dumps(decision),
+            )
+            return True
+        except Exception as e:
+            logger.warning("Discovery classifier cache write skipped: %s", e)
+            return False
+
+    async def upsert_discovery_deferred_item(
+        self,
+        jurisdiction_id: str,
+        jurisdiction_name: str,
+        stage: str,
+        reason_code: str,
+        payload: Dict[str, Any],
+        retry_count: int = 0,
+        next_attempt_at: Optional[datetime] = None,
+        last_error: Optional[str] = None,
+    ) -> bool:
+        """Insert or update deferred provider-limited discovery work."""
+        if not payload:
+            return False
+        try:
+            await self._execute(
+                """
+                INSERT INTO discovery_deferred_queue (
+                    jurisdiction_id,
+                    jurisdiction_name,
+                    stage,
+                    reason_code,
+                    payload,
+                    retry_count,
+                    next_attempt_at,
+                    last_error
+                )
+                VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8)
+                ON CONFLICT (jurisdiction_id, stage, reason_code, payload)
+                DO UPDATE SET
+                    retry_count = GREATEST(discovery_deferred_queue.retry_count, EXCLUDED.retry_count),
+                    next_attempt_at = GREATEST(discovery_deferred_queue.next_attempt_at, EXCLUDED.next_attempt_at),
+                    last_error = EXCLUDED.last_error,
+                    updated_at = NOW()
+                """,
+                jurisdiction_id,
+                jurisdiction_name,
+                stage,
+                reason_code,
+                json.dumps(payload),
+                max(retry_count, 0),
+                next_attempt_at or datetime.now(timezone.utc),
+                last_error,
+            )
+            return True
+        except Exception as e:
+            logger.warning("Discovery deferred queue write skipped: %s", e)
+            return False
+
+    async def get_due_discovery_deferred_items(
+        self,
+        limit: int,
+        as_of: Optional[datetime] = None,
+    ) -> List[Dict[str, Any]]:
+        """Return deferred items that are due for retry."""
+        if limit <= 0:
+            return []
+        try:
+            rows = await self._fetch(
+                """
+                SELECT
+                    id::text AS id,
+                    jurisdiction_id,
+                    jurisdiction_name,
+                    stage,
+                    reason_code,
+                    payload,
+                    retry_count,
+                    next_attempt_at,
+                    last_error
+                FROM discovery_deferred_queue
+                WHERE next_attempt_at <= $1
+                ORDER BY next_attempt_at ASC, created_at ASC
+                LIMIT $2
+                """,
+                as_of or datetime.now(timezone.utc),
+                limit,
+            )
+        except Exception as e:
+            logger.warning("Discovery deferred queue read skipped: %s", e)
+            return []
+
+        items: List[Dict[str, Any]] = []
+        for row in rows:
+            item = dict(row)
+            payload = item.get("payload")
+            if isinstance(payload, str):
+                try:
+                    payload = json.loads(payload)
+                except json.JSONDecodeError:
+                    payload = {}
+            item["payload"] = payload if isinstance(payload, dict) else {}
+            items.append(item)
+        return items
+
+    async def resolve_discovery_deferred_item(self, item_id: str) -> bool:
+        """Delete a deferred queue item after successful processing or terminal outcome."""
+        try:
+            await self._execute(
+                "DELETE FROM discovery_deferred_queue WHERE id::text = $1",
+                item_id,
+            )
+            return True
+        except Exception as e:
+            logger.warning("Discovery deferred queue delete skipped: %s", e)
+            return False
+
+    async def reschedule_discovery_deferred_item(
+        self,
+        item_id: str,
+        retry_count: int,
+        next_attempt_at: datetime,
+        last_error: str,
+        reason_code: Optional[str] = None,
+    ) -> bool:
+        """Reschedule a deferred queue item with updated retry metadata."""
+        try:
+            if reason_code:
+                await self._execute(
+                    """
+                    UPDATE discovery_deferred_queue
+                    SET retry_count = $1,
+                        next_attempt_at = $2,
+                        last_error = $3,
+                        reason_code = $4,
+                        updated_at = NOW()
+                    WHERE id::text = $5
+                    """,
+                    max(retry_count, 0),
+                    next_attempt_at,
+                    last_error,
+                    reason_code,
+                    item_id,
+                )
+            else:
+                await self._execute(
+                    """
+                    UPDATE discovery_deferred_queue
+                    SET retry_count = $1,
+                        next_attempt_at = $2,
+                        last_error = $3,
+                        updated_at = NOW()
+                    WHERE id::text = $4
+                    """,
+                    max(retry_count, 0),
+                    next_attempt_at,
+                    last_error,
+                    item_id,
+                )
+            return True
+        except Exception as e:
+            logger.warning("Discovery deferred queue reschedule skipped: %s", e)
+            return False
 
     async def update_source(
         self, source_id: str, data: Dict[str, Any]
