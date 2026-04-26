@@ -135,3 +135,32 @@ async def test_mark_raw_scrape_seen_updates_seen_count_and_last_seen_at() -> Non
     assert "last_seen_at = $1" in sql
     assert "seen_count = COALESCE(seen_count, 0) + 1" in sql
     assert db._execute.await_args.args[2] == "scrape-1"
+
+
+@pytest.mark.asyncio
+async def test_create_source_serializes_metadata_dict() -> None:
+    db = PostgresDB("postgresql://example.test/db")
+    db._fetchrow = AsyncMock(
+        return_value={
+            "id": "src-1",
+            "jurisdiction_id": "jur-1",
+            "url": "https://example.gov/agenda",
+            "type": "web",
+            "name": "Agenda",
+            "metadata": '{"k":"v"}',
+        }
+    )
+
+    await db.create_source(
+        {
+            "jurisdiction_id": "jur-1",
+            "name": "Agenda",
+            "type": "web",
+            "url": "https://example.gov/agenda",
+            "scrape_url": "https://example.gov/agenda",
+            "metadata": {"k": "v"},
+        }
+    )
+
+    args = db._fetchrow.await_args.args
+    assert args[6] == '{"k": "v"}'

@@ -1,7 +1,25 @@
 import sys
+import uuid
+from dataclasses import dataclass
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
+@dataclass
+class _WebSearchResultStub:
+    url: str
+    title: str = ""
+    snippet: str = ""
+    content: str | None = None
+    published_date: str | None = None
+    domain: str | None = None
+    score: float | None = None
+    source: str | None = None
+
+
+sys.modules.setdefault(
+    "playwright.async_api",
+    SimpleNamespace(async_playwright=MagicMock()),
+)
 sys.modules.setdefault(
     "asyncpg",
     SimpleNamespace(Record=object, Pool=object, create_pool=MagicMock()),
@@ -14,7 +32,7 @@ sys.modules.setdefault(
     SimpleNamespace(
         LLMMessage=MagicMock(),
         MessageRole=SimpleNamespace(USER="user"),
-        WebSearchResult=MagicMock(),
+        WebSearchResult=_WebSearchResultStub,
     ),
 )
 sys.modules.setdefault("instructor", SimpleNamespace(from_openai=MagicMock()))
@@ -56,6 +74,10 @@ async def test_run_discovery_wires_search_client(
 
     mock_search_client_cls.assert_called_once()
     mock_legacy_search_cls.assert_called_once()
+    create_task_kwargs = mock_db.create_admin_task.await_args.kwargs
+    assert create_task_kwargs["task_type"] == "research"
+    assert create_task_kwargs["jurisdiction"] == "all"
+    assert create_task_kwargs["status"] == "running"
     _, kwargs = mock_search_service_cls.call_args
     resilient_client = kwargs["search_client"]
     assert resilient_client.primary_client is mock_search_client_cls.return_value
@@ -79,7 +101,9 @@ async def test_run_discovery_fail_closed_when_batch_gate_fails(
 ):
     mock_db = MagicMock()
     mock_db.create_admin_task = AsyncMock()
-    mock_db._fetch = AsyncMock(return_value=[{"id": "jur-1", "name": "San Jose", "type": "city"}])
+    mock_db._fetch = AsyncMock(
+        return_value=[{"id": uuid.UUID("a23f2953-8ade-4c43-a287-eb03f06b2501"), "name": "San Jose", "type": "city"}]
+    )
     mock_db._fetchrow = AsyncMock()
     mock_db.create_source = AsyncMock()
     mock_db.update_admin_task = AsyncMock()
@@ -128,7 +152,9 @@ async def test_run_discovery_creates_single_source_write_with_classifier_gate(
 ):
     mock_db = MagicMock()
     mock_db.create_admin_task = AsyncMock()
-    mock_db._fetch = AsyncMock(return_value=[{"id": "jur-1", "name": "San Jose", "type": "city"}])
+    mock_db._fetch = AsyncMock(
+        return_value=[{"id": uuid.UUID("a23f2953-8ade-4c43-a287-eb03f06b2501"), "name": "San Jose", "type": "city"}]
+    )
     mock_db._fetchrow = AsyncMock(return_value=None)
     mock_db.get_or_create_source = AsyncMock()
     mock_db.create_source = AsyncMock()
@@ -166,6 +192,11 @@ async def test_run_discovery_creates_single_source_write_with_classifier_gate(
     await run_discovery.main()
 
     mock_db.get_or_create_source.assert_not_called()
+    mock_db._fetchrow.assert_awaited_once_with(
+        "SELECT id FROM sources WHERE jurisdiction_id = $1 AND url = $2",
+        "a23f2953-8ade-4c43-a287-eb03f06b2501",
+        "https://example.gov/agenda",
+    )
     mock_db.create_source.assert_called_once()
     create_payload = mock_db.create_source.call_args.args[0]
     assert create_payload["url"] == "https://example.gov/agenda"
