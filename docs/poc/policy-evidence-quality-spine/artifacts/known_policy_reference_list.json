@@ -1,0 +1,187 @@
+{
+  "schema_version": "known_policy_reference_list_v1",
+  "taxonomy_version": "corpus_taxonomy_v1",
+  "gate_version": "data_moat_c0_c14_v1",
+  "purpose": "Blind and non-blind seed list for measuring coverage-of-known-policies. Rows are discovery targets, not proof that a package has passed. A benchmark cannot claim C12 pass unless each row is either captured, classified as unavailable with evidence, or marked out of scope with a reason.",
+  "coverage_rule": {
+    "decision_grade_corpus_minimum_capture_rate": 0.8,
+    "blind_holdout_minimum_capture_rate": 0.7,
+    "miss_requires_failure_class": true,
+    "allowed_failure_classes": [
+      "official_source_not_found",
+      "structured_source_unavailable",
+      "source_shape_changed",
+      "known_policy_missed",
+      "blocked_hitl"
+    ]
+  },
+  "rows": [
+    {
+      "id": "kp-sj-commercial-linkage-fee",
+      "jurisdiction_id": "san_jose_ca",
+      "policy_family": "commercial_linkage_fee",
+      "policy_name": "Commercial linkage fee annual adjustment or fee schedule",
+      "known_source_hint": "San Jose Legistar and official city fee schedule pages",
+      "expected_source_families": [
+        "private_searxng_discovered_official_html_pdf",
+        "agenda_meeting_api",
+        "official_pdf_html_attachment"
+      ],
+      "economic_handoff_expectation": "direct_fee_or_tax",
+      "blind_holdout": false
+    },
+    {
+      "id": "kp-sj-housing-permit-fee",
+      "jurisdiction_id": "san_jose_ca",
+      "policy_family": "housing_permits",
+      "policy_name": "Housing or building permit fee schedule",
+      "known_source_hint": "San Jose official fee schedule, permit, or open data portal",
+      "expected_source_families": [
+        "private_searxng_discovered_official_html_pdf",
+        "ckan_api",
+        "official_clerk_or_code_portal"
+      ],
+      "economic_handoff_expectation": "direct_fee_or_tax",
+      "blind_holdout": true
+    },
+    {
+      "id": "kp-sj-parking-requirement",
+      "jurisdiction_id": "san_jose_ca",
+      "policy_family": "parking_policy",
+      "policy_name": "Parking requirement, parking minimum, or TDM ordinance",
+      "known_source_hint": "San Jose municipal code, council packet, or planning pages",
+      "expected_source_families": [
+        "private_searxng_discovered_official_html_pdf",
+        "official_clerk_or_code_portal",
+        "agenda_meeting_api"
+      ],
+      "economic_handoff_expectation": "indirect_supply_constraint",
+      "blind_holdout": false
+    },
+    {
+      "id": "kp-scc-permit-or-inspection-fee",
+      "jurisdiction_id": "santa_clara_county_ca",
+      "policy_family": "housing_permits",
+      "policy_name": "County permit, inspection, or development fee schedule",
+      "known_source_hint": "Santa Clara County official permit, planning, or fee pages",
+      "expected_source_families": [
+        "private_searxng_discovered_official_html_pdf",
+        "official_pdf_html_attachment",
+        "socrata_api"
+      ],
+      "economic_handoff_expectation": "direct_fee_or_tax",
+      "blind_holdout": true
+    },
+    {
+      "id": "kp-baaqmd-zero-nox-appliance",
+      "jurisdiction_id": "bay_area_air_district_ca",
+      "policy_family": "air_quality_electrification",
+      "policy_name": "Zero-NOx appliance or building equipment rule",
+      "known_source_hint": "Bay Area Air District rulemaking, board packet, or official rule page",
+      "expected_source_families": [
+        "private_searxng_discovered_official_html_pdf",
+        "official_pdf_html_attachment",
+        "official_clerk_or_code_portal"
+      ],
+      "economic_handoff_expectation": "indirect_energy_or_utility_cost",
+      "blind_holdout": false
+    },
+    {
+      "id": "kp-ca-state-adu-or-housing-bill",
+      "jurisdiction_id": "california_state",
+      "policy_family": "affordable_housing_mandate",
+      "policy_name": "State housing production, ADU, or affordability mandate",
+      "known_source_hint": "California LegInfo official bill text and history",
+      "expected_source_families": [
+        "state_legislation_api_or_raw",
+        "private_searxng_discovered_official_html_pdf"
+      ],
+      "economic_handoff_expectation": "indirect_housing_cost_pass_through",
+      "blind_holdout": true
+    },
+    {
+      "id": "kp-seattle-rental-registration",
+      "jurisdiction_id": "seattle_wa",
+      "policy_family": "business_licensing_compliance",
+      "policy_name": "Rental registration, inspection, or local compliance requirement",
+      "known_source_hint": "Seattle official code, council, or department page",
+      "expected_source_families": [
+        "private_searxng_discovered_official_html_pdf",
+        "official_clerk_or_code_portal",
+        "socrata_api"
+      ],
+      "economic_handoff_expectation": "direct_compliance_cost",
+      "blind_holdout": true
+    },
+    {
+      "id": "kp-seattle-zoning-land-use",
+      "jurisdiction_id": "seattle_wa",
+      "policy_family": "zoning_land_use",
+      "policy_name": "Zoning, land-use, or comprehensive-plan ordinance",
+      "known_source_hint": "Seattle official council packet, code, or ArcGIS/open data source",
+      "expected_source_families": [
+        "private_searxng_discovered_official_html_pdf",
+        "arcgis_rest",
+        "official_clerk_or_code_portal"
+      ],
+      "economic_handoff_expectation": "indirect_supply_constraint",
+      "blind_holdout": false
+    },
+    {
+      "id": "kp-denver-affordable-housing-fee",
+      "jurisdiction_id": "denver_co",
+      "policy_family": "affordable_housing_mandate",
+      "policy_name": "Affordable housing linkage, in-lieu, or development fee",
+      "known_source_hint": "Denver official code, housing department, or fee schedule",
+      "expected_source_families": [
+        "private_searxng_discovered_official_html_pdf",
+        "official_pdf_html_attachment",
+        "arcgis_rest"
+      ],
+      "economic_handoff_expectation": "direct_fee_or_tax",
+      "blind_holdout": true
+    },
+    {
+      "id": "kp-denver-parking-or-tdm",
+      "jurisdiction_id": "denver_co",
+      "policy_family": "transportation_demand_management",
+      "policy_name": "Parking, transportation demand management, or mobility fee policy",
+      "known_source_hint": "Denver official code, council, or transportation department page",
+      "expected_source_families": [
+        "private_searxng_discovered_official_html_pdf",
+        "official_clerk_or_code_portal",
+        "arcgis_rest"
+      ],
+      "economic_handoff_expectation": "indirect_supply_constraint",
+      "blind_holdout": false
+    },
+    {
+      "id": "kp-king-county-permit-fee",
+      "jurisdiction_id": "king_county_wa",
+      "policy_family": "housing_permits",
+      "policy_name": "County permit, environmental, or development fee schedule",
+      "known_source_hint": "King County official permit or fee pages",
+      "expected_source_families": [
+        "private_searxng_discovered_official_html_pdf",
+        "official_pdf_html_attachment",
+        "socrata_api"
+      ],
+      "economic_handoff_expectation": "direct_fee_or_tax",
+      "blind_holdout": true
+    },
+    {
+      "id": "kp-king-county-code-enforcement",
+      "jurisdiction_id": "king_county_wa",
+      "policy_family": "code_enforcement",
+      "policy_name": "Code enforcement, inspection, or compliance process",
+      "known_source_hint": "King County official code, department page, or data portal",
+      "expected_source_families": [
+        "private_searxng_discovered_official_html_pdf",
+        "official_clerk_or_code_portal",
+        "socrata_api"
+      ],
+      "economic_handoff_expectation": "stored_not_economic",
+      "blind_holdout": false
+    }
+  ]
+}

@@ -409,6 +409,21 @@ def _run_scope_pipeline(
             "backend_response": {
                 "status": backend_status,
                 "decision_reason": backend_response.get("decision_reason"),
+                "idempotency_key": backend_response.get("idempotency_key"),
+                "scope_idempotency_key": backend_response.get("scope_idempotency_key"),
+                "windmill_run_id": backend_response.get("windmill_run_id"),
+                "windmill_run_id_reported": backend_response.get("windmill_run_id_reported"),
+                "windmill_run_id_source": backend_response.get("windmill_run_id_source"),
+                "windmill_run_id_missing_reason": backend_response.get(
+                    "windmill_run_id_missing_reason"
+                ),
+                "windmill_job_id": backend_response.get("windmill_job_id"),
+                "windmill_job_id_reported": backend_response.get("windmill_job_id_reported"),
+                "windmill_job_id_source": backend_response.get("windmill_job_id_source"),
+                "windmill_job_id_missing_reason": backend_response.get(
+                    "windmill_job_id_missing_reason"
+                ),
+                "orchestration_refs": backend_response.get("orchestration_refs", {}),
                 "storage_mode": backend_response.get("storage_mode"),
                 "missing_runtime_adapters": backend_response.get("missing_runtime_adapters", []),
                 "refs": backend_response.get("refs", {}),

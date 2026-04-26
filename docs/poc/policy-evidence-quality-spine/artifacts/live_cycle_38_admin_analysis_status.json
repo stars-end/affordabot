@@ -1,0 +1,1924 @@
+{
+  "assumption_needs": {
+    "assumption_count": 0,
+    "assumption_ids": [],
+    "direct_project_fee_scope": {
+      "reason": "direct project-fee arithmetic does not require household incidence assumptions",
+      "status": "not_required"
+    },
+    "household_cost_of_living_scope": {
+      "missing_families": [
+        "fee_or_tax_pass_through",
+        "adoption_take_up"
+      ],
+      "reason": "pass-through/incidence assumptions missing",
+      "status": "not_proven"
+    },
+    "missing_families": [
+      "fee_or_tax_pass_through",
+      "adoption_take_up"
+    ],
+    "required_families": [
+      "fee_or_tax_pass_through",
+      "adoption_take_up"
+    ],
+    "status": "not_proven"
+  },
+  "backend_run_id": "e70b69c0-a50a-4182-8991-0e681d50c46a",
+  "canonical_analysis_binding": {
+    "observed": {
+      "canonical_pipeline_run_id": "e70b69c0-a50a-4182-8991-0e681d50c46a",
+      "canonical_pipeline_step_id": "3bc7b357-4410-533b-9592-1fdb2b65b4cb",
+      "source": "policy_evidence_packages.package_payload + pipeline_runs.result.analysis"
+    },
+    "package_projection": {
+      "canonical_pipeline_run_id": "e70b69c0-a50a-4182-8991-0e681d50c46a",
+      "canonical_pipeline_step_id": "3bc7b357-4410-533b-9592-1fdb2b65b4cb"
+    },
+    "reason": "canonical analysis run/step ids are linked to this package",
+    "route_run_id": "e70b69c0-a50a-4182-8991-0e681d50c46a",
+    "source_artifact_refs": [
+      {
+        "artifact_id": "v2|jurisdiction=san-jose-ca|family=commercial_linkage_fee|doctype=meeting_minutes|url=https://sanjose.legistar.com/View.ashx?GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6&ID=8758120&M=F",
+        "content_hash": "71524d4b161bbf71c6145f0549351b0c4a9603630c5e8e7794fb77c552468dd3",
+        "evidence_card_id": "ev-1",
+        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6"
+      },
+      {
+        "artifact_id": "v2|jurisdiction=san-jose-ca|family=legistar-web-api|doctype=matter_metadata|url=https://webapi.legistar.com/v1/sanjose/Matters/7526",
+        "content_hash": "missing_hash::https://webapi.legistar.com/v1/sanjose/Matters/7526",
+        "evidence_card_id": "ev-2",
+        "source_url": "https://webapi.legistar.com/v1/sanjose/Matters/7526"
+      }
+    ],
+    "status": "bound"
+  },
+  "contract_version": "2026-04-13.windmill-domain.v1",
+  "data_moat_status": {
+    "attachment_content_ingested_count": 5,
+    "attachment_economic_row_count": 7,
+    "attachment_probe_count": 6,
+    "attachment_ref_count": 19,
+    "blockers": [],
+    "decision_grade_verdict": "not_decision_grade",
+    "economic_handoff_ready": false,
+    "evidence_package_status": "fail",
+    "identity_blocker_code": null,
+    "identity_blocker_reason": null,
+    "identity_ready": true,
+    "identity_recommended_action": null,
+    "identity_signals_present": true,
+    "jurisdiction_identity_ready": true,
+    "missing_true_structured_corroboration_count": 15,
+    "named_gap_count": 3,
+    "named_gaps": [
+      "economic reasoning",
+      "rubric/uncertainty_sensitivity",
+      "sufficiency_readiness"
+    ],
+    "official_attachment_depth_ready": true,
+    "official_attachment_failure_counts": {
+      "attachment_pdf_parse_failed": 1,
+      "ingested_excerpt": 5
+    },
+    "official_attachment_parse_anomalies": [],
+    "official_attachment_parse_anomaly_count": 0,
+    "official_attachment_probe_count": 6,
+    "official_attachment_recognized_count": 6,
+    "official_attachment_ref_count": 9,
+    "official_attachment_refs_present": true,
+    "official_attachment_row_count": 6,
+    "official_attachment_rows_emitted": true,
+    "official_attachment_text_read_count": 5,
+    "official_pdf_probe_count": 6,
+    "official_pdf_text_extracted": true,
+    "official_pdf_text_extracted_count": 5,
+    "overall_ready": false,
+    "policy_identity_ready": true,
+    "readiness_level": "qualitative_only",
+    "reason": "authoritative official attachment rows are present, but non-decision-grade gates remain",
+    "recommended_next_action": "reject",
+    "row_family_depth": {
+      "official_attachment": {
+        "row_count": 6,
+        "satisfies_depth": true,
+        "status": "satisfied"
+      },
+      "secondary_search": {
+        "row_count": 0,
+        "satisfies_depth": false,
+        "status": "non_authoritative"
+      },
+      "true_structured": {
+        "row_count": 6,
+        "satisfies_depth": false,
+        "status": "missing_or_unverified"
+      }
+    },
+    "runtime_ready": true,
+    "secondary_search_row_count": 0,
+    "selected_artifact_family": "artifact",
+    "source_quality_ready": true,
+    "source_selection_blocker": false,
+    "source_selection_reason": "selected_artifact_grade_candidate",
+    "status": "evidence_ready_with_gaps",
+    "structured_depth_ready": true,
+    "structured_depth_satisfied_by": [
+      "official_attachment"
+    ],
+    "top_n_artifact_recall_count": 2,
+    "true_structured_depth_ready": false,
+    "true_structured_row_count": 6
+  },
+  "decision_grade_verdict": "not_decision_grade",
+  "economic_analysis_status": {
+    "reason": "additional evidence is required before quantitative conclusion",
+    "required_evidence_gaps": [
+      "economic reasoning",
+      "rubric/uncertainty_sensitivity",
+      "sufficiency_readiness"
+    ],
+    "status": "secondary_research_needed"
+  },
+  "economic_handoff_quality": {
+    "analysis_state": "secondary_research_needed",
+    "analysis_status": "secondary_research_needed",
+    "assumption_needs": {
+      "assumption_count": 0,
+      "assumption_ids": [],
+      "direct_project_fee_scope": {
+        "reason": "direct project-fee arithmetic does not require household incidence assumptions",
+        "status": "not_required"
+      },
+      "household_cost_of_living_scope": {
+        "missing_families": [
+          "fee_or_tax_pass_through",
+          "adoption_take_up"
+        ],
+        "reason": "pass-through/incidence assumptions missing",
+        "status": "not_proven"
+      },
+      "missing_families": [
+        "fee_or_tax_pass_through",
+        "adoption_take_up"
+      ],
+      "required_families": [
+        "fee_or_tax_pass_through",
+        "adoption_take_up"
+      ],
+      "status": "not_proven"
+    },
+    "can_quantify_now": [
+      "direct_project_fee_exposure"
+    ],
+    "canonical_binding_status": "bound",
+    "decision_grade_verdict": "not_decision_grade",
+    "fail_closed_blocking_gate": null,
+    "fail_closed_specific": false,
+    "legacy_status": "not_ready",
+    "mechanism_candidates": [
+      {
+        "direct_fee_model_candidate": {
+          "formula": "direct_fee_usd = project_size_sqft * fee_rate_usd_per_sqft",
+          "scope": "direct_developer_fee",
+          "status": "pass"
+        },
+        "household_pass_through_need": {
+          "reason": "household cost-of-living incidence is not decision-grade without source-bound pass-through/incidence assumptions",
+          "status": "not_proven"
+        },
+        "mechanism_type": "direct",
+        "reason": "source-bound per-square-foot fee parameters available for direct model card",
+        "status": "pass",
+        "supported_model_card_ids": []
+      },
+      {
+        "mechanism_type": "indirect",
+        "reason": "pass-through/adoption assumptions missing",
+        "status": "not_proven",
+        "supported_assumption_ids": []
+      },
+      {
+        "mechanism_type": "direct",
+        "reason": "nodes=3 edges=2",
+        "status": "pass"
+      }
+    ],
+    "missing_assumption_families": [
+      "fee_or_tax_pass_through",
+      "adoption_take_up"
+    ],
+    "missing_parameters": [
+      {
+        "ambiguity_reason": "currency_format_anomaly",
+        "evidence_card_id": "ev-1",
+        "name": "commercial_linkage_fee_rate_usd_per_sqft",
+        "parameter_id": "param-3-commercial-linkage-fee-rate-usd-per-sqft",
+        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+        "state": "ambiguous",
+        "unit": "usd_per_square_foot"
+      }
+    ],
+    "missing_parameters_count": 1,
+    "official_attachment_row_count": 6,
+    "parameter_inventory": {
+      "missing_count": 1,
+      "missing_parameters": [
+        {
+          "ambiguity_reason": "currency_format_anomaly",
+          "evidence_card_id": "ev-1",
+          "name": "commercial_linkage_fee_rate_usd_per_sqft",
+          "parameter_id": "param-3-commercial-linkage-fee-rate-usd-per-sqft",
+          "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+          "state": "ambiguous",
+          "unit": "usd_per_square_foot"
+        }
+      ],
+      "resolved_count": 22,
+      "resolved_parameters": [
+        {
+          "ambiguity_reason": null,
+          "evidence_card_id": "ev-1",
+          "name": "commercial_linkage_fee_rate_usd_per_sqft",
+          "parameter_id": "param-1-commercial-linkage-fee-rate-usd-per-sqft",
+          "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+          "state": "resolved",
+          "unit": "usd_per_square_foot"
+        },
+        {
+          "ambiguity_reason": null,
+          "evidence_card_id": "ev-1",
+          "name": "commercial_linkage_fee_rate_usd_per_sqft",
+          "parameter_id": "param-2-commercial-linkage-fee-rate-usd-per-sqft",
+          "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+          "state": "resolved",
+          "unit": "usd_per_square_foot"
+        },
+        {
+          "ambiguity_reason": null,
+          "evidence_card_id": "ev-1",
+          "name": "commercial_linkage_fee_rate_usd_per_sqft",
+          "parameter_id": "param-4-commercial-linkage-fee-rate-usd-per-sqft",
+          "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+          "state": "resolved",
+          "unit": "usd_per_square_foot"
+        },
+        {
+          "ambiguity_reason": null,
+          "evidence_card_id": "ev-1",
+          "name": "commercial_linkage_fee_rate_usd_per_sqft",
+          "parameter_id": "param-5-commercial-linkage-fee-rate-usd-per-sqft",
+          "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+          "state": "resolved",
+          "unit": "usd_per_square_foot"
+        },
+        {
+          "ambiguity_reason": null,
+          "evidence_card_id": "ev-1",
+          "name": "commercial_linkage_fee_rate_usd_per_sqft",
+          "parameter_id": "param-6-commercial-linkage-fee-rate-usd-per-sqft",
+          "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+          "state": "resolved",
+          "unit": "usd_per_square_foot"
+        },
+        {
+          "ambiguity_reason": null,
+          "evidence_card_id": "ev-1",
+          "name": "commercial_linkage_fee_rate_usd_per_sqft",
+          "parameter_id": "param-7-commercial-linkage-fee-rate-usd-per-sqft",
+          "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+          "state": "resolved",
+          "unit": "usd_per_square_foot"
+        },
+        {
+          "ambiguity_reason": null,
+          "evidence_card_id": "ev-1",
+          "name": "commercial_linkage_fee_rate_usd_per_sqft",
+          "parameter_id": "param-8-commercial-linkage-fee-rate-usd-per-sqft",
+          "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+          "state": "resolved",
+          "unit": "usd_per_square_foot"
+        },
+        {
+          "ambiguity_reason": null,
+          "evidence_card_id": "ev-1",
+          "name": "commercial_linkage_fee_rate_usd_per_sqft",
+          "parameter_id": "param-9-commercial-linkage-fee-rate-usd-per-sqft",
+          "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+          "state": "resolved",
+          "unit": "usd_per_square_foot"
+        },
+        {
+          "ambiguity_reason": null,
+          "evidence_card_id": "ev-1",
+          "name": "commercial_linkage_fee_rate_usd_per_sqft",
+          "parameter_id": "param-10-commercial-linkage-fee-rate-usd-per-sqft",
+          "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+          "state": "resolved",
+          "unit": "usd_per_square_foot"
+        },
+        {
+          "ambiguity_reason": null,
+          "evidence_card_id": "ev-1",
+          "name": "commercial_linkage_fee_rate_usd_per_sqft",
+          "parameter_id": "param-11-commercial-linkage-fee-rate-usd-per-sqft",
+          "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+          "state": "resolved",
+          "unit": "usd_per_square_foot"
+        },
+        {
+          "ambiguity_reason": null,
+          "evidence_card_id": "ev-1",
+          "name": "commercial_linkage_fee_rate_usd_per_sqft",
+          "parameter_id": "param-12-commercial-linkage-fee-rate-usd-per-sqft",
+          "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+          "state": "resolved",
+          "unit": "usd_per_square_foot"
+        },
+        {
+          "ambiguity_reason": null,
+          "evidence_card_id": "ev-1",
+          "name": "commercial_linkage_fee_rate_usd_per_sqft",
+          "parameter_id": "param-13-commercial-linkage-fee-rate-usd-per-sqft",
+          "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+          "state": "resolved",
+          "unit": "usd_per_square_foot"
+        },
+        {
+          "ambiguity_reason": null,
+          "evidence_card_id": "ev-1",
+          "name": "commercial_linkage_fee_rate_usd_per_sqft",
+          "parameter_id": "param-14-commercial-linkage-fee-rate-usd-per-sqft",
+          "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+          "state": "resolved",
+          "unit": "usd_per_square_foot"
+        },
+        {
+          "ambiguity_reason": null,
+          "evidence_card_id": "ev-1",
+          "name": "commercial_linkage_fee_rate_usd_per_sqft",
+          "parameter_id": "param-15-commercial-linkage-fee-rate-usd-per-sqft",
+          "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+          "state": "resolved",
+          "unit": "usd_per_square_foot"
+        },
+        {
+          "ambiguity_reason": null,
+          "evidence_card_id": "ev-1",
+          "name": "commercial_linkage_fee_rate_usd_per_sqft",
+          "parameter_id": "param-16-commercial-linkage-fee-rate-usd-per-sqft",
+          "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+          "state": "resolved",
+          "unit": "usd_per_square_foot"
+        },
+        {
+          "ambiguity_reason": null,
+          "evidence_card_id": "ev-2",
+          "name": "commercial_linkage_fee_rate_usd_per_sqft",
+          "parameter_id": "param-1-commercial-linkage-fee-rate-usd-per-sqft",
+          "source_url": "https://legistar.granicus.com/sanjose/attachments/94ffc8fc-d6ba-46ca-8499-b46b32bcbf6a.pdf",
+          "state": "resolved",
+          "unit": "usd_per_square_foot"
+        },
+        {
+          "ambiguity_reason": null,
+          "evidence_card_id": "ev-2",
+          "name": "commercial_linkage_fee_rate_usd_per_sqft",
+          "parameter_id": "param-2-commercial-linkage-fee-rate-usd-per-sqft",
+          "source_url": "https://legistar.granicus.com/sanjose/attachments/94ffc8fc-d6ba-46ca-8499-b46b32bcbf6a.pdf",
+          "state": "resolved",
+          "unit": "usd_per_square_foot"
+        },
+        {
+          "ambiguity_reason": null,
+          "evidence_card_id": "ev-2",
+          "name": "commercial_linkage_fee_rate_usd_per_sqft",
+          "parameter_id": "param-3-commercial-linkage-fee-rate-usd-per-sqft",
+          "source_url": "https://legistar.granicus.com/sanjose/attachments/94ffc8fc-d6ba-46ca-8499-b46b32bcbf6a.pdf",
+          "state": "resolved",
+          "unit": "usd_per_square_foot"
+        },
+        {
+          "ambiguity_reason": null,
+          "evidence_card_id": "ev-2",
+          "name": "commercial_linkage_fee_rate_usd_per_sqft",
+          "parameter_id": "param-4-commercial-linkage-fee-rate-usd-per-sqft",
+          "source_url": "https://legistar.granicus.com/sanjose/attachments/94ffc8fc-d6ba-46ca-8499-b46b32bcbf6a.pdf",
+          "state": "resolved",
+          "unit": "usd_per_square_foot"
+        },
+        {
+          "ambiguity_reason": null,
+          "evidence_card_id": "ev-2",
+          "name": "commercial_linkage_fee_rate_usd_per_sqft",
+          "parameter_id": "param-5-commercial-linkage-fee-rate-usd-per-sqft",
+          "source_url": "https://legistar.granicus.com/sanjose/attachments/eb98bc80-6c09-4b45-ba75-db970576e5f3.pdf",
+          "state": "resolved",
+          "unit": "usd_per_square_foot"
+        },
+        {
+          "ambiguity_reason": null,
+          "evidence_card_id": "ev-2",
+          "name": "commercial_linkage_fee_rate_usd_per_sqft",
+          "parameter_id": "param-6-commercial-linkage-fee-rate-usd-per-sqft",
+          "source_url": "https://legistar.granicus.com/sanjose/attachments/eb98bc80-6c09-4b45-ba75-db970576e5f3.pdf",
+          "state": "resolved",
+          "unit": "usd_per_square_foot"
+        },
+        {
+          "ambiguity_reason": null,
+          "evidence_card_id": "ev-2",
+          "name": "commercial_linkage_fee_rate_usd_per_sqft",
+          "parameter_id": "param-7-commercial-linkage-fee-rate-usd-per-sqft",
+          "source_url": "https://legistar.granicus.com/sanjose/attachments/eb98bc80-6c09-4b45-ba75-db970576e5f3.pdf",
+          "state": "resolved",
+          "unit": "usd_per_square_foot"
+        }
+      ]
+    },
+    "quantification_paths": {
+      "direct_project_fee_exposure": {
+        "reason": "source-bound direct fee rows support project-fee exposure analysis",
+        "status": "analysis_ready"
+      },
+      "household_cost_of_living": {
+        "reason": "household cost-of-living incidence path is not source-bound",
+        "status": "not_analysis_ready"
+      }
+    },
+    "readiness_level": "qualitative_only",
+    "reason_code": "direct_project_fee_ready_household_incidence_gap",
+    "recommended_next_action": "reject",
+    "secondary_research_needs": {
+      "canonical_binding_required": true,
+      "household_incidence_assumptions_missing": true,
+      "must_fail_closed_without_secondary_package": true,
+      "reason": "indirect or under-parameterized analysis path requires auditable secondary research package",
+      "reason_code": "pass_through_incidence_assumptions_missing",
+      "request_contract_id": "sec-research::pkg-af204fc661686d86332a8a88",
+      "request_target_parameters": [
+        "commercial_linkage_fee_rate_usd_per_sqft"
+      ],
+      "required_evidence_gaps": [
+        "economic reasoning",
+        "rubric/uncertainty_sensitivity",
+        "sufficiency_readiness"
+      ],
+      "status": "required"
+    },
+    "secondary_research_required": true,
+    "source_identity_blocker": false,
+    "source_identity_blocker_code": null,
+    "source_identity_blocker_reason": null,
+    "status": "analysis_ready_with_gaps",
+    "unsupported_claim_risks": {
+      "reason": "Unsupported quantitative claim blocked by gate_report verdict fail_closed.",
+      "risk_level": "high",
+      "status": "rejected",
+      "unsupported_claim_count": 1
+    }
+  },
+  "economic_output": {
+    "decision_grade_verdict": "not_decision_grade",
+    "missing_evidence": [
+      "economic reasoning: No model cards found.",
+      "rubric/uncertainty_sensitivity: Missing/invalid sensitivity range or uncertainty notes.",
+      "sufficiency_readiness: readiness_level=qualitative_only"
+    ],
+    "reason": "economic quality rubric not decision-grade",
+    "status": "not_proven",
+    "unsupported_claim_rejection": {
+      "reason": "Unsupported quantitative claim blocked by gate_report verdict fail_closed.",
+      "status": "rejected"
+    },
+    "user_facing_conclusion": null
+  },
+  "economic_readiness": {
+    "assumption_readiness": {
+      "reason": "No assumption cards required by this package.",
+      "status": "pass"
+    },
+    "direct_model_card_readiness": {
+      "reason": "source-bound per-square-foot fee parameters available for direct model card",
+      "status": "pass"
+    },
+    "evidence_readiness": {
+      "reason": "evidence_cards=2",
+      "status": "pass"
+    },
+    "mechanism_readiness": {
+      "reason": "nodes=3 edges=2",
+      "status": "pass"
+    },
+    "model_readiness": {
+      "reason": "Direct fee model-card arithmetic is valid with ordered sensitivity range.",
+      "status": "pass"
+    },
+    "parameter_readiness": {
+      "reason": "economic_resolved_parameters=22 (diagnostic_excluded=0) with source-bound provenance.",
+      "status": "pass"
+    },
+    "uncertainty_readiness": {
+      "reason": "Missing/invalid sensitivity range or uncertainty notes.",
+      "status": "fail"
+    },
+    "unsupported_claim_rejection": {
+      "reason": "Unsupported quantitative claim blocked by gate_report verdict fail_closed.",
+      "status": "rejected"
+    }
+  },
+  "economic_trace": {
+    "arithmetic_integrity": {
+      "reason": "Direct fee model-card arithmetic is valid with ordered sensitivity range.",
+      "status": "pass"
+    },
+    "assumption_cards": [],
+    "diagnostic_parameter_table": [],
+    "direct_fee_model_card": {
+      "arithmetic": {
+        "per_parameter_base_project": [
+          {
+            "estimated_direct_fee_usd": 0.0,
+            "evidence_card_id": "ev-1",
+            "name": "commercial_linkage_fee_rate_usd_per_sqft",
+            "parameter_id": "param-1-commercial-linkage-fee-rate-usd-per-sqft",
+            "project_size_sqft": 100000.0,
+            "rate_per_sqft": 0.0,
+            "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+            "unit": "usd"
+          },
+          {
+            "estimated_direct_fee_usd": 500000.0,
+            "evidence_card_id": "ev-1",
+            "name": "commercial_linkage_fee_rate_usd_per_sqft",
+            "parameter_id": "param-2-commercial-linkage-fee-rate-usd-per-sqft",
+            "project_size_sqft": 100000.0,
+            "rate_per_sqft": 5.0,
+            "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+            "unit": "usd"
+          },
+          {
+            "estimated_direct_fee_usd": 300000.0,
+            "evidence_card_id": "ev-1",
+            "name": "commercial_linkage_fee_rate_usd_per_sqft",
+            "parameter_id": "param-4-commercial-linkage-fee-rate-usd-per-sqft",
+            "project_size_sqft": 100000.0,
+            "rate_per_sqft": 3.0,
+            "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+            "unit": "usd"
+          },
+          {
+            "estimated_direct_fee_usd": 300000.0,
+            "evidence_card_id": "ev-1",
+            "name": "commercial_linkage_fee_rate_usd_per_sqft",
+            "parameter_id": "param-5-commercial-linkage-fee-rate-usd-per-sqft",
+            "project_size_sqft": 100000.0,
+            "rate_per_sqft": 3.0,
+            "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+            "unit": "usd"
+          },
+          {
+            "estimated_direct_fee_usd": 0.0,
+            "evidence_card_id": "ev-1",
+            "name": "commercial_linkage_fee_rate_usd_per_sqft",
+            "parameter_id": "param-6-commercial-linkage-fee-rate-usd-per-sqft",
+            "project_size_sqft": 100000.0,
+            "rate_per_sqft": 0.0,
+            "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+            "unit": "usd"
+          },
+          {
+            "estimated_direct_fee_usd": 500000.0,
+            "evidence_card_id": "ev-1",
+            "name": "commercial_linkage_fee_rate_usd_per_sqft",
+            "parameter_id": "param-7-commercial-linkage-fee-rate-usd-per-sqft",
+            "project_size_sqft": 100000.0,
+            "rate_per_sqft": 5.0,
+            "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+            "unit": "usd"
+          },
+          {
+            "estimated_direct_fee_usd": 300000.0,
+            "evidence_card_id": "ev-1",
+            "name": "commercial_linkage_fee_rate_usd_per_sqft",
+            "parameter_id": "param-8-commercial-linkage-fee-rate-usd-per-sqft",
+            "project_size_sqft": 100000.0,
+            "rate_per_sqft": 3.0,
+            "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+            "unit": "usd"
+          },
+          {
+            "estimated_direct_fee_usd": 1000000.0,
+            "evidence_card_id": "ev-1",
+            "name": "commercial_linkage_fee_rate_usd_per_sqft",
+            "parameter_id": "param-9-commercial-linkage-fee-rate-usd-per-sqft",
+            "project_size_sqft": 100000.0,
+            "rate_per_sqft": 10.0,
+            "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+            "unit": "usd"
+          },
+          {
+            "estimated_direct_fee_usd": 500000.0,
+            "evidence_card_id": "ev-1",
+            "name": "commercial_linkage_fee_rate_usd_per_sqft",
+            "parameter_id": "param-10-commercial-linkage-fee-rate-usd-per-sqft",
+            "project_size_sqft": 100000.0,
+            "rate_per_sqft": 5.0,
+            "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+            "unit": "usd"
+          },
+          {
+            "estimated_direct_fee_usd": 300000.0,
+            "evidence_card_id": "ev-1",
+            "name": "commercial_linkage_fee_rate_usd_per_sqft",
+            "parameter_id": "param-11-commercial-linkage-fee-rate-usd-per-sqft",
+            "project_size_sqft": 100000.0,
+            "rate_per_sqft": 3.0,
+            "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+            "unit": "usd"
+          },
+          {
+            "estimated_direct_fee_usd": 300000.0,
+            "evidence_card_id": "ev-1",
+            "name": "commercial_linkage_fee_rate_usd_per_sqft",
+            "parameter_id": "param-12-commercial-linkage-fee-rate-usd-per-sqft",
+            "project_size_sqft": 100000.0,
+            "rate_per_sqft": 3.0,
+            "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+            "unit": "usd"
+          },
+          {
+            "estimated_direct_fee_usd": 0.0,
+            "evidence_card_id": "ev-1",
+            "name": "commercial_linkage_fee_rate_usd_per_sqft",
+            "parameter_id": "param-13-commercial-linkage-fee-rate-usd-per-sqft",
+            "project_size_sqft": 100000.0,
+            "rate_per_sqft": 0.0,
+            "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+            "unit": "usd"
+          },
+          {
+            "estimated_direct_fee_usd": 300000.0,
+            "evidence_card_id": "ev-1",
+            "name": "commercial_linkage_fee_rate_usd_per_sqft",
+            "parameter_id": "param-14-commercial-linkage-fee-rate-usd-per-sqft",
+            "project_size_sqft": 100000.0,
+            "rate_per_sqft": 3.0,
+            "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+            "unit": "usd"
+          },
+          {
+            "estimated_direct_fee_usd": 0.0,
+            "evidence_card_id": "ev-1",
+            "name": "commercial_linkage_fee_rate_usd_per_sqft",
+            "parameter_id": "param-15-commercial-linkage-fee-rate-usd-per-sqft",
+            "project_size_sqft": 100000.0,
+            "rate_per_sqft": 0.0,
+            "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+            "unit": "usd"
+          },
+          {
+            "estimated_direct_fee_usd": 500000.0,
+            "evidence_card_id": "ev-1",
+            "name": "commercial_linkage_fee_rate_usd_per_sqft",
+            "parameter_id": "param-16-commercial-linkage-fee-rate-usd-per-sqft",
+            "project_size_sqft": 100000.0,
+            "rate_per_sqft": 5.0,
+            "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+            "unit": "usd"
+          },
+          {
+            "estimated_direct_fee_usd": 1200000.0,
+            "evidence_card_id": "ev-2",
+            "name": "commercial_linkage_fee_rate_usd_per_sqft",
+            "parameter_id": "param-1-commercial-linkage-fee-rate-usd-per-sqft",
+            "project_size_sqft": 100000.0,
+            "rate_per_sqft": 12.0,
+            "source_url": "https://legistar.granicus.com/sanjose/attachments/94ffc8fc-d6ba-46ca-8499-b46b32bcbf6a.pdf",
+            "unit": "usd"
+          },
+          {
+            "estimated_direct_fee_usd": 1500000.0,
+            "evidence_card_id": "ev-2",
+            "name": "commercial_linkage_fee_rate_usd_per_sqft",
+            "parameter_id": "param-2-commercial-linkage-fee-rate-usd-per-sqft",
+            "project_size_sqft": 100000.0,
+            "rate_per_sqft": 15.0,
+            "source_url": "https://legistar.granicus.com/sanjose/attachments/94ffc8fc-d6ba-46ca-8499-b46b32bcbf6a.pdf",
+            "unit": "usd"
+          },
+          {
+            "estimated_direct_fee_usd": 500000.0,
+            "evidence_card_id": "ev-2",
+            "name": "commercial_linkage_fee_rate_usd_per_sqft",
+            "parameter_id": "param-3-commercial-linkage-fee-rate-usd-per-sqft",
+            "project_size_sqft": 100000.0,
+            "rate_per_sqft": 5.0,
+            "source_url": "https://legistar.granicus.com/sanjose/attachments/94ffc8fc-d6ba-46ca-8499-b46b32bcbf6a.pdf",
+            "unit": "usd"
+          },
+          {
+            "estimated_direct_fee_usd": 1000000.0,
+            "evidence_card_id": "ev-2",
+            "name": "commercial_linkage_fee_rate_usd_per_sqft",
+            "parameter_id": "param-4-commercial-linkage-fee-rate-usd-per-sqft",
+            "project_size_sqft": 100000.0,
+            "rate_per_sqft": 10.0,
+            "source_url": "https://legistar.granicus.com/sanjose/attachments/94ffc8fc-d6ba-46ca-8499-b46b32bcbf6a.pdf",
+            "unit": "usd"
+          },
+          {
+            "estimated_direct_fee_usd": 600000.0,
+            "evidence_card_id": "ev-2",
+            "name": "commercial_linkage_fee_rate_usd_per_sqft",
+            "parameter_id": "param-5-commercial-linkage-fee-rate-usd-per-sqft",
+            "project_size_sqft": 100000.0,
+            "rate_per_sqft": 6.0,
+            "source_url": "https://legistar.granicus.com/sanjose/attachments/eb98bc80-6c09-4b45-ba75-db970576e5f3.pdf",
+            "unit": "usd"
+          },
+          {
+            "estimated_direct_fee_usd": 60000000.0,
+            "evidence_card_id": "ev-2",
+            "name": "commercial_linkage_fee_rate_usd_per_sqft",
+            "parameter_id": "param-6-commercial-linkage-fee-rate-usd-per-sqft",
+            "project_size_sqft": 100000.0,
+            "rate_per_sqft": 600.0,
+            "source_url": "https://legistar.granicus.com/sanjose/attachments/eb98bc80-6c09-4b45-ba75-db970576e5f3.pdf",
+            "unit": "usd"
+          },
+          {
+            "estimated_direct_fee_usd": 5230000.0,
+            "evidence_card_id": "ev-2",
+            "name": "commercial_linkage_fee_rate_usd_per_sqft",
+            "parameter_id": "param-7-commercial-linkage-fee-rate-usd-per-sqft",
+            "project_size_sqft": 100000.0,
+            "rate_per_sqft": 52.3,
+            "source_url": "https://legistar.granicus.com/sanjose/attachments/eb98bc80-6c09-4b45-ba75-db970576e5f3.pdf",
+            "unit": "usd"
+          }
+        ],
+        "total_direct_fee_usd": {
+          "base": 3401363.636363636,
+          "high": 75000000.0,
+          "low": 0.0
+        },
+        "units": {
+          "output": "usd",
+          "project_size": "sqft",
+          "rate": "usd_per_sqft"
+        }
+      },
+      "assumptions": {
+        "bounds": {
+          "base": 100000.0,
+          "high": 125000.0,
+          "low": 75000.0
+        },
+        "note": "Project size not supplied by package run context; used deterministic conservative/base/aggressive defaults.",
+        "project_size_source": "defaulted_for_model_card",
+        "project_size_unit": "sqft"
+      },
+      "formula": "direct_fee_usd = project_size_sqft * fee_rate_usd_per_sqft",
+      "household_impact_readiness": {
+        "reason": "household cost-of-living incidence is not decision-grade without source-bound pass-through/incidence assumptions",
+        "status": "not_proven"
+      },
+      "inputs": {
+        "fee_rate_usd_per_sqft": {
+          "base": 34.01363636363636,
+          "high": 600.0,
+          "low": 0.0
+        },
+        "project_size_sqft": {
+          "base": 100000.0,
+          "high": 125000.0,
+          "low": 75000.0
+        }
+      },
+      "reason": "source-bound per-square-foot fee parameters available for direct model card",
+      "scope": "direct_developer_fee",
+      "sensitivity_range": {
+        "base": 3401363.636363636,
+        "high": 75000000.0,
+        "low": 0.0,
+        "reason": "multiple rate rows and bounded project-size assumptions"
+      },
+      "source_refs": [
+        {
+          "evidence_card_id": "ev-1",
+          "parameter_id": "param-1-commercial-linkage-fee-rate-usd-per-sqft",
+          "source_excerpt": "Industrial/Research and Development (<100,000 sq. ft.) No fee ($0) Warehouse $5.00 Residential Care $18.706.00 B. The amount of legally permitted Non-Residential square footage to be dem [raw=$0 ; normalized=0.0 ; unit=usd_per_square_foot ; denominator=per_square_foot ; land_use=industrial ; category=industrial ; raw_land_use_label=Industrial/Research and Development ; threshold=<100,000 sq. ft. ; exemption_context=no_fee_for_threshold:<100,000 sq. ft. ; final_status=unknown ; source_locator=analysis_chunk:1:fee_table_row ; table_locator=commercial_linkage_fee_table ; locator_quality=table_row_chunk_locator ; source_ref=https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6 ; source_family=commercial_linkage_fee ; confidence=0.86]",
+          "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6"
+        },
+        {
+          "evidence_card_id": "ev-1",
+          "parameter_id": "param-2-commercial-linkage-fee-rate-usd-per-sqft",
+          "source_excerpt": "Industrial/Research and Development (<100,000 sq. ft.) No fee ($0) Warehouse $5.00 Residential Care $18.706.00 B. The amount of legally permitted Non-Residential square footage to be demolished or rem [raw=$5.00 ; normalized=5.0 ; unit=usd_per_square_foot ; denominator=per_square_foot ; land_use=warehouse ; category=warehouse ; raw_land_use_label=Warehouse ; final_status=unknown ; source_locator=analysis_chunk:1:fee_table_row ; table_locator=commercial_linkage_fee_table ; locator_quality=table_row_chunk_locator ; source_ref=https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6 ; source_family=commercial_linkage_fee ; confidence=0.86]",
+          "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6"
+        },
+        {
+          "evidence_card_id": "ev-1",
+          "parameter_id": "param-4-commercial-linkage-fee-rate-usd-per-sqft",
+          "source_excerpt": "Office (<100,000 sq. ft.) $3.00 Retail ( \u2265100,000 sq. ft.) $3.00 Retail (<100,000 sq. ft.) No fee ($0) Hotel $5.00 Industrial/Research and Development [raw=$3.00 ; normalized=3.0 ; unit=usd_per_square_foot ; denominator=per_square_foot ; land_use=office ; category=office ; raw_land_use_label=Office ; threshold=<100,000 sq. ft. ; final_status=unknown ; source_locator=analysis_chunk:10:fee_table_row ; table_locator=commercial_linkage_fee_table ; locator_quality=table_row_chunk_locator ; source_ref=https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6 ; source_family=commercial_linkage_fee ; confidence=0.86]",
+          "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6"
+        },
+        {
+          "evidence_card_id": "ev-1",
+          "parameter_id": "param-5-commercial-linkage-fee-rate-usd-per-sqft",
+          "source_excerpt": "Office (<100,000 sq. ft.) $3.00 Retail ( \u2265100,000 sq. ft.) $3.00 Retail (<100,000 sq. ft.) No fee ($0) Hotel $5.00 Industrial/Research and Development ( \u2265100,000 sq. ft.) $3.00 NF:VMT: [raw=$3.00 ; normalized=3.0 ; unit=usd_per_square_foot ; denominator=per_square_foot ; land_use=retail ; category=retail ; raw_land_use_label=Retail ; threshold=\u2265100,000 sq. ft. ; final_status=unknown ; source_locator=analysis_chunk:10:fee_table_row ; table_locator=commercial_linkage_fee_table ; locator_quality=table_row_chunk_locator ; source_ref=https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6 ; source_family=commercial_linkage_fee ; confidence=0.86]",
+          "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6"
+        },
+        {
+          "evidence_card_id": "ev-1",
+          "parameter_id": "param-6-commercial-linkage-fee-rate-usd-per-sqft",
+          "source_excerpt": "Office (<100,000 sq. ft.) $3.00 Retail ( \u2265100,000 sq. ft.) $3.00 Retail (<100,000 sq. ft.) No fee ($0) Hotel $5.00 Industrial/Research and Development ( \u2265100,000 sq. ft.) $3.00 NF:VMT:JMD 9/1/2020 3T- [raw=$0 ; normalized=0.0 ; unit=usd_per_square_foot ; denominator=per_square_foot ; land_use=retail ; category=retail ; raw_land_use_label=Retail ; threshold=<100,000 sq. ft. ; exemption_context=no_fee_for_threshold:<100,000 sq. ft. ; final_status=unknown ; source_locator=analysis_chunk:10:fee_table_row ; table_locator=commercial_linkage_fee_table ; locator_quality=table_row_chunk_locator ; source_ref=https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6 ; source_family=commercial_linkage_fee ; confidence=0.86]",
+          "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6"
+        },
+        {
+          "evidence_card_id": "ev-1",
+          "parameter_id": "param-7-commercial-linkage-fee-rate-usd-per-sqft",
+          "source_excerpt": "Office (<100,000 sq. ft.) $3.00 Retail ( \u2265100,000 sq. ft.) $3.00 Retail (<100,000 sq. ft.) No fee ($0) Hotel $5.00 Industrial/Research and Development ( \u2265100,000 sq. ft.) $3.00 NF:VMT:JMD 9/1/2020 3T- [raw=$5.00 ; normalized=5.0 ; unit=usd_per_square_foot ; denominator=per_square_foot ; land_use=hotel ; category=hotel ; raw_land_use_label=Hotel ; final_status=unknown ; source_locator=analysis_chunk:10:fee_table_row ; table_locator=commercial_linkage_fee_table ; locator_quality=table_row_chunk_locator ; source_ref=https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6 ; source_family=commercial_linkage_fee ; confidence=0.86]",
+          "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6"
+        },
+        {
+          "evidence_card_id": "ev-1",
+          "parameter_id": "param-8-commercial-linkage-fee-rate-usd-per-sqft",
+          "source_excerpt": "Office (<100,000 sq. ft.) $3.00 Retail ( \u2265100,000 sq. ft.) $3.00 Retail (<100,000 sq. ft.) No fee ($0) Hotel $5.00 Industrial/Research and Development ( \u2265100,000 sq. ft.) $3.00 NF:VMT:JMD 9/1/2020 3T- [raw=$3.00 ; normalized=3.0 ; unit=usd_per_square_foot ; denominator=per_square_foot ; land_use=industrial ; category=industrial ; raw_land_use_label=Industrial/Research and Development ; threshold=\u2265100,000 sq. ft. ; final_status=unknown ; source_locator=analysis_chunk:10:fee_table_row ; table_locator=commercial_linkage_fee_table ; locator_quality=table_row_chunk_locator ; source_ref=https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6 ; source_family=commercial_linkage_fee ; confidence=0.86]",
+          "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6"
+        },
+        {
+          "evidence_card_id": "ev-1",
+          "parameter_id": "param-9-commercial-linkage-fee-rate-usd-per-sqft",
+          "source_excerpt": "Downtown Office ( \u2265100,000 sq. ft.) $10.00 [raw=$10.00 ; normalized=10.0 ; unit=usd_per_square_foot ; denominator=per_square_foot ; land_use=office ; category=office ; subarea=downtown ; geography=downtown ; raw_land_use_label=Downtown Office ; threshold=\u2265100,000 sq. ft. ; final_status=unknown ; source_locator=analysis_chunk:16:fee_table_row ; table_locator=commercial_linkage_fee_table ; locator_quality=table_row_chunk_locator ; source_ref=https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6 ; source_family=commercial_linkage_fee ; confidence=0.86]",
+          "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6"
+        },
+        {
+          "evidence_card_id": "ev-1",
+          "parameter_id": "param-10-commercial-linkage-fee-rate-usd-per-sqft",
+          "source_excerpt": "Rest of City Office ( \u2265100,000 sq. ft.) $5.00 [raw=$5.00 ; normalized=5.0 ; unit=usd_per_square_foot ; denominator=per_square_foot ; land_use=office ; category=office ; subarea=rest_of_city ; geography=rest_of_city ; raw_land_use_label=Rest of City Office ; threshold=\u2265100,000 sq. ft. ; final_status=unknown ; source_locator=analysis_chunk:17:fee_table_row ; table_locator=commercial_linkage_fee_table ; locator_quality=table_row_chunk_locator ; source_ref=https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6 ; source_family=commercial_linkage_fee ; confidence=0.86]",
+          "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6"
+        },
+        {
+          "evidence_card_id": "ev-1",
+          "parameter_id": "param-11-commercial-linkage-fee-rate-usd-per-sqft",
+          "source_excerpt": "are subject to a fee of $3.00 per square foot [raw=$3.00 ; normalized=3.0 ; unit=usd_per_square_foot ; denominator=per_square_foot ; land_use=office ; category=office ; raw_land_use_label=office ; final_status=unknown ; source_locator=analysis_chunk:20 ; locator_quality=chunk_locator_only ; source_ref=https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6 ; source_family=commercial_linkage_fee ; confidence=0.82]",
+          "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6"
+        },
+        {
+          "evidence_card_id": "ev-1",
+          "parameter_id": "param-12-commercial-linkage-fee-rate-usd-per-sqft",
+          "source_excerpt": "or larger are subject to a fee of $3.00 per square foot [raw=$3.00 ; normalized=3.0 ; unit=usd_per_square_foot ; denominator=per_square_foot ; land_use=retail ; category=retail ; raw_land_use_label=retail ; final_status=unknown ; source_locator=analysis_chunk:21 ; locator_quality=chunk_locator_only ; source_ref=https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6 ; source_family=commercial_linkage_fee ; confidence=0.82]",
+          "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6"
+        },
+        {
+          "evidence_card_id": "ev-1",
+          "parameter_id": "param-13-commercial-linkage-fee-rate-usd-per-sqft",
+          "source_excerpt": "are exempt from the fee ($0.00) [raw=$0.00 ; normalized=0.0 ; unit=usd_per_square_foot ; denominator=per_square_foot ; land_use=retail ; category=retail ; raw_land_use_label=retail ; final_status=unknown ; source_locator=analysis_chunk:22 ; locator_quality=chunk_locator_only ; source_ref=https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6 ; source_family=commercial_linkage_fee ; confidence=0.82]",
+          "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6"
+        },
+        {
+          "evidence_card_id": "ev-1",
+          "parameter_id": "param-14-commercial-linkage-fee-rate-usd-per-sqft",
+          "source_excerpt": "or larger are subject to a fee of $3.00 per square foot [raw=$3.00 ; normalized=3.0 ; unit=usd_per_square_foot ; denominator=per_square_foot ; land_use=industrial ; category=industrial ; raw_land_use_label=industrial ; final_status=unknown ; source_locator=analysis_chunk:23 ; locator_quality=chunk_locator_only ; source_ref=https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6 ; source_family=commercial_linkage_fee ; confidence=0.82]",
+          "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6"
+        },
+        {
+          "evidence_card_id": "ev-1",
+          "parameter_id": "param-15-commercial-linkage-fee-rate-usd-per-sqft",
+          "source_excerpt": "are exempt from the fee ($0.00) [raw=$0.00 ; normalized=0.0 ; unit=usd_per_square_foot ; denominator=per_square_foot ; land_use=industrial ; category=industrial ; raw_land_use_label=industrial ; final_status=unknown ; source_locator=analysis_chunk:24 ; locator_quality=chunk_locator_only ; source_ref=https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6 ; source_family=commercial_linkage_fee ; confidence=0.82]",
+          "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6"
+        },
+        {
+          "evidence_card_id": "ev-1",
+          "parameter_id": "param-16-commercial-linkage-fee-rate-usd-per-sqft",
+          "source_excerpt": "Warehouse developments are subject to a fee of $5.00 per square foot [raw=$5.00 ; normalized=5.0 ; unit=usd_per_square_foot ; denominator=per_square_foot ; land_use=unknown ; category=unknown ; raw_land_use_label=unknown ; final_status=unknown ; source_locator=analysis_chunk:25 ; locator_quality=chunk_locator_only ; source_ref=https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6 ; source_family=commercial_linkage_fee ; confidence=0.82]",
+          "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6"
+        },
+        {
+          "evidence_card_id": "ev-2",
+          "parameter_id": "param-1-commercial-linkage-fee-rate-usd-per-sqft",
+          "source_excerpt": "TO: HONORABLE MAYOR AND FROM: Mayor Liccardo CITY COUNCIL Vice-Mayor Jones Councilmember Diep Councilmember Davis Councilmember Foley SUBJECT: COMMERICAL LINKAGE FEE DATE: August 28, 2020 APPROVED: DATE: 8/28/20 RECOMMENDATION: Approve the staff recommendation with the following changes: 1. For Downtown Office Space over 100,000 square feet, offer 3 options: \u2022 Option 1: $12/per square foot if paid upon Certificate of Occupancy (COO) \u2022 Option 2: $15/per square foot, paid in phases: - $5 at issuance of COO - $10 payable proportionate to the percentage of rentable building space for which there is Tenant Improvement (TI) certification, so that fees are paid as leases are secured, and prior to employees filling the building. \u2022 Option 3: Directly build affordable units - Deliver a prescribed number of affordable units equivalent to the applicable fee, based on a formula to be devised by Housing & OED staff for inclusionary fees on residential construction. The ground-breaking of the affordable housing project must precede the issuance of a certificate of occupancy on the commercial space. 2. For all office projects less than 100,000 square feet, the fee for the first 40,000 square feet is $0. 3. For citywide office projects over 100,000 square feet, provide \u201cOption #2 ($2 at COO and $3 with Tenant Improvements) as well as Option #3 (opportunity to deliver affordable units). 4. For industrial projects over 100,000 square feet, provide \u201cOption #2 ($1 at COO and $2 with Tenant Improvements) as well as Option #3 (opportunity to deliver affordable units). 5. For hotel projects, staff should provide Option #3 (opportunity to deliver affordable units). COUNCIL AGENDA: 09/01/20 ITEM: 8.2 6. In light of rapidly growing vacancy for all retail space, and severe loss of retail employmen [normalized=12.0 ; unit=usd_per_square_foot ; source_locator=attachment_probe:excerpt ; locator_quality=attachment_probe_excerpt ; source_ref=legistar::attachment::15491 ; source_family=memorandum ; attachment_id=15491 ; confidence=0.70]",
+          "source_url": "https://legistar.granicus.com/sanjose/attachments/94ffc8fc-d6ba-46ca-8499-b46b32bcbf6a.pdf"
+        },
+        {
+          "evidence_card_id": "ev-2",
+          "parameter_id": "param-2-commercial-linkage-fee-rate-usd-per-sqft",
+          "source_excerpt": "TO: HONORABLE MAYOR AND FROM: Mayor Liccardo CITY COUNCIL Vice-Mayor Jones Councilmember Diep Councilmember Davis Councilmember Foley SUBJECT: COMMERICAL LINKAGE FEE DATE: August 28, 2020 APPROVED: DATE: 8/28/20 RECOMMENDATION: Approve the staff recommendation with the following changes: 1. For Downtown Office Space over 100,000 square feet, offer 3 options: \u2022 Option 1: $12/per square foot if paid upon Certificate of Occupancy (COO) \u2022 Option 2: $15/per square foot, paid in phases: - $5 at issuance of COO - $10 payable proportionate to the percentage of rentable building space for which there is Tenant Improvement (TI) certification, so that fees are paid as leases are secured, and prior to employees filling the building. \u2022 Option 3: Directly build affordable units - Deliver a prescribed number of affordable units equivalent to the applicable fee, based on a formula to be devised by Housing & OED staff for inclusionary fees on residential construction. The ground-breaking of the affordable housing project must precede the issuance of a certificate of occupancy on the commercial space. 2. For all office projects less than 100,000 square feet, the fee for the first 40,000 square feet is $0. 3. For citywide office projects over 100,000 square feet, provide \u201cOption #2 ($2 at COO and $3 with Tenant Improvements) as well as Option #3 (opportunity to deliver affordable units). 4. For industrial projects over 100,000 square feet, provide \u201cOption #2 ($1 at COO and $2 with Tenant Improvements) as well as Option #3 (opportunity to deliver affordable units). 5. For hotel projects, staff should provide Option #3 (opportunity to deliver affordable units). COUNCIL AGENDA: 09/01/20 ITEM: 8.2 6. In light of rapidly growing vacancy for all retail space, and severe loss of retail employmen [normalized=15.0 ; unit=usd_per_square_foot ; source_locator=attachment_probe:excerpt ; locator_quality=attachment_probe_excerpt ; source_ref=legistar::attachment::15491 ; source_family=memorandum ; attachment_id=15491 ; confidence=0.70]",
+          "source_url": "https://legistar.granicus.com/sanjose/attachments/94ffc8fc-d6ba-46ca-8499-b46b32bcbf6a.pdf"
+        },
+        {
+          "evidence_card_id": "ev-2",
+          "parameter_id": "param-3-commercial-linkage-fee-rate-usd-per-sqft",
+          "source_excerpt": "TO: HONORABLE MAYOR AND FROM: Mayor Liccardo CITY COUNCIL Vice-Mayor Jones Councilmember Diep Councilmember Davis Councilmember Foley SUBJECT: COMMERICAL LINKAGE FEE DATE: August 28, 2020 APPROVED: DATE: 8/28/20 RECOMMENDATION: Approve the staff recommendation with the following changes: 1. For Downtown Office Space over 100,000 square feet, offer 3 options: \u2022 Option 1: $12/per square foot if paid upon Certificate of Occupancy (COO) \u2022 Option 2: $15/per square foot, paid in phases: - $5 at issuance of COO - $10 payable proportionate to the percentage of rentable building space for which there is Tenant Improvement (TI) certification, so that fees are paid as leases are secured, and prior to employees filling the building. \u2022 Option 3: Directly build affordable units - Deliver a prescribed number of affordable units equivalent to the applicable fee, based on a formula to be devised by Housing & OED staff for inclusionary fees on residential construction. The ground-breaking of the affordable housing project must precede the issuance of a certificate of occupancy on the commercial space. 2. For all office projects less than 100,000 square feet, the fee for the first 40,000 square feet is $0. 3. For citywide office projects over 100,000 square feet, provide \u201cOption #2 ($2 at COO and $3 with Tenant Improvements) as well as Option #3 (opportunity to deliver affordable units). 4. For industrial projects over 100,000 square feet, provide \u201cOption #2 ($1 at COO and $2 with Tenant Improvements) as well as Option #3 (opportunity to deliver affordable units). 5. For hotel projects, staff should provide Option #3 (opportunity to deliver affordable units). COUNCIL AGENDA: 09/01/20 ITEM: 8.2 6. In light of rapidly growing vacancy for all retail space, and severe loss of retail employmen [normalized=5.0 ; unit=usd_per_square_foot ; source_locator=attachment_probe:excerpt ; locator_quality=attachment_probe_excerpt ; source_ref=legistar::attachment::15491 ; source_family=memorandum ; attachment_id=15491 ; confidence=0.70]",
+          "source_url": "https://legistar.granicus.com/sanjose/attachments/94ffc8fc-d6ba-46ca-8499-b46b32bcbf6a.pdf"
+        },
+        {
+          "evidence_card_id": "ev-2",
+          "parameter_id": "param-4-commercial-linkage-fee-rate-usd-per-sqft",
+          "source_excerpt": "TO: HONORABLE MAYOR AND FROM: Mayor Liccardo CITY COUNCIL Vice-Mayor Jones Councilmember Diep Councilmember Davis Councilmember Foley SUBJECT: COMMERICAL LINKAGE FEE DATE: August 28, 2020 APPROVED: DATE: 8/28/20 RECOMMENDATION: Approve the staff recommendation with the following changes: 1. For Downtown Office Space over 100,000 square feet, offer 3 options: \u2022 Option 1: $12/per square foot if paid upon Certificate of Occupancy (COO) \u2022 Option 2: $15/per square foot, paid in phases: - $5 at issuance of COO - $10 payable proportionate to the percentage of rentable building space for which there is Tenant Improvement (TI) certification, so that fees are paid as leases are secured, and prior to employees filling the building. \u2022 Option 3: Directly build affordable units - Deliver a prescribed number of affordable units equivalent to the applicable fee, based on a formula to be devised by Housing & OED staff for inclusionary fees on residential construction. The ground-breaking of the affordable housing project must precede the issuance of a certificate of occupancy on the commercial space. 2. For all office projects less than 100,000 square feet, the fee for the first 40,000 square feet is $0. 3. For citywide office projects over 100,000 square feet, provide \u201cOption #2 ($2 at COO and $3 with Tenant Improvements) as well as Option #3 (opportunity to deliver affordable units). 4. For industrial projects over 100,000 square feet, provide \u201cOption #2 ($1 at COO and $2 with Tenant Improvements) as well as Option #3 (opportunity to deliver affordable units). 5. For hotel projects, staff should provide Option #3 (opportunity to deliver affordable units). COUNCIL AGENDA: 09/01/20 ITEM: 8.2 6. In light of rapidly growing vacancy for all retail space, and severe loss of retail employmen [normalized=10.0 ; unit=usd_per_square_foot ; source_locator=attachment_probe:excerpt ; locator_quality=attachment_probe_excerpt ; source_ref=legistar::attachment::15491 ; source_family=memorandum ; attachment_id=15491 ; confidence=0.70]",
+          "source_url": "https://legistar.granicus.com/sanjose/attachments/94ffc8fc-d6ba-46ca-8499-b46b32bcbf6a.pdf"
+        },
+        {
+          "evidence_card_id": "ev-2",
+          "parameter_id": "param-5-commercial-linkage-fee-rate-usd-per-sqft",
+          "source_excerpt": "Nanci Klein AND CITY COUNCIL Jacky Morales-Ferrand SUBJECT: COMMERCIAL LINKAGE FEE DATE: September 1, 2020 STAFF RECOMMENDATION Approved Date 9/1/20 SUPPLEMENTAL REASON FOR SUPPLEMENTAL The recommended fee level for Residential Care Facility is being reduced to account for the considerable uncertainty about future rent rates due to COVID-19. RECOMMENDATION The recommended fee level for Residential Care Facilities is $6 per square foot. ANALYSIS Residential care is a unique case as a commercial use building type. Most residential care facilities include both \u201cassisted living\u201d units and \u201cmemory care\u201d units which are different in design, services provided, and how the occupant is charged. Due to the progressive nature of services provided to the residents, some of the units include small kitchens (generally assisted living units) and others do not include kitchen or sometimes even bathrooms (generally memory care units). Under the City\u2019s Inclusionary Housing Ordinance and Affordable Housing Impact Fee, units within a residential care facility that include kitchens are defined as residential and included in the inclusionary housing program, while those without kitchens are not. Residents of these units pay a monthly rent and have a lease which is typical of a standard residential apartment. In addition, renters can add a range of additional services such as meals. Rents collected for residential care facilities range from a low of $2,000 a month to over $15,000 a month for a 2-bedroom unit. Specifically, the Inclusionary Housing Ordinance Guidelines define a dwelling unit as the following: 1. \u201cDwelling Unit\u201d shall not be interpreted to exempt from the Inclusionary Housing Ordinance less traditional developments described or designed or permitted based on COUNCIL AGENDA: 9/1 [normalized=6.0 ; unit=usd_per_square_foot ; source_locator=attachment_probe:excerpt ; locator_quality=attachment_probe_excerpt ; source_ref=legistar::attachment::15523 ; source_family=memorandum ; attachment_id=15523 ; confidence=0.70]",
+          "source_url": "https://legistar.granicus.com/sanjose/attachments/eb98bc80-6c09-4b45-ba75-db970576e5f3.pdf"
+        },
+        {
+          "evidence_card_id": "ev-2",
+          "parameter_id": "param-6-commercial-linkage-fee-rate-usd-per-sqft",
+          "source_excerpt": "Nanci Klein AND CITY COUNCIL Jacky Morales-Ferrand SUBJECT: COMMERCIAL LINKAGE FEE DATE: September 1, 2020 STAFF RECOMMENDATION Approved Date 9/1/20 SUPPLEMENTAL REASON FOR SUPPLEMENTAL The recommended fee level for Residential Care Facility is being reduced to account for the considerable uncertainty about future rent rates due to COVID-19. RECOMMENDATION The recommended fee level for Residential Care Facilities is $6 per square foot. ANALYSIS Residential care is a unique case as a commercial use building type. Most residential care facilities include both \u201cassisted living\u201d units and \u201cmemory care\u201d units which are different in design, services provided, and how the occupant is charged. Due to the progressive nature of services provided to the residents, some of the units include small kitchens (generally assisted living units) and others do not include kitchen or sometimes even bathrooms (generally memory care units). Under the City\u2019s Inclusionary Housing Ordinance and Affordable Housing Impact Fee, units within a residential care facility that include kitchens are defined as residential and included in the inclusionary housing program, while those without kitchens are not. Residents of these units pay a monthly rent and have a lease which is typical of a standard residential apartment. In addition, renters can add a range of additional services such as meals. Rents collected for residential care facilities range from a low of $2,000 a month to over $15,000 a month for a 2-bedroom unit. Specifically, the Inclusionary Housing Ordinance Guidelines define a dwelling unit as the following: 1. \u201cDwelling Unit\u201d shall not be interpreted to exempt from the Inclusionary Housing Ordinance less traditional developments described or designed or permitted based on COUNCIL AGENDA: 9/1 [normalized=600.0 ; unit=usd_per_square_foot ; source_locator=attachment_probe:excerpt ; locator_quality=attachment_probe_excerpt ; source_ref=legistar::attachment::15523 ; source_family=memorandum ; attachment_id=15523 ; confidence=0.70]",
+          "source_url": "https://legistar.granicus.com/sanjose/attachments/eb98bc80-6c09-4b45-ba75-db970576e5f3.pdf"
+        },
+        {
+          "evidence_card_id": "ev-2",
+          "parameter_id": "param-7-commercial-linkage-fee-rate-usd-per-sqft",
+          "source_excerpt": "Nanci Klein AND CITY COUNCIL Jacky Morales-Ferrand SUBJECT: COMMERCIAL LINKAGE FEE DATE: September 1, 2020 STAFF RECOMMENDATION Approved Date 9/1/20 SUPPLEMENTAL REASON FOR SUPPLEMENTAL The recommended fee level for Residential Care Facility is being reduced to account for the considerable uncertainty about future rent rates due to COVID-19. RECOMMENDATION The recommended fee level for Residential Care Facilities is $6 per square foot. ANALYSIS Residential care is a unique case as a commercial use building type. Most residential care facilities include both \u201cassisted living\u201d units and \u201cmemory care\u201d units which are different in design, services provided, and how the occupant is charged. Due to the progressive nature of services provided to the residents, some of the units include small kitchens (generally assisted living units) and others do not include kitchen or sometimes even bathrooms (generally memory care units). Under the City\u2019s Inclusionary Housing Ordinance and Affordable Housing Impact Fee, units within a residential care facility that include kitchens are defined as residential and included in the inclusionary housing program, while those without kitchens are not. Residents of these units pay a monthly rent and have a lease which is typical of a standard residential apartment. In addition, renters can add a range of additional services such as meals. Rents collected for residential care facilities range from a low of $2,000 a month to over $15,000 a month for a 2-bedroom unit. Specifically, the Inclusionary Housing Ordinance Guidelines define a dwelling unit as the following: 1. \u201cDwelling Unit\u201d shall not be interpreted to exempt from the Inclusionary Housing Ordinance less traditional developments described or designed or permitted based on COUNCIL AGENDA: 9/1 [normalized=52.3 ; unit=usd_per_square_foot ; source_locator=attachment_probe:excerpt ; locator_quality=attachment_probe_excerpt ; source_ref=legistar::attachment::15523 ; source_family=memorandum ; attachment_id=15523 ; confidence=0.70]",
+          "source_url": "https://legistar.granicus.com/sanjose/attachments/eb98bc80-6c09-4b45-ba75-db970576e5f3.pdf"
+        }
+      ],
+      "status": "pass"
+    },
+    "direct_indirect_classification": "direct",
+    "mechanism_graph": {
+      "edges": [
+        {
+          "evidence_refs": [
+            "ev-1",
+            "ev-2"
+          ],
+          "from": "policy_change",
+          "to": "economic_mechanism"
+        },
+        {
+          "evidence_refs": [
+            "param-1-commercial-linkage-fee-rate-usd-per-sqft",
+            "param-2-commercial-linkage-fee-rate-usd-per-sqft",
+            "param-4-commercial-linkage-fee-rate-usd-per-sqft",
+            "param-5-commercial-linkage-fee-rate-usd-per-sqft",
+            "param-6-commercial-linkage-fee-rate-usd-per-sqft",
+            "param-7-commercial-linkage-fee-rate-usd-per-sqft",
+            "param-8-commercial-linkage-fee-rate-usd-per-sqft",
+            "param-9-commercial-linkage-fee-rate-usd-per-sqft",
+            "param-10-commercial-linkage-fee-rate-usd-per-sqft",
+            "param-11-commercial-linkage-fee-rate-usd-per-sqft",
+            "param-12-commercial-linkage-fee-rate-usd-per-sqft",
+            "param-13-commercial-linkage-fee-rate-usd-per-sqft",
+            "param-14-commercial-linkage-fee-rate-usd-per-sqft",
+            "param-15-commercial-linkage-fee-rate-usd-per-sqft",
+            "param-16-commercial-linkage-fee-rate-usd-per-sqft",
+            "param-1-commercial-linkage-fee-rate-usd-per-sqft",
+            "param-2-commercial-linkage-fee-rate-usd-per-sqft",
+            "param-3-commercial-linkage-fee-rate-usd-per-sqft",
+            "param-4-commercial-linkage-fee-rate-usd-per-sqft",
+            "param-5-commercial-linkage-fee-rate-usd-per-sqft",
+            "param-6-commercial-linkage-fee-rate-usd-per-sqft",
+            "param-7-commercial-linkage-fee-rate-usd-per-sqft"
+          ],
+          "from": "economic_mechanism",
+          "to": "household_cost_of_living"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "policy_change",
+          "label": "v2|jurisdiction=san-jose-ca|family=commercial_linkage_fee|doctype=meeting_minutes|url=https://sanjose.legistar.com/View.ashx?GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6&ID=8758120&M=F"
+        },
+        {
+          "id": "economic_mechanism",
+          "label": "unknown"
+        },
+        {
+          "id": "household_cost_of_living",
+          "label": "Household cost-of-living"
+        }
+      ]
+    },
+    "mechanism_type": "direct",
+    "model_cards": [],
+    "parameter_table": [
+      {
+        "evidence_card_id": "ev-1",
+        "metadata": {
+          "category": "industrial",
+          "effective_date": null,
+          "payment_timing": null,
+          "time_horizon": null
+        },
+        "name": "commercial_linkage_fee_rate_usd_per_sqft",
+        "parameter_id": "param-1-commercial-linkage-fee-rate-usd-per-sqft",
+        "source_excerpt": "Industrial/Research and Development (<100,000 sq. ft.) No fee ($0) Warehouse $5.00 Residential Care $18.706.00 B. The amount of legally permitted Non-Residential square footage to be dem [raw=$0 ; normalized=0.0 ; unit=usd_per_square_foot ; denominator=per_square_foot ; land_use=industrial ; category=industrial ; raw_land_use_label=Industrial/Research and Development ; threshold=<100,000 sq. ft. ; exemption_context=no_fee_for_threshold:<100,000 sq. ft. ; final_status=unknown ; source_locator=analysis_chunk:1:fee_table_row ; table_locator=commercial_linkage_fee_table ; locator_quality=table_row_chunk_locator ; source_ref=https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6 ; source_family=commercial_linkage_fee ; confidence=0.86]",
+        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+        "unit": "usd_per_square_foot",
+        "value": 0.0
+      },
+      {
+        "evidence_card_id": "ev-1",
+        "metadata": {
+          "category": "industrial",
+          "effective_date": null,
+          "payment_timing": null,
+          "time_horizon": null
+        },
+        "name": "commercial_linkage_fee_rate_usd_per_sqft",
+        "parameter_id": "param-2-commercial-linkage-fee-rate-usd-per-sqft",
+        "source_excerpt": "Industrial/Research and Development (<100,000 sq. ft.) No fee ($0) Warehouse $5.00 Residential Care $18.706.00 B. The amount of legally permitted Non-Residential square footage to be demolished or rem [raw=$5.00 ; normalized=5.0 ; unit=usd_per_square_foot ; denominator=per_square_foot ; land_use=warehouse ; category=warehouse ; raw_land_use_label=Warehouse ; final_status=unknown ; source_locator=analysis_chunk:1:fee_table_row ; table_locator=commercial_linkage_fee_table ; locator_quality=table_row_chunk_locator ; source_ref=https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6 ; source_family=commercial_linkage_fee ; confidence=0.86]",
+        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+        "unit": "usd_per_square_foot",
+        "value": 5.0
+      },
+      {
+        "evidence_card_id": "ev-1",
+        "metadata": {
+          "category": "office",
+          "effective_date": null,
+          "payment_timing": null,
+          "time_horizon": null
+        },
+        "name": "commercial_linkage_fee_rate_usd_per_sqft",
+        "parameter_id": "param-4-commercial-linkage-fee-rate-usd-per-sqft",
+        "source_excerpt": "Office (<100,000 sq. ft.) $3.00 Retail ( \u2265100,000 sq. ft.) $3.00 Retail (<100,000 sq. ft.) No fee ($0) Hotel $5.00 Industrial/Research and Development [raw=$3.00 ; normalized=3.0 ; unit=usd_per_square_foot ; denominator=per_square_foot ; land_use=office ; category=office ; raw_land_use_label=Office ; threshold=<100,000 sq. ft. ; final_status=unknown ; source_locator=analysis_chunk:10:fee_table_row ; table_locator=commercial_linkage_fee_table ; locator_quality=table_row_chunk_locator ; source_ref=https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6 ; source_family=commercial_linkage_fee ; confidence=0.86]",
+        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+        "unit": "usd_per_square_foot",
+        "value": 3.0
+      },
+      {
+        "evidence_card_id": "ev-1",
+        "metadata": {
+          "category": "office",
+          "effective_date": null,
+          "payment_timing": null,
+          "time_horizon": null
+        },
+        "name": "commercial_linkage_fee_rate_usd_per_sqft",
+        "parameter_id": "param-5-commercial-linkage-fee-rate-usd-per-sqft",
+        "source_excerpt": "Office (<100,000 sq. ft.) $3.00 Retail ( \u2265100,000 sq. ft.) $3.00 Retail (<100,000 sq. ft.) No fee ($0) Hotel $5.00 Industrial/Research and Development ( \u2265100,000 sq. ft.) $3.00 NF:VMT: [raw=$3.00 ; normalized=3.0 ; unit=usd_per_square_foot ; denominator=per_square_foot ; land_use=retail ; category=retail ; raw_land_use_label=Retail ; threshold=\u2265100,000 sq. ft. ; final_status=unknown ; source_locator=analysis_chunk:10:fee_table_row ; table_locator=commercial_linkage_fee_table ; locator_quality=table_row_chunk_locator ; source_ref=https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6 ; source_family=commercial_linkage_fee ; confidence=0.86]",
+        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+        "unit": "usd_per_square_foot",
+        "value": 3.0
+      },
+      {
+        "evidence_card_id": "ev-1",
+        "metadata": {
+          "category": "office",
+          "effective_date": null,
+          "payment_timing": null,
+          "time_horizon": null
+        },
+        "name": "commercial_linkage_fee_rate_usd_per_sqft",
+        "parameter_id": "param-6-commercial-linkage-fee-rate-usd-per-sqft",
+        "source_excerpt": "Office (<100,000 sq. ft.) $3.00 Retail ( \u2265100,000 sq. ft.) $3.00 Retail (<100,000 sq. ft.) No fee ($0) Hotel $5.00 Industrial/Research and Development ( \u2265100,000 sq. ft.) $3.00 NF:VMT:JMD 9/1/2020 3T- [raw=$0 ; normalized=0.0 ; unit=usd_per_square_foot ; denominator=per_square_foot ; land_use=retail ; category=retail ; raw_land_use_label=Retail ; threshold=<100,000 sq. ft. ; exemption_context=no_fee_for_threshold:<100,000 sq. ft. ; final_status=unknown ; source_locator=analysis_chunk:10:fee_table_row ; table_locator=commercial_linkage_fee_table ; locator_quality=table_row_chunk_locator ; source_ref=https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6 ; source_family=commercial_linkage_fee ; confidence=0.86]",
+        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+        "unit": "usd_per_square_foot",
+        "value": 0.0
+      },
+      {
+        "evidence_card_id": "ev-1",
+        "metadata": {
+          "category": "office",
+          "effective_date": null,
+          "payment_timing": null,
+          "time_horizon": null
+        },
+        "name": "commercial_linkage_fee_rate_usd_per_sqft",
+        "parameter_id": "param-7-commercial-linkage-fee-rate-usd-per-sqft",
+        "source_excerpt": "Office (<100,000 sq. ft.) $3.00 Retail ( \u2265100,000 sq. ft.) $3.00 Retail (<100,000 sq. ft.) No fee ($0) Hotel $5.00 Industrial/Research and Development ( \u2265100,000 sq. ft.) $3.00 NF:VMT:JMD 9/1/2020 3T- [raw=$5.00 ; normalized=5.0 ; unit=usd_per_square_foot ; denominator=per_square_foot ; land_use=hotel ; category=hotel ; raw_land_use_label=Hotel ; final_status=unknown ; source_locator=analysis_chunk:10:fee_table_row ; table_locator=commercial_linkage_fee_table ; locator_quality=table_row_chunk_locator ; source_ref=https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6 ; source_family=commercial_linkage_fee ; confidence=0.86]",
+        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+        "unit": "usd_per_square_foot",
+        "value": 5.0
+      },
+      {
+        "evidence_card_id": "ev-1",
+        "metadata": {
+          "category": "office",
+          "effective_date": null,
+          "payment_timing": null,
+          "time_horizon": null
+        },
+        "name": "commercial_linkage_fee_rate_usd_per_sqft",
+        "parameter_id": "param-8-commercial-linkage-fee-rate-usd-per-sqft",
+        "source_excerpt": "Office (<100,000 sq. ft.) $3.00 Retail ( \u2265100,000 sq. ft.) $3.00 Retail (<100,000 sq. ft.) No fee ($0) Hotel $5.00 Industrial/Research and Development ( \u2265100,000 sq. ft.) $3.00 NF:VMT:JMD 9/1/2020 3T- [raw=$3.00 ; normalized=3.0 ; unit=usd_per_square_foot ; denominator=per_square_foot ; land_use=industrial ; category=industrial ; raw_land_use_label=Industrial/Research and Development ; threshold=\u2265100,000 sq. ft. ; final_status=unknown ; source_locator=analysis_chunk:10:fee_table_row ; table_locator=commercial_linkage_fee_table ; locator_quality=table_row_chunk_locator ; source_ref=https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6 ; source_family=commercial_linkage_fee ; confidence=0.86]",
+        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+        "unit": "usd_per_square_foot",
+        "value": 3.0
+      },
+      {
+        "evidence_card_id": "ev-1",
+        "metadata": {
+          "category": "office",
+          "effective_date": null,
+          "payment_timing": null,
+          "time_horizon": null
+        },
+        "name": "commercial_linkage_fee_rate_usd_per_sqft",
+        "parameter_id": "param-9-commercial-linkage-fee-rate-usd-per-sqft",
+        "source_excerpt": "Downtown Office ( \u2265100,000 sq. ft.) $10.00 [raw=$10.00 ; normalized=10.0 ; unit=usd_per_square_foot ; denominator=per_square_foot ; land_use=office ; category=office ; subarea=downtown ; geography=downtown ; raw_land_use_label=Downtown Office ; threshold=\u2265100,000 sq. ft. ; final_status=unknown ; source_locator=analysis_chunk:16:fee_table_row ; table_locator=commercial_linkage_fee_table ; locator_quality=table_row_chunk_locator ; source_ref=https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6 ; source_family=commercial_linkage_fee ; confidence=0.86]",
+        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+        "unit": "usd_per_square_foot",
+        "value": 10.0
+      },
+      {
+        "evidence_card_id": "ev-1",
+        "metadata": {
+          "category": "office",
+          "effective_date": null,
+          "payment_timing": null,
+          "time_horizon": null
+        },
+        "name": "commercial_linkage_fee_rate_usd_per_sqft",
+        "parameter_id": "param-10-commercial-linkage-fee-rate-usd-per-sqft",
+        "source_excerpt": "Rest of City Office ( \u2265100,000 sq. ft.) $5.00 [raw=$5.00 ; normalized=5.0 ; unit=usd_per_square_foot ; denominator=per_square_foot ; land_use=office ; category=office ; subarea=rest_of_city ; geography=rest_of_city ; raw_land_use_label=Rest of City Office ; threshold=\u2265100,000 sq. ft. ; final_status=unknown ; source_locator=analysis_chunk:17:fee_table_row ; table_locator=commercial_linkage_fee_table ; locator_quality=table_row_chunk_locator ; source_ref=https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6 ; source_family=commercial_linkage_fee ; confidence=0.86]",
+        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+        "unit": "usd_per_square_foot",
+        "value": 5.0
+      },
+      {
+        "evidence_card_id": "ev-1",
+        "metadata": {
+          "category": "office",
+          "effective_date": null,
+          "payment_timing": null,
+          "time_horizon": null
+        },
+        "name": "commercial_linkage_fee_rate_usd_per_sqft",
+        "parameter_id": "param-11-commercial-linkage-fee-rate-usd-per-sqft",
+        "source_excerpt": "are subject to a fee of $3.00 per square foot [raw=$3.00 ; normalized=3.0 ; unit=usd_per_square_foot ; denominator=per_square_foot ; land_use=office ; category=office ; raw_land_use_label=office ; final_status=unknown ; source_locator=analysis_chunk:20 ; locator_quality=chunk_locator_only ; source_ref=https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6 ; source_family=commercial_linkage_fee ; confidence=0.82]",
+        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+        "unit": "usd_per_square_foot",
+        "value": 3.0
+      },
+      {
+        "evidence_card_id": "ev-1",
+        "metadata": {
+          "category": "retail",
+          "effective_date": null,
+          "payment_timing": null,
+          "time_horizon": null
+        },
+        "name": "commercial_linkage_fee_rate_usd_per_sqft",
+        "parameter_id": "param-12-commercial-linkage-fee-rate-usd-per-sqft",
+        "source_excerpt": "or larger are subject to a fee of $3.00 per square foot [raw=$3.00 ; normalized=3.0 ; unit=usd_per_square_foot ; denominator=per_square_foot ; land_use=retail ; category=retail ; raw_land_use_label=retail ; final_status=unknown ; source_locator=analysis_chunk:21 ; locator_quality=chunk_locator_only ; source_ref=https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6 ; source_family=commercial_linkage_fee ; confidence=0.82]",
+        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+        "unit": "usd_per_square_foot",
+        "value": 3.0
+      },
+      {
+        "evidence_card_id": "ev-1",
+        "metadata": {
+          "category": "retail",
+          "effective_date": null,
+          "payment_timing": null,
+          "time_horizon": null
+        },
+        "name": "commercial_linkage_fee_rate_usd_per_sqft",
+        "parameter_id": "param-13-commercial-linkage-fee-rate-usd-per-sqft",
+        "source_excerpt": "are exempt from the fee ($0.00) [raw=$0.00 ; normalized=0.0 ; unit=usd_per_square_foot ; denominator=per_square_foot ; land_use=retail ; category=retail ; raw_land_use_label=retail ; final_status=unknown ; source_locator=analysis_chunk:22 ; locator_quality=chunk_locator_only ; source_ref=https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6 ; source_family=commercial_linkage_fee ; confidence=0.82]",
+        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+        "unit": "usd_per_square_foot",
+        "value": 0.0
+      },
+      {
+        "evidence_card_id": "ev-1",
+        "metadata": {
+          "category": "industrial",
+          "effective_date": null,
+          "payment_timing": null,
+          "time_horizon": null
+        },
+        "name": "commercial_linkage_fee_rate_usd_per_sqft",
+        "parameter_id": "param-14-commercial-linkage-fee-rate-usd-per-sqft",
+        "source_excerpt": "or larger are subject to a fee of $3.00 per square foot [raw=$3.00 ; normalized=3.0 ; unit=usd_per_square_foot ; denominator=per_square_foot ; land_use=industrial ; category=industrial ; raw_land_use_label=industrial ; final_status=unknown ; source_locator=analysis_chunk:23 ; locator_quality=chunk_locator_only ; source_ref=https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6 ; source_family=commercial_linkage_fee ; confidence=0.82]",
+        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+        "unit": "usd_per_square_foot",
+        "value": 3.0
+      },
+      {
+        "evidence_card_id": "ev-1",
+        "metadata": {
+          "category": "industrial",
+          "effective_date": null,
+          "payment_timing": null,
+          "time_horizon": null
+        },
+        "name": "commercial_linkage_fee_rate_usd_per_sqft",
+        "parameter_id": "param-15-commercial-linkage-fee-rate-usd-per-sqft",
+        "source_excerpt": "are exempt from the fee ($0.00) [raw=$0.00 ; normalized=0.0 ; unit=usd_per_square_foot ; denominator=per_square_foot ; land_use=industrial ; category=industrial ; raw_land_use_label=industrial ; final_status=unknown ; source_locator=analysis_chunk:24 ; locator_quality=chunk_locator_only ; source_ref=https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6 ; source_family=commercial_linkage_fee ; confidence=0.82]",
+        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+        "unit": "usd_per_square_foot",
+        "value": 0.0
+      },
+      {
+        "evidence_card_id": "ev-1",
+        "metadata": {
+          "category": "commercial",
+          "effective_date": null,
+          "payment_timing": null,
+          "time_horizon": null
+        },
+        "name": "commercial_linkage_fee_rate_usd_per_sqft",
+        "parameter_id": "param-16-commercial-linkage-fee-rate-usd-per-sqft",
+        "source_excerpt": "Warehouse developments are subject to a fee of $5.00 per square foot [raw=$5.00 ; normalized=5.0 ; unit=usd_per_square_foot ; denominator=per_square_foot ; land_use=unknown ; category=unknown ; raw_land_use_label=unknown ; final_status=unknown ; source_locator=analysis_chunk:25 ; locator_quality=chunk_locator_only ; source_ref=https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6 ; source_family=commercial_linkage_fee ; confidence=0.82]",
+        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+        "unit": "usd_per_square_foot",
+        "value": 5.0
+      },
+      {
+        "evidence_card_id": "ev-2",
+        "metadata": {
+          "category": "office",
+          "effective_date": null,
+          "payment_timing": null,
+          "time_horizon": null
+        },
+        "name": "commercial_linkage_fee_rate_usd_per_sqft",
+        "parameter_id": "param-1-commercial-linkage-fee-rate-usd-per-sqft",
+        "source_excerpt": "TO: HONORABLE MAYOR AND FROM: Mayor Liccardo CITY COUNCIL Vice-Mayor Jones Councilmember Diep Councilmember Davis Councilmember Foley SUBJECT: COMMERICAL LINKAGE FEE DATE: August 28, 2020 APPROVED: DATE: 8/28/20 RECOMMENDATION: Approve the staff recommendation with the following changes: 1. For Downtown Office Space over 100,000 square feet, offer 3 options: \u2022 Option 1: $12/per square foot if paid upon Certificate of Occupancy (COO) \u2022 Option 2: $15/per square foot, paid in phases: - $5 at issuance of COO - $10 payable proportionate to the percentage of rentable building space for which there is Tenant Improvement (TI) certification, so that fees are paid as leases are secured, and prior to employees filling the building. \u2022 Option 3: Directly build affordable units - Deliver a prescribed number of affordable units equivalent to the applicable fee, based on a formula to be devised by Housing & OED staff for inclusionary fees on residential construction. The ground-breaking of the affordable housing project must precede the issuance of a certificate of occupancy on the commercial space. 2. For all office projects less than 100,000 square feet, the fee for the first 40,000 square feet is $0. 3. For citywide office projects over 100,000 square feet, provide \u201cOption #2 ($2 at COO and $3 with Tenant Improvements) as well as Option #3 (opportunity to deliver affordable units). 4. For industrial projects over 100,000 square feet, provide \u201cOption #2 ($1 at COO and $2 with Tenant Improvements) as well as Option #3 (opportunity to deliver affordable units). 5. For hotel projects, staff should provide Option #3 (opportunity to deliver affordable units). COUNCIL AGENDA: 09/01/20 ITEM: 8.2 6. In light of rapidly growing vacancy for all retail space, and severe loss of retail employmen [normalized=12.0 ; unit=usd_per_square_foot ; source_locator=attachment_probe:excerpt ; locator_quality=attachment_probe_excerpt ; source_ref=legistar::attachment::15491 ; source_family=memorandum ; attachment_id=15491 ; confidence=0.70]",
+        "source_url": "https://legistar.granicus.com/sanjose/attachments/94ffc8fc-d6ba-46ca-8499-b46b32bcbf6a.pdf",
+        "unit": "usd_per_square_foot",
+        "value": 12.0
+      },
+      {
+        "evidence_card_id": "ev-2",
+        "metadata": {
+          "category": "office",
+          "effective_date": null,
+          "payment_timing": null,
+          "time_horizon": null
+        },
+        "name": "commercial_linkage_fee_rate_usd_per_sqft",
+        "parameter_id": "param-2-commercial-linkage-fee-rate-usd-per-sqft",
+        "source_excerpt": "TO: HONORABLE MAYOR AND FROM: Mayor Liccardo CITY COUNCIL Vice-Mayor Jones Councilmember Diep Councilmember Davis Councilmember Foley SUBJECT: COMMERICAL LINKAGE FEE DATE: August 28, 2020 APPROVED: DATE: 8/28/20 RECOMMENDATION: Approve the staff recommendation with the following changes: 1. For Downtown Office Space over 100,000 square feet, offer 3 options: \u2022 Option 1: $12/per square foot if paid upon Certificate of Occupancy (COO) \u2022 Option 2: $15/per square foot, paid in phases: - $5 at issuance of COO - $10 payable proportionate to the percentage of rentable building space for which there is Tenant Improvement (TI) certification, so that fees are paid as leases are secured, and prior to employees filling the building. \u2022 Option 3: Directly build affordable units - Deliver a prescribed number of affordable units equivalent to the applicable fee, based on a formula to be devised by Housing & OED staff for inclusionary fees on residential construction. The ground-breaking of the affordable housing project must precede the issuance of a certificate of occupancy on the commercial space. 2. For all office projects less than 100,000 square feet, the fee for the first 40,000 square feet is $0. 3. For citywide office projects over 100,000 square feet, provide \u201cOption #2 ($2 at COO and $3 with Tenant Improvements) as well as Option #3 (opportunity to deliver affordable units). 4. For industrial projects over 100,000 square feet, provide \u201cOption #2 ($1 at COO and $2 with Tenant Improvements) as well as Option #3 (opportunity to deliver affordable units). 5. For hotel projects, staff should provide Option #3 (opportunity to deliver affordable units). COUNCIL AGENDA: 09/01/20 ITEM: 8.2 6. In light of rapidly growing vacancy for all retail space, and severe loss of retail employmen [normalized=15.0 ; unit=usd_per_square_foot ; source_locator=attachment_probe:excerpt ; locator_quality=attachment_probe_excerpt ; source_ref=legistar::attachment::15491 ; source_family=memorandum ; attachment_id=15491 ; confidence=0.70]",
+        "source_url": "https://legistar.granicus.com/sanjose/attachments/94ffc8fc-d6ba-46ca-8499-b46b32bcbf6a.pdf",
+        "unit": "usd_per_square_foot",
+        "value": 15.0
+      },
+      {
+        "evidence_card_id": "ev-2",
+        "metadata": {
+          "category": "office",
+          "effective_date": null,
+          "payment_timing": null,
+          "time_horizon": null
+        },
+        "name": "commercial_linkage_fee_rate_usd_per_sqft",
+        "parameter_id": "param-3-commercial-linkage-fee-rate-usd-per-sqft",
+        "source_excerpt": "TO: HONORABLE MAYOR AND FROM: Mayor Liccardo CITY COUNCIL Vice-Mayor Jones Councilmember Diep Councilmember Davis Councilmember Foley SUBJECT: COMMERICAL LINKAGE FEE DATE: August 28, 2020 APPROVED: DATE: 8/28/20 RECOMMENDATION: Approve the staff recommendation with the following changes: 1. For Downtown Office Space over 100,000 square feet, offer 3 options: \u2022 Option 1: $12/per square foot if paid upon Certificate of Occupancy (COO) \u2022 Option 2: $15/per square foot, paid in phases: - $5 at issuance of COO - $10 payable proportionate to the percentage of rentable building space for which there is Tenant Improvement (TI) certification, so that fees are paid as leases are secured, and prior to employees filling the building. \u2022 Option 3: Directly build affordable units - Deliver a prescribed number of affordable units equivalent to the applicable fee, based on a formula to be devised by Housing & OED staff for inclusionary fees on residential construction. The ground-breaking of the affordable housing project must precede the issuance of a certificate of occupancy on the commercial space. 2. For all office projects less than 100,000 square feet, the fee for the first 40,000 square feet is $0. 3. For citywide office projects over 100,000 square feet, provide \u201cOption #2 ($2 at COO and $3 with Tenant Improvements) as well as Option #3 (opportunity to deliver affordable units). 4. For industrial projects over 100,000 square feet, provide \u201cOption #2 ($1 at COO and $2 with Tenant Improvements) as well as Option #3 (opportunity to deliver affordable units). 5. For hotel projects, staff should provide Option #3 (opportunity to deliver affordable units). COUNCIL AGENDA: 09/01/20 ITEM: 8.2 6. In light of rapidly growing vacancy for all retail space, and severe loss of retail employmen [normalized=5.0 ; unit=usd_per_square_foot ; source_locator=attachment_probe:excerpt ; locator_quality=attachment_probe_excerpt ; source_ref=legistar::attachment::15491 ; source_family=memorandum ; attachment_id=15491 ; confidence=0.70]",
+        "source_url": "https://legistar.granicus.com/sanjose/attachments/94ffc8fc-d6ba-46ca-8499-b46b32bcbf6a.pdf",
+        "unit": "usd_per_square_foot",
+        "value": 5.0
+      },
+      {
+        "evidence_card_id": "ev-2",
+        "metadata": {
+          "category": "office",
+          "effective_date": null,
+          "payment_timing": null,
+          "time_horizon": null
+        },
+        "name": "commercial_linkage_fee_rate_usd_per_sqft",
+        "parameter_id": "param-4-commercial-linkage-fee-rate-usd-per-sqft",
+        "source_excerpt": "TO: HONORABLE MAYOR AND FROM: Mayor Liccardo CITY COUNCIL Vice-Mayor Jones Councilmember Diep Councilmember Davis Councilmember Foley SUBJECT: COMMERICAL LINKAGE FEE DATE: August 28, 2020 APPROVED: DATE: 8/28/20 RECOMMENDATION: Approve the staff recommendation with the following changes: 1. For Downtown Office Space over 100,000 square feet, offer 3 options: \u2022 Option 1: $12/per square foot if paid upon Certificate of Occupancy (COO) \u2022 Option 2: $15/per square foot, paid in phases: - $5 at issuance of COO - $10 payable proportionate to the percentage of rentable building space for which there is Tenant Improvement (TI) certification, so that fees are paid as leases are secured, and prior to employees filling the building. \u2022 Option 3: Directly build affordable units - Deliver a prescribed number of affordable units equivalent to the applicable fee, based on a formula to be devised by Housing & OED staff for inclusionary fees on residential construction. The ground-breaking of the affordable housing project must precede the issuance of a certificate of occupancy on the commercial space. 2. For all office projects less than 100,000 square feet, the fee for the first 40,000 square feet is $0. 3. For citywide office projects over 100,000 square feet, provide \u201cOption #2 ($2 at COO and $3 with Tenant Improvements) as well as Option #3 (opportunity to deliver affordable units). 4. For industrial projects over 100,000 square feet, provide \u201cOption #2 ($1 at COO and $2 with Tenant Improvements) as well as Option #3 (opportunity to deliver affordable units). 5. For hotel projects, staff should provide Option #3 (opportunity to deliver affordable units). COUNCIL AGENDA: 09/01/20 ITEM: 8.2 6. In light of rapidly growing vacancy for all retail space, and severe loss of retail employmen [normalized=10.0 ; unit=usd_per_square_foot ; source_locator=attachment_probe:excerpt ; locator_quality=attachment_probe_excerpt ; source_ref=legistar::attachment::15491 ; source_family=memorandum ; attachment_id=15491 ; confidence=0.70]",
+        "source_url": "https://legistar.granicus.com/sanjose/attachments/94ffc8fc-d6ba-46ca-8499-b46b32bcbf6a.pdf",
+        "unit": "usd_per_square_foot",
+        "value": 10.0
+      },
+      {
+        "evidence_card_id": "ev-2",
+        "metadata": {
+          "category": "residential",
+          "effective_date": null,
+          "payment_timing": null,
+          "time_horizon": null
+        },
+        "name": "commercial_linkage_fee_rate_usd_per_sqft",
+        "parameter_id": "param-5-commercial-linkage-fee-rate-usd-per-sqft",
+        "source_excerpt": "Nanci Klein AND CITY COUNCIL Jacky Morales-Ferrand SUBJECT: COMMERCIAL LINKAGE FEE DATE: September 1, 2020 STAFF RECOMMENDATION Approved Date 9/1/20 SUPPLEMENTAL REASON FOR SUPPLEMENTAL The recommended fee level for Residential Care Facility is being reduced to account for the considerable uncertainty about future rent rates due to COVID-19. RECOMMENDATION The recommended fee level for Residential Care Facilities is $6 per square foot. ANALYSIS Residential care is a unique case as a commercial use building type. Most residential care facilities include both \u201cassisted living\u201d units and \u201cmemory care\u201d units which are different in design, services provided, and how the occupant is charged. Due to the progressive nature of services provided to the residents, some of the units include small kitchens (generally assisted living units) and others do not include kitchen or sometimes even bathrooms (generally memory care units). Under the City\u2019s Inclusionary Housing Ordinance and Affordable Housing Impact Fee, units within a residential care facility that include kitchens are defined as residential and included in the inclusionary housing program, while those without kitchens are not. Residents of these units pay a monthly rent and have a lease which is typical of a standard residential apartment. In addition, renters can add a range of additional services such as meals. Rents collected for residential care facilities range from a low of $2,000 a month to over $15,000 a month for a 2-bedroom unit. Specifically, the Inclusionary Housing Ordinance Guidelines define a dwelling unit as the following: 1. \u201cDwelling Unit\u201d shall not be interpreted to exempt from the Inclusionary Housing Ordinance less traditional developments described or designed or permitted based on COUNCIL AGENDA: 9/1 [normalized=6.0 ; unit=usd_per_square_foot ; source_locator=attachment_probe:excerpt ; locator_quality=attachment_probe_excerpt ; source_ref=legistar::attachment::15523 ; source_family=memorandum ; attachment_id=15523 ; confidence=0.70]",
+        "source_url": "https://legistar.granicus.com/sanjose/attachments/eb98bc80-6c09-4b45-ba75-db970576e5f3.pdf",
+        "unit": "usd_per_square_foot",
+        "value": 6.0
+      },
+      {
+        "evidence_card_id": "ev-2",
+        "metadata": {
+          "category": "residential",
+          "effective_date": null,
+          "payment_timing": null,
+          "time_horizon": null
+        },
+        "name": "commercial_linkage_fee_rate_usd_per_sqft",
+        "parameter_id": "param-6-commercial-linkage-fee-rate-usd-per-sqft",
+        "source_excerpt": "Nanci Klein AND CITY COUNCIL Jacky Morales-Ferrand SUBJECT: COMMERCIAL LINKAGE FEE DATE: September 1, 2020 STAFF RECOMMENDATION Approved Date 9/1/20 SUPPLEMENTAL REASON FOR SUPPLEMENTAL The recommended fee level for Residential Care Facility is being reduced to account for the considerable uncertainty about future rent rates due to COVID-19. RECOMMENDATION The recommended fee level for Residential Care Facilities is $6 per square foot. ANALYSIS Residential care is a unique case as a commercial use building type. Most residential care facilities include both \u201cassisted living\u201d units and \u201cmemory care\u201d units which are different in design, services provided, and how the occupant is charged. Due to the progressive nature of services provided to the residents, some of the units include small kitchens (generally assisted living units) and others do not include kitchen or sometimes even bathrooms (generally memory care units). Under the City\u2019s Inclusionary Housing Ordinance and Affordable Housing Impact Fee, units within a residential care facility that include kitchens are defined as residential and included in the inclusionary housing program, while those without kitchens are not. Residents of these units pay a monthly rent and have a lease which is typical of a standard residential apartment. In addition, renters can add a range of additional services such as meals. Rents collected for residential care facilities range from a low of $2,000 a month to over $15,000 a month for a 2-bedroom unit. Specifically, the Inclusionary Housing Ordinance Guidelines define a dwelling unit as the following: 1. \u201cDwelling Unit\u201d shall not be interpreted to exempt from the Inclusionary Housing Ordinance less traditional developments described or designed or permitted based on COUNCIL AGENDA: 9/1 [normalized=600.0 ; unit=usd_per_square_foot ; source_locator=attachment_probe:excerpt ; locator_quality=attachment_probe_excerpt ; source_ref=legistar::attachment::15523 ; source_family=memorandum ; attachment_id=15523 ; confidence=0.70]",
+        "source_url": "https://legistar.granicus.com/sanjose/attachments/eb98bc80-6c09-4b45-ba75-db970576e5f3.pdf",
+        "unit": "usd_per_square_foot",
+        "value": 600.0
+      },
+      {
+        "evidence_card_id": "ev-2",
+        "metadata": {
+          "category": "residential",
+          "effective_date": null,
+          "payment_timing": null,
+          "time_horizon": null
+        },
+        "name": "commercial_linkage_fee_rate_usd_per_sqft",
+        "parameter_id": "param-7-commercial-linkage-fee-rate-usd-per-sqft",
+        "source_excerpt": "Nanci Klein AND CITY COUNCIL Jacky Morales-Ferrand SUBJECT: COMMERCIAL LINKAGE FEE DATE: September 1, 2020 STAFF RECOMMENDATION Approved Date 9/1/20 SUPPLEMENTAL REASON FOR SUPPLEMENTAL The recommended fee level for Residential Care Facility is being reduced to account for the considerable uncertainty about future rent rates due to COVID-19. RECOMMENDATION The recommended fee level for Residential Care Facilities is $6 per square foot. ANALYSIS Residential care is a unique case as a commercial use building type. Most residential care facilities include both \u201cassisted living\u201d units and \u201cmemory care\u201d units which are different in design, services provided, and how the occupant is charged. Due to the progressive nature of services provided to the residents, some of the units include small kitchens (generally assisted living units) and others do not include kitchen or sometimes even bathrooms (generally memory care units). Under the City\u2019s Inclusionary Housing Ordinance and Affordable Housing Impact Fee, units within a residential care facility that include kitchens are defined as residential and included in the inclusionary housing program, while those without kitchens are not. Residents of these units pay a monthly rent and have a lease which is typical of a standard residential apartment. In addition, renters can add a range of additional services such as meals. Rents collected for residential care facilities range from a low of $2,000 a month to over $15,000 a month for a 2-bedroom unit. Specifically, the Inclusionary Housing Ordinance Guidelines define a dwelling unit as the following: 1. \u201cDwelling Unit\u201d shall not be interpreted to exempt from the Inclusionary Housing Ordinance less traditional developments described or designed or permitted based on COUNCIL AGENDA: 9/1 [normalized=52.3 ; unit=usd_per_square_foot ; source_locator=attachment_probe:excerpt ; locator_quality=attachment_probe_excerpt ; source_ref=legistar::attachment::15523 ; source_family=memorandum ; attachment_id=15523 ; confidence=0.70]",
+        "source_url": "https://legistar.granicus.com/sanjose/attachments/eb98bc80-6c09-4b45-ba75-db970576e5f3.pdf",
+        "unit": "usd_per_square_foot",
+        "value": 52.3
+      }
+    ],
+    "sensitivity_range": null,
+    "uncertainty_notes": [
+      "Range depends on parameter resolution quality and evidence recency.",
+      "Assumption transferability must remain within applicability tags."
+    ]
+  },
+  "evidence_package_status": "fail",
+  "gates": {
+    "LLM narrative": {
+      "reason": "Canonical LLM narrative run evidence present (run_id=e70b69c0-a50a-4182-8991-0e681d50c46a, step_id=3bc7b357-4410-533b-9592-1fdb2b65b4cb, source=policy_evidence_packages.package_payload + pipeline_runs.result.analysis).",
+      "refs": [
+        {
+          "key": "canonical_pipeline_run_id",
+          "value": "e70b69c0-a50a-4182-8991-0e681d50c46a"
+        },
+        {
+          "key": "canonical_pipeline_step_id",
+          "value": "3bc7b357-4410-533b-9592-1fdb2b65b4cb"
+        },
+        {
+          "key": "source",
+          "value": "policy_evidence_packages.package_payload + pipeline_runs.result.analysis"
+        }
+      ],
+      "status": "pass"
+    },
+    "Windmill/orchestration": {
+      "reason": "Current-run Windmill run id present with backend scope job id only (run_id=bd-3wefe.13-live-cycle-38-20260417050653, scope_job_id=run_scope_pipeline:0:run_scope_pipeline).",
+      "refs": [
+        {
+          "key": "windmill_flow_path",
+          "value": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow"
+        },
+        {
+          "key": "windmill_workspace",
+          "value": "affordabot"
+        },
+        {
+          "key": "windmill_run_id",
+          "value": "bd-3wefe.13-live-cycle-38-20260417050653"
+        },
+        {
+          "key": "source",
+          "value": "policy_evidence_packages.package_payload.run_context"
+        },
+        {
+          "key": "windmill_scope_job_id",
+          "value": "run_scope_pipeline:0:run_scope_pipeline"
+        }
+      ],
+      "status": "pass"
+    },
+    "economic_analysis_readiness": {
+      "reason": "readiness=qualitative_only",
+      "refs": [],
+      "status": "not_proven"
+    },
+    "scraped/search": {
+      "reason": "Selected artifact has provider-quality support (provider=private_searxng, status=succeeded, reason=materialized_raw_scrape).",
+      "refs": [],
+      "status": "pass"
+    },
+    "storage/read-back": {
+      "direct_probe_available": false,
+      "proof_mode": "postgres_minio_live",
+      "reason": "Backend storage-service proof present with persisted row id and MinIO readback (mode=postgres_minio_live, record_id=90738ab5-a261-5c0b-b31e-433087be41ed, direct_probe_available=false).",
+      "refs": [
+        {
+          "content_hash": "71524d4b161bbf71c6145f0549351b0c4a9603630c5e8e7794fb77c552468dd3",
+          "reference_id": "policy_evidence_packages:pkg-af204fc661686d86332a8a88",
+          "storage_system": "postgres",
+          "truth_role": "source_of_truth",
+          "uri": null
+        },
+        {
+          "content_hash": "71524d4b161bbf71c6145f0549351b0c4a9603630c5e8e7794fb77c552468dd3",
+          "reference_id": "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/commercial_linkage_fee/reader_output/71524d4b161bbf71c6145f0549351b0c4a9603630c5e8e7794fb77c552468dd3.md",
+          "storage_system": "minio",
+          "truth_role": "artifact_of_record",
+          "uri": "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/commercial_linkage_fee/reader_output/71524d4b161bbf71c6145f0549351b0c4a9603630c5e8e7794fb77c552468dd3.md"
+        },
+        {
+          "content_hash": "71524d4b161bbf71c6145f0549351b0c4a9603630c5e8e7794fb77c552468dd3",
+          "reference_id": "document:146bc4c7-a9a8-5c7d-95bc-ee24d9cd4d09",
+          "storage_system": "pgvector",
+          "truth_role": "derived_index",
+          "uri": null
+        },
+        {
+          "content_hash": null,
+          "reference_id": "minio://affordabot-artifacts/policy-evidence/packages/pkg-af204fc661686d86332a8a88.json",
+          "storage_system": "minio",
+          "truth_role": "artifact_of_record",
+          "uri": "minio://affordabot-artifacts/policy-evidence/packages/pkg-af204fc661686d86332a8a88.json"
+        }
+      ],
+      "status": "pass"
+    }
+  },
+  "jurisdiction": "San Jose CA",
+  "manual_audit_scaffold": {
+    "canonical_binding_status": "bound",
+    "checklist": [
+      {
+        "description": "Verify canonical_document_key and every evidence/parameter card trace to source artifacts or rows.",
+        "gate": "D6",
+        "id": "audit_identity_and_provenance"
+      },
+      {
+        "description": "Verify Postgres row, MinIO readback, pgvector refs, and replay/idempotent proof mode.",
+        "gate": "D7",
+        "id": "audit_storage_readback_replay"
+      },
+      {
+        "description": "Verify current windmill run/job ids are linked to package and backend run state.",
+        "gate": "D9",
+        "id": "audit_windmill_binding"
+      },
+      {
+        "description": "Verify mechanism candidates, parameter inventory, assumptions, unsupported-claim risks, and next action are machine-actionable.",
+        "gate": "D11",
+        "id": "audit_economic_handoff_contract"
+      }
+    ],
+    "current_gate_status": {
+      "D11": "secondary_research_needed",
+      "D6": "pass",
+      "D7": "pass",
+      "D9": "pass"
+    },
+    "evidence_refs": [
+      {
+        "artifact_id": "v2|jurisdiction=san-jose-ca|family=commercial_linkage_fee|doctype=meeting_minutes|url=https://sanjose.legistar.com/View.ashx?GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6&ID=8758120&M=F",
+        "evidence_card_id": "ev-1",
+        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6"
+      },
+      {
+        "artifact_id": "v2|jurisdiction=san-jose-ca|family=legistar-web-api|doctype=matter_metadata|url=https://webapi.legistar.com/v1/sanjose/Matters/7526",
+        "evidence_card_id": "ev-2",
+        "source_url": "https://webapi.legistar.com/v1/sanjose/Matters/7526"
+      }
+    ],
+    "secondary_research_status": "required",
+    "status": "required"
+  },
+  "mechanism_candidates": [
+    {
+      "direct_fee_model_candidate": {
+        "formula": "direct_fee_usd = project_size_sqft * fee_rate_usd_per_sqft",
+        "scope": "direct_developer_fee",
+        "status": "pass"
+      },
+      "household_pass_through_need": {
+        "reason": "household cost-of-living incidence is not decision-grade without source-bound pass-through/incidence assumptions",
+        "status": "not_proven"
+      },
+      "mechanism_type": "direct",
+      "reason": "source-bound per-square-foot fee parameters available for direct model card",
+      "status": "pass",
+      "supported_model_card_ids": []
+    },
+    {
+      "mechanism_type": "indirect",
+      "reason": "pass-through/adoption assumptions missing",
+      "status": "not_proven",
+      "supported_assumption_ids": []
+    },
+    {
+      "mechanism_type": "direct",
+      "reason": "nodes=3 edges=2",
+      "status": "pass"
+    }
+  ],
+  "missing_parameters": [
+    {
+      "ambiguity_reason": "currency_format_anomaly",
+      "evidence_card_id": "ev-1",
+      "name": "commercial_linkage_fee_rate_usd_per_sqft",
+      "parameter_id": "param-3-commercial-linkage-fee-rate-usd-per-sqft",
+      "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+      "state": "ambiguous",
+      "unit": "usd_per_square_foot"
+    }
+  ],
+  "package_id": "pkg-af204fc661686d86332a8a88",
+  "parameter_inventory": {
+    "missing_count": 1,
+    "missing_parameters": [
+      {
+        "ambiguity_reason": "currency_format_anomaly",
+        "evidence_card_id": "ev-1",
+        "name": "commercial_linkage_fee_rate_usd_per_sqft",
+        "parameter_id": "param-3-commercial-linkage-fee-rate-usd-per-sqft",
+        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+        "state": "ambiguous",
+        "unit": "usd_per_square_foot"
+      }
+    ],
+    "resolved_count": 22,
+    "resolved_parameters": [
+      {
+        "ambiguity_reason": null,
+        "evidence_card_id": "ev-1",
+        "name": "commercial_linkage_fee_rate_usd_per_sqft",
+        "parameter_id": "param-1-commercial-linkage-fee-rate-usd-per-sqft",
+        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+        "state": "resolved",
+        "unit": "usd_per_square_foot"
+      },
+      {
+        "ambiguity_reason": null,
+        "evidence_card_id": "ev-1",
+        "name": "commercial_linkage_fee_rate_usd_per_sqft",
+        "parameter_id": "param-2-commercial-linkage-fee-rate-usd-per-sqft",
+        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+        "state": "resolved",
+        "unit": "usd_per_square_foot"
+      },
+      {
+        "ambiguity_reason": null,
+        "evidence_card_id": "ev-1",
+        "name": "commercial_linkage_fee_rate_usd_per_sqft",
+        "parameter_id": "param-4-commercial-linkage-fee-rate-usd-per-sqft",
+        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+        "state": "resolved",
+        "unit": "usd_per_square_foot"
+      },
+      {
+        "ambiguity_reason": null,
+        "evidence_card_id": "ev-1",
+        "name": "commercial_linkage_fee_rate_usd_per_sqft",
+        "parameter_id": "param-5-commercial-linkage-fee-rate-usd-per-sqft",
+        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+        "state": "resolved",
+        "unit": "usd_per_square_foot"
+      },
+      {
+        "ambiguity_reason": null,
+        "evidence_card_id": "ev-1",
+        "name": "commercial_linkage_fee_rate_usd_per_sqft",
+        "parameter_id": "param-6-commercial-linkage-fee-rate-usd-per-sqft",
+        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+        "state": "resolved",
+        "unit": "usd_per_square_foot"
+      },
+      {
+        "ambiguity_reason": null,
+        "evidence_card_id": "ev-1",
+        "name": "commercial_linkage_fee_rate_usd_per_sqft",
+        "parameter_id": "param-7-commercial-linkage-fee-rate-usd-per-sqft",
+        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+        "state": "resolved",
+        "unit": "usd_per_square_foot"
+      },
+      {
+        "ambiguity_reason": null,
+        "evidence_card_id": "ev-1",
+        "name": "commercial_linkage_fee_rate_usd_per_sqft",
+        "parameter_id": "param-8-commercial-linkage-fee-rate-usd-per-sqft",
+        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+        "state": "resolved",
+        "unit": "usd_per_square_foot"
+      },
+      {
+        "ambiguity_reason": null,
+        "evidence_card_id": "ev-1",
+        "name": "commercial_linkage_fee_rate_usd_per_sqft",
+        "parameter_id": "param-9-commercial-linkage-fee-rate-usd-per-sqft",
+        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+        "state": "resolved",
+        "unit": "usd_per_square_foot"
+      },
+      {
+        "ambiguity_reason": null,
+        "evidence_card_id": "ev-1",
+        "name": "commercial_linkage_fee_rate_usd_per_sqft",
+        "parameter_id": "param-10-commercial-linkage-fee-rate-usd-per-sqft",
+        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+        "state": "resolved",
+        "unit": "usd_per_square_foot"
+      },
+      {
+        "ambiguity_reason": null,
+        "evidence_card_id": "ev-1",
+        "name": "commercial_linkage_fee_rate_usd_per_sqft",
+        "parameter_id": "param-11-commercial-linkage-fee-rate-usd-per-sqft",
+        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+        "state": "resolved",
+        "unit": "usd_per_square_foot"
+      },
+      {
+        "ambiguity_reason": null,
+        "evidence_card_id": "ev-1",
+        "name": "commercial_linkage_fee_rate_usd_per_sqft",
+        "parameter_id": "param-12-commercial-linkage-fee-rate-usd-per-sqft",
+        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+        "state": "resolved",
+        "unit": "usd_per_square_foot"
+      },
+      {
+        "ambiguity_reason": null,
+        "evidence_card_id": "ev-1",
+        "name": "commercial_linkage_fee_rate_usd_per_sqft",
+        "parameter_id": "param-13-commercial-linkage-fee-rate-usd-per-sqft",
+        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+        "state": "resolved",
+        "unit": "usd_per_square_foot"
+      },
+      {
+        "ambiguity_reason": null,
+        "evidence_card_id": "ev-1",
+        "name": "commercial_linkage_fee_rate_usd_per_sqft",
+        "parameter_id": "param-14-commercial-linkage-fee-rate-usd-per-sqft",
+        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+        "state": "resolved",
+        "unit": "usd_per_square_foot"
+      },
+      {
+        "ambiguity_reason": null,
+        "evidence_card_id": "ev-1",
+        "name": "commercial_linkage_fee_rate_usd_per_sqft",
+        "parameter_id": "param-15-commercial-linkage-fee-rate-usd-per-sqft",
+        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+        "state": "resolved",
+        "unit": "usd_per_square_foot"
+      },
+      {
+        "ambiguity_reason": null,
+        "evidence_card_id": "ev-1",
+        "name": "commercial_linkage_fee_rate_usd_per_sqft",
+        "parameter_id": "param-16-commercial-linkage-fee-rate-usd-per-sqft",
+        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+        "state": "resolved",
+        "unit": "usd_per_square_foot"
+      },
+      {
+        "ambiguity_reason": null,
+        "evidence_card_id": "ev-2",
+        "name": "commercial_linkage_fee_rate_usd_per_sqft",
+        "parameter_id": "param-1-commercial-linkage-fee-rate-usd-per-sqft",
+        "source_url": "https://legistar.granicus.com/sanjose/attachments/94ffc8fc-d6ba-46ca-8499-b46b32bcbf6a.pdf",
+        "state": "resolved",
+        "unit": "usd_per_square_foot"
+      },
+      {
+        "ambiguity_reason": null,
+        "evidence_card_id": "ev-2",
+        "name": "commercial_linkage_fee_rate_usd_per_sqft",
+        "parameter_id": "param-2-commercial-linkage-fee-rate-usd-per-sqft",
+        "source_url": "https://legistar.granicus.com/sanjose/attachments/94ffc8fc-d6ba-46ca-8499-b46b32bcbf6a.pdf",
+        "state": "resolved",
+        "unit": "usd_per_square_foot"
+      },
+      {
+        "ambiguity_reason": null,
+        "evidence_card_id": "ev-2",
+        "name": "commercial_linkage_fee_rate_usd_per_sqft",
+        "parameter_id": "param-3-commercial-linkage-fee-rate-usd-per-sqft",
+        "source_url": "https://legistar.granicus.com/sanjose/attachments/94ffc8fc-d6ba-46ca-8499-b46b32bcbf6a.pdf",
+        "state": "resolved",
+        "unit": "usd_per_square_foot"
+      },
+      {
+        "ambiguity_reason": null,
+        "evidence_card_id": "ev-2",
+        "name": "commercial_linkage_fee_rate_usd_per_sqft",
+        "parameter_id": "param-4-commercial-linkage-fee-rate-usd-per-sqft",
+        "source_url": "https://legistar.granicus.com/sanjose/attachments/94ffc8fc-d6ba-46ca-8499-b46b32bcbf6a.pdf",
+        "state": "resolved",
+        "unit": "usd_per_square_foot"
+      },
+      {
+        "ambiguity_reason": null,
+        "evidence_card_id": "ev-2",
+        "name": "commercial_linkage_fee_rate_usd_per_sqft",
+        "parameter_id": "param-5-commercial-linkage-fee-rate-usd-per-sqft",
+        "source_url": "https://legistar.granicus.com/sanjose/attachments/eb98bc80-6c09-4b45-ba75-db970576e5f3.pdf",
+        "state": "resolved",
+        "unit": "usd_per_square_foot"
+      },
+      {
+        "ambiguity_reason": null,
+        "evidence_card_id": "ev-2",
+        "name": "commercial_linkage_fee_rate_usd_per_sqft",
+        "parameter_id": "param-6-commercial-linkage-fee-rate-usd-per-sqft",
+        "source_url": "https://legistar.granicus.com/sanjose/attachments/eb98bc80-6c09-4b45-ba75-db970576e5f3.pdf",
+        "state": "resolved",
+        "unit": "usd_per_square_foot"
+      },
+      {
+        "ambiguity_reason": null,
+        "evidence_card_id": "ev-2",
+        "name": "commercial_linkage_fee_rate_usd_per_sqft",
+        "parameter_id": "param-7-commercial-linkage-fee-rate-usd-per-sqft",
+        "source_url": "https://legistar.granicus.com/sanjose/attachments/eb98bc80-6c09-4b45-ba75-db970576e5f3.pdf",
+        "state": "resolved",
+        "unit": "usd_per_square_foot"
+      }
+    ]
+  },
+  "provenance": {
+    "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=commercial_linkage_fee|doctype=meeting_minutes|url=https://sanjose.legistar.com/View.ashx?GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6&ID=8758120&M=F",
+    "policy_identifier": "v2|jurisdiction=san-jose-ca|family=commercial_linkage_fee|doctype=meeting_minutes|url=https://sanjose.legistar.com/View.ashx?GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6&ID=8758120&M=F",
+    "scraped_sources": [
+      {
+        "query_family": "commercial_linkage_fee",
+        "reader_artifact_url": null,
+        "reader_provenance_hydrated": false,
+        "reader_substance_observed": true,
+        "reader_substance_passed": true,
+        "search_provider": "private_searxng",
+        "search_snapshot_id": "a3acfb59-da6f-47b0-bfcb-1e464988d2cc",
+        "selected_candidate_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6"
+      }
+    ],
+    "source_lanes": [
+      "scraped",
+      "structured"
+    ],
+    "structured_sources": [
+      {
+        "access_method": "public_api_json",
+        "endpoint_or_file_url": "https://webapi.legistar.com/v1/sanjose/Matters/7526",
+        "field_count": 9,
+        "provider_run_id": "7526",
+        "source_family": "legistar_web_api"
+      }
+    ]
+  },
+  "recommended_next_action": "reject",
+  "run_context": {
+    "completed_at": "2026-04-17 05:07:50.932257+00:00",
+    "run_id": "e70b69c0-a50a-4182-8991-0e681d50c46a",
+    "started_at": "2026-04-17 05:07:04.894064+00:00",
+    "status": "succeeded",
+    "windmill_run_id": "bd-3wefe.13-live-cycle-38-20260417050653"
+  },
+  "secondary_research": {
+    "output_contract": {
+      "canonical_analysis_binding_required": true,
+      "current_readiness": "qualitative_only",
+      "must_emit_fail_closed_if_missing": true,
+      "must_include_assumption_updates": true,
+      "must_include_model_card_updates": true,
+      "must_include_parameter_provenance": true,
+      "must_include_source_artifacts": true,
+      "must_link_package_id": "pkg-af204fc661686d86332a8a88",
+      "readiness_target": "economic_handoff_ready",
+      "request_id": "sec-research::pkg-af204fc661686d86332a8a88"
+    },
+    "reason": "indirect or under-parameterized analysis path requires auditable secondary research package",
+    "request_contract": {
+      "blocking_gate": null,
+      "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=commercial_linkage_fee|doctype=meeting_minutes|url=https://sanjose.legistar.com/View.ashx?GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6&ID=8758120&M=F",
+      "jurisdiction": "San Jose CA",
+      "mechanism_families": [],
+      "package_id": "pkg-af204fc661686d86332a8a88",
+      "policy_identifier": "v2|jurisdiction=san-jose-ca|family=commercial_linkage_fee|doctype=meeting_minutes|url=https://sanjose.legistar.com/View.ashx?GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6&ID=8758120&M=F",
+      "request_id": "sec-research::pkg-af204fc661686d86332a8a88",
+      "required_evidence_gaps": [
+        "economic reasoning",
+        "rubric/uncertainty_sensitivity",
+        "sufficiency_readiness"
+      ],
+      "source_artifact_refs": [
+        {
+          "content_hash": "71524d4b161bbf71c6145f0549351b0c4a9603630c5e8e7794fb77c552468dd3",
+          "evidence_card_id": "ev-1",
+          "source_type": "ordinance_text",
+          "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6"
+        },
+        {
+          "content_hash": "missing_hash::https://webapi.legistar.com/v1/sanjose/Matters/7526",
+          "evidence_card_id": "ev-2",
+          "source_type": "other",
+          "source_url": "https://webapi.legistar.com/v1/sanjose/Matters/7526"
+        }
+      ],
+      "target_parameters": [
+        {
+          "name": "commercial_linkage_fee_rate_usd_per_sqft",
+          "parameter_id": "param-3-commercial-linkage-fee-rate-usd-per-sqft",
+          "resolution_hint": "currency_format_anomaly",
+          "state": "ambiguous",
+          "unit": "usd_per_square_foot"
+        }
+      ]
+    },
+    "status": "required"
+  },
+  "secondary_research_needs": {
+    "canonical_binding_required": true,
+    "household_incidence_assumptions_missing": true,
+    "must_fail_closed_without_secondary_package": true,
+    "reason": "indirect or under-parameterized analysis path requires auditable secondary research package",
+    "reason_code": "pass_through_incidence_assumptions_missing",
+    "request_contract_id": "sec-research::pkg-af204fc661686d86332a8a88",
+    "request_target_parameters": [
+      "commercial_linkage_fee_rate_usd_per_sqft"
+    ],
+    "required_evidence_gaps": [
+      "economic reasoning",
+      "rubric/uncertainty_sensitivity",
+      "sufficiency_readiness"
+    ],
+    "status": "required"
+  },
+  "source_family": "meeting_minutes",
+  "source_quality": {
+    "attachment_content_ingested_count": 5,
+    "attachment_economic_row_count": 7,
+    "attachment_probe_count": 6,
+    "attachment_ref_count": 19,
+    "identity_blocker_code": null,
+    "identity_blocker_reason": null,
+    "identity_ready": true,
+    "identity_recommended_action": null,
+    "jurisdiction_identity_ready": true,
+    "official_attachment_failure_counts": {
+      "attachment_pdf_parse_failed": 1,
+      "ingested_excerpt": 5
+    },
+    "official_attachment_parse_anomalies": [],
+    "official_attachment_parse_anomaly_count": 0,
+    "official_attachment_probe_count": 6,
+    "official_attachment_recognized_count": 6,
+    "official_attachment_ref_count": 9,
+    "official_attachment_refs_present": true,
+    "official_attachment_row_count": 6,
+    "official_attachment_rows_emitted": true,
+    "official_attachment_text_read_count": 5,
+    "official_pdf_probe_count": 6,
+    "official_pdf_text_extracted": true,
+    "official_pdf_text_extracted_count": 5,
+    "policy_identity_ready": true,
+    "provider_summary": {
+      "primary_provider": "private_searxng",
+      "provider_error_count": 0,
+      "provider_error_urls": [],
+      "quality_failure_count": 0,
+      "runtime": {
+        "client_class": "OssSearxngWebSearchClient",
+        "configured_provider": "searxng",
+        "endpoint_configured": true,
+        "endpoint_host": "searxng-private.railway.internal:8080",
+        "provider": "private_searxng",
+        "provider_source": "client_label"
+      }
+    },
+    "reader_substance_observed": true,
+    "reader_substance_selection_outcome": "materialized_raw_scrape",
+    "reason": "source_quality_metrics_present",
+    "row_family_depth": {
+      "official_attachment": {
+        "row_count": 6,
+        "satisfies_depth": true,
+        "status": "satisfied"
+      },
+      "secondary_search": {
+        "row_count": 0,
+        "satisfies_depth": false,
+        "status": "non_authoritative"
+      },
+      "true_structured": {
+        "row_count": 6,
+        "satisfies_depth": false,
+        "status": "missing_or_unverified"
+      }
+    },
+    "secondary_numeric_parameter_count": 9,
+    "secondary_numeric_rescue_detected": false,
+    "selected_artifact_family": "artifact",
+    "selected_candidate_rank": 1,
+    "selected_candidate_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=8758120&GUID=6C299331-91E9-48ED-B7A5-43601D63FBF6",
+    "selection_quality_reason": "selected_candidate_passed_identity_and_artifact_quality",
+    "selection_quality_status": "pass",
+    "status": "captured",
+    "structured_depth_ready": true,
+    "structured_depth_satisfied_by": [
+      "official_attachment"
+    ],
+    "top_n_artifact_recall_count": 2,
+    "top_n_official_recall_count": 5,
+    "top_n_window": 5
+  },
+  "sufficiency_readiness_level": "qualitative_only",
+  "unsupported_claim_risks": {
+    "reason": "Unsupported quantitative claim blocked by gate_report verdict fail_closed.",
+    "risk_level": "high",
+    "status": "rejected",
+    "unsupported_claim_count": 1
+  }
+}

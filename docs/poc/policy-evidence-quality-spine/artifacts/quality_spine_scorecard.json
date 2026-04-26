@@ -1,16 +1,16 @@
 {
   "feature_key": "bd-3wefe.13",
-  "generated_at": "2026-04-16T00:25:31.135481+00:00",
+  "generated_at": "2026-04-17T08:02:02.886095+00:00",
   "report_version": "2026-04-15.policy-evidence-quality-spine-economics.v1",
   "matrix_attempt": {
     "after_score": 75.33,
-    "attempt_id": "bd-3wefe.13-retry-3",
-    "before_score": 75.33,
+    "attempt_id": "bd-3wefe.13-cycle44",
+    "before_score": null,
     "dominant_failure_class": "none",
     "quality_threshold": 75.0,
-    "retry_round": 3,
+    "retry_round": 44,
     "stop_continue_decision": "stop",
-    "targeted_tweak": "strict_data_runtime_proof_fields"
+    "targeted_tweak": "private_searxng_primary_source_identity"
   },
   "matrix_source": {
     "mode": "agent_a_horizontal_matrix",
@@ -32,11 +32,11 @@
   "taxonomy": {
     "scraped/search": {
       "status": "pass",
-      "details": "Selected artifact has provider-quality support (provider=private_searxng, status=strong, reason=artifact_top2)."
+      "details": "Selected artifact has provider-quality support (provider=private_searxng, status=strong, reason=artifact_top3)."
     },
     "reader": {
       "status": "pass",
-      "details": "Reader substance passed and reader artifact refs present."
+      "details": "Reader provenance is proven by reader refs and/or storage readback hydration."
     },
     "structured-source": {
       "status": "pass",
@@ -44,11 +44,13 @@
     },
     "identity/dedupe": {
       "status": "pass",
-      "details": "Canonical document key present for dedupe/identity join."
+      "details": "Canonical identity present with official-source dominance/freshness gates passing."
     },
     "storage/read-back": {
       "status": "not_proven",
-      "details": "Deterministic in-memory readback is proven, but non-memory Postgres/MinIO storage proof is not provided."
+      "details": "Deterministic in-memory readback is proven, but non-memory Postgres/MinIO storage proof is not provided.",
+      "proof_mode": "in_memory",
+      "direct_probe_available": false
     },
     "Windmill/orchestration": {
       "status": "not_proven",
@@ -95,7 +97,7 @@
       },
       "parameter_provenance": {
         "status": "pass",
-        "details": "resolved_parameters=2 with source-bound provenance."
+        "details": "economic_resolved_parameters=2 (diagnostic_excluded=0) with source-bound provenance."
       },
       "assumption_governance": {
         "status": "pass",
@@ -153,6 +155,190 @@
     ]
   },
   "evaluation_cycle_policy": {
-    "max_cycles": 10
-  }
+    "max_cycles": 80
+  },
+  "source_identity_rules": {
+    "approved_external_promotion_audit_statuses": [
+      "approved",
+      "audited_pass",
+      "manual_approved",
+      "reviewed"
+    ],
+    "official_dominance_targets": {
+      "audited_p0_p1_target_percent": 90.0,
+      "corpus_target_percent": 85.0,
+      "hard_fail_below_percent": 80.0
+    },
+    "ruleset_version": "2026-04-17.local-government-source-identity.v1",
+    "secondary_provider_primary_caps": {
+      "audited_tavily_exa_max_percent": 0.0,
+      "corpus_tavily_exa_max_percent": 5.0
+    },
+    "source_of_truth_roles": [
+      "primary_official",
+      "primary_external_promoted",
+      "secondary_context",
+      "discovery_only"
+    ],
+    "source_officialness_values": [
+      "official_government",
+      "official_civic_partner",
+      "official_regional_body",
+      "external_advocacy",
+      "external_news",
+      "external_vendor",
+      "ambiguous_portal",
+      "external_other",
+      "unknown"
+    ]
+  },
+  "source_identity_classifications": [
+    {
+      "artifact_type": "staff_report",
+      "artifact_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13050001&GUID=PK-1",
+      "candidate_rank": 1,
+      "classification_id": "cb56f5a9f6e0d0c8c2ee58e885955b1a28c81263354e389ba8e5835dd4eea2fa",
+      "derived_via_secondary_search": false,
+      "external_context_allowed": false,
+      "jurisdiction_match": "partial",
+      "policy_family_match": "unknown",
+      "primary_evidence_allowed": true,
+      "promotion_audit_status": "pending",
+      "promotion_reason": null,
+      "promotion_rule_id": null,
+      "provider": "private_searxng",
+      "reason_codes": [
+        "host_classification:official_civic_partner",
+        "jurisdiction_match:partial",
+        "official_primary_allowed",
+        "policy_family_match:unknown",
+        "provider:private_searxng"
+      ],
+      "ruleset_version": "2026-04-17.local-government-source-identity.v1",
+      "source_family": "meeting_minutes",
+      "source_host": "sanjose.legistar.com",
+      "source_lane": "scrape_search",
+      "source_of_truth_role": "primary_official",
+      "source_officialness": "official_civic_partner",
+      "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13050001&GUID=PK-1"
+    },
+    {
+      "artifact_type": "staff_report",
+      "artifact_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13050001&GUID=PK-1",
+      "candidate_rank": 2,
+      "classification_id": "af04f7974b85d070e795df206c0291caf640f92527698f1192a7b4e9c87aeb43",
+      "derived_via_secondary_search": false,
+      "external_context_allowed": false,
+      "jurisdiction_match": "partial",
+      "policy_family_match": "unknown",
+      "primary_evidence_allowed": true,
+      "promotion_audit_status": "pending",
+      "promotion_reason": null,
+      "promotion_rule_id": null,
+      "provider": "legistar",
+      "reason_codes": [
+        "host_classification:official_civic_partner",
+        "jurisdiction_match:partial",
+        "official_primary_allowed",
+        "policy_family_match:unknown",
+        "provider:legistar"
+      ],
+      "ruleset_version": "2026-04-17.local-government-source-identity.v1",
+      "source_family": "legistar",
+      "source_host": "sanjose.legistar.com",
+      "source_lane": "structured",
+      "source_of_truth_role": "primary_official",
+      "source_officialness": "official_civic_partner",
+      "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13050001&GUID=PK-1"
+    }
+  ],
+  "official_source_dominance": {
+    "status": "pass",
+    "failure_codes": [],
+    "package": {
+      "audited_official_primary_count": 2,
+      "audited_official_primary_percent": 100.0,
+      "audited_p0_p1_target_percent": 90.0,
+      "audited_primary_count": 2,
+      "audited_tavily_exa_max_percent": 0.0,
+      "audited_tavily_exa_primary_percent": 0.0,
+      "corpus_official_primary_count": 2,
+      "corpus_official_primary_percent": 100.0,
+      "corpus_primary_count": 2,
+      "corpus_target_percent": 85.0,
+      "corpus_tavily_exa_max_percent": 5.0,
+      "corpus_tavily_exa_primary_percent": 0.0,
+      "failure_codes": [],
+      "hard_fail_below_percent": 80.0,
+      "status": "pass"
+    },
+    "corpus": {
+      "status": "pass",
+      "failure_codes": [],
+      "audited_primary_count": 5,
+      "audited_official_primary_count": 5,
+      "audited_official_primary_percent": 100.0,
+      "corpus_primary_count": 5,
+      "corpus_official_primary_count": 5,
+      "corpus_official_primary_percent": 100.0,
+      "audited_tavily_exa_primary_percent": 0.0,
+      "corpus_tavily_exa_primary_percent": 0.0,
+      "audited_p0_p1_target_percent": 90.0,
+      "corpus_target_percent": 85.0,
+      "hard_fail_below_percent": 80.0,
+      "audited_tavily_exa_max_percent": 0.0,
+      "corpus_tavily_exa_max_percent": 5.0
+    }
+  },
+  "source_freshness_drift": {
+    "records": [
+      {
+        "cadence": "unknown",
+        "classification_id": "cb56f5a9f6e0d0c8c2ee58e885955b1a28c81263354e389ba8e5835dd4eea2fa",
+        "last_successful_refresh": "2026-04-15T00:00:00+00:00",
+        "next_refresh_recommendation": "set_source_cadence_or_manual_review",
+        "provider": "private_searxng",
+        "retrieved_at": "2026-04-15T00:00:00+00:00",
+        "source_date_fields": {
+          "adoption_date": null,
+          "effective_date": null,
+          "event_date": null,
+          "meeting_date": null,
+          "published_date": null
+        },
+        "source_family": "meeting_minutes",
+        "source_shape_changed": false,
+        "source_shape_fingerprint": "c90eaf4e617859947967d9fecff20554d133f21aa80edfefaad2dce8db86209e",
+        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13050001&GUID=PK-1",
+        "stale_for_policy_use": false,
+        "update_cadence_drift": false
+      },
+      {
+        "cadence": "weekly",
+        "classification_id": "af04f7974b85d070e795df206c0291caf640f92527698f1192a7b4e9c87aeb43",
+        "last_successful_refresh": "2026-04-15T00:05:00+00:00",
+        "next_refresh_recommendation": "2026-04-22T00:05:00+00:00",
+        "provider": "legistar",
+        "retrieved_at": "2026-04-15T00:05:00+00:00",
+        "source_date_fields": {
+          "adoption_date": null,
+          "effective_date": null,
+          "event_date": null,
+          "meeting_date": null,
+          "published_date": null
+        },
+        "source_family": "legistar",
+        "source_shape_changed": false,
+        "source_shape_fingerprint": "48454e91b74c5d97dac872735115b9bbc6eac2dec7175a700a860ce8e2735639",
+        "source_url": "https://sanjose.legistar.com/View.ashx?M=F&ID=13050001&GUID=PK-1",
+        "stale_for_policy_use": false,
+        "update_cadence_drift": false
+      }
+    ],
+    "stale_source_count": 0,
+    "source_shape_changed_count": 0,
+    "update_cadence_drift_count": 0,
+    "freshness_gate_status": "fresh"
+  },
+  "external_source_promotion_register": []
 }

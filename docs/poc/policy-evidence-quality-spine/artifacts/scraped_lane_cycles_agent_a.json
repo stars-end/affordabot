@@ -1,0 +1,106 @@
+{
+  "feature_key": "bd-3wefe.13",
+  "worker_role": "Agent A - Scraped Evidence Moat",
+  "cycles": [
+    {
+      "cycle_id": "A1",
+      "hypothesis": "Runtime provider provenance must be explicit, not inferred from docs.",
+      "gate_targeted": "D2",
+      "tweak": "Add provider_label on all web search clients and record provider_source in bridge runtime provenance.",
+      "validation_command": "cd backend && poetry run pytest tests/services/llm/test_web_search_factory.py tests/services/pipeline/test_bridge_runtime.py::test_runtime_bridge_persists_policy_evidence_package_refs",
+      "before_after_or_blocker": "Before: provider identity noted as hardcoded/ambiguous in cycle-25 audit context. After: provider labels asserted and run_context.search_provider_runtime.provider_source=client_label.",
+      "impact_on_quality": "Improves scraped provider provenance traceability for primary artifacts.",
+      "next_tweak": "Add portal-skip and fallback metrics."
+    },
+    {
+      "cycle_id": "A2",
+      "hypothesis": "Ranker/portal-skip behavior needs measurable counters.",
+      "gate_targeted": "D2",
+      "tweak": "Persist portal_skip_count, official_reader_error_count, fallback_materialization_count in source_quality_metrics.",
+      "validation_command": "cd backend && poetry run pytest tests/services/pipeline/test_bridge_runtime.py::test_runtime_bridge_prefetch_skips_portal_url_and_fetches_artifact_candidate tests/services/pipeline/test_bridge_runtime.py::test_runtime_bridge_records_selected_quality_when_artifact_exists_but_official_page_selected",
+      "before_after_or_blocker": "Before: no explicit counters in package metrics. After: counters emitted and asserted.",
+      "impact_on_quality": "Improves scrape selection observability and portal/fallback auditing.",
+      "next_tweak": "Add policy lineage object with missing-family evidence."
+    },
+    {
+      "cycle_id": "A3",
+      "hypothesis": "Policy lineage completeness must be explicit in package context.",
+      "gate_targeted": "D1",
+      "tweak": "Emit policy_lineage with expected families, found flags, related artifacts, negative evidence, completeness score.",
+      "validation_command": "cd backend && poetry run pytest tests/services/pipeline/test_bridge_runtime.py::test_runtime_bridge_records_lineage_negative_evidence_and_reconciliation_policy",
+      "before_after_or_blocker": "Before: no package-level lineage graph. After: run_context.policy_lineage present with lineage_presence + negative_evidence.",
+      "impact_on_quality": "Shifts from single-document proof to lineage-aware scraped package quality.",
+      "next_tweak": "Upgrade primary extraction facts with richer citation fields."
+    },
+    {
+      "cycle_id": "A4",
+      "hypothesis": "Primary-artifact parameter extraction needs raw+normalized citation metadata.",
+      "gate_targeted": "D4",
+      "tweak": "Enhance extraction to include raw_value, normalized_value, denominator, category, locator, confidence, sanity flags, ambiguity entries.",
+      "validation_command": "cd backend && poetry run pytest tests/services/pipeline/test_bridge_runtime.py::test_runtime_bridge_extracts_primary_fee_facts_from_analysis_chunks",
+      "before_after_or_blocker": "Before: minimal numeric facts. After: rich fact fields plus money-format anomaly evidence.",
+      "impact_on_quality": "Improves human-auditable citation quality for scraped parameters.",
+      "next_tweak": "Propagate ambiguity into package ParameterCards."
+    },
+    {
+      "cycle_id": "A5",
+      "hypothesis": "Malformed parameters must become explicit ambiguous cards.",
+      "gate_targeted": "D4",
+      "tweak": "Builder now emits ParameterCard(state=ambiguous) when value/sanity fails; citation metadata appended in source_excerpt.",
+      "validation_command": "cd backend && poetry run pytest tests/services/pipeline/test_policy_evidence_package_builder.py::test_builder_marks_ambiguous_parameter_when_citation_sanity_fails",
+      "before_after_or_blocker": "Before: malformed values could be silently dropped. After: malformed case emits ambiguity_reason=currency_format_anomaly.",
+      "impact_on_quality": "Prevents silent bad-value promotion into economic handoff.",
+      "next_tweak": "Add source reconciliation records between primary and secondary facts."
+    },
+    {
+      "cycle_id": "A6",
+      "hypothesis": "Overlapping source facts need explicit reconciliation outcomes.",
+      "gate_targeted": "D5",
+      "tweak": "Add source_reconciliation.records with per-field status and source-of-truth decision metadata.",
+      "validation_command": "cd backend && poetry run pytest tests/services/pipeline/test_bridge_runtime.py::test_runtime_bridge_records_lineage_negative_evidence_and_reconciliation_policy",
+      "before_after_or_blocker": "Before: no reconciliation ledger in run context. After: reconciliation records persisted and asserted.",
+      "impact_on_quality": "Improves cross-source conflict transparency and auditability.",
+      "next_tweak": "Codify secondary override prevention as explicit policy signal."
+    },
+    {
+      "cycle_id": "A7",
+      "hypothesis": "Secondary search must not silently override primary artifacts.",
+      "gate_targeted": "D5",
+      "tweak": "Persist source_of_truth_policy and secondary_override_blocked guard in source_reconciliation.",
+      "validation_command": "cd backend && poetry run pytest tests/services/pipeline/test_bridge_runtime.py::test_runtime_bridge_records_lineage_negative_evidence_and_reconciliation_policy",
+      "before_after_or_blocker": "Before: policy implicit. After: explicit precedence policy and override guard boolean.",
+      "impact_on_quality": "Hardens source-of-truth governance when secondary rescue is present.",
+      "next_tweak": "Improve fallback robustness via source-shape drift detection."
+    },
+    {
+      "cycle_id": "A8",
+      "hypothesis": "Source-shape drift should be detected as a robustness signal.",
+      "gate_targeted": "D8",
+      "tweak": "Add source-shape drift detector and persist drift summary under source_quality_metrics; add fail-closed reason on drift.",
+      "validation_command": "cd backend && poetry run pytest tests/services/pipeline/test_bridge_runtime.py::test_runtime_bridge_detects_source_shape_drift",
+      "before_after_or_blocker": "Before: no drift signal. After: drift_detected + missing counts emitted and tested.",
+      "impact_on_quality": "Improves fallback/source-drift robustness.",
+      "next_tweak": "Add dedicated scraped-lane verifier guard."
+    },
+    {
+      "cycle_id": "A9",
+      "hypothesis": "Scraped-lane D-gate checks need a reusable regression verifier.",
+      "gate_targeted": "D8",
+      "tweak": "Add verify_scraped_lane_data_moat.py and verification tests for D1/D2/D4/D5/D8 field presence.",
+      "validation_command": "cd backend && poetry run pytest tests/verification/test_verify_scraped_lane_data_moat.py",
+      "before_after_or_blocker": "Before: no dedicated scraped-lane verifier. After: verifier script returns pass/fail with gate breakdown.",
+      "impact_on_quality": "Prevents future regressions from dropping key scraped-lane moat fields.",
+      "next_tweak": "Publish complete cycle ledger with measured deltas."
+    },
+    {
+      "cycle_id": "A10",
+      "hypothesis": "Cycle output must be handoff-ready and complete for A1-A10.",
+      "gate_targeted": "D1,D2,D4,D5,D8",
+      "tweak": "Publish Agent A cycle artifacts (.md + .json) with measured deltas and validation command log.",
+      "validation_command": "cd backend && poetry run pytest tests/services/llm/test_web_search_factory.py tests/services/pipeline/test_policy_evidence_package_builder.py tests/services/pipeline/test_bridge_runtime.py tests/verification/test_verify_scraped_lane_data_moat.py",
+      "before_after_or_blocker": "Before: no completed Agent A ten-cycle ledger. After: A1-A10 documented; targeted suite reports 54 passed.",
+      "impact_on_quality": "Provides explicit scraped-lane progress evidence for decision-grade moat review.",
+      "next_tweak": "Run live dev probe to verify new fields on current persisted package row."
+    }
+  ]
+}

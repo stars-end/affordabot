@@ -2,7 +2,7 @@
 
 - feature_key: `bd-3wefe.13`
 - report_version: `2026-04-15.policy-evidence-quality-spine-economics.v1`
-- generated_at: `2026-04-16T00:25:31.135481+00:00`
+- generated_at: `2026-04-17T08:02:02.886095+00:00`
 - matrix_mode: `agent_a_horizontal_matrix`
 - matrix_path: `docs/poc/policy-evidence-quality-spine/artifacts/horizontal_matrix.json`
 - overall_verdict: `partial`
@@ -14,10 +14,10 @@
 
 | Category | Status | Evidence |
 | --- | --- | --- |
-| scraped/search | pass | Selected artifact has provider-quality support (provider=private_searxng, status=strong, reason=artifact_top2). |
-| reader | pass | Reader substance passed and reader artifact refs present. |
+| scraped/search | pass | Selected artifact has provider-quality support (provider=private_searxng, status=strong, reason=artifact_top3). |
+| reader | pass | Reader provenance is proven by reader refs and/or storage readback hydration. |
 | structured-source | pass | Structured source provenance attached. |
-| identity/dedupe | pass | Canonical document key present for dedupe/identity join. |
+| identity/dedupe | pass | Canonical identity present with official-source dominance/freshness gates passing. |
 | storage/read-back | not_proven | Deterministic in-memory readback is proven, but non-memory Postgres/MinIO storage proof is not provided. |
 | Windmill/orchestration | not_proven | Historical Windmill stub proof exists but is not valid for current vertical package. |
 | sufficiency gate | pass | readiness=economic_handoff_ready |
@@ -30,7 +30,7 @@
 | Dimension | Status | Evidence |
 | --- | --- | --- |
 | mechanism_graph_validity | pass | nodes=3 edges=2 |
-| parameter_provenance | pass | resolved_parameters=2 with source-bound provenance. |
+| parameter_provenance | pass | economic_resolved_parameters=2 (diagnostic_excluded=0) with source-bound provenance. |
 | assumption_governance | pass | Assumption cards include applicability tags, provenance, and non-stale usage records. |
 | arithmetic_integrity | pass | Quantified model arithmetic/unit checks are valid with ordered scenario bounds. |
 | uncertainty_sensitivity | pass | Sensitivity range is ordered and uncertainty notes are present. |

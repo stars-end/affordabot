@@ -1,0 +1,1432 @@
+{
+  "artifact_readback_status": "proven",
+  "id": "5315ac82-3dc4-590e-84d7-5d587c164e21",
+  "package_id": "pkg-a79daaf0005fb4d0ecb25347",
+  "package_payload": {
+    "assumption_cards": [
+      {
+        "applicability_tags": [
+          "San Jose CA",
+          "meeting_minutes"
+        ],
+        "central": 0.65,
+        "confidence": 0.5,
+        "external_validity_notes": "POC placeholder assumption; validate with literature in bd-3wefe.5/.6.",
+        "family": "fee_or_tax_pass_through",
+        "high": 0.8,
+        "id": "assump-1-fee_or_tax_pass_through",
+        "low": 0.5,
+        "source_excerpt": "Mapped mechanism assumption from source evidence and policy context.",
+        "source_url": "https://www.hcd.ca.gov/housing-elements/docs/los%20altos_5th_draft011415.pdf",
+        "stale_after_days": 365,
+        "unit": "share",
+        "version": "v1"
+      }
+    ],
+    "assumption_usage": [],
+    "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=meeting_minutes|doctype=meeting_minutes|url=https://www.hcd.ca.gov/housing-elements/docs/los altos_5th_draft011415.pdf",
+    "created_at": "1970-01-01T00:00:00Z",
+    "economic_handoff_ready": false,
+    "evidence_cards": [
+      {
+        "artifact_id": "v2|jurisdiction=san-jose-ca|family=meeting_minutes|doctype=meeting_minutes|url=https://www.hcd.ca.gov/housing-elements/docs/los altos_5th_draft011415.pdf",
+        "content_hash": "7d7e37d44cb7ad8b0723c6bdcaf9f767438d8b8b0d26c4e168fcc159351fe138",
+        "excerpt": "CITY OF LOS ALTOS# Draft 2015 \u20132023 Housing Element City CouncilMegan Satterlee, MayorJan Pepper, Mayor Pro TemJeannie Bruins, CouncilmemberVal Carpenter, CouncilmemberJarrett Fishpaw, Councilmember## Planning and Transportation CommissionRonit Bodner, ChairMalika Junaid, Vice ChairJonathan Baer, CommissionerPhoebe Bressack, CommissionerKen Lorell, CommissionerMichael McTighe, CommissionerJerry Moison, Commissioner## Community Development DepartmentJames Walgren, AICP, Assistant City ManagerDavid Kornfield, AICP, Planning Services ManagerHousing Element Prepared by:\n500 12th Street, Suite 250O",
+        "id": "ev-1",
+        "provenance_label": "private_searxng_meeting_minutes",
+        "reader_run_id": null,
+        "retrieved_at": "2026-04-17T03:13:10.447670Z",
+        "source_tier": "tier_a",
+        "source_type": "ordinance_text",
+        "source_url": "https://www.hcd.ca.gov/housing-elements/docs/los%20altos_5th_draft011415.pdf"
+      },
+      {
+        "artifact_id": "v2|jurisdiction=san-jose-ca|family=legistar-web-api|doctype=matter_metadata|url=https://webapi.legistar.com/v1/sanjose/Matters/7526",
+        "content_hash": "missing_hash::https://webapi.legistar.com/v1/sanjose/Matters/7526",
+        "excerpt": "Structured Legistar matter metadata fetched from San Jose Web API; MatterTitle='Council Policy Priority # 5: Commercial Linkage Impact Fee.', attachments=19, classified_attachment_refs=19.",
+        "id": "ev-2",
+        "provenance_label": "legistar_web_api_legistar_web_api",
+        "reader_run_id": null,
+        "retrieved_at": "2026-04-17T03:13:39.988339Z",
+        "source_tier": "tier_b",
+        "source_type": "other",
+        "source_url": "https://webapi.legistar.com/v1/sanjose/Matters/7526"
+      },
+      {
+        "artifact_id": "v2|jurisdiction=san-jose-ca|family=tavily-secondary-search|doctype=secondary_search_rate_snippet|url=https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee",
+        "content_hash": "missing_hash::https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee",
+        "excerpt": "Secondary structured Tavily snippet extraction for missing economic fee/rate evidence; extracted_facts=1, provenance_safe_results=3.",
+        "id": "ev-3",
+        "provenance_label": "tavily_search_tavily_secondary_search",
+        "reader_run_id": null,
+        "retrieved_at": "2026-04-17T03:13:40.619925Z",
+        "source_tier": "tier_c",
+        "source_type": "other",
+        "source_url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee"
+      }
+    ],
+    "freshness_status": "fresh",
+    "gate_projection": {
+      "canonical_breakdown_ref": "",
+      "canonical_pipeline_run_id": "",
+      "canonical_pipeline_step_id": "",
+      "runtime_failure_codes": [
+        "parameter_missing"
+      ],
+      "runtime_insufficiency_reason": "blocking gate present or missing quantitative support",
+      "runtime_sufficiency_state": "qualitative_only"
+    },
+    "gate_report": {
+      "artifact_counts": {
+        "evidence_cards": 3
+      },
+      "blocking_gate": "parameterization",
+      "case_id": "pkg-a79daaf0005fb4d0ecb25347-gate",
+      "failure_codes": [
+        "parameter_missing"
+      ],
+      "manual_audit_notes": "Builder payload with canonical identity dedupe and provenance linkage; deduped_candidates=0. Full durability/orchestration gates in bd-3wefe.10/.12.",
+      "provider": "private_searxng",
+      "stage_results": [
+        {
+          "failure_codes": [],
+          "note": null,
+          "passed": true,
+          "stage": "search_recall"
+        },
+        {
+          "failure_codes": [],
+          "note": null,
+          "passed": true,
+          "stage": "reader_substance"
+        },
+        {
+          "failure_codes": [
+            "parameter_missing"
+          ],
+          "note": null,
+          "passed": false,
+          "stage": "parameterization"
+        },
+        {
+          "failure_codes": [
+            "parameter_unverifiable"
+          ],
+          "note": null,
+          "passed": false,
+          "stage": "quantification"
+        }
+      ],
+      "unsupported_claim_count": 1,
+      "verdict": "fail_closed"
+    },
+    "insufficiency_reasons": [
+      "blocking_gate_present"
+    ],
+    "jurisdiction": "San Jose CA",
+    "model_cards": [],
+    "package_id": "pkg-a79daaf0005fb4d0ecb25347",
+    "parameter_cards": [
+      {
+        "ambiguity_reason": null,
+        "evidence_card_id": "ev-1",
+        "id": "param-1-commercial-linkage-fee-rate-usd-per-sqft",
+        "parameter_name": "commercial_linkage_fee_rate_usd_per_sqft",
+        "source_excerpt": "42.00Multiple Family Residential Unit $3,156.00Senior Residential Unit $1,323.00Commercial (Per 1,000 Sq. Ft.) $9,418.00Office (Per 1,000 Sq. Ft.) $7,585.00While the Traffic Impact Fee does create additional costs, it is not significant as a percentage of land and cons [raw=$7 ; normalized=7.0 ; unit=usd_per_square_foot ; denominator=per_square_foot ; land_use=office ; category=office ; raw_land_use_label=Office ; threshold=Per 1,000 Sq. Ft. ; effective_date=October 1, 2013 ; adoption_date=May 15, 2008 ; final_status=adopted ; source_locator=reader_content:1:fee_table_row ; table_locator=commercial_linkage_fee_table ; locator_quality=table_row_chunk_locator ; source_ref=https://www.hcd.ca.gov/housing-elements/docs/los altos_5th_draft011415.pdf ; source_family=meeting_minutes ; confidence=0.86]",
+        "source_hierarchy_status": "bill_or_reg_text",
+        "source_url": "https://www.hcd.ca.gov/housing-elements/docs/los%20altos_5th_draft011415.pdf",
+        "state": "resolved",
+        "time_horizon": "October 1, 2013",
+        "unit": "usd_per_square_foot",
+        "value": 7.0
+      },
+      {
+        "ambiguity_reason": null,
+        "evidence_card_id": "ev-3",
+        "id": "param-1-commercial-linkage-fee-rate-usd-per-sqft",
+        "parameter_name": "commercial_linkage_fee_rate_usd_per_sqft",
+        "source_excerpt": "The San Jos\u00e9 City Council voted on September 1, 2020 to begin charging commercial developers fees to fund affordable housing. The Commercial Linkage Fee is a one-time impact fee that applies to new and existing Non-Residential Projects in San Jos\u00e9 that either add gross floor area or change the existing building use. The San Jos\u00e9 City Council voted on December 11, 2018 to pursue a nexus and a feasibility study on a potential commercial linkage fee in San Jos\u00e9. | Industrial/Research and Development (\u2265100,000 sq.ft.) | $3.58 - When paid in full prior to the Building Permit issuance, a 20% reducti [normalized=3.58 ; unit=usd_per_square_foot ; source_family=tavily_secondary_search]",
+        "source_hierarchy_status": "fiscal_or_reg_impact_analysis",
+        "source_url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee",
+        "state": "resolved",
+        "time_horizon": null,
+        "unit": "usd_per_square_foot",
+        "value": 3.58
+      }
+    ],
+    "policy_identifier": "v2|jurisdiction=san-jose-ca|family=meeting_minutes|doctype=meeting_minutes|url=https://www.hcd.ca.gov/housing-elements/docs/los altos_5th_draft011415.pdf",
+    "run_context": {
+      "backend_run_id": "f111406c-b0bf-4508-8a86-5e5c63cc6198",
+      "canonical_analysis_id": "",
+      "canonical_breakdown_ref": "",
+      "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=meeting_minutes|doctype=meeting_minutes|url=https://www.hcd.ca.gov/housing-elements/docs/los altos_5th_draft011415.pdf",
+      "canonical_pipeline_run_id": "",
+      "canonical_pipeline_step_id": "",
+      "document_id": "27f12634-536b-51d5-9294-daedbe8ec9dd",
+      "fail_closed_reasons": [
+        "analyze:analysis_provider_unavailable",
+        "secondary_research_needed:pass_through_incidence_rate_missing"
+      ],
+      "impact_mode_hint": "pass_through_incidence",
+      "mechanism_family_hint": "fee_or_tax_pass_through",
+      "normalized_official_economic_rows": [
+        {
+          "adoption_date": "May 15, 2008",
+          "ambiguity_flag": false,
+          "ambiguity_reason": null,
+          "category": "office",
+          "chunk_locator": "reader_content:1",
+          "confidence": 0.86,
+          "currency_sanity": "valid",
+          "denominator": "per_square_foot",
+          "effective_date": "October 1, 2013",
+          "exemption_context": null,
+          "fail_closed_signals": [],
+          "field": "commercial_linkage_fee_rate_usd_per_sqft",
+          "final_status": "adopted",
+          "geography": null,
+          "land_use": "office",
+          "locator_quality": "table_row_chunk_locator",
+          "normalized_value": 7.0,
+          "page_locator": null,
+          "payment_reduction_context": null,
+          "payment_reduction_percent": null,
+          "payment_timing": null,
+          "policy_key": "v2|jurisdiction=san-jose-ca|family=meeting_minutes|doctype=meeting_minutes|url=https://www.hcd.ca.gov/housing-elements/docs/los altos_5th_draft011415.pdf",
+          "raw_land_use_label": "Office",
+          "raw_value": "$7",
+          "row_id": "econ-row-b4d9ad2cea29f564",
+          "sanity_checks": {
+            "arithmetic_eligible": true,
+            "currency": "valid",
+            "unit": "valid"
+          },
+          "source_family": null,
+          "source_hierarchy_status": "bill_or_reg_text",
+          "source_lane_classification": "primary_official",
+          "source_locator": "reader_content:1:fee_table_row",
+          "source_ref": "https://www.hcd.ca.gov/housing-elements/docs/los altos_5th_draft011415.pdf",
+          "source_url": "https://www.hcd.ca.gov/housing-elements/docs/los altos_5th_draft011415.pdf",
+          "subarea": null,
+          "table_locator": "commercial_linkage_fee_table",
+          "threshold": "Per 1,000 Sq. Ft.",
+          "unit": "usd_per_square_foot",
+          "unit_sanity": "valid"
+        },
+        {
+          "adoption_date": null,
+          "ambiguity_flag": false,
+          "ambiguity_reason": null,
+          "category": "unknown",
+          "chunk_locator": null,
+          "confidence": 0.5,
+          "currency_sanity": "valid",
+          "denominator": null,
+          "effective_date": null,
+          "exemption_context": null,
+          "fail_closed_signals": [
+            "locator_precision_insufficient_for_artifact_grade",
+            "missing_source_locator_requires_manual_trace"
+          ],
+          "field": "commercial_linkage_fee_rate_usd_per_sqft",
+          "final_status": "unknown",
+          "geography": null,
+          "land_use": "unknown",
+          "locator_quality": "locator_not_available",
+          "normalized_value": 3.58,
+          "page_locator": null,
+          "payment_reduction_context": null,
+          "payment_reduction_percent": null,
+          "payment_timing": null,
+          "policy_key": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee",
+          "raw_land_use_label": null,
+          "raw_value": null,
+          "row_id": "econ-row-cd2fdb50ac0a3372",
+          "sanity_checks": {
+            "arithmetic_eligible": true,
+            "currency": "valid",
+            "unit": "valid"
+          },
+          "source_family": "tavily_secondary_search",
+          "source_hierarchy_status": "fiscal_or_reg_impact_analysis",
+          "source_lane_classification": "secondary_search_derived",
+          "source_locator": null,
+          "source_ref": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee",
+          "source_url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee",
+          "subarea": null,
+          "table_locator": null,
+          "threshold": null,
+          "unit": "usd_per_square_foot",
+          "unit_sanity": "valid"
+        }
+      ],
+      "package_identity": {
+        "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=meeting_minutes|doctype=meeting_minutes|url=https://www.hcd.ca.gov/housing-elements/docs/los altos_5th_draft011415.pdf",
+        "idempotency_scope": "bd-3wefe.13-live-cycle-32-20260417031252::1c07b61a28453506",
+        "package_id": "pkg-a79daaf0005fb4d0ecb25347",
+        "selected_url": "https://www.hcd.ca.gov/housing-elements/docs/los altos_5th_draft011415.pdf"
+      },
+      "policy_lineage": {
+        "attachment_content_probes": [
+          {
+            "attachment_id": "15366",
+            "content_ingested": false,
+            "economic_row_count": 0,
+            "excerpt": "",
+            "source_family": "memorandum",
+            "status": "binary_pdf_unparsed",
+            "title": "Memorandum",
+            "url": "https://legistar.granicus.com/sanjose/attachments/42b8aec7-1ae1-43da-b549-f8513bbd65a1.pdf"
+          },
+          {
+            "attachment_id": "15486",
+            "content_ingested": false,
+            "economic_row_count": 0,
+            "excerpt": "",
+            "source_family": "memorandum",
+            "status": "binary_pdf_unparsed",
+            "title": "Memorandum from Peralez, 8/28/2020",
+            "url": "https://legistar.granicus.com/sanjose/attachments/bbe37471-f806-4505-89fe-6a7a472ad0df.pdf"
+          },
+          {
+            "attachment_id": "15489",
+            "content_ingested": false,
+            "economic_row_count": 0,
+            "excerpt": "",
+            "source_family": "memorandum",
+            "status": "binary_pdf_unparsed",
+            "title": "Memorandum from Jimenez, 8/28/2020",
+            "url": "https://legistar.granicus.com/sanjose/attachments/60eb2bf1-5a57-4564-9d0e-694942ab59c7.pdf"
+          },
+          {
+            "attachment_id": "15491",
+            "content_ingested": false,
+            "economic_row_count": 0,
+            "excerpt": "",
+            "source_family": "memorandum",
+            "status": "binary_pdf_unparsed",
+            "title": "Memorandum from Mayor, Jones, Diep, Davis & Foley, 8/28/2020",
+            "url": "https://legistar.granicus.com/sanjose/attachments/94ffc8fc-d6ba-46ca-8499-b46b32bcbf6a.pdf"
+          },
+          {
+            "attachment_id": "15493",
+            "content_ingested": false,
+            "economic_row_count": 0,
+            "excerpt": "",
+            "source_family": "memorandum",
+            "status": "binary_pdf_unparsed",
+            "title": "Memorandum from Khamis, 8/30/2020",
+            "url": "https://legistar.granicus.com/sanjose/attachments/b6217624-dd8e-4718-b2d7-4859f576341b.pdf"
+          },
+          {
+            "attachment_id": "15523",
+            "content_ingested": false,
+            "economic_row_count": 0,
+            "excerpt": "",
+            "source_family": "memorandum",
+            "status": "binary_pdf_unparsed",
+            "title": "Supplemental Memorandum",
+            "url": "https://legistar.granicus.com/sanjose/attachments/eb98bc80-6c09-4b45-ba75-db970576e5f3.pdf"
+          }
+        ],
+        "attachment_state": {
+          "attachment_economic_row_count": 0,
+          "attachment_ingested_count": 0,
+          "attachment_probe_count": 6,
+          "attachment_ref_count": 20,
+          "content_ingested": false,
+          "economic_rows_available": false,
+          "refs_present": true
+        },
+        "expected_source_families": [
+          "authoritative_policy_text",
+          "meeting_context",
+          "staff_fiscal_context",
+          "related_attachments",
+          "attachment_content_ingested",
+          "attachment_economic_rows"
+        ],
+        "lineage_completeness_score": 0.6666666666666666,
+        "lineage_presence": {
+          "attachment_content_ingested": false,
+          "attachment_economic_rows": false,
+          "authoritative_policy_text": true,
+          "meeting_context": true,
+          "related_attachments": true,
+          "staff_fiscal_context": true
+        },
+        "negative_evidence": [
+          {
+            "reason": "lineage_search_missing_in_current_package",
+            "source_family": "attachment_content_ingested",
+            "status": "not_found"
+          },
+          {
+            "reason": "lineage_search_missing_in_current_package",
+            "source_family": "attachment_economic_rows",
+            "status": "not_found"
+          }
+        ],
+        "related_artifacts": [
+          "https://legistar.granicus.com/sanjose/attachments/2b72cf18-a8dd-49b2-92c5-97fcaa19fd58.pdf",
+          "https://legistar.granicus.com/sanjose/attachments/286d65c2-341a-4355-b6d9-885fa3f6defe.pdf",
+          "https://legistar.granicus.com/sanjose/attachments/42b8aec7-1ae1-43da-b549-f8513bbd65a1.pdf",
+          "https://legistar.granicus.com/sanjose/attachments/dea97575-c4ea-4446-8aca-10527bd94fa7.pdf",
+          "https://legistar.granicus.com/sanjose/attachments/f4fc9726-12a4-4307-9120-5499306edace.pdf",
+          "https://legistar.granicus.com/sanjose/attachments/bbe37471-f806-4505-89fe-6a7a472ad0df.pdf",
+          "https://legistar.granicus.com/sanjose/attachments/c5f6ed1b-c432-40f4-b953-fbc21c37376f.pdf",
+          "https://legistar.granicus.com/sanjose/attachments/60eb2bf1-5a57-4564-9d0e-694942ab59c7.pdf",
+          "https://legistar.granicus.com/sanjose/attachments/94ffc8fc-d6ba-46ca-8499-b46b32bcbf6a.pdf",
+          "https://legistar.granicus.com/sanjose/attachments/b6217624-dd8e-4718-b2d7-4859f576341b.pdf"
+        ],
+        "related_attachment_refs": [
+          {
+            "attachment_id": "15288",
+            "source_family": "unknown",
+            "title": "Letters from the Public - 1 of 8",
+            "url": "https://legistar.granicus.com/sanjose/attachments/2b72cf18-a8dd-49b2-92c5-97fcaa19fd58.pdf"
+          },
+          {
+            "attachment_id": "15296",
+            "source_family": "unknown",
+            "title": "Letters from the Public - 2 of 8",
+            "url": "https://legistar.granicus.com/sanjose/attachments/286d65c2-341a-4355-b6d9-885fa3f6defe.pdf"
+          },
+          {
+            "attachment_id": "15366",
+            "source_family": "memorandum",
+            "title": "Memorandum",
+            "url": "https://legistar.granicus.com/sanjose/attachments/42b8aec7-1ae1-43da-b549-f8513bbd65a1.pdf"
+          },
+          {
+            "attachment_id": "15411",
+            "source_family": "unknown",
+            "title": "Letters from the Public - 3 of 8",
+            "url": "https://legistar.granicus.com/sanjose/attachments/dea97575-c4ea-4446-8aca-10527bd94fa7.pdf"
+          },
+          {
+            "attachment_id": "15470",
+            "source_family": "unknown",
+            "title": "Letters from the Public - 4 of 8",
+            "url": "https://legistar.granicus.com/sanjose/attachments/f4fc9726-12a4-4307-9120-5499306edace.pdf"
+          },
+          {
+            "attachment_id": "15486",
+            "source_family": "memorandum",
+            "title": "Memorandum from Peralez, 8/28/2020",
+            "url": "https://legistar.granicus.com/sanjose/attachments/bbe37471-f806-4505-89fe-6a7a472ad0df.pdf"
+          },
+          {
+            "attachment_id": "15488",
+            "source_family": "unknown",
+            "title": "Letters from the Public - 5 of 8",
+            "url": "https://legistar.granicus.com/sanjose/attachments/c5f6ed1b-c432-40f4-b953-fbc21c37376f.pdf"
+          },
+          {
+            "attachment_id": "15489",
+            "source_family": "memorandum",
+            "title": "Memorandum from Jimenez, 8/28/2020",
+            "url": "https://legistar.granicus.com/sanjose/attachments/60eb2bf1-5a57-4564-9d0e-694942ab59c7.pdf"
+          },
+          {
+            "attachment_id": "15491",
+            "source_family": "memorandum",
+            "title": "Memorandum from Mayor, Jones, Diep, Davis & Foley, 8/28/2020",
+            "url": "https://legistar.granicus.com/sanjose/attachments/94ffc8fc-d6ba-46ca-8499-b46b32bcbf6a.pdf"
+          },
+          {
+            "attachment_id": "15493",
+            "source_family": "memorandum",
+            "title": "Memorandum from Khamis, 8/30/2020",
+            "url": "https://legistar.granicus.com/sanjose/attachments/b6217624-dd8e-4718-b2d7-4859f576341b.pdf"
+          },
+          {
+            "attachment_id": "15506",
+            "source_family": "unknown",
+            "title": "Letters from the Public - 6 of 8",
+            "url": "https://legistar.granicus.com/sanjose/attachments/ad16267c-ad1b-4e04-aa91-89ac3258f629.pdf"
+          },
+          {
+            "attachment_id": "15523",
+            "source_family": "memorandum",
+            "title": "Supplemental Memorandum",
+            "url": "https://legistar.granicus.com/sanjose/attachments/eb98bc80-6c09-4b45-ba75-db970576e5f3.pdf"
+          },
+          {
+            "attachment_id": "15526",
+            "source_family": "unknown",
+            "title": "Letters from the Public - 7 of 8",
+            "url": "https://legistar.granicus.com/sanjose/attachments/5ef9a520-17d5-4fce-b55b-3cc60e49b150.pdf"
+          },
+          {
+            "attachment_id": "15527",
+            "source_family": "unknown",
+            "title": "Letters from the Public - 8 of 8",
+            "url": "https://legistar.granicus.com/sanjose/attachments/6319cf65-7786-4876-a877-db92cf96bce8.pdf"
+          },
+          {
+            "attachment_id": "15530",
+            "source_family": "memorandum",
+            "title": "Memorandum from  Arenas, 9/1/2020",
+            "url": "https://legistar.granicus.com/sanjose/attachments/72681494-0acb-428c-8d33-c2187bb1c17b.pdf"
+          },
+          {
+            "attachment_id": "15534",
+            "source_family": "unknown",
+            "title": "Letter from Assemblymember Kalra",
+            "url": "https://legistar.granicus.com/sanjose/attachments/10a23169-6e87-4d40-99d1-7f002c760ac1.pdf"
+          },
+          {
+            "attachment_id": "15535",
+            "source_family": "ordinance",
+            "title": "Ordinance",
+            "url": "https://legistar.granicus.com/sanjose/attachments/d51bf3fd-5e5c-4118-8ddf-4ceec3c4f9c7.pdf"
+          },
+          {
+            "attachment_id": "15536",
+            "source_family": "unknown",
+            "title": "Presentation",
+            "url": "https://legistar.granicus.com/sanjose/attachments/5a5de1ff-3172-4a23-bd10-c7cc3dbec0cf.pdf"
+          },
+          {
+            "attachment_id": "15538",
+            "source_family": "resolution",
+            "title": "Resolution",
+            "url": "https://legistar.granicus.com/sanjose/attachments/6f9f6ae3-0e5c-49e3-9e4d-dddea5ac2695.pdf"
+          },
+          {
+            "attachment_id": null,
+            "source_family": "unknown",
+            "title": null,
+            "url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee"
+          }
+        ],
+        "related_attachment_source_families": [
+          "memorandum",
+          "ordinance",
+          "resolution",
+          "unknown"
+        ],
+        "selected_artifact_family": "artifact"
+      },
+      "primary_parameter_extraction": {
+        "alerts": [],
+        "facts": [
+          {
+            "adoption_date": "May 15, 2008",
+            "ambiguity_flag": false,
+            "ambiguity_reason": null,
+            "category": "office",
+            "chunk_locator": "reader_content:1",
+            "confidence": 0.86,
+            "currency_sanity": "valid",
+            "denominator": "per_square_foot",
+            "effective_date": "October 1, 2013",
+            "exemption_context": null,
+            "field": "commercial_linkage_fee_rate_usd_per_sqft",
+            "final_status": "adopted",
+            "geography": null,
+            "land_use": "office",
+            "locator_quality": "table_row_chunk_locator",
+            "normalized_value": 7.0,
+            "page_locator": null,
+            "payment_reduction_context": null,
+            "payment_reduction_percent": null,
+            "payment_timing": null,
+            "provenance_lane": "primary_scraped_document",
+            "raw_land_use_label": "Office",
+            "raw_value": "$7",
+            "source_excerpt": "42.00Multiple Family Residential Unit $3,156.00Senior Residential Unit $1,323.00Commercial (Per 1,000 Sq. Ft.) $9,418.00Office (Per 1,000 Sq. Ft.) $7,585.00While the Traffic Impact Fee does create additional costs, it is not significant as a percentage of land and cons",
+            "source_hierarchy_status": "bill_or_reg_text",
+            "source_locator": "reader_content:1:fee_table_row",
+            "source_ref": "https://www.hcd.ca.gov/housing-elements/docs/los altos_5th_draft011415.pdf",
+            "source_url": "https://www.hcd.ca.gov/housing-elements/docs/los altos_5th_draft011415.pdf",
+            "subarea": null,
+            "table_locator": "commercial_linkage_fee_table",
+            "threshold": "Per 1,000 Sq. Ft.",
+            "unit": "usd_per_square_foot",
+            "unit_sanity": "valid",
+            "value": 7.0
+          }
+        ],
+        "normalized_row_count": 2,
+        "parameter_count": 1,
+        "source": "analyze.evidence_selection.selected_chunks"
+      },
+      "proof_modes": {
+        "analysis_binding": "canonical_projection_missing",
+        "orchestration": "windmill_runtime_ids",
+        "storage": "pending_storage_probe"
+      },
+      "raw_scrape_id": "123acf0f-8289-5f0d-805e-2a10d7f2596a",
+      "reader_artifact_uri": "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/meeting_minutes/reader_output/7d7e37d44cb7ad8b0723c6bdcaf9f767438d8b8b0d26c4e168fcc159351fe138.md",
+      "scope_idempotency_key": "bd-3wefe.13-live-cycle-32-20260417031252::1c07b61a28453506",
+      "search_provider_runtime": {
+        "client_class": "OssSearxngWebSearchClient",
+        "configured_provider": "searxng",
+        "endpoint_configured": true,
+        "endpoint_host": "searxng-private.railway.internal:8080",
+        "provider": "private_searxng",
+        "provider_source": "client_label"
+      },
+      "secondary_research_needed": true,
+      "secondary_research_reason": "pass_through_incidence_rate_missing",
+      "selected_url": "https://www.hcd.ca.gov/housing-elements/docs/los altos_5th_draft011415.pdf",
+      "source_quality_metrics": {
+        "artifact_quality_gate": {
+          "artifact_candidate_count": 1,
+          "artifact_candidate_substantive_count": 1,
+          "substantive_artifact_urls": [
+            "https://www.hcd.ca.gov/housing-elements/docs/los altos_5th_draft011415.pdf"
+          ]
+        },
+        "artifact_quality_gate_reason": "artifact_candidate_passed_quality_gate",
+        "artifact_quality_gate_status": "pass",
+        "fallback_materialization_count": 1,
+        "official_reader_error_count": 0,
+        "portal_skip_count": 0,
+        "provider_results": {
+          "private_searxng": {
+            "candidates": [
+              {
+                "artifact_grade": true,
+                "official_domain": true,
+                "rank": 2,
+                "url": "https://www.hcd.ca.gov/housing-elements/docs/los%20altos_5th_draft011415.pdf"
+              },
+              {
+                "artifact_grade": false,
+                "official_domain": true,
+                "rank": 1,
+                "url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee"
+              },
+              {
+                "artifact_grade": false,
+                "official_domain": true,
+                "rank": 3,
+                "url": "https://www.sanjoseca.gov/Home/Components/News/News/1683/4765"
+              },
+              {
+                "artifact_grade": false,
+                "official_domain": false,
+                "rank": 4,
+                "url": "https://siliconvalleyathome.org/resources/commercial-linkage-fees-2/"
+              },
+              {
+                "artifact_grade": false,
+                "official_domain": false,
+                "rank": 5,
+                "url": "https://siliconvalleyathome.org/resources/commercial-linkage-fees/"
+              }
+            ],
+            "reason_code": "materialized_raw_scrape",
+            "status": "succeeded"
+          }
+        },
+        "provider_summary": {
+          "primary_provider": "private_searxng",
+          "provider_error_count": 0,
+          "provider_error_urls": [],
+          "quality_failure_count": 0,
+          "runtime": {
+            "client_class": "OssSearxngWebSearchClient",
+            "configured_provider": "searxng",
+            "endpoint_configured": true,
+            "endpoint_host": "searxng-private.railway.internal:8080",
+            "provider": "private_searxng",
+            "provider_source": "client_label"
+          }
+        },
+        "reader_substance_observed": true,
+        "reader_substance_selection_outcome": "materialized_raw_scrape",
+        "secondary_numeric_parameter_count": 3,
+        "secondary_numeric_rescue_detected": true,
+        "selected_artifact_family": "artifact",
+        "selected_candidate": {
+          "artifact_family": "artifact",
+          "artifact_grade": true,
+          "artifact_quality_gate_passed": true,
+          "fee_schedule_gate": {
+            "authoritative_policy_text_ok": false,
+            "classified_as_maintained_fee_schedule": false,
+            "passed": false,
+            "reason": "concrete_artifact_url"
+          },
+          "official_domain": true,
+          "provider": "private_searxng",
+          "rank": 2,
+          "selection_reason": "materialized_raw_scrape",
+          "url": "https://www.hcd.ca.gov/housing-elements/docs/los altos_5th_draft011415.pdf"
+        },
+        "source_shape_drift": {
+          "candidate_count": 10,
+          "drift_detected": false,
+          "missing_snippet_count": 0,
+          "missing_url_count": 0
+        },
+        "top_n_artifact_recall_count": 1,
+        "top_n_official_recall_count": 3,
+        "top_n_window": 5
+      },
+      "source_reconciliation": {
+        "fail_closed_locator_signal_count": 1,
+        "missing_true_structured_corroboration_count": 1,
+        "primary_official_row_count": 1,
+        "records": [
+          {
+            "decision_reason": "primary_official_row_missing_true_structured_corroboration",
+            "exemption_context": null,
+            "fail_closed_signals": [],
+            "field": "commercial_linkage_fee_rate_usd_per_sqft",
+            "land_use": "office",
+            "payment_reduction_context": null,
+            "payment_timing": null,
+            "primary_value": 7.0,
+            "raw_land_use_label": "Office",
+            "row_identity": "commercial_linkage_fee_rate_usd_per_sqft|office||Per 1,000 Sq. Ft.||||Office|7.000000|reader_content:1:fee_table_row||https://www.hcd.ca.gov/housing-elements/docs/los altos_5th_draft011415.pdf|",
+            "secondary_source_families": [],
+            "secondary_value": null,
+            "source_family": null,
+            "source_locator": "reader_content:1:fee_table_row",
+            "source_locator_quality": "table_row_chunk_locator",
+            "source_of_truth": "primary_scraped_document",
+            "source_url": "https://www.hcd.ca.gov/housing-elements/docs/los altos_5th_draft011415.pdf",
+            "status": "missing_structured_corroboration",
+            "subarea": null,
+            "threshold": "Per 1,000 Sq. Ft.",
+            "true_structured_source_families": []
+          },
+          {
+            "decision_reason": "secondary_search_row_without_primary_official_match",
+            "exemption_context": null,
+            "fail_closed_signals": [
+              "locator_precision_insufficient_for_artifact_grade",
+              "missing_source_locator_requires_manual_trace"
+            ],
+            "field": "commercial_linkage_fee_rate_usd_per_sqft",
+            "land_use": "unknown",
+            "payment_reduction_context": null,
+            "payment_timing": null,
+            "primary_value": null,
+            "raw_land_use_label": null,
+            "row_identity": "commercial_linkage_fee_rate_usd_per_sqft|unknown|||||||3.580000||tavily_secondary_search|https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee|secondary_search_derived",
+            "secondary_source_families": [
+              "tavily_secondary_search"
+            ],
+            "secondary_value": 3.58,
+            "source_family": "tavily_secondary_search",
+            "source_locator": null,
+            "source_locator_quality": "locator_not_available",
+            "source_of_truth": "none",
+            "source_url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee",
+            "status": "secondary_only_not_authoritative",
+            "subarea": null,
+            "threshold": null,
+            "true_structured_source_families": []
+          }
+        ],
+        "secondary_override_blocked": true,
+        "secondary_snippet_row_count": 1,
+        "source_of_truth_policy": "primary_artifact_precedence_then_labeled_secondary",
+        "true_structured_row_count": 0,
+        "unresolved_count": 1
+      },
+      "source_shape_drift": {
+        "candidate_count": 10,
+        "drift_detected": false,
+        "missing_snippet_count": 0,
+        "missing_url_count": 0
+      },
+      "structured_enrichment_alerts": [
+        "structured_enrichment_ckan_unavailable"
+      ],
+      "structured_enrichment_status": "integrated",
+      "structured_source_catalog": [
+        {
+          "access_method": "public_api_json",
+          "cadence_freshness": "meeting-driven; near-real-time event updates",
+          "display_name": "San Jose Legistar Web API",
+          "economic_usefulness_score": 0.78,
+          "endpoint_or_file_url": "https://webapi.legistar.com/v1/sanjose/Events",
+          "free_status": "free_public",
+          "jurisdiction_coverage": "san_jose_ca",
+          "lane_classification": "true_structured",
+          "live_proven": true,
+          "policy_domain_relevance": "meeting agendas, minutes, ordinance/resolution metadata",
+          "runtime_status": "integrated",
+          "signup_or_key": "none_required",
+          "signup_url": "https://webapi.legistar.com/",
+          "source_family": "legistar_web_api",
+          "storage_target": "policy_evidence_packages.package_payload.run_context.structured_sources"
+        },
+        {
+          "access_method": "ckan_api_json",
+          "cadence_freshness": "dataset-dependent metadata freshness",
+          "display_name": "San Jose Open Data (CKAN)",
+          "economic_usefulness_score": 0.63,
+          "endpoint_or_file_url": "https://data.sanjoseca.gov/api/3/action/package_search",
+          "free_status": "free_public",
+          "jurisdiction_coverage": "san_jose_ca",
+          "lane_classification": "true_structured",
+          "live_proven": false,
+          "policy_domain_relevance": "permits, housing/open data metadata, contextual economic indicators",
+          "runtime_status": "cataloged_unavailable",
+          "signup_or_key": "none_required",
+          "signup_url": "https://data.sanjoseca.gov/",
+          "source_family": "san_jose_open_data_ckan",
+          "storage_target": "policy_evidence_packages.package_payload.run_context.structured_sources"
+        },
+        {
+          "access_method": "raw_official_file",
+          "cadence_freshness": "daily feed updates",
+          "display_name": "California LegInfo PUBINFO Feed",
+          "economic_usefulness_score": 0.71,
+          "endpoint_or_file_url": "https://downloads.leginfo.legislature.ca.gov/pubinfo_daily_Mon.zip",
+          "free_status": "free_public",
+          "jurisdiction_coverage": "california_state",
+          "lane_classification": "true_structured",
+          "live_proven": false,
+          "policy_domain_relevance": "bill identity, amendment cadence, text provenance",
+          "runtime_status": "cataloged",
+          "signup_or_key": "none_required",
+          "signup_url": "https://downloads.leginfo.legislature.ca.gov/",
+          "source_family": "california_leginfo_pubinfo",
+          "storage_target": "policy_evidence_packages.package_payload.run_context.structured_sources"
+        },
+        {
+          "access_method": "public_api_json",
+          "cadence_freshness": "session/event driven",
+          "display_name": "OpenStates API",
+          "economic_usefulness_score": 0.56,
+          "endpoint_or_file_url": "https://v3.openstates.org/bills",
+          "free_status": "free_tier_key_required",
+          "jurisdiction_coverage": "multi_state",
+          "lane_classification": "true_structured",
+          "live_proven": false,
+          "policy_domain_relevance": "bill status, sponsors, action timelines",
+          "runtime_status": "cataloged_unavailable",
+          "signup_or_key": "api_key_required",
+          "signup_url": "https://openstates.org/api/",
+          "source_family": "openstates_api",
+          "storage_target": "policy_evidence_packages.package_payload.run_context.structured_sources"
+        },
+        {
+          "access_method": "public_api_json",
+          "cadence_freshness": "dataset-dependent",
+          "display_name": "Socrata Open Data Portals",
+          "economic_usefulness_score": 0.62,
+          "endpoint_or_file_url": "https://dev.socrata.com/",
+          "free_status": "free_tier_key_optional_limits",
+          "jurisdiction_coverage": "city_county_varies",
+          "lane_classification": "true_structured",
+          "live_proven": false,
+          "policy_domain_relevance": "fees, permits, budget context, fiscal indicators",
+          "runtime_status": "cataloged",
+          "signup_or_key": "key_optional",
+          "signup_url": "https://dev.socrata.com/",
+          "source_family": "socrata_open_data",
+          "storage_target": "policy_evidence_packages.package_payload.run_context.structured_sources"
+        },
+        {
+          "access_method": "public_api_json",
+          "cadence_freshness": "dataset-dependent",
+          "display_name": "ArcGIS Public REST Services",
+          "economic_usefulness_score": 0.49,
+          "endpoint_or_file_url": "https://www.arcgis.com/sharing/rest/search",
+          "free_status": "free_public",
+          "jurisdiction_coverage": "regional_multi_county",
+          "lane_classification": "true_structured",
+          "live_proven": false,
+          "policy_domain_relevance": "parcel/zoning/land-use context",
+          "runtime_status": "cataloged",
+          "signup_or_key": "none_required",
+          "signup_url": "https://www.arcgis.com/",
+          "source_family": "arcgis_rest_public",
+          "storage_target": "policy_evidence_packages.package_payload.run_context.structured_sources"
+        },
+        {
+          "access_method": "search_snippet_api",
+          "cadence_freshness": "query-time",
+          "display_name": "Tavily Secondary Search Snippets",
+          "economic_usefulness_score": 0.2,
+          "endpoint_or_file_url": "https://api.tavily.com/search",
+          "free_status": "free_tier_key_required",
+          "jurisdiction_coverage": "multi_jurisdiction",
+          "lane_classification": "secondary_search_derived",
+          "live_proven": false,
+          "policy_domain_relevance": "secondary fallback only; not authoritative structured source",
+          "runtime_status": "cataloged",
+          "signup_or_key": "api_key_required",
+          "signup_url": "https://app.tavily.com/",
+          "source_family": "tavily_secondary_search",
+          "storage_target": "policy_evidence_packages.package_payload.run_context.structured_sources"
+        }
+      ],
+      "structured_sources": [
+        {
+          "access_method": "public_api_json",
+          "artifact_type": "matter_metadata",
+          "artifact_url": "https://webapi.legistar.com/v1/sanjose/Matters/7526",
+          "attachment_content_probes": [
+            {
+              "attachment_id": "15366",
+              "content_ingested": false,
+              "economic_row_count": 0,
+              "excerpt": "",
+              "source_family": "memorandum",
+              "status": "binary_pdf_unparsed",
+              "title": "Memorandum",
+              "url": "https://legistar.granicus.com/sanjose/attachments/42b8aec7-1ae1-43da-b549-f8513bbd65a1.pdf"
+            },
+            {
+              "attachment_id": "15486",
+              "content_ingested": false,
+              "economic_row_count": 0,
+              "excerpt": "",
+              "source_family": "memorandum",
+              "status": "binary_pdf_unparsed",
+              "title": "Memorandum from Peralez, 8/28/2020",
+              "url": "https://legistar.granicus.com/sanjose/attachments/bbe37471-f806-4505-89fe-6a7a472ad0df.pdf"
+            },
+            {
+              "attachment_id": "15489",
+              "content_ingested": false,
+              "economic_row_count": 0,
+              "excerpt": "",
+              "source_family": "memorandum",
+              "status": "binary_pdf_unparsed",
+              "title": "Memorandum from Jimenez, 8/28/2020",
+              "url": "https://legistar.granicus.com/sanjose/attachments/60eb2bf1-5a57-4564-9d0e-694942ab59c7.pdf"
+            },
+            {
+              "attachment_id": "15491",
+              "content_ingested": false,
+              "economic_row_count": 0,
+              "excerpt": "",
+              "source_family": "memorandum",
+              "status": "binary_pdf_unparsed",
+              "title": "Memorandum from Mayor, Jones, Diep, Davis & Foley, 8/28/2020",
+              "url": "https://legistar.granicus.com/sanjose/attachments/94ffc8fc-d6ba-46ca-8499-b46b32bcbf6a.pdf"
+            },
+            {
+              "attachment_id": "15493",
+              "content_ingested": false,
+              "economic_row_count": 0,
+              "excerpt": "",
+              "source_family": "memorandum",
+              "status": "binary_pdf_unparsed",
+              "title": "Memorandum from Khamis, 8/30/2020",
+              "url": "https://legistar.granicus.com/sanjose/attachments/b6217624-dd8e-4718-b2d7-4859f576341b.pdf"
+            },
+            {
+              "attachment_id": "15523",
+              "content_ingested": false,
+              "economic_row_count": 0,
+              "excerpt": "",
+              "source_family": "memorandum",
+              "status": "binary_pdf_unparsed",
+              "title": "Supplemental Memorandum",
+              "url": "https://legistar.granicus.com/sanjose/attachments/eb98bc80-6c09-4b45-ba75-db970576e5f3.pdf"
+            }
+          ],
+          "diagnostic_facts": [
+            {
+              "field": "matter_id",
+              "unit": "count",
+              "value": 7526.0
+            },
+            {
+              "field": "matter_attachment_probe_count",
+              "unit": "count",
+              "value": 6.0
+            },
+            {
+              "field": "matter_attachment_content_ingested_count",
+              "unit": "count",
+              "value": 0.0
+            },
+            {
+              "field": "matter_attachment_economic_row_count",
+              "unit": "count",
+              "value": 0.0
+            }
+          ],
+          "excerpt": "Structured Legistar matter metadata fetched from San Jose Web API; MatterTitle='Council Policy Priority # 5: Commercial Linkage Impact Fee.', attachments=19, classified_attachment_refs=19.",
+          "jurisdiction": "san_jose_ca",
+          "lineage_metadata": {
+            "attachment_content_ingested_count": 0,
+            "attachment_content_probe_count": 6,
+            "attachment_economic_row_count": 0,
+            "attachment_family_counts": {
+              "memorandum": 7,
+              "ordinance": 1,
+              "resolution": 1,
+              "unknown": 10
+            },
+            "event_body_id": null,
+            "event_date": null,
+            "jurisdiction": "san_jose_ca",
+            "matter_id": "7526",
+            "related_attachment_refs": [
+              {
+                "attachment_id": "15288",
+                "source_family": "unknown",
+                "title": "Letters from the Public - 1 of 8",
+                "url": "https://legistar.granicus.com/sanjose/attachments/2b72cf18-a8dd-49b2-92c5-97fcaa19fd58.pdf"
+              },
+              {
+                "attachment_id": "15296",
+                "source_family": "unknown",
+                "title": "Letters from the Public - 2 of 8",
+                "url": "https://legistar.granicus.com/sanjose/attachments/286d65c2-341a-4355-b6d9-885fa3f6defe.pdf"
+              },
+              {
+                "attachment_id": "15366",
+                "source_family": "memorandum",
+                "title": "Memorandum",
+                "url": "https://legistar.granicus.com/sanjose/attachments/42b8aec7-1ae1-43da-b549-f8513bbd65a1.pdf"
+              },
+              {
+                "attachment_id": "15411",
+                "source_family": "unknown",
+                "title": "Letters from the Public - 3 of 8",
+                "url": "https://legistar.granicus.com/sanjose/attachments/dea97575-c4ea-4446-8aca-10527bd94fa7.pdf"
+              },
+              {
+                "attachment_id": "15470",
+                "source_family": "unknown",
+                "title": "Letters from the Public - 4 of 8",
+                "url": "https://legistar.granicus.com/sanjose/attachments/f4fc9726-12a4-4307-9120-5499306edace.pdf"
+              },
+              {
+                "attachment_id": "15486",
+                "source_family": "memorandum",
+                "title": "Memorandum from Peralez, 8/28/2020",
+                "url": "https://legistar.granicus.com/sanjose/attachments/bbe37471-f806-4505-89fe-6a7a472ad0df.pdf"
+              },
+              {
+                "attachment_id": "15488",
+                "source_family": "unknown",
+                "title": "Letters from the Public - 5 of 8",
+                "url": "https://legistar.granicus.com/sanjose/attachments/c5f6ed1b-c432-40f4-b953-fbc21c37376f.pdf"
+              },
+              {
+                "attachment_id": "15489",
+                "source_family": "memorandum",
+                "title": "Memorandum from Jimenez, 8/28/2020",
+                "url": "https://legistar.granicus.com/sanjose/attachments/60eb2bf1-5a57-4564-9d0e-694942ab59c7.pdf"
+              },
+              {
+                "attachment_id": "15491",
+                "source_family": "memorandum",
+                "title": "Memorandum from Mayor, Jones, Diep, Davis & Foley, 8/28/2020",
+                "url": "https://legistar.granicus.com/sanjose/attachments/94ffc8fc-d6ba-46ca-8499-b46b32bcbf6a.pdf"
+              },
+              {
+                "attachment_id": "15493",
+                "source_family": "memorandum",
+                "title": "Memorandum from Khamis, 8/30/2020",
+                "url": "https://legistar.granicus.com/sanjose/attachments/b6217624-dd8e-4718-b2d7-4859f576341b.pdf"
+              },
+              {
+                "attachment_id": "15506",
+                "source_family": "unknown",
+                "title": "Letters from the Public - 6 of 8",
+                "url": "https://legistar.granicus.com/sanjose/attachments/ad16267c-ad1b-4e04-aa91-89ac3258f629.pdf"
+              },
+              {
+                "attachment_id": "15523",
+                "source_family": "memorandum",
+                "title": "Supplemental Memorandum",
+                "url": "https://legistar.granicus.com/sanjose/attachments/eb98bc80-6c09-4b45-ba75-db970576e5f3.pdf"
+              },
+              {
+                "attachment_id": "15526",
+                "source_family": "unknown",
+                "title": "Letters from the Public - 7 of 8",
+                "url": "https://legistar.granicus.com/sanjose/attachments/5ef9a520-17d5-4fce-b55b-3cc60e49b150.pdf"
+              },
+              {
+                "attachment_id": "15527",
+                "source_family": "unknown",
+                "title": "Letters from the Public - 8 of 8",
+                "url": "https://legistar.granicus.com/sanjose/attachments/6319cf65-7786-4876-a877-db92cf96bce8.pdf"
+              },
+              {
+                "attachment_id": "15530",
+                "source_family": "memorandum",
+                "title": "Memorandum from  Arenas, 9/1/2020",
+                "url": "https://legistar.granicus.com/sanjose/attachments/72681494-0acb-428c-8d33-c2187bb1c17b.pdf"
+              },
+              {
+                "attachment_id": "15534",
+                "source_family": "unknown",
+                "title": "Letter from Assemblymember Kalra",
+                "url": "https://legistar.granicus.com/sanjose/attachments/10a23169-6e87-4d40-99d1-7f002c760ac1.pdf"
+              },
+              {
+                "attachment_id": "15535",
+                "source_family": "ordinance",
+                "title": "Ordinance",
+                "url": "https://legistar.granicus.com/sanjose/attachments/d51bf3fd-5e5c-4118-8ddf-4ceec3c4f9c7.pdf"
+              },
+              {
+                "attachment_id": "15536",
+                "source_family": "unknown",
+                "title": "Presentation",
+                "url": "https://legistar.granicus.com/sanjose/attachments/5a5de1ff-3172-4a23-bd10-c7cc3dbec0cf.pdf"
+              },
+              {
+                "attachment_id": "15538",
+                "source_family": "resolution",
+                "title": "Resolution",
+                "url": "https://legistar.granicus.com/sanjose/attachments/6f9f6ae3-0e5c-49e3-9e4d-dddea5ac2695.pdf"
+              }
+            ],
+            "source_identity": "legistar_web_api"
+          },
+          "linked_artifact_refs": [
+            "https://legistar.granicus.com/sanjose/attachments/2b72cf18-a8dd-49b2-92c5-97fcaa19fd58.pdf",
+            "https://legistar.granicus.com/sanjose/attachments/286d65c2-341a-4355-b6d9-885fa3f6defe.pdf",
+            "https://legistar.granicus.com/sanjose/attachments/42b8aec7-1ae1-43da-b549-f8513bbd65a1.pdf",
+            "https://legistar.granicus.com/sanjose/attachments/dea97575-c4ea-4446-8aca-10527bd94fa7.pdf",
+            "https://legistar.granicus.com/sanjose/attachments/f4fc9726-12a4-4307-9120-5499306edace.pdf",
+            "https://legistar.granicus.com/sanjose/attachments/bbe37471-f806-4505-89fe-6a7a472ad0df.pdf",
+            "https://legistar.granicus.com/sanjose/attachments/c5f6ed1b-c432-40f4-b953-fbc21c37376f.pdf",
+            "https://legistar.granicus.com/sanjose/attachments/60eb2bf1-5a57-4564-9d0e-694942ab59c7.pdf",
+            "https://legistar.granicus.com/sanjose/attachments/94ffc8fc-d6ba-46ca-8499-b46b32bcbf6a.pdf",
+            "https://legistar.granicus.com/sanjose/attachments/b6217624-dd8e-4718-b2d7-4859f576341b.pdf",
+            "https://legistar.granicus.com/sanjose/attachments/ad16267c-ad1b-4e04-aa91-89ac3258f629.pdf",
+            "https://legistar.granicus.com/sanjose/attachments/eb98bc80-6c09-4b45-ba75-db970576e5f3.pdf",
+            "https://legistar.granicus.com/sanjose/attachments/5ef9a520-17d5-4fce-b55b-3cc60e49b150.pdf",
+            "https://legistar.granicus.com/sanjose/attachments/6319cf65-7786-4876-a877-db92cf96bce8.pdf",
+            "https://legistar.granicus.com/sanjose/attachments/72681494-0acb-428c-8d33-c2187bb1c17b.pdf",
+            "https://legistar.granicus.com/sanjose/attachments/10a23169-6e87-4d40-99d1-7f002c760ac1.pdf",
+            "https://legistar.granicus.com/sanjose/attachments/d51bf3fd-5e5c-4118-8ddf-4ceec3c4f9c7.pdf",
+            "https://legistar.granicus.com/sanjose/attachments/5a5de1ff-3172-4a23-bd10-c7cc3dbec0cf.pdf",
+            "https://legistar.granicus.com/sanjose/attachments/6f9f6ae3-0e5c-49e3-9e4d-dddea5ac2695.pdf"
+          ],
+          "policy_match_confidence": 0.95,
+          "policy_match_key": "https://www.hcd.ca.gov/housing-elements/docs/los altos_5th_draft011415.pdf",
+          "provider": "legistar_web_api",
+          "provider_run_id": "7526",
+          "query_text": "San Jose Commercial Linkage Fee Resolution 2020 non-residential development gross floor area nexus study matter 7526",
+          "reader_artifact_refs": [],
+          "reconciliation_status": "pending_primary_reconciliation",
+          "related_attachment_refs": [
+            {
+              "attachment_id": "15288",
+              "source_family": "unknown",
+              "title": "Letters from the Public - 1 of 8",
+              "url": "https://legistar.granicus.com/sanjose/attachments/2b72cf18-a8dd-49b2-92c5-97fcaa19fd58.pdf"
+            },
+            {
+              "attachment_id": "15296",
+              "source_family": "unknown",
+              "title": "Letters from the Public - 2 of 8",
+              "url": "https://legistar.granicus.com/sanjose/attachments/286d65c2-341a-4355-b6d9-885fa3f6defe.pdf"
+            },
+            {
+              "attachment_id": "15366",
+              "source_family": "memorandum",
+              "title": "Memorandum",
+              "url": "https://legistar.granicus.com/sanjose/attachments/42b8aec7-1ae1-43da-b549-f8513bbd65a1.pdf"
+            },
+            {
+              "attachment_id": "15411",
+              "source_family": "unknown",
+              "title": "Letters from the Public - 3 of 8",
+              "url": "https://legistar.granicus.com/sanjose/attachments/dea97575-c4ea-4446-8aca-10527bd94fa7.pdf"
+            },
+            {
+              "attachment_id": "15470",
+              "source_family": "unknown",
+              "title": "Letters from the Public - 4 of 8",
+              "url": "https://legistar.granicus.com/sanjose/attachments/f4fc9726-12a4-4307-9120-5499306edace.pdf"
+            },
+            {
+              "attachment_id": "15486",
+              "source_family": "memorandum",
+              "title": "Memorandum from Peralez, 8/28/2020",
+              "url": "https://legistar.granicus.com/sanjose/attachments/bbe37471-f806-4505-89fe-6a7a472ad0df.pdf"
+            },
+            {
+              "attachment_id": "15488",
+              "source_family": "unknown",
+              "title": "Letters from the Public - 5 of 8",
+              "url": "https://legistar.granicus.com/sanjose/attachments/c5f6ed1b-c432-40f4-b953-fbc21c37376f.pdf"
+            },
+            {
+              "attachment_id": "15489",
+              "source_family": "memorandum",
+              "title": "Memorandum from Jimenez, 8/28/2020",
+              "url": "https://legistar.granicus.com/sanjose/attachments/60eb2bf1-5a57-4564-9d0e-694942ab59c7.pdf"
+            },
+            {
+              "attachment_id": "15491",
+              "source_family": "memorandum",
+              "title": "Memorandum from Mayor, Jones, Diep, Davis & Foley, 8/28/2020",
+              "url": "https://legistar.granicus.com/sanjose/attachments/94ffc8fc-d6ba-46ca-8499-b46b32bcbf6a.pdf"
+            },
+            {
+              "attachment_id": "15493",
+              "source_family": "memorandum",
+              "title": "Memorandum from Khamis, 8/30/2020",
+              "url": "https://legistar.granicus.com/sanjose/attachments/b6217624-dd8e-4718-b2d7-4859f576341b.pdf"
+            },
+            {
+              "attachment_id": "15506",
+              "source_family": "unknown",
+              "title": "Letters from the Public - 6 of 8",
+              "url": "https://legistar.granicus.com/sanjose/attachments/ad16267c-ad1b-4e04-aa91-89ac3258f629.pdf"
+            },
+            {
+              "attachment_id": "15523",
+              "source_family": "memorandum",
+              "title": "Supplemental Memorandum",
+              "url": "https://legistar.granicus.com/sanjose/attachments/eb98bc80-6c09-4b45-ba75-db970576e5f3.pdf"
+            },
+            {
+              "attachment_id": "15526",
+              "source_family": "unknown",
+              "title": "Letters from the Public - 7 of 8",
+              "url": "https://legistar.granicus.com/sanjose/attachments/5ef9a520-17d5-4fce-b55b-3cc60e49b150.pdf"
+            },
+            {
+              "attachment_id": "15527",
+              "source_family": "unknown",
+              "title": "Letters from the Public - 8 of 8",
+              "url": "https://legistar.granicus.com/sanjose/attachments/6319cf65-7786-4876-a877-db92cf96bce8.pdf"
+            },
+            {
+              "attachment_id": "15530",
+              "source_family": "memorandum",
+              "title": "Memorandum from  Arenas, 9/1/2020",
+              "url": "https://legistar.granicus.com/sanjose/attachments/72681494-0acb-428c-8d33-c2187bb1c17b.pdf"
+            },
+            {
+              "attachment_id": "15534",
+              "source_family": "unknown",
+              "title": "Letter from Assemblymember Kalra",
+              "url": "https://legistar.granicus.com/sanjose/attachments/10a23169-6e87-4d40-99d1-7f002c760ac1.pdf"
+            },
+            {
+              "attachment_id": "15535",
+              "source_family": "ordinance",
+              "title": "Ordinance",
+              "url": "https://legistar.granicus.com/sanjose/attachments/d51bf3fd-5e5c-4118-8ddf-4ceec3c4f9c7.pdf"
+            },
+            {
+              "attachment_id": "15536",
+              "source_family": "unknown",
+              "title": "Presentation",
+              "url": "https://legistar.granicus.com/sanjose/attachments/5a5de1ff-3172-4a23-bd10-c7cc3dbec0cf.pdf"
+            },
+            {
+              "attachment_id": "15538",
+              "source_family": "resolution",
+              "title": "Resolution",
+              "url": "https://legistar.granicus.com/sanjose/attachments/6f9f6ae3-0e5c-49e3-9e4d-dddea5ac2695.pdf"
+            }
+          ],
+          "retrieved_at": "2026-04-17T03:13:39.988339+00:00",
+          "source_family": "legistar_web_api",
+          "source_lane": "structured",
+          "source_tier": "tier_b",
+          "structured_policy_facts": [
+            {
+              "field": "matter_attachment_count",
+              "unit": "count",
+              "value": 19.0
+            },
+            {
+              "field": "matter_attachment_url_count",
+              "unit": "count",
+              "value": 19.0
+            }
+          ],
+          "true_structured": true
+        },
+        {
+          "access_method": "tavily_search_api",
+          "alerts": [
+            "structured_secondary_source_tavily",
+            "secondary_search_complementary_lane"
+          ],
+          "artifact_type": "secondary_search_rate_snippet",
+          "artifact_url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee",
+          "candidate_status": "secondary_search_complement",
+          "diagnostic_facts": [
+            {
+              "field": "tavily_result_count_scanned",
+              "unit": "count",
+              "value": 5.0
+            },
+            {
+              "field": "tavily_result_count_provenance_safe",
+              "unit": "count",
+              "value": 3.0
+            },
+            {
+              "field": "tavily_fee_fact_count",
+              "unit": "count",
+              "value": 1.0
+            }
+          ],
+          "excerpt": "Secondary structured Tavily snippet extraction for missing economic fee/rate evidence; extracted_facts=1, provenance_safe_results=3.",
+          "jurisdiction": "san_jose_ca",
+          "linked_artifact_refs": [
+            "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee"
+          ],
+          "policy_match_confidence": 0.25,
+          "policy_match_key": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee",
+          "provider": "tavily_search",
+          "provider_run_id": "84f9d78e-ee3b-4507-a67b-3b401aff21e1",
+          "query_text": "San Jose Commercial Linkage Fee Resolution 2020 non-residential development gross floor area nexus study matter 7526",
+          "reader_artifact_refs": [],
+          "reconciliation_status": "secondary_search_derived_not_authoritative",
+          "retrieved_at": "2026-04-17T03:13:40.619925+00:00",
+          "secondary_search": true,
+          "secondary_search_parent_source_family": "meeting_minutes",
+          "secondary_search_scope": "bounded_max_results_5",
+          "source_family": "tavily_secondary_search",
+          "source_lane": "structured_secondary_source",
+          "source_tier": "tier_c",
+          "structured_policy_facts": [
+            {
+              "field": "commercial_linkage_fee_rate_usd_per_sqft",
+              "provenance_lane": "structured_secondary_source",
+              "provider_rank": 1.0,
+              "source_excerpt": "The San Jos\u00e9 City Council voted on September 1, 2020 to begin charging commercial developers fees to fund affordable housing. The Commercial Linkage Fee is a one-time impact fee that applies to new and existing Non-Residential Projects in San Jos\u00e9 that either add gross floor area or change the existing building use. The San Jos\u00e9 City Council voted on December 11, 2018 to pursue a nexus and a feasibility study on a potential commercial linkage fee in San Jos\u00e9. | Industrial/Research and Development (\u2265100,000 sq.ft.) | $3.58 - When paid in full prior to the Building Permit issuance, a 20% reducti",
+              "source_title": "Commercial Linkage Fee | City of San Jos\u00e9",
+              "source_url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee",
+              "unit": "usd_per_square_foot",
+              "value": 3.58
+            }
+          ],
+          "true_structured": false
+        }
+      ],
+      "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+      "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+      "windmill_run_id": "bd-3wefe.13-live-cycle-32-20260417031252",
+      "windmill_workspace": "affordabot"
+    },
+    "schema_version": "1.0.0",
+    "scraped_sources": [
+      {
+        "candidate_rank": 1,
+        "provider_run_id": "bd-3wefe.13-live-cycle-32-20260417031252",
+        "query_family": "meeting_minutes",
+        "query_text": "San Jose Commercial Linkage Fee Resolution 2020 non-residential development gross floor area nexus study matter 7526",
+        "reader_artifact_url": null,
+        "reader_substance_passed": true,
+        "search_provider": "private_searxng",
+        "search_snapshot_id": "0b0ac281-166d-4af6-a146-218d30291d91",
+        "selected_candidate_url": "https://www.hcd.ca.gov/housing-elements/docs/los%20altos_5th_draft011415.pdf"
+      }
+    ],
+    "source_lanes": [
+      "scraped",
+      "structured"
+    ],
+    "storage_refs": [
+      {
+        "content_hash": "7d7e37d44cb7ad8b0723c6bdcaf9f767438d8b8b0d26c4e168fcc159351fe138",
+        "notes": null,
+        "reference_id": "policy_evidence_packages:pkg-a79daaf0005fb4d0ecb25347",
+        "storage_system": "postgres",
+        "truth_role": "source_of_truth",
+        "uri": null
+      },
+      {
+        "content_hash": "7d7e37d44cb7ad8b0723c6bdcaf9f767438d8b8b0d26c4e168fcc159351fe138",
+        "notes": "readback proof pending bd-3wefe.10",
+        "reference_id": "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/meeting_minutes/reader_output/7d7e37d44cb7ad8b0723c6bdcaf9f767438d8b8b0d26c4e168fcc159351fe138.md",
+        "storage_system": "minio",
+        "truth_role": "artifact_of_record",
+        "uri": "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/meeting_minutes/reader_output/7d7e37d44cb7ad8b0723c6bdcaf9f767438d8b8b0d26c4e168fcc159351fe138.md"
+      },
+      {
+        "content_hash": "7d7e37d44cb7ad8b0723c6bdcaf9f767438d8b8b0d26c4e168fcc159351fe138",
+        "notes": "derived index only",
+        "reference_id": "document:27f12634-536b-51d5-9294-daedbe8ec9dd",
+        "storage_system": "pgvector",
+        "truth_role": "derived_index",
+        "uri": null
+      },
+      {
+        "content_hash": null,
+        "notes": "package artifact envelope",
+        "reference_id": "minio://affordabot-artifacts/policy-evidence/packages/pkg-a79daaf0005fb4d0ecb25347.json",
+        "storage_system": "minio",
+        "truth_role": "artifact_of_record",
+        "uri": "minio://affordabot-artifacts/policy-evidence/packages/pkg-a79daaf0005fb4d0ecb25347.json"
+      }
+    ],
+    "structured_sources": [
+      {
+        "access_method": "public_api_json",
+        "endpoint_or_file_url": "https://webapi.legistar.com/v1/sanjose/Matters/7526",
+        "event_body_id": null,
+        "event_date": null,
+        "field_count": 2,
+        "matter_id": "7526",
+        "policy_match_confidence": 0.95,
+        "policy_match_key": "https://www.hcd.ca.gov/housing-elements/docs/los altos_5th_draft011415.pdf",
+        "provider_run_id": "7526",
+        "reconciliation_status": "pending_primary_reconciliation",
+        "source_family": "legistar_web_api",
+        "true_structured": true
+      },
+      {
+        "access_method": "tavily_search_api",
+        "endpoint_or_file_url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee",
+        "event_body_id": null,
+        "event_date": null,
+        "field_count": 1,
+        "matter_id": null,
+        "policy_match_confidence": 0.25,
+        "policy_match_key": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee",
+        "provider_run_id": "84f9d78e-ee3b-4507-a67b-3b401aff21e1",
+        "reconciliation_status": "secondary_search_derived_not_authoritative",
+        "source_family": "tavily_secondary_search",
+        "true_structured": false
+      }
+    ]
+  },
+  "storage_refs": [
+    {
+      "content_hash": "7d7e37d44cb7ad8b0723c6bdcaf9f767438d8b8b0d26c4e168fcc159351fe138",
+      "notes": null,
+      "reference_id": "policy_evidence_packages:pkg-a79daaf0005fb4d0ecb25347",
+      "storage_system": "postgres",
+      "truth_role": "source_of_truth",
+      "uri": null
+    },
+    {
+      "content_hash": "7d7e37d44cb7ad8b0723c6bdcaf9f767438d8b8b0d26c4e168fcc159351fe138",
+      "notes": "readback proof pending bd-3wefe.10",
+      "reference_id": "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/meeting_minutes/reader_output/7d7e37d44cb7ad8b0723c6bdcaf9f767438d8b8b0d26c4e168fcc159351fe138.md",
+      "storage_system": "minio",
+      "truth_role": "artifact_of_record",
+      "uri": "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/meeting_minutes/reader_output/7d7e37d44cb7ad8b0723c6bdcaf9f767438d8b8b0d26c4e168fcc159351fe138.md"
+    },
+    {
+      "content_hash": "7d7e37d44cb7ad8b0723c6bdcaf9f767438d8b8b0d26c4e168fcc159351fe138",
+      "notes": "derived index only",
+      "reference_id": "document:27f12634-536b-51d5-9294-daedbe8ec9dd",
+      "storage_system": "pgvector",
+      "truth_role": "derived_index",
+      "uri": null
+    },
+    {
+      "content_hash": null,
+      "notes": "package artifact envelope",
+      "reference_id": "minio://affordabot-artifacts/policy-evidence/packages/pkg-a79daaf0005fb4d0ecb25347.json",
+      "storage_system": "minio",
+      "truth_role": "artifact_of_record",
+      "uri": "minio://affordabot-artifacts/policy-evidence/packages/pkg-a79daaf0005fb4d0ecb25347.json"
+    }
+  ]
+}

@@ -478,6 +478,87 @@ def test_rank_reader_candidates_economic_query_prefers_fee_rate_sources_over_pro
     ]["reasons"]
 
 
+def test_rank_reader_candidates_economic_query_prefers_official_source_over_external_article() -> None:
+    ranked = rank_reader_candidates(
+        [
+            SearchResultItem(
+                url="https://www.planetizen.com/news/2020/09/110424-linkage-fee-affordable-housing-funding-approved-san-jose",
+                title="Linkage Fee for Affordable Housing Funding Approved in San Jose",
+                snippet="Commercial linkage fees include $3.00 and $15.00 per square foot rates.",
+            ),
+            SearchResultItem(
+                url="https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee",
+                title="Commercial Linkage Fee | City of San Jose",
+                snippet="The Commercial Linkage Fee is an impact fee levied on commercial development with per square foot rates.",
+            ),
+        ],
+        query_context="San Jose Commercial Linkage Fee Resolution 80069 September 1 2020 per square foot",
+    )
+
+    ranked_by_url = {item["url"]: item for item in ranked}
+    assert ranked[0]["url"].startswith("https://www.sanjoseca.gov/")
+    assert "economic_signal:official_source" in ranked[0]["reasons"]
+    assert "economic_penalty:external_source" in ranked_by_url[
+        "https://www.planetizen.com/news/2020/09/110424-linkage-fee-affordable-housing-funding-approved-san-jose"
+    ]["reasons"]
+
+
+def test_rank_reader_candidates_economic_query_demotes_legigram_below_official_legistar_candidate() -> None:
+    ranked = rank_reader_candidates(
+        [
+            SearchResultItem(
+                url="https://www.legigram.com/2024/11/san-jose-commercial-linkage-fee-rate-schedule",
+                title="San Jose Commercial Linkage Fee Rate Schedule",
+                snippet="Aggregator recap listing $12.34 and $16.78 per square foot rates.",
+            ),
+            SearchResultItem(
+                url="https://sanjose.legistar.com/View.ashx?M=F&ID=1328259&GUID=59FCFBBE-ACEB-4329-9C02-9548AFD46D2D",
+                title="Resolution 80069 Fee Schedule Attachment",
+                snippet="Commercial linkage fee table with adopted rate schedule per square foot.",
+            ),
+        ],
+        query_context="San Jose commercial linkage fee adoption resolution rate schedule per square foot",
+    )
+
+    ranked_by_url = {item["url"]: item for item in ranked}
+    assert ranked[0]["url"].startswith("https://sanjose.legistar.com/")
+    assert "economic_signal:official_source" in ranked[0]["reasons"]
+    assert "economic_penalty:external_source" in ranked_by_url[
+        "https://www.legigram.com/2024/11/san-jose-commercial-linkage-fee-rate-schedule"
+    ]["reasons"]
+    assert "economic_penalty:aggregator_source" in ranked_by_url[
+        "https://www.legigram.com/2024/11/san-jose-commercial-linkage-fee-rate-schedule"
+    ]["reasons"]
+
+
+def test_rank_reader_candidates_economic_query_fail_closed_prefers_official_page_over_legigram_without_artifact() -> None:
+    ranked = rank_reader_candidates(
+        [
+            SearchResultItem(
+                url="https://www.legigram.com/2024/11/san-jose-clf-resolution-80069-rates",
+                title="San Jose CLF Resolution 80069 Rates",
+                snippet="Third-party summary cites $14.31 and $17.89 per square foot.",
+            ),
+            SearchResultItem(
+                url="https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee",
+                title="Commercial Linkage Fee | City of San Jose",
+                snippet="City program page for adopted commercial linkage fee rate schedule.",
+            ),
+        ],
+        query_context="San Jose commercial linkage fee adoption resolution 80069 rate schedule",
+    )
+
+    ranked_by_url = {item["url"]: item for item in ranked}
+    assert ranked[0]["url"].startswith("https://www.sanjoseca.gov/")
+    assert "economic_signal:official_source" in ranked[0]["reasons"]
+    assert "economic_penalty:external_source" in ranked_by_url[
+        "https://www.legigram.com/2024/11/san-jose-clf-resolution-80069-rates"
+    ]["reasons"]
+    assert "economic_penalty:aggregator_source" in ranked_by_url[
+        "https://www.legigram.com/2024/11/san-jose-clf-resolution-80069-rates"
+    ]["reasons"]
+
+
 def test_rank_reader_candidates_economic_query_demotes_gateway_fee_title_without_numeric_value() -> None:
     ranked = rank_reader_candidates(
         [

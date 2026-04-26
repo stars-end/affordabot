@@ -1,0 +1,142 @@
+{
+  "feature_key": "bd-3wefe.13.6",
+  "artifact_version": "2026-04-17.non-fee-extraction-templates.v1",
+  "generated_at": "2026-04-17T00:00:00Z",
+  "template_count": 4,
+  "templates": [
+    {
+      "template_id": "tmpl-zoning-land-use-v1",
+      "policy_family": "zoning_land_use",
+      "evidence_use": "policy_lineage_source",
+      "economic_relevance": "indirect",
+      "action_type": "zoning_or_land_use_change",
+      "applicability": "district_or_overlay_specific",
+      "moat_value_reason": "policy_lineage_source:zoning_land_use:captures enforceable land-use lineage that is reusable even before quantitative calibration.",
+      "patterns": [
+        "\\bzoning\\b",
+        "\\bland\\s+use\\b",
+        "\\brezon(?:e|ing)\\b",
+        "\\boverlay\\s+district\\b",
+        "\\bgeneral\\s+plan\\b"
+      ],
+      "example": {
+        "text": "Council adopted rezoning and overlay district updates for mixed-use parcels.",
+        "structured_fact": {
+          "policy_family": "zoning_land_use",
+          "evidence_use": "policy_lineage_source",
+          "economic_relevance": "indirect",
+          "jurisdiction": "california_state",
+          "geography": "california_state",
+          "applicability": "district_or_overlay_specific",
+          "action_type": "zoning_or_land_use_change",
+          "source_locator": "structured_template:california_open_data_ckan:tmpl-zoning-land-use-v1",
+          "effective_date": "unknown",
+          "adoption_date": "unknown",
+          "retrieved_at": "2026-04-16T00:00:00+00:00",
+          "moat_value_reason": "policy_lineage_source:zoning_land_use:captures enforceable land-use lineage that is reusable even before quantitative calibration."
+        }
+      }
+    },
+    {
+      "template_id": "tmpl-parking-tdm-v1",
+      "policy_family": "parking_policy",
+      "evidence_use": "compliance_rule_source",
+      "economic_relevance": "indirect",
+      "action_type": "parking_or_tdm_standard_update",
+      "applicability": "project_type_and_location_specific",
+      "moat_value_reason": "compliance_rule_source:parking_policy:preserves parking/TDM requirements that affect project design, cost burden assumptions, and policy lineage.",
+      "patterns": [
+        "\\bparking\\b",
+        "\\bminimum\\s+parking\\b",
+        "\\bparking\\s+ratio\\b",
+        "\\btdm\\b",
+        "\\btransportation\\s+demand\\s+management\\b"
+      ],
+      "example": {
+        "text": "Transportation demand management ordinance reduces parking minimums downtown.",
+        "structured_fact": {
+          "policy_family": "parking_policy",
+          "evidence_use": "compliance_rule_source",
+          "economic_relevance": "indirect",
+          "jurisdiction": "california_state",
+          "geography": "california_state",
+          "applicability": "project_type_and_location_specific",
+          "action_type": "parking_or_tdm_standard_update",
+          "source_locator": "structured_template:california_open_data_ckan:tmpl-parking-tdm-v1",
+          "effective_date": "unknown",
+          "adoption_date": "unknown",
+          "retrieved_at": "2026-04-16T00:00:00+00:00",
+          "moat_value_reason": "compliance_rule_source:parking_policy:preserves parking/TDM requirements that affect project design, cost burden assumptions, and policy lineage."
+        }
+      }
+    },
+    {
+      "template_id": "tmpl-business-compliance-v1",
+      "policy_family": "business_compliance",
+      "evidence_use": "compliance_rule_source",
+      "economic_relevance": "indirect",
+      "action_type": "business_license_or_inspection_rule",
+      "applicability": "business_activity_or_sector_specific",
+      "moat_value_reason": "compliance_rule_source:business_compliance:records licensing and inspection obligations that remain valuable even when direct economic quantification is deferred.",
+      "patterns": [
+        "\\bbusiness\\s+license\\b",
+        "\\blicensing\\b",
+        "\\binspection\\b",
+        "\\bcode\\s+enforcement\\b",
+        "\\bcompliance\\b"
+      ],
+      "example": {
+        "text": "Business licensing compliance schedule updated with annual inspection requirements.",
+        "structured_fact": {
+          "policy_family": "business_compliance",
+          "evidence_use": "compliance_rule_source",
+          "economic_relevance": "indirect",
+          "jurisdiction": "california_state",
+          "geography": "california_state",
+          "applicability": "business_activity_or_sector_specific",
+          "action_type": "business_license_or_inspection_rule",
+          "source_locator": "structured_template:california_open_data_ckan:tmpl-business-compliance-v1",
+          "effective_date": "unknown",
+          "adoption_date": "unknown",
+          "retrieved_at": "2026-04-16T00:00:00+00:00",
+          "moat_value_reason": "compliance_rule_source:business_compliance:records licensing and inspection obligations that remain valuable even when direct economic quantification is deferred."
+        }
+      }
+    },
+    {
+      "template_id": "tmpl-meeting-action-lineage-v1",
+      "policy_family": "meeting_action",
+      "evidence_use": "meeting_record",
+      "economic_relevance": "contextual",
+      "action_type": "council_or_committee_action_lineage",
+      "applicability": "jurisdiction_wide_governance_record",
+      "moat_value_reason": "meeting_record:meeting_action:preserves action lineage, adoption timing, and provenance for durable policy history even without immediate economic handoff.",
+      "patterns": [
+        "\\bmeeting\\b",
+        "\\bagenda\\b",
+        "\\bminutes\\b",
+        "\\bcouncil\\b",
+        "\\bresolution\\b",
+        "\\bordinance\\b",
+        "\\badopt(?:ed|ion)\\b"
+      ],
+      "example": {
+        "text": "Council meeting minutes show ordinance adoption and final vote action.",
+        "structured_fact": {
+          "policy_family": "meeting_action",
+          "evidence_use": "meeting_record",
+          "economic_relevance": "contextual",
+          "jurisdiction": "california_state",
+          "geography": "california_state",
+          "applicability": "jurisdiction_wide_governance_record",
+          "action_type": "council_or_committee_action_lineage",
+          "source_locator": "structured_template:california_open_data_ckan:tmpl-meeting-action-lineage-v1",
+          "effective_date": "unknown",
+          "adoption_date": "unknown",
+          "retrieved_at": "2026-04-16T00:00:00+00:00",
+          "moat_value_reason": "meeting_record:meeting_action:preserves action lineage, adoption timing, and provenance for durable policy history even without immediate economic handoff."
+        }
+      }
+    }
+  ]
+}

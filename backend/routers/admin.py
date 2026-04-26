@@ -538,6 +538,41 @@ def _extract_source_quality_metrics(*, package_payload: dict[str, Any]) -> dict[
     return {}
 
 
+def _derive_source_identity_status(*, metrics: dict[str, Any]) -> dict[str, Any]:
+    policy_identity_ready_raw = metrics.get("policy_identity_ready")
+    jurisdiction_identity_ready_raw = metrics.get("jurisdiction_identity_ready")
+    policy_identity_ready = (
+        bool(policy_identity_ready_raw) if isinstance(policy_identity_ready_raw, bool) else True
+    )
+    jurisdiction_identity_ready = (
+        bool(jurisdiction_identity_ready_raw)
+        if isinstance(jurisdiction_identity_ready_raw, bool)
+        else True
+    )
+    identity_blocker_code = _to_text(metrics.get("identity_blocker_code"))
+    identity_blocker_reason = _to_text(metrics.get("identity_blocker_reason"))
+    if not identity_blocker_code:
+        if not jurisdiction_identity_ready:
+            identity_blocker_code = "jurisdiction_identity_mismatch"
+        elif not policy_identity_ready:
+            identity_blocker_code = "policy_identity_mismatch"
+    identity_ready = policy_identity_ready and jurisdiction_identity_ready and not identity_blocker_code
+    if identity_blocker_code == "policy_identity_mismatch":
+        identity_recommended_action = "improve_policy_identity_matching"
+    elif identity_blocker_code:
+        identity_recommended_action = "repair_source_identity"
+    else:
+        identity_recommended_action = None
+    return {
+        "policy_identity_ready": policy_identity_ready,
+        "jurisdiction_identity_ready": jurisdiction_identity_ready,
+        "identity_ready": identity_ready,
+        "identity_blocker_code": identity_blocker_code or None,
+        "identity_blocker_reason": identity_blocker_reason or None,
+        "identity_recommended_action": identity_recommended_action,
+    }
+
+
 def _source_quality_read_model(*, matrix_payload: dict[str, Any]) -> dict[str, Any]:
     runtime = _to_json_dict(matrix_payload.get("agent_a_runtime_evidence"))
     package_payload = _to_json_dict(runtime.get("vertical_package_payload"))
@@ -555,16 +590,33 @@ def _source_quality_read_model(*, matrix_payload: dict[str, Any]) -> dict[str, A
             "provider_summary": {},
             "selection_quality_status": "not_proven",
             "selection_quality_reason": "selected_artifact_quality_metrics_missing",
+            "policy_identity_ready": True,
+            "jurisdiction_identity_ready": True,
+            "identity_ready": True,
+            "identity_blocker_code": None,
+            "identity_blocker_reason": None,
+            "identity_recommended_action": None,
         }
 
     provider_summary = _to_json_dict(metrics.get("provider_summary"))
     selected_candidate = _to_json_dict(metrics.get("selected_candidate"))
+    identity_status = _derive_source_identity_status(metrics=metrics)
+    identity_blocker_code = _to_text(identity_status.get("identity_blocker_code"))
     selected_artifact_family = _to_text(
         metrics.get("selected_artifact_family")
         or selected_candidate.get("artifact_family")
     ) or "unknown"
     top_n_artifact_recall_count = _coerce_int(metrics.get("top_n_artifact_recall_count"))
-    if selected_artifact_family == "artifact":
+    if identity_blocker_code:
+        selection_quality_status = "fail"
+        selection_quality_reason = identity_blocker_code
+    elif _to_text(metrics.get("selection_quality_status")) in {"pass", "fail", "not_proven"}:
+        selection_quality_status = _to_text(metrics.get("selection_quality_status")) or "not_proven"
+        selection_quality_reason = (
+            _to_text(metrics.get("selection_quality_reason"))
+            or "selected_artifact_quality_metrics_present"
+        )
+    elif selected_artifact_family == "artifact":
         selection_quality_status = "pass"
         selection_quality_reason = "selected_candidate_is_artifact_grade"
     elif top_n_artifact_recall_count > 0:
@@ -597,6 +649,12 @@ def _source_quality_read_model(*, matrix_payload: dict[str, Any]) -> dict[str, A
         "provider_summary": provider_summary,
         "selection_quality_status": selection_quality_status,
         "selection_quality_reason": selection_quality_reason,
+        "policy_identity_ready": bool(identity_status.get("policy_identity_ready")),
+        "jurisdiction_identity_ready": bool(identity_status.get("jurisdiction_identity_ready")),
+        "identity_ready": bool(identity_status.get("identity_ready")),
+        "identity_blocker_code": identity_status.get("identity_blocker_code"),
+        "identity_blocker_reason": identity_status.get("identity_blocker_reason"),
+        "identity_recommended_action": identity_status.get("identity_recommended_action"),
     }
 
 
@@ -1784,6 +1842,47 @@ async def get_policy_evidence_analysis_status(
             },
         )
         source_quality = _source_quality_read_model(matrix_payload=matrix_payload)
+        data_moat_status = _to_json_dict(read_model.get("data_moat_status"))
+        row_family_depth = _to_json_dict(data_moat_status.get("row_family_depth"))
+        if row_family_depth:
+            source_quality["row_family_depth"] = row_family_depth
+            source_quality["structured_depth_satisfied_by"] = list(
+                data_moat_status.get("structured_depth_satisfied_by") or []
+            )
+            source_quality["structured_depth_ready"] = bool(
+                data_moat_status.get("structured_depth_ready")
+            )
+        for field in (
+            "attachment_ref_count",
+            "attachment_probe_count",
+            "attachment_content_ingested_count",
+            "attachment_economic_row_count",
+            "official_attachment_ref_count",
+            "official_attachment_probe_count",
+            "official_attachment_recognized_count",
+            "official_attachment_text_read_count",
+            "official_pdf_probe_count",
+            "official_pdf_text_extracted_count",
+            "official_attachment_failure_counts",
+            "official_attachment_parse_anomaly_count",
+            "official_attachment_parse_anomalies",
+            "attachment_parse_failure_count",
+            "official_attachment_refs_present",
+            "official_pdf_text_extracted",
+            "official_attachment_rows_emitted",
+            "official_attachment_row_count",
+            "official_attachment_depth_clean",
+            "row_quality_gate_status",
+            "row_quality_gap",
+            "row_quality_weak_row_count",
+            "row_quality_rejected_or_ambiguous_count",
+            "row_quality_ambiguous_row_count",
+            "row_quality_rejected_row_count",
+            "row_quality_authoritative_row_count",
+            "row_quality_locator_quality_distribution",
+        ):
+            if field in data_moat_status:
+                source_quality[field] = data_moat_status.get(field)
         return {
             "contract_version": CONTRACT_VERSION,
             **read_model,

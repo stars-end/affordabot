@@ -1,0 +1,68 @@
+{
+  "attempts": [
+    {
+      "access_method": "http_get_json",
+      "corpus_row_id": "lgm-065",
+      "endpoint_url": "https://data.austintexas.gov/resource/2h5e-ntwt.json?$limit=5",
+      "extraction_depth": "affordability_units",
+      "http_status": 200,
+      "jurisdiction_id": "austin_tx",
+      "known_policy_reference_id": "kp-aus-affordable-housing-mandate-c45",
+      "normalized_fields_proven": [
+        "_10_to_19_units",
+        "_20_units",
+        "_2023_population"
+      ],
+      "package_id": "pkg::lgm-065",
+      "proof_source": "structured_source_runtime_probe",
+      "proof_status": "live_proven",
+      "response_hash": "5aa05a3c149d11d109679f498307b466666f1bd65f5c1673e1d1d363f22503db",
+      "retrieved_at": "2026-04-25T15:02:31+00:00",
+      "sample_row_count": 5,
+      "schema_hash": "93f5d339b3aca65c05095a309257786c2a491244edf66df29cd372f65584fbc6",
+      "source_family": "socrata_api"
+    }
+  ],
+  "benchmark_id": "local_government_data_moat_benchmark_v0",
+  "contract_version": "2026-04-25.structured-source-proof.v1",
+  "feature_key": "bd-3wefe.13.4.11",
+  "generated_at": "2026-04-25T15:02:31+00:00",
+  "matrix_digest": "bca1c6a3317ad8e942e6c1b2155a64d455dce018db6b3fd34084548b240df9d1",
+  "rows": [
+    {
+      "access_method": "http_get_json",
+      "corpus_row_id": "lgm-065",
+      "endpoint_url": "https://data.austintexas.gov/resource/2h5e-ntwt.json?$limit=5",
+      "extraction_depth": "affordability_units",
+      "http_status": 200,
+      "jurisdiction_id": "austin_tx",
+      "known_policy_reference_id": "kp-aus-affordable-housing-mandate-c45",
+      "normalized_fields_proven": [
+        "_10_to_19_units",
+        "_20_units",
+        "_2023_population"
+      ],
+      "package_id": "pkg::lgm-065",
+      "proof_source": "structured_source_runtime_probe",
+      "proof_status": "live_proven",
+      "response_hash": "5aa05a3c149d11d109679f498307b466666f1bd65f5c1673e1d1d363f22503db",
+      "retrieved_at": "2026-04-25T15:02:31+00:00",
+      "sample_row_count": 5,
+      "schema_hash": "93f5d339b3aca65c05095a309257786c2a491244edf66df29cd372f65584fbc6",
+      "source_family": "socrata_api"
+    }
+  ],
+  "schema_version": "local_government_corpus_structured_source_proof_v1",
+  "summary": {
+    "attempted_row_count": 1,
+    "attempted_row_ids": [
+      "lgm-065"
+    ],
+    "blocked_count": 0,
+    "blocked_row_ids": [],
+    "live_proven_count": 1,
+    "live_proven_row_ids": [
+      "lgm-065"
+    ]
+  }
+}

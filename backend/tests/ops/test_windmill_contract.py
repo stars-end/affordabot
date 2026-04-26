@@ -4,6 +4,8 @@ from pathlib import Path
 import pytest
 import requests
 
+from services.pipeline.domain.bridge import RunScopeRequest, _orchestration_refs
+
 
 ROOT = Path(__file__).resolve().parents[3]
 WINDMILL_DIR = ROOT / "ops" / "windmill" / "f" / "affordabot"
@@ -11,6 +13,7 @@ TRIGGER_SCRIPT_PATH = WINDMILL_DIR / "trigger_cron_job.py"
 WINDMILL_README_PATH = ROOT / "ops" / "windmill" / "README.md"
 POLICY_EVIDENCE_SCRIPT_PATH = WINDMILL_DIR / "policy_evidence_package_orchestration.py"
 BACKEND_MAIN_PATH = ROOT / "backend" / "main.py"
+BRIDGE_PATH = ROOT / "backend" / "services" / "pipeline" / "domain" / "bridge.py"
 
 
 spec = spec_from_file_location("windmill_trigger_cron_job", TRIGGER_SCRIPT_PATH)
@@ -106,6 +109,39 @@ def test_policy_evidence_backend_endpoint_route_mismatch_is_explicit():
     assert "pipeline_daily_refresh_domain_boundary__flow" in readme_text
     assert "bd-3wefe.13-live-domain-backend-2026-04-15-r1" in readme_text
     assert "succeeded_with_alerts" in readme_text
+
+
+def test_domain_bridge_orchestration_refs_fail_closed_placeholder_job_id():
+    request = RunScopeRequest(
+        contract_version="2026-04-13.windmill-domain.v1",
+        idempotency_key="bd-3wefe.13.4.4:lgm-007:20260417082402",
+        jurisdiction="San Jose CA",
+        source_family="meeting_minutes",
+        stale_status="fresh",
+        windmill_workspace="affordabot",
+        windmill_flow_path="f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+        windmill_run_id="01J9KJ5FK0XQ7CG1WM89AZ6RY4",
+        windmill_job_id="run_scope_pipeline:0:run_scope_pipeline",
+        search_query="San Jose housing minutes",
+        analysis_question="Summarize housing items",
+    )
+
+    refs = _orchestration_refs(request)
+    assert refs["scope_idempotency_key"].startswith(
+        "bd-3wefe.13.4.4:lgm-007:20260417082402::"
+    )
+    assert refs["windmill_run_id"] == "01J9KJ5FK0XQ7CG1WM89AZ6RY4"
+    assert refs["windmill_job_id"] is None
+    assert refs["windmill_job_id_reported"] == "run_scope_pipeline:0:run_scope_pipeline"
+    assert refs["windmill_job_id_source"] == "windmill_flow_input_unverified"
+    assert refs["windmill_job_id_missing_reason"] == "windmill_job_id_step_placeholder"
+
+
+def test_domain_bridge_run_context_contract_includes_orchestration_refs_and_idempotency_key():
+    bridge_text = BRIDGE_PATH.read_text(encoding="utf-8")
+
+    assert '"idempotency_key": request.idempotency_key' in bridge_text
+    assert '"orchestration_refs": orchestration_refs' in bridge_text
 
 
 def test_send_slack_alert_posts_webhook_payload(monkeypatch):

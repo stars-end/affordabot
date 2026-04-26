@@ -127,6 +127,18 @@ admin/frontend-readable output. `bd-3wefe.13` is therefore the hard architecture
 lock blocker. It is the decisive proof that the data moat can drive the final
 economic-analysis product, not just that the pipeline components can run.
 
+Super-reach correction:
+
+The next pass must not remain San-Jose-only. San Jose is a calibrated fixture,
+not the architecture boundary. The next `bd-3wefe.13` target is
+`local_government_data_moat_benchmark_v0`: a corpus-level benchmark across
+multiple jurisdictions, policy families, and source families. The corpus must
+prove official-source dominance, structured/source-family diversity, reusable
+package value, storage/readback, Windmill linkage, manual audit, and economic
+handoff classification. Deep economic analysis remains required for selected
+packages, but a package can have standalone data-moat value even when it is
+`stored_not_economic` or `qualitative_only`.
+
 ## Quality Questions Mapped To Beads
 
 | User question | Beads task | Required output |
@@ -390,25 +402,30 @@ Acceptance:
 - Every mapped row must include owner boundary, status (`canonical`, `canonical-new`, `POC`, `deprecated`, `duplicate`, or `unknown`), primary code paths, storage/read model, required tests/proofs, and stale-if paths.
 - Emits a final "new work routing rule" stating where future agents must look before changing scraped ingestion, structured ingestion, evidence package schemas, economic assumptions, Windmill flows, storage, admin APIs, or frontend display.
 
-### `bd-3wefe.13`: POC: real quality spine from local policy evidence to economic output
+### `bd-3wefe.13`: POC: local government data moat benchmark and economic handoff
 
 Purpose:
 
-Prove or falsify the central product claim with one real local policy artifact:
-Affordabot can combine scraped evidence and structured data into a durable
-package that is good enough for source-grounded, economically useful
-cost-of-living analysis and human audit.
+Prove or falsify the central product claim at corpus level: Affordabot can
+combine scraped evidence and structured data into durable, official-source
+dominant, reusable local-government evidence packages across jurisdictions and
+policy families, while classifying which packages can feed economic analysis,
+secondary research, qualitative output, or fail-closed rejection.
 
 Scope:
 
-- Use a real policy artifact, not an invented toy case. San Jose remains the
-  preferred jurisdiction because the prior work has search/provider evidence,
-  but the selected artifact must be real and must have an economically plausible
-  direct or indirect mechanism.
-- The package must include both scraped/reader evidence and structured metadata
-  where structured data is available. If structured enrichment is unavailable
-  for the selected artifact, the task must record the source-family failure and
-  either pick a better real artifact or fail the quality-spine gate.
+- Build a real local-government corpus, not an invented toy case and not a
+  San-Jose-only vertical. San Jose remains one golden fixture because the prior
+  work has search/provider, Legistar, storage, Windmill, and manual-audit
+  evidence.
+- Minimum target: 30 to 50 evidence packages, 3 or more jurisdictions, 5 or
+  more policy families, and 3 or more source families. If a smaller first pass
+  is necessary, it must end as `corpus_ready_with_gaps` with the exact missing
+  scope and no pass claim.
+- Every package must include scraped/reader evidence and structured metadata
+  where structured data is available. If structured enrichment is unavailable,
+  the package must record source-catalog evidence rather than silently treating
+  structured coverage as passed.
 - The proof must traverse the production-intended boundary: Windmill
   orchestrates, backend owns ranking/package/economic logic, Postgres stores
   relational/read-model truth, MinIO stores raw/intermediate artifacts, pgvector
@@ -416,16 +433,18 @@ Scope:
 
 Proof shape:
 
-- Deep vertical spine:
-  run one real artifact through the full source -> package -> storage ->
-  sufficiency -> canonical economic analysis -> admin/frontend-readable output
-  path.
-- Thin horizontal matrix:
-  score at least six real policy artifacts across at least two jurisdictions and
-  three mechanism families. These artifacts do not all require final economic
-  narrative output, but they must run far enough to classify search, ranking,
-  reader, structured enrichment, identity/dedupe, evidence-card extraction,
-  package readiness, and likely economic-analysis sufficiency.
+- Corpus matrix:
+  score 30 to 50 real policy artifacts across at least 3 jurisdictions, 5
+  policy families, and 3 source families. Each row must classify search,
+  ranking, reader, structured enrichment, identity/dedupe, evidence-card
+  extraction, package readiness, storage/readback, Windmill linkage, data-moat
+  value, and economic handoff.
+- Deep vertical spines:
+  run at least two real artifacts through the full source -> package -> storage
+  -> sufficiency -> canonical economic analysis or secondary-research proof ->
+  admin/frontend-readable output path. One must be a direct fiscal/fee/cost
+  case; one must be an indirect household cost-of-living or
+  secondary-research-required case.
 - Mechanism-family coverage:
   include direct fiscal/fee/cost change, compliance/construction/business cost,
   and indirect household cost-of-living mechanism examples. If a family cannot
@@ -434,30 +453,38 @@ Proof shape:
 - Provider/source coverage:
   evaluate private SearXNG primary behavior for every horizontal artifact, run
   Tavily fallback where SearXNG is weak or ambiguous, and use Exa only for a
-  capped evaluation subset. Include at least two structured source families
-  where available or explicit evidence that the selected artifact family lacks
-  free/easily-ingestible structured coverage.
+  capped evaluation subset. Include at least three source families and at least
+  one true structured API/raw source where available, or explicit evidence that
+  the selected jurisdiction/policy families lack free/easily-ingestible
+  structured coverage.
+- Corpus-level gates:
+  satisfy or honestly fail the C0-C6 gates in
+  `2026-04-16-data-moat-quality-gates.md` and the benchmark contract in
+  `2026-04-17-local-government-data-moat-benchmark-v0.md`.
 
 Implementation-ready two-agent split:
 
-- Agent A owns data moat and runtime path:
-  select the vertical artifact, assemble the horizontal matrix, run scraped
-  discovery/reader, attach structured metadata, build the
-  `PolicyEvidencePackage`, persist/read back storage refs, prove idempotent
-  replay, capture Windmill/backend run ids, and classify source/package failures.
+- Agent A owns corpus discovery, official-source dominance, and runtime path:
+  assemble the corpus matrix, run scraped discovery/reader, attach structured
+  metadata, build `PolicyEvidencePackage` rows, persist/read back storage refs,
+  prove idempotent replay where in scope, capture Windmill/backend run ids, and
+  classify source/package failures.
 - Agent B owns economic product and audit output:
-  consume the persisted/read-back package, run or adapt the canonical
+  consume selected persisted/read-back packages, run or adapt the canonical
   `AnalysisPipeline`/`LegislationResearchService` path, produce the sufficiency
   gate report, mechanism graph, parameter/assumption/model cards, final
   user-facing economic output, and admin/frontend-readable evidence output.
 - The orchestrator must reconcile Agent A and Agent B outputs into one scorecard
-  and one architecture recommendation. Agent B may start against Agent A's
-  checked-in fixture contract, but the final pass must use Agent A's persisted
-  package artifact.
+  and one architecture recommendation. The orchestrator must manually audit a
+  representative sample across jurisdictions, policy families, and source
+  families, not just the strongest San Jose package.
 
 Quality-driven retry loop:
 
-- The POC may run one baseline attempt plus up to five retry rounds.
+- The POC may run adaptive implementation/eval rounds as a ceiling, not a plan.
+  Each round must improve measured corpus/package gates or prove a concrete
+  blocker. Do not keep cycling if no substantive progress occurs across one or
+  two rounds.
 - Each retry round must begin from the prior scorecard and name the dominant
   failure class before changing anything.
 - Each retry round must apply targeted data-quality improvements only; it must
@@ -500,17 +527,26 @@ Strategic HITL blockers:
 
 Acceptance:
 
-- End-to-end evidence:
-  one real artifact has a recorded source trace from search/structured inputs to
-  selected candidate, reader output, evidence cards, package id, storage refs,
-  sufficiency gate, economic analysis, and read-model/frontend/admin output.
-- Horizontal data quality:
-  at least six real artifacts are scored across at least two jurisdictions and
-  three mechanism families. Each matrix row records provider results, selected
-  candidate, reader status, structured enrichment status, canonical identity,
-  evidence-card extraction status, package-readiness classification
-  (`quantified_ready`, `secondary_research_needed`, `qualitative_only`, or
-  `fail_closed`), and dominant failure class.
+- Corpus evidence:
+  30 to 50 real artifacts/packages are scored across at least 3 jurisdictions,
+  5 policy families, and 3 source families, or the run ends as
+  `corpus_ready_with_gaps` with exact missing scope and evidence-backed reasons.
+- Official-source dominance:
+  at least 80 percent of manually audited packages select official primary
+  sources. External sources are secondary context unless a documented
+  source-of-truth rule promotes them.
+- Source-family diversity:
+  at least three source families are represented, including one true structured
+  API/raw source where available, or a source catalog proves structured-source
+  absence for the selected jurisdictions/policy families.
+- Package reusability:
+  every package is classified as `economic_analysis_ready`,
+  `economic_handoff_candidate`, `secondary_research_needed`, `qualitative_only`,
+  `stored_not_economic`, `not_policy_evidence`, or `fail`.
+- Economic handoff:
+  at least five packages are plausible economic-handoff candidates and at least
+  two packages run through deeper direct/indirect analysis or governed secondary
+  research.
 - Source support:
   every factual claim in the final analysis traces to one or more evidence cards;
   every economic claim traces to a parameter card, assumption card, model card,
@@ -543,6 +579,10 @@ Acceptance:
   coverage, identity/dedupe, storage/read-back, Windmill/orchestration,
   sufficiency gate, economic reasoning, LLM narrative, or frontend/read-model
   auditability.
+- Golden regression:
+  produces a reusable golden policy regression set with stable query inputs,
+  expected jurisdiction, expected policy family, selected source URL, package
+  id, verdict, and failure class.
 - Retry evidence:
   if the first attempt fails, each retry round records failure diagnosis,
   targeted tweak, before/after scorecard delta, preserved artifacts, and whether
@@ -556,6 +596,11 @@ Required artifacts:
 - `docs/poc/policy-evidence-quality-spine/artifacts/horizontal_matrix.json`
 - `docs/poc/policy-evidence-quality-spine/artifacts/quality_spine_report.md`
 - `docs/poc/policy-evidence-quality-spine/artifacts/retry_ledger.json`
+- `docs/poc/policy-evidence-quality-spine/artifacts/local_government_corpus_matrix.json`
+- `docs/poc/policy-evidence-quality-spine/artifacts/local_government_corpus_scorecard.json`
+- `docs/poc/policy-evidence-quality-spine/local_government_corpus_report.md`
+- `docs/poc/policy-evidence-quality-spine/manual_audit_local_government_corpus.md`
+- `docs/poc/policy-evidence-quality-spine/golden_policy_regression_set.md`
 - Updated brownfield map and economic-literature inventory if new canonical,
   duplicate, stale, or unsupported paths are discovered.
 
@@ -636,6 +681,23 @@ Final two-agent quality-spine wave:
 
 ## Validation Gates
 
+All validation gates must comply with the hard pass/fail/not_proven criteria defined in [2026-04-16-data-moat-quality-gates.md](2026-04-16-data-moat-quality-gates.md). The overarching constraint is that data moat success requires comprehensive, accurate, robust, fit-for-purpose evidence, not just architecture mechanics.
+
+### Cycle 25 Honest Assessment
+
+`bd-3wefe.13` (Cycle 25) did not pass the product gates. The honest verdict is `PASS_SCRAPED_ARTIFACT_AND_PACKAGE_MECHANICS_ONLY__STRUCTURED_MOAT_NOT_PROVEN__ECONOMIC_DECISION_GRADE_NOT_PROVEN`. SearXNG/scraped artifact mechanics and package persistence worked. True structured-source economic depth was not proven (Legistar Web API was shallow, CKAN was unavailable, Tavily rescued parameters but is secondary search-derived). Economic analysis correctly failed closed, but that does not prove the upstream data moat is real. Under the gate contract, Cycle 25 is `package_mechanics_only`. The next POC must prove `decision_grade_data_moat`, or honestly classify the result as `evidence_ready_with_gaps`, `package_mechanics_only`, `fail`, or `blocked_hitl`.
+
+### Decision-Grade Data Moat Standard
+
+For this epic, data moat success means the package is not merely stored or visible in admin. It must prove the four product dimensions:
+
+- comprehensive: expected source families and policy lineage are searched, linked, or marked missing with evidence.
+- accurate: extracted facts and parameters are quote-, page-, field-, or row-grounded with units, denominator, applicability, date, and ambiguity checks.
+- robust: reruns, provider fallback, API/source-shape drift, unavailable sources, and duplicate evidence cannot silently produce false passes.
+- fit for purpose: the package emits economic handoff quality, mechanism candidates, parameter inventory, missing parameters, assumption needs, secondary-research needs, unsupported-claim risks, and a recommended next action.
+
+Architecture lock is blocked unless the data moat verdict reaches `decision_grade_data_moat` or the review packet explicitly argues why `evidence_ready_with_gaps` is acceptable for the next implementation stage.
+
 Before `bd-3wefe.8` can recommend architecture lock:
 
 - Code audit: dx-review has mapped existing raw/structured-data-to-analysis code and identified already-built economic capabilities.
@@ -665,6 +727,7 @@ Before `bd-3wefe.8` can recommend architecture lock:
 
 - `docs/architecture/README.md`
 - `docs/specs/2026-04-14-economic-evidence-pipeline-lockdown.md`
+- `docs/specs/2026-04-16-data-moat-quality-gates.md`
 - `docs/poc/source-integration/final_source_strategy_recommendation.md`
 - `docs/poc/source-integration/artifacts/scrape_structured_integration_report.json`
 - `docs/poc/source-expansion/artifacts/source_expansion_api_key_matrix.json`

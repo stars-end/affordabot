@@ -1,0 +1,2187 @@
+{
+  "backend_endpoint_readiness": {
+    "local_mock_probe": {
+      "note": "local mock backend endpoint probe passed",
+      "status": "passed"
+    },
+    "missing_inputs": [],
+    "note": "backend endpoint config is present and local mock probe passed",
+    "status": "ready_for_opt_in"
+  },
+  "blockers": [
+    {
+      "blocking": false,
+      "category": "storage/runtime",
+      "details": {
+        "reason": "[Errno 8] nodename nor servname provided, or not known",
+        "status": "probe_failed"
+      },
+      "message": "DB/storage probe unavailable"
+    },
+    {
+      "blocking": false,
+      "category": "storage/runtime",
+      "details": {
+        "pending_gates": [
+          "postgres_rows_written",
+          "pgvector_index_probe",
+          "minio_object_refs",
+          "reader_output_ref",
+          "analysis_provenance_chain",
+          "idempotent_rerun",
+          "stale_drill_stale_but_usable",
+          "stale_drill_stale_blocked"
+        ]
+      },
+      "message": "storage/runtime evidence gates are pending"
+    }
+  ],
+  "canonical_variables": {
+    "BACKEND_ENDPOINT_AUTH_TOKEN": "optional local readiness input only",
+    "BACKEND_ENDPOINT_URL": "optional local readiness input only",
+    "BACKEND_PUBLIC_URL_VAR": "f/affordabot/BACKEND_PUBLIC_URL",
+    "CRON_SECRET_VAR": "f/affordabot/CRON_SECRET",
+    "TMP_WMILL_CONFIG": "auto-created temporary profile directory",
+    "WINDMILL_API_TOKEN": "op://dev/Agent-Secrets-Production/WINDMILL_API_TOKEN",
+    "WINDMILL_BASE_URL": "derived as WINDMILL_DEV_LOGIN_URL without /user/login",
+    "WINDMILL_DEV_LOGIN_URL": "op://dev/Agent-Secrets-Production/WINDMILL_DEV_LOGIN_URL",
+    "WINDMILL_WORKSPACE": "affordabot"
+  },
+  "classification": "backend_bridge_surface_ready",
+  "db_storage_probe": {
+    "reason": "[Errno 8] nodename nor servname provided, or not known",
+    "status": "probe_failed"
+  },
+  "deployment_surface": {
+    "flow_deployed": true,
+    "flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+    "flow_unscheduled": true,
+    "script_deployed": true,
+    "script_path": "f/affordabot/pipeline_daily_refresh_domain_boundary"
+  },
+  "feature_key": "bd-3wefe.13",
+  "full_run_readiness": "partial",
+  "generated_at": "2026-04-17T06:06:11.326122+00:00",
+  "harness_version": "2026-04-13.worker-b.v2",
+  "idempotent_rerun": {
+    "attempted": false
+  },
+  "manual_audit_notes": {
+    "llm_analysis_excerpt": "The evidence outlines San Jose Ordinance PP22-015, which amends Title 20 to implement the Parking and Transportation Demand Management Policy. This includes removing minimum parking requirements in downtown and general zoning regulations, adding TDM sections, and suspending enforcement for specific outdoor business operations until June 30, 2023.",
+    "llm_quality_note": "LLM analysis produced a substantive answer from persisted evidence.",
+    "manual_verdict": "PASS_MANUAL_AUDIT",
+    "reader_output_excerpt": "",
+    "reader_quality_note": "Reader output was persisted and provided to analysis."
+  },
+  "manual_run": {
+    "attempted": true,
+    "command_client": "backend_endpoint",
+    "contract_metadata_present": true,
+    "expected_step_sequence": [
+      "search_materialize",
+      "freshness_gate",
+      "read_fetch",
+      "index",
+      "analyze",
+      "summarize_run"
+    ],
+    "final_status": "succeeded",
+    "idempotency_key": "bd-3wefe.13-live-cycle-41-20260417060514",
+    "job_get": {
+      "canceled": false,
+      "completed_at": "2026-04-17T06:06:01.902191Z",
+      "created_at": "2026-04-17T06:05:26.262791Z",
+      "deleted": false,
+      "duration_ms": 35555,
+      "flow_status": {
+        "failure_module": {
+          "id": "failure_handler",
+          "type": "WaitingForPriorSteps"
+        },
+        "modules": [
+          {
+            "branch_chosen": null,
+            "id": "build_scope_matrix",
+            "skipped": false,
+            "type": "Success"
+          },
+          {
+            "branch_chosen": null,
+            "id": "per_scope_pipeline",
+            "skipped": false,
+            "type": "Success"
+          },
+          {
+            "branch_chosen": {
+              "type": "default"
+            },
+            "id": "branch_outcome_review",
+            "skipped": false,
+            "type": "Success"
+          }
+        ],
+        "step": 3
+      },
+      "id": "019d9a0b-5180-9853-4f50-4f2391710fc3",
+      "job_kind": "flow",
+      "script_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow"
+    },
+    "job_logs_excerpt": "\u001b[33mNo wmill.yaml found. Use 'wmill init' to bootstrap it.\u001b[39m\n\u001b[36m\u001b[1m\n====== build_scope_matrix ======\u001b[22m\u001b[39m\njob=019d9a0b-51d9-54fb-05b8-06f56e438fd0 tag=python3 worker=wk-default-661cef133dc0-WZTwK hostname=661cef133dc0 isolation=none\n\nenv deps from local cache: certifi==2026.2.25, charset-normalizer==3.4.7, idna==3.11, requests==2.33.1, urllib3==2.6.3\n\n\n--- PYTHON (3.12) CODE EXECUTION ---\n\n\u001b[36m\u001b[1m\n====== per_scope_pipeline (iteration 0) ======\u001b[22m\u001b[39m\nFlow job completed with success\n\n\u001b[36m\u001b[1m\n====== branch_outcome_review ======\u001b[22m\u001b[39m\nFlow job completed with success\n\n",
+    "scope_totals": {
+      "scope_blocked": 0,
+      "scope_failed": 0,
+      "scope_succeeded": 1,
+      "scope_total": 1
+    },
+    "step_sequence": [
+      "search_materialize",
+      "freshness_gate",
+      "read_fetch",
+      "index",
+      "analyze",
+      "summarize_run"
+    ],
+    "step_sequence_matches_expected": true,
+    "windmill_job_id": "019d9a0b-5180-9853-4f50-4f2391710fc3"
+  },
+  "policy_evidence_capture": {
+    "package_identity": {
+      "package_id": "pkg-c48016e9161bbb4a8fef90c7",
+      "storage_admin_refs": {
+        "content_artifact_ids": [],
+        "pipeline_command_ids": []
+      }
+    },
+    "requested_policy_scope": {
+      "analysis_question": "Capture authoritative San Jose parking policy evidence including policy action, enforcement scope, and effective dates.",
+      "jurisdiction": "San Jose CA",
+      "scenario": "parking_policy",
+      "search_query": "San Jose parking minimums ordinance policy action city council",
+      "source_family": "parking_policy"
+    },
+    "selected_read_artifact": {
+      "raw_scrape_ids": [
+        "2a56d499-358c-51a2-b83a-bf6a14305c78"
+      ],
+      "reader_output_ref": "",
+      "title": "",
+      "url": ""
+    },
+    "semantics": {
+      "classification": "useful_local_policy_evidence_not_economic_ready",
+      "expected_economic_readiness": "not_required",
+      "expected_evidence_use": "useful_local_policy_evidence",
+      "observed_economic_handoff_ready": false,
+      "observed_useful_local_policy_evidence": true
+    }
+  },
+  "result_payload": {
+    "alerts": [
+      "policy_evidence_fail_closed"
+    ],
+    "scope_blocked": 0,
+    "scope_failed": 0,
+    "scope_results": [
+      {
+        "alert": "policy_evidence_fail_closed",
+        "backend_response": {
+          "decision_reason": "run_summary_materialized",
+          "missing_runtime_adapters": [],
+          "refs": {
+            "analyze_reason": "analysis_completed",
+            "analyze_retry_class": "none",
+            "backend_run_id": "43f4dca9-e202-43c4-9e27-599c737f775e",
+            "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=parking_policy|doctype=meeting_minutes|url=https://sanjose.legistar.com/gateway.aspx?id=%2Fmatter.aspx%3Fkey%3D11803&m=l",
+            "document_id": "b6f52508-8e26-5250-bb7a-da5d5340aef4",
+            "fail_closed_reasons": [
+              "analysis_sufficiency:Sufficient",
+              "blocking_gate_present",
+              "no_quant_support_path"
+            ],
+            "freshness_gate_reason": "fresh",
+            "freshness_gate_retry_class": "none",
+            "idempotent_replay": false,
+            "index_reason": "chunks_indexed",
+            "index_retry_class": "none",
+            "package_artifact_uri": "minio://affordabot-artifacts/policy-evidence/packages/pkg-c48016e9161bbb4a8fef90c7.json",
+            "package_id": "pkg-c48016e9161bbb4a8fef90c7",
+            "raw_scrape_id": "2a56d499-358c-51a2-b83a-bf6a14305c78",
+            "read_fetch_reason": "raw_scrapes_materialized",
+            "read_fetch_retry_class": "none",
+            "reader_artifact_uri": "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/parking_policy/reader_output/b993c32f61c1cec9167c2eb4ca813c175e2717153d5f8ac976f53f889827e65b.md",
+            "run_id": "43f4dca9-e202-43c4-9e27-599c737f775e",
+            "search_materialize_reason": "fresh_snapshot_materialized",
+            "search_materialize_retry_class": "none",
+            "selected_url": "https://sanjose.legistar.com/gateway.aspx?m=l&id=/matter.aspx?key=11803",
+            "storage_proof_mode": "direct_live_probe",
+            "storage_status": "stored",
+            "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+            "windmill_run_id": "bd-3wefe.13-live-cycle-41-20260417060514"
+          },
+          "status": "succeeded",
+          "storage_mode": "railway_runtime"
+        },
+        "scope_index": 0,
+        "scope_item": {
+          "jurisdiction": "San Jose CA",
+          "scope_key": "san jose ca::parking_policy",
+          "source_family": "parking_policy"
+        },
+        "status": "succeeded",
+        "steps": {
+          "analyze": {
+            "alerts": [],
+            "command": "analyze",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "counts": {
+              "analyses": 1,
+              "evidence_chunks": 20
+            },
+            "created_at": "2026-04-17T06:05:58.233448+00:00",
+            "decision_reason": "analysis_completed",
+            "details": {
+              "analysis": {
+                "key_points": [
+                  "Policy Action: Amendment to Title 20 (Zoning Ordinance) for the Parking and TDM Policy Ordinance (PP22-015).",
+                  "Enforcement Scope: Staff directed to suspend enforcement for Al Fresco outdoor business operations until June 30, 2023.",
+                  "Specific Revisions: Removal of mandatory minimum off-street parking requirements in Chapter 20.90 and 20.70 Downtown Zoning Regulations.",
+                  "Effective/Dates: Planning Commission recommendation on 11/16/2022; Council hearing on 12/6/2022; Al Fresco suspension effective until June 30, 2023."
+                ],
+                "sufficiency_state": "Sufficient",
+                "summary": "The evidence outlines San Jose Ordinance PP22-015, which amends Title 20 to implement the Parking and Transportation Demand Management Policy. This includes removing minimum parking requirements in downtown and general zoning regulations, adding TDM sections, and suspending enforcement for specific outdoor business operations until June 30, 2023."
+              },
+              "evidence_selection": {
+                "candidate_chunk_count": 20,
+                "selected_chunk_count": 20,
+                "selected_chunks": [
+                  {
+                    "chunk_id": "8cc9a045-14ab-5613-b042-27a7dfb7f603",
+                    "chunk_index": 18,
+                    "matched_action_signals": [
+                      "adopted",
+                      "resolution",
+                      "item "
+                    ],
+                    "matched_question_terms": [
+                      "san"
+                    ],
+                    "rank": 1,
+                    "score": 25,
+                    "snippet": "CEQA: Determination of Consistency with the Envision San Jos\u00e9 2040 General Plan Final Program Environmental Impact Report (FEIR), adopted through Resolution No. 76041, and Supplemental EIR Resolution "
+                  },
+                  {
+                    "chunk_id": "9ba2e3b6-4a2e-5061-93ea-863bf0666457",
+                    "chunk_index": 3,
+                    "matched_action_signals": [
+                      "ordinance",
+                      "zoning"
+                    ],
+                    "matched_question_terms": [
+                      "san",
+                      "parking",
+                      "policy"
+                    ],
+                    "rank": 2,
+                    "score": 17,
+                    "snippet": "Title:PP22-015 - Amendment to Title 20 (Zoning Ordinance or Zoning Code) of the San Jos\u00e9 Municipal Code for the Parking and Transportation Demand Management Policy Ordinance. - TO BE HEARD IMMEDIATELY"
+                  },
+                  {
+                    "chunk_id": "83bdce88-9566-56d4-8f1b-c6e14cdc4a5c",
+                    "chunk_index": 8,
+                    "matched_action_signals": [
+                      "ordinance",
+                      "zoning"
+                    ],
+                    "matched_question_terms": [
+                      "san",
+                      "parking",
+                      "policy"
+                    ],
+                    "rank": 3,
+                    "score": 17,
+                    "snippet": "PP22-015 - Amendment to Title 20 (Zoning Ordinance or Zoning Code) of the San Jos\u00e9 Municipal Code for the Parking and Transportation Demand Management Policy Ordinance. - TO BE HEARD IMMEDIATELY AFTER"
+                  },
+                  {
+                    "chunk_id": "82b572d1-0dc2-59c6-b348-a07589628e58",
+                    "chunk_index": 10,
+                    "matched_action_signals": [
+                      "ordinance",
+                      "zoning"
+                    ],
+                    "matched_question_terms": [
+                      "san"
+                    ],
+                    "rank": 4,
+                    "score": 11,
+                    "snippet": "(a) Approve an ordinance of the City of San Jos\u00e9 amending Title 20 (Zoning Ordinance or Zoning Code) of the San Jos\u00e9 Municipal Code to:"
+                  },
+                  {
+                    "chunk_id": "1e2a6bac-4edd-5802-8dd4-729c7d3e924f",
+                    "chunk_index": 17,
+                    "matched_action_signals": [
+                      "compliance"
+                    ],
+                    "matched_question_terms": [
+                      "san",
+                      "enforcement"
+                    ],
+                    "rank": 5,
+                    "score": 10,
+                    "snippet": "(b) Direct staff to continue suspending enforcement until June 30, 2023, of land use permits and provisions of the San Jos\u00e9 Municipal Code to continue to allow outdoor business operations on private p"
+                  },
+                  {
+                    "chunk_id": "07b0fa59-65e8-545b-ac11-13abe77cfdb0",
+                    "chunk_index": 13,
+                    "matched_action_signals": [
+                      "zoning"
+                    ],
+                    "matched_question_terms": [
+                      "parking"
+                    ],
+                    "rank": 6,
+                    "score": 7,
+                    "snippet": "(3) Revise tables and text in 20.70 Downtown Zoning Regulations to remove requirements and references to mandatory minimum off-street parking;"
+                  },
+                  {
+                    "chunk_id": "0dd9237e-4b9e-56af-b404-97876b1377ee",
+                    "chunk_index": 2,
+                    "matched_action_signals": [],
+                    "matched_question_terms": [
+                      "action"
+                    ],
+                    "rank": 7,
+                    "score": 3,
+                    "snippet": "On agenda:12/6/2022 Final action:"
+                  },
+                  {
+                    "chunk_id": "4ccfaf14-7433-5d20-9177-eaac0a3996ba",
+                    "chunk_index": 4,
+                    "matched_action_signals": [],
+                    "matched_question_terms": [
+                      "action"
+                    ],
+                    "rank": 8,
+                    "score": 3,
+                    "snippet": "| Date | Ver. | Action By | Action | Result | Action Details | Meeting Details | Video |"
+                  },
+                  {
+                    "chunk_id": "4fd37fd4-37aa-5e78-bd59-27ff9d371781",
+                    "chunk_index": 11,
+                    "matched_action_signals": [],
+                    "matched_question_terms": [
+                      "parking"
+                    ],
+                    "rank": 9,
+                    "score": 3,
+                    "snippet": "(1) Add Part 9 Transportation Demand Management (TDM) to the retitled Chapter 20.90 Parking, Loading and Transportation Demand Management;"
+                  },
+                  {
+                    "chunk_id": "8890a87a-0e7c-5278-91cb-3216117672c2",
+                    "chunk_index": 12,
+                    "matched_action_signals": [],
+                    "matched_question_terms": [
+                      "parking"
+                    ],
+                    "rank": 10,
+                    "score": 3,
+                    "snippet": "(2) Revise tables and text for in Chapter 20.90 to remove parking minimums, modify parking space design standards, and modify parking requirements for bicycle and two-wheeled motorized vehicle parking"
+                  },
+                  {
+                    "chunk_id": "974cfe14-d627-5d07-b1f1-eb3b51a8bf4d",
+                    "chunk_index": 14,
+                    "matched_action_signals": [],
+                    "matched_question_terms": [
+                      "parking"
+                    ],
+                    "rank": 11,
+                    "score": 3,
+                    "snippet": "(4) Remove references to parking requirements in Chapters 20.55, 20.80, 20.150, 20.180, 20.190 and 20.195;"
+                  },
+                  {
+                    "chunk_id": "8b1d3204-c504-5ec5-af4d-7dcec54f6654",
+                    "chunk_index": 15,
+                    "matched_action_signals": [],
+                    "matched_question_terms": [
+                      "parking"
+                    ],
+                    "rank": 12,
+                    "score": 3,
+                    "snippet": "(5) Revise and add text to expand/modify processes for issuing outdoor event permits, outdoor vending permits and conversion of existing parking to outdoor use in Chapter 20.80 Specific Use Regulation"
+                  },
+                  {
+                    "chunk_id": "28bb3a72-dfbb-5c90-8e92-8645483453c1",
+                    "chunk_index": 16,
+                    "matched_action_signals": [],
+                    "matched_question_terms": [
+                      "san"
+                    ],
+                    "rank": 13,
+                    "score": 3,
+                    "snippet": "(6) Make other technical, non-substantive, or formatting changes within those section of Title 20 of the San Jos\u00e9 Municipal Code."
+                  },
+                  {
+                    "chunk_id": "110c66f0-c262-5828-b147-2192142f3b30",
+                    "chunk_index": 0,
+                    "matched_action_signals": [],
+                    "matched_question_terms": [],
+                    "rank": 14,
+                    "score": 0,
+                    "snippet": "File #:22-1876 Version:1"
+                  },
+                  {
+                    "chunk_id": "b30ca7db-8437-5776-8d16-bec84e2e1c5d",
+                    "chunk_index": 1,
+                    "matched_action_signals": [],
+                    "matched_question_terms": [],
+                    "rank": 15,
+                    "score": 0,
+                    "snippet": "Type:Community & Economic Development Status:Agenda Ready"
+                  },
+                  {
+                    "chunk_id": "5f6b3ab8-fb4a-57df-88ed-2801547d0478",
+                    "chunk_index": 5,
+                    "matched_action_signals": [],
+                    "matched_question_terms": [],
+                    "rank": 16,
+                    "score": 0,
+                    "snippet": "| --- | --- | --- | --- | --- | --- | --- | --- |"
+                  },
+                  {
+                    "chunk_id": "d4600cb3-5456-5853-9add-4e3894705c3e",
+                    "chunk_index": 6,
+                    "matched_action_signals": [],
+                    "matched_question_terms": [],
+                    "rank": 17,
+                    "score": 0,
+                    "snippet": "| 12/6/2022 | 1 | City Council | | | Not available | Meeting details | Not available |"
+                  },
+                  {
+                    "chunk_id": "af2dda46-d8a7-5d19-bec0-0f2cd50d331e",
+                    "chunk_index": 7,
+                    "matched_action_signals": [],
+                    "matched_question_terms": [],
+                    "rank": 18,
+                    "score": 0,
+                    "snippet": "...Title"
+                  },
+                  {
+                    "chunk_id": "dff8367c-6870-5f5e-9df8-76de860a0bfa",
+                    "chunk_index": 9,
+                    "matched_action_signals": [],
+                    "matched_question_terms": [],
+                    "rank": 19,
+                    "score": 0,
+                    "snippet": "...Recommendations"
+                  },
+                  {
+                    "chunk_id": "10a4dd4e-f4f8-55dc-b1d4-0f435174215e",
+                    "chunk_index": 19,
+                    "matched_action_signals": [],
+                    "matched_question_terms": [],
+                    "rank": 20,
+                    "score": 0,
+                    "snippet": "Click here for full text"
+                  }
+                ]
+              }
+            },
+            "envelope": {
+              "analysis_question": "Capture authoritative San Jose parking policy evidence including policy action, enforcement scope, and effective dates.",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-3wefe.13-live-cycle-41-20260417060514",
+              "jurisdiction": "San Jose CA",
+              "orchestrator": "windmill",
+              "scope_idempotency_key": "bd-3wefe.13-live-cycle-41-20260417060514::2c3802ea3a8739e3",
+              "search_query": "San Jose parking minimums ordinance policy action city council",
+              "source_family": "parking_policy",
+              "stale_status": "fresh",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-41-20260417060514",
+              "windmill_workspace": "affordabot"
+            },
+            "refs": {
+              "analysis_id": "1d682e39-1a46-56bb-8fb4-c0e110e7af72",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-41-20260417060514"
+            },
+            "retry_class": "none",
+            "status": "succeeded"
+          },
+          "freshness_gate": {
+            "alerts": [],
+            "command": "freshness_gate",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "counts": {
+              "search_results": 10
+            },
+            "created_at": "2026-04-17T06:05:28.483104+00:00",
+            "decision_reason": "fresh",
+            "details": {
+              "fail_closed_ceiling_hours": 168,
+              "fresh_hours": 24,
+              "freshness_status": "fresh",
+              "snapshot_age_hours": 0,
+              "stale_usable_ceiling_hours": 72
+            },
+            "envelope": {
+              "analysis_question": "Capture authoritative San Jose parking policy evidence including policy action, enforcement scope, and effective dates.",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-3wefe.13-live-cycle-41-20260417060514",
+              "jurisdiction": "San Jose CA",
+              "orchestrator": "windmill",
+              "scope_idempotency_key": "bd-3wefe.13-live-cycle-41-20260417060514::2c3802ea3a8739e3",
+              "search_query": "San Jose parking minimums ordinance policy action city council",
+              "source_family": "parking_policy",
+              "stale_status": "fresh",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-41-20260417060514",
+              "windmill_workspace": "affordabot"
+            },
+            "refs": {
+              "search_snapshot_id": "d3377738-e74e-4c10-b5b7-5991f15bf44f",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-41-20260417060514"
+            },
+            "retry_class": "none",
+            "status": "succeeded"
+          },
+          "index": {
+            "alerts": [],
+            "command": "index",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "counts": {
+              "chunks": 20
+            },
+            "created_at": "2026-04-17T06:05:38.698614+00:00",
+            "decision_reason": "chunks_indexed",
+            "details": {
+              "embedding_count": 20,
+              "embedding_provider": "openrouter:qwen/qwen3-embedding-8b"
+            },
+            "envelope": {
+              "analysis_question": "Capture authoritative San Jose parking policy evidence including policy action, enforcement scope, and effective dates.",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-3wefe.13-live-cycle-41-20260417060514",
+              "jurisdiction": "San Jose CA",
+              "orchestrator": "windmill",
+              "scope_idempotency_key": "bd-3wefe.13-live-cycle-41-20260417060514::2c3802ea3a8739e3",
+              "search_query": "San Jose parking minimums ordinance policy action city council",
+              "source_family": "parking_policy",
+              "stale_status": "fresh",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-41-20260417060514",
+              "windmill_workspace": "affordabot"
+            },
+            "refs": {
+              "document_id": "b6f52508-8e26-5250-bb7a-da5d5340aef4",
+              "raw_scrape_ids": [
+                "2a56d499-358c-51a2-b83a-bf6a14305c78"
+              ],
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-41-20260417060514"
+            },
+            "retry_class": "none",
+            "status": "succeeded"
+          },
+          "read_fetch": {
+            "alerts": [],
+            "command": "read_fetch",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "counts": {
+              "artifacts": 1,
+              "raw_scrapes": 1
+            },
+            "created_at": "2026-04-17T06:05:36.586627+00:00",
+            "decision_reason": "raw_scrapes_materialized",
+            "details": {
+              "candidate_audit": [
+                {
+                  "candidate_artifact_family": "official_page",
+                  "fee_schedule_gate": {
+                    "authoritative_policy_text_ok": false,
+                    "classified_as_maintained_fee_schedule": false,
+                    "passed": false,
+                    "reason": "missing_fee_schedule_signals"
+                  },
+                  "outcome": "materialized_raw_scrape",
+                  "rank": 1,
+                  "raw_scrape_id": "2a56d499-358c-51a2-b83a-bf6a14305c78",
+                  "score": 14,
+                  "url": "https://sanjose.legistar.com/gateway.aspx?m=l&id=/matter.aspx?key=11803"
+                }
+              ],
+              "ranked_candidates": [
+                {
+                  "input_index": 8,
+                  "rank": 1,
+                  "reasons": [
+                    "url_signal:legistar.com",
+                    "url_signal:gateway.aspx",
+                    "url_high_value:legistar.com/gateway.aspx",
+                    "text_signal:ordinance"
+                  ],
+                  "score": 14,
+                  "snippet": "Title: PP22-015 - Amendment to Title 20 (Zoning Ordinance or Zoning Code) of the San Jos\u00e9 Municipal Code for the Parking and Transportation Demand Management Policy Ordinance.",
+                  "title": "City of San Jos\u00e9 - File #: 22-1876",
+                  "url": "https://sanjose.legistar.com/gateway.aspx?m=l&id=%2Fmatter.aspx%3Fkey%3D11803"
+                },
+                {
+                  "input_index": 6,
+                  "rank": 2,
+                  "reasons": [
+                    "url_signal:.pdf",
+                    "url_high_value:.pdf",
+                    "text_signal:council",
+                    "text_signal:ordinance"
+                  ],
+                  "score": 13,
+                  "snippet": "RE: 6/14 City Council Item 10.3 Adopting a Comprehensive Parking Policy and TDM Ordinance Dear San Jose City Council, Thank you for your bold leadership on enacting change that will help San Jose reach ambitious climate goals, including becominging carbon neutral by 2030.",
+                  "title": "PDF June 14 SJ Parking Policy Council letter - actionnetwork.org",
+                  "url": "https://actionnetwork.org/user_files/user_files/000/077/644/original/SJ_Parking_Policy_Council_Letter.pdf"
+                },
+                {
+                  "input_index": 2,
+                  "rank": 3,
+                  "reasons": [
+                    "url_signal:.pdf",
+                    "url_high_value:.pdf",
+                    "text_signal:council",
+                    "text_signal:ordinance",
+                    "penalty:home"
+                  ],
+                  "score": 11,
+                  "snippet": "Jun 13, 2022 \u00b7 ordinance that: 1. Page 2. - Removes mandatory minimum parking limits;. - Updates the City's Transportation Demand Management (TDM) requirements ...",
+                  "title": "[PDF] June 14 SJ Parking Policy Council letter - SV@Home",
+                  "url": "https://siliconvalleyathome.org/wp-content/uploads/2022/06/June-14-SJ-Parking-Policy-Council-letter-Updated.pdf"
+                },
+                {
+                  "input_index": 7,
+                  "rank": 4,
+                  "reasons": [
+                    "url_signal:legistar.com",
+                    "text_signal:ordinance"
+                  ],
+                  "score": 6,
+                  "snippet": "Nov 30, 2022 \u00b7 Title: PP22-015 - Amendment to Title 20 (Zoning Ordinance or Zoning Code) of the San Jos\u00e9 Municipal Code for the Parking and Transportation ...",
+                  "title": "City of San Jos\u00e9 - File #: 22-1876 - Calendar",
+                  "url": "https://sanjose.legistar.com/LegislationDetail.aspx?ID=5950698&GUID=477281B1-FB98-4899-BF37-4F080890914D"
+                },
+                {
+                  "input_index": 1,
+                  "rank": 5,
+                  "reasons": [
+                    "text_signal:council",
+                    "text_signal:ordinance",
+                    "text_action:approved"
+                  ],
+                  "score": 4,
+                  "snippet": "For nearly four years now, San ... goals. In June of 2022, the San Jose city council directed staff to investigate to what extent the city should remove parking minimums. In November, the planning commission approved the ordinance presented by the staff and sent it to ... More on reddit.com",
+                  "title": "Last night San Jose became the largest city in the nation to eliminate mandatory parking minimums citywide",
+                  "url": "https://www.reddit.com/r/SanJose/comments/zfcuko/last_night_san_jose_became_the_largest_city_in/"
+                }
+              ],
+              "reader_provider_errors": [],
+              "reader_quality_failures": []
+            },
+            "envelope": {
+              "analysis_question": "Capture authoritative San Jose parking policy evidence including policy action, enforcement scope, and effective dates.",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-3wefe.13-live-cycle-41-20260417060514",
+              "jurisdiction": "San Jose CA",
+              "orchestrator": "windmill",
+              "scope_idempotency_key": "bd-3wefe.13-live-cycle-41-20260417060514::2c3802ea3a8739e3",
+              "search_query": "San Jose parking minimums ordinance policy action city council",
+              "source_family": "parking_policy",
+              "stale_status": "fresh",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-41-20260417060514",
+              "windmill_workspace": "affordabot"
+            },
+            "refs": {
+              "artifact_refs": [
+                "artifacts/2026-04-13.windmill-domain.v1/San Jose CA/parking_policy/reader_output/b993c32f61c1cec9167c2eb4ca813c175e2717153d5f8ac976f53f889827e65b.md"
+              ],
+              "document_id": "b6f52508-8e26-5250-bb7a-da5d5340aef4",
+              "raw_scrape_ids": [
+                "2a56d499-358c-51a2-b83a-bf6a14305c78"
+              ],
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-41-20260417060514"
+            },
+            "retry_class": "none",
+            "status": "succeeded"
+          },
+          "search_materialize": {
+            "alerts": [],
+            "command": "search_materialize",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "counts": {
+              "search_results": 10
+            },
+            "created_at": "2026-04-17T06:05:28.441619+00:00",
+            "decision_reason": "fresh_snapshot_materialized",
+            "details": {
+              "query": "San Jose parking minimums ordinance policy action city council"
+            },
+            "envelope": {
+              "analysis_question": "Capture authoritative San Jose parking policy evidence including policy action, enforcement scope, and effective dates.",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-3wefe.13-live-cycle-41-20260417060514",
+              "jurisdiction": "San Jose CA",
+              "orchestrator": "windmill",
+              "scope_idempotency_key": "bd-3wefe.13-live-cycle-41-20260417060514::2c3802ea3a8739e3",
+              "search_query": "San Jose parking minimums ordinance policy action city council",
+              "source_family": "parking_policy",
+              "stale_status": "fresh",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-41-20260417060514",
+              "windmill_workspace": "affordabot"
+            },
+            "refs": {
+              "search_snapshot_id": "d3377738-e74e-4c10-b5b7-5991f15bf44f",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-41-20260417060514"
+            },
+            "retry_class": "none",
+            "status": "succeeded"
+          },
+          "summarize_run": {
+            "alerts": [
+              "policy_evidence_fail_closed"
+            ],
+            "command": "summarize_run",
+            "contract_version": "2026-04-13.windmill-domain.v1",
+            "counts": {
+              "analyses": 1,
+              "artifacts": 1,
+              "chunks": 20,
+              "evidence_chunks": 20,
+              "raw_scrapes": 1,
+              "search_results": 20
+            },
+            "created_at": "2026-04-17T06:05:58.248814+00:00",
+            "decision_reason": "run_summary_materialized",
+            "details": {
+              "policy_evidence_package": {
+                "alerts": [
+                  "policy_evidence_fail_closed"
+                ],
+                "package_payload": {
+                  "assumption_cards": [],
+                  "assumption_usage": [],
+                  "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=parking_policy|doctype=meeting_minutes|url=https://sanjose.legistar.com/gateway.aspx?id=%2Fmatter.aspx%3Fkey%3D11803&m=l",
+                  "created_at": "1970-01-01T00:00:00+00:00",
+                  "economic_handoff_ready": false,
+                  "economic_relevance": "contextual",
+                  "evidence_cards": [
+                    {
+                      "artifact_id": "v2|jurisdiction=san-jose-ca|family=parking_policy|doctype=meeting_minutes|url=https://sanjose.legistar.com/gateway.aspx?id=%2Fmatter.aspx%3Fkey%3D11803&m=l",
+                      "content_hash": "b993c32f61c1cec9167c2eb4ca813c175e2717153d5f8ac976f53f889827e65b",
+                      "economic_relevance": "unknown",
+                      "evidence_use": "background_context",
+                      "excerpt": "File #:22-1876 Version:1\nType:Community & Economic Development Status:Agenda Ready\nOn agenda:12/6/2022 Final action:\nTitle:PP22-015 - Amendment to Title 20 (Zoning Ordinance or Zoning Code) of the San Jos\u00e9 Municipal Code for the Parking and Transportation Demand Management Policy Ordinance. - TO BE HEARD IMMEDIATELY AFTER CONSENT\n| Date | Ver. | Action By | Action | Result | Action Details | Meeting Details | Video |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| 12/6/2022 | 1 | City Council | | | Not available | Meeting details | Not available |\n...Title\nPP22-015 - Amendment to Title 20",
+                      "id": "ev-1",
+                      "moat_value_reason": "background_context:meeting_action:retains policy context as durable evidence with economic_relevance=unknown.",
+                      "policy_families": [
+                        "meeting_action",
+                        "parking_policy",
+                        "zoning_land_use"
+                      ],
+                      "policy_family": "meeting_action",
+                      "provenance_label": "private_searxng_parking_policy",
+                      "reader_run_id": null,
+                      "retrieved_at": "2026-04-17T06:05:36.577522Z",
+                      "source_tier": "tier_a",
+                      "source_type": "ordinance_text",
+                      "source_url": "https://sanjose.legistar.com/gateway.aspx?m=l&id=/matter.aspx?key=11803"
+                    },
+                    {
+                      "artifact_id": "v2|jurisdiction=san-jose-ca|family=legistar-web-api|doctype=matter_metadata|url=https://webapi.legistar.com/v1/sanjose/Matters/11803",
+                      "content_hash": "missing_hash::https://webapi.legistar.com/v1/sanjose/Matters/11803",
+                      "economic_relevance": "contextual",
+                      "evidence_use": "meeting_record",
+                      "excerpt": "Structured Legistar matter metadata fetched from San Jose Web API; MatterTitle='PP22-015 - Amendment to Title 20 (Zoning Ordinance or Zoning Code) of the San Jos\u00e9 Municipal Code for the Parking and Transportation Demand Management Policy Ordinance. - TO BE HEARD IMMEDIATELY AFTER CONSENT', attachments=7, classified_attachment_refs=7.",
+                      "id": "ev-2",
+                      "moat_value_reason": "meeting_record:meeting_action:captures formal action lineage and decision timing even when quantitative extraction is not ready.",
+                      "policy_families": [
+                        "meeting_action",
+                        "parking_policy",
+                        "zoning_land_use"
+                      ],
+                      "policy_family": "meeting_action",
+                      "provenance_label": "legistar_web_api_legistar_web_api",
+                      "reader_run_id": null,
+                      "retrieved_at": "2026-04-17T06:06:00.646395Z",
+                      "source_tier": "tier_b",
+                      "source_type": "other",
+                      "source_url": "https://webapi.legistar.com/v1/sanjose/Matters/11803"
+                    }
+                  ],
+                  "evidence_use": "meeting_record",
+                  "freshness_status": "fresh",
+                  "gate_projection": {
+                    "canonical_breakdown_ref": "analysis:1d682e39-1a46-56bb-8fb4-c0e110e7af72",
+                    "canonical_pipeline_run_id": "43f4dca9-e202-43c4-9e27-599c737f775e",
+                    "canonical_pipeline_step_id": "1d682e39-1a46-56bb-8fb4-c0e110e7af72",
+                    "runtime_failure_codes": [
+                      "parameter_missing"
+                    ],
+                    "runtime_insufficiency_reason": "blocking gate present or missing quantitative support",
+                    "runtime_sufficiency_state": "qualitative_only"
+                  },
+                  "gate_report": {
+                    "artifact_counts": {
+                      "evidence_cards": 2
+                    },
+                    "blocking_gate": "parameterization",
+                    "case_id": "pkg-c48016e9161bbb4a8fef90c7-gate",
+                    "failure_codes": [
+                      "parameter_missing"
+                    ],
+                    "manual_audit_notes": "Builder payload with canonical identity dedupe and provenance linkage; deduped_candidates=0. Full durability/orchestration gates in bd-3wefe.10/.12.",
+                    "provider": "private_searxng",
+                    "stage_results": [
+                      {
+                        "failure_codes": [],
+                        "note": null,
+                        "passed": true,
+                        "stage": "search_recall"
+                      },
+                      {
+                        "failure_codes": [],
+                        "note": null,
+                        "passed": true,
+                        "stage": "reader_substance"
+                      },
+                      {
+                        "failure_codes": [
+                          "parameter_missing"
+                        ],
+                        "note": null,
+                        "passed": false,
+                        "stage": "parameterization"
+                      },
+                      {
+                        "failure_codes": [
+                          "parameter_unverifiable"
+                        ],
+                        "note": null,
+                        "passed": false,
+                        "stage": "quantification"
+                      }
+                    ],
+                    "unsupported_claim_count": 1,
+                    "verdict": "fail_closed"
+                  },
+                  "insufficiency_reasons": [
+                    "blocking_gate_present",
+                    "no_quant_support_path"
+                  ],
+                  "jurisdiction": "San Jose CA",
+                  "moat_value_reason": "background_context:meeting_action:retains policy context as durable evidence with economic_relevance=unknown.",
+                  "model_cards": [],
+                  "normalized_official_economic_rows": [],
+                  "package_id": "pkg-c48016e9161bbb4a8fef90c7",
+                  "parameter_cards": [],
+                  "policy_families": [
+                    "meeting_action",
+                    "parking_policy",
+                    "zoning_land_use"
+                  ],
+                  "policy_family": "meeting_action",
+                  "policy_identifier": "v2|jurisdiction=san-jose-ca|family=parking_policy|doctype=meeting_minutes|url=https://sanjose.legistar.com/gateway.aspx?id=%2Fmatter.aspx%3Fkey%3D11803&m=l",
+                  "policy_lineage": {
+                    "attachment_content_probes": [
+                      {
+                        "attachment_id": "27643",
+                        "content_hash": "0dfc950acef6f7f5b5eb6750b620763d8da365aa7e22889415df9265b92aa381",
+                        "content_ingested": true,
+                        "economic_row_count": 0,
+                        "excerpt": "an Kitchen on The Alameda and Adelita's Taquer\u00eda on Curtner Avenue have reimagined their parking lots to offer outdoor dining experiences that enable our residents to enjoy San Jose\u2019s uniquely excellent climate. If we do not make this process easier in the coming months for our businesses using their private property/parking lots, many will be required to apply for a Special Use Permit (SUP). SUP ",
+                        "failure_class": null,
+                        "read_status": "read_text",
+                        "source_family": "memorandum",
+                        "source_title": "Memorandum from Liccardo, 11/29/2022",
+                        "source_url": "https://legistar.granicus.com/sanjose/attachments/787bf317-55ff-4a2d-a2c8-4a69f1b45476.pdf",
+                        "status": "ingested_excerpt",
+                        "title": "Memorandum from Liccardo, 11/29/2022",
+                        "url": "https://legistar.granicus.com/sanjose/attachments/787bf317-55ff-4a2d-a2c8-4a69f1b45476.pdf"
+                      },
+                      {
+                        "attachment_id": "27647",
+                        "content_hash": "5a586975d29b48461ab1789f3c1a3251efa1b62c7a4b4c6ef8b4dfedb1f684b6",
+                        "content_ingested": true,
+                        "economic_row_count": 0,
+                        "excerpt": "TO: HONORABLE MAYOR FROM: Christopher Burton AND CITY COUNCIL SUBJECT: SEE BELOW DATE: November 21, 2022 Approved Date 11/23/22 SUPPLEMENTAL SUBJECT: FILE NO. PP22-015/AL FRESCO: PARKING AND TRANSPORTATION DEMAND MANAGEMENT (TDM) ORDINANCE UPDATE AND ITS RELATION TO THE CONTINUATION OF THE AL FRESCO DINING INITIATIVE REASON FOR THE SUPPLEMENTAL The TDM ordinance update (File No. PP22-015) includes",
+                        "failure_class": null,
+                        "read_status": "read_text",
+                        "source_family": "memorandum",
+                        "source_title": "Supplemental Memorandum, 11/23/2022",
+                        "source_url": "https://legistar.granicus.com/sanjose/attachments/f87fd540-9ceb-43f4-8f59-6a76c30c2ffe.pdf",
+                        "status": "ingested_excerpt",
+                        "title": "Supplemental Memorandum, 11/23/2022",
+                        "url": "https://legistar.granicus.com/sanjose/attachments/f87fd540-9ceb-43f4-8f59-6a76c30c2ffe.pdf"
+                      },
+                      {
+                        "attachment_id": "27648",
+                        "content_hash": "a179761e1ba7d371ab8893ca663c4fb1bf86583b05af892c9d7c2be5720b608d",
+                        "content_ingested": false,
+                        "economic_row_count": 0,
+                        "excerpt": "",
+                        "failure_class": "attachment_pdf_parse_failed",
+                        "read_status": "read_failed",
+                        "source_family": "ordinance",
+                        "source_title": "Ordinance",
+                        "source_url": "https://legistar.granicus.com/sanjose/attachments/d398e9d4-6c01-47e8-b777-3b8fc87d562b.pdf",
+                        "status": "pdf_parse_failed",
+                        "title": "Ordinance",
+                        "url": "https://legistar.granicus.com/sanjose/attachments/d398e9d4-6c01-47e8-b777-3b8fc87d562b.pdf"
+                      },
+                      {
+                        "attachment_id": "27649",
+                        "content_hash": "a192ec07f84da6be30a3b7484a4fb086668501403592b237f20c4679ca9bf89d",
+                        "content_ingested": false,
+                        "economic_row_count": 0,
+                        "excerpt": "",
+                        "failure_class": "attachment_pdf_parse_failed",
+                        "read_status": "read_failed",
+                        "source_family": "memorandum",
+                        "source_title": "Memorandum",
+                        "source_url": "https://legistar.granicus.com/sanjose/attachments/f5dddc5d-4ead-42b9-9c23-58a2eb66b944.pdf",
+                        "status": "pdf_parse_failed",
+                        "title": "Memorandum",
+                        "url": "https://legistar.granicus.com/sanjose/attachments/f5dddc5d-4ead-42b9-9c23-58a2eb66b944.pdf"
+                      }
+                    ],
+                    "attachment_state": {
+                      "attachment_economic_row_count": 0,
+                      "attachment_ingested_count": 2,
+                      "attachment_probe_count": 4,
+                      "attachment_ref_count": 7,
+                      "content_ingested": true,
+                      "economic_rows_available": false,
+                      "refs_present": true
+                    },
+                    "expected_source_families": [
+                      "authoritative_policy_text",
+                      "meeting_context",
+                      "staff_fiscal_context",
+                      "related_attachments",
+                      "attachment_content_ingested",
+                      "attachment_economic_rows"
+                    ],
+                    "lineage_completeness_score": 0.3333333333333333,
+                    "lineage_presence": {
+                      "attachment_content_ingested": true,
+                      "attachment_economic_rows": false,
+                      "authoritative_policy_text": false,
+                      "meeting_context": false,
+                      "related_attachments": true,
+                      "staff_fiscal_context": false
+                    },
+                    "negative_evidence": [
+                      {
+                        "reason": "lineage_search_missing_in_current_package",
+                        "source_family": "authoritative_policy_text",
+                        "status": "not_found"
+                      },
+                      {
+                        "reason": "lineage_search_missing_in_current_package",
+                        "source_family": "meeting_context",
+                        "status": "not_found"
+                      },
+                      {
+                        "reason": "lineage_search_missing_in_current_package",
+                        "source_family": "staff_fiscal_context",
+                        "status": "not_found"
+                      },
+                      {
+                        "reason": "lineage_search_missing_in_current_package",
+                        "source_family": "attachment_economic_rows",
+                        "status": "not_found"
+                      }
+                    ],
+                    "related_artifacts": [
+                      "https://legistar.granicus.com/sanjose/attachments/787bf317-55ff-4a2d-a2c8-4a69f1b45476.pdf",
+                      "https://legistar.granicus.com/sanjose/attachments/ea4afd9c-5511-48a8-ba0a-f71cfd5f4696.pdf",
+                      "https://legistar.granicus.com/sanjose/attachments/fb3604fd-1cd4-49a4-8b68-f0f4abc010a1.pdf",
+                      "https://legistar.granicus.com/sanjose/attachments/f87fd540-9ceb-43f4-8f59-6a76c30c2ffe.pdf",
+                      "https://legistar.granicus.com/sanjose/attachments/d398e9d4-6c01-47e8-b777-3b8fc87d562b.pdf",
+                      "https://legistar.granicus.com/sanjose/attachments/f5dddc5d-4ead-42b9-9c23-58a2eb66b944.pdf",
+                      "https://legistar.granicus.com/sanjose/attachments/5aeea5e3-b42e-4770-9fa4-af4b29422c16.pdf"
+                    ],
+                    "related_attachment_refs": [
+                      {
+                        "attachment_id": "27643",
+                        "source_family": "memorandum",
+                        "title": "Memorandum from Liccardo, 11/29/2022",
+                        "url": "https://legistar.granicus.com/sanjose/attachments/787bf317-55ff-4a2d-a2c8-4a69f1b45476.pdf"
+                      },
+                      {
+                        "attachment_id": "27644",
+                        "source_family": "unknown",
+                        "title": "Letters from the Public - 2 of 2",
+                        "url": "https://legistar.granicus.com/sanjose/attachments/ea4afd9c-5511-48a8-ba0a-f71cfd5f4696.pdf"
+                      },
+                      {
+                        "attachment_id": "27646",
+                        "source_family": "unknown",
+                        "title": "Letters from the Public - 1 of 2",
+                        "url": "https://legistar.granicus.com/sanjose/attachments/fb3604fd-1cd4-49a4-8b68-f0f4abc010a1.pdf"
+                      },
+                      {
+                        "attachment_id": "27647",
+                        "source_family": "memorandum",
+                        "title": "Supplemental Memorandum, 11/23/2022",
+                        "url": "https://legistar.granicus.com/sanjose/attachments/f87fd540-9ceb-43f4-8f59-6a76c30c2ffe.pdf"
+                      },
+                      {
+                        "attachment_id": "27648",
+                        "source_family": "ordinance",
+                        "title": "Ordinance",
+                        "url": "https://legistar.granicus.com/sanjose/attachments/d398e9d4-6c01-47e8-b777-3b8fc87d562b.pdf"
+                      },
+                      {
+                        "attachment_id": "27649",
+                        "source_family": "memorandum",
+                        "title": "Memorandum",
+                        "url": "https://legistar.granicus.com/sanjose/attachments/f5dddc5d-4ead-42b9-9c23-58a2eb66b944.pdf"
+                      },
+                      {
+                        "attachment_id": "27853",
+                        "source_family": "agenda/minutes",
+                        "title": "Presentation - est. 15 minutes",
+                        "url": "https://legistar.granicus.com/sanjose/attachments/5aeea5e3-b42e-4770-9fa4-af4b29422c16.pdf"
+                      }
+                    ],
+                    "related_attachment_source_families": [
+                      "agenda/minutes",
+                      "memorandum",
+                      "ordinance",
+                      "unknown"
+                    ],
+                    "selected_artifact_family": "official_page"
+                  },
+                  "run_context": {
+                    "backend_run_id": "43f4dca9-e202-43c4-9e27-599c737f775e",
+                    "canonical_analysis_id": "1d682e39-1a46-56bb-8fb4-c0e110e7af72",
+                    "canonical_breakdown_ref": "analysis:1d682e39-1a46-56bb-8fb4-c0e110e7af72",
+                    "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=parking_policy|doctype=meeting_minutes|url=https://sanjose.legistar.com/gateway.aspx?id=%2Fmatter.aspx%3Fkey%3D11803&m=l",
+                    "canonical_pipeline_run_id": "43f4dca9-e202-43c4-9e27-599c737f775e",
+                    "canonical_pipeline_step_id": "1d682e39-1a46-56bb-8fb4-c0e110e7af72",
+                    "document_id": "b6f52508-8e26-5250-bb7a-da5d5340aef4",
+                    "fail_closed_reasons": [
+                      "analysis_sufficiency:Sufficient"
+                    ],
+                    "impact_mode_hint": "qualitative_only",
+                    "mechanism_family_hint": null,
+                    "normalized_official_economic_rows": [],
+                    "package_identity": {
+                      "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=parking_policy|doctype=meeting_minutes|url=https://sanjose.legistar.com/gateway.aspx?id=%2Fmatter.aspx%3Fkey%3D11803&m=l",
+                      "idempotency_scope": "bd-3wefe.13-live-cycle-41-20260417060514::2c3802ea3a8739e3",
+                      "package_id": "pkg-c48016e9161bbb4a8fef90c7",
+                      "selected_url": "https://sanjose.legistar.com/gateway.aspx?m=l&id=/matter.aspx?key=11803"
+                    },
+                    "policy_lineage": {
+                      "attachment_content_probes": [
+                        {
+                          "attachment_id": "27643",
+                          "content_hash": "0dfc950acef6f7f5b5eb6750b620763d8da365aa7e22889415df9265b92aa381",
+                          "content_ingested": true,
+                          "economic_row_count": 0,
+                          "excerpt": "an Kitchen on The Alameda and Adelita's Taquer\u00eda on Curtner Avenue have reimagined their parking lots to offer outdoor dining experiences that enable our residents to enjoy San Jose\u2019s uniquely excellent climate. If we do not make this process easier in the coming months for our businesses using their private property/parking lots, many will be required to apply for a Special Use Permit (SUP). SUP ",
+                          "failure_class": null,
+                          "read_status": "read_text",
+                          "source_family": "memorandum",
+                          "source_title": "Memorandum from Liccardo, 11/29/2022",
+                          "source_url": "https://legistar.granicus.com/sanjose/attachments/787bf317-55ff-4a2d-a2c8-4a69f1b45476.pdf",
+                          "status": "ingested_excerpt",
+                          "title": "Memorandum from Liccardo, 11/29/2022",
+                          "url": "https://legistar.granicus.com/sanjose/attachments/787bf317-55ff-4a2d-a2c8-4a69f1b45476.pdf"
+                        },
+                        {
+                          "attachment_id": "27647",
+                          "content_hash": "5a586975d29b48461ab1789f3c1a3251efa1b62c7a4b4c6ef8b4dfedb1f684b6",
+                          "content_ingested": true,
+                          "economic_row_count": 0,
+                          "excerpt": "TO: HONORABLE MAYOR FROM: Christopher Burton AND CITY COUNCIL SUBJECT: SEE BELOW DATE: November 21, 2022 Approved Date 11/23/22 SUPPLEMENTAL SUBJECT: FILE NO. PP22-015/AL FRESCO: PARKING AND TRANSPORTATION DEMAND MANAGEMENT (TDM) ORDINANCE UPDATE AND ITS RELATION TO THE CONTINUATION OF THE AL FRESCO DINING INITIATIVE REASON FOR THE SUPPLEMENTAL The TDM ordinance update (File No. PP22-015) includes",
+                          "failure_class": null,
+                          "read_status": "read_text",
+                          "source_family": "memorandum",
+                          "source_title": "Supplemental Memorandum, 11/23/2022",
+                          "source_url": "https://legistar.granicus.com/sanjose/attachments/f87fd540-9ceb-43f4-8f59-6a76c30c2ffe.pdf",
+                          "status": "ingested_excerpt",
+                          "title": "Supplemental Memorandum, 11/23/2022",
+                          "url": "https://legistar.granicus.com/sanjose/attachments/f87fd540-9ceb-43f4-8f59-6a76c30c2ffe.pdf"
+                        },
+                        {
+                          "attachment_id": "27648",
+                          "content_hash": "a179761e1ba7d371ab8893ca663c4fb1bf86583b05af892c9d7c2be5720b608d",
+                          "content_ingested": false,
+                          "economic_row_count": 0,
+                          "excerpt": "",
+                          "failure_class": "attachment_pdf_parse_failed",
+                          "read_status": "read_failed",
+                          "source_family": "ordinance",
+                          "source_title": "Ordinance",
+                          "source_url": "https://legistar.granicus.com/sanjose/attachments/d398e9d4-6c01-47e8-b777-3b8fc87d562b.pdf",
+                          "status": "pdf_parse_failed",
+                          "title": "Ordinance",
+                          "url": "https://legistar.granicus.com/sanjose/attachments/d398e9d4-6c01-47e8-b777-3b8fc87d562b.pdf"
+                        },
+                        {
+                          "attachment_id": "27649",
+                          "content_hash": "a192ec07f84da6be30a3b7484a4fb086668501403592b237f20c4679ca9bf89d",
+                          "content_ingested": false,
+                          "economic_row_count": 0,
+                          "excerpt": "",
+                          "failure_class": "attachment_pdf_parse_failed",
+                          "read_status": "read_failed",
+                          "source_family": "memorandum",
+                          "source_title": "Memorandum",
+                          "source_url": "https://legistar.granicus.com/sanjose/attachments/f5dddc5d-4ead-42b9-9c23-58a2eb66b944.pdf",
+                          "status": "pdf_parse_failed",
+                          "title": "Memorandum",
+                          "url": "https://legistar.granicus.com/sanjose/attachments/f5dddc5d-4ead-42b9-9c23-58a2eb66b944.pdf"
+                        }
+                      ],
+                      "attachment_state": {
+                        "attachment_economic_row_count": 0,
+                        "attachment_ingested_count": 2,
+                        "attachment_probe_count": 4,
+                        "attachment_ref_count": 7,
+                        "content_ingested": true,
+                        "economic_rows_available": false,
+                        "refs_present": true
+                      },
+                      "expected_source_families": [
+                        "authoritative_policy_text",
+                        "meeting_context",
+                        "staff_fiscal_context",
+                        "related_attachments",
+                        "attachment_content_ingested",
+                        "attachment_economic_rows"
+                      ],
+                      "lineage_completeness_score": 0.3333333333333333,
+                      "lineage_presence": {
+                        "attachment_content_ingested": true,
+                        "attachment_economic_rows": false,
+                        "authoritative_policy_text": false,
+                        "meeting_context": false,
+                        "related_attachments": true,
+                        "staff_fiscal_context": false
+                      },
+                      "negative_evidence": [
+                        {
+                          "reason": "lineage_search_missing_in_current_package",
+                          "source_family": "authoritative_policy_text",
+                          "status": "not_found"
+                        },
+                        {
+                          "reason": "lineage_search_missing_in_current_package",
+                          "source_family": "meeting_context",
+                          "status": "not_found"
+                        },
+                        {
+                          "reason": "lineage_search_missing_in_current_package",
+                          "source_family": "staff_fiscal_context",
+                          "status": "not_found"
+                        },
+                        {
+                          "reason": "lineage_search_missing_in_current_package",
+                          "source_family": "attachment_economic_rows",
+                          "status": "not_found"
+                        }
+                      ],
+                      "related_artifacts": [
+                        "https://legistar.granicus.com/sanjose/attachments/787bf317-55ff-4a2d-a2c8-4a69f1b45476.pdf",
+                        "https://legistar.granicus.com/sanjose/attachments/ea4afd9c-5511-48a8-ba0a-f71cfd5f4696.pdf",
+                        "https://legistar.granicus.com/sanjose/attachments/fb3604fd-1cd4-49a4-8b68-f0f4abc010a1.pdf",
+                        "https://legistar.granicus.com/sanjose/attachments/f87fd540-9ceb-43f4-8f59-6a76c30c2ffe.pdf",
+                        "https://legistar.granicus.com/sanjose/attachments/d398e9d4-6c01-47e8-b777-3b8fc87d562b.pdf",
+                        "https://legistar.granicus.com/sanjose/attachments/f5dddc5d-4ead-42b9-9c23-58a2eb66b944.pdf",
+                        "https://legistar.granicus.com/sanjose/attachments/5aeea5e3-b42e-4770-9fa4-af4b29422c16.pdf"
+                      ],
+                      "related_attachment_refs": [
+                        {
+                          "attachment_id": "27643",
+                          "source_family": "memorandum",
+                          "title": "Memorandum from Liccardo, 11/29/2022",
+                          "url": "https://legistar.granicus.com/sanjose/attachments/787bf317-55ff-4a2d-a2c8-4a69f1b45476.pdf"
+                        },
+                        {
+                          "attachment_id": "27644",
+                          "source_family": "unknown",
+                          "title": "Letters from the Public - 2 of 2",
+                          "url": "https://legistar.granicus.com/sanjose/attachments/ea4afd9c-5511-48a8-ba0a-f71cfd5f4696.pdf"
+                        },
+                        {
+                          "attachment_id": "27646",
+                          "source_family": "unknown",
+                          "title": "Letters from the Public - 1 of 2",
+                          "url": "https://legistar.granicus.com/sanjose/attachments/fb3604fd-1cd4-49a4-8b68-f0f4abc010a1.pdf"
+                        },
+                        {
+                          "attachment_id": "27647",
+                          "source_family": "memorandum",
+                          "title": "Supplemental Memorandum, 11/23/2022",
+                          "url": "https://legistar.granicus.com/sanjose/attachments/f87fd540-9ceb-43f4-8f59-6a76c30c2ffe.pdf"
+                        },
+                        {
+                          "attachment_id": "27648",
+                          "source_family": "ordinance",
+                          "title": "Ordinance",
+                          "url": "https://legistar.granicus.com/sanjose/attachments/d398e9d4-6c01-47e8-b777-3b8fc87d562b.pdf"
+                        },
+                        {
+                          "attachment_id": "27649",
+                          "source_family": "memorandum",
+                          "title": "Memorandum",
+                          "url": "https://legistar.granicus.com/sanjose/attachments/f5dddc5d-4ead-42b9-9c23-58a2eb66b944.pdf"
+                        },
+                        {
+                          "attachment_id": "27853",
+                          "source_family": "agenda/minutes",
+                          "title": "Presentation - est. 15 minutes",
+                          "url": "https://legistar.granicus.com/sanjose/attachments/5aeea5e3-b42e-4770-9fa4-af4b29422c16.pdf"
+                        }
+                      ],
+                      "related_attachment_source_families": [
+                        "agenda/minutes",
+                        "memorandum",
+                        "ordinance",
+                        "unknown"
+                      ],
+                      "selected_artifact_family": "official_page"
+                    },
+                    "primary_parameter_extraction": {
+                      "alerts": [],
+                      "facts": [],
+                      "normalized_row_count": 0,
+                      "parameter_count": 0,
+                      "source": "analyze.evidence_selection.selected_chunks"
+                    },
+                    "proof_modes": {
+                      "analysis_binding": "canonical_projection_bound",
+                      "orchestration": "windmill_runtime_ids",
+                      "storage": "pending_storage_probe"
+                    },
+                    "raw_scrape_id": "2a56d499-358c-51a2-b83a-bf6a14305c78",
+                    "reader_artifact_uri": "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/parking_policy/reader_output/b993c32f61c1cec9167c2eb4ca813c175e2717153d5f8ac976f53f889827e65b.md",
+                    "scope_idempotency_key": "bd-3wefe.13-live-cycle-41-20260417060514::2c3802ea3a8739e3",
+                    "search_provider_runtime": {
+                      "client_class": "OssSearxngWebSearchClient",
+                      "configured_provider": "searxng",
+                      "endpoint_configured": true,
+                      "endpoint_host": "searxng-private.railway.internal:8080",
+                      "provider": "private_searxng",
+                      "provider_source": "client_label"
+                    },
+                    "secondary_research_needed": false,
+                    "secondary_research_reason": null,
+                    "selected_url": "https://sanjose.legistar.com/gateway.aspx?m=l&id=/matter.aspx?key=11803",
+                    "source_quality_metrics": {
+                      "artifact_quality_gate": {
+                        "artifact_candidate_count": 0,
+                        "artifact_candidate_substantive_count": 0,
+                        "substantive_artifact_urls": []
+                      },
+                      "artifact_quality_gate_reason": "no_artifact_candidate_passed_quality_gate",
+                      "artifact_quality_gate_status": "pass",
+                      "explicit_lineage_linked": false,
+                      "fallback_materialization_count": 0,
+                      "identity_blocker_code": "",
+                      "identity_blocker_reason": "",
+                      "identity_failure_codes": [],
+                      "identity_failure_reasons": [],
+                      "identity_quality_ready": true,
+                      "identity_quality_status": "not_applicable",
+                      "identity_required": false,
+                      "jurisdiction_identity_ready": true,
+                      "jurisdiction_identity_signals": [],
+                      "jurisdiction_identity_status": "not_applicable",
+                      "official_reader_error_count": 0,
+                      "policy_identity_ready": true,
+                      "policy_identity_signals": [],
+                      "policy_identity_status": "not_applicable",
+                      "portal_skip_count": 0,
+                      "provider_results": {
+                        "private_searxng": {
+                          "candidates": [
+                            {
+                              "artifact_grade": false,
+                              "official_domain": true,
+                              "rank": 1,
+                              "url": "https://sanjose.legistar.com/gateway.aspx?m=l&id=%2Fmatter.aspx%3Fkey%3D11803"
+                            },
+                            {
+                              "artifact_grade": false,
+                              "official_domain": false,
+                              "rank": 2,
+                              "url": "https://actionnetwork.org/user_files/user_files/000/077/644/original/SJ_Parking_Policy_Council_Letter.pdf"
+                            },
+                            {
+                              "artifact_grade": false,
+                              "official_domain": false,
+                              "rank": 3,
+                              "url": "https://siliconvalleyathome.org/wp-content/uploads/2022/06/June-14-SJ-Parking-Policy-Council-letter-Updated.pdf"
+                            },
+                            {
+                              "artifact_grade": false,
+                              "official_domain": true,
+                              "rank": 4,
+                              "url": "https://sanjose.legistar.com/LegislationDetail.aspx?ID=5950698&GUID=477281B1-FB98-4899-BF37-4F080890914D"
+                            },
+                            {
+                              "artifact_grade": false,
+                              "official_domain": false,
+                              "rank": 5,
+                              "url": "https://www.reddit.com/r/SanJose/comments/zfcuko/last_night_san_jose_became_the_largest_city_in/"
+                            }
+                          ],
+                          "reason_code": "materialized_raw_scrape",
+                          "status": "succeeded"
+                        }
+                      },
+                      "provider_summary": {
+                        "primary_provider": "private_searxng",
+                        "provider_error_count": 0,
+                        "provider_error_urls": [],
+                        "quality_failure_count": 0,
+                        "runtime": {
+                          "client_class": "OssSearxngWebSearchClient",
+                          "configured_provider": "searxng",
+                          "endpoint_configured": true,
+                          "endpoint_host": "searxng-private.railway.internal:8080",
+                          "provider": "private_searxng",
+                          "provider_source": "client_label"
+                        }
+                      },
+                      "reader_substance_observed": true,
+                      "reader_substance_selection_outcome": "materialized_raw_scrape",
+                      "secondary_numeric_parameter_count": 2,
+                      "secondary_numeric_rescue_detected": false,
+                      "selected_artifact_family": "official_page",
+                      "selected_candidate": {
+                        "artifact_family": "official_page",
+                        "artifact_grade": false,
+                        "artifact_quality_gate_passed": false,
+                        "fee_schedule_gate": {
+                          "authoritative_policy_text_ok": false,
+                          "classified_as_maintained_fee_schedule": false,
+                          "passed": false,
+                          "reason": "missing_fee_schedule_signals"
+                        },
+                        "official_domain": true,
+                        "provider": "private_searxng",
+                        "rank": 1,
+                        "selection_reason": "materialized_raw_scrape",
+                        "shape_quality_gate_passed": false,
+                        "url": "https://sanjose.legistar.com/gateway.aspx?m=l&id=/matter.aspx?key=11803"
+                      },
+                      "selection_quality_reason": "no_artifact_candidate_passed_quality_gate",
+                      "selection_quality_status": "fail",
+                      "source_shape_drift": {
+                        "candidate_count": 10,
+                        "drift_detected": false,
+                        "missing_snippet_count": 0,
+                        "missing_url_count": 0
+                      },
+                      "top_n_artifact_recall_count": 0,
+                      "top_n_official_recall_count": 2,
+                      "top_n_window": 5
+                    },
+                    "source_reconciliation": {
+                      "fail_closed_locator_signal_count": 0,
+                      "missing_true_structured_corroboration_count": 0,
+                      "official_attachment_authoritative_row_count": 0,
+                      "official_attachment_row_count": 0,
+                      "primary_official_row_count": 0,
+                      "records": [],
+                      "secondary_override_blocked": true,
+                      "secondary_snippet_row_count": 0,
+                      "source_of_truth_policy": "primary_artifact_precedence_then_labeled_secondary",
+                      "true_structured_row_count": 0,
+                      "unresolved_count": 0
+                    },
+                    "source_shape_drift": {
+                      "candidate_count": 10,
+                      "drift_detected": false,
+                      "missing_snippet_count": 0,
+                      "missing_url_count": 0
+                    },
+                    "structured_enrichment_alerts": [
+                      "structured_enrichment_ckan_unavailable"
+                    ],
+                    "structured_enrichment_status": "integrated",
+                    "structured_source_catalog": [
+                      {
+                        "access_method": "public_api_json",
+                        "cadence_freshness": "meeting-driven; near-real-time event updates",
+                        "display_name": "San Jose Legistar Web API",
+                        "economic_usefulness_score": 0.78,
+                        "endpoint_or_file_url": "https://webapi.legistar.com/v1/sanjose/Events",
+                        "free_status": "free_public",
+                        "jurisdiction_coverage": "san_jose_ca",
+                        "lane_classification": "true_structured",
+                        "live_proven": true,
+                        "policy_domain_relevance": "meeting agendas, minutes, ordinance/resolution metadata",
+                        "runtime_status": "integrated",
+                        "signup_or_key": "none_required",
+                        "signup_url": "https://webapi.legistar.com/",
+                        "source_family": "legistar_web_api",
+                        "storage_target": "policy_evidence_packages.package_payload.run_context.structured_sources"
+                      },
+                      {
+                        "access_method": "ckan_api_json",
+                        "cadence_freshness": "dataset-dependent metadata freshness",
+                        "display_name": "San Jose Open Data (CKAN)",
+                        "economic_usefulness_score": 0.63,
+                        "endpoint_or_file_url": "https://data.sanjoseca.gov/api/3/action/package_search",
+                        "free_status": "free_public",
+                        "jurisdiction_coverage": "san_jose_ca",
+                        "lane_classification": "true_structured",
+                        "live_proven": false,
+                        "policy_domain_relevance": "permits, housing/open data metadata, contextual economic indicators",
+                        "runtime_status": "cataloged_unavailable",
+                        "signup_or_key": "none_required",
+                        "signup_url": "https://data.sanjoseca.gov/",
+                        "source_family": "san_jose_open_data_ckan",
+                        "storage_target": "policy_evidence_packages.package_payload.run_context.structured_sources"
+                      },
+                      {
+                        "access_method": "raw_official_file",
+                        "cadence_freshness": "daily feed updates",
+                        "display_name": "California LegInfo PUBINFO Feed",
+                        "economic_usefulness_score": 0.71,
+                        "endpoint_or_file_url": "https://downloads.leginfo.legislature.ca.gov/pubinfo_daily_Mon.zip",
+                        "free_status": "free_public",
+                        "jurisdiction_coverage": "california_state",
+                        "lane_classification": "true_structured",
+                        "live_proven": false,
+                        "policy_domain_relevance": "bill identity, amendment cadence, text provenance",
+                        "runtime_status": "cataloged",
+                        "signup_or_key": "none_required",
+                        "signup_url": "https://downloads.leginfo.legislature.ca.gov/",
+                        "source_family": "california_leginfo_pubinfo",
+                        "storage_target": "policy_evidence_packages.package_payload.run_context.structured_sources"
+                      },
+                      {
+                        "access_method": "public_api_json",
+                        "cadence_freshness": "session/event driven",
+                        "display_name": "OpenStates API",
+                        "economic_usefulness_score": 0.56,
+                        "endpoint_or_file_url": "https://v3.openstates.org/bills",
+                        "free_status": "free_tier_key_required",
+                        "jurisdiction_coverage": "multi_state",
+                        "lane_classification": "true_structured",
+                        "live_proven": false,
+                        "policy_domain_relevance": "bill status, sponsors, action timelines",
+                        "runtime_status": "cataloged_unavailable",
+                        "signup_or_key": "api_key_required",
+                        "signup_url": "https://openstates.org/api/",
+                        "source_family": "openstates_api",
+                        "storage_target": "policy_evidence_packages.package_payload.run_context.structured_sources"
+                      },
+                      {
+                        "access_method": "public_api_json",
+                        "cadence_freshness": "dataset-dependent",
+                        "display_name": "Socrata Open Data Portals",
+                        "economic_usefulness_score": 0.62,
+                        "endpoint_or_file_url": "https://dev.socrata.com/",
+                        "free_status": "free_tier_key_optional_limits",
+                        "jurisdiction_coverage": "city_county_varies",
+                        "lane_classification": "true_structured",
+                        "live_proven": false,
+                        "policy_domain_relevance": "fees, permits, budget context, fiscal indicators",
+                        "runtime_status": "cataloged",
+                        "signup_or_key": "key_optional",
+                        "signup_url": "https://dev.socrata.com/",
+                        "source_family": "socrata_open_data",
+                        "storage_target": "policy_evidence_packages.package_payload.run_context.structured_sources"
+                      },
+                      {
+                        "access_method": "public_api_json",
+                        "cadence_freshness": "dataset-dependent",
+                        "display_name": "ArcGIS Public REST Services",
+                        "economic_usefulness_score": 0.49,
+                        "endpoint_or_file_url": "https://www.arcgis.com/sharing/rest/search",
+                        "free_status": "free_public",
+                        "jurisdiction_coverage": "regional_multi_county",
+                        "lane_classification": "true_structured",
+                        "live_proven": false,
+                        "policy_domain_relevance": "parcel/zoning/land-use context",
+                        "runtime_status": "cataloged",
+                        "signup_or_key": "none_required",
+                        "signup_url": "https://www.arcgis.com/",
+                        "source_family": "arcgis_rest_public",
+                        "storage_target": "policy_evidence_packages.package_payload.run_context.structured_sources"
+                      },
+                      {
+                        "access_method": "search_snippet_api",
+                        "cadence_freshness": "query-time",
+                        "display_name": "Tavily Secondary Search Snippets",
+                        "economic_usefulness_score": 0.2,
+                        "endpoint_or_file_url": "https://api.tavily.com/search",
+                        "free_status": "free_tier_key_required",
+                        "jurisdiction_coverage": "multi_jurisdiction",
+                        "lane_classification": "secondary_search_derived",
+                        "live_proven": false,
+                        "policy_domain_relevance": "secondary fallback only; not authoritative structured source",
+                        "runtime_status": "cataloged",
+                        "signup_or_key": "api_key_required",
+                        "signup_url": "https://app.tavily.com/",
+                        "source_family": "tavily_secondary_search",
+                        "storage_target": "policy_evidence_packages.package_payload.run_context.structured_sources"
+                      }
+                    ],
+                    "structured_sources": [
+                      {
+                        "access_method": "public_api_json",
+                        "artifact_type": "matter_metadata",
+                        "artifact_url": "https://webapi.legistar.com/v1/sanjose/Matters/11803",
+                        "attachment_content_probes": [
+                          {
+                            "attachment_id": "27643",
+                            "content_excerpt": "an Kitchen on The Alameda and Adelita's Taquer\u00eda on Curtner Avenue have reimagined their parking lots to offer outdoor dining experiences that enable our residents to enjoy San Jose\u2019s uniquely excellent climate. If we do not make this process easier in the coming months for our businesses using their private property/parking lots, many will be required to apply for a Special Use Permit (SUP). SUP costs range between $13,000 and $22,000. The process likely takes between 4 and 6 to finish. Upon completion, it\u2019s possible these businesses could still be denied. Simply, we\u2019d be doing everything possible to discourage the very actions that we want\u2013and that our city needs. We expect that nearly every restaurant will comply with their permit conditions, as most businesses do. For the few bad actors, code enforcement should have the tools to remove the business' ability to operate outside.",
+                            "content_hash": "0dfc950acef6f7f5b5eb6750b620763d8da365aa7e22889415df9265b92aa381",
+                            "content_ingested": true,
+                            "economic_row_count": 0,
+                            "excerpt": "an Kitchen on The Alameda and Adelita's Taquer\u00eda on Curtner Avenue have reimagined their parking lots to offer outdoor dining experiences that enable our residents to enjoy San Jose\u2019s uniquely excellent climate. If we do not make this process easier in the coming months for our businesses using their private property/parking lots, many will be required to apply for a Special Use Permit (SUP). SUP costs range between $13,000 and $22,000. The process likely takes between 4 and 6 to finish. Upon completion, it\u2019s possible these businesses could still be denied. Simply, we\u2019d be doing everything possible to discourage the very actions that we want\u2013and that our city needs. We expect that nearly every restaurant will comply with their permit conditions, as most businesses do. For the few bad actors, code enforcement should have the tools to remove the business' ability to operate outside.",
+                            "failure_class": null,
+                            "read_status": "read_text",
+                            "source_family": "memorandum",
+                            "source_title": "Memorandum from Liccardo, 11/29/2022",
+                            "source_url": "https://legistar.granicus.com/sanjose/attachments/787bf317-55ff-4a2d-a2c8-4a69f1b45476.pdf",
+                            "status": "ingested_excerpt",
+                            "title": "Memorandum from Liccardo, 11/29/2022",
+                            "url": "https://legistar.granicus.com/sanjose/attachments/787bf317-55ff-4a2d-a2c8-4a69f1b45476.pdf"
+                          },
+                          {
+                            "attachment_id": "27647",
+                            "content_excerpt": "TO: HONORABLE MAYOR FROM: Christopher Burton AND CITY COUNCIL SUBJECT: SEE BELOW DATE: November 21, 2022 Approved Date 11/23/22 SUPPLEMENTAL SUBJECT: FILE NO. PP22-015/AL FRESCO: PARKING AND TRANSPORTATION DEMAND MANAGEMENT (TDM) ORDINANCE UPDATE AND ITS RELATION TO THE CONTINUATION OF THE AL FRESCO DINING INITIATIVE REASON FOR THE SUPPLEMENTAL The TDM ordinance update (File No. PP22-015) includes a new permit procedure that would allow most Al Fresco dining establishments on private property to be permitted on an ongoing basis. This memorandum addresses the City\u2019s response to the continuation of businesses between the time when the existing Al Fresco Emergency Order expires (December 31, 2022) and when the new ordinance language will be in effect (mid-March 2023). Staff recommends that th",
+                            "content_hash": "5a586975d29b48461ab1789f3c1a3251efa1b62c7a4b4c6ef8b4dfedb1f684b6",
+                            "content_ingested": true,
+                            "economic_row_count": 0,
+                            "excerpt": "TO: HONORABLE MAYOR FROM: Christopher Burton AND CITY COUNCIL SUBJECT: SEE BELOW DATE: November 21, 2022 Approved Date 11/23/22 SUPPLEMENTAL SUBJECT: FILE NO. PP22-015/AL FRESCO: PARKING AND TRANSPORTATION DEMAND MANAGEMENT (TDM) ORDINANCE UPDATE AND ITS RELATION TO THE CONTINUATION OF THE AL FRESCO DINING INITIATIVE REASON FOR THE SUPPLEMENTAL The TDM ordinance update (File No. PP22-015) includes a new permit procedure that would allow most Al Fresco dining establishments on private property to be permitted on an ongoing basis. This memorandum addresses the City\u2019s response to the continuation of businesses between the time when the existing Al Fresco Emergency Order expires (December 31, 2022) and when the new ordinance language will be in effect (mid-March 2023). Staff recommends that th",
+                            "failure_class": null,
+                            "read_status": "read_text",
+                            "source_family": "memorandum",
+                            "source_title": "Supplemental Memorandum, 11/23/2022",
+                            "source_url": "https://legistar.granicus.com/sanjose/attachments/f87fd540-9ceb-43f4-8f59-6a76c30c2ffe.pdf",
+                            "status": "ingested_excerpt",
+                            "title": "Supplemental Memorandum, 11/23/2022",
+                            "url": "https://legistar.granicus.com/sanjose/attachments/f87fd540-9ceb-43f4-8f59-6a76c30c2ffe.pdf"
+                          },
+                          {
+                            "attachment_id": "27648",
+                            "content_excerpt": "",
+                            "content_hash": "a179761e1ba7d371ab8893ca663c4fb1bf86583b05af892c9d7c2be5720b608d",
+                            "content_ingested": false,
+                            "economic_row_count": 0,
+                            "error": "unreadable_pdf",
+                            "excerpt": "",
+                            "failure_class": "attachment_pdf_parse_failed",
+                            "read_status": "read_failed",
+                            "source_family": "ordinance",
+                            "source_title": "Ordinance",
+                            "source_url": "https://legistar.granicus.com/sanjose/attachments/d398e9d4-6c01-47e8-b777-3b8fc87d562b.pdf",
+                            "status": "pdf_parse_failed",
+                            "title": "Ordinance",
+                            "url": "https://legistar.granicus.com/sanjose/attachments/d398e9d4-6c01-47e8-b777-3b8fc87d562b.pdf"
+                          },
+                          {
+                            "attachment_id": "27649",
+                            "content_excerpt": "",
+                            "content_hash": "a192ec07f84da6be30a3b7484a4fb086668501403592b237f20c4679ca9bf89d",
+                            "content_ingested": false,
+                            "economic_row_count": 0,
+                            "error": "unreadable_pdf",
+                            "excerpt": "",
+                            "failure_class": "attachment_pdf_parse_failed",
+                            "read_status": "read_failed",
+                            "source_family": "memorandum",
+                            "source_title": "Memorandum",
+                            "source_url": "https://legistar.granicus.com/sanjose/attachments/f5dddc5d-4ead-42b9-9c23-58a2eb66b944.pdf",
+                            "status": "pdf_parse_failed",
+                            "title": "Memorandum",
+                            "url": "https://legistar.granicus.com/sanjose/attachments/f5dddc5d-4ead-42b9-9c23-58a2eb66b944.pdf"
+                          }
+                        ],
+                        "diagnostic_facts": [
+                          {
+                            "field": "matter_id",
+                            "unit": "count",
+                            "value": 11803
+                          },
+                          {
+                            "field": "matter_attachment_probe_count",
+                            "unit": "count",
+                            "value": 4
+                          },
+                          {
+                            "field": "matter_attachment_content_ingested_count",
+                            "unit": "count",
+                            "value": 2
+                          },
+                          {
+                            "field": "matter_attachment_economic_row_count",
+                            "unit": "count",
+                            "value": 0
+                          }
+                        ],
+                        "excerpt": "Structured Legistar matter metadata fetched from San Jose Web API; MatterTitle='PP22-015 - Amendment to Title 20 (Zoning Ordinance or Zoning Code) of the San Jos\u00e9 Municipal Code for the Parking and Transportation Demand Management Policy Ordinance. - TO BE HEARD IMMEDIATELY AFTER CONSENT', attachments=7, classified_attachment_refs=7.",
+                        "jurisdiction": "san_jose_ca",
+                        "lineage_metadata": {
+                          "attachment_content_ingested_count": 2,
+                          "attachment_content_probe_count": 4,
+                          "attachment_economic_row_count": 0,
+                          "attachment_family_counts": {
+                            "agenda/minutes": 1,
+                            "memorandum": 3,
+                            "ordinance": 1,
+                            "unknown": 2
+                          },
+                          "event_body_id": null,
+                          "event_date": null,
+                          "jurisdiction": "san_jose_ca",
+                          "matter_id": "11803",
+                          "related_attachment_refs": [
+                            {
+                              "attachment_id": "27643",
+                              "source_family": "memorandum",
+                              "title": "Memorandum from Liccardo, 11/29/2022",
+                              "url": "https://legistar.granicus.com/sanjose/attachments/787bf317-55ff-4a2d-a2c8-4a69f1b45476.pdf"
+                            },
+                            {
+                              "attachment_id": "27644",
+                              "source_family": "unknown",
+                              "title": "Letters from the Public - 2 of 2",
+                              "url": "https://legistar.granicus.com/sanjose/attachments/ea4afd9c-5511-48a8-ba0a-f71cfd5f4696.pdf"
+                            },
+                            {
+                              "attachment_id": "27646",
+                              "source_family": "unknown",
+                              "title": "Letters from the Public - 1 of 2",
+                              "url": "https://legistar.granicus.com/sanjose/attachments/fb3604fd-1cd4-49a4-8b68-f0f4abc010a1.pdf"
+                            },
+                            {
+                              "attachment_id": "27647",
+                              "source_family": "memorandum",
+                              "title": "Supplemental Memorandum, 11/23/2022",
+                              "url": "https://legistar.granicus.com/sanjose/attachments/f87fd540-9ceb-43f4-8f59-6a76c30c2ffe.pdf"
+                            },
+                            {
+                              "attachment_id": "27648",
+                              "source_family": "ordinance",
+                              "title": "Ordinance",
+                              "url": "https://legistar.granicus.com/sanjose/attachments/d398e9d4-6c01-47e8-b777-3b8fc87d562b.pdf"
+                            },
+                            {
+                              "attachment_id": "27649",
+                              "source_family": "memorandum",
+                              "title": "Memorandum",
+                              "url": "https://legistar.granicus.com/sanjose/attachments/f5dddc5d-4ead-42b9-9c23-58a2eb66b944.pdf"
+                            },
+                            {
+                              "attachment_id": "27853",
+                              "source_family": "agenda/minutes",
+                              "title": "Presentation - est. 15 minutes",
+                              "url": "https://legistar.granicus.com/sanjose/attachments/5aeea5e3-b42e-4770-9fa4-af4b29422c16.pdf"
+                            }
+                          ],
+                          "source_identity": "legistar_web_api"
+                        },
+                        "linked_artifact_refs": [
+                          "https://legistar.granicus.com/sanjose/attachments/787bf317-55ff-4a2d-a2c8-4a69f1b45476.pdf",
+                          "https://legistar.granicus.com/sanjose/attachments/ea4afd9c-5511-48a8-ba0a-f71cfd5f4696.pdf",
+                          "https://legistar.granicus.com/sanjose/attachments/fb3604fd-1cd4-49a4-8b68-f0f4abc010a1.pdf",
+                          "https://legistar.granicus.com/sanjose/attachments/f87fd540-9ceb-43f4-8f59-6a76c30c2ffe.pdf",
+                          "https://legistar.granicus.com/sanjose/attachments/d398e9d4-6c01-47e8-b777-3b8fc87d562b.pdf",
+                          "https://legistar.granicus.com/sanjose/attachments/f5dddc5d-4ead-42b9-9c23-58a2eb66b944.pdf",
+                          "https://legistar.granicus.com/sanjose/attachments/5aeea5e3-b42e-4770-9fa4-af4b29422c16.pdf"
+                        ],
+                        "policy_match_confidence": 0.95,
+                        "policy_match_key": "legistar::id::/matter.aspx?key=11803",
+                        "provider": "legistar_web_api",
+                        "provider_run_id": "11803",
+                        "query_text": "San Jose parking minimums ordinance policy action city council",
+                        "reader_artifact_refs": [],
+                        "reconciliation_status": "pending_primary_reconciliation",
+                        "related_attachment_refs": [
+                          {
+                            "attachment_id": "27643",
+                            "source_family": "memorandum",
+                            "title": "Memorandum from Liccardo, 11/29/2022",
+                            "url": "https://legistar.granicus.com/sanjose/attachments/787bf317-55ff-4a2d-a2c8-4a69f1b45476.pdf"
+                          },
+                          {
+                            "attachment_id": "27644",
+                            "source_family": "unknown",
+                            "title": "Letters from the Public - 2 of 2",
+                            "url": "https://legistar.granicus.com/sanjose/attachments/ea4afd9c-5511-48a8-ba0a-f71cfd5f4696.pdf"
+                          },
+                          {
+                            "attachment_id": "27646",
+                            "source_family": "unknown",
+                            "title": "Letters from the Public - 1 of 2",
+                            "url": "https://legistar.granicus.com/sanjose/attachments/fb3604fd-1cd4-49a4-8b68-f0f4abc010a1.pdf"
+                          },
+                          {
+                            "attachment_id": "27647",
+                            "source_family": "memorandum",
+                            "title": "Supplemental Memorandum, 11/23/2022",
+                            "url": "https://legistar.granicus.com/sanjose/attachments/f87fd540-9ceb-43f4-8f59-6a76c30c2ffe.pdf"
+                          },
+                          {
+                            "attachment_id": "27648",
+                            "source_family": "ordinance",
+                            "title": "Ordinance",
+                            "url": "https://legistar.granicus.com/sanjose/attachments/d398e9d4-6c01-47e8-b777-3b8fc87d562b.pdf"
+                          },
+                          {
+                            "attachment_id": "27649",
+                            "source_family": "memorandum",
+                            "title": "Memorandum",
+                            "url": "https://legistar.granicus.com/sanjose/attachments/f5dddc5d-4ead-42b9-9c23-58a2eb66b944.pdf"
+                          },
+                          {
+                            "attachment_id": "27853",
+                            "source_family": "agenda/minutes",
+                            "title": "Presentation - est. 15 minutes",
+                            "url": "https://legistar.granicus.com/sanjose/attachments/5aeea5e3-b42e-4770-9fa4-af4b29422c16.pdf"
+                          }
+                        ],
+                        "retrieved_at": "2026-04-17T06:06:00.646395+00:00",
+                        "source_family": "legistar_web_api",
+                        "source_lane": "structured",
+                        "source_tier": "tier_b",
+                        "structured_policy_facts": [
+                          {
+                            "field": "matter_attachment_count",
+                            "unit": "count",
+                            "value": 7
+                          },
+                          {
+                            "field": "matter_attachment_url_count",
+                            "unit": "count",
+                            "value": 7
+                          }
+                        ],
+                        "true_structured": true
+                      }
+                    ],
+                    "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+                    "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+                    "windmill_run_id": "bd-3wefe.13-live-cycle-41-20260417060514",
+                    "windmill_workspace": "affordabot"
+                  },
+                  "schema_version": "1.0.0",
+                  "scraped_sources": [
+                    {
+                      "candidate_rank": 1,
+                      "provider_run_id": "bd-3wefe.13-live-cycle-41-20260417060514",
+                      "query_family": "parking_policy",
+                      "query_text": "San Jose parking minimums ordinance policy action city council",
+                      "reader_artifact_url": null,
+                      "reader_substance_passed": true,
+                      "search_provider": "private_searxng",
+                      "search_snapshot_id": "d3377738-e74e-4c10-b5b7-5991f15bf44f",
+                      "selected_candidate_url": "https://sanjose.legistar.com/gateway.aspx?m=l&id=/matter.aspx?key=11803"
+                    }
+                  ],
+                  "source_lanes": [
+                    "scraped",
+                    "structured"
+                  ],
+                  "source_quality_metrics": {
+                    "artifact_quality_gate": {
+                      "artifact_candidate_count": 0,
+                      "artifact_candidate_substantive_count": 0,
+                      "substantive_artifact_urls": []
+                    },
+                    "artifact_quality_gate_reason": "no_artifact_candidate_passed_quality_gate",
+                    "artifact_quality_gate_status": "pass",
+                    "explicit_lineage_linked": false,
+                    "fallback_materialization_count": 0,
+                    "identity_blocker_code": "",
+                    "identity_blocker_reason": "",
+                    "identity_failure_codes": [],
+                    "identity_failure_reasons": [],
+                    "identity_quality_ready": true,
+                    "identity_quality_status": "not_applicable",
+                    "identity_required": false,
+                    "jurisdiction_identity_ready": true,
+                    "jurisdiction_identity_signals": [],
+                    "jurisdiction_identity_status": "not_applicable",
+                    "official_reader_error_count": 0,
+                    "policy_identity_ready": true,
+                    "policy_identity_signals": [],
+                    "policy_identity_status": "not_applicable",
+                    "portal_skip_count": 0,
+                    "provider_results": {
+                      "private_searxng": {
+                        "candidates": [
+                          {
+                            "artifact_grade": false,
+                            "official_domain": true,
+                            "rank": 1,
+                            "url": "https://sanjose.legistar.com/gateway.aspx?m=l&id=%2Fmatter.aspx%3Fkey%3D11803"
+                          },
+                          {
+                            "artifact_grade": false,
+                            "official_domain": false,
+                            "rank": 2,
+                            "url": "https://actionnetwork.org/user_files/user_files/000/077/644/original/SJ_Parking_Policy_Council_Letter.pdf"
+                          },
+                          {
+                            "artifact_grade": false,
+                            "official_domain": false,
+                            "rank": 3,
+                            "url": "https://siliconvalleyathome.org/wp-content/uploads/2022/06/June-14-SJ-Parking-Policy-Council-letter-Updated.pdf"
+                          },
+                          {
+                            "artifact_grade": false,
+                            "official_domain": true,
+                            "rank": 4,
+                            "url": "https://sanjose.legistar.com/LegislationDetail.aspx?ID=5950698&GUID=477281B1-FB98-4899-BF37-4F080890914D"
+                          },
+                          {
+                            "artifact_grade": false,
+                            "official_domain": false,
+                            "rank": 5,
+                            "url": "https://www.reddit.com/r/SanJose/comments/zfcuko/last_night_san_jose_became_the_largest_city_in/"
+                          }
+                        ],
+                        "reason_code": "materialized_raw_scrape",
+                        "status": "succeeded"
+                      }
+                    },
+                    "provider_summary": {
+                      "primary_provider": "private_searxng",
+                      "provider_error_count": 0,
+                      "provider_error_urls": [],
+                      "quality_failure_count": 0,
+                      "runtime": {
+                        "client_class": "OssSearxngWebSearchClient",
+                        "configured_provider": "searxng",
+                        "endpoint_configured": true,
+                        "endpoint_host": "searxng-private.railway.internal:8080",
+                        "provider": "private_searxng",
+                        "provider_source": "client_label"
+                      }
+                    },
+                    "reader_substance_observed": true,
+                    "reader_substance_selection_outcome": "materialized_raw_scrape",
+                    "secondary_numeric_parameter_count": 2,
+                    "secondary_numeric_rescue_detected": false,
+                    "selected_artifact_family": "official_page",
+                    "selected_candidate": {
+                      "artifact_family": "official_page",
+                      "artifact_grade": false,
+                      "artifact_quality_gate_passed": false,
+                      "fee_schedule_gate": {
+                        "authoritative_policy_text_ok": false,
+                        "classified_as_maintained_fee_schedule": false,
+                        "passed": false,
+                        "reason": "missing_fee_schedule_signals"
+                      },
+                      "official_domain": true,
+                      "provider": "private_searxng",
+                      "rank": 1,
+                      "selection_reason": "materialized_raw_scrape",
+                      "shape_quality_gate_passed": false,
+                      "url": "https://sanjose.legistar.com/gateway.aspx?m=l&id=/matter.aspx?key=11803"
+                    },
+                    "selection_quality_reason": "no_artifact_candidate_passed_quality_gate",
+                    "selection_quality_status": "fail",
+                    "source_shape_drift": {
+                      "candidate_count": 10,
+                      "drift_detected": false,
+                      "missing_snippet_count": 0,
+                      "missing_url_count": 0
+                    },
+                    "top_n_artifact_recall_count": 0,
+                    "top_n_official_recall_count": 2,
+                    "top_n_window": 5
+                  },
+                  "source_reconciliation": {
+                    "fail_closed_locator_signal_count": 0,
+                    "missing_true_structured_corroboration_count": 0,
+                    "official_attachment_authoritative_row_count": 0,
+                    "official_attachment_row_count": 0,
+                    "primary_official_row_count": 0,
+                    "records": [],
+                    "secondary_override_blocked": true,
+                    "secondary_snippet_row_count": 0,
+                    "source_of_truth_policy": "primary_artifact_precedence_then_labeled_secondary",
+                    "true_structured_row_count": 0,
+                    "unresolved_count": 0
+                  },
+                  "storage_refs": [
+                    {
+                      "content_hash": "b993c32f61c1cec9167c2eb4ca813c175e2717153d5f8ac976f53f889827e65b",
+                      "notes": null,
+                      "reference_id": "policy_evidence_packages:pkg-c48016e9161bbb4a8fef90c7",
+                      "storage_system": "postgres",
+                      "truth_role": "source_of_truth",
+                      "uri": null
+                    },
+                    {
+                      "content_hash": "b993c32f61c1cec9167c2eb4ca813c175e2717153d5f8ac976f53f889827e65b",
+                      "notes": "readback proof pending bd-3wefe.10",
+                      "reference_id": "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/parking_policy/reader_output/b993c32f61c1cec9167c2eb4ca813c175e2717153d5f8ac976f53f889827e65b.md",
+                      "storage_system": "minio",
+                      "truth_role": "artifact_of_record",
+                      "uri": "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/parking_policy/reader_output/b993c32f61c1cec9167c2eb4ca813c175e2717153d5f8ac976f53f889827e65b.md"
+                    },
+                    {
+                      "content_hash": "b993c32f61c1cec9167c2eb4ca813c175e2717153d5f8ac976f53f889827e65b",
+                      "notes": "derived index only",
+                      "reference_id": "document:b6f52508-8e26-5250-bb7a-da5d5340aef4",
+                      "storage_system": "pgvector",
+                      "truth_role": "derived_index",
+                      "uri": null
+                    },
+                    {
+                      "notes": "package artifact envelope",
+                      "reference_id": "minio://affordabot-artifacts/policy-evidence/packages/pkg-c48016e9161bbb4a8fef90c7.json",
+                      "storage_system": "minio",
+                      "truth_role": "artifact_of_record",
+                      "uri": "minio://affordabot-artifacts/policy-evidence/packages/pkg-c48016e9161bbb4a8fef90c7.json"
+                    }
+                  ],
+                  "structured_enrichment_status": "integrated",
+                  "structured_sources": [
+                    {
+                      "access_method": "public_api_json",
+                      "endpoint_or_file_url": "https://webapi.legistar.com/v1/sanjose/Matters/11803",
+                      "event_body_id": null,
+                      "event_date": null,
+                      "field_count": 2,
+                      "matter_id": "11803",
+                      "policy_match_confidence": 0.95,
+                      "policy_match_key": "legistar::id::/matter.aspx?key=11803",
+                      "provider_run_id": "11803",
+                      "reconciliation_status": "pending_primary_reconciliation",
+                      "source_family": "legistar_web_api",
+                      "true_structured": true
+                    }
+                  ]
+                },
+                "refs": {
+                  "backend_run_id": "43f4dca9-e202-43c4-9e27-599c737f775e",
+                  "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=parking_policy|doctype=meeting_minutes|url=https://sanjose.legistar.com/gateway.aspx?id=%2Fmatter.aspx%3Fkey%3D11803&m=l",
+                  "document_id": "b6f52508-8e26-5250-bb7a-da5d5340aef4",
+                  "fail_closed_reasons": [
+                    "analysis_sufficiency:Sufficient",
+                    "blocking_gate_present",
+                    "no_quant_support_path"
+                  ],
+                  "idempotent_replay": false,
+                  "package_artifact_uri": "minio://affordabot-artifacts/policy-evidence/packages/pkg-c48016e9161bbb4a8fef90c7.json",
+                  "package_id": "pkg-c48016e9161bbb4a8fef90c7",
+                  "raw_scrape_id": "2a56d499-358c-51a2-b83a-bf6a14305c78",
+                  "reader_artifact_uri": "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/parking_policy/reader_output/b993c32f61c1cec9167c2eb4ca813c175e2717153d5f8ac976f53f889827e65b.md",
+                  "selected_url": "https://sanjose.legistar.com/gateway.aspx?m=l&id=/matter.aspx?key=11803",
+                  "storage_proof_mode": "direct_live_probe",
+                  "storage_status": "stored"
+                },
+                "storage_result": {
+                  "artifact_readback_status": "proven",
+                  "artifact_write_status": "succeeded",
+                  "fail_closed": true,
+                  "failure_class": null,
+                  "idempotent_reuse": false,
+                  "pgvector_truth_role": "derived_index",
+                  "stored": true
+                }
+              },
+              "step_statuses": {
+                "analyze": "succeeded",
+                "freshness_gate": "succeeded",
+                "index": "succeeded",
+                "read_fetch": "succeeded",
+                "search_materialize": "succeeded"
+              }
+            },
+            "envelope": {
+              "analysis_question": "Capture authoritative San Jose parking policy evidence including policy action, enforcement scope, and effective dates.",
+              "contract_version": "2026-04-13.windmill-domain.v1",
+              "idempotency_key": "bd-3wefe.13-live-cycle-41-20260417060514",
+              "jurisdiction": "San Jose CA",
+              "orchestrator": "windmill",
+              "scope_idempotency_key": "bd-3wefe.13-live-cycle-41-20260417060514::2c3802ea3a8739e3",
+              "search_query": "San Jose parking minimums ordinance policy action city council",
+              "source_family": "parking_policy",
+              "stale_status": "fresh",
+              "windmill_flow_path": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-41-20260417060514",
+              "windmill_workspace": "affordabot"
+            },
+            "refs": {
+              "analyze_reason": "analysis_completed",
+              "analyze_retry_class": "none",
+              "backend_run_id": "43f4dca9-e202-43c4-9e27-599c737f775e",
+              "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=parking_policy|doctype=meeting_minutes|url=https://sanjose.legistar.com/gateway.aspx?id=%2Fmatter.aspx%3Fkey%3D11803&m=l",
+              "document_id": "b6f52508-8e26-5250-bb7a-da5d5340aef4",
+              "fail_closed_reasons": [
+                "analysis_sufficiency:Sufficient",
+                "blocking_gate_present",
+                "no_quant_support_path"
+              ],
+              "freshness_gate_reason": "fresh",
+              "freshness_gate_retry_class": "none",
+              "idempotent_replay": false,
+              "index_reason": "chunks_indexed",
+              "index_retry_class": "none",
+              "package_artifact_uri": "minio://affordabot-artifacts/policy-evidence/packages/pkg-c48016e9161bbb4a8fef90c7.json",
+              "package_id": "pkg-c48016e9161bbb4a8fef90c7",
+              "raw_scrape_id": "2a56d499-358c-51a2-b83a-bf6a14305c78",
+              "read_fetch_reason": "raw_scrapes_materialized",
+              "read_fetch_retry_class": "none",
+              "reader_artifact_uri": "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/parking_policy/reader_output/b993c32f61c1cec9167c2eb4ca813c175e2717153d5f8ac976f53f889827e65b.md",
+              "run_id": "43f4dca9-e202-43c4-9e27-599c737f775e",
+              "search_materialize_reason": "fresh_snapshot_materialized",
+              "search_materialize_retry_class": "none",
+              "selected_url": "https://sanjose.legistar.com/gateway.aspx?m=l&id=/matter.aspx?key=11803",
+              "storage_proof_mode": "direct_live_probe",
+              "storage_status": "stored",
+              "windmill_job_id": "run_scope_pipeline:0:run_scope_pipeline",
+              "windmill_run_id": "bd-3wefe.13-live-cycle-41-20260417060514"
+            },
+            "retry_class": "none",
+            "status": "succeeded"
+          }
+        }
+      }
+    ],
+    "scope_succeeded": 1,
+    "scope_total": 1,
+    "status": "succeeded"
+  },
+  "run_mode": "backend-endpoint-run",
+  "search_provider_bakeoff": [
+    {
+      "endpoint": "https://searx.tiekoetter.com/search",
+      "failure_classification": "http_error",
+      "http_status": 429,
+      "latency_ms": 636,
+      "provider": "searxng",
+      "query": "San Jose parking minimums ordinance policy action city council",
+      "result_count": 0,
+      "status": "failed",
+      "top_results": []
+    },
+    {
+      "failure_classification": null,
+      "http_status": 200,
+      "latency_ms": 1338,
+      "provider": "exa",
+      "query": "San Jose parking minimums ordinance policy action city council",
+      "result_count": 5,
+      "status": "succeeded",
+      "top_results": [
+        {
+          "snippet": "",
+          "title": "San Jose tackles lack of parking after cutting requirements",
+          "url": "https://sanjosespotlight.com/san-jose-tackles-lack-of-parking-after-cutting-requirements/"
+        },
+        {
+          "snippet": "",
+          "title": "San Jose becomes largest city in U.S. to abolish minimum parking",
+          "url": "https://www.siliconvalley.com/2022/12/07/bye-bye-parking-requirements-san-jose-becomes-largest-city-to-abolish-minimum-parking/"
+        },
+        {
+          "snippet": "",
+          "title": "",
+          "url": "https://www.sanjoseca.gov/home/showdocument?id=91909&amp;t=638035887679077134"
+        }
+      ]
+    },
+    {
+      "failure_classification": null,
+      "http_status": 200,
+      "latency_ms": 1206,
+      "provider": "tavily",
+      "query": "San Jose parking minimums ordinance policy action city council",
+      "result_count": 5,
+      "status": "succeeded",
+      "top_results": [
+        {
+          "snippet": "The sweeping city council decision removes set parking requirements from developments downtown, near transit, small businesses and more. June 1,",
+          "title": "San Jose Eliminates Parking Minimums | Planetizen News",
+          "url": "https://www.planetizen.com/news/2022/12/120204-san-jose-eliminates-parking-minimums"
+        },
+        {
+          "snippet": "The policy that has been approved includes eliminating parking requirements in most areas of the city, as well as new transportation demand",
+          "title": "San Jos\u00e9 Approves Parking And Mobility Ordinance",
+          "url": "https://www.greenbelt.org/blog/san-jose-approves-parking-policy/"
+        },
+        {
+          "snippet": "San Jose plan to end parking minimums imposed on housing (and other) developers draws support and concerns. City officials say parking",
+          "title": "San Jose plan to end parking minimums imposed on housing (and ...",
+          "url": "https://www.facebook.com/groups/1669068856670078/posts/3019954921581458/"
+        }
+      ]
+    }
+  ],
+  "stale_drills": [],
+  "storage_evidence_gates": {
+    "analysis_provenance_chain": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "bridge_mode": {
+      "note": "",
+      "status": "railway_runtime"
+    },
+    "failure_handler_drill": {
+      "note": "failure injection is a separate pre-schedule gate; this San Jose product path run verified the native failure handler surface was configured",
+      "status": "not_run"
+    },
+    "idempotent_rerun": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "minio_object_refs": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "pgvector_index_probe": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "postgres_rows_written": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "quality_gate_blocked_before_index_analyze": {
+      "note": "current run completed past read_fetch; reader quality block was not expected in this success path",
+      "status": "not_applicable"
+    },
+    "reader_output_ref": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "stale_drill_stale_blocked": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    },
+    "stale_drill_stale_but_usable": {
+      "note": "not proven in Windmill stub run; requires Worker A product bridge + live storage adapters",
+      "status": "pending"
+    }
+  },
+  "surface_checks": {
+    "jobs_checked_count": 20,
+    "schedule_count": 4,
+    "workspace_profile_listed": true
+  }
+}

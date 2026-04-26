@@ -1,0 +1,783 @@
+{
+  "assumption_needs": {
+    "assumption_count": 1,
+    "assumption_ids": [
+      "assump-1-fee_or_tax_pass_through"
+    ],
+    "direct_project_fee_scope": {
+      "reason": "indirect mechanism still requires source-bound assumptions",
+      "status": "not_proven"
+    },
+    "household_cost_of_living_scope": {
+      "missing_families": [
+        "adoption_take_up"
+      ],
+      "reason": "pass-through/incidence assumptions missing",
+      "status": "not_proven"
+    },
+    "missing_families": [
+      "adoption_take_up"
+    ],
+    "required_families": [
+      "fee_or_tax_pass_through",
+      "adoption_take_up"
+    ],
+    "status": "not_proven"
+  },
+  "backend_run_id": "71c3dcc9-39de-4462-8fa0-dd1b5c35b63a",
+  "canonical_analysis_binding": {
+    "observed": {
+      "canonical_pipeline_run_id": "71c3dcc9-39de-4462-8fa0-dd1b5c35b63a",
+      "canonical_pipeline_step_id": "678d59a5-fd54-55f0-9a5b-d1fa7c3090c1",
+      "source": "policy_evidence_packages.package_payload + pipeline_runs.result.analysis"
+    },
+    "package_projection": {
+      "canonical_pipeline_run_id": "71c3dcc9-39de-4462-8fa0-dd1b5c35b63a",
+      "canonical_pipeline_step_id": "678d59a5-fd54-55f0-9a5b-d1fa7c3090c1"
+    },
+    "reason": "canonical analysis run/step ids are linked to this package",
+    "route_run_id": "71c3dcc9-39de-4462-8fa0-dd1b5c35b63a",
+    "source_artifact_refs": [
+      {
+        "artifact_id": "v2|jurisdiction=san-jose-ca|family=meeting_minutes|doctype=meeting_minutes|url=https://www.sanjoseca.gov/Home/Components/News/News/1683/4765",
+        "content_hash": "e9dad9d0745282595fa982ee692ed0bacd36e552615823028ced831526ca5de0",
+        "evidence_card_id": "ev-1",
+        "source_url": "https://www.sanjoseca.gov/Home/Components/News/News/1683/4765"
+      },
+      {
+        "artifact_id": "v2|jurisdiction=san-jose-ca|family=legistar-web-api|doctype=matter_metadata|url=https://webapi.legistar.com/v1/sanjose/Matters/7526",
+        "content_hash": "missing_hash::https://webapi.legistar.com/v1/sanjose/Matters/7526",
+        "evidence_card_id": "ev-2",
+        "source_url": "https://webapi.legistar.com/v1/sanjose/Matters/7526"
+      },
+      {
+        "artifact_id": "v2|jurisdiction=san-jose-ca|family=tavily-secondary-search|doctype=secondary_search_rate_snippet|url=https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee",
+        "content_hash": "missing_hash::https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee",
+        "evidence_card_id": "ev-3",
+        "source_url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee"
+      }
+    ],
+    "status": "bound"
+  },
+  "contract_version": "2026-04-13.windmill-domain.v1",
+  "data_moat_status": {
+    "blockers": [
+      {
+        "code": "official_attachment_rows_missing",
+        "reason": "Selected official page has no ingested authoritative attachment economic rows."
+      },
+      {
+        "code": "true_structured_rows_missing",
+        "reason": "No true structured economic rows are available."
+      }
+    ],
+    "decision_grade_verdict": "not_decision_grade",
+    "economic_handoff_ready": false,
+    "evidence_package_status": "fail",
+    "identity_blocker_code": null,
+    "identity_blocker_reason": null,
+    "identity_ready": true,
+    "identity_recommended_action": null,
+    "identity_signals_present": true,
+    "jurisdiction_identity_ready": true,
+    "missing_true_structured_corroboration_count": 0,
+    "named_gap_count": 6,
+    "named_gaps": [
+      "scraped/search",
+      "economic reasoning",
+      "rubric/assumption_governance",
+      "rubric/arithmetic_integrity",
+      "rubric/uncertainty_sensitivity",
+      "sufficiency_readiness"
+    ],
+    "official_attachment_depth_ready": false,
+    "official_attachment_row_count": 0,
+    "overall_ready": false,
+    "policy_identity_ready": true,
+    "readiness_level": "qualitative_only",
+    "reason": "package failed explicit data moat blockers despite runtime readiness",
+    "recommended_next_action": "ingest_official_attachments",
+    "row_family_depth": {
+      "official_attachment": {
+        "row_count": 0,
+        "satisfies_depth": false,
+        "status": "missing_or_identity_unlinked"
+      },
+      "secondary_search": {
+        "row_count": 1,
+        "satisfies_depth": false,
+        "status": "non_authoritative"
+      },
+      "true_structured": {
+        "row_count": 0,
+        "satisfies_depth": false,
+        "status": "missing_or_unverified"
+      }
+    },
+    "runtime_ready": true,
+    "secondary_search_row_count": 1,
+    "selected_artifact_family": "official_page",
+    "source_quality_ready": false,
+    "source_selection_blocker": false,
+    "source_selection_reason": "selected_official_page_candidate",
+    "status": "fail",
+    "structured_depth_ready": false,
+    "structured_depth_satisfied_by": [],
+    "top_n_artifact_recall_count": 1,
+    "true_structured_depth_ready": false,
+    "true_structured_row_count": 0
+  },
+  "decision_grade_verdict": "not_decision_grade",
+  "economic_analysis_status": {
+    "reason": "additional evidence is required before quantitative conclusion",
+    "required_evidence_gaps": [
+      "scraped/search",
+      "economic reasoning",
+      "rubric/assumption_governance",
+      "rubric/arithmetic_integrity",
+      "rubric/uncertainty_sensitivity",
+      "sufficiency_readiness"
+    ],
+    "status": "secondary_research_needed"
+  },
+  "economic_handoff_quality": {
+    "analysis_state": "secondary_research_needed",
+    "analysis_status": "secondary_research_needed",
+    "assumption_needs": {
+      "assumption_count": 1,
+      "assumption_ids": [
+        "assump-1-fee_or_tax_pass_through"
+      ],
+      "direct_project_fee_scope": {
+        "reason": "indirect mechanism still requires source-bound assumptions",
+        "status": "not_proven"
+      },
+      "household_cost_of_living_scope": {
+        "missing_families": [
+          "adoption_take_up"
+        ],
+        "reason": "pass-through/incidence assumptions missing",
+        "status": "not_proven"
+      },
+      "missing_families": [
+        "adoption_take_up"
+      ],
+      "required_families": [
+        "fee_or_tax_pass_through",
+        "adoption_take_up"
+      ],
+      "status": "not_proven"
+    },
+    "can_quantify_now": [],
+    "canonical_binding_status": "bound",
+    "decision_grade_verdict": "not_decision_grade",
+    "fail_closed_blocking_gate": null,
+    "fail_closed_specific": false,
+    "legacy_status": "not_ready",
+    "mechanism_candidates": [
+      {
+        "direct_fee_model_candidate": {
+          "formula": "",
+          "scope": "direct_developer_fee",
+          "status": "not_applicable"
+        },
+        "household_pass_through_need": {
+          "reason": "household pass-through/incidence assumptions missing",
+          "status": "not_proven"
+        },
+        "mechanism_type": "direct",
+        "reason": "mechanism_type is not direct",
+        "status": "not_proven",
+        "supported_model_card_ids": []
+      },
+      {
+        "mechanism_type": "indirect",
+        "reason": "source-bound pass-through/adoption assumptions present",
+        "status": "pass",
+        "supported_assumption_ids": [
+          "assump-1-fee_or_tax_pass_through"
+        ]
+      },
+      {
+        "mechanism_type": "indirect",
+        "reason": "nodes=3 edges=2",
+        "status": "pass"
+      }
+    ],
+    "missing_assumption_families": [
+      "adoption_take_up"
+    ],
+    "missing_parameters": [],
+    "missing_parameters_count": 0,
+    "official_attachment_row_count": 0,
+    "parameter_inventory": {
+      "missing_count": 0,
+      "missing_parameters": [],
+      "resolved_count": 1,
+      "resolved_parameters": [
+        {
+          "ambiguity_reason": null,
+          "evidence_card_id": "ev-3",
+          "name": "commercial_linkage_fee_rate_usd_per_sqft",
+          "parameter_id": "param-1-commercial-linkage-fee-rate-usd-per-sqft",
+          "source_url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee",
+          "state": "resolved",
+          "unit": "usd_per_square_foot"
+        }
+      ]
+    },
+    "quantification_paths": {
+      "direct_project_fee_exposure": {
+        "reason": "source-bound direct project-fee path not established",
+        "status": "not_analysis_ready"
+      },
+      "household_cost_of_living": {
+        "reason": "household cost-of-living incidence path is not source-bound",
+        "status": "not_analysis_ready"
+      }
+    },
+    "readiness_level": "qualitative_only",
+    "reason_code": "unsupported_claim_risk_high",
+    "recommended_next_action": "ingest_official_attachments",
+    "secondary_research_needs": {
+      "canonical_binding_required": true,
+      "household_incidence_assumptions_missing": true,
+      "must_fail_closed_without_secondary_package": true,
+      "reason": "indirect or under-parameterized analysis path requires auditable secondary research package",
+      "reason_code": "pass_through_incidence_assumptions_missing",
+      "request_contract_id": "sec-research::pkg-56135a398200c78dcdb4a5ce",
+      "request_target_parameters": [],
+      "required_evidence_gaps": [
+        "scraped/search",
+        "economic reasoning",
+        "rubric/assumption_governance",
+        "rubric/arithmetic_integrity",
+        "rubric/uncertainty_sensitivity",
+        "sufficiency_readiness"
+      ],
+      "status": "required"
+    },
+    "secondary_research_required": true,
+    "source_identity_blocker": false,
+    "source_identity_blocker_code": null,
+    "source_identity_blocker_reason": null,
+    "status": "not_analysis_ready",
+    "unsupported_claim_risks": {
+      "reason": "Unsupported quantitative claim blocked by gate_report verdict fail_closed.",
+      "risk_level": "high",
+      "status": "rejected",
+      "unsupported_claim_count": 1
+    }
+  },
+  "economic_output": {
+    "decision_grade_verdict": "not_decision_grade",
+    "missing_evidence": [
+      "scraped/search: Selected candidate did not meet artifact-quality threshold (artifact_grade=False, official_domain=True, provider=private_searxng, status=succeeded).",
+      "economic reasoning: No model cards found.",
+      "rubric/assumption_governance: Assumption governance incomplete: missing applicability/provenance/usage validity.",
+      "rubric/arithmetic_integrity: Quantified model cards are missing arithmetic/unit validity or ordered scenario bounds.",
+      "rubric/uncertainty_sensitivity: Missing/invalid sensitivity range or uncertainty notes.",
+      "sufficiency_readiness: readiness_level=qualitative_only"
+    ],
+    "reason": "economic quality rubric not decision-grade",
+    "status": "not_proven",
+    "unsupported_claim_rejection": {
+      "reason": "Unsupported quantitative claim blocked by gate_report verdict fail_closed.",
+      "status": "rejected"
+    },
+    "user_facing_conclusion": null
+  },
+  "economic_readiness": {
+    "assumption_readiness": {
+      "reason": "Assumption governance incomplete: missing applicability/provenance/usage validity.",
+      "status": "fail"
+    },
+    "direct_model_card_readiness": {
+      "reason": "mechanism_type is not direct",
+      "status": "not_applicable"
+    },
+    "evidence_readiness": {
+      "reason": "evidence_cards=3",
+      "status": "pass"
+    },
+    "mechanism_readiness": {
+      "reason": "nodes=3 edges=2",
+      "status": "pass"
+    },
+    "model_readiness": {
+      "reason": "Quantified model cards are missing arithmetic/unit validity or ordered scenario bounds.",
+      "status": "fail"
+    },
+    "parameter_readiness": {
+      "reason": "economic_resolved_parameters=1 (diagnostic_excluded=0) with source-bound provenance.",
+      "status": "pass"
+    },
+    "uncertainty_readiness": {
+      "reason": "Missing/invalid sensitivity range or uncertainty notes.",
+      "status": "fail"
+    },
+    "unsupported_claim_rejection": {
+      "reason": "Unsupported quantitative claim blocked by gate_report verdict fail_closed.",
+      "status": "rejected"
+    }
+  },
+  "economic_trace": {
+    "arithmetic_integrity": {
+      "reason": "Quantified model cards are missing arithmetic/unit validity or ordered scenario bounds.",
+      "status": "fail"
+    },
+    "assumption_cards": [
+      {
+        "applicability_tags": [
+          "San Jose CA",
+          "meeting_minutes"
+        ],
+        "assumption_id": "assump-1-fee_or_tax_pass_through",
+        "central": 0.65,
+        "family": "fee_or_tax_pass_through",
+        "high": 0.8,
+        "low": 0.5,
+        "source_excerpt": "Mapped mechanism assumption from source evidence and policy context.",
+        "source_url": "https://www.sanjoseca.gov/Home/Components/News/News/1683/4765",
+        "stale_after_days": 365,
+        "unit": "share",
+        "version": "v1"
+      }
+    ],
+    "diagnostic_parameter_table": [],
+    "direct_fee_model_card": {
+      "reason": "mechanism_type is not direct",
+      "status": "not_applicable"
+    },
+    "direct_indirect_classification": "indirect",
+    "mechanism_graph": {
+      "edges": [
+        {
+          "evidence_refs": [
+            "ev-1",
+            "ev-2",
+            "ev-3"
+          ],
+          "from": "policy_change",
+          "to": "economic_mechanism"
+        },
+        {
+          "evidence_refs": [
+            "param-1-commercial-linkage-fee-rate-usd-per-sqft"
+          ],
+          "from": "economic_mechanism",
+          "to": "household_cost_of_living"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "policy_change",
+          "label": "v2|jurisdiction=san-jose-ca|family=meeting_minutes|doctype=meeting_minutes|url=https://www.sanjoseca.gov/Home/Components/News/News/1683/4765"
+        },
+        {
+          "id": "economic_mechanism",
+          "label": "unknown"
+        },
+        {
+          "id": "household_cost_of_living",
+          "label": "Household cost-of-living"
+        }
+      ]
+    },
+    "mechanism_type": "indirect",
+    "model_cards": [],
+    "parameter_table": [
+      {
+        "evidence_card_id": "ev-3",
+        "metadata": {
+          "category": "industrial",
+          "effective_date": null,
+          "payment_timing": null,
+          "time_horizon": null
+        },
+        "name": "commercial_linkage_fee_rate_usd_per_sqft",
+        "parameter_id": "param-1-commercial-linkage-fee-rate-usd-per-sqft",
+        "source_excerpt": "The San Jos\u00e9 City Council voted on September 1, 2020 to begin charging commercial developers fees to fund affordable housing. The Commercial Linkage Fee is a one-time impact fee that applies to new and existing Non-Residential Projects in San Jos\u00e9 that either add gross floor area or change the existing building use. The San Jos\u00e9 City Council voted on December 11, 2018 to pursue a nexus and a feasibility study on a potential commercial linkage fee in San Jos\u00e9. | Industrial/Research and Development (\u2265100,000 sq.ft.) | $3.58 - When paid in full prior to the Building Permit issuance, a 20% reducti [normalized=3.58 ; unit=usd_per_square_foot ; source_family=tavily_secondary_search]",
+        "source_url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee",
+        "unit": "usd_per_square_foot",
+        "value": 3.58
+      }
+    ],
+    "sensitivity_range": null,
+    "uncertainty_notes": [
+      "Range depends on parameter resolution quality and evidence recency.",
+      "Assumption transferability must remain within applicability tags."
+    ]
+  },
+  "evidence_package_status": "fail",
+  "gates": {
+    "LLM narrative": {
+      "reason": "Canonical LLM narrative run evidence present (run_id=71c3dcc9-39de-4462-8fa0-dd1b5c35b63a, step_id=678d59a5-fd54-55f0-9a5b-d1fa7c3090c1, source=policy_evidence_packages.package_payload + pipeline_runs.result.analysis).",
+      "refs": [
+        {
+          "key": "canonical_pipeline_run_id",
+          "value": "71c3dcc9-39de-4462-8fa0-dd1b5c35b63a"
+        },
+        {
+          "key": "canonical_pipeline_step_id",
+          "value": "678d59a5-fd54-55f0-9a5b-d1fa7c3090c1"
+        },
+        {
+          "key": "source",
+          "value": "policy_evidence_packages.package_payload + pipeline_runs.result.analysis"
+        }
+      ],
+      "status": "pass"
+    },
+    "Windmill/orchestration": {
+      "reason": "Current-run Windmill run id present with backend scope job id only (run_id=bd-3wefe.13-live-cycle-34-20260417041200, scope_job_id=run_scope_pipeline:0:run_scope_pipeline).",
+      "refs": [
+        {
+          "key": "windmill_flow_path",
+          "value": "f/affordabot/pipeline_daily_refresh_domain_boundary__flow"
+        },
+        {
+          "key": "windmill_workspace",
+          "value": "affordabot"
+        },
+        {
+          "key": "windmill_run_id",
+          "value": "bd-3wefe.13-live-cycle-34-20260417041200"
+        },
+        {
+          "key": "source",
+          "value": "policy_evidence_packages.package_payload.run_context"
+        },
+        {
+          "key": "windmill_scope_job_id",
+          "value": "run_scope_pipeline:0:run_scope_pipeline"
+        }
+      ],
+      "status": "pass"
+    },
+    "economic_analysis_readiness": {
+      "reason": "readiness=qualitative_only",
+      "refs": [],
+      "status": "not_proven"
+    },
+    "scraped/search": {
+      "reason": "Selected candidate did not meet artifact-quality threshold (artifact_grade=False, official_domain=True, provider=private_searxng, status=succeeded).",
+      "refs": [],
+      "status": "fail"
+    },
+    "storage/read-back": {
+      "direct_probe_available": false,
+      "proof_mode": "postgres_minio_live",
+      "reason": "Backend storage-service proof present with persisted row id and MinIO readback (mode=postgres_minio_live, record_id=255037a9-c910-55c2-9625-23661822dd05, direct_probe_available=false).",
+      "refs": [
+        {
+          "content_hash": "e9dad9d0745282595fa982ee692ed0bacd36e552615823028ced831526ca5de0",
+          "reference_id": "policy_evidence_packages:pkg-56135a398200c78dcdb4a5ce",
+          "storage_system": "postgres",
+          "truth_role": "source_of_truth",
+          "uri": null
+        },
+        {
+          "content_hash": "e9dad9d0745282595fa982ee692ed0bacd36e552615823028ced831526ca5de0",
+          "reference_id": "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/meeting_minutes/reader_output/e9dad9d0745282595fa982ee692ed0bacd36e552615823028ced831526ca5de0.md",
+          "storage_system": "minio",
+          "truth_role": "artifact_of_record",
+          "uri": "minio://affordabot-artifacts/artifacts/2026-04-13.windmill-domain.v1/San Jose CA/meeting_minutes/reader_output/e9dad9d0745282595fa982ee692ed0bacd36e552615823028ced831526ca5de0.md"
+        },
+        {
+          "content_hash": "e9dad9d0745282595fa982ee692ed0bacd36e552615823028ced831526ca5de0",
+          "reference_id": "document:217221ee-8ce7-5ee5-8d49-42b8ed5be82b",
+          "storage_system": "pgvector",
+          "truth_role": "derived_index",
+          "uri": null
+        },
+        {
+          "content_hash": null,
+          "reference_id": "minio://affordabot-artifacts/policy-evidence/packages/pkg-56135a398200c78dcdb4a5ce.json",
+          "storage_system": "minio",
+          "truth_role": "artifact_of_record",
+          "uri": "minio://affordabot-artifacts/policy-evidence/packages/pkg-56135a398200c78dcdb4a5ce.json"
+        }
+      ],
+      "status": "pass"
+    }
+  },
+  "jurisdiction": "San Jose CA",
+  "manual_audit_scaffold": {
+    "canonical_binding_status": "bound",
+    "checklist": [
+      {
+        "description": "Verify canonical_document_key and every evidence/parameter card trace to source artifacts or rows.",
+        "gate": "D6",
+        "id": "audit_identity_and_provenance"
+      },
+      {
+        "description": "Verify Postgres row, MinIO readback, pgvector refs, and replay/idempotent proof mode.",
+        "gate": "D7",
+        "id": "audit_storage_readback_replay"
+      },
+      {
+        "description": "Verify current windmill run/job ids are linked to package and backend run state.",
+        "gate": "D9",
+        "id": "audit_windmill_binding"
+      },
+      {
+        "description": "Verify mechanism candidates, parameter inventory, assumptions, unsupported-claim risks, and next action are machine-actionable.",
+        "gate": "D11",
+        "id": "audit_economic_handoff_contract"
+      }
+    ],
+    "current_gate_status": {
+      "D11": "secondary_research_needed",
+      "D6": "pass",
+      "D7": "pass",
+      "D9": "pass"
+    },
+    "evidence_refs": [
+      {
+        "artifact_id": "v2|jurisdiction=san-jose-ca|family=meeting_minutes|doctype=meeting_minutes|url=https://www.sanjoseca.gov/Home/Components/News/News/1683/4765",
+        "evidence_card_id": "ev-1",
+        "source_url": "https://www.sanjoseca.gov/Home/Components/News/News/1683/4765"
+      },
+      {
+        "artifact_id": "v2|jurisdiction=san-jose-ca|family=legistar-web-api|doctype=matter_metadata|url=https://webapi.legistar.com/v1/sanjose/Matters/7526",
+        "evidence_card_id": "ev-2",
+        "source_url": "https://webapi.legistar.com/v1/sanjose/Matters/7526"
+      },
+      {
+        "artifact_id": "v2|jurisdiction=san-jose-ca|family=tavily-secondary-search|doctype=secondary_search_rate_snippet|url=https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee",
+        "evidence_card_id": "ev-3",
+        "source_url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee"
+      }
+    ],
+    "secondary_research_status": "required",
+    "status": "required"
+  },
+  "mechanism_candidates": [
+    {
+      "direct_fee_model_candidate": {
+        "formula": "",
+        "scope": "direct_developer_fee",
+        "status": "not_applicable"
+      },
+      "household_pass_through_need": {
+        "reason": "household pass-through/incidence assumptions missing",
+        "status": "not_proven"
+      },
+      "mechanism_type": "direct",
+      "reason": "mechanism_type is not direct",
+      "status": "not_proven",
+      "supported_model_card_ids": []
+    },
+    {
+      "mechanism_type": "indirect",
+      "reason": "source-bound pass-through/adoption assumptions present",
+      "status": "pass",
+      "supported_assumption_ids": [
+        "assump-1-fee_or_tax_pass_through"
+      ]
+    },
+    {
+      "mechanism_type": "indirect",
+      "reason": "nodes=3 edges=2",
+      "status": "pass"
+    }
+  ],
+  "missing_parameters": [],
+  "package_id": "pkg-56135a398200c78dcdb4a5ce",
+  "parameter_inventory": {
+    "missing_count": 0,
+    "missing_parameters": [],
+    "resolved_count": 1,
+    "resolved_parameters": [
+      {
+        "ambiguity_reason": null,
+        "evidence_card_id": "ev-3",
+        "name": "commercial_linkage_fee_rate_usd_per_sqft",
+        "parameter_id": "param-1-commercial-linkage-fee-rate-usd-per-sqft",
+        "source_url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee",
+        "state": "resolved",
+        "unit": "usd_per_square_foot"
+      }
+    ]
+  },
+  "provenance": {
+    "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=meeting_minutes|doctype=meeting_minutes|url=https://www.sanjoseca.gov/Home/Components/News/News/1683/4765",
+    "policy_identifier": "v2|jurisdiction=san-jose-ca|family=meeting_minutes|doctype=meeting_minutes|url=https://www.sanjoseca.gov/Home/Components/News/News/1683/4765",
+    "scraped_sources": [
+      {
+        "query_family": "meeting_minutes",
+        "reader_artifact_url": null,
+        "reader_provenance_hydrated": false,
+        "reader_substance_observed": true,
+        "reader_substance_passed": true,
+        "search_provider": "private_searxng",
+        "search_snapshot_id": "9b9031f9-9a79-4d2b-b1d5-76d6f3d41f81",
+        "selected_candidate_url": "https://www.sanjoseca.gov/Home/Components/News/News/1683/4765"
+      }
+    ],
+    "source_lanes": [
+      "scraped",
+      "structured"
+    ],
+    "structured_sources": [
+      {
+        "access_method": "public_api_json",
+        "endpoint_or_file_url": "https://webapi.legistar.com/v1/sanjose/Matters/7526",
+        "field_count": 2,
+        "provider_run_id": "7526",
+        "source_family": "legistar_web_api"
+      },
+      {
+        "access_method": "tavily_search_api",
+        "endpoint_or_file_url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee",
+        "field_count": 1,
+        "provider_run_id": "9e444ec9-7b1f-4f26-b9b0-700e21b7b3b5",
+        "source_family": "tavily_secondary_search"
+      }
+    ]
+  },
+  "recommended_next_action": "ingest_official_attachments",
+  "run_context": {
+    "completed_at": "2026-04-17 04:13:19.244622+00:00",
+    "run_id": "71c3dcc9-39de-4462-8fa0-dd1b5c35b63a",
+    "started_at": "2026-04-17 04:11:28.675154+00:00",
+    "status": "succeeded",
+    "windmill_run_id": "bd-3wefe.13-live-cycle-34-20260417041200"
+  },
+  "secondary_research": {
+    "output_contract": {
+      "canonical_analysis_binding_required": true,
+      "current_readiness": "qualitative_only",
+      "must_emit_fail_closed_if_missing": true,
+      "must_include_assumption_updates": true,
+      "must_include_model_card_updates": true,
+      "must_include_parameter_provenance": true,
+      "must_include_source_artifacts": true,
+      "must_link_package_id": "pkg-56135a398200c78dcdb4a5ce",
+      "readiness_target": "economic_handoff_ready",
+      "request_id": "sec-research::pkg-56135a398200c78dcdb4a5ce"
+    },
+    "reason": "indirect or under-parameterized analysis path requires auditable secondary research package",
+    "request_contract": {
+      "blocking_gate": null,
+      "canonical_document_key": "v2|jurisdiction=san-jose-ca|family=meeting_minutes|doctype=meeting_minutes|url=https://www.sanjoseca.gov/Home/Components/News/News/1683/4765",
+      "jurisdiction": "San Jose CA",
+      "mechanism_families": [],
+      "package_id": "pkg-56135a398200c78dcdb4a5ce",
+      "policy_identifier": "v2|jurisdiction=san-jose-ca|family=meeting_minutes|doctype=meeting_minutes|url=https://www.sanjoseca.gov/Home/Components/News/News/1683/4765",
+      "request_id": "sec-research::pkg-56135a398200c78dcdb4a5ce",
+      "required_evidence_gaps": [
+        "scraped/search",
+        "economic reasoning",
+        "rubric/assumption_governance",
+        "rubric/arithmetic_integrity",
+        "rubric/uncertainty_sensitivity",
+        "sufficiency_readiness"
+      ],
+      "source_artifact_refs": [
+        {
+          "content_hash": "e9dad9d0745282595fa982ee692ed0bacd36e552615823028ced831526ca5de0",
+          "evidence_card_id": "ev-1",
+          "source_type": "ordinance_text",
+          "source_url": "https://www.sanjoseca.gov/Home/Components/News/News/1683/4765"
+        },
+        {
+          "content_hash": "missing_hash::https://webapi.legistar.com/v1/sanjose/Matters/7526",
+          "evidence_card_id": "ev-2",
+          "source_type": "other",
+          "source_url": "https://webapi.legistar.com/v1/sanjose/Matters/7526"
+        },
+        {
+          "content_hash": "missing_hash::https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee",
+          "evidence_card_id": "ev-3",
+          "source_type": "other",
+          "source_url": "https://www.sanjoseca.gov/your-government/departments-offices/housing/developers/commercial-linkage-fee"
+        }
+      ],
+      "target_parameters": []
+    },
+    "status": "required"
+  },
+  "secondary_research_needs": {
+    "canonical_binding_required": true,
+    "household_incidence_assumptions_missing": true,
+    "must_fail_closed_without_secondary_package": true,
+    "reason": "indirect or under-parameterized analysis path requires auditable secondary research package",
+    "reason_code": "pass_through_incidence_assumptions_missing",
+    "request_contract_id": "sec-research::pkg-56135a398200c78dcdb4a5ce",
+    "request_target_parameters": [],
+    "required_evidence_gaps": [
+      "scraped/search",
+      "economic reasoning",
+      "rubric/assumption_governance",
+      "rubric/arithmetic_integrity",
+      "rubric/uncertainty_sensitivity",
+      "sufficiency_readiness"
+    ],
+    "status": "required"
+  },
+  "source_family": "meeting_minutes",
+  "source_quality": {
+    "identity_blocker_code": null,
+    "identity_blocker_reason": null,
+    "identity_ready": true,
+    "identity_recommended_action": null,
+    "jurisdiction_identity_ready": true,
+    "policy_identity_ready": true,
+    "provider_summary": {
+      "primary_provider": "private_searxng",
+      "provider_error_count": 0,
+      "provider_error_urls": [],
+      "quality_failure_count": 0,
+      "runtime": {
+        "client_class": "OssSearxngWebSearchClient",
+        "configured_provider": "searxng",
+        "endpoint_configured": true,
+        "endpoint_host": "searxng-private.railway.internal:8080",
+        "provider": "private_searxng",
+        "provider_source": "client_label"
+      }
+    },
+    "reader_substance_observed": true,
+    "reader_substance_selection_outcome": "materialized_raw_scrape",
+    "reason": "source_quality_metrics_present",
+    "row_family_depth": {
+      "official_attachment": {
+        "row_count": 0,
+        "satisfies_depth": false,
+        "status": "missing_or_identity_unlinked"
+      },
+      "secondary_search": {
+        "row_count": 1,
+        "satisfies_depth": false,
+        "status": "non_authoritative"
+      },
+      "true_structured": {
+        "row_count": 0,
+        "satisfies_depth": false,
+        "status": "missing_or_unverified"
+      }
+    },
+    "secondary_numeric_parameter_count": 3,
+    "secondary_numeric_rescue_detected": true,
+    "selected_artifact_family": "official_page",
+    "selected_candidate_rank": 3,
+    "selected_candidate_url": "https://www.sanjoseca.gov/Home/Components/News/News/1683/4765",
+    "selection_quality_reason": "no_artifact_candidate_passed_quality_gate",
+    "selection_quality_status": "fail",
+    "status": "captured",
+    "structured_depth_ready": false,
+    "structured_depth_satisfied_by": [],
+    "top_n_artifact_recall_count": 1,
+    "top_n_official_recall_count": 3,
+    "top_n_window": 5
+  },
+  "sufficiency_readiness_level": "qualitative_only",
+  "unsupported_claim_risks": {
+    "reason": "Unsupported quantitative claim blocked by gate_report verdict fail_closed.",
+    "risk_level": "high",
+    "status": "rejected",
+    "unsupported_claim_count": 1
+  }
+}

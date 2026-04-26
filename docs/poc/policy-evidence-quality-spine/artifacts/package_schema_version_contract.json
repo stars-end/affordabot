@@ -1,0 +1,40 @@
+{
+  "schema_version": "package_schema_version_contract_v1",
+  "package_schema_version": "1.0.0",
+  "taxonomy_version": "corpus_taxonomy_v1",
+  "gate_version": "data_moat_c0_c14_v1",
+  "minimum_export_row_fields": [
+    "package_id",
+    "schema_version",
+    "taxonomy_version",
+    "gate_version",
+    "jurisdiction_id",
+    "policy_family",
+    "canonical_policy_identity",
+    "data_moat_classification",
+    "d11_handoff_quality",
+    "official_source_dominance_status",
+    "structured_source_depth_status",
+    "source_families",
+    "storage_refs",
+    "retrieved_at",
+    "source_published_at_or_date_not_found",
+    "freshness_status",
+    "licensing_status",
+    "known_policy_reference_id",
+    "windmill_run_id",
+    "manual_audit_status"
+  ],
+  "versioning_rules": {
+    "breaking_package_shape_change_requires_new_package_schema_version": true,
+    "taxonomy_value_addition_requires_taxonomy_minor_revision": true,
+    "gate_threshold_change_requires_gate_version_revision": true,
+    "scorecard_rows_must_include_all_three_versions": true
+  },
+  "compatibility_guarantees": [
+    "Postgres package rows remain source of truth for package metadata.",
+    "MinIO artifacts remain artifact of record for raw/intermediate/final payloads.",
+    "pgvector remains a derived index and must never be treated as source of truth.",
+    "Exports must preserve enough provenance to re-open the authoritative official source."
+  ]
+}

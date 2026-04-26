@@ -144,6 +144,7 @@ def test_factory_selects_searxng_when_provider_configured(monkeypatch):
 
     assert isinstance(client, OssSearxngWebSearchClient)
     assert client.endpoint == "https://search.example/search"
+    assert client.provider_label == "private_searxng"
     asyncio.run(client.close())
 
 
@@ -164,6 +165,7 @@ def test_factory_selects_tavily_with_env_key(monkeypatch):
     client = create_web_search_client(api_key=None)
 
     assert isinstance(client, TavilyWebSearchClient)
+    assert client.provider_label == "tavily"
     asyncio.run(client.close())
 
 
@@ -206,6 +208,7 @@ def test_factory_selects_exa_with_env_key(monkeypatch):
     client = create_web_search_client(api_key=None)
 
     assert isinstance(client, ExaWebSearchClient)
+    assert client.provider_label == "exa"
     asyncio.run(client.close())
 
 

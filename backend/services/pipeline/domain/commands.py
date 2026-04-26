@@ -12,7 +12,12 @@ from urllib.parse import parse_qs, urlsplit
 from services.pipeline.domain.constants import CONTRACT_VERSION
 from services.pipeline.domain.identity import build_v2_canonical_document_key
 from services.pipeline.domain.in_memory import InMemoryDomainState, stable_json_hash
-from services.pipeline.domain.models import CommandEnvelope, CommandResponse, FreshnessPolicy
+from services.pipeline.domain.models import (
+    CommandEnvelope,
+    CommandResponse,
+    FreshnessPolicy,
+)
+from services.pipeline.source_identity import classify_source_candidate
 from services.pipeline.domain.ports import (
     Analyzer,
     ArtifactStore,
@@ -83,6 +88,8 @@ ECONOMIC_PROCEDURAL_PAGE_PENALTY = 20
 ECONOMIC_SIGNAL_BOOST = 8
 ECONOMIC_NUMERIC_SIGNAL_BOOST = 6
 ECONOMIC_OFFICIAL_SOURCE_BOOST = 4
+ECONOMIC_EXTERNAL_SOURCE_PENALTY = 10
+ECONOMIC_EXTERNAL_AGGREGATOR_SOURCE_PENALTY = 16
 
 CONCRETE_ARTIFACT_URL_SIGNALS = (
     "meetingdetail.aspx?id=",
@@ -289,6 +296,8 @@ ECONOMIC_PROCEDURAL_URL_SIGNALS = (
     "/agendas-minutes",
 )
 
+ECONOMIC_AGGREGATOR_HOST_SIGNALS = ("legigram.com",)
+
 
 def _hash_text(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
@@ -306,9 +315,7 @@ def _stable_chunk_id(
     chunk_text: str,
 ) -> str:
     chunk_text_hash = _hash_text(chunk_text)
-    material = (
-        f"{CONTRACT_VERSION}|{canonical_document_key}|{content_hash}|{chunk_index}|{chunk_text_hash}"
-    )
+    material = f"{CONTRACT_VERSION}|{canonical_document_key}|{content_hash}|{chunk_index}|{chunk_text_hash}"
     return f"chunk_{_hash_text(material)}"
 
 
@@ -320,16 +327,22 @@ def _split_chunks(text: str) -> list[str]:
 
 
 def assess_reader_substance(text: str) -> tuple[bool, dict[str, Any]]:
-    normalized_lines = [line.strip().lower() for line in text.splitlines() if line.strip()]
+    normalized_lines = [
+        line.strip().lower() for line in text.splitlines() if line.strip()
+    ]
     joined = " ".join(normalized_lines)
     word_count = len(re.findall(r"[a-z0-9$%.-]+", joined))
     nav_line_hits = sum(
-        1 for line in normalized_lines if any(marker in line for marker in NAVIGATION_MARKERS)
+        1
+        for line in normalized_lines
+        if any(marker in line for marker in NAVIGATION_MARKERS)
     )
     nav_marker_hits = sum(1 for marker in NAVIGATION_MARKERS if marker in joined)
     substantive_hits = sum(1 for marker in SUBSTANTIVE_MARKERS if marker in joined)
     action_hits = sum(1 for marker in ACTION_MARKERS if marker in joined)
-    logistics_marker_hits = sum(1 for marker in HEADER_LOGISTICS_MARKERS if marker in joined)
+    logistics_marker_hits = sum(
+        1 for marker in HEADER_LOGISTICS_MARKERS if marker in joined
+    )
     markdown_image_count = joined.count("![image")
     bullet_line_count = sum(1 for line in normalized_lines if line.startswith("- "))
     line_count = len(normalized_lines)
@@ -397,6 +410,8 @@ def rank_reader_candidates(
     query_context: str | None = None,
 ) -> list[dict[str, Any]]:
     economic_query = _is_economic_analysis_query(query_context)
+    query_jurisdiction = _infer_jurisdiction_from_query_context(query_context)
+    query_policy_families = _infer_policy_families_from_query_context(query_context)
     ranked: list[dict[str, Any]] = []
     for index, candidate in enumerate(candidates):
         url = candidate.url.strip()
@@ -407,6 +422,16 @@ def rank_reader_candidates(
         combined_text = f"{lowered_url} {lowered_text}"
         score = 0
         reasons: list[str] = []
+        source_identity = classify_source_candidate(
+            candidate={
+                "artifact_url": url,
+                "title": title,
+                "snippet": snippet,
+                "source_lane": "scrape_search",
+            },
+            jurisdiction=query_jurisdiction,
+            policy_families=query_policy_families,
+        )
 
         for signal in MEETING_ARTIFACT_URL_SIGNALS:
             if signal in lowered_url:
@@ -454,9 +479,35 @@ def rank_reader_candidates(
             if any(signal in lowered_url for signal in ECONOMIC_VALUE_URL_SIGNALS):
                 score += ECONOMIC_SIGNAL_BOOST
                 reasons.append("economic_signal:url")
-            if "sanjoseca.gov" in lowered_url:
+            source_officialness = str(source_identity.get("source_officialness") or "")
+            source_role = str(source_identity.get("source_of_truth_role") or "")
+            primary_allowed = bool(source_identity.get("primary_evidence_allowed"))
+            is_primary_official = (
+                source_role == "primary_official"
+                or _is_sanjose_official_records_url(url)
+            )
+            trusted_public_records = source_officialness.startswith(
+                "official_"
+            ) or _is_trusted_public_records_url(url)
+            if is_primary_official:
                 score += ECONOMIC_OFFICIAL_SOURCE_BOOST
                 reasons.append("economic_signal:official_source")
+            elif trusted_public_records:
+                score += max(1, ECONOMIC_OFFICIAL_SOURCE_BOOST // 2)
+                reasons.append("economic_signal:trusted_public_records_source")
+            else:
+                score -= ECONOMIC_EXTERNAL_SOURCE_PENALTY
+                reasons.append("economic_penalty:external_source")
+                if _is_economic_aggregator_url(url):
+                    score -= ECONOMIC_EXTERNAL_AGGREGATOR_SOURCE_PENALTY
+                    reasons.append("economic_penalty:aggregator_source")
+            if source_role == "primary_external_promoted" and primary_allowed:
+                reasons.append("economic_signal:external_primary_promoted")
+            if (
+                bool(source_identity.get("derived_via_secondary_search"))
+                and primary_allowed
+            ):
+                reasons.append("economic_signal:secondary_provider_primary_candidate")
             if _has_economic_numeric_signal(combined_text):
                 score += ECONOMIC_NUMERIC_SIGNAL_BOOST
                 reasons.append("economic_signal:numeric")
@@ -475,6 +526,7 @@ def rank_reader_candidates(
                 "snippet": snippet,
                 "score": score,
                 "reasons": reasons,
+                "source_identity": source_identity,
             }
         )
 
@@ -491,6 +543,32 @@ def rank_reader_candidates(
     if max_candidates is not None:
         return ranked[: max(0, max_candidates)]
     return ranked
+
+
+def _is_trusted_public_records_url(url: str) -> bool:
+    host = urlsplit(url).netloc.lower()
+    return (
+        host.endswith(".gov")
+        or host.endswith(".ca.gov")
+        or host.endswith(".us")
+        or "legistar.com" in host
+        or "granicus.com" in host
+    )
+
+
+def _is_sanjose_official_records_url(url: str) -> bool:
+    lowered_url = url.lower().strip()
+    host = urlsplit(url).netloc.lower()
+    if "sanjoseca.gov" in host:
+        return True
+    if "sanjose.legistar.com" in host:
+        return True
+    return "webapi.legistar.com" in host and "/v1/sanjose/" in lowered_url
+
+
+def _is_economic_aggregator_url(url: str) -> bool:
+    host = urlsplit(url).netloc.lower()
+    return any(signal in host for signal in ECONOMIC_AGGREGATOR_HOST_SIGNALS)
 
 
 def prefetch_skip_reason(url: str) -> str | None:
@@ -512,14 +590,18 @@ def _is_weak_reader_fallback_candidate(candidate: SearchResultItem) -> bool:
 
 
 def _parsed_query_params(url: str) -> dict[str, list[str]]:
-    return {key.lower(): values for key, values in parse_qs(urlsplit(url).query).items()}
+    return {
+        key.lower(): values for key, values in parse_qs(urlsplit(url).query).items()
+    }
 
 
 def _has_query_key(params: dict[str, list[str]], key: str) -> bool:
     return key in params and any(str(value).strip() for value in params[key])
 
 
-def _has_query_value(params: dict[str, list[str]], key: str, expected_values: tuple[str, ...]) -> bool:
+def _has_query_value(
+    params: dict[str, list[str]], key: str, expected_values: tuple[str, ...]
+) -> bool:
     if key not in params:
         return False
     allowed = {value.lower() for value in expected_values}
@@ -539,25 +621,44 @@ def _is_concrete_artifact_url(url: str) -> bool:
     path = parsed.path.lower()
     host = parsed.netloc.lower()
     params = _parsed_query_params(url)
-    is_official_host = host.endswith(".gov") or host.endswith(".ca.gov") or host.endswith(".us")
+    is_official_host = (
+        host.endswith(".gov") or host.endswith(".ca.gov") or host.endswith(".us")
+    )
     is_legistar_host = "legistar.com" in host
     is_granicus_host = "granicus.com" in host
-    is_trusted_public_records_host = is_official_host or is_legistar_host or is_granicus_host
+    is_trusted_public_records_host = (
+        is_official_host or is_legistar_host or is_granicus_host
+    )
 
     if lowered_url.endswith(".pdf") or "/pdf/" in lowered_url:
         return is_trusted_public_records_host
 
-    if is_legistar_host and "meetingdetail.aspx" in path and (_has_query_key(params, "id") or _has_query_key(params, "legid")):
+    if (
+        is_legistar_host
+        and "meetingdetail.aspx" in path
+        and (_has_query_key(params, "id") or _has_query_key(params, "legid"))
+    ):
         return True
 
-    if is_legistar_host and "view.ashx" in path and _has_query_key(params, "id") and _has_query_value(params, "m", ("a", "m", "f")):
+    if (
+        is_legistar_host
+        and "view.ashx" in path
+        and _has_query_key(params, "id")
+        and _has_query_value(params, "m", ("a", "m", "f"))
+    ):
         return True
 
     if is_legistar_host and "gateway.aspx" in path and _has_query_key(params, "id"):
-        if _has_query_suffix(params, "id", ".pdf") or _has_query_value(params, "m", ("a", "m", "f")):
+        if _has_query_suffix(params, "id", ".pdf") or _has_query_value(
+            params, "m", ("a", "m", "f")
+        ):
             return True
 
-    if is_granicus_host and "agendaviewer.php" in path and _has_query_key(params, "clip_id"):
+    if (
+        is_granicus_host
+        and "agendaviewer.php" in path
+        and _has_query_key(params, "clip_id")
+    ):
         return True
 
     if is_official_host and "/agendacenter/viewfile/minutes/" in path:
@@ -586,6 +687,44 @@ def _is_economic_analysis_query(query_context: str | None) -> bool:
     return any(signal in lowered for signal in ECONOMIC_QUERY_INTENT_SIGNALS)
 
 
+def _infer_jurisdiction_from_query_context(query_context: str | None) -> str | None:
+    if not query_context:
+        return None
+    lowered = query_context.strip().lower()
+    if "san jose" in lowered:
+        return "san_jose_ca"
+    if "california" in lowered:
+        return "california_state"
+    county_match = re.search(r"\b([a-z]+)\s+county\b", lowered)
+    if county_match:
+        county = county_match.group(1)
+        return f"{county}_county"
+    return None
+
+
+def _infer_policy_families_from_query_context(query_context: str | None) -> list[str]:
+    if not query_context:
+        return []
+    lowered = query_context.strip().lower()
+    policy_families: list[str] = []
+    hints = (
+        ("commercial_linkage_fee", ("linkage fee", "impact fee", "fee schedule")),
+        ("parking_policy", ("parking", "parking minimum", "parking requirement")),
+        ("housing_permits", ("housing permit", "building permit", "permit issuance")),
+        ("business_compliance", ("business license", "compliance", "inspection")),
+        ("meeting_action", ("agenda", "minutes", "resolution", "ordinance", "council")),
+        ("zoning_land_use", ("zoning", "land use", "general plan")),
+        ("procurement_contract", ("procurement", "contract award", "rfp")),
+        ("public_safety", ("public safety", "police", "fire department")),
+    )
+    for family, family_hints in hints:
+        if any(hint in lowered for hint in family_hints):
+            policy_families.append(family)
+    if not policy_families:
+        return ["general_governance"]
+    return policy_families
+
+
 def _has_economic_numeric_signal(text: str) -> bool:
     return bool(
         re.search(
@@ -595,7 +734,9 @@ def _has_economic_numeric_signal(text: str) -> bool:
     )
 
 
-def _is_procedural_page_without_economic_signal(*, lowered_url: str, lowered_text: str) -> bool:
+def _is_procedural_page_without_economic_signal(
+    *, lowered_url: str, lowered_text: str
+) -> bool:
     if any(signal in lowered_url for signal in ECONOMIC_VALUE_URL_SIGNALS):
         return False
     if _has_economic_numeric_signal(lowered_text):
@@ -715,8 +856,12 @@ class PipelineDomainCommands:
         }
         return response
 
-    def _store_result(self, envelope: CommandEnvelope, response: CommandResponse) -> CommandResponse:
-        self.state.command_results[self._command_result_key(envelope)] = asdict(response)
+    def _store_result(
+        self, envelope: CommandEnvelope, response: CommandResponse
+    ) -> CommandResponse:
+        self.state.command_results[self._command_result_key(envelope)] = asdict(
+            response
+        )
         return response
 
     def _command_result_key(self, envelope: CommandEnvelope) -> str:
@@ -775,7 +920,9 @@ class PipelineDomainCommands:
         }
 
         status = "succeeded" if results else "succeeded_with_alerts"
-        decision_reason = "fresh_snapshot_materialized" if results else "search_empty_result"
+        decision_reason = (
+            "fresh_snapshot_materialized" if results else "search_empty_result"
+        )
         alerts = [] if results else ["search_results_empty"]
 
         return self._store_result(
@@ -787,7 +934,10 @@ class PipelineDomainCommands:
                 retry_class="none",
                 alerts=alerts,
                 counts={"search_results": len(results)},
-                refs={**self._windmill_refs(envelope), "search_snapshot_id": snapshot_id},
+                refs={
+                    **self._windmill_refs(envelope),
+                    "search_snapshot_id": snapshot_id,
+                },
                 details={"query": query},
             ),
         )
@@ -819,13 +969,16 @@ class PipelineDomainCommands:
             )
 
         captured_at = datetime.fromisoformat(snapshot["captured_at"])
-        snapshot_age_hours = int((_as_utc(self.state.now) - _as_utc(captured_at)).total_seconds() / 3600)
+        snapshot_age_hours = int(
+            (_as_utc(self.state.now) - _as_utc(captured_at)).total_seconds() / 3600
+        )
         result_count = len(snapshot["results"])
 
         fallback_age_hours = None
         if latest_success_at:
             fallback_age_hours = int(
-                (_as_utc(self.state.now) - _as_utc(latest_success_at)).total_seconds() / 3600
+                (_as_utc(self.state.now) - _as_utc(latest_success_at)).total_seconds()
+                / 3600
             )
 
         freshness_status = "fresh"
@@ -833,7 +986,10 @@ class PipelineDomainCommands:
         status = "succeeded"
 
         if result_count == 0:
-            if fallback_age_hours is not None and fallback_age_hours <= policy.stale_usable_ceiling_hours:
+            if (
+                fallback_age_hours is not None
+                and fallback_age_hours <= policy.stale_usable_ceiling_hours
+            ):
                 freshness_status = "empty_but_usable"
                 status = "succeeded_with_alerts"
                 alerts.append("source_search_failed_using_last_success")
@@ -862,7 +1018,10 @@ class PipelineDomainCommands:
                 retry_class=retry_class,
                 alerts=alerts,
                 counts={"search_results": result_count},
-                refs={**self._windmill_refs(envelope), "search_snapshot_id": snapshot_id},
+                refs={
+                    **self._windmill_refs(envelope),
+                    "search_snapshot_id": snapshot_id,
+                },
                 details={
                     "freshness_status": freshness_status,
                     "fresh_hours": policy.fresh_hours,
@@ -934,7 +1093,8 @@ class PipelineDomainCommands:
                 snippet=str(candidate_entry["snippet"]),
             )
             official_artifact_provider_error_seen = any(
-                bool(item.get("candidate_is_official_artifact")) for item in reader_provider_errors
+                bool(item.get("candidate_is_official_artifact"))
+                for item in reader_provider_errors
             )
             skip_reason = prefetch_skip_reason(candidate.url)
             if skip_reason:
@@ -963,7 +1123,9 @@ class PipelineDomainCommands:
                 and official_artifact_provider_error_seen
                 and _is_weak_reader_fallback_candidate(candidate)
             ):
-                quality_alerts.append("reader_fallback_blocked_after_official_reader_errors")
+                quality_alerts.append(
+                    "reader_fallback_blocked_after_official_reader_errors"
+                )
                 reader_quality_failures.append(
                     {
                         "url": candidate.url,
@@ -989,7 +1151,9 @@ class PipelineDomainCommands:
                 doc = self.reader_provider.fetch(url=candidate.url)
             except Exception as exc:
                 err = str(exc)
-                candidate_is_official_artifact = _is_concrete_artifact_url(candidate.url)
+                candidate_is_official_artifact = _is_concrete_artifact_url(
+                    candidate.url
+                )
                 reader_provider_errors.append(
                     {
                         "url": candidate.url,
@@ -1108,7 +1272,9 @@ class PipelineDomainCommands:
             )
 
         if not raw_scrape_ids:
-            provider_alerts = [f"reader_error:{item['error']}" for item in reader_provider_errors]
+            provider_alerts = [
+                f"reader_error:{item['error']}" for item in reader_provider_errors
+            ]
             alerts = list(dict.fromkeys(provider_alerts + quality_alerts))
             if reader_provider_errors:
                 return self._store_result(
@@ -1145,7 +1311,9 @@ class PipelineDomainCommands:
                 ),
             )
 
-        provider_alerts = [f"reader_error:{item['error']}" for item in reader_provider_errors]
+        provider_alerts = [
+            f"reader_error:{item['error']}" for item in reader_provider_errors
+        ]
         alerts = list(dict.fromkeys(quality_alerts + provider_alerts))
         status = "succeeded_with_alerts" if alerts else "succeeded"
         decision_reason = (
@@ -1161,7 +1329,10 @@ class PipelineDomainCommands:
                 decision_reason=decision_reason,
                 retry_class="none",
                 alerts=alerts,
-                counts={"raw_scrapes": len(raw_scrape_ids), "artifacts": len(artifact_refs)},
+                counts={
+                    "raw_scrapes": len(raw_scrape_ids),
+                    "artifacts": len(artifact_refs),
+                },
                 refs={
                     **self._windmill_refs(envelope),
                     "raw_scrape_ids": raw_scrape_ids,
@@ -1176,7 +1347,9 @@ class PipelineDomainCommands:
             ),
         )
 
-    def index(self, *, envelope: CommandEnvelope, raw_scrape_ids: list[str]) -> CommandResponse:
+    def index(
+        self, *, envelope: CommandEnvelope, raw_scrape_ids: list[str]
+    ) -> CommandResponse:
         envelope.validate()
         reused = self._reuse_if_idempotent(envelope)
         if reused:
@@ -1242,7 +1415,10 @@ class PipelineDomainCommands:
                 decision_reason="chunks_indexed",
                 retry_class="none",
                 counts={"chunks": upserted},
-                refs={**self._windmill_refs(envelope), "raw_scrape_ids": raw_scrape_ids},
+                refs={
+                    **self._windmill_refs(envelope),
+                    "raw_scrape_ids": raw_scrape_ids,
+                },
             ),
         )
 
@@ -1262,9 +1438,12 @@ class PipelineDomainCommands:
         evidence = [
             chunk
             for chunk in self.state.chunks.values()
-            if chunk["jurisdiction_id"] == jurisdiction_id and chunk["source_family"] == source_family
+            if chunk["jurisdiction_id"] == jurisdiction_id
+            and chunk["source_family"] == source_family
         ]
-        selected_evidence, evidence_audit = rank_evidence_chunks(question=question, chunks=evidence)
+        selected_evidence, evidence_audit = rank_evidence_chunks(
+            question=question, chunks=evidence
+        )
         if not selected_evidence:
             return self._store_result(
                 envelope,
@@ -1279,7 +1458,9 @@ class PipelineDomainCommands:
             )
 
         try:
-            payload = self.analyzer.analyze(question=question, evidence_chunks=selected_evidence)
+            payload = self.analyzer.analyze(
+                question=question, evidence_chunks=selected_evidence
+            )
         except Exception as exc:
             return self._store_result(
                 envelope,
@@ -1302,7 +1483,9 @@ class PipelineDomainCommands:
             "payload": payload,
             "contract_version": CONTRACT_VERSION,
         }
-        self.state.previous_success_by_scope[f"{jurisdiction_id}|{source_family}"] = self.state.now
+        self.state.previous_success_by_scope[f"{jurisdiction_id}|{source_family}"] = (
+            self.state.now
+        )
         return self._store_result(
             envelope,
             CommandResponse(
@@ -1372,7 +1555,9 @@ class PipelineDomainCommands:
                 command="summarize_run",
                 status=summary_status,
                 decision_reason="run_summary_materialized",
-                retry_class="none" if summary_status.startswith("succeeded") else "operator_required",
+                retry_class="none"
+                if summary_status.startswith("succeeded")
+                else "operator_required",
                 alerts=list(dict.fromkeys(alerts)),
                 counts=counts,
                 refs=refs | {"run_id": run_id},
@@ -1408,13 +1593,21 @@ class PipelineDomainCommands:
         freshness_state = freshness_result.decision_reason
 
         if freshness_state in {"stale_blocked", "empty_blocked"}:
-            responses.append(self.summarize_run(envelope=summarize_envelope, command_responses=responses))
+            responses.append(
+                self.summarize_run(
+                    envelope=summarize_envelope, command_responses=responses
+                )
+            )
             return responses
 
         read_result = self.read_fetch(envelope=read_envelope, snapshot_id=snapshot_id)
         responses.append(read_result)
         if read_result.status not in {"succeeded", "succeeded_with_alerts", "skipped"}:
-            responses.append(self.summarize_run(envelope=summarize_envelope, command_responses=responses))
+            responses.append(
+                self.summarize_run(
+                    envelope=summarize_envelope, command_responses=responses
+                )
+            )
             return responses
 
         index_result = self.index(
@@ -1430,5 +1623,7 @@ class PipelineDomainCommands:
             source_family=search_envelope.source_family,
         )
         responses.append(analyze_result)
-        responses.append(self.summarize_run(envelope=summarize_envelope, command_responses=responses))
+        responses.append(
+            self.summarize_run(envelope=summarize_envelope, command_responses=responses)
+        )
         return responses

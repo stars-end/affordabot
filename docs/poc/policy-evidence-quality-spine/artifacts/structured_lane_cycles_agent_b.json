@@ -1,0 +1,107 @@
+{
+  "feature_key": "bd-3wefe.13",
+  "worker_role": "Agent B - Structured Source Moat",
+  "artifact_version": "2026-04-16.structured-lane-cycles.agent-b.v1",
+  "cycles": [
+    {
+      "cycle_id": "B1",
+      "source_family_targeted": "source_catalog_universe",
+      "gate_targeted": ["D0"],
+      "code_config_data_tweak": "Expanded backend structured catalog from 2 to 7 families and added lane_classification/live_proven fields.",
+      "validation_command": "poetry run pytest tests/services/pipeline/test_structured_source_enrichment.py",
+      "before_after_or_blocker": "before: catalog_rows=2, lane_classification=true_structured only; after: catalog_rows=7 with true_structured=6 and secondary_search_derived=1.",
+      "impact_on_final_package_quality": "Broader source universe and explicit lane typing reduce false claims of structured breadth.",
+      "next_tweak": "Add unavailable/source-key provenance classification for OpenStates/Socrata."
+    },
+    {
+      "cycle_id": "B2",
+      "source_family_targeted": "legistar_web_api + san_jose_open_data_ckan",
+      "gate_targeted": ["D0", "D8"],
+      "code_config_data_tweak": "Catalog annotation now promotes live_proven=true only for observed runtime candidates and forces secondary_search_derived to non-live.",
+      "validation_command": "poetry run pytest tests/services/pipeline/test_structured_source_enrichment.py::test_structured_source_enricher_returns_integrated_status_when_candidates_exist",
+      "before_after_or_blocker": "before: live_proven not enforced at catalog level; after: integrated families explicitly live_proven=true, secondary-search remains non-live.",
+      "impact_on_final_package_quality": "Prevents unavailable or secondary snippets from being represented as integrated structured moat coverage.",
+      "next_tweak": "Attach policy-lineage keys to structured candidates."
+    },
+    {
+      "cycle_id": "B3",
+      "source_family_targeted": "legistar_web_api matter/event metadata",
+      "gate_targeted": ["D1"],
+      "code_config_data_tweak": "Added lineage_metadata (matter_id/event_date/event_body_id/source_identity) and policy_match metadata in structured enrichment candidates.",
+      "validation_command": "poetry run pytest tests/services/pipeline/test_structured_source_enrichment.py::test_legistar_matter_metadata_includes_provenance_and_non_id_facts",
+      "before_after_or_blocker": "before: no explicit lineage block on structured candidate; after: lineage metadata emitted on matter/event responses.",
+      "impact_on_final_package_quality": "Policy package can now trace structured rows back to event/body/item identity.",
+      "next_tweak": "Carry lineage fields into package-level structured provenance."
+    },
+    {
+      "cycle_id": "B4",
+      "source_family_targeted": "ckan + legistar enrichment outputs",
+      "gate_targeted": ["D1", "D5"],
+      "code_config_data_tweak": "Added policy_match_key/policy_match_confidence/reconciliation_status on structured candidates.",
+      "validation_command": "poetry run pytest tests/services/pipeline/test_structured_source_enrichment.py",
+      "before_after_or_blocker": "before: structured candidates had no reconciliation semantics; after: reconciliation intent present on all enriched structured outputs.",
+      "impact_on_final_package_quality": "Enables explicit source-of-truth and conflict handling for cross-source alignment.",
+      "next_tweak": "Enforce reconciliation in builder so unrelated fallback rows cannot pass."
+    },
+    {
+      "cycle_id": "B5",
+      "source_family_targeted": "secondary_search_derived (tavily)",
+      "gate_targeted": ["D3"],
+      "code_config_data_tweak": "Builder now marks structured_secondary_source as true_structured=false by default; schema carries true_structured in StructuredSourceProvenance.",
+      "validation_command": "poetry run pytest tests/services/pipeline/test_policy_evidence_package_builder.py::test_builder_keeps_structured_secondary_search_out_of_scraped_provenance",
+      "before_after_or_blocker": "before: secondary snippets could be counted as structured lane depth; after: explicit true_structured=false prevents that credit.",
+      "impact_on_final_package_quality": "True structured depth metric no longer inflated by Tavily snippets.",
+      "next_tweak": "Require true-structured contribution or provenance depth for structured lane pass."
+    },
+    {
+      "cycle_id": "B6",
+      "source_family_targeted": "legistar latest-event fallback",
+      "gate_targeted": ["D5"],
+      "code_config_data_tweak": "Builder reconciliation check now adds blocking_gate_present when structured source does not reconcile with primary policy keys.",
+      "validation_command": "poetry run pytest tests/services/pipeline/test_policy_evidence_package_builder.py::test_builder_blocks_unreconciled_structured_latest_event_fallback",
+      "before_after_or_blocker": "before: unrelated latest-event rows could flow without hard block; after: unreconciled structured fallback is fail-closed.",
+      "impact_on_final_package_quality": "Removes unrelated/latest-event structured contamination from final package.",
+      "next_tweak": "Propagate reconciliation status and confidence into structured provenance fields."
+    },
+    {
+      "cycle_id": "B7",
+      "source_family_targeted": "policy_evidence_package structured provenance",
+      "gate_targeted": ["D1", "D3", "D5"],
+      "code_config_data_tweak": "Extended StructuredSourceProvenance schema with policy_match/reconciliation + lineage fields and populated them from builder.",
+      "validation_command": "poetry run pytest tests/services/pipeline/test_policy_evidence_package_builder.py",
+      "before_after_or_blocker": "before: structured provenance had only family/access/endpoint/field_count; after: includes true_structured, policy_match_key/confidence, reconciliation, event/body/matter identifiers.",
+      "impact_on_final_package_quality": "Package now carries machine-auditable lineage and reconciliation metadata for structured lane.",
+      "next_tweak": "Add explicit shape-drift fail-closed coverage."
+    },
+    {
+      "cycle_id": "B8",
+      "source_family_targeted": "structured payload shape-drift",
+      "gate_targeted": ["D8"],
+      "code_config_data_tweak": "Added regression test for malformed structured_policy_facts shape (dict instead of list) expecting fail-closed with blocking gate.",
+      "validation_command": "poetry run pytest tests/services/pipeline/test_policy_evidence_package_builder.py::test_builder_fails_closed_when_structured_shape_drifts",
+      "before_after_or_blocker": "before: no explicit regression proving drift handling; after: deterministic test guarantees no crash/no false pass.",
+      "impact_on_final_package_quality": "Improves robustness against source-shape changes and prevents silent structured-lane pass.",
+      "next_tweak": "Publish updated catalog artifact in policy-evidence-quality-spine artifacts."
+    },
+    {
+      "cycle_id": "B9",
+      "source_family_targeted": "structured source catalog artifact",
+      "gate_targeted": ["D0"],
+      "code_config_data_tweak": "Created structured_source_catalog_agent_b.json with lane types, access/auth status, live_proven, and runtime_status.",
+      "validation_command": "git diff -- docs/poc/policy-evidence-quality-spine/artifacts/structured_source_catalog_agent_b.json",
+      "before_after_or_blocker": "before: no Agent-B scoped catalog artifact in quality-spine folder; after: versioned source-universe artifact present.",
+      "impact_on_final_package_quality": "Gives cycle-ready audit artifact for structured lane universe claims.",
+      "next_tweak": "Publish B1-B10 cycle ledger with measurable gate movements."
+    },
+    {
+      "cycle_id": "B10",
+      "source_family_targeted": "structured lane quality spine tracking",
+      "gate_targeted": ["D0", "D1", "D3", "D5", "D8"],
+      "code_config_data_tweak": "Created structured_lane_cycles_agent_b.md + JSON ledger with measured before/after and validation commands for B1-B10.",
+      "validation_command": "git diff -- docs/poc/policy-evidence-quality-spine/structured_lane_cycles_agent_b.md docs/poc/policy-evidence-quality-spine/artifacts/structured_lane_cycles_agent_b.json",
+      "before_after_or_blocker": "before: no cycle-by-cycle structured-lane ledger for Agent B; after: complete B1-B10 records with next-step chain and gate impacts.",
+      "impact_on_final_package_quality": "Provides auditable trace from code delta to gate movement and package-quality impact.",
+      "next_tweak": "Run integrated live cycle against Windmill runtime once cross-agent dependencies land."
+    }
+  ]
+}
