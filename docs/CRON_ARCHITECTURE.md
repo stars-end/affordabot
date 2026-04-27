@@ -10,6 +10,16 @@ Backend cron trigger endpoints provide authenticated HTTP access for Windmill (o
 This replaces the legacy Prefect orchestration (removed in `bd-s8id.4`) and Railway Cron scheduling
 (migrated to Windmill in `bd-s8id.3`).
 
+For implementation-ready cycle-review architecture and HITL 10-20 cycle workflows, see:
+`docs/specs/2026-04-27-data-moat-cycle-review-architecture.md`.
+
+Boundary lock:
+- Windmill cron/run data is runtime evidence and orchestration metadata.
+- Windmill-native labels, `wm_labels`, job result envelopes, asset references,
+  and run deep links are required transparency primitives for data-moat cycles.
+- Affordabot backend/admin read models remain product truth for cycle gates and review decisions.
+- OSS data-quality tooling, if used, is bounded pilot support only and not the truth surface.
+
 ## Scheduler: Windmill
 
 Shared dev instance:
