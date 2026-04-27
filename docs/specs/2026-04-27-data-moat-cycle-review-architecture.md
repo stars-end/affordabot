@@ -115,7 +115,7 @@ Required first-party Windmill surfaces:
 | --- | --- | --- |
 | Runs dashboard | Filter and inspect every moat-cycle run by cycle, lane, jurisdiction, source family, stage, and provider. | Runtime evidence only. |
 | Static labels | Attach stable labels to flows, scripts, schedules, and manual triggers. | Labels are filters, not truth assertions. |
-| Dynamic `wm_labels` | Return per-run labels from scripts for `cycle_id`, `feature_key`, `jurisdiction_id`, `source_family`, `lane`, `stage`, and `provider` where known. | Missing labels warn the cycle; labels do not upgrade proof state. |
+| Dynamic `wm_labels` | Return per-run labels from scripts for `cycle_id`, `feature_key`, `jurisdiction_id`, `source_family`, `policy_family`, `lane`, `stage`, and `provider` where known. | Missing labels warn the cycle; labels do not upgrade proof state. |
 | Job result payloads | Return a small `cycle_evidence_envelope` from each relevant Windmill job. | Large artifacts stay in Affordabot storage/object storage. |
 | Job/run URLs | Persist resolvable run links into `windmill_evidence[]`. | Links support audit and rerun; they do not decide pass/fail. |
 | Assets | Reference S3/resource-backed artifacts using Windmill-supported asset paths where useful. | Asset presence is provenance support, not product sufficiency. |
@@ -197,6 +197,9 @@ point for implementation handoffs.
 - which Windmill primitives were used
 - which primitives were explicitly not used
 - why any custom code was necessary
+- how the implementation handled generated UIs, progress/streaming,
+  worker groups/concurrency/debouncing, and git/CLI governance without
+  duplicating Windmill-native capabilities
 - whether the choice is `ALL_IN_NOW`, `DEFER_TO_P2_PLUS`, or
   `CLOSE_AS_NOT_WORTH_IT`
 
@@ -211,6 +214,7 @@ Minimum `cycle_evidence_envelope`:
   "stage": "probe",
   "jurisdiction_id": "oakland-ca",
   "source_family": "permits",
+  "policy_family": "housing",
   "provider": "arcgis",
   "status": "succeeded",
   "windmill": {
@@ -315,6 +319,7 @@ Each delta entry shape:
 {
   "jurisdiction_id": "san-jose-ca",
   "source_family": "meeting_minutes",
+  "policy_family": "housing",
   "status": "live_proven",
   "previous_status": "cataloged_intent",
   "delta": "upgraded",
@@ -332,6 +337,7 @@ Each delta entry shape:
 - `proof_id`
 - `jurisdiction_id`
 - `source_family`
+- `policy_family`
 - `source_type` (`structured`)
 - `row_identity`
 - `extraction_depth`
@@ -354,6 +360,7 @@ codes.
 - `cell_id`
 - `jurisdiction_id`
 - `source_family`
+- `policy_family`
 - `query_family`
 - `provider`
 - `artifact_recall_top_n`
@@ -410,6 +417,7 @@ Required dynamic labels:
 - `feature_key:<bd-id>`
 - `jurisdiction:<jurisdiction_id>`
 - `source_family:<source_family>`
+- `policy_family:<policy_family>` where known
 - `lane:<structured|scraped>`
 - `stage:<plan|search|probe|read|validate|store|index|analyze|publish>`
 - `provider:<provider>`
