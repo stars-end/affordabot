@@ -41,3 +41,7 @@ brownfield orientation.
 - `docs/reviews/2026-04-27-data-moat-original-workflow-pain-point-review.md`:
   pain-point review of the original structured-source and SearXNG/scraped
   workflows, including missed blockers and the revised implementation priority.
+- `docs/reviews/2026-04-27-data-moat-windmill-ratchet-planning-review.md`:
+  follow-up planning review focused on avoiding another 30+ low-progress
+  iteration cycles by using Windmill as the runtime laboratory and enforcing a
+  per-cell progress ratchet for structured and unstructured paths.
