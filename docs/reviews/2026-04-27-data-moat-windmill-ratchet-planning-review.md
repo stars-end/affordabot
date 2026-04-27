@@ -240,6 +240,45 @@ No new implementation epic is needed. Tighten existing Beads instead:
   implementation dispatch, unless unavailable and replaced by a human skim of
   the same prompt.
 
+## External Review Integration Result
+
+Two external red-team reviews were used to sharpen this plan:
+
+- Kimi-labeled combined review: useful score `88/100`
+- DeepSeek-labeled combined review: useful score `91/100`
+
+Accepted into the plan:
+
+- Move the progress ratchet from comments into `bd-cc6a4.1` acceptance
+  criteria.
+- Expand `bd-cc6a4.2` acceptance criteria so the Windmill contract covers
+  workflows-as-code, native flows, generated runtime inputs,
+  progress/streaming/logs, concurrency/debounce, and triggers/webhooks/routes.
+- Tighten `bd-cc6a4.8` so native flow primitives are required where steps need
+  independent retry, branching, approval, fanout, or concurrency control.
+- Require an itemized native-reuse audit, not a summary paragraph.
+- Add `wm_labels` to the minimum `cycle_evidence_envelope`.
+- Require `bd-cc6a4.3` to reject catalog existence, endpoint intent, generated
+  config, planned schedule, or unvalidated search hit as proof-state upgrades.
+- Add explicit structured and scraped live-integration gates to `bd-cc6a4.6`.
+- Tighten `bd-0si04.1` and `bd-dcq8f.1` so structured/non-fee depth and
+  unstructured profile/query/crawl escalation rules are contractual.
+
+Not accepted as hard gates:
+
+- A blanket rewrite of every current Windmill script into a visual/native flow
+  before implementation. The accepted rule is narrower: use native flow
+  primitives wherever a step needs independent retry, branching, approval,
+  fanout, or concurrency control; justify any remaining monolithic step.
+- A new implementation epic. The existing graph is sufficient after acceptance
+  criteria tightening.
+- A custom programmatic gate that automatically blocks the third stale cycle in
+  all cases. For this planning package, the ratchet is contractual and
+  HITL-visible; implementation may add automated detection, but the first gate
+  is the report contract and acceptance criteria.
+- Re-opening settled product-truth decisions. Railway Postgres, pgvector,
+  MinIO, and Affordabot admin/glassbox remain the product-truth substrate.
+
 ## Verdict
 
 Recommendation: revise PR #445 before HITL approval.

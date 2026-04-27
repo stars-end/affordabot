@@ -203,6 +203,11 @@ point for implementation handoffs.
 - how the implementation handled generated UIs, progress/streaming,
   worker groups/concurrency/debouncing, and git/CLI governance without
   duplicating Windmill-native capabilities
+- whether the audit is itemized for workflows-as-code, flows/schedules,
+  labels/`wm_labels`, Jobs/Runs, Assets, Resources/resource types, object
+  storage/`S3Object`, concurrency/debounce, generated UIs, progress/streaming,
+  Postgres triggers, DuckDB/Polars, data tables/Ducklake/volumes, and
+  git/CLI governance
 - whether the choice is `ALL_IN_NOW`, `DEFER_TO_P2_PLUS`, or
   `CLOSE_AS_NOT_WORTH_IT`
 
@@ -220,6 +225,16 @@ Minimum `cycle_evidence_envelope`:
   "policy_family": "housing",
   "provider": "arcgis",
   "status": "succeeded",
+  "wm_labels": {
+    "cycle": "2026-04-27-cycle-053",
+    "feature_key": "bd-cc6a4",
+    "jurisdiction": "oakland-ca",
+    "source_family": "permits",
+    "policy_family": "housing",
+    "lane": "structured",
+    "stage": "probe",
+    "provider": "arcgis"
+  },
   "windmill": {
     "workspace": "affordabot",
     "flow_path": "f/affordabot/data_moat_cycle",
@@ -326,6 +341,7 @@ Each delta entry shape:
   "status": "live_proven",
   "previous_status": "cataloged_intent",
   "delta": "upgraded",
+  "progress_state": "upgraded",
   "freshness_hours": 12,
   "coverage_count": 48,
   "analysis_ready": true,
@@ -357,6 +373,10 @@ Structured rows may upgrade `cataloged_intent` to `live_proven` only when the
 proof row matches row identity, jurisdiction, source family, and extraction
 depth. Partial matches must remain `cataloged_intent` or `blocked` with reason
 codes.
+
+The cycle report must reject proof-state upgrades where the only evidence is
+catalog existence, endpoint intent, generated config, planned schedule, or a
+search hit without official-source validation and extraction depth.
 
 `scraped_cells[]` minimum fields:
 
@@ -402,6 +422,19 @@ codes.
 - `started_at`
 - `ended_at`
 - `labels`
+- `wm_labels`
+
+`progress_state` values:
+
+- `upgraded`
+- `regressed`
+- `unchanged_reasoned`
+- `unchanged_stale`
+
+After two consecutive `unchanged_stale` cycles for the same cell, the next
+cycle may not repeat the same action. It must revise the source catalog, query
+template, structured probe, official-root crawl/index strategy, close the cell
+as not worth current effort, or escalate to HITL.
 
 ## Windmill Label Taxonomy
 
@@ -618,6 +651,8 @@ enriching.
 - `bd-cc6a4.8` includes a native-reuse audit covering flows, assets, workspace
   object storage, resources/resource types, data tables/Ducklake/volumes, and
   Postgres triggers.
+- Any polling loop for known table-change events documents why Windmill
+  Postgres triggers, webhooks, or routes were not viable.
 - Large artifacts are represented as S3/object-storage pointers whenever
   practical; job results remain small evidence envelopes.
 - Custom Affordabot code is limited to product truth, review semantics,
