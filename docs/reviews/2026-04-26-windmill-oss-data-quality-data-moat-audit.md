@@ -55,12 +55,19 @@ Affordabot is **materially underusing first-party Windmill capabilities** for or
 ### Live Windmill Inventory (read-only CLI check, 2026-04-27)
 
 - **Workspace:** `affordabot` on `https://server-dev-8d5b.up.railway.app`
+- **CLI version:** `windmill-cli@1.682.0`
 - **Flows (7):** discovery_run, daily_scrape, rag_spiders, universal_harvester, manual_substrate_expansion, pipeline_daily_refresh_domain_boundary__flow, policy_evidence_package_orchestration__flow
 - **Scripts (3):** trigger_cron_job, pipeline_daily_refresh_domain_boundary, policy_evidence_package_orchestration
 - **Labels:** **none** on any flow or script.
 - **Assets:** **none** detected (no `s3://` or `res://` references in code that Windmill tracks).
 - **States / Resources:** standard workspace variables only (`BACKEND_PUBLIC_URL`, `CRON_SECRET`, `SLACK_WEBHOOK_URL`).
-- **Queued jobs:** 3 scheduled flows waiting for next trigger (daily_scrape, rag_spiders, universal_harvester).
+- **Queued jobs:** 4 scheduled flows waiting for next trigger (discovery_run, daily_scrape, rag_spiders, universal_harvester).
+- **Recent completed jobs:** All 4 scheduled flows executed this morning (2026-04-27):
+  - `discovery_run`: **FAILED** (duration 602s, `success: false`)
+  - `daily_scrape`: succeeded (duration 35s)
+  - `rag_spiders`: succeeded (duration 23s)
+  - `universal_harvester`: succeeded (duration 409s)
+- **Key observation:** The `discovery_run` failure is visible in Windmill's live run history but there is **no alerting or escalation path** from Windmill to the operator beyond the Slack webhook in `trigger_cron_job.py`. No labels mean the operator cannot quickly filter to "which flows cover the discovery path."
 
 ### Native Windmill Surfaces Used
 
