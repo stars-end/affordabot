@@ -58,6 +58,9 @@ Implementation can start only after HITL approves:
 - the Windmill-native transparency checklist
 - the Windmill-vs-Affordabot ownership boundary
 - the sequencing between structured, scraped, LLM-enrichment, and admin work
+- the cycle-pack launch contract and bounded external-model red-team review
+  described in
+  `docs/reviews/2026-04-27-data-moat-windmill-ratchet-planning-review.md`
 
 Until then, valid work is limited to documentation/spec edits and Beads
 coordination comments.
@@ -689,10 +692,12 @@ First executable task after HITL approval:
 
 - `bd-cc6a4.1`
 
-Why first: the contract and Windmill-native transparency gate must be frozen
-before backend serialization or UI panels are implemented. Otherwise the team
-risks building admin summaries that cannot be audited in Windmill as the
-structured and scraped pipelines change.
+Why first: the contract, cycle-pack launch gate, progress ratchet, and
+Windmill-native transparency gate must be frozen before backend serialization
+or UI panels are implemented. Otherwise the team risks building admin
+summaries that cannot be audited in Windmill and can repeat low-progress
+structured/scraped cycles without changing the source catalog, query templates,
+or probe strategy.
 
 ## Implementation Dispatch Boundaries
 

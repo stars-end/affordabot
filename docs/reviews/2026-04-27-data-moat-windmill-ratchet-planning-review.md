@@ -177,6 +177,51 @@ cycle-pack launch contract:
   after two cycles, revise the source catalog/query/probe strategy before
   rerunning
 
+## External Model Review Checkpoint
+
+Run one bounded external-model red-team review after the cycle-pack launch
+contract is drafted and before implementation dispatch.
+
+Use this review for adversarial planning critique only. It does not replace
+HITL approval, Beads dependency order, or source-grounded verification.
+
+Recommended lanes:
+
+- DeepSeek V4-Pro or equivalent long-context reviewer: full-package architecture
+  critique across PR docs, Beads graph summary, Windmill docs-derived
+  requirements, and the first cycle-pack launch contract.
+- Kimi K2.6 or equivalent agentic-coding reviewer: implementation-plan
+  critique focused on whether future agents will overbuild custom code instead
+  of using Windmill-native workflows, labels, resources, assets, object storage,
+  generated inputs, concurrency, debouncing, and git/CLI governance.
+
+Boundaries:
+
+- The review is advisory. It can produce findings, but cannot mark the PR ready
+  or authorize implementation.
+- Each finding must cite an exact file section, Beads id, or missing acceptance
+  criterion. Generic model advice is ignored.
+- Each accepted finding must map to one of:
+  - spec/docs patch
+  - Beads acceptance-criteria/comment update
+  - explicit `CLOSE_AS_NOT_WORTH_IT`
+- Do not ask the reviewer to design a new architecture from scratch.
+- Do not let the review re-open settled decisions: Railway Postgres, pgvector,
+  MinIO, and Affordabot admin remain product truth.
+- If model/API access is unavailable, do not block implementation indefinitely.
+  Record `external_model_review_unavailable` and require a human skim of the
+  same prompt before dispatch.
+
+Suggested review questions:
+
+1. Does this plan prevent another 30+ low-progress iteration cycle?
+2. Where are we still underusing Windmill-native capabilities?
+3. Where does the plan risk moving product truth into Windmill scripts/apps?
+4. Are the structured path gates strong enough to move C2/C13/C14?
+5. Are the unstructured path gates strong enough to avoid search-plumbing churn?
+6. Which acceptance criterion should change before the first implementation
+   task starts?
+
 ## Recommended Beads Tightening
 
 No new implementation epic is needed. Tighten existing Beads instead:
@@ -191,6 +236,9 @@ No new implementation epic is needed. Tighten existing Beads instead:
   targets and source-catalog diff expectations.
 - `bd-dcq8f.1`: require profile owner/reviewer, baseline-vs-current query
   comparison, and official-root crawl escalation criteria.
+- `bd-cc6a4`: require one bounded external-model red-team review before
+  implementation dispatch, unless unavailable and replaced by a human skim of
+  the same prompt.
 
 ## Verdict
 
