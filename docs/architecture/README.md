@@ -31,3 +31,17 @@ or analysis surface.
 These files are maintained by the repo-memory freshness contract. Beads memory
 is a pointer and decision log; these maps are the repo-owned source of truth for
 brownfield orientation.
+
+## Current Spec Locks
+
+- `docs/specs/2026-04-27-data-moat-cycle-review-architecture.md`: review-first
+  contract for 10-20 structured/scraped data-moat cycles, including the
+  `data_moat_cycle_report` artifact, Windmill evidence boundary, Beads graph,
+  and HITL review gate before implementation dispatch.
+- `docs/reviews/2026-04-27-data-moat-original-workflow-pain-point-review.md`:
+  pain-point review of the original structured-source and SearXNG/scraped
+  workflows, including missed blockers and the revised implementation priority.
+- `docs/reviews/2026-04-27-data-moat-windmill-ratchet-planning-review.md`:
+  follow-up planning review focused on avoiding another 30+ low-progress
+  iteration cycles by using Windmill as the runtime laboratory and enforcing a
+  per-cell progress ratchet for structured and unstructured paths.

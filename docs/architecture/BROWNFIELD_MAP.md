@@ -70,6 +70,8 @@ explanation. Treat pipeline changes as product changes.
   but usable evidence.
 - Windmill reruns whole flows rather than resuming a single failed step. Backend
   commands and storage writes must be idempotent.
+- Cycle-review truth is locked to the Affordabot `data_moat_cycle_report` read
+  model. Windmill run data is required evidence, but not product truth.
 
 ## Known Fragile Areas
 
@@ -87,6 +89,7 @@ explanation. Treat pipeline changes as product changes.
 ## Before Changing This Area
 
 Read these first:
+- `docs/specs/2026-04-27-data-moat-cycle-review-architecture.md`
 - `docs/specs/2026-04-13-windmill-domain-brownfield-spec-lock.md`
 - `docs/specs/2026-03-19-affordabot-california-pipeline-truth-remediation.md`
 - `docs/research/2026-04-14-private-searxng-quality-review.md`

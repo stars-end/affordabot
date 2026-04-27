@@ -79,6 +79,13 @@ Do not call a POC successful only because a flow completed. The acceptance
 question is whether the resulting package is good enough for quantitative
 economic analysis.
 
+For repeated structured/scraped moat cycles, the required review artifact is
+`data_moat_cycle_report` as defined in
+`docs/specs/2026-04-27-data-moat-cycle-review-architecture.md`. Use Windmill
+labels, dynamic `wm_labels`, job result envelopes, run URLs, and asset/resource
+references as evidence references, but compute cycle verdicts,
+jurisdiction/source-family deltas, and economic handoff state in Affordabot.
+
 ## Frontend Pattern
 
 Frontend is a display and review layer. It should read backend/admin APIs and

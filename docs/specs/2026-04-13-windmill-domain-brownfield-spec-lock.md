@@ -6,6 +6,7 @@ Epic: `bd-9qjof`
 First task: `bd-9qjof.1`
 Related ADR: `docs/architecture/2026-04-12-windmill-affordabot-boundary-adr.md`
 Related POC: `docs/poc/windmill-storage-bakeoff/ARCHITECTURE_RECOMMENDATION.md`
+Cycle Review Spec: `docs/specs/2026-04-27-data-moat-cycle-review-architecture.md`
 
 ## Summary
 
@@ -19,6 +20,8 @@ The implementation target is a brownfield refactor:
 - expose frontend/operator state through affordabot backend read APIs
 
 This document locks the contracts needed before two implementation agents can safely work in parallel.
+
+Cycle-review boundary update (2026-04-27): this spec remains the domain/orchestration boundary lock. The canonical 10-20 cycle review contract now lives in `docs/specs/2026-04-27-data-moat-cycle-review-architecture.md`, where Windmill run metadata is treated as runtime evidence and Affordabot admin/glassbox remains product truth.
 
 ## Problem
 

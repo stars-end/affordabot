@@ -36,6 +36,35 @@ fact that a scheduler ran. Storage decisions must preserve the data moat.
 - Windmill may pass artifact handles and step outputs, but should not become
   the keeper of product identity rules.
 
+## Windmill Native Reuse With Existing Railway Storage
+
+Windmill's expanded data-pipeline, asset, object-storage, persistent-storage,
+and Postgres-trigger features should wrap the existing Railway substrate, not
+replace it.
+
+- Railway Postgres remains the product database for source catalogs, proof
+  rows, scraped candidates, run metadata, review state, admin read models, and
+  economic handoff metadata. Windmill should connect to it as a Postgres
+  resource or call backend domain commands when product invariants matter.
+- Railway pgvector remains the retrieval index for promoted evidence chunks.
+  Windmill may orchestrate embedding refresh/backfill/validation, but the index
+  stays part of the Affordabot product substrate.
+- Railway MinIO remains the artifact store for raw and intermediate objects.
+  Windmill should expose MinIO through S3-compatible resources/workspace object
+  storage where feasible, return `s3://`/`S3Object` pointers, and let Windmill
+  Assets show lineage around those existing objects.
+- Windmill data tables, Ducklake, and volumes are not default product storage.
+  Use them only for orchestration-local scratch state, cache/stateful script
+  files, or a separately approved lakehouse decision.
+- Windmill Postgres triggers can replace polling for known table-change
+  events when the deployment supports logical replication, but they must call
+  backend-owned contracts instead of reimplementing product transitions.
+
+Anti-duplication rule: do not add a custom DAG runner, object browser, lineage
+table, polling loop, or tabular ETL service until the implementation handoff
+documents why Windmill flows, object storage, Assets, Postgres triggers, and
+DuckDB/Polars helpers are insufficient.
+
 ## Scraped Evidence Lane
 
 Minimum durable record for a scraped candidate:
@@ -78,6 +107,20 @@ items into one provenance-preserving shape:
 
 The package is not analysis-ready until it can be persisted, replayed, read
 from admin/glass-box surfaces, and regenerated idempotently.
+
+## Cycle Review Artifact
+
+The canonical 10-20 cycle review surface is the backend-owned
+`data_moat_cycle_report` contract in
+`docs/specs/2026-04-27-data-moat-cycle-review-architecture.md`.
+
+This report is not a replacement for raw evidence, storage rows, or Windmill
+run history. It is a stable read model that compares cycle deltas across
+structured proof rows, scraped onboarding cells, provider failures, and
+economic handoff blockers.
+
+Windmill job IDs, labels, and run URLs are evidence references inside the
+report. Product truth stays in Affordabot storage/read models.
 
 ## Storage Proof Required
 

@@ -50,7 +50,27 @@ Path B orchestration skeleton (unscheduled by default):
 Boundary note:
 - this flow shape calls coarse domain-command stubs only (`search_materialize`, `freshness_gate`,
   `read_fetch`, `index`, `analyze`, `summarize_run`).
-- direct product writes (Postgres, pgvector, object storage) stay outside Windmill assets.
+- Railway Postgres, pgvector, and MinIO remain Affordabot's product data
+  substrate.
+- Windmill may reference those services through Resources, `s3://`/`res://`
+  asset references, workspace object storage, and job evidence envelopes.
+- Product writes that need canonical keys, proof-state transitions,
+  idempotency, promotion tiers, or economic gates should go through backend
+  domain commands rather than being reimplemented in Windmill scripts.
+
+Cycle-review boundary update (2026-04-27):
+- Windmill jobs/runs/labels provide runtime evidence for cycle review.
+- Data-moat flows must use Windmill-native transparency primitives: static
+  labels, dynamic `wm_labels`, small job result envelopes, run deep links, and
+  asset/resource references where useful.
+- Implementation handoffs must include a Windmill first-party reuse audit
+  before adding custom DAG, lineage, object-browser, polling, storage, or
+  tabular-processing code.
+- Affordabot admin/glassbox `data_moat_cycle_report` remains the product truth surface.
+- Do not move cycle gate verdicts, economic handoff verdicts, or jurisdiction/source-family truth into Windmill apps/scripts.
+
+Windmill label taxonomy for moat-cycle jobs is defined in:
+- `docs/specs/2026-04-27-data-moat-cycle-review-architecture.md`
 
 Required workspace variables:
 
